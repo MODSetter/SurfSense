@@ -5,14 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useSidebarState } from "../../hooks";
-import type {
-	ChatItem,
-	NavItem,
-	NoteItem,
-	PageUsage,
-	SearchSpace,
-	User,
-} from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import { MobileSidebar, MobileSidebarTrigger, Sidebar } from "../sidebar";
@@ -21,26 +14,23 @@ interface LayoutShellProps {
 	searchSpaces: SearchSpace[];
 	activeSearchSpaceId: number | null;
 	onSearchSpaceSelect: (id: number) => void;
+	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
+	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
 	onAddSearchSpace: () => void;
 	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSeeAllSearchSpaces?: () => void;
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
@@ -58,26 +48,23 @@ export function LayoutShell({
 	searchSpaces,
 	activeSearchSpaceId,
 	onSearchSpaceSelect,
+	onSearchSpaceDelete,
+	onSearchSpaceSettings,
 	onAddSearchSpace,
 	searchSpace,
 	navItems,
 	onNavItemClick,
 	chats,
+	sharedChats,
 	activeChatId,
 	onNewChat,
 	onChatSelect,
 	onChatDelete,
-	onViewAllChats,
-	notes,
-	activeNoteId,
-	onNoteSelect,
-	onNoteDelete,
-	onAddNote,
-	onViewAllNotes,
+	onViewAllSharedChats,
+	onViewAllPrivateChats,
 	user,
 	onSettings,
 	onManageMembers,
-	onSeeAllSearchSpaces,
 	onUserSettings,
 	onLogout,
 	pageUsage,
@@ -113,26 +100,23 @@ export function LayoutShell({
 						searchSpaces={searchSpaces}
 						activeSearchSpaceId={activeSearchSpaceId}
 						onSearchSpaceSelect={onSearchSpaceSelect}
+						onSearchSpaceDelete={onSearchSpaceDelete}
+						onSearchSpaceSettings={onSearchSpaceSettings}
 						onAddSearchSpace={onAddSearchSpace}
 						searchSpace={searchSpace}
 						navItems={navItems}
 						onNavItemClick={onNavItemClick}
 						chats={chats}
+						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={onNewChat}
 						onChatSelect={onChatSelect}
 						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={onNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
 						user={user}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
-						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
 						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
@@ -155,6 +139,8 @@ export function LayoutShell({
 						searchSpaces={searchSpaces}
 						activeSearchSpaceId={activeSearchSpaceId}
 						onSearchSpaceSelect={onSearchSpaceSelect}
+						onSearchSpaceDelete={onSearchSpaceDelete}
+						onSearchSpaceSettings={onSearchSpaceSettings}
 						onAddSearchSpace={onAddSearchSpace}
 					/>
 				</div>
@@ -167,21 +153,16 @@ export function LayoutShell({
 						navItems={navItems}
 						onNavItemClick={onNavItemClick}
 						chats={chats}
+						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={onNewChat}
 						onChatSelect={onChatSelect}
 						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={onNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
 						user={user}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
-						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
 						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}

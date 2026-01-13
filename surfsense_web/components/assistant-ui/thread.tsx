@@ -229,7 +229,14 @@ const Composer: FC = () => {
 
 	// Sync mentioned document IDs to atom for use in chat request
 	useEffect(() => {
-		setMentionedDocumentIds(mentionedDocuments.map((doc) => doc.id));
+		setMentionedDocumentIds({
+			surfsense_doc_ids: mentionedDocuments
+				.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
+				.map((doc) => doc.id),
+			document_ids: mentionedDocuments
+				.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
+				.map((doc) => doc.id),
+		});
 	}, [mentionedDocuments, setMentionedDocumentIds]);
 
 	// Handle text change from inline editor - sync with assistant-ui composer
@@ -295,7 +302,10 @@ const Composer: FC = () => {
 			// Clear the editor after sending
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
-			setMentionedDocumentIds([]);
+			setMentionedDocumentIds({
+				surfsense_doc_ids: [],
+				document_ids: [],
+			});
 		}
 	}, [
 		showDocumentPopover,
@@ -305,41 +315,52 @@ const Composer: FC = () => {
 		setMentionedDocumentIds,
 	]);
 
-	// Handle document removal from inline editor
 	const handleDocumentRemove = useCallback(
-		(docId: number) => {
+		(docId: number, docType?: string) => {
 			setMentionedDocuments((prev) => {
-				const updated = prev.filter((doc) => doc.id !== docId);
-				// Immediately sync document IDs to avoid race conditions
-				setMentionedDocumentIds(updated.map((doc) => doc.id));
+				const updated = prev.filter((doc) => !(doc.id === docId && doc.document_type === docType));
+				setMentionedDocumentIds({
+					surfsense_doc_ids: updated
+						.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
+						.map((doc) => doc.id),
+					document_ids: updated
+						.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
+						.map((doc) => doc.id),
+				});
 				return updated;
 			});
 		},
 		[setMentionedDocuments, setMentionedDocumentIds]
 	);
 
-	// Handle document selection from picker
 	const handleDocumentsMention = useCallback(
-		(documents: Document[]) => {
-			// Insert chips into the inline editor for each new document
-			const existingIds = new Set(mentionedDocuments.map((d) => d.id));
-			const newDocs = documents.filter((doc) => !existingIds.has(doc.id));
+		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
+			const existingKeys = new Set(mentionedDocuments.map((d) => `${d.document_type}:${d.id}`));
+			const newDocs = documents.filter(
+				(doc) => !existingKeys.has(`${doc.document_type}:${doc.id}`)
+			);
 
 			for (const doc of newDocs) {
 				editorRef.current?.insertDocumentChip(doc);
 			}
 
-			// Update mentioned documents state
 			setMentionedDocuments((prev) => {
-				const existingIdSet = new Set(prev.map((d) => d.id));
-				const uniqueNewDocs = documents.filter((doc) => !existingIdSet.has(doc.id));
+				const existingKeySet = new Set(prev.map((d) => `${d.document_type}:${d.id}`));
+				const uniqueNewDocs = documents.filter(
+					(doc) => !existingKeySet.has(`${doc.document_type}:${doc.id}`)
+				);
 				const updated = [...prev, ...uniqueNewDocs];
-				// Immediately sync document IDs to avoid race conditions
-				setMentionedDocumentIds(updated.map((doc) => doc.id));
+				setMentionedDocumentIds({
+					surfsense_doc_ids: updated
+						.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
+						.map((doc) => doc.id),
+					document_ids: updated
+						.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
+						.map((doc) => doc.id),
+				});
 				return updated;
 			});
 
-			// Reset mention query but keep popover open for more selections
 			setMentionQuery("");
 		},
 		[mentionedDocuments, setMentionedDocuments, setMentionedDocumentIds]
@@ -640,7 +661,7 @@ const UserMessage: FC = () => {
 						{/* Mentioned documents as chips */}
 						{mentionedDocs?.map((doc) => (
 							<span
-								key={doc.id}
+								key={`${doc.document_type}:${doc.id}`}
 								className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
 								title={doc.title}
 							>

@@ -326,6 +326,20 @@ class NewChatMessageRole(str, Enum):
     SYSTEM = "system"
 
 
+class ChatVisibility(str, Enum):
+    """
+    Visibility/sharing level for chat threads.
+
+    PRIVATE: Only the creator can see/access the chat (default)
+    SEARCH_SPACE: All members of the search space can see/access the chat
+    PUBLIC: (Future) Anyone with the link can access the chat
+    """
+
+    PRIVATE = "PRIVATE"
+    SEARCH_SPACE = "SEARCH_SPACE"
+    # PUBLIC = "PUBLIC"  # Reserved for future implementation
+
+
 class NewChatThread(BaseModel, TimestampMixin):
     """
     Thread model for the new chat feature using assistant-ui.
@@ -345,13 +359,31 @@ class NewChatThread(BaseModel, TimestampMixin):
         index=True,
     )
 
+    # Visibility/sharing control
+    visibility = Column(
+        SQLAlchemyEnum(ChatVisibility),
+        nullable=False,
+        default=ChatVisibility.PRIVATE,
+        server_default="PRIVATE",
+        index=True,
+    )
+
     # Foreign keys
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
 
+    # Track who created this chat thread (for visibility filtering)
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,  # Nullable for existing records before migration
+        index=True,
+    )
+
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
+    created_by = relationship("User", back_populates="new_chat_threads")
     messages = relationship(
         "NewChatMessage",
         back_populates="thread",
@@ -857,6 +889,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Chat threads created by this user
+        new_chat_threads = relationship(
+            "NewChatThread",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # Page usage tracking for ETL services
         pages_limit = Column(
             Integer,
@@ -885,6 +924,13 @@ else:
         )
         created_invites = relationship(
             "SearchSpaceInvite",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
+        # Chat threads created by this user
+        new_chat_threads = relationship(
+            "NewChatThread",
             back_populates="created_by",
             passive_deletes=True,
         )

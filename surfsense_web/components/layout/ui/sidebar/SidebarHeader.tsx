@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, LayoutGrid, Settings, Users } from "lucide-react";
+import { ChevronsUpDown, Settings, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,6 @@ interface SidebarHeaderProps {
 	isCollapsed?: boolean;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSeeAllSearchSpaces?: () => void;
 	className?: string;
 }
 
@@ -27,7 +26,6 @@ export function SidebarHeader({
 	isCollapsed,
 	onSettings,
 	onManageMembers,
-	onSeeAllSearchSpaces,
 	className,
 }: SidebarHeaderProps) {
 	const t = useTranslations("sidebar");
@@ -58,11 +56,6 @@ export function SidebarHeader({
 					<DropdownMenuItem onClick={onSettings}>
 						<Settings className="mr-2 h-4 w-4" />
 						{t("search_space_settings")}
-					</DropdownMenuItem>
-					<DropdownMenuSeparator />
-					<DropdownMenuItem onClick={onSeeAllSearchSpaces}>
-						<LayoutGrid className="mr-2 h-4 w-4" />
-						{t("see_all_search_spaces")}
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>

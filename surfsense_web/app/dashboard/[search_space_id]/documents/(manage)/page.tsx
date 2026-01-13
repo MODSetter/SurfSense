@@ -2,14 +2,15 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, SquarePlus, Upload } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Button } from "@/components/ui/button";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -17,7 +18,7 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
-import type { ColumnVisibility } from "./components/types";
+import type { ColumnVisibility, Document } from "./components/types";
 
 function useDebounced<T>(value: T, delay = 250) {
 	const [debounced, setDebounced] = useState(value);
@@ -32,7 +33,13 @@ export default function DocumentsTable() {
 	const t = useTranslations("documents");
 	const id = useId();
 	const params = useParams();
+	const router = useRouter();
 	const searchSpaceId = Number(params.search_space_id);
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
+
+	const handleNewNote = useCallback(() => {
+		router.push(`/dashboard/${searchSpaceId}/editor/new`);
+	}, [router, searchSpaceId]);
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 250);
@@ -48,33 +55,42 @@ export default function DocumentsTable() {
 	const [sortKey, setSortKey] = useState<SortKey>("title");
 	const [sortDesc, setSortDesc] = useState(false);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-	const { data: typeCounts } = useAtomValue(documentTypeCountsAtom);
+	const { data: rawTypeCounts } = useAtomValue(documentTypeCountsAtom);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
-	// Build query parameters for fetching documents
+	// Filter out SURFSENSE_DOCS from active types for regular documents API
+	const regularDocumentTypes = useMemo(
+		() => activeTypes.filter((t) => t !== "SURFSENSE_DOCS"),
+		[activeTypes]
+	);
+
+	// Check if only SURFSENSE_DOCS is selected (skip regular docs query)
+	const onlySurfsenseDocsSelected = activeTypes.length === 1 && activeTypes[0] === "SURFSENSE_DOCS";
+
+	// Build query parameters for fetching documents (excluding SURFSENSE_DOCS type)
 	const queryParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
 			page: pageIndex,
 			page_size: pageSize,
-			...(activeTypes.length > 0 && { document_types: activeTypes }),
+			...(regularDocumentTypes.length > 0 && { document_types: regularDocumentTypes }),
 		}),
-		[searchSpaceId, pageIndex, pageSize, activeTypes]
+		[searchSpaceId, pageIndex, pageSize, regularDocumentTypes]
 	);
 
-	// Build search query parameters
+	// Build search query parameters (excluding SURFSENSE_DOCS type)
 	const searchQueryParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
 			page: pageIndex,
 			page_size: pageSize,
 			title: debouncedSearch.trim(),
-			...(activeTypes.length > 0 && { document_types: activeTypes }),
+			...(regularDocumentTypes.length > 0 && { document_types: regularDocumentTypes }),
 		}),
-		[searchSpaceId, pageIndex, pageSize, activeTypes, debouncedSearch]
+		[searchSpaceId, pageIndex, pageSize, regularDocumentTypes, debouncedSearch]
 	);
 
-	// Use query for fetching documents
+	// Use query for fetching documents (disabled when only SURFSENSE_DOCS is selected)
 	const {
 		data: documentsResponse,
 		isLoading: isDocumentsLoading,
@@ -84,10 +100,10 @@ export default function DocumentsTable() {
 		queryKey: cacheKeys.documents.globalQueryParams(queryParams),
 		queryFn: () => documentsApiService.getDocuments({ queryParams }),
 		staleTime: 3 * 60 * 1000, // 3 minutes
-		enabled: !!searchSpaceId && !debouncedSearch.trim(),
+		enabled: !!searchSpaceId && !debouncedSearch.trim() && !onlySurfsenseDocsSelected,
 	});
 
-	// Use query for searching documents
+	// Use query for searching documents (disabled when only SURFSENSE_DOCS is selected)
 	const {
 		data: searchResponse,
 		isLoading: isSearchLoading,
@@ -97,16 +113,111 @@ export default function DocumentsTable() {
 		queryKey: cacheKeys.documents.globalQueryParams(searchQueryParams),
 		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
 		staleTime: 3 * 60 * 1000, // 3 minutes
-		enabled: !!searchSpaceId && !!debouncedSearch.trim(),
+		enabled: !!searchSpaceId && !!debouncedSearch.trim() && !onlySurfsenseDocsSelected,
 	});
 
+	// Determine if we should show SurfSense docs (when no type filter or SURFSENSE_DOCS is selected)
+	const showSurfsenseDocs =
+		activeTypes.length === 0 || activeTypes.includes("SURFSENSE_DOCS" as DocumentTypeEnum);
+
+	// Use query for fetching SurfSense docs
+	const {
+		data: surfsenseDocsResponse,
+		isLoading: isSurfsenseDocsLoading,
+		refetch: refetchSurfsenseDocs,
+	} = useQuery({
+		queryKey: ["surfsense-docs", debouncedSearch, pageIndex, pageSize],
+		queryFn: () =>
+			documentsApiService.getSurfsenseDocs({
+				queryParams: {
+					page: pageIndex,
+					page_size: pageSize,
+					title: debouncedSearch.trim() || undefined,
+				},
+			}),
+		staleTime: 3 * 60 * 1000, // 3 minutes
+		enabled: showSurfsenseDocs,
+	});
+
+	// Transform SurfSense docs to match the Document type
+	const surfsenseDocsAsDocuments: Document[] = useMemo(() => {
+		if (!surfsenseDocsResponse?.items) return [];
+		return surfsenseDocsResponse.items.map((doc) => ({
+			id: doc.id,
+			title: doc.title,
+			document_type: "SURFSENSE_DOCS",
+			document_metadata: { source: doc.source },
+			content: doc.content,
+			created_at: doc.created_at || doc.updated_at || new Date().toISOString(),
+			search_space_id: -1, // Special value for global docs
+		}));
+	}, [surfsenseDocsResponse]);
+
+	// Merge type counts with SURFSENSE_DOCS count
+	const typeCounts = useMemo(() => {
+		const counts = { ...(rawTypeCounts || {}) };
+		if (surfsenseDocsResponse?.total) {
+			counts.SURFSENSE_DOCS = surfsenseDocsResponse.total;
+		}
+		return counts;
+	}, [rawTypeCounts, surfsenseDocsResponse?.total]);
+
 	// Extract documents and total based on search state
-	const documents = debouncedSearch.trim()
+	const regularDocuments = debouncedSearch.trim()
 		? searchResponse?.items || []
 		: documentsResponse?.items || [];
-	const total = debouncedSearch.trim() ? searchResponse?.total || 0 : documentsResponse?.total || 0;
-	const loading = debouncedSearch.trim() ? isSearchLoading : isDocumentsLoading;
-	const error = debouncedSearch.trim() ? searchError : documentsError;
+	const regularTotal = debouncedSearch.trim()
+		? searchResponse?.total || 0
+		: documentsResponse?.total || 0;
+
+	// Merge regular documents with SurfSense docs
+	const documents = useMemo(() => {
+		// If filtering by type and not including SURFSENSE_DOCS, only show regular docs
+		if (activeTypes.length > 0 && !activeTypes.includes("SURFSENSE_DOCS" as DocumentTypeEnum)) {
+			return regularDocuments;
+		}
+		// If filtering only by SURFSENSE_DOCS, only show surfsense docs
+		if (activeTypes.length === 1 && activeTypes[0] === "SURFSENSE_DOCS") {
+			return surfsenseDocsAsDocuments;
+		}
+		// Otherwise, merge both (surfsense docs first)
+		return [...surfsenseDocsAsDocuments, ...regularDocuments];
+	}, [regularDocuments, surfsenseDocsAsDocuments, activeTypes]);
+
+	const total = useMemo(() => {
+		if (activeTypes.length > 0 && !activeTypes.includes("SURFSENSE_DOCS" as DocumentTypeEnum)) {
+			return regularTotal;
+		}
+		if (activeTypes.length === 1 && activeTypes[0] === "SURFSENSE_DOCS") {
+			return surfsenseDocsResponse?.total || 0;
+		}
+		return regularTotal + (surfsenseDocsResponse?.total || 0);
+	}, [regularTotal, surfsenseDocsResponse?.total, activeTypes]);
+
+	const loading = useMemo(() => {
+		// If only SURFSENSE_DOCS selected, only check surfsense loading
+		if (onlySurfsenseDocsSelected) {
+			return isSurfsenseDocsLoading;
+		}
+		// Otherwise check both regular docs and surfsense docs loading
+		const regularLoading = debouncedSearch.trim() ? isSearchLoading : isDocumentsLoading;
+		return regularLoading || (showSurfsenseDocs && isSurfsenseDocsLoading);
+	}, [
+		onlySurfsenseDocsSelected,
+		isSurfsenseDocsLoading,
+		debouncedSearch,
+		isSearchLoading,
+		isDocumentsLoading,
+		showSurfsenseDocs,
+	]);
+
+	const error = useMemo(() => {
+		// If only SURFSENSE_DOCS selected, no regular docs errors
+		if (onlySurfsenseDocsSelected) {
+			return null;
+		}
+		return debouncedSearch.trim() ? searchError : documentsError;
+	}, [onlySurfsenseDocsSelected, debouncedSearch, searchError, documentsError]);
 
 	// Display server-filtered results directly
 	const displayDocs = documents || [];
@@ -129,16 +240,33 @@ export default function DocumentsTable() {
 		if (isRefreshing) return;
 		setIsRefreshing(true);
 		try {
-			if (debouncedSearch.trim()) {
-				await refetchSearch();
-			} else {
-				await refetchDocuments();
+			const refetchPromises: Promise<unknown>[] = [];
+			// Only refetch regular documents if not in "only surfsense docs" mode
+			if (!onlySurfsenseDocsSelected) {
+				if (debouncedSearch.trim()) {
+					refetchPromises.push(refetchSearch());
+				} else {
+					refetchPromises.push(refetchDocuments());
+				}
 			}
+			if (showSurfsenseDocs) {
+				refetchPromises.push(refetchSurfsenseDocs());
+			}
+			await Promise.all(refetchPromises);
 			toast.success(t("refresh_success") || "Documents refreshed");
 		} finally {
 			setIsRefreshing(false);
 		}
-	}, [debouncedSearch, refetchSearch, refetchDocuments, t, isRefreshing]);
+	}, [
+		debouncedSearch,
+		refetchSearch,
+		refetchDocuments,
+		refetchSurfsenseDocs,
+		showSurfsenseDocs,
+		onlySurfsenseDocsSelected,
+		t,
+		isRefreshing,
+	]);
 
 	// Create a delete function for single document deletion
 	const deleteDocument = useCallback(
@@ -212,10 +340,20 @@ export default function DocumentsTable() {
 					<h2 className="text-xl md:text-2xl font-bold tracking-tight">{t("title")}</h2>
 					<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
 				</div>
-				<Button onClick={refreshCurrentView} variant="outline" size="sm" disabled={isRefreshing}>
-					<RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-					{t("refresh")}
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button onClick={openUploadDialog} variant="default" size="sm">
+						<Upload className="w-4 h-4 mr-2" />
+						{t("upload_documents")}
+					</Button>
+					<Button onClick={handleNewNote} variant="outline" size="sm">
+						<SquarePlus className="w-4 h-4 mr-2" />
+						{t("create_shared_note")}
+					</Button>
+					<Button onClick={refreshCurrentView} variant="outline" size="sm" disabled={isRefreshing}>
+						<RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+						{t("refresh")}
+					</Button>
+				</div>
 			</motion.div>
 
 			<DocumentsFilters

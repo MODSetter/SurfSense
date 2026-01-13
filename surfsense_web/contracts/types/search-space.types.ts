@@ -64,6 +64,13 @@ export const deleteSearchSpaceResponse = z.object({
 	message: z.literal("Search space deleted successfully"),
 });
 
+/**
+ * Leave search space (for non-owners)
+ */
+export const leaveSearchSpaceResponse = z.object({
+	message: z.literal("Successfully left the search space"),
+});
+
 // Inferred types
 export type SearchSpace = z.infer<typeof searchSpace>;
 export type GetSearchSpacesRequest = z.infer<typeof getSearchSpacesRequest>;

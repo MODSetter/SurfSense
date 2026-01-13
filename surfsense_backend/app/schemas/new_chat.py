@@ -8,10 +8,11 @@ These schemas follow the assistant-ui ThreadHistoryAdapter pattern:
 
 from datetime import datetime
 from typing import Any
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.db import NewChatMessageRole
+from app.db import ChatVisibility, NewChatMessageRole
 
 from .base import IDModel, TimestampModel
 
@@ -66,6 +67,8 @@ class NewChatThreadCreate(NewChatThreadBase):
     """Schema for creating a new thread."""
 
     search_space_id: int
+    # Visibility defaults to PRIVATE, but can be set on creation
+    visibility: ChatVisibility = ChatVisibility.PRIVATE
 
 
 class NewChatThreadUpdate(BaseModel):
@@ -75,12 +78,20 @@ class NewChatThreadUpdate(BaseModel):
     archived: bool | None = None
 
 
+class NewChatThreadVisibilityUpdate(BaseModel):
+    """Schema for updating thread visibility/sharing settings."""
+
+    visibility: ChatVisibility
+
+
 class NewChatThreadRead(NewChatThreadBase, IDModel):
     """
     Schema for reading a thread (matches assistant-ui ThreadRecord).
     """
 
     search_space_id: int
+    visibility: ChatVisibility
+    created_by_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -116,6 +127,9 @@ class ThreadListItem(BaseModel):
     id: int
     title: str
     archived: bool
+    visibility: ChatVisibility
+    created_by_id: UUID | None = None
+    is_own_thread: bool = False  # True if the current user created this thread
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
 
@@ -162,4 +176,7 @@ class NewChatRequest(BaseModel):
     )
     mentioned_document_ids: list[int] | None = (
         None  # Optional document IDs mentioned with @ in the chat
+    )
+    mentioned_surfsense_doc_ids: list[int] | None = (
+        None  # Optional SurfSense documentation IDs mentioned with @ in the chat
     )

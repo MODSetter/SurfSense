@@ -23,6 +23,7 @@ export const documentTypeEnum = z.enum([
 	"ELASTICSEARCH_CONNECTOR",
 	"BOOKSTACK_CONNECTOR",
 	"CIRCLEBACK",
+	"SURFSENSE_DOCS",
 	"NOTE",
 ]);
 
@@ -186,6 +187,23 @@ export const getSurfsenseDocsByChunkRequest = z.object({
 export const getSurfsenseDocsByChunkResponse = surfsenseDocsDocumentWithChunks;
 
 /**
+ * List Surfsense docs
+ */
+export const getSurfsenseDocsRequest = z.object({
+	queryParams: paginationQueryParams.extend({
+		title: z.string().optional(),
+	}),
+});
+
+export const getSurfsenseDocsResponse = z.object({
+	items: z.array(surfsenseDocsDocument),
+	total: z.number(),
+	page: z.number(),
+	page_size: z.number(),
+	has_more: z.boolean(),
+});
+
+/**
  * Update document
  */
 export const updateDocumentRequest = z.object({
@@ -229,3 +247,5 @@ export type SurfsenseDocsDocument = z.infer<typeof surfsenseDocsDocument>;
 export type SurfsenseDocsDocumentWithChunks = z.infer<typeof surfsenseDocsDocumentWithChunks>;
 export type GetSurfsenseDocsByChunkRequest = z.infer<typeof getSurfsenseDocsByChunkRequest>;
 export type GetSurfsenseDocsByChunkResponse = z.infer<typeof getSurfsenseDocsByChunkResponse>;
+export type GetSurfsenseDocsRequest = z.infer<typeof getSurfsenseDocsRequest>;
+export type GetSurfsenseDocsResponse = z.infer<typeof getSurfsenseDocsResponse>;

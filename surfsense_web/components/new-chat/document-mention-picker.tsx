@@ -25,9 +25,9 @@ export interface DocumentMentionPickerRef {
 
 interface DocumentMentionPickerProps {
 	searchSpaceId: number;
-	onSelectionChange: (documents: Document[]) => void;
+	onSelectionChange: (documents: Pick<Document, "id" | "title" | "document_type">[]) => void;
 	onDone: () => void;
-	initialSelectedDocuments?: Document[];
+	initialSelectedDocuments?: Pick<Document, "id" | "title" | "document_type">[];
 	externalSearch?: string;
 }
 
@@ -57,7 +57,9 @@ export const DocumentMentionPicker = forwardRef<
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
 	// State for pagination
-	const [accumulatedDocuments, setAccumulatedDocuments] = useState<Document[]>([]);
+	const [accumulatedDocuments, setAccumulatedDocuments] = useState<
+		Pick<Document, "id" | "title" | "document_type">[]
+	>([]);
 	const [currentPage, setCurrentPage] = useState(0);
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -90,6 +92,17 @@ export const DocumentMentionPicker = forwardRef<
 		};
 	}, [debouncedSearch, searchSpaceId]);
 
+	const surfsenseDocsQueryParams = useMemo(() => {
+		const params: { page: number; page_size: number; title?: string } = {
+			page: 0,
+			page_size: PAGE_SIZE,
+		};
+		if (debouncedSearch.trim()) {
+			params.title = debouncedSearch;
+		}
+		return params;
+	}, [debouncedSearch]);
+
 	// Use query for fetching first page of documents
 	const { data: documents, isLoading: isDocumentsLoading } = useQuery({
 		queryKey: cacheKeys.documents.withQueryParams(fetchQueryParams),
@@ -106,22 +119,45 @@ export const DocumentMentionPicker = forwardRef<
 		enabled: !!searchSpaceId && !!debouncedSearch.trim() && currentPage === 0,
 	});
 
-	// Update accumulated documents when first page loads
+	// Use query for fetching first page of SurfSense docs
+	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading } = useQuery({
+		queryKey: ["surfsense-docs-mention", debouncedSearch],
+		queryFn: () => documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }),
+		staleTime: 3 * 60 * 1000,
+	});
+
+	// Update accumulated documents when first page loads - combine both sources
 	useEffect(() => {
 		if (currentPage === 0) {
+			const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
+
+			// Add SurfSense docs first (they appear at top)
+			if (surfsenseDocs?.items) {
+				for (const doc of surfsenseDocs.items) {
+					combinedDocs.push({
+						id: doc.id,
+						title: doc.title,
+						document_type: "SURFSENSE_DOCS",
+					});
+				}
+			}
+
+			// Add regular documents
 			if (debouncedSearch.trim()) {
-				if (searchedDocuments) {
-					setAccumulatedDocuments(searchedDocuments.items);
+				if (searchedDocuments?.items) {
+					combinedDocs.push(...searchedDocuments.items);
 					setHasMore(searchedDocuments.has_more);
 				}
 			} else {
-				if (documents) {
-					setAccumulatedDocuments(documents.items);
+				if (documents?.items) {
+					combinedDocs.push(...documents.items);
 					setHasMore(documents.has_more);
 				}
 			}
+
+			setAccumulatedDocuments(combinedDocs);
 		}
-	}, [documents, searchedDocuments, debouncedSearch, currentPage]);
+	}, [documents, searchedDocuments, surfsenseDocs, debouncedSearch, currentPage]);
 
 	// Function to load next page
 	const loadNextPage = useCallback(async () => {
@@ -175,22 +211,24 @@ export const DocumentMentionPicker = forwardRef<
 
 	const actualDocuments = accumulatedDocuments;
 	const actualLoading =
-		(debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading) && currentPage === 0;
+		((debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading) ||
+			isSurfsenseDocsLoading) &&
+		currentPage === 0;
 
-	// Track already selected document IDs
-	const selectedIds = useMemo(
-		() => new Set(initialSelectedDocuments.map((d) => d.id)),
+	// Track already selected documents using unique key (document_type:id) to avoid ID collisions
+	const selectedKeys = useMemo(
+		() => new Set(initialSelectedDocuments.map((d) => `${d.document_type}:${d.id}`)),
 		[initialSelectedDocuments]
 	);
 
 	// Filter out already selected documents for navigation
 	const selectableDocuments = useMemo(
-		() => actualDocuments.filter((doc) => !selectedIds.has(doc.id)),
-		[actualDocuments, selectedIds]
+		() => actualDocuments.filter((doc) => !selectedKeys.has(`${doc.document_type}:${doc.id}`)),
+		[actualDocuments, selectedKeys]
 	);
 
 	const handleSelectDocument = useCallback(
-		(doc: Document) => {
+		(doc: Pick<Document, "id" | "title" | "document_type">) => {
 			onSelectionChange([...initialSelectedDocuments, doc]);
 			onDone();
 		},
@@ -287,13 +325,16 @@ export const DocumentMentionPicker = forwardRef<
 				) : (
 					<div className="py-1">
 						{actualDocuments.map((doc) => {
-							const isAlreadySelected = selectedIds.has(doc.id);
-							const selectableIndex = selectableDocuments.findIndex((d) => d.id === doc.id);
+							const docKey = `${doc.document_type}:${doc.id}`;
+							const isAlreadySelected = selectedKeys.has(docKey);
+							const selectableIndex = selectableDocuments.findIndex(
+								(d) => d.document_type === doc.document_type && d.id === doc.id
+							);
 							const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
 
 							return (
 								<button
-									key={doc.id}
+									key={docKey}
 									ref={(el) => {
 										if (el && selectableIndex >= 0) {
 											itemRefs.current.set(selectableIndex, el);

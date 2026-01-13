@@ -27,14 +27,8 @@ export interface ChatItem {
 	name: string;
 	url: string;
 	isActive?: boolean;
-}
-
-export interface NoteItem {
-	id: number;
-	name: string;
-	url: string;
-	isActive?: boolean;
-	isReindexing?: boolean;
+	visibility?: "PRIVATE" | "SEARCH_SPACE";
+	isOwnThread?: boolean;
 }
 
 export interface PageUsage {
@@ -72,17 +66,8 @@ export interface ChatsSectionProps {
 	activeChatId?: number | null;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	searchSpaceId?: string;
-}
-
-export interface NotesSectionProps {
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	searchSpaceId?: string;
 }
 
@@ -107,22 +92,17 @@ export interface SidebarProps {
 	searchSpaceId?: string;
 	navItems: NavItem[];
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	theme?: string;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSeeAllSearchSpaces?: () => void;
 	onToggleTheme?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
