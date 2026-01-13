@@ -6,6 +6,7 @@ Revises: 61
 Note: Electric SQL replication setup (REPLICA IDENTITY FULL and publication)
 is handled in app/db.py setup_electric_replication() which runs on app startup.
 """
+
 from collections.abc import Sequence
 
 from alembic import op

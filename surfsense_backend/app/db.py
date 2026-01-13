@@ -711,15 +711,22 @@ class Notification(BaseModel, TimestampMixin):
     __tablename__ = "notifications"
 
     user_id = Column(
-        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
     )
-    type = Column(String(50), nullable=False)  # 'connector_indexing', 'document_processing', etc.
+    type = Column(
+        String(50), nullable=False
+    )  # 'connector_indexing', 'document_processing', etc.
     title = Column(String(200), nullable=False)
     message = Column(Text, nullable=False)
-    read = Column(Boolean, nullable=False, default=False, server_default=text("false"), index=True)
+    read = Column(
+        Boolean, nullable=False, default=False, server_default=text("false"), index=True
+    )
     notification_metadata = Column("metadata", JSONB, nullable=True, default={})
 
     user = relationship("User", back_populates="notifications")
@@ -990,7 +997,9 @@ async def setup_electric_replication():
         # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
         # This logs full row data for UPDATE/DELETE operations in the WAL
         await conn.execute(text("ALTER TABLE notifications REPLICA IDENTITY FULL;"))
-        await conn.execute(text("ALTER TABLE search_source_connectors REPLICA IDENTITY FULL;"))
+        await conn.execute(
+            text("ALTER TABLE search_source_connectors REPLICA IDENTITY FULL;")
+        )
         await conn.execute(text("ALTER TABLE documents REPLICA IDENTITY FULL;"))
 
         # Add tables to Electric SQL publication for replication

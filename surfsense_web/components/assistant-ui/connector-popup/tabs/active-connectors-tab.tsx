@@ -63,7 +63,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		return `${m.replace(/\.0$/, "")}M docs`;
 	};
 
-
 	// Document types that should be shown as standalone cards (not from connectors)
 	const standaloneDocumentTypes = ["EXTENSION", "FILE", "NOTE", "YOUTUBE_VIDEO", "CRAWLED_URL"];
 

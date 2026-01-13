@@ -5,17 +5,17 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 /**
  * Hook to track which connectors are currently indexing using local state.
- * 
+ *
  * This provides a better UX than polling by:
  * 1. Setting indexing state immediately when user triggers indexing (optimistic)
  * 2. Clearing indexing state when Electric SQL detects last_indexed_at changed
- * 
+ *
  * The actual `last_indexed_at` value comes from Electric SQL/PGlite, not local state.
  */
 export function useIndexingConnectors(connectors: SearchSourceConnector[]) {
 	// Set of connector IDs that are currently indexing
 	const [indexingConnectorIds, setIndexingConnectorIds] = useState<Set<number>>(new Set());
-	
+
 	// Track previous last_indexed_at values to detect changes
 	const previousLastIndexedAtRef = useRef<Map<number, string | null>>(new Map());
 
@@ -79,4 +79,3 @@ export function useIndexingConnectors(connectors: SearchSourceConnector[]) {
 		isIndexing,
 	};
 }
-

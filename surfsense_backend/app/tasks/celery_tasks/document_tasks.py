@@ -92,12 +92,14 @@ async def _process_extension_document(
             page_title += "..."
 
         # Create notification for document processing
-        notification = await NotificationService.document_processing.notify_processing_started(
-            session=session,
-            user_id=UUID(user_id),
-            document_type="EXTENSION",
-            document_name=page_title,
-            search_space_id=search_space_id,
+        notification = (
+            await NotificationService.document_processing.notify_processing_started(
+                session=session,
+                user_id=UUID(user_id),
+                document_type="EXTENSION",
+                document_name=page_title,
+                search_space_id=search_space_id,
+            )
         )
 
         log_entry = await task_logger.log_task_start(
@@ -115,7 +117,10 @@ async def _process_extension_document(
         try:
             # Update notification: parsing stage
             await NotificationService.document_processing.notify_processing_progress(
-                session, notification, stage="parsing", stage_message="Reading page content"
+                session,
+                notification,
+                stage="parsing",
+                stage_message="Reading page content",
             )
 
             result = await add_extension_received_document(
@@ -130,11 +135,13 @@ async def _process_extension_document(
                 )
 
                 # Update notification on success
-                await NotificationService.document_processing.notify_processing_completed(
-                    session=session,
-                    notification=notification,
-                    document_id=result.id,
-                    chunks_count=None,
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        document_id=result.id,
+                        chunks_count=None,
+                    )
                 )
             else:
                 await task_logger.log_task_success(
@@ -144,10 +151,12 @@ async def _process_extension_document(
                 )
 
                 # Update notification for duplicate
-                await NotificationService.document_processing.notify_processing_completed(
-                    session=session,
-                    notification=notification,
-                    error_message="Page already saved (duplicate)",
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message="Page already saved (duplicate)",
+                    )
                 )
         except Exception as e:
             await task_logger.log_task_failure(
@@ -198,12 +207,14 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
         video_name = url.split("v=")[-1][:11] if "v=" in url else url
 
         # Create notification for document processing
-        notification = await NotificationService.document_processing.notify_processing_started(
-            session=session,
-            user_id=UUID(user_id),
-            document_type="YOUTUBE_VIDEO",
-            document_name=f"YouTube: {video_name}",
-            search_space_id=search_space_id,
+        notification = (
+            await NotificationService.document_processing.notify_processing_started(
+                session=session,
+                user_id=UUID(user_id),
+                document_type="YOUTUBE_VIDEO",
+                document_name=f"YouTube: {video_name}",
+                search_space_id=search_space_id,
+            )
         )
 
         log_entry = await task_logger.log_task_start(
@@ -216,7 +227,10 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
         try:
             # Update notification: parsing (fetching transcript)
             await NotificationService.document_processing.notify_processing_progress(
-                session, notification, stage="parsing", stage_message="Fetching video transcript"
+                session,
+                notification,
+                stage="parsing",
+                stage_message="Fetching video transcript",
             )
 
             result = await add_youtube_video_document(
@@ -235,11 +249,13 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
                 )
 
                 # Update notification on success
-                await NotificationService.document_processing.notify_processing_completed(
-                    session=session,
-                    notification=notification,
-                    document_id=result.id,
-                    chunks_count=None,
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        document_id=result.id,
+                        chunks_count=None,
+                    )
                 )
             else:
                 await task_logger.log_task_success(
@@ -249,10 +265,12 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
                 )
 
                 # Update notification for duplicate
-                await NotificationService.document_processing.notify_processing_completed(
-                    session=session,
-                    notification=notification,
-                    error_message="Video already exists (duplicate)",
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message="Video already exists (duplicate)",
+                    )
                 )
         except Exception as e:
             await task_logger.log_task_failure(
@@ -317,13 +335,15 @@ async def _process_file_upload(
             file_size = None
 
         # Create notification for document processing
-        notification = await NotificationService.document_processing.notify_processing_started(
-            session=session,
-            user_id=UUID(user_id),
-            document_type="FILE",
-            document_name=filename,
-            search_space_id=search_space_id,
-            file_size=file_size,
+        notification = (
+            await NotificationService.document_processing.notify_processing_started(
+                session=session,
+                user_id=UUID(user_id),
+                document_type="FILE",
+                document_name=filename,
+                search_space_id=search_space_id,
+                file_size=file_size,
+            )
         )
 
         log_entry = await task_logger.log_task_start(
@@ -352,18 +372,22 @@ async def _process_file_upload(
 
             # Update notification on success
             if result:
-                await NotificationService.document_processing.notify_processing_completed(
-                    session=session,
-                    notification=notification,
-                    document_id=result.id,
-                    chunks_count=None,
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        document_id=result.id,
+                        chunks_count=None,
+                    )
                 )
             else:
                 # Duplicate detected
-                await NotificationService.document_processing.notify_processing_completed(
-                    session=session,
-                    notification=notification,
-                    error_message="Document already exists (duplicate)",
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message="Document already exists (duplicate)",
+                    )
                 )
 
         except Exception as e:
@@ -456,12 +480,14 @@ async def _process_circleback_meeting(
         # Create notification if user_id is available
         notification = None
         if user_id:
-            notification = await NotificationService.document_processing.notify_processing_started(
-                session=session,
-                user_id=UUID(user_id),
-                document_type="CIRCLEBACK",
-                document_name=f"Meeting: {meeting_name[:40]}",
-                search_space_id=search_space_id,
+            notification = (
+                await NotificationService.document_processing.notify_processing_started(
+                    session=session,
+                    user_id=UUID(user_id),
+                    document_type="CIRCLEBACK",
+                    document_name=f"Meeting: {meeting_name[:40]}",
+                    search_space_id=search_space_id,
+                )
             )
 
         log_entry = await task_logger.log_task_start(
@@ -479,8 +505,13 @@ async def _process_circleback_meeting(
         try:
             # Update notification: parsing stage
             if notification:
-                await NotificationService.document_processing.notify_processing_progress(
-                    session, notification, stage="parsing", stage_message="Reading meeting notes"
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Reading meeting notes",
+                    )
                 )
 
             result = await add_circleback_meeting_document(
@@ -535,10 +566,12 @@ async def _process_circleback_meeting(
 
             # Update notification on failure
             if notification:
-                await NotificationService.document_processing.notify_processing_completed(
-                    session=session,
-                    notification=notification,
-                    error_message=str(e)[:100],
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=str(e)[:100],
+                    )
                 )
 
             logger.error(f"Error processing Circleback meeting: {e!s}")

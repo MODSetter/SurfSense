@@ -13,7 +13,8 @@ import { cn } from "@/lib/utils";
 export function NotificationButton() {
 	const { data: user } = useAtomValue(currentUserAtom);
 	const userId = user?.id ? String(user.id) : null;
-	const { notifications, unreadCount, loading, markAsRead, markAllAsRead } = useNotifications(userId);
+	const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
+		useNotifications(userId);
 
 	return (
 		<Popover>
@@ -50,4 +51,3 @@ export function NotificationButton() {
 		</Popover>
 	);
 }
-

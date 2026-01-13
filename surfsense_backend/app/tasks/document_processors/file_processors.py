@@ -476,15 +476,21 @@ async def process_file_in_background(
     log_entry: Log,
     connector: dict
     | None = None,  # Optional: {"type": "GOOGLE_DRIVE_FILE", "metadata": {...}}
-    notification: Notification | None = None,  # Optional notification for progress updates
+    notification: Notification
+    | None = None,  # Optional notification for progress updates
 ) -> Document | None:
     try:
         # Check if the file is a markdown or text file
         if filename.lower().endswith((".md", ".markdown", ".txt")):
             # Update notification: parsing stage
             if notification:
-                await NotificationService.document_processing.notify_processing_progress(
-                    session, notification, stage="parsing", stage_message="Reading file"
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Reading file",
+                    )
                 )
 
             await task_logger.log_task_progress(
@@ -508,8 +514,10 @@ async def process_file_in_background(
 
             # Update notification: chunking stage
             if notification:
-                await NotificationService.document_processing.notify_processing_progress(
-                    session, notification, stage="chunking"
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="chunking"
+                    )
                 )
 
             await task_logger.log_task_progress(
@@ -554,8 +562,13 @@ async def process_file_in_background(
         ):
             # Update notification: parsing stage (transcription)
             if notification:
-                await NotificationService.document_processing.notify_processing_progress(
-                    session, notification, stage="parsing", stage_message="Transcribing audio"
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Transcribing audio",
+                    )
                 )
 
             await task_logger.log_task_progress(
@@ -643,8 +656,10 @@ async def process_file_in_background(
 
             # Update notification: chunking stage
             if notification:
-                await NotificationService.document_processing.notify_processing_progress(
-                    session, notification, stage="chunking"
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="chunking"
+                    )
                 )
 
             # Clean up the temp file
@@ -749,7 +764,10 @@ async def process_file_in_background(
                 # Update notification: parsing stage
                 if notification:
                     await NotificationService.document_processing.notify_processing_progress(
-                        session, notification, stage="parsing", stage_message="Extracting content"
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
                     )
 
                 await task_logger.log_task_progress(
@@ -859,7 +877,10 @@ async def process_file_in_background(
                 # Update notification: parsing stage
                 if notification:
                     await NotificationService.document_processing.notify_processing_progress(
-                        session, notification, stage="parsing", stage_message="Extracting content"
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
                     )
 
                 await task_logger.log_task_progress(
@@ -904,7 +925,10 @@ async def process_file_in_background(
                 # Update notification: chunking stage
                 if notification:
                     await NotificationService.document_processing.notify_processing_progress(
-                        session, notification, stage="chunking", chunks_count=len(markdown_documents)
+                        session,
+                        notification,
+                        stage="chunking",
+                        chunks_count=len(markdown_documents),
                     )
 
                 await task_logger.log_task_progress(
@@ -1018,7 +1042,10 @@ async def process_file_in_background(
                 # Update notification: parsing stage
                 if notification:
                     await NotificationService.document_processing.notify_processing_progress(
-                        session, notification, stage="parsing", stage_message="Extracting content"
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
                     )
 
                 await task_logger.log_task_progress(

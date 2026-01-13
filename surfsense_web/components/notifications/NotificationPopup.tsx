@@ -41,7 +41,7 @@ export function NotificationPopup({
 
 	const getStatusIcon = (notification: Notification) => {
 		const status = notification.metadata?.status as string | undefined;
-		
+
 		switch (status) {
 			case "in_progress":
 				return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
@@ -62,12 +62,7 @@ export function NotificationPopup({
 					<h3 className="font-semibold text-sm">Notifications</h3>
 				</div>
 				{unreadCount > 0 && (
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={handleMarkAllAsRead}
-						className="h-7 text-xs"
-					>
+					<Button variant="ghost" size="sm" onClick={handleMarkAllAsRead} className="h-7 text-xs">
 						<CheckCheck className="h-3.5 w-3.5 mr-0" />
 						Mark all read
 					</Button>
@@ -98,9 +93,7 @@ export function NotificationPopup({
 									)}
 								>
 									<div className="flex items-start gap-3">
-										<div className="flex-shrink-0 mt-0.5">
-											{getStatusIcon(notification)}
-										</div>
+										<div className="flex-shrink-0 mt-0.5">{getStatusIcon(notification)}</div>
 										<div className="flex-1 min-w-0">
 											<div className="flex items-start justify-between gap-2 mb-1">
 												<p

@@ -5,19 +5,12 @@ import { documentTypeEnum } from "./document.types";
 /**
  * Notification type enum - matches backend notification types
  */
-export const notificationTypeEnum = z.enum([
-	"connector_indexing",
-	"document_processing",
-]);
+export const notificationTypeEnum = z.enum(["connector_indexing", "document_processing"]);
 
 /**
  * Notification status enum - used in metadata
  */
-export const notificationStatusEnum = z.enum([
-	"in_progress",
-	"completed",
-	"failed",
-]);
+export const notificationStatusEnum = z.enum(["in_progress", "completed", "failed"]);
 
 /**
  * Document processing stage enum
@@ -125,4 +118,3 @@ export type NotificationMetadata = z.infer<typeof notificationMetadata>;
 export type Notification = z.infer<typeof notification>;
 export type ConnectorIndexingNotification = z.infer<typeof connectorIndexingNotification>;
 export type DocumentProcessingNotification = z.infer<typeof documentProcessingNotification>;
-

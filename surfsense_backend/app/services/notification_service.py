@@ -99,7 +99,9 @@ class BaseNotificationHandler:
                 flag_modified(notification, "notification_metadata")
             await session.commit()
             await session.refresh(notification)
-            logger.info(f"Updated notification {notification.id} for operation {operation_id}")
+            logger.info(
+                f"Updated notification {notification.id} for operation {operation_id}"
+            )
             return notification
 
         # Create new notification
@@ -119,7 +121,9 @@ class BaseNotificationHandler:
         session.add(notification)
         await session.commit()
         await session.refresh(notification)
-        logger.info(f"Created notification {notification.id} for operation {operation_id}")
+        logger.info(
+            f"Created notification {notification.id} for operation {operation_id}"
+        )
         return notification
 
     async def update_notification(
@@ -153,9 +157,9 @@ class BaseNotificationHandler:
         if status is not None:
             notification.notification_metadata["status"] = status
             if status in ("completed", "failed"):
-                notification.notification_metadata["completed_at"] = (
-                    datetime.now(UTC).isoformat()
-                )
+                notification.notification_metadata["completed_at"] = datetime.now(
+                    UTC
+                ).isoformat()
             # Mark JSONB column as modified so SQLAlchemy detects the change
             flag_modified(notification, "notification_metadata")
 
@@ -180,7 +184,10 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         super().__init__("connector_indexing")
 
     def _generate_operation_id(
-        self, connector_id: int, start_date: str | None = None, end_date: str | None = None
+        self,
+        connector_id: int,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ) -> str:
         """
         Generate a unique operation ID for a connector indexing operation.
@@ -298,7 +305,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             "processing": "Preparing for search",
             "storing": "Almost done",
         }
-        
+
         # Use stage-based message if stage provided, otherwise fallback
         if stage or stage_message:
             progress_msg = stage_message or stage_messages.get(stage, "Processing")
@@ -341,7 +348,9 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         Returns:
             Updated notification
         """
-        connector_name = notification.notification_metadata.get("connector_name", "Connector")
+        connector_name = notification.notification_metadata.get(
+            "connector_name", "Connector"
+        )
 
         if error_message:
             title = f"Failed: {connector_name}"
@@ -414,7 +423,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             "indexed_count": 0,
             "sync_stage": "connecting",
         }
-        
+
         if folder_names:
             metadata["folder_names"] = folder_names
         if file_names:
@@ -454,6 +463,7 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
         timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
         # Create a short hash of filename to ensure uniqueness
         import hashlib
+
         filename_hash = hashlib.md5(filename.encode()).hexdigest()[:8]
         return f"doc_{document_type}_{search_space_id}_{timestamp}_{filename_hash}"
 
@@ -480,7 +490,9 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
         Returns:
             Notification: The created notification
         """
-        operation_id = self._generate_operation_id(document_type, document_name, search_space_id)
+        operation_id = self._generate_operation_id(
+            document_type, document_name, search_space_id
+        )
         title = f"Processing: {document_name}"
         message = "Waiting in queue"
 
@@ -489,7 +501,7 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
             "document_name": document_name,
             "processing_stage": "queued",
         }
-        
+
         if file_size is not None:
             metadata["file_size"] = file_size
 
@@ -531,7 +543,7 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
             "embedding": "Preparing for search",
             "storing": "Finalizing",
         }
-        
+
         message = stage_message or stage_messages.get(stage, "Processing")
 
         metadata_updates = {"processing_stage": stage}
@@ -568,7 +580,9 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
         Returns:
             Updated notification
         """
-        document_name = notification.notification_metadata.get("document_name", "Document")
+        document_name = notification.notification_metadata.get(
+            "document_name", "Document"
+        )
 
         if error_message:
             title = f"Failed: {document_name}"
@@ -583,7 +597,7 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
             "processing_stage": "completed" if not error_message else "failed",
             "error_message": error_message,
         }
-        
+
         if document_id is not None:
             metadata_updates["document_id"] = document_id
         # Store chunks_count in metadata for debugging, but don't show to user
@@ -645,4 +659,3 @@ class NotificationService:
         await session.refresh(notification)
         logger.info(f"Created notification {notification.id} for user {user_id}")
         return notification
-

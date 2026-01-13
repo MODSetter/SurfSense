@@ -49,7 +49,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onManage,
 	onViewAccountsList,
 }) => {
-
 	// Filter connectors based on search
 	const filteredOAuth = OAUTH_CONNECTORS.filter(
 		(c) =>

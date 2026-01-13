@@ -986,21 +986,25 @@ async def _run_indexing_with_notifications(
     try:
         # Get connector info for notification
         connector_result = await session.execute(
-            select(SearchSourceConnector).where(SearchSourceConnector.id == connector_id)
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.id == connector_id
+            )
         )
         connector = connector_result.scalar_one_or_none()
 
         if connector:
             # Create notification when indexing starts
-            notification = await NotificationService.connector_indexing.notify_indexing_started(
-                session=session,
-                user_id=UUID(user_id),
-                connector_id=connector_id,
-                connector_name=connector.name,
-                connector_type=connector.connector_type.value,
-                search_space_id=search_space_id,
-                start_date=start_date,
-                end_date=end_date,
+            notification = (
+                await NotificationService.connector_indexing.notify_indexing_started(
+                    session=session,
+                    user_id=UUID(user_id),
+                    connector_id=connector_id,
+                    connector_name=connector.name,
+                    connector_type=connector.connector_type.value,
+                    search_space_id=search_space_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
             )
 
         # Update notification to fetching stage
@@ -1640,6 +1644,7 @@ async def run_google_gmail_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+
     # Create a wrapper function that calls index_google_gmail_messages with max_messages
     async def gmail_indexing_wrapper(
         session: AsyncSession,
@@ -1701,7 +1706,9 @@ async def run_google_drive_indexing(
 
         # Get connector info for notification
         connector_result = await session.execute(
-            select(SearchSourceConnector).where(SearchSourceConnector.id == connector_id)
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.id == connector_id
+            )
         )
         connector = connector_result.scalar_one_or_none()
 
@@ -1813,7 +1820,7 @@ async def run_google_drive_indexing(
             f"Critical error in run_google_drive_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        
+
         # Update notification on exception
         if notification:
             try:

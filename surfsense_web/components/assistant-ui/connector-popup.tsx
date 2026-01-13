@@ -27,7 +27,7 @@ import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view
 export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const searchParams = useSearchParams();
-	
+
 	// Fetch document type counts using Electric SQL + PGlite for real-time updates
 	const { documentTypeCounts, loading: documentTypesLoading } = useDocumentsElectric(searchSpaceId);
 
@@ -96,9 +96,10 @@ export const ConnectorIndicator: FC = () => {
 	} = useConnectorsElectric(searchSpaceId);
 
 	// Fallback to API if Electric fails or is not available
-	const connectors = connectorsFromElectric.length > 0 || !connectorsError 
-		? connectorsFromElectric 
-		: allConnectors || [];
+	const connectors =
+		connectorsFromElectric.length > 0 || !connectorsError
+			? connectorsFromElectric
+			: allConnectors || [];
 
 	// Manual refresh function that works with both Electric and API
 	const refreshConnectors = async () => {
