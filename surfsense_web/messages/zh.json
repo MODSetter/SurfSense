@@ -312,6 +312,7 @@
 		"rows_per_page": "每页行数",
 		"refresh": "刷新",
 		"refresh_success": "文档已刷新",
+		"create_shared_note": "创建共享笔记",
 		"processing_documents": "正在处理文档...",
 		"active_tasks_count": "{count} 个正在进行的工作项"
 	},
@@ -628,11 +629,16 @@
 		"manage": "管理"
 	},
 	"sidebar": {
+		"chats": "私人对话",
+		"shared_chats": "共享对话",
 		"recent_chats": "最近对话",
 		"search_chats": "搜索对话...",
 		"no_chats_found": "未找到对话",
 		"no_recent_chats": "暂无最近对话",
+		"no_shared_chats": "暂无共享对话",
 		"view_all_chats": "查看所有对话",
+		"view_all_shared_chats": "查看所有共享对话",
+		"view_all_private_chats": "查看所有私人对话",
 		"all_chats": "所有对话",
 		"all_chats_description": "浏览和管理您的所有对话",
 		"no_chats": "暂无对话",

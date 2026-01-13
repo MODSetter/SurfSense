@@ -2,9 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, SquarePlus } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -34,7 +34,12 @@ export default function DocumentsTable() {
 	const t = useTranslations("documents");
 	const id = useId();
 	const params = useParams();
+	const router = useRouter();
 	const searchSpaceId = Number(params.search_space_id);
+
+	const handleNewNote = useCallback(() => {
+		router.push(`/dashboard/${searchSpaceId}/editor/new`);
+	}, [router, searchSpaceId]);
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 250);
@@ -238,10 +243,16 @@ export default function DocumentsTable() {
 					<h2 className="text-xl md:text-2xl font-bold tracking-tight">{t("title")}</h2>
 					<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
 				</div>
-				<Button onClick={refreshCurrentView} variant="outline" size="sm" disabled={isRefreshing}>
-					<RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-					{t("refresh")}
-				</Button>
+				<div className="flex items-center gap-2">
+					<Button onClick={handleNewNote} variant="default" size="sm">
+						<SquarePlus className="w-4 h-4 mr-2" />
+						{t("create_shared_note")}
+					</Button>
+					<Button onClick={refreshCurrentView} variant="outline" size="sm" disabled={isRefreshing}>
+						<RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+						{t("refresh")}
+					</Button>
+				</div>
 			</motion.div>
 
 			<ProcessingIndicator documentProcessorTasksCount={documentProcessorTasksCount} />

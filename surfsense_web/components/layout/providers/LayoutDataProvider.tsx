@@ -7,7 +7,6 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useState } from "react";
-import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -20,18 +19,16 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useLogsSummary } from "@/hooks/use-logs";
-import { notesApiService } from "@/lib/apis/notes-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { deleteThread, fetchThreads } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import type { ChatItem, NavItem, NoteItem, SearchSpace } from "../types/layout.types";
+import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { AllSearchSpacesSheet } from "../ui/sheets";
 import { LayoutShell } from "../ui/shell";
-import { AllChatsSidebar } from "../ui/sidebar/AllChatsSidebar";
-import { AllNotesSidebar } from "../ui/sidebar/AllNotesSidebar";
+import { AllPrivateChatsSidebar } from "../ui/sidebar/AllPrivateChatsSidebar";
+import { AllSharedChatsSidebar } from "../ui/sidebar/AllSharedChatsSidebar";
 
 interface LayoutDataProviderProps {
 	searchSpaceId: string;
@@ -58,15 +55,10 @@ export function LayoutDataProvider({
 	const { data: user } = useAtomValue(currentUserAtom);
 	const { data: searchSpacesData, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
-	const hasUnsavedEditorChanges = useAtomValue(hasUnsavedEditorChangesAtom);
-	const setPendingNavigation = useSetAtom(pendingEditorNavigationAtom);
 
 	// Current IDs from URL
 	const currentChatId = params?.chat_id
 		? Number(Array.isArray(params.chat_id) ? params.chat_id[0] : params.chat_id)
-		: null;
-	const currentNoteId = params?.note_id
-		? Number(Array.isArray(params.note_id) ? params.note_id[0] : params.note_id)
 		: null;
 
 	// Fetch current search space
@@ -77,42 +69,15 @@ export function LayoutDataProvider({
 	});
 
 	// Fetch threads
-	const { data: threadsData, refetch: refetchThreads } = useQuery({
+	const { data: threadsData } = useQuery({
 		queryKey: ["threads", searchSpaceId, { limit: 4 }],
 		queryFn: () => fetchThreads(Number(searchSpaceId), 4),
 		enabled: !!searchSpaceId,
 	});
 
-	// Fetch notes
-	const { data: notesData, refetch: refetchNotes } = useQuery({
-		queryKey: ["notes", searchSpaceId],
-		queryFn: () =>
-			notesApiService.getNotes({
-				search_space_id: Number(searchSpaceId),
-				page_size: 4,
-			}),
-		enabled: !!searchSpaceId,
-	});
-
-	// Poll for active reindexing tasks to show inline loading indicators
-	const { summary } = useLogsSummary(searchSpaceId ? Number(searchSpaceId) : 0, 24, {
-		enablePolling: true,
-		refetchInterval: 5000,
-	});
-
-	// Create a Set of document IDs that are currently being reindexed
-	const reindexingDocumentIds = useMemo(() => {
-		if (!summary?.active_tasks) return new Set<number>();
-		return new Set(
-			summary.active_tasks
-				.filter((task) => task.document_id != null)
-				.map((task) => task.document_id as number)
-		);
-	}, [summary?.active_tasks]);
-
-	// All chats/notes sidebars state
-	const [isAllChatsSidebarOpen, setIsAllChatsSidebarOpen] = useState(false);
-	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
+	// Separate sidebar states for shared and private chats
+	const [isAllSharedChatsSidebarOpen, setIsAllSharedChatsSidebarOpen] = useState(false);
+	const [isAllPrivateChatsSidebarOpen, setIsAllPrivateChatsSidebarOpen] = useState(false);
 
 	// Search space sheet and dialog state
 	const [isAllSearchSpacesSheetOpen, setIsAllSearchSpacesSheetOpen] = useState(false);
@@ -122,14 +87,6 @@ export function LayoutDataProvider({
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
 	const [isDeletingChat, setIsDeletingChat] = useState(false);
-
-	const [showDeleteNoteDialog, setShowDeleteNoteDialog] = useState(false);
-	const [noteToDelete, setNoteToDelete] = useState<{
-		id: number;
-		name: string;
-		search_space_id: number;
-	} | null>(null);
-	const [isDeletingNote, setIsDeletingNote] = useState(false);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -149,35 +106,34 @@ export function LayoutDataProvider({
 		return searchSpaces.find((s) => s.id === Number(searchSpaceId)) ?? null;
 	}, [searchSpaceId, searchSpaces]);
 
-	// Transform chats
-	const chats: ChatItem[] = useMemo(() => {
-		if (!threadsData?.threads) return [];
-		return threadsData.threads.map((thread) => ({
-			id: thread.id,
-			name: thread.title || `Chat ${thread.id}`,
-			url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
-		}));
-	}, [threadsData, searchSpaceId]);
+	// Transform and split chats into private and shared based on visibility
+	const { myChats, sharedChats } = useMemo(() => {
+		if (!threadsData?.threads) return { myChats: [], sharedChats: [] };
 
-	// Transform notes
-	const notes: NoteItem[] = useMemo(() => {
-		if (!notesData?.items) return [];
-		const sortedNotes = [...notesData.items].sort((a, b) => {
-			const dateA = a.updated_at
-				? new Date(a.updated_at).getTime()
-				: new Date(a.created_at).getTime();
-			const dateB = b.updated_at
-				? new Date(b.updated_at).getTime()
-				: new Date(b.created_at).getTime();
-			return dateB - dateA;
-		});
-		return sortedNotes.slice(0, 4).map((note) => ({
-			id: note.id,
-			name: note.title,
-			url: `/dashboard/${note.search_space_id}/editor/${note.id}`,
-			isReindexing: reindexingDocumentIds.has(note.id),
-		}));
-	}, [notesData, reindexingDocumentIds]);
+		const privateChats: ChatItem[] = [];
+		const sharedChatsList: ChatItem[] = [];
+
+		for (const thread of threadsData.threads) {
+			const chatItem: ChatItem = {
+				id: thread.id,
+				name: thread.title || `Chat ${thread.id}`,
+				url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
+				visibility: thread.visibility,
+				isOwnThread: thread.is_own_thread,
+			};
+
+			// Split based on visibility, not ownership:
+			// - PRIVATE chats go to "Private Chats" section
+			// - SEARCH_SPACE chats go to "Shared Chats" section
+			if (thread.visibility === "SEARCH_SPACE") {
+				sharedChatsList.push(chatItem);
+			} else {
+				privateChats.push(chatItem);
+			}
+		}
+
+		return { myChats: privateChats, sharedChats: sharedChatsList };
+	}, [threadsData, searchSpaceId]);
 
 	// Navigation items
 	const navItems: NavItem[] = useMemo(
@@ -264,34 +220,6 @@ export function LayoutDataProvider({
 		setShowDeleteChatDialog(true);
 	}, []);
 
-	const handleNoteSelect = useCallback(
-		(note: NoteItem) => {
-			if (hasUnsavedEditorChanges) {
-				setPendingNavigation(note.url);
-			} else {
-				router.push(note.url);
-			}
-		},
-		[router, hasUnsavedEditorChanges, setPendingNavigation]
-	);
-
-	const handleNoteDelete = useCallback(
-		(note: NoteItem) => {
-			setNoteToDelete({ id: note.id, name: note.name, search_space_id: Number(searchSpaceId) });
-			setShowDeleteNoteDialog(true);
-		},
-		[searchSpaceId]
-	);
-
-	const handleAddNote = useCallback(() => {
-		const newNoteUrl = `/dashboard/${searchSpaceId}/editor/new`;
-		if (hasUnsavedEditorChanges) {
-			setPendingNavigation(newNoteUrl);
-		} else {
-			router.push(newNoteUrl);
-		}
-	}, [router, searchSpaceId, hasUnsavedEditorChanges, setPendingNavigation]);
-
 	const handleSettings = useCallback(() => {
 		router.push(`/dashboard/${searchSpaceId}/settings`);
 	}, [router, searchSpaceId]);
@@ -318,12 +246,12 @@ export function LayoutDataProvider({
 		setTheme(theme === "dark" ? "light" : "dark");
 	}, [theme, setTheme]);
 
-	const handleViewAllChats = useCallback(() => {
-		setIsAllChatsSidebarOpen(true);
+	const handleViewAllSharedChats = useCallback(() => {
+		setIsAllSharedChatsSidebarOpen(true);
 	}, []);
 
-	const handleViewAllNotes = useCallback(() => {
-		setIsAllNotesSidebarOpen(true);
+	const handleViewAllPrivateChats = useCallback(() => {
+		setIsAllPrivateChatsSidebarOpen(true);
 	}, []);
 
 	// Delete handlers
@@ -344,24 +272,6 @@ export function LayoutDataProvider({
 			setChatToDelete(null);
 		}
 	}, [chatToDelete, queryClient, searchSpaceId, router, currentChatId]);
-
-	const confirmDeleteNote = useCallback(async () => {
-		if (!noteToDelete) return;
-		setIsDeletingNote(true);
-		try {
-			await notesApiService.deleteNote({
-				search_space_id: noteToDelete.search_space_id,
-				note_id: noteToDelete.id,
-			});
-			refetchNotes();
-		} catch (error) {
-			console.error("Error deleting note:", error);
-		} finally {
-			setIsDeletingNote(false);
-			setShowDeleteNoteDialog(false);
-			setNoteToDelete(null);
-		}
-	}, [noteToDelete, refetchNotes]);
 
 	// Page usage
 	const pageUsage = user
@@ -384,18 +294,14 @@ export function LayoutDataProvider({
 				searchSpace={activeSearchSpace}
 				navItems={navItems}
 				onNavItemClick={handleNavItemClick}
-				chats={chats}
+				chats={myChats}
+				sharedChats={sharedChats}
 				activeChatId={currentChatId}
 				onNewChat={handleNewChat}
 				onChatSelect={handleChatSelect}
 				onChatDelete={handleChatDelete}
-				onViewAllChats={handleViewAllChats}
-				notes={notes}
-				activeNoteId={currentNoteId}
-				onNoteSelect={handleNoteSelect}
-				onNoteDelete={handleNoteDelete}
-				onAddNote={handleAddNote}
-				onViewAllNotes={handleViewAllNotes}
+				onViewAllSharedChats={handleViewAllSharedChats}
+				onViewAllPrivateChats={handleViewAllPrivateChats}
 				user={{ email: user?.email || "", name: user?.email?.split("@")[0] }}
 				onSettings={handleSettings}
 				onManageMembers={handleManageMembers}
@@ -455,19 +361,18 @@ export function LayoutDataProvider({
 				</DialogContent>
 			</Dialog>
 
-			{/* All Chats Sidebar */}
-			<AllChatsSidebar
-				open={isAllChatsSidebarOpen}
-				onOpenChange={setIsAllChatsSidebarOpen}
+			{/* All Shared Chats Sidebar */}
+			<AllSharedChatsSidebar
+				open={isAllSharedChatsSidebarOpen}
+				onOpenChange={setIsAllSharedChatsSidebarOpen}
 				searchSpaceId={searchSpaceId}
 			/>
 
-			{/* All Notes Sidebar */}
-			<AllNotesSidebar
-				open={isAllNotesSidebarOpen}
-				onOpenChange={setIsAllNotesSidebarOpen}
+			{/* All Private Chats Sidebar */}
+			<AllPrivateChatsSidebar
+				open={isAllPrivateChatsSidebarOpen}
+				onOpenChange={setIsAllPrivateChatsSidebarOpen}
 				searchSpaceId={searchSpaceId}
-				onAddNote={handleAddNote}
 			/>
 
 			{/* All Search Spaces Sheet */}
@@ -489,49 +394,6 @@ export function LayoutDataProvider({
 				open={isCreateSearchSpaceDialogOpen}
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
-
-			{/* Delete Note Dialog */}
-			<Dialog open={showDeleteNoteDialog} onOpenChange={setShowDeleteNoteDialog}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Trash2 className="h-5 w-5 text-destructive" />
-							<span>{t("delete_note")}</span>
-						</DialogTitle>
-						<DialogDescription>
-							{t("delete_note_confirm")} <span className="font-medium">{noteToDelete?.name}</span>?{" "}
-							{t("action_cannot_undone")}
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="flex gap-2 sm:justify-end">
-						<Button
-							variant="outline"
-							onClick={() => setShowDeleteNoteDialog(false)}
-							disabled={isDeletingNote}
-						>
-							{tCommon("cancel")}
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={confirmDeleteNote}
-							disabled={isDeletingNote}
-							className="gap-2"
-						>
-							{isDeletingNote ? (
-								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{t("deleting")}
-								</>
-							) : (
-								<>
-									<Trash2 className="h-4 w-4" />
-									{tCommon("delete")}
-								</>
-							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
 		</>
 	);
 }

@@ -312,6 +312,7 @@
 		"rows_per_page": "Rows per page",
 		"refresh": "Refresh",
 		"refresh_success": "Documents refreshed",
+		"create_shared_note": "Create Shared Note",
 		"processing_documents": "Processing documents...",
 		"active_tasks_count": "{count} active task(s)"
 	},
@@ -628,11 +629,16 @@
 		"manage": "Manage"
 	},
 	"sidebar": {
+		"chats": "Private Chats",
+		"shared_chats": "Shared Chats",
 		"recent_chats": "Recent Chats",
 		"search_chats": "Search chats...",
 		"no_chats_found": "No chats found",
 		"no_recent_chats": "No recent chats",
+		"no_shared_chats": "No shared chats",
 		"view_all_chats": "View all chats",
+		"view_all_shared_chats": "View all shared chats",
+		"view_all_private_chats": "View all private chats",
 		"all_chats": "All Chats",
 		"all_chats_description": "Browse and manage all your chats",
 		"no_chats": "No chats yet",

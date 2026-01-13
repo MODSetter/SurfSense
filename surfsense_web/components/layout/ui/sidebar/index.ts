@@ -1,5 +1,6 @@
 export { AllChatsSidebar } from "./AllChatsSidebar";
-export { AllNotesSidebar } from "./AllNotesSidebar";
+export { AllPrivateChatsSidebar } from "./AllPrivateChatsSidebar";
+export { AllSharedChatsSidebar } from "./AllSharedChatsSidebar";
 export { ChatListItem } from "./ChatListItem";
 export { MobileSidebar, MobileSidebarTrigger } from "./MobileSidebar";
 export { NavSection } from "./NavSection";

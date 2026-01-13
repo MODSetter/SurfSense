@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
 	ArchiveIcon,
-	Globe,
 	Loader2,
 	Lock,
 	MessageCircleMore,
@@ -12,7 +11,6 @@ import {
 	RotateCcwIcon,
 	Search,
 	Trash2,
-	Users,
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -41,27 +39,24 @@ import {
 } from "@/lib/chat/thread-persistence";
 import { cn } from "@/lib/utils";
 
-type TabType = "shared" | "private";
-
-interface AllChatsSidebarProps {
+interface AllPrivateChatsSidebarProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onCloseMobileSidebar?: () => void;
 }
 
-export function AllChatsSidebar({
+export function AllPrivateChatsSidebar({
 	open,
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllChatsSidebarProps) {
+}: AllPrivateChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
 	const queryClient = useQueryClient();
 
-	// Get the current chat ID from URL to check if user is deleting the currently open chat
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
 		: params.chat_id
@@ -70,19 +65,17 @@ export function AllChatsSidebar({
 	const [deletingThreadId, setDeletingThreadId] = useState<number | null>(null);
 	const [archivingThreadId, setArchivingThreadId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
-	const [activeTab, setActiveTab] = useState<TabType>("shared");
+	const [showArchived, setShowArchived] = useState(false);
 	const [mounted, setMounted] = useState(false);
 	const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
-	// Handle mounting for portal
 	useEffect(() => {
 		setMounted(true);
 	}, []);
 
-	// Handle escape key
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && open) {
@@ -93,7 +86,6 @@ export function AllChatsSidebar({
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
 
-	// Lock body scroll when open
 	useEffect(() => {
 		if (open) {
 			document.body.style.overflow = "hidden";
@@ -105,7 +97,6 @@ export function AllChatsSidebar({
 		};
 	}, [open]);
 
-	// Fetch all threads (when not searching)
 	const {
 		data: threadsData,
 		error: threadsError,
@@ -116,7 +107,6 @@ export function AllChatsSidebar({
 		enabled: !!searchSpaceId && open && !isSearchMode,
 	});
 
-	// Search threads (when searching)
 	const {
 		data: searchData,
 		error: searchError,
@@ -127,46 +117,41 @@ export function AllChatsSidebar({
 		enabled: !!searchSpaceId && open && isSearchMode,
 	});
 
-	// Split threads into shared and private based on visibility
-	const { sharedChats, privateChats } = useMemo(() => {
-		let allThreads: ThreadListItem[] = [];
-
+	// Filter to only private chats (PRIVATE visibility or no visibility set)
+	const { activeChats, archivedChats } = useMemo(() => {
 		if (isSearchMode) {
-			allThreads = searchData ?? [];
-		} else if (threadsData) {
-			// Combine active and archived threads for filtering
-			allThreads = [...threadsData.threads, ...threadsData.archived_threads];
+			const privateSearchResults = (searchData ?? []).filter(
+				(thread) => thread.visibility !== "SEARCH_SPACE"
+			);
+			return {
+				activeChats: privateSearchResults.filter((t) => !t.archived),
+				archivedChats: privateSearchResults.filter((t) => t.archived),
+			};
 		}
 
-		const shared: ThreadListItem[] = [];
-		const privateChatsList: ThreadListItem[] = [];
+		if (!threadsData) return { activeChats: [], archivedChats: [] };
 
-		for (const thread of allThreads) {
-			if (thread.visibility === "SEARCH_SPACE") {
-				shared.push(thread);
-			} else {
-				privateChatsList.push(thread);
-			}
-		}
+		const activePrivate = threadsData.threads.filter(
+			(thread) => thread.visibility !== "SEARCH_SPACE"
+		);
+		const archivedPrivate = threadsData.archived_threads.filter(
+			(thread) => thread.visibility !== "SEARCH_SPACE"
+		);
 
-		return { sharedChats: shared, privateChats: privateChatsList };
+		return { activeChats: activePrivate, archivedChats: archivedPrivate };
 	}, [threadsData, searchData, isSearchMode]);
 
-	// Get threads for current tab
-	const threads = activeTab === "shared" ? sharedChats : privateChats;
+	const threads = showArchived ? archivedChats : activeChats;
 
-	// Handle thread navigation
 	const handleThreadClick = useCallback(
 		(threadId: number) => {
 			router.push(`/dashboard/${searchSpaceId}/new-chat/${threadId}`);
 			onOpenChange(false);
-			// Also close the main sidebar on mobile
 			onCloseMobileSidebar?.();
 		},
 		[router, onOpenChange, searchSpaceId, onCloseMobileSidebar]
 	);
 
-	// Handle thread deletion
 	const handleDeleteThread = useCallback(
 		async (threadId: number) => {
 			setDeletingThreadId(threadId);
@@ -177,10 +162,8 @@ export function AllChatsSidebar({
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 
-				// If the deleted chat is currently open, close sidebar first then redirect
 				if (currentChatId === threadId) {
 					onOpenChange(false);
-					// Wait for sidebar close animation to complete before navigating
 					setTimeout(() => {
 						router.push(`/dashboard/${searchSpaceId}/new-chat`);
 					}, 250);
@@ -195,7 +178,6 @@ export function AllChatsSidebar({
 		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange]
 	);
 
-	// Handle thread archive/unarchive
 	const handleToggleArchive = useCallback(
 		async (threadId: number, currentlyArchived: boolean) => {
 			setArchivingThreadId(threadId);
@@ -219,7 +201,6 @@ export function AllChatsSidebar({
 		[queryClient, searchSpaceId, t]
 	);
 
-	// Clear search
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
 	}, []);
@@ -227,9 +208,8 @@ export function AllChatsSidebar({
 	const isLoading = isSearchMode ? isLoadingSearch : isLoadingThreads;
 	const error = isSearchMode ? searchError : threadsError;
 
-	// Get counts for tabs
-	const sharedCount = sharedChats.length;
-	const privateCount = privateChats.length;
+	const activeCount = activeChats.length;
+	const archivedCount = archivedChats.length;
 
 	if (!mounted) return null;
 
@@ -237,7 +217,6 @@ export function AllChatsSidebar({
 		<AnimatePresence>
 			{open && (
 				<>
-					{/* Backdrop */}
 					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
@@ -248,7 +227,6 @@ export function AllChatsSidebar({
 						aria-hidden="true"
 					/>
 
-					{/* Panel */}
 					<motion.div
 						initial={{ x: "-100%" }}
 						animate={{ x: 0 }}
@@ -257,12 +235,14 @@ export function AllChatsSidebar({
 						className="fixed inset-y-0 left-0 z-70 w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"
-						aria-label={t("all_chats") || "All Chats"}
+						aria-label={t("chats") || "Private Chats"}
 					>
-						{/* Header */}
 						<div className="shrink-0 p-4 pb-2 space-y-3">
 							<div className="flex items-center justify-between">
-								<h2 className="text-lg font-semibold">{t("all_chats") || "All Chats"}</h2>
+								<div className="flex items-center gap-2">
+									<Lock className="h-5 w-5 text-primary" />
+									<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
+								</div>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -274,7 +254,6 @@ export function AllChatsSidebar({
 								</Button>
 							</div>
 
-							{/* Search Input */}
 							<div className="relative">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 								<Input
@@ -298,37 +277,35 @@ export function AllChatsSidebar({
 							</div>
 						</div>
 
-						{/* Tab toggle for shared/private chats */}
-						<div className="shrink-0 flex border-b mx-4">
-							<button
-								type="button"
-								onClick={() => setActiveTab("shared")}
-								className={cn(
-									"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors flex items-center justify-center gap-1.5",
-									activeTab === "shared"
-										? "border-b-2 border-primary text-primary"
-										: "text-muted-foreground hover:text-foreground"
-								)}
-							>
-								<Users className="h-3.5 w-3.5" />
-								{t("shared_chats") || "Shared"} ({sharedCount})
-							</button>
-							<button
-								type="button"
-								onClick={() => setActiveTab("private")}
-								className={cn(
-									"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors flex items-center justify-center gap-1.5",
-									activeTab === "private"
-										? "border-b-2 border-primary text-primary"
-										: "text-muted-foreground hover:text-foreground"
-								)}
-							>
-								<Lock className="h-3.5 w-3.5" />
-								{t("chats") || "Private"} ({privateCount})
-							</button>
-						</div>
+						{!isSearchMode && (
+							<div className="shrink-0 flex border-b mx-4">
+								<button
+									type="button"
+									onClick={() => setShowArchived(false)}
+									className={cn(
+										"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
+										!showArchived
+											? "border-b-2 border-primary text-primary"
+											: "text-muted-foreground hover:text-foreground"
+									)}
+								>
+									Active ({activeCount})
+								</button>
+								<button
+									type="button"
+									onClick={() => setShowArchived(true)}
+									className={cn(
+										"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
+										showArchived
+											? "border-b-2 border-primary text-primary"
+											: "text-muted-foreground hover:text-foreground"
+									)}
+								>
+									Archived ({archivedCount})
+								</button>
+							</div>
+						)}
 
-						{/* Scrollable Content */}
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{isLoading ? (
 								<div className="flex items-center justify-center py-8">
@@ -345,7 +322,6 @@ export function AllChatsSidebar({
 										const isArchiving = archivingThreadId === thread.id;
 										const isBusy = isDeleting || isArchiving;
 										const isActive = currentChatId === thread.id;
-										const isShared = thread.visibility === "SEARCH_SPACE";
 
 										return (
 											<div
@@ -355,11 +331,9 @@ export function AllChatsSidebar({
 													"hover:bg-accent hover:text-accent-foreground",
 													"transition-colors cursor-pointer",
 													isActive && "bg-accent text-accent-foreground",
-													isBusy && "opacity-50 pointer-events-none",
-													thread.archived && "opacity-60"
+													isBusy && "opacity-50 pointer-events-none"
 												)}
 											>
-												{/* Main clickable area for navigation */}
 												<Tooltip>
 													<TooltipTrigger asChild>
 														<button
@@ -370,25 +344,16 @@ export function AllChatsSidebar({
 														>
 															<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
 															<span className="truncate">{thread.title || "New Chat"}</span>
-															{thread.archived && (
-																<ArchiveIcon className="h-3 w-3 shrink-0 text-muted-foreground" />
-															)}
 														</button>
 													</TooltipTrigger>
 													<TooltipContent side="bottom" align="start">
-														<div className="space-y-1">
-															<p>
-																{t("updated") || "Updated"}:{" "}
-																{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
-															</p>
-															{thread.archived && (
-																<p className="text-muted-foreground text-xs">Archived</p>
-															)}
-														</div>
+														<p>
+															{t("updated") || "Updated"}:{" "}
+															{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+														</p>
 													</TooltipContent>
 												</Tooltip>
 
-												{/* Actions dropdown */}
 												<DropdownMenu
 													open={openDropdownId === thread.id}
 													onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
@@ -455,26 +420,16 @@ export function AllChatsSidebar({
 								</div>
 							) : (
 								<div className="text-center py-8">
-									{activeTab === "shared" ? (
-										<>
-											<Users className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-											<p className="text-sm text-muted-foreground">
-												{t("no_shared_chats") || "No shared chats"}
-											</p>
-											<p className="text-xs text-muted-foreground/70 mt-1">
-												Share a chat to collaborate with your team
-											</p>
-										</>
-									) : (
-										<>
-											<Lock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-											<p className="text-sm text-muted-foreground">
-												{t("no_chats") || "No private chats"}
-											</p>
-											<p className="text-xs text-muted-foreground/70 mt-1">
-												{t("start_new_chat_hint") || "Start a new chat from the chat page"}
-											</p>
-										</>
+									<Lock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+									<p className="text-sm text-muted-foreground">
+										{showArchived
+											? t("no_archived_chats") || "No archived chats"
+											: t("no_chats") || "No private chats"}
+									</p>
+									{!showArchived && (
+										<p className="text-xs text-muted-foreground/70 mt-1">
+											{t("start_new_chat_hint") || "Start a new chat from the chat page"}
+										</p>
 									)}
 								</div>
 							)}

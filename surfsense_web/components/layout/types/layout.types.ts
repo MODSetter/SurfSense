@@ -27,6 +27,8 @@ export interface ChatItem {
 	name: string;
 	url: string;
 	isActive?: boolean;
+	visibility?: "PRIVATE" | "SEARCH_SPACE";
+	isOwnThread?: boolean;
 }
 
 export interface NoteItem {
@@ -76,16 +78,6 @@ export interface ChatsSectionProps {
 	searchSpaceId?: string;
 }
 
-export interface NotesSectionProps {
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
-	searchSpaceId?: string;
-}
-
 export interface PageUsageDisplayProps {
 	pagesUsed: number;
 	pagesLimit: number;
@@ -107,17 +99,12 @@ export interface SidebarProps {
 	searchSpaceId?: string;
 	navItems: NavItem[];
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
 	user: User;
 	theme?: string;
 	onSettings?: () => void;

@@ -40,9 +40,12 @@ import {
 } from "@/lib/chat/podcast-state";
 import {
 	appendMessage,
+	type ChatVisibility,
 	createThread,
+	getThreadFull,
 	getThreadMessages,
 	type MessageRecord,
+	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
 import {
 	trackChatCreated,
@@ -217,6 +220,7 @@ export default function NewChatPage() {
 	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
 	const [threadId, setThreadId] = useState<number | null>(null);
+	const [currentThread, setCurrentThread] = useState<ThreadRecord | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
 	// Store thinking steps per message ID - kept separate from content to avoid
@@ -264,6 +268,7 @@ export default function NewChatPage() {
 		// Reset all state when switching between chats to prevent stale data
 		setMessages([]);
 		setThreadId(null);
+		setCurrentThread(null);
 		setMessageThinkingSteps(new Map());
 		setMentionedDocumentIds([]);
 		setMentionedDocuments([]);
@@ -272,11 +277,19 @@ export default function NewChatPage() {
 
 		try {
 			if (urlChatId > 0) {
-				// Thread exists - load messages
+				// Thread exists - load thread data and messages
 				setThreadId(urlChatId);
-				const response = await getThreadMessages(urlChatId);
-				if (response.messages && response.messages.length > 0) {
-					const loadedMessages = response.messages.map(convertToThreadMessage);
+
+				// Load thread data (for visibility info) and messages in parallel
+				const [threadData, messagesResponse] = await Promise.all([
+					getThreadFull(urlChatId),
+					getThreadMessages(urlChatId),
+				]);
+
+				setCurrentThread(threadData);
+
+				if (messagesResponse.messages && messagesResponse.messages.length > 0) {
+					const loadedMessages = messagesResponse.messages.map(convertToThreadMessage);
 					setMessages(loadedMessages);
 
 					// Extract and restore thinking steps from persisted messages
@@ -284,7 +297,7 @@ export default function NewChatPage() {
 					// Extract and restore mentioned documents from persisted messages
 					const restoredDocsMap: Record<string, MentionedDocumentInfo[]> = {};
 
-					for (const msg of response.messages) {
+					for (const msg of messagesResponse.messages) {
 						if (msg.role === "assistant") {
 							const steps = extractThinkingSteps(msg.content);
 							if (steps.length > 0) {
@@ -320,6 +333,7 @@ export default function NewChatPage() {
 			// Keep threadId as null - don't use Date.now() as it creates an invalid ID
 			// that will cause 404 errors on subsequent API calls
 			setThreadId(null);
+			setCurrentThread(null);
 			toast.error("Failed to load chat. Please try again.");
 		} finally {
 			setIsInitializing(false);
@@ -345,6 +359,19 @@ export default function NewChatPage() {
 		}
 		setIsRunning(false);
 	}, []);
+
+	// Handle visibility change from ChatShareButton
+	const handleVisibilityChange = useCallback(
+		(newVisibility: ChatVisibility) => {
+			setCurrentThread((prev) => (prev ? { ...prev, visibility: newVisibility } : null));
+			// Refetch all thread queries so sidebar reflects the change immediately
+			// Use predicate to match any query that starts with "threads"
+			queryClient.refetchQueries({
+				predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "threads",
+			});
+		},
+		[queryClient]
+	);
 
 	// Handle new message from user
 	const onNew = useCallback(
@@ -916,7 +943,13 @@ export default function NewChatPage() {
 			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 				<Thread
 					messageThinkingSteps={messageThinkingSteps}
-					header={<ChatHeader searchSpaceId={searchSpaceId} />}
+					header={
+						<ChatHeader
+							searchSpaceId={searchSpaceId}
+							thread={currentThread}
+							onThreadVisibilityChange={handleVisibilityChange}
+						/>
+					}
 				/>
 			</div>
 		</AssistantRuntimeProvider>
