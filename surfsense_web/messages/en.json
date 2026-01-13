@@ -319,6 +319,7 @@
 		"rows_per_page": "Rows per page",
 		"refresh": "Refresh",
 		"refresh_success": "Documents refreshed",
+		"upload_documents": "Upload Documents",
 		"create_shared_note": "Create Shared Note",
 		"processing_documents": "Processing documents...",
 		"active_tasks_count": "{count} active task(s)"

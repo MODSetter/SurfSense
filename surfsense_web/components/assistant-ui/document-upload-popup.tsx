@@ -86,7 +86,6 @@ const DocumentUploadPopupContent: FC<{
 }> = ({ isOpen, onOpenChange }) => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const router = useRouter();
-	const [isAccordionExpanded, setIsAccordionExpanded] = useState(false);
 
 	if (!searchSpaceId) return null;
 
@@ -118,19 +117,16 @@ const DocumentUploadPopupContent: FC<{
 
 				{/* Scrollable Content */}
 				<div className="flex-1 min-h-0 relative overflow-hidden">
-					<div className={`h-full ${isAccordionExpanded ? "overflow-y-auto" : ""}`}>
+					<div className="h-full overflow-y-auto">
 						<div className="px-6 sm:px-12 pb-5 sm:pb-16">
 							<DocumentUploadTab
 								searchSpaceId={searchSpaceId}
 								onSuccess={handleSuccess}
-								onAccordionStateChange={setIsAccordionExpanded}
 							/>
 						</div>
 					</div>
-					{/* Bottom fade shadow - only show when scrolling */}
-					{isAccordionExpanded && (
-						<div className="absolute bottom-0 left-0 right-0 h-2 sm:h-7 bg-gradient-to-t from-muted via-muted/80 to-transparent pointer-events-none z-10" />
-					)}
+					{/* Bottom fade shadow */}
+					<div className="absolute bottom-0 left-0 right-0 h-2 sm:h-7 bg-gradient-to-t from-muted via-muted/80 to-transparent pointer-events-none z-10" />
 				</div>
 			</DialogContent>
 		</Dialog>
