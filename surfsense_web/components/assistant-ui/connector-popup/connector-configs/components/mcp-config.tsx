@@ -15,9 +15,10 @@ import type { ConnectorConfigProps } from "../index";
 interface MCPConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 	searchSpaceId?: string;
+	onOtherMCPConnectorsLoaded?: (connectorIds: number[]) => void;
 }
 
-export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNameChange, searchSpaceId }) => {
+export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNameChange, searchSpaceId, onOtherMCPConnectorsLoaded }) => {
 	const [name, setName] = useState<string>("MCPs");
 	const [configJson, setConfigJson] = useState("");
 	const [jsonError, setJsonError] = useState<string | null>(null);
@@ -40,6 +41,14 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 				});
 				const mcpConnectors = connectors.filter((c: any) => c.connector_type === "MCP_CONNECTOR");
 				setAllMCPConnectors(mcpConnectors);
+				
+				// Notify parent about other MCP connectors that should be deleted on save
+				const otherConnectorIds = mcpConnectors
+					.filter((c: any) => c.id !== connector.id)
+					.map((c: any) => c.id);
+				if (onOtherMCPConnectorsLoaded && otherConnectorIds.length > 0) {
+					onOtherMCPConnectorsLoaded(otherConnectorIds);
+				}
 				
 				// Collect all server configs from all MCP connectors
 				const allServerConfigs: MCPServerConfig[] = [];
@@ -118,6 +127,32 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		// Clear error when user starts typing
 		if (jsonError) {
 			setJsonError(null);
+		}
+		
+		// Try to parse and update parent if valid
+		try {
+			const parsed = JSON.parse(value);
+			const configs = Array.isArray(parsed) ? parsed : [parsed];
+			
+			// Validate each config
+			const validConfigs: MCPServerConfig[] = [];
+			for (const cfg of configs) {
+				if (cfg.command && typeof cfg.command === "string") {
+					validConfigs.push({
+						command: cfg.command,
+						args: cfg.args || [],
+						env: cfg.env || {},
+						transport: cfg.transport || "stdio",
+					});
+				}
+			}
+			
+			// Update parent if we have valid configs
+			if (validConfigs.length > 0 && onConfigChange) {
+				onConfigChange({ server_configs: validConfigs });
+			}
+		} catch {
+			// Ignore parse errors while typing - don't update parent with invalid config
 		}
 	};
 

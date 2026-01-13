@@ -26,6 +26,7 @@ export interface ConnectorConfigProps {
 	onConfigChange?: (config: Record<string, unknown>) => void;
 	onNameChange?: (name: string) => void;
 	searchSpaceId?: string;
+	onOtherMCPConnectorsLoaded?: (connectorIds: number[]) => void;
 }
 
 export type ConnectorConfigComponent = FC<ConnectorConfigProps>;
