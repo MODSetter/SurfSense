@@ -8,7 +8,6 @@ export {
 	MobileSidebar,
 	MobileSidebarTrigger,
 	NavSection,
-	NoteListItem,
 	PageUsageDisplay,
 	Sidebar,
 	SidebarCollapseButton,

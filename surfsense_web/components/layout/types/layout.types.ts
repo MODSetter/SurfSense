@@ -31,14 +31,6 @@ export interface ChatItem {
 	isOwnThread?: boolean;
 }
 
-export interface NoteItem {
-	id: number;
-	name: string;
-	url: string;
-	isActive?: boolean;
-	isReindexing?: boolean;
-}
-
 export interface PageUsage {
 	pagesUsed: number;
 	pagesLimit: number;
@@ -74,7 +66,8 @@ export interface ChatsSectionProps {
 	activeChatId?: number | null;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	searchSpaceId?: string;
 }
 
@@ -104,7 +97,8 @@ export interface SidebarProps {
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	theme?: string;
 	onSettings?: () => void;
