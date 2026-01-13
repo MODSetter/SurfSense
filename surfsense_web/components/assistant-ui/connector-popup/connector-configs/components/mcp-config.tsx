@@ -190,22 +190,6 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 
 	return (
 		<div className="space-y-6">
-			{/* Connector Name */}
-			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
-				<div className="space-y-2">
-					<Label className="text-xs sm:text-sm">Connector Name</Label>
-					<Input
-						value={name}
-						onChange={(e) => handleNameChange(e.target.value)}
-						placeholder="My MCP Server"
-						className="border-slate-400/20 focus-visible:border-slate-400/40"
-					/>
-					<p className="text-[10px] sm:text-xs text-muted-foreground">
-						A friendly name to identify this MCP server.
-					</p>
-				</div>
-			</div>
-
 			{/* Server Configuration */}
 			<div className="space-y-4">
 				<h3 className="font-medium text-sm sm:text-base flex items-center gap-2">
