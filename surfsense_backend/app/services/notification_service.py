@@ -199,6 +199,24 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             date_range = f"_{start_date or 'none'}_{end_date or 'none'}"
         return f"connector_{connector_id}_{timestamp}{date_range}"
 
+    def _generate_google_drive_operation_id(
+        self, connector_id: int, folder_count: int, file_count: int
+    ) -> str:
+        """
+        Generate a unique operation ID for a Google Drive indexing operation.
+
+        Args:
+            connector_id: Connector ID
+            folder_count: Number of folders to index
+            file_count: Number of files to index
+
+        Returns:
+            Unique operation ID string
+        """
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+        items_info = f"_{folder_count}f_{file_count}files"
+        return f"drive_{connector_id}_{timestamp}{items_info}"
+
     async def notify_indexing_started(
         self,
         session: AsyncSession,
@@ -330,6 +348,75 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             message=message,
             status=status,
             metadata_updates=metadata_updates,
+        )
+
+    async def notify_google_drive_indexing_started(
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        connector_id: int,
+        connector_name: str,
+        connector_type: str,
+        search_space_id: int,
+        folder_count: int,
+        file_count: int,
+        folder_names: list[str] | None = None,
+        file_names: list[str] | None = None,
+    ) -> Notification:
+        """
+        Create or update notification when Google Drive indexing starts.
+
+        Args:
+            session: Database session
+            user_id: User ID
+            connector_id: Connector ID
+            connector_name: Connector name
+            connector_type: Connector type
+            search_space_id: Search space ID
+            folder_count: Number of folders to index
+            file_count: Number of files to index
+            folder_names: List of folder names (optional)
+            file_names: List of file names (optional)
+
+        Returns:
+            Notification: The created or updated notification
+        """
+        operation_id = self._generate_google_drive_operation_id(
+            connector_id, folder_count, file_count
+        )
+        title = f"Indexing: {connector_name}"
+        
+        # Create descriptive message
+        items_desc = []
+        if folder_count > 0:
+            items_desc.append(f"{folder_count} folder{'s' if folder_count != 1 else ''}")
+        if file_count > 0:
+            items_desc.append(f"{file_count} file{'s' if file_count != 1 else ''}")
+        
+        message = f'Indexing "{connector_name}" ({", ".join(items_desc)}) in progress...'
+
+        metadata = {
+            "connector_id": connector_id,
+            "connector_name": connector_name,
+            "connector_type": connector_type,
+            "folder_count": folder_count,
+            "file_count": file_count,
+            "indexed_count": 0,
+        }
+        
+        if folder_names:
+            metadata["folder_names"] = folder_names
+        if file_names:
+            metadata["file_names"] = file_names
+
+        return await self.find_or_create_notification(
+            session=session,
+            user_id=user_id,
+            operation_id=operation_id,
+            title=title,
+            message=message,
+            search_space_id=search_space_id,
+            initial_metadata=metadata,
         )
 
 

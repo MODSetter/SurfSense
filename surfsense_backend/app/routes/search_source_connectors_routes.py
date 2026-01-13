@@ -1660,7 +1660,10 @@ async def run_google_drive_indexing(
     user_id: str,
     items_dict: dict,  # Dictionary with 'folders' and 'files' lists
 ):
-    """Runs the Google Drive indexing task for folders and files and updates the timestamp."""
+    """Runs the Google Drive indexing task for folders and files with notifications."""
+    from uuid import UUID
+
+    notification = None
     try:
         from app.tasks.connector_indexers.google_drive_indexer import (
             index_google_drive_files,
@@ -1671,6 +1674,27 @@ async def run_google_drive_indexing(
         items = GoogleDriveIndexRequest(**items_dict)
         total_indexed = 0
         errors = []
+
+        # Get connector info for notification
+        connector_result = await session.execute(
+            select(SearchSourceConnector).where(SearchSourceConnector.id == connector_id)
+        )
+        connector = connector_result.scalar_one_or_none()
+
+        if connector:
+            # Create notification when indexing starts
+            notification = await NotificationService.connector_indexing.notify_google_drive_indexing_started(
+                session=session,
+                user_id=UUID(user_id),
+                connector_id=connector_id,
+                connector_name=connector.name,
+                connector_type=connector.connector_type.value,
+                search_space_id=search_space_id,
+                folder_count=len(items.folders),
+                file_count=len(items.files),
+                folder_names=items.get_folder_names() if items.folders else None,
+                file_names=items.get_file_names() if items.files else None,
+            )
 
         # Index each folder
         for folder in items.folders:
@@ -1718,9 +1742,12 @@ async def run_google_drive_indexing(
                     exc_info=True,
                 )
 
+        # Prepare error message for notification
+        error_message = None
         if errors:
+            error_message = "; ".join(errors)
             logger.error(
-                f"Google Drive indexing completed with errors for connector {connector_id}: {'; '.join(errors)}"
+                f"Google Drive indexing completed with errors for connector {connector_id}: {error_message}"
             )
         else:
             logger.info(
@@ -1729,12 +1756,33 @@ async def run_google_drive_indexing(
             # Update the last indexed timestamp only on full success
             await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
+
+        # Update notification on completion
+        if notification:
+            await NotificationService.connector_indexing.notify_indexing_completed(
+                session=session,
+                notification=notification,
+                indexed_count=total_indexed,
+                error_message=error_message,
+            )
+
     except Exception as e:
         logger.error(
             f"Critical error in run_google_drive_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+        
+        # Update notification on exception
+        if notification:
+            try:
+                await NotificationService.connector_indexing.notify_indexing_completed(
+                    session=session,
+                    notification=notification,
+                    indexed_count=0,
+                    error_message=str(e),
+                )
+            except Exception as notif_error:
+                logger.error(f"Failed to update notification: {notif_error!s}")
 
 
 # Add new helper functions for luma indexing
