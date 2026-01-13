@@ -6,12 +6,14 @@ export type {
 	NavItem,
 	NoteItem,
 	PageUsage,
+	SearchSpace,
 	SidebarSectionProps,
 	User,
-	Workspace,
 } from "./types/layout.types";
 export {
+	AllSearchSpacesSheet,
 	ChatListItem,
+	CreateSearchSpaceDialog,
 	Header,
 	IconRail,
 	LayoutShell,
@@ -21,10 +23,10 @@ export {
 	NavSection,
 	NoteListItem,
 	PageUsageDisplay,
+	SearchSpaceAvatar,
 	Sidebar,
 	SidebarCollapseButton,
 	SidebarHeader,
 	SidebarSection,
 	SidebarUserProfile,
-	WorkspaceAvatar,
 } from "./ui";

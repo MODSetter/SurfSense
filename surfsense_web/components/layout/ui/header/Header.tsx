@@ -25,7 +25,7 @@ export function Header({
 			{/* Left side - Mobile menu trigger + Breadcrumb */}
 			<div className="flex flex-1 items-center gap-2 min-w-0">
 				{mobileMenuTrigger}
-				{breadcrumb}
+				<div className="hidden md:block">{breadcrumb}</div>
 			</div>
 
 			{/* Right side - Actions */}
