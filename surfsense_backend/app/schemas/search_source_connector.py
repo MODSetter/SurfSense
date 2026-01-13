@@ -14,6 +14,7 @@ class SearchSourceConnectorBase(BaseModel):
     name: str
     connector_type: SearchSourceConnectorType
     is_indexable: bool
+    is_active: bool = True
     last_indexed_at: datetime | None = None
     config: dict[str, Any]
     periodic_indexing_enabled: bool = False
@@ -61,6 +62,7 @@ class SearchSourceConnectorUpdate(BaseModel):
     name: str | None = None
     connector_type: SearchSourceConnectorType | None = None
     is_indexable: bool | None = None
+    is_active: bool | None = None
     last_indexed_at: datetime | None = None
     config: dict[str, Any] | None = None
     periodic_indexing_enabled: bool | None = None
@@ -80,79 +82,36 @@ class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampMod
 # =============================================================================
 
 
-class MCPToolConfig(BaseModel):
-    """Configuration for a single MCP tool (API endpoint)."""
+class MCPServerConfig(BaseModel):
+    """Configuration for an MCP server connection (similar to Cursor's config)."""
 
-    name: str
-    description: str
-    endpoint: str
-    method: str = "GET"
-    auth_type: str = "none"  # "none" | "bearer" | "api_key" | "basic"
-    auth_config: dict[str, Any] = {}
-    parameters: dict[str, Any] = {"type": "object", "properties": {}}
-    verify_ssl: bool = True  # SSL certificate verification (disable only for self-signed certs)
-
-    @field_validator("method")
-    @classmethod
-    def validate_method(cls, v: str) -> str:
-        allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-        v_upper = v.upper()
-        if v_upper not in allowed_methods:
-            msg = f"Method must be one of {allowed_methods}"
-            raise ValueError(msg)
-        return v_upper
-
-    @field_validator("auth_type")
-    @classmethod
-    def validate_auth_type(cls, v: str) -> str:
-        allowed_types = ["none", "bearer", "api_key", "basic"]
-        v_lower = v.lower()
-        if v_lower not in allowed_types:
-            msg = f"Auth type must be one of {allowed_types}"
-            raise ValueError(msg)
-        return v_lower
-
-
-class MCPConnectorMetadata(BaseModel):
-    """Metadata structure for MCP connectors."""
-
-    tools: list[MCPToolConfig]
+    command: str  # e.g., "uvx", "node", "python"
+    args: list[str] = []  # e.g., ["mcp-server-git", "--repository", "/path"]
+    env: dict[str, str] = {}  # Environment variables for the server process
+    transport: str = "stdio"  # "stdio" | "sse" | "http" (stdio is most common)
 
 
 class MCPConnectorCreate(BaseModel):
     """Schema for creating an MCP connector."""
 
     name: str
-    tools: list[MCPToolConfig]
-    periodic_indexing_enabled: bool = False
-    indexing_frequency_minutes: int | None = None
-
-    def to_connector_create(self, search_space_id: int) -> SearchSourceConnectorCreate:
-        """Convert to base SearchSourceConnectorCreate schema."""
-        return SearchSourceConnectorCreate(
-            name=self.name,
-            connector_type=SearchSourceConnectorType.MCP_CONNECTOR,
-            is_indexable=False,  # MCP connectors are not indexable
-            config={"tools": [tool.model_dump() for tool in self.tools]},
-            periodic_indexing_enabled=False,  # MCP connectors don't support periodic indexing
-            indexing_frequency_minutes=None,
-        )
+    server_config: MCPServerConfig
 
 
 class MCPConnectorUpdate(BaseModel):
     """Schema for updating an MCP connector."""
 
     name: str | None = None
-    tools: list[MCPToolConfig] | None = None
+    server_config: MCPServerConfig | None = None
 
 
 class MCPConnectorRead(BaseModel):
-    """Schema for reading an MCP connector with tools."""
+    """Schema for reading an MCP connector with server config."""
 
     id: int
     name: str
     connector_type: SearchSourceConnectorType
-    tools: list[MCPToolConfig]
+    server_config: MCPServerConfig
     search_space_id: int
     user_id: uuid.UUID
     created_at: datetime
@@ -164,14 +123,13 @@ class MCPConnectorRead(BaseModel):
     def from_connector(cls, connector: SearchSourceConnectorRead) -> "MCPConnectorRead":
         """Convert from base SearchSourceConnectorRead."""
         config = connector.config or {}
-        tools_data = config.get("tools", [])
-        tools = [MCPToolConfig(**tool) for tool in tools_data]
+        server_config = MCPServerConfig(**config.get("server_config", {}))
 
         return cls(
             id=connector.id,
             name=connector.name,
             connector_type=connector.connector_type,
-            tools=tools,
+            server_config=server_config,
             search_space_id=connector.search_space_id,
             user_id=connector.user_id,
             created_at=connector.created_at,

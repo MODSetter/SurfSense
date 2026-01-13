@@ -4,12 +4,15 @@ import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } f
 import { ArrowRight, Cable, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FC } from "react";
+import { useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cn } from "@/lib/utils";
 import { OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
@@ -49,6 +52,36 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	onViewAccountsList,
 }) => {
 	const router = useRouter();
+	const [togglingConnectors, setTogglingConnectors] = useState<Set<number>>(new Set());
+
+	const handleToggleActive = async (connector: SearchSourceConnector, event: React.MouseEvent) => {
+		event.stopPropagation();
+		
+		if (togglingConnectors.has(connector.id)) return;
+
+		setTogglingConnectors(new Set([...togglingConnectors, connector.id]));
+		
+		try {
+			await connectorsApiService.updateConnector({
+				id: connector.id,
+				data: {
+					is_active: !connector.is_active,
+				},
+			});
+			
+			// Refresh the page to update the UI
+			window.location.reload();
+		} catch (error) {
+			console.error("Failed to toggle connector:", error);
+			alert(error instanceof Error ? error.message : "Failed to toggle connector");
+		} finally {
+			setTogglingConnectors((prev) => {
+				const next = new Set(prev);
+				next.delete(connector.id);
+				return next;
+			});
+		}
+	};
 
 	const handleViewAllDocuments = () => {
 		router.push(`/dashboard/${searchSpaceId}/documents`);
@@ -278,6 +311,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										connector.connector_type,
 										documentTypeCounts
 									);
+									const isMCP = connector.connector_type === "MCP_CONNECTOR";
+									const isToggling = togglingConnectors.has(connector.id);
 
 									return (
 										<div
@@ -286,7 +321,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
 												isIndexing
 													? "bg-primary/5 border-primary/20"
-													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+													: connector.is_active === false
+														? "bg-slate-400/5 dark:bg-white/5 opacity-60"
+														: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
 											)}
 										>
 											<div
@@ -300,9 +337,16 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												{getConnectorIcon(connector.connector_type, "size-6")}
 											</div>
 											<div className="flex-1 min-w-0">
-												<p className="text-[14px] font-semibold leading-tight truncate">
-													{connector.name}
-												</p>
+												<div className="flex items-center gap-2">
+													<p className="text-[14px] font-semibold leading-tight truncate">
+														{connector.name}
+													</p>
+													{connector.is_active === false && (
+														<span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+															Disabled
+														</span>
+													)}
+												</div>
 												{isIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
@@ -319,15 +363,32 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 															? connector.last_indexed_at
 																? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
 																: "Never indexed"
-															: "Active"}
+															: connector.is_active
+																? "Active"
+																: "Inactive"}
 													</p>
 												)}
-													{isIndexableConnector(connector.connector_type) && (
-														<p className="text-[10px] text-muted-foreground mt-0.5">
-															{formatDocumentCount(documentCount)}
-														</p>
-													)}
+												{isIndexableConnector(connector.connector_type) && (
+													<p className="text-[10px] text-muted-foreground mt-0.5">
+														{formatDocumentCount(documentCount)}
+													</p>
+												)}
 											</div>
+											{isMCP && (
+												<div className="flex items-center gap-2 shrink-0">
+													<Switch
+														checked={connector.is_active !== false}
+														disabled={isToggling}
+														onCheckedChange={(checked) => {
+															handleToggleActive(connector, { stopPropagation: () => {} } as React.MouseEvent);
+														}}
+														className="data-[state=checked]:bg-primary"
+													/>
+													<span className="text-[10px] text-muted-foreground min-w-[50px]">
+														{isToggling ? "..." : connector.is_active !== false ? "Enabled" : "Disabled"}
+													</span>
+												</div>
+											)}
 											<Button
 												variant="secondary"
 												size="sm"

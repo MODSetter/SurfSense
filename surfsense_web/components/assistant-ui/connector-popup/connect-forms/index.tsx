@@ -16,6 +16,7 @@ export interface ConnectFormProps {
 		connector_type: string;
 		config: Record<string, unknown>;
 		is_indexable: boolean;
+		is_active: boolean;
 		last_indexed_at: null;
 		periodic_indexing_enabled: boolean;
 		indexing_frequency_minutes: number | null;

@@ -1,54 +1,44 @@
 "use client";
 
-import { Plus, Trash2, Webhook } from "lucide-react";
+import { CheckCircle2, Server, XCircle } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { MCPToolConfig } from "@/contracts/types/mcp.types";
+import type { MCPServerConfig, MCPToolDefinition } from "@/contracts/types/mcp.types";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import type { ConnectorConfigProps } from "../index";
 
 interface MCPConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
-const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
-const AUTH_TYPES = ["none", "bearer", "api_key", "basic"] as const;
-
 export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
 	const [name, setName] = useState<string>(connector.name || "");
-	const [tools, setTools] = useState<MCPToolConfig[]>([]);
+	const [configJson, setConfigJson] = useState("");
+	const [jsonError, setJsonError] = useState<string | null>(null);
+	const [isTesting, setIsTesting] = useState(false);
+	const [testResult, setTestResult] = useState<{
+		status: "success" | "error";
+		message: string;
+		tools: MCPToolDefinition[];
+	} | null>(null);
 
-	// Initialize tools from connector config
+	// Initialize from connector config
 	useEffect(() => {
-		const configTools = (connector.config?.tools as MCPToolConfig[]) || [];
-		setTools(configTools.length > 0 ? configTools : [createEmptyTool()]);
+		const serverConfig = (connector.config?.server_config as MCPServerConfig) || {
+			command: "",
+			args: [],
+			env: {},
+			transport: "stdio",
+		};
+		setConfigJson(JSON.stringify(serverConfig, null, 2));
 		setName(connector.name || "");
 	}, [connector.config, connector.name]);
 
-	const createEmptyTool = (): MCPToolConfig => ({
-		name: "",
-		description: "",
-		endpoint: "",
-		method: "GET",
-		auth_type: "none",
-		auth_config: {},
-		parameters: {
-			type: "object",
-			properties: {},
-		},
-		verify_ssl: true,
-	});
 
 	const handleNameChange = (value: string) => {
 		setName(value);
@@ -57,53 +47,81 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		}
 	};
 
-	const handleToolChange = (index: number, field: keyof MCPToolConfig, value: any) => {
-		const newTools = [...tools];
-		newTools[index] = { ...newTools[index], [field]: value };
-		setTools(newTools);
-		updateConfig(newTools);
-	};
-
-	const handleAuthConfigChange = (index: number, key: string, value: string) => {
-		const newTools = [...tools];
-		newTools[index] = {
-			...newTools[index],
-			auth_config: {
-				...newTools[index].auth_config,
-				[key]: value,
-			},
-		};
-		setTools(newTools);
-		updateConfig(newTools);
-	};
-
-	const handleParametersChange = (index: number, value: string) => {
+	const parseConfig = (): MCPServerConfig | null => {
 		try {
-			const parsed = JSON.parse(value);
-			handleToolChange(index, "parameters", parsed);
-		} catch {
-			// Invalid JSON, don't update
+			const parsed = JSON.parse(configJson);
+			setJsonError(null);
+			return {
+				command: parsed.command || "",
+				args: parsed.args || [],
+				env: parsed.env || {},
+				transport: parsed.transport || "stdio",
+			};
+		} catch (error) {
+			setJsonError(error instanceof Error ? error.message : "Invalid JSON");
+			return null;
 		}
 	};
 
-	const addTool = () => {
-		const newTools = [...tools, createEmptyTool()];
-		setTools(newTools);
-		updateConfig(newTools);
+	const handleConfigChange = (value: string) => {
+		setConfigJson(value);
+		// Clear error when user starts typing
+		if (jsonError) {
+			setJsonError(null);
+		}
+
+		// Try to parse and update config
+		try {
+			const parsed = JSON.parse(value);
+			if (onConfigChange) {
+				onConfigChange({
+					server_config: {
+						command: parsed.command || "",
+						args: parsed.args || [],
+						env: parsed.env || {},
+						transport: parsed.transport || "stdio",
+					},
+				});
+			}
+		} catch {
+			// Invalid JSON, don't update config yet
+		}
 	};
 
-	const removeTool = (index: number) => {
-		if (tools.length === 1) return; // Keep at least one tool
-		const newTools = tools.filter((_, i) => i !== index);
-		setTools(newTools);
-		updateConfig(newTools);
-	};
-
-	const updateConfig = (newTools: MCPToolConfig[]) => {
-		if (onConfigChange) {
-			onConfigChange({
-				tools: newTools,
+	const handleTestConnection = async () => {
+		const serverConfig = parseConfig();
+		if (!serverConfig) {
+			setTestResult({
+				status: "error",
+				message: jsonError || "Invalid configuration",
+				tools: [],
 			});
+			return;
+		}
+
+		if (!serverConfig.command.trim()) {
+			setTestResult({
+				status: "error",
+				message: "Command is required in configuration",
+				tools: [],
+			});
+			return;
+		}
+
+		setIsTesting(true);
+		setTestResult(null);
+
+		try {
+			const result = await connectorsApiService.testMCPConnection(serverConfig);
+			setTestResult(result);
+		} catch (error) {
+			setTestResult({
+				status: "error",
+				message: error instanceof Error ? error.message : "Failed to connect to MCP server",
+				tools: [],
+			});
+		} finally {
+			setIsTesting(false);
 		}
 	};
 
@@ -116,226 +134,97 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 					<Input
 						value={name}
 						onChange={(e) => handleNameChange(e.target.value)}
-						placeholder="My Custom API Tools"
+						placeholder="My MCP Server"
 						className="border-slate-400/20 focus-visible:border-slate-400/40"
 					/>
 					<p className="text-[10px] sm:text-xs text-muted-foreground">
-						A friendly name to identify this MCP connector.
+						A friendly name to identify this MCP server.
 					</p>
 				</div>
 			</div>
 
-			{/* Tools */}
+			{/* Server Configuration */}
 			<div className="space-y-4">
-				<div className="flex items-center justify-between">
-					<h3 className="font-medium text-sm sm:text-base flex items-center gap-2">
-						<Webhook className="h-4 w-4" />
-						API Tools
-					</h3>
-					<Button
-						type="button"
-						variant="outline"
-						size="sm"
-						onClick={addTool}
-						className="h-8 text-xs"
-					>
-						<Plus className="h-3 w-3 mr-1" />
-						Add Tool
-					</Button>
-				</div>
+				<h3 className="font-medium text-sm sm:text-base flex items-center gap-2">
+					<Server className="h-4 w-4" />
+					Server Configuration
+				</h3>
 
-				{tools.map((tool, index) => (
-					<div
-						key={index}
-						className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-4"
-					>
-						{/* Tool Header */}
-						<div className="flex items-center justify-between">
-							<h4 className="font-medium text-sm">Tool {index + 1}</h4>
-							{tools.length > 1 && (
-								<Button
-									type="button"
-									variant="ghost"
-									size="sm"
-									onClick={() => removeTool(index)}
-									className="h-8 text-xs text-destructive hover:text-destructive"
-								>
-									<Trash2 className="h-3 w-3" />
-								</Button>
-							)}
-						</div>
-
-						{/* Tool Name */}
-						<div className="space-y-2">
-							<Label className="text-xs sm:text-sm">Tool Name</Label>
-							<Input
-								value={tool.name}
-								onChange={(e) => handleToolChange(index, "name", e.target.value)}
-								placeholder="get_weather"
-								className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs"
-							/>
-							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								Unique identifier for this tool (lowercase, use underscores).
+				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-4">
+					<div className="space-y-2">
+						<Label className="text-xs sm:text-sm">
+							Server Configuration (JSON)
+						</Label>
+						<Textarea
+							value={configJson}
+							onChange={(e) => handleConfigChange(e.target.value)}
+							rows={12}
+							className={`font-mono text-xs border-slate-400/20 focus-visible:border-slate-400/40 ${
+								jsonError ? "border-red-500" : ""
+							}`}
+						/>
+						{jsonError && (
+							<p className="text-xs text-red-500">
+								JSON Error: {jsonError}
 							</p>
-						</div>
-
-						{/* Description */}
-						<div className="space-y-2">
-							<Label className="text-xs sm:text-sm">Description</Label>
-							<Textarea
-								value={tool.description}
-								onChange={(e) => handleToolChange(index, "description", e.target.value)}
-								placeholder="Get current weather for a location"
-								className="border-slate-400/20 focus-visible:border-slate-400/40 min-h-[60px] text-xs"
-							/>
-							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								Describe what this tool does for the AI agent.
-							</p>
-						</div>
-
-						{/* Endpoint & Method */}
-						<div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-							<div className="space-y-2 sm:col-span-2">
-								<Label className="text-xs sm:text-sm">API Endpoint</Label>
-								<Input
-									value={tool.endpoint}
-									onChange={(e) => handleToolChange(index, "endpoint", e.target.value)}
-									placeholder="https://api.example.com/v1/endpoint"
-									className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs"
-								/>
-							</div>
-							<div className="space-y-2">
-								<Label className="text-xs sm:text-sm">Method</Label>
-								<Select
-									value={tool.method}
-									onValueChange={(value) => handleToolChange(index, "method", value)}
-								>
-									<SelectTrigger className="border-slate-400/20 text-xs">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{HTTP_METHODS.map((method) => (
-											<SelectItem key={method} value={method} className="text-xs">
-												{method}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-						</div>
-
-						<div className="flex items-center space-x-2">
-							<Checkbox
-								id={`verify-ssl-${index}`}
-								checked={tool.verify_ssl ?? true}
-								onCheckedChange={(checked) =>
-									handleToolChange(index, "verify_ssl", checked === true)
-								}
-							/>
-							<Label htmlFor={`verify-ssl-${index}`} className="text-xs sm:text-sm font-normal cursor-pointer">
-								Verify SSL certificate (recommended for security)
-							</Label>
-						</div>
-
-						{/* Authentication */}
-						<div className="space-y-3">
-							<div className="space-y-2">
-								<Label className="text-xs sm:text-sm">Authentication Type</Label>
-								<Select
-									value={tool.auth_type}
-									onValueChange={(value) => handleToolChange(index, "auth_type", value)}
-								>
-									<SelectTrigger className="border-slate-400/20 text-xs">
-										<SelectValue />
-									</SelectTrigger>
-									<SelectContent>
-										{AUTH_TYPES.map((type) => (
-											<SelectItem key={type} value={type} className="text-xs">
-												{type === "none" ? "None" : type === "bearer" ? "Bearer Token" : type === "api_key" ? "API Key" : "Basic Auth"}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							{/* Auth Config Fields */}
-							{tool.auth_type === "bearer" && (
-								<div className="space-y-2">
-									<Label className="text-xs sm:text-sm">Bearer Token</Label>
-									<Input
-										type="password"
-										value={tool.auth_config.token || ""}
-										onChange={(e) => handleAuthConfigChange(index, "token", e.target.value)}
-										placeholder="your_bearer_token"
-										className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs"
-									/>
-								</div>
-							)}
-
-							{tool.auth_type === "api_key" && (
-								<>
-									<div className="space-y-2">
-										<Label className="text-xs sm:text-sm">API Key</Label>
-										<Input
-											type="password"
-											value={tool.auth_config.api_key || ""}
-											onChange={(e) => handleAuthConfigChange(index, "api_key", e.target.value)}
-											placeholder="your_api_key"
-											className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs"
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label className="text-xs sm:text-sm">Header Name</Label>
-										<Input
-											value={tool.auth_config.api_key_header || "X-API-Key"}
-											onChange={(e) => handleAuthConfigChange(index, "api_key_header", e.target.value)}
-											placeholder="X-API-Key"
-											className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs"
-										/>
-									</div>
-								</>
-							)}
-
-							{tool.auth_type === "basic" && (
-								<>
-									<div className="space-y-2">
-										<Label className="text-xs sm:text-sm">Username</Label>
-										<Input
-											value={tool.auth_config.username || ""}
-											onChange={(e) => handleAuthConfigChange(index, "username", e.target.value)}
-											placeholder="username"
-											className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs"
-										/>
-									</div>
-									<div className="space-y-2">
-										<Label className="text-xs sm:text-sm">Password</Label>
-										<Input
-											type="password"
-											value={tool.auth_config.password || ""}
-											onChange={(e) => handleAuthConfigChange(index, "password", e.target.value)}
-											placeholder="password"
-											className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs"
-										/>
-									</div>
-								</>
-							)}
-						</div>
-
-						{/* Parameters Schema */}
-						<div className="space-y-2">
-							<Label className="text-xs sm:text-sm">Parameters (JSON Schema)</Label>
-							<Textarea
-								value={JSON.stringify(tool.parameters, null, 2)}
-								onChange={(e) => handleParametersChange(index, e.target.value)}
-								placeholder={`{\n  "type": "object",\n  "properties": {\n    "location": {\n      "type": "string",\n      "description": "City name"\n    }\n  },\n  "required": ["location"]\n}`}
-								className="border-slate-400/20 focus-visible:border-slate-400/40 font-mono text-xs min-h-[120px]"
-							/>
-							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								Define the parameters this tool accepts using JSON Schema format.
-							</p>
-						</div>
+						)}
+						<p className="text-[10px] sm:text-xs text-muted-foreground">
+							Edit your MCP server configuration. Required fields: command, args, env, transport.
+						</p>
 					</div>
-				))}
+
+					{/* Test Connection */}
+					<div className="pt-4">
+						<Button
+							type="button"
+							onClick={handleTestConnection}
+							disabled={isTesting}
+							variant="outline"
+							className="w-full"
+						>
+							{isTesting ? "Testing..." : "Test Connection"}
+						</Button>
+					</div>
+
+					{/* Test Result */}
+					{testResult && (
+						<Alert
+							className={
+								testResult.status === "success"
+									? "border-green-500/50 bg-green-500/10"
+									: "border-red-500/50 bg-red-500/10"
+							}
+						>
+							{testResult.status === "success" ? (
+								<CheckCircle2 className="h-4 w-4 text-green-500" />
+							) : (
+								<XCircle className="h-4 w-4 text-red-500" />
+							)}
+							<div>
+								<AlertTitle className="text-sm">
+									{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
+								</AlertTitle>
+								<AlertDescription className="text-xs">
+									{testResult.message}
+									{testResult.status === "success" && testResult.tools.length > 0 && (
+										<div className="mt-2">
+											<p className="font-semibold mb-1">
+												Found {testResult.tools.length} tools:
+											</p>
+											<ul className="list-disc list-inside space-y-1">
+												{testResult.tools.map((tool, i) => (
+													<li key={i} className="text-xs">
+														<strong>{tool.name}</strong>: {tool.description}
+													</li>
+												))}
+											</ul>
+										</div>
+									)}
+								</AlertDescription>
+							</div>
+						</Alert>
+					)}
+				</div>
 			</div>
 		</div>
 	);

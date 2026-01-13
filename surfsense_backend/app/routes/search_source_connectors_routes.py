@@ -137,18 +137,20 @@ async def create_search_source_connector(
 
         # Check if a connector with the same type already exists for this search space
         # (for non-OAuth connectors that don't support multiple accounts)
-        result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == search_space_id,
-                SearchSourceConnector.connector_type == connector.connector_type,
+        # Exception: MCP_CONNECTOR can have multiple instances with different names
+        if connector.connector_type != SearchSourceConnectorType.MCP_CONNECTOR:
+            result = await session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.connector_type == connector.connector_type,
+                )
             )
-        )
-        existing_connector = result.scalars().first()
-        if existing_connector:
-            raise HTTPException(
-                status_code=409,
-                detail=f"A connector with type {connector.connector_type} already exists in this search space.",
-            )
+            existing_connector = result.scalars().first()
+            if existing_connector:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"A connector with type {connector.connector_type} already exists in this search space.",
+                )
 
         # Prepare connector data
         connector_data = connector.model_dump()
@@ -1991,17 +1993,17 @@ async def create_mcp_connector(
     """
     Create a new MCP (Model Context Protocol) connector.
 
-    MCP connectors allow users to add custom API endpoints as tools for the AI agent.
-    Each connector can define multiple tools (API endpoints) that the agent can call.
+    MCP connectors allow users to connect to MCP servers (like in Cursor).
+    Tools are auto-discovered from the server - no manual configuration needed.
 
     Args:
-        connector_data: MCP connector configuration with tool definitions
+        connector_data: MCP server configuration (command, args, env)
         search_space_id: ID of the search space to attach the connector to
         session: Database session
         user: Current authenticated user
 
     Returns:
-        Created MCP connector with tool configurations
+        Created MCP connector with server configuration
 
     Raises:
         HTTPException: If search space not found or permission denied
@@ -2016,18 +2018,14 @@ async def create_mcp_connector(
             "You don't have permission to create connectors in this search space",
         )
 
-        # Convert MCP schema to base connector schema
-        base_connector_data = connector_data.to_connector_create(search_space_id)
-
-        # Create the connector
+        # Create the connector with server config
         db_connector = SearchSourceConnector(
-            name=base_connector_data.name,
-            connector_type=base_connector_data.connector_type,
-            is_indexable=base_connector_data.is_indexable,
-            config=base_connector_data.config,
-            last_indexed_at=base_connector_data.last_indexed_at,
-            periodic_indexing_enabled=base_connector_data.periodic_indexing_enabled,
-            indexing_frequency_minutes=base_connector_data.indexing_frequency_minutes,
+            name=connector_data.name,
+            connector_type=SearchSourceConnectorType.MCP_CONNECTOR,
+            is_indexable=False,  # MCP connectors are not indexable
+            config={"server_config": connector_data.server_config.model_dump()},
+            periodic_indexing_enabled=False,
+            indexing_frequency_minutes=None,
             search_space_id=search_space_id,
             user_id=user.id,
         )
@@ -2037,7 +2035,7 @@ async def create_mcp_connector(
         await session.refresh(db_connector)
 
         logger.info(
-            f"Created MCP connector {db_connector.id} with {len(connector_data.tools)} tools "
+            f"Created MCP connector {db_connector.id} for server '{connector_data.server_config.command}' "
             f"for user {user.id} in search space {search_space_id}"
         )
 
@@ -2204,9 +2202,9 @@ async def update_mcp_connector(
         if connector_update.name is not None:
             connector.name = connector_update.name
 
-        if connector_update.tools is not None:
+        if connector_update.server_config is not None:
             connector.config = {
-                "tools": [tool.model_dump() for tool in connector_update.tools]
+                "server_config": connector_update.server_config.model_dump()
             }
 
         connector.updated_at = datetime.now(UTC)
@@ -2279,3 +2277,47 @@ async def delete_mcp_connector(
         raise HTTPException(
             status_code=500, detail=f"Failed to delete MCP connector: {e!s}"
         ) from e
+
+
+@router.post("/connectors/mcp/test")
+async def test_mcp_server_connection(
+    server_config: dict = Body(...),
+    user: User = Depends(current_active_user),
+):
+    """
+    Test connection to an MCP server and fetch available tools.
+
+    This endpoint allows users to test their MCP server configuration
+    before saving it, similar to Cursor's flow.
+
+    Args:
+        server_config: Server configuration with command, args, env
+        user: Current authenticated user
+
+    Returns:
+        Connection status and list of available tools
+    """
+    try:
+        from app.agents.new_chat.tools.mcp_client import test_mcp_connection
+
+        command = server_config.get("command")
+        args = server_config.get("args", [])
+        env = server_config.get("env", {})
+
+        if not command:
+            raise HTTPException(status_code=400, detail="Server command is required")
+
+        # Test the connection
+        result = await test_mcp_connection(command, args, env)
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to test MCP connection: {e!s}", exc_info=True)
+        return {
+            "status": "error",
+            "message": f"Failed to test connection: {e!s}",
+            "tools": [],
+        }

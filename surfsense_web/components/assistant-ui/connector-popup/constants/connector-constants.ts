@@ -162,8 +162,8 @@ export const OTHER_CONNECTORS = [
 	},
 	{
 		id: "mcp-connector",
-		title: "Custom API (MCP)",
-		description: "Add custom API endpoints as tools",
+		title: "Model Context Protocol (MCP)",
+		description: "Connect to MCP servers for AI tools",
 		connectorType: EnumConnectorName.MCP_CONNECTOR,
 	},
 ] as const;

@@ -28,6 +28,8 @@ import type {
 	CreateMCPConnectorRequest,
 	GetMCPConnectorsRequest,
 	MCPConnectorRead,
+	MCPServerConfig,
+	MCPTestConnectionResponse,
 	UpdateMCPConnectorRequest,
 } from "@/contracts/types/mcp.types";
 import { ValidationError } from "../error";
@@ -286,6 +288,19 @@ class ConnectorsApiService {
 	 */
 	deleteMCPConnector = async (connectorId: number) => {
 		return baseApiService.delete<void>(`/api/v1/connectors/mcp/${connectorId}`);
+	};
+
+	/**
+	 * Test MCP server connection and retrieve available tools
+	 */
+	testMCPConnection = async (serverConfig: MCPServerConfig) => {
+		return baseApiService.post<MCPTestConnectionResponse>(
+			"/api/v1/connectors/mcp/test",
+			undefined,
+			{
+				body: serverConfig,
+			}
+		);
 	};
 }
 

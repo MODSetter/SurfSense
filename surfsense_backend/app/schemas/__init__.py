@@ -56,10 +56,9 @@ from .rbac_schemas import (
 )
 from .search_source_connector import (
     MCPConnectorCreate,
-    MCPConnectorMetadata,
     MCPConnectorRead,
     MCPConnectorUpdate,
-    MCPToolConfig,
+    MCPServerConfig,
     SearchSourceConnectorBase,
     SearchSourceConnectorCreate,
     SearchSourceConnectorRead,
@@ -115,10 +114,9 @@ __all__ = [
     "LogUpdate",
     # Search source connector schemas
     "MCPConnectorCreate",
-    "MCPConnectorMetadata",
     "MCPConnectorRead",
     "MCPConnectorUpdate",
-    "MCPToolConfig",
+    "MCPServerConfig",
     "MembershipRead",
     "MembershipReadWithUser",
     "MembershipUpdate",
