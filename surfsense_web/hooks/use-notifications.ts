@@ -1,13 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import {
-	initElectric,
-	isElectricInitialized,
-	type ElectricClient,
-	type SyncHandle,
-} from "@/lib/electric/client";
+import { initElectric, type ElectricClient, type SyncHandle } from "@/lib/electric/client";
 import type { Notification } from "@/contracts/types/notification.types";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 export type { Notification } from "@/contracts/types/notification.types";
 
@@ -215,56 +211,53 @@ export function useNotifications(userId: string | null) {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [userId]);
 
-	// Mark notification as read (local only - needs backend sync)
-	const markAsRead = useCallback(
-		async (notificationId: number) => {
-			if (!electric || !isElectricInitialized()) {
-				console.warn("Electric SQL not initialized");
-				return false;
+	// Mark notification as read via backend API
+	// Electric SQL will automatically sync the change to all clients
+	const markAsRead = useCallback(async (notificationId: number) => {
+		try {
+			// Call backend API - Electric SQL will sync the change automatically
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/${notificationId}/read`,
+				{ method: "PATCH" }
+			);
+
+			if (!response.ok) {
+				const error = await response.json().catch(() => ({ detail: "Failed to mark as read" }));
+				throw new Error(error.detail || "Failed to mark notification as read");
 			}
 
-			try {
-				// Update locally in PGlite
-				await electric.db.query(
-					`UPDATE notifications SET read = true, updated_at = NOW() WHERE id = $1`,
-					[notificationId]
-				);
-
-				// Update local state
-				setNotifications((prev) =>
-					prev.map((n) => (n.id === notificationId ? { ...n, read: true } : n))
-				);
-
-				// TODO: Also send to backend to persist the change
-				// This could be done via a REST API call
-
-				return true;
-			} catch (err) {
-				console.error("Failed to mark notification as read:", err);
-				return false;
-			}
-		},
-		[electric]
-	);
-
-	// Mark all notifications as read
-	const markAllAsRead = useCallback(async () => {
-		if (!electric || !isElectricInitialized()) {
-			console.warn("Electric SQL not initialized");
+			// Electric SQL will sync the change from PostgreSQL to PGlite automatically
+			// The live query subscription will update the UI
+			return true;
+		} catch (err) {
+			console.error("Failed to mark notification as read:", err);
 			return false;
 		}
+	}, []);
 
+	// Mark all notifications as read via backend API
+	// Electric SQL will automatically sync the changes to all clients
+	const markAllAsRead = useCallback(async () => {
 		try {
-			const unread = notifications.filter((n) => !n.read);
-			for (const notification of unread) {
-				await markAsRead(notification.id);
+			// Call backend API - Electric SQL will sync all changes automatically
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/read-all`,
+				{ method: "PATCH" }
+			);
+
+			if (!response.ok) {
+				const error = await response.json().catch(() => ({ detail: "Failed to mark all as read" }));
+				throw new Error(error.detail || "Failed to mark all notifications as read");
 			}
+
+			// Electric SQL will sync the changes from PostgreSQL to PGlite automatically
+			// The live query subscription will update the UI
 			return true;
 		} catch (err) {
 			console.error("Failed to mark all notifications as read:", err);
 			return false;
 		}
-	}, [electric, notifications, markAsRead]);
+	}, []);
 
 	// Get unread count
 	const unreadCount = notifications.filter((n) => !n.read).length;
