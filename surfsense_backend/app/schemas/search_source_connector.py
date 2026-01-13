@@ -14,7 +14,6 @@ class SearchSourceConnectorBase(BaseModel):
     name: str
     connector_type: SearchSourceConnectorType
     is_indexable: bool
-    is_active: bool = True
     last_indexed_at: datetime | None = None
     config: dict[str, Any]
     periodic_indexing_enabled: bool = False
@@ -62,7 +61,6 @@ class SearchSourceConnectorUpdate(BaseModel):
     name: str | None = None
     connector_type: SearchSourceConnectorType | None = None
     is_indexable: bool | None = None
-    is_active: bool | None = None
     last_indexed_at: datetime | None = None
     config: dict[str, Any] | None = None
     periodic_indexing_enabled: bool | None = None

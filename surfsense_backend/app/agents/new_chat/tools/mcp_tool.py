@@ -189,13 +189,12 @@ async def load_mcp_tools(
 
     """
     try:
-        # Fetch all ACTIVE MCP connectors for this search space
+        # Fetch all MCP connectors for this search space
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.connector_type
                 == SearchSourceConnectorType.MCP_CONNECTOR,
                 SearchSourceConnector.search_space_id == search_space_id,
-                SearchSourceConnector.is_active == True,  # Only load active connectors
             ),
         )
 

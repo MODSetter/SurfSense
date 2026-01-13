@@ -614,7 +614,6 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     name = Column(String(100), nullable=False, index=True)
     connector_type = Column(SQLAlchemyEnum(SearchSourceConnectorType), nullable=False)
     is_indexable = Column(Boolean, nullable=False, default=False)
-    is_active = Column(Boolean, nullable=False, default=True)  # Enable/disable connector
     last_indexed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     config = Column(JSON, nullable=False)
 
