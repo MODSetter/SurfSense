@@ -1,5 +1,6 @@
 import { IconLinkPlus, IconUsersGroup } from "@tabler/icons-react";
 import {
+	BookOpen,
 	File,
 	FileText,
 	Globe,
@@ -86,6 +87,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <FileText {...iconProps} />;
 		case "EXTENSION":
 			return <Webhook {...iconProps} />;
+		case "SURFSENSE_DOCS":
+			return <BookOpen {...iconProps} />;
 		case "DEEP":
 			return <Sparkles {...iconProps} />;
 		case "DEEPER":

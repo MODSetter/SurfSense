@@ -32,7 +32,6 @@ interface SidebarProps {
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSeeAllSearchSpaces?: () => void;
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
@@ -56,7 +55,6 @@ export function Sidebar({
 	user,
 	onSettings,
 	onManageMembers,
-	onSeeAllSearchSpaces,
 	onUserSettings,
 	onLogout,
 	pageUsage,
@@ -87,7 +85,6 @@ export function Sidebar({
 						isCollapsed={isCollapsed}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
-						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
 					/>
 					<div className="">
 						<SidebarCollapseButton

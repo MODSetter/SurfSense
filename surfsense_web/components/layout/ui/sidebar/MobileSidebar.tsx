@@ -28,7 +28,6 @@ interface MobileSidebarProps {
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSeeAllSearchSpaces?: () => void;
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
@@ -64,7 +63,6 @@ export function MobileSidebar({
 	user,
 	onSettings,
 	onManageMembers,
-	onSeeAllSearchSpaces,
 	onUserSettings,
 	onLogout,
 	pageUsage,
@@ -129,6 +127,21 @@ export function MobileSidebar({
 						}}
 						onChatSelect={handleChatSelect}
 						onChatDelete={onChatDelete}
+						onViewAllChats={onViewAllChats}
+						notes={notes}
+						activeNoteId={activeNoteId}
+						onNoteSelect={handleNoteSelect}
+						onNoteDelete={onNoteDelete}
+						onAddNote={onAddNote}
+						onViewAllNotes={onViewAllNotes}
+					user={user}
+					onSettings={onSettings}
+					onManageMembers={onManageMembers}
+					onUserSettings={onUserSettings}
+					onLogout={onLogout}
+					pageUsage={pageUsage}
+					className="w-full border-none"
+				/>
 						onViewAllSharedChats={onViewAllSharedChats}
 						onViewAllPrivateChats={onViewAllPrivateChats}
 						user={user}

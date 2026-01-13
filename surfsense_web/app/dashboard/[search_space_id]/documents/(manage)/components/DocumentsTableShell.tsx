@@ -79,17 +79,25 @@ export function DocumentsTableShell({
 		[documents, sortKey, sortDesc]
 	);
 
-	const allSelectedOnPage = sorted.length > 0 && sorted.every((d) => selectedIds.has(d.id));
-	const someSelectedOnPage = sorted.some((d) => selectedIds.has(d.id)) && !allSelectedOnPage;
+	// Filter out SURFSENSE_DOCS for selection purposes
+	const selectableDocs = React.useMemo(
+		() => sorted.filter((d) => d.document_type !== "SURFSENSE_DOCS"),
+		[sorted]
+	);
+
+	const allSelectedOnPage =
+		selectableDocs.length > 0 && selectableDocs.every((d) => selectedIds.has(d.id));
+	const someSelectedOnPage =
+		selectableDocs.some((d) => selectedIds.has(d.id)) && !allSelectedOnPage;
 
 	const toggleAll = (checked: boolean) => {
 		const next = new Set(selectedIds);
 		if (checked)
-			sorted.forEach((d) => {
+			selectableDocs.forEach((d) => {
 				next.add(d.id);
 			});
 		else
-			sorted.forEach((d) => {
+			selectableDocs.forEach((d) => {
 				next.delete(d.id);
 			});
 		setSelectedIds(next);
@@ -230,9 +238,10 @@ export function DocumentsTableShell({
 									const icon = getDocumentTypeIcon(doc.document_type);
 									const title = doc.title;
 									const truncatedTitle = title.length > 30 ? `${title.slice(0, 30)}...` : title;
+									const isSurfsenseDoc = doc.document_type === "SURFSENSE_DOCS";
 									return (
 										<motion.tr
-											key={doc.id}
+											key={`${doc.document_type}-${doc.id}`}
 											initial={{ opacity: 0, y: 10 }}
 											animate={{
 												opacity: 1,
@@ -249,8 +258,9 @@ export function DocumentsTableShell({
 										>
 											<TableCell className="px-4 py-3">
 												<Checkbox
-													checked={selectedIds.has(doc.id)}
-													onCheckedChange={(v) => toggleOne(doc.id, !!v)}
+													checked={selectedIds.has(doc.id) && !isSurfsenseDoc}
+													onCheckedChange={(v) => !isSurfsenseDoc && toggleOne(doc.id, !!v)}
+													disabled={isSurfsenseDoc}
 													aria-label="Select row"
 												/>
 											</TableCell>

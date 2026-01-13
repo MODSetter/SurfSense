@@ -105,7 +105,6 @@
 		"title": "User Settings",
 		"description": "Manage your account settings and API access",
 		"back_to_app": "Back to app",
-		"footer": "User Settings",
 		"api_key_nav_label": "API Key",
 		"api_key_nav_description": "Manage your API access token",
 		"api_key_title": "API Key",
@@ -670,6 +669,16 @@
 		"forbidden": "Forbidden",
 		"server_error": "Server error",
 		"network_error": "Network error"
+	},
+	"searchSpaceSettings": {
+		"title": "Search Space Settings",
+		"back_to_app": "Back to app",
+		"nav_agent_configs": "Agent Configs",
+		"nav_agent_configs_desc": "LLM models with prompts & citations",
+		"nav_role_assignments": "Role Assignments",
+		"nav_role_assignments_desc": "Assign configs to agent roles",
+		"nav_system_instructions": "System Instructions",
+		"nav_system_instructions_desc": "SearchSpace-wide AI instructions"
 	},
 	"homepage": {
 		"hero_title_part1": "The AI Workspace",

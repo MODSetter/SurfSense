@@ -25,7 +25,7 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
-from app.db import Document
+from app.db import Document, SurfsenseDocsDocument
 from app.schemas.new_chat import ChatAttachment
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
@@ -69,6 +69,55 @@ def format_mentioned_documents_as_context(documents: list[Document]) -> str:
     return "\n".join(context_parts)
 
 
+def format_mentioned_surfsense_docs_as_context(
+    documents: list[SurfsenseDocsDocument],
+) -> str:
+    """Format mentioned SurfSense documentation as context for the agent."""
+    if not documents:
+        return ""
+
+    import json
+    
+    context_parts = ["<mentioned_surfsense_docs>"]
+    context_parts.append(
+        "The user has explicitly mentioned the following SurfSense documentation pages. "
+        "These are official documentation about how to use SurfSense and should be used to answer questions about the application. "
+        "Use [citation:CHUNK_ID] format for citations (e.g., [citation:doc-123])."
+    )
+    
+    for doc in documents:
+        metadata_json = json.dumps({"source": doc.source}, ensure_ascii=False)
+        
+        context_parts.append("<document>")
+        context_parts.append("<document_metadata>")
+        context_parts.append(f"  <document_id>doc-{doc.id}</document_id>")
+        context_parts.append("  <document_type>SURFSENSE_DOCS</document_type>")
+        context_parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
+        context_parts.append(f"  <url><![CDATA[{doc.source}]]></url>")
+        context_parts.append(f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>")
+        context_parts.append("</document_metadata>")
+        context_parts.append("")
+        context_parts.append("<document_content>")
+        
+        if hasattr(doc, 'chunks') and doc.chunks:
+            for chunk in doc.chunks:
+                context_parts.append(
+                    f"  <chunk id='doc-{chunk.id}'><![CDATA[{chunk.content}]]></chunk>"
+                )
+        else:
+            context_parts.append(
+                f"  <chunk id='doc-0'><![CDATA[{doc.content}]]></chunk>"
+            )
+        
+        context_parts.append("</document_content>")
+        context_parts.append("</document>")
+        context_parts.append("")
+    
+    context_parts.append("</mentioned_surfsense_docs>")
+
+    return "\n".join(context_parts)
+
+
 def extract_todos_from_deepagents(command_output) -> dict:
     """
     Extract todos from deepagents' TodoListMiddleware Command output.
@@ -101,6 +150,7 @@ async def stream_new_chat(
     llm_config_id: int = -1,
     attachments: list[ChatAttachment] | None = None,
     mentioned_document_ids: list[int] | None = None,
+    mentioned_surfsense_doc_ids: list[int] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -118,6 +168,7 @@ async def stream_new_chat(
         messages: Optional chat history from frontend (list of ChatMessage)
         attachments: Optional attachments with extracted content
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
+        mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
 
     Yields:
         str: SSE formatted response strings
@@ -208,7 +259,20 @@ async def stream_new_chat(
             )
             mentioned_documents = list(result.scalars().all())
 
-        # Format the user query with context (attachments + mentioned documents)
+        # Fetch mentioned SurfSense docs if any
+        mentioned_surfsense_docs: list[SurfsenseDocsDocument] = []
+        if mentioned_surfsense_doc_ids:
+            from sqlalchemy.orm import selectinload
+            result = await session.execute(
+                select(SurfsenseDocsDocument)
+                .options(selectinload(SurfsenseDocsDocument.chunks))
+                .filter(
+                    SurfsenseDocsDocument.id.in_(mentioned_surfsense_doc_ids),
+                )
+            )
+            mentioned_surfsense_docs = list(result.scalars().all())
+
+        # Format the user query with context (attachments + mentioned documents + surfsense docs)
         final_query = user_query
         context_parts = []
 
@@ -218,6 +282,11 @@ async def stream_new_chat(
         if mentioned_documents:
             context_parts.append(
                 format_mentioned_documents_as_context(mentioned_documents)
+            )
+
+        if mentioned_surfsense_docs:
+            context_parts.append(
+                format_mentioned_surfsense_docs_as_context(mentioned_surfsense_docs)
             )
 
         if context_parts:
@@ -296,13 +365,13 @@ async def stream_new_chat(
         last_active_step_id = analyze_step_id
 
         # Determine step title and action verb based on context
-        if attachments and mentioned_documents:
+        if attachments and (mentioned_documents or mentioned_surfsense_docs):
             last_active_step_title = "Analyzing your content"
             action_verb = "Reading"
         elif attachments:
             last_active_step_title = "Reading your content"
             action_verb = "Reading"
-        elif mentioned_documents:
+        elif mentioned_documents or mentioned_surfsense_docs:
             last_active_step_title = "Analyzing referenced content"
             action_verb = "Analyzing"
         else:
@@ -341,6 +410,19 @@ async def stream_new_chat(
                 processing_parts.append(f"[{doc_names[0]}]")
             else:
                 processing_parts.append(f"[{len(doc_names)} documents]")
+
+        # Add mentioned SurfSense docs inline
+        if mentioned_surfsense_docs:
+            doc_names = []
+            for doc in mentioned_surfsense_docs:
+                title = doc.title
+                if len(title) > 30:
+                    title = title[:27] + "..."
+                doc_names.append(title)
+            if len(doc_names) == 1:
+                processing_parts.append(f"[📖 {doc_names[0]}]")
+            else:
+                processing_parts.append(f"[📖 {len(doc_names)} docs]")
 
         last_active_step_items = [f"{action_verb}: {' '.join(processing_parts)}"]
 

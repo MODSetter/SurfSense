@@ -29,7 +29,6 @@ interface LayoutShellProps {
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSeeAllSearchSpaces?: () => void;
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
@@ -62,7 +61,6 @@ export function LayoutShell({
 	user,
 	onSettings,
 	onManageMembers,
-	onSeeAllSearchSpaces,
 	onUserSettings,
 	onLogout,
 	pageUsage,
@@ -113,7 +111,6 @@ export function LayoutShell({
 						user={user}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
-						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
 						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
@@ -158,7 +155,6 @@ export function LayoutShell({
 						user={user}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
-						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
 						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}

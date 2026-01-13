@@ -103,7 +103,6 @@ export interface SidebarProps {
 	theme?: string;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
-	onSeeAllSearchSpaces?: () => void;
 	onToggleTheme?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;

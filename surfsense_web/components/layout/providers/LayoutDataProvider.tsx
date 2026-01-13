@@ -25,7 +25,6 @@ import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
-import { AllSearchSpacesSheet } from "../ui/sheets";
 import { LayoutShell } from "../ui/shell";
 import { AllPrivateChatsSidebar } from "../ui/sidebar/AllPrivateChatsSidebar";
 import { AllSharedChatsSidebar } from "../ui/sidebar/AllSharedChatsSidebar";
@@ -79,8 +78,7 @@ export function LayoutDataProvider({
 	const [isAllSharedChatsSidebarOpen, setIsAllSharedChatsSidebarOpen] = useState(false);
 	const [isAllPrivateChatsSidebarOpen, setIsAllPrivateChatsSidebarOpen] = useState(false);
 
-	// Search space sheet and dialog state
-	const [isAllSearchSpacesSheetOpen, setIsAllSearchSpacesSheetOpen] = useState(false);
+	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
 	// Delete dialogs state
@@ -164,10 +162,6 @@ export function LayoutDataProvider({
 
 	const handleAddSearchSpace = useCallback(() => {
 		setIsCreateSearchSpaceDialogOpen(true);
-	}, []);
-
-	const handleSeeAllSearchSpaces = useCallback(() => {
-		setIsAllSearchSpacesSheetOpen(true);
 	}, []);
 
 	const handleUserSettings = useCallback(() => {
@@ -303,10 +297,9 @@ export function LayoutDataProvider({
 				onViewAllSharedChats={handleViewAllSharedChats}
 				onViewAllPrivateChats={handleViewAllPrivateChats}
 				user={{ email: user?.email || "", name: user?.email?.split("@")[0] }}
-				onSettings={handleSettings}
-				onManageMembers={handleManageMembers}
-				onSeeAllSearchSpaces={handleSeeAllSearchSpaces}
-				onUserSettings={handleUserSettings}
+			onSettings={handleSettings}
+			onManageMembers={handleManageMembers}
+			onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}
@@ -373,20 +366,6 @@ export function LayoutDataProvider({
 				open={isAllPrivateChatsSidebarOpen}
 				onOpenChange={setIsAllPrivateChatsSidebarOpen}
 				searchSpaceId={searchSpaceId}
-			/>
-
-			{/* All Search Spaces Sheet */}
-			<AllSearchSpacesSheet
-				open={isAllSearchSpacesSheetOpen}
-				onOpenChange={setIsAllSearchSpacesSheetOpen}
-				searchSpaces={searchSpaces}
-				onSearchSpaceSelect={handleSearchSpaceSelect}
-				onCreateNew={() => {
-					setIsAllSearchSpacesSheetOpen(false);
-					setIsCreateSearchSpaceDialogOpen(true);
-				}}
-				onSettings={handleSearchSpaceSettings}
-				onDelete={handleDeleteSearchSpace}
 			/>
 
 			{/* Create Search Space Dialog */}
