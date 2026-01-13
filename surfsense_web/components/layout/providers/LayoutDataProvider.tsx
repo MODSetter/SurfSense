@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { Logs, SquareLibrary, Trash2 } from "lucide-react";
+import { LogOut, Logs, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -86,10 +86,13 @@ export function LayoutDataProvider({
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
 	const [isDeletingChat, setIsDeletingChat] = useState(false);
 
-	// Delete search space dialog state
+	// Delete/Leave search space dialog state
 	const [showDeleteSearchSpaceDialog, setShowDeleteSearchSpaceDialog] = useState(false);
+	const [showLeaveSearchSpaceDialog, setShowLeaveSearchSpaceDialog] = useState(false);
 	const [searchSpaceToDelete, setSearchSpaceToDelete] = useState<SearchSpace | null>(null);
+	const [searchSpaceToLeave, setSearchSpaceToLeave] = useState<SearchSpace | null>(null);
 	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
+	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -181,8 +184,14 @@ export function LayoutDataProvider({
 	);
 
 	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
-		setSearchSpaceToDelete(space);
-		setShowDeleteSearchSpaceDialog(true);
+		// If user is owner, show delete dialog; otherwise show leave dialog
+		if (space.isOwner) {
+			setSearchSpaceToDelete(space);
+			setShowDeleteSearchSpaceDialog(true);
+		} else {
+			setSearchSpaceToLeave(space);
+			setShowLeaveSearchSpaceDialog(true);
+		}
 	}, []);
 
 	const confirmDeleteSearchSpace = useCallback(async () => {
@@ -214,6 +223,29 @@ export function LayoutDataProvider({
 		searchSpaces,
 		router,
 	]);
+
+	const confirmLeaveSearchSpace = useCallback(async () => {
+		if (!searchSpaceToLeave) return;
+		setIsLeavingSearchSpace(true);
+		try {
+			await searchSpacesApiService.leaveSearchSpace(searchSpaceToLeave.id);
+			refetchSearchSpaces();
+			if (Number(searchSpaceId) === searchSpaceToLeave.id && searchSpaces.length > 1) {
+				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToLeave.id);
+				if (remaining.length > 0) {
+					router.push(`/dashboard/${remaining[0].id}/new-chat`);
+				}
+			} else if (searchSpaces.length === 1) {
+				router.push("/dashboard");
+			}
+		} catch (error) {
+			console.error("Error leaving search space:", error);
+		} finally {
+			setIsLeavingSearchSpace(false);
+			setShowLeaveSearchSpaceDialog(false);
+			setSearchSpaceToLeave(null);
+		}
+	}, [searchSpaceToLeave, refetchSearchSpaces, searchSpaceId, searchSpaces, router]);
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
@@ -415,6 +447,48 @@ export function LayoutDataProvider({
 								<>
 									<Trash2 className="h-4 w-4" />
 									{tCommon("delete")}
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Leave Search Space Dialog */}
+			<Dialog open={showLeaveSearchSpaceDialog} onOpenChange={setShowLeaveSearchSpaceDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<LogOut className="h-5 w-5 text-destructive" />
+							<span>{t("leave_title")}</span>
+						</DialogTitle>
+						<DialogDescription>
+							{t("leave_confirm", { name: searchSpaceToLeave?.name || "" })}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowLeaveSearchSpaceDialog(false)}
+							disabled={isLeavingSearchSpace}
+						>
+							{tCommon("cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={confirmLeaveSearchSpace}
+							disabled={isLeavingSearchSpace}
+							className="gap-2"
+						>
+							{isLeavingSearchSpace ? (
+								<>
+									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{t("leaving")}
+								</>
+							) : (
+								<>
+									<LogOut className="h-4 w-4" />
+									{t("leave")}
 								</>
 							)}
 						</Button>
