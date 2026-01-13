@@ -728,6 +728,13 @@ class Notification(BaseModel, TimestampMixin):
         Boolean, nullable=False, default=False, server_default=text("false"), index=True
     )
     notification_metadata = Column("metadata", JSONB, nullable=True, default={})
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
 
     user = relationship("User", back_populates="notifications")
     search_space = relationship("SearchSpace", back_populates="notifications")

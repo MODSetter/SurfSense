@@ -55,7 +55,7 @@ export function NotificationPopup({
 	};
 
 	return (
-		<div className="flex flex-col">
+		<div className="flex flex-col w-80 max-w-[calc(100vw-2rem)]">
 			{/* Header */}
 			<div className="flex items-center justify-between px-4 py-3 border-b">
 				<div className="flex items-center gap-2">
@@ -92,20 +92,20 @@ export function NotificationPopup({
 										!notification.read && "bg-accent/50"
 									)}
 								>
-									<div className="flex items-start gap-3">
+									<div className="flex items-start gap-3 overflow-hidden">
 										<div className="flex-shrink-0 mt-0.5">{getStatusIcon(notification)}</div>
-										<div className="flex-1 min-w-0">
+										<div className="flex-1 min-w-0 overflow-hidden">
 											<div className="flex items-start justify-between gap-2 mb-1">
 												<p
 													className={cn(
-														"text-xs font-medium break-words",
+														"text-xs font-medium break-all",
 														!notification.read && "font-semibold"
 													)}
 												>
 													{notification.title}
 												</p>
 											</div>
-											<p className="text-[11px] text-muted-foreground break-words line-clamp-2">
+											<p className="text-[11px] text-muted-foreground break-all line-clamp-2">
 												{notification.message}
 											</p>
 											<div className="flex items-center justify-between mt-2">
