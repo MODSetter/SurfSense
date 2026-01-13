@@ -188,16 +188,11 @@ export const getSurfsenseDocsByChunkResponse = surfsenseDocsDocumentWithChunks;
  * List Surfsense docs
  */
 export const getSurfsenseDocsRequest = z.object({
-	page: z.number().optional(),
-	page_size: z.number().optional(),
-	title: z.string().optional(),
+	queryParams: paginationQueryParams
 });
 
 export const getSurfsenseDocsResponse = z.object({
-	items: z.array(surfsenseDocsDocument.extend({
-		created_at: z.string().nullable().optional(),
-		updated_at: z.string().nullable().optional(),
-	})),
+	items: z.array(surfsenseDocsDocument),
 	total: z.number(),
 	page: z.number(),
 	page_size: z.number(),

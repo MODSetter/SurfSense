@@ -29,6 +29,7 @@ import {
 	updateDocumentResponse,
 	uploadDocumentRequest,
 	uploadDocumentResponse,
+	getSurfsenseDocsRequest,
 } from "@/contracts/types/document.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
@@ -226,23 +227,28 @@ class DocumentsApiService {
 	/**
 	 * List all Surfsense documentation documents
 	 */
-	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest = {}) => {
-		const queryParams = new URLSearchParams();
+	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest) => {
+		const parsedRequest = getSurfsenseDocsRequest.safeParse(request);
 
-		if (request.page !== undefined) {
-			queryParams.set("page", String(request.page));
-		}
-		if (request.page_size !== undefined) {
-			queryParams.set("page_size", String(request.page_size));
-		}
-		if (request.title) {
-			queryParams.set("title", request.title);
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const queryString = queryParams.toString();
-		const url = queryString
-			? `/api/v1/surfsense-docs?${queryString}`
-			: "/api/v1/surfsense-docs";
+		// Transform query params to be string values
+		const transformedQueryParams = parsedRequest.data.queryParams
+			? Object.fromEntries(
+					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [k, String(v)])
+				)
+			: undefined;
+
+		const queryParams = transformedQueryParams
+			? new URLSearchParams(transformedQueryParams).toString()
+			: "";
+
+		const url = `/api/v1/surfsense-docs?${queryParams}`;
 
 		return baseApiService.get(url, getSurfsenseDocsResponse);
 	};

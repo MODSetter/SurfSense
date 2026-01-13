@@ -25,7 +25,7 @@ export interface InlineMentionEditorRef {
 	clear: () => void;
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
-	insertDocumentChip: (doc: Document) => void;
+	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
 }
 
 interface InlineMentionEditorProps {
@@ -34,7 +34,7 @@ interface InlineMentionEditorProps {
 	onMentionClose?: () => void;
 	onSubmit?: () => void;
 	onChange?: (text: string, docs: MentionedDocument[]) => void;
-	onDocumentRemove?: (docId: number) => void;
+	onDocumentRemove?: (docId: number, docType?: string) => void;
 	onKeyDown?: (e: React.KeyboardEvent) => void;
 	disabled?: boolean;
 	className?: string;
@@ -44,6 +44,7 @@ interface InlineMentionEditorProps {
 // Unique data attribute to identify chip elements
 const CHIP_DATA_ATTR = "data-mention-chip";
 const CHIP_ID_ATTR = "data-mention-id";
+const CHIP_DOCTYPE_ATTR = "data-mention-doctype";
 
 /**
  * Type guard to check if a node is a chip element
@@ -66,6 +67,13 @@ function getChipId(element: Element): number | null {
 	return Number.isNaN(id) ? null : id;
 }
 
+/**
+ * Get chip document type from element attribute
+ */
+function getChipDocType(element: Element): string {
+	return element.getAttribute(CHIP_DOCTYPE_ATTR) ?? "UNKNOWN";
+}
+
 export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMentionEditorProps>(
 	(
 		{
@@ -84,15 +92,15 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 	) => {
 		const editorRef = useRef<HTMLDivElement>(null);
 		const [isEmpty, setIsEmpty] = useState(true);
-		const [mentionedDocs, setMentionedDocs] = useState<Map<number, MentionedDocument>>(
-			() => new Map(initialDocuments.map((d) => [d.id, d]))
+		const [mentionedDocs, setMentionedDocs] = useState<Map<string, MentionedDocument>>(
+			() => new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d]))
 		);
 		const isComposingRef = useRef(false);
 
 		// Sync initial documents
 		useEffect(() => {
 			if (initialDocuments.length > 0) {
-				setMentionedDocs(new Map(initialDocuments.map((d) => [d.id, d])));
+				setMentionedDocs(new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d])));
 			}
 		}, [initialDocuments]);
 
@@ -153,6 +161,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				const chip = document.createElement("span");
 				chip.setAttribute(CHIP_DATA_ATTR, "true");
 				chip.setAttribute(CHIP_ID_ATTR, String(doc.id));
+				chip.setAttribute(CHIP_DOCTYPE_ATTR, doc.document_type ?? "UNKNOWN");
 				chip.contentEditable = "false";
 				chip.className =
 					"inline-flex items-center gap-0.5 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary border border-primary/10 select-none";
@@ -175,13 +184,14 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					e.preventDefault();
 					e.stopPropagation();
 					chip.remove();
+					const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
 					setMentionedDocs((prev) => {
 						const next = new Map(prev);
-						next.delete(doc.id);
+						next.delete(docKey);
 						return next;
 					});
 					// Notify parent that a document was removed
-					onDocumentRemove?.(doc.id);
+					onDocumentRemove?.(doc.id, doc.document_type);
 					focusAtEnd();
 				};
 
@@ -195,7 +205,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 		// Insert a document chip at the current cursor position
 		const insertDocumentChip = useCallback(
-			(doc: Document) => {
+			(doc: Pick<Document, "id" | "title" | "document_type">) => {
 				if (!editorRef.current) return;
 
 				// Validate required fields for type safety
@@ -210,8 +220,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					document_type: doc.document_type,
 				};
 
-				// Add to mentioned docs map
-				setMentionedDocs((prev) => new Map(prev).set(doc.id, mentionDoc));
+				// Add to mentioned docs map using unique key
+				const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
+				setMentionedDocs((prev) => new Map(prev).set(docKey, mentionDoc));
 
 				// Find and remove the @query text
 				const selection = window.getSelection();
@@ -413,15 +424,17 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 								if (isChipElement(prevSibling)) {
 									e.preventDefault();
 									const chipId = getChipId(prevSibling);
+									const chipDocType = getChipDocType(prevSibling);
 									if (chipId !== null) {
 										prevSibling.remove();
+										const chipKey = `${chipDocType}:${chipId}`;
 										setMentionedDocs((prev) => {
 											const next = new Map(prev);
-											next.delete(chipId);
+											next.delete(chipKey);
 											return next;
 										});
 										// Notify parent that a document was removed
-										onDocumentRemove?.(chipId);
+										onDocumentRemove?.(chipId, chipDocType);
 									}
 									return;
 								}
@@ -448,15 +461,17 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 								if (isChipElement(prevChild)) {
 									e.preventDefault();
 									const chipId = getChipId(prevChild);
+									const chipDocType = getChipDocType(prevChild);
 									if (chipId !== null) {
 										prevChild.remove();
+										const chipKey = `${chipDocType}:${chipId}`;
 										setMentionedDocs((prev) => {
 											const next = new Map(prev);
-											next.delete(chipId);
+											next.delete(chipKey);
 											return next;
 										});
 										// Notify parent that a document was removed
-										onDocumentRemove?.(chipId);
+										onDocumentRemove?.(chipId, chipDocType);
 									}
 								}
 							}
