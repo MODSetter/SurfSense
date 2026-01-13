@@ -10,6 +10,8 @@ Revises: 33
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers
@@ -19,42 +21,59 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def table_exists(table_name: str) -> bool:
+    """Check if a table exists in the database."""
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :table_name)"
+        ),
+        {"table_name": table_name},
+    )
+    return result.scalar()
+
+
 def upgrade() -> None:
     """Add columns only if they don't already exist (safe for re-runs)."""
 
     # Add 'state_version' column to chats table (default 1)
-    op.execute("""
-        ALTER TABLE chats
-        ADD COLUMN IF NOT EXISTS state_version BIGINT DEFAULT 1 NOT NULL
-    """)
+    # Skip if chats table doesn't exist (fresh database)
+    if table_exists("chats"):
+        op.execute("""
+            ALTER TABLE chats
+            ADD COLUMN IF NOT EXISTS state_version BIGINT DEFAULT 1 NOT NULL
+        """)
 
     # Add 'chat_state_version' column to podcasts table
-    op.execute("""
-        ALTER TABLE podcasts
-        ADD COLUMN IF NOT EXISTS chat_state_version BIGINT
-    """)
+    if table_exists("podcasts"):
+        op.execute("""
+            ALTER TABLE podcasts
+            ADD COLUMN IF NOT EXISTS chat_state_version BIGINT
+        """)
 
-    # Add 'chat_id' column to podcasts table
-    op.execute("""
-        ALTER TABLE podcasts
-        ADD COLUMN IF NOT EXISTS chat_id INTEGER
-    """)
+        # Add 'chat_id' column to podcasts table
+        op.execute("""
+            ALTER TABLE podcasts
+            ADD COLUMN IF NOT EXISTS chat_id INTEGER
+        """)
 
 
 def downgrade() -> None:
     """Remove columns only if they exist."""
 
-    op.execute("""
-        ALTER TABLE podcasts
-        DROP COLUMN IF EXISTS chat_state_version
-    """)
+    if table_exists("podcasts"):
+        op.execute("""
+            ALTER TABLE podcasts
+            DROP COLUMN IF EXISTS chat_state_version
+        """)
 
-    op.execute("""
-        ALTER TABLE podcasts
-        DROP COLUMN IF EXISTS chat_id
-    """)
+        op.execute("""
+            ALTER TABLE podcasts
+            DROP COLUMN IF EXISTS chat_id
+        """)
 
-    op.execute("""
-        ALTER TABLE chats
-        DROP COLUMN IF EXISTS state_version
-    """)
+    if table_exists("chats"):
+        op.execute("""
+            ALTER TABLE chats
+            DROP COLUMN IF EXISTS state_version
+        """)
