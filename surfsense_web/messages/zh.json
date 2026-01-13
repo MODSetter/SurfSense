@@ -105,7 +105,6 @@
 		"title": "用户设置",
 		"description": "管理您的账户设置和API访问",
 		"back_to_app": "返回应用",
-		"footer": "用户设置",
 		"api_key_nav_label": "API密钥",
 		"api_key_nav_description": "管理您的API访问令牌",
 		"api_key_title": "API密钥",
@@ -677,6 +676,16 @@
 		"forbidden": "禁止访问",
 		"server_error": "服务器错误",
 		"network_error": "网络错误"
+	},
+	"searchSpaceSettings": {
+		"title": "搜索空间设置",
+		"back_to_app": "返回应用",
+		"nav_agent_configs": "代理配置",
+		"nav_agent_configs_desc": "LLM 模型配置提示词和引用",
+		"nav_role_assignments": "角色分配",
+		"nav_role_assignments_desc": "为代理角色分配配置",
+		"nav_system_instructions": "系统指令",
+		"nav_system_instructions_desc": "搜索空间级别的 AI 指令"
 	},
 	"homepage": {
 		"hero_title_part1": "AI 工作空间",
