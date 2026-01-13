@@ -19,6 +19,7 @@ interface ConnectorEditViewProps {
 	isSaving: boolean;
 	isDisconnecting: boolean;
 	isIndexing?: boolean;
+	searchSpaceId?: string;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
@@ -40,6 +41,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	isSaving,
 	isDisconnecting,
 	isIndexing = false,
+	searchSpaceId,
 	onStartDateChange,
 	onEndDateChange,
 	onPeriodicEnabledChange,
@@ -197,6 +199,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								connector={connector}
 								onConfigChange={onConfigChange}
 								onNameChange={onNameChange}
+								searchSpaceId={searchSpaceId}
 							/>
 						)}
 

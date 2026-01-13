@@ -14,10 +14,11 @@ import type { ConnectorConfigProps } from "../index";
 
 interface MCPConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
+	searchSpaceId?: string;
 }
 
-export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
-	const [name, setName] = useState<string>(connector.name || "");
+export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNameChange, searchSpaceId }) => {
+	const [name, setName] = useState<string>("MCPs");
 	const [configJson, setConfigJson] = useState("");
 	const [jsonError, setJsonError] = useState<string | null>(null);
 	const [isTesting, setIsTesting] = useState(false);
@@ -26,18 +27,52 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		message: string;
 		tools: MCPToolDefinition[];
 	} | null>(null);
+	const [allMCPConnectors, setAllMCPConnectors] = useState<any[]>([]);
 
-	// Initialize from connector config
+	// Load all MCP connectors for this search space
 	useEffect(() => {
-		const serverConfig = (connector.config?.server_config as MCPServerConfig) || {
-			command: "",
-			args: [],
-			env: {},
-			transport: "stdio",
+		const loadAllMCPConnectors = async () => {
+			if (!searchSpaceId) return;
+			
+			try {
+				const connectors = await connectorsApiService.getConnectors({
+					queryParams: { search_space_id: parseInt(searchSpaceId, 10) }
+				});
+				const mcpConnectors = connectors.filter((c: any) => c.connector_type === "MCP_CONNECTOR");
+				setAllMCPConnectors(mcpConnectors);
+				
+				// Collect all server configs from all MCP connectors
+				const allServerConfigs: MCPServerConfig[] = [];
+				for (const mcpConn of mcpConnectors) {
+					const serverConfigs = mcpConn.config?.server_configs as MCPServerConfig[] | undefined;
+					if (serverConfigs && Array.isArray(serverConfigs)) {
+						allServerConfigs.push(...serverConfigs);
+					} else {
+						// Fallback to single server_config
+						const serverConfig = mcpConn.config?.server_config as MCPServerConfig | undefined;
+						if (serverConfig) {
+							allServerConfigs.push(serverConfig);
+						}
+					}
+				}
+				
+				if (allServerConfigs.length > 0) {
+					setConfigJson(JSON.stringify(allServerConfigs, null, 2));
+				} else {
+					setConfigJson(JSON.stringify([{
+						command: "",
+						args: [],
+						env: {},
+						transport: "stdio",
+					}], null, 2));
+				}
+			} catch (error) {
+				console.error("Failed to load MCP connectors:", error);
+			}
 		};
-		setConfigJson(JSON.stringify(serverConfig, null, 2));
-		setName(connector.name || "");
-	}, [connector.config, connector.name]);
+		
+		loadAllMCPConnectors();
+	}, [searchSpaceId]);
 
 
 	const handleNameChange = (value: string) => {
@@ -47,16 +82,31 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		}
 	};
 
-	const parseConfig = (): MCPServerConfig | null => {
+	const parseConfig = (): MCPServerConfig[] | null => {
 		try {
 			const parsed = JSON.parse(configJson);
+			
+			// Handle both single object and array
+			const configs = Array.isArray(parsed) ? parsed : [parsed];
+			
+			// Validate each config
+			const validConfigs: MCPServerConfig[] = [];
+			for (let i = 0; i < configs.length; i++) {
+				const cfg = configs[i];
+				if (!cfg.command || typeof cfg.command !== "string") {
+					setJsonError(`Config ${i + 1}: 'command' field is required and must be a string`);
+					return null;
+				}
+				validConfigs.push({
+					command: cfg.command,
+					args: cfg.args || [],
+					env: cfg.env || {},
+					transport: cfg.transport || "stdio",
+				});
+			}
+			
 			setJsonError(null);
-			return {
-				command: parsed.command || "",
-				args: parsed.args || [],
-				env: parsed.env || {},
-				transport: parsed.transport || "stdio",
-			};
+			return validConfigs;
 		} catch (error) {
 			setJsonError(error instanceof Error ? error.message : "Invalid JSON");
 			return null;
@@ -69,28 +119,11 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		if (jsonError) {
 			setJsonError(null);
 		}
-
-		// Try to parse and update config
-		try {
-			const parsed = JSON.parse(value);
-			if (onConfigChange) {
-				onConfigChange({
-					server_config: {
-						command: parsed.command || "",
-						args: parsed.args || [],
-						env: parsed.env || {},
-						transport: parsed.transport || "stdio",
-					},
-				});
-			}
-		} catch {
-			// Invalid JSON, don't update config yet
-		}
 	};
 
 	const handleTestConnection = async () => {
-		const serverConfig = parseConfig();
-		if (!serverConfig) {
+		const serverConfigs = parseConfig();
+		if (!serverConfigs || serverConfigs.length === 0) {
 			setTestResult({
 				status: "error",
 				message: jsonError || "Invalid configuration",
@@ -99,25 +132,55 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 			return;
 		}
 
-		if (!serverConfig.command.trim()) {
-			setTestResult({
-				status: "error",
-				message: "Command is required in configuration",
-				tools: [],
-			});
-			return;
+		// Update parent with the config array
+		if (onConfigChange) {
+			onConfigChange({ server_configs: serverConfigs });
 		}
 
 		setIsTesting(true);
 		setTestResult(null);
 
 		try {
-			const result = await connectorsApiService.testMCPConnection(serverConfig);
-			setTestResult(result);
+			// Test all servers and collect results
+			const allTools: MCPToolDefinition[] = [];
+			const errors: string[] = [];
+			
+			for (const serverConfig of serverConfigs) {
+				try {
+					const result = await connectorsApiService.testMCPConnection(serverConfig);
+					if (result.status === "success") {
+						allTools.push(...result.tools);
+					} else {
+						errors.push(`${serverConfig.command}: ${result.message}`);
+					}
+				} catch (error) {
+					errors.push(`${serverConfig.command}: ${error instanceof Error ? error.message : "Failed to connect"}`);
+				}
+			}
+			
+			if (errors.length === 0) {
+				setTestResult({
+					status: "success",
+					message: `Successfully connected to ${serverConfigs.length} server(s)`,
+					tools: allTools,
+				});
+			} else if (allTools.length > 0) {
+				setTestResult({
+					status: "success",
+					message: `Partially successful. Errors: ${errors.join("; ")}`,
+					tools: allTools,
+				});
+			} else {
+				setTestResult({
+					status: "error",
+					message: errors.join("; "),
+					tools: [],
+				});
+			}
 		} catch (error) {
 			setTestResult({
 				status: "error",
-				message: error instanceof Error ? error.message : "Failed to connect to MCP server",
+				message: error instanceof Error ? error.message : "Failed to connect to MCP servers",
 				tools: [],
 			});
 		} finally {
@@ -152,9 +215,6 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-4">
 					<div className="space-y-2">
-						<Label className="text-xs sm:text-sm">
-							Server Configuration (JSON)
-						</Label>
 						<Textarea
 							value={configJson}
 							onChange={(e) => handleConfigChange(e.target.value)}
@@ -169,7 +229,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							</p>
 						)}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							Edit your MCP server configuration. Required fields: command, args, env, transport.
+							Edit your MCP server configurations (array format). Each server requires: command, args, env, transport.
 						</p>
 					</div>
 

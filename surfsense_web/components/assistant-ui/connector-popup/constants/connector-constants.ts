@@ -162,7 +162,7 @@ export const OTHER_CONNECTORS = [
 	},
 	{
 		id: "mcp-connector",
-		title: "Model Context Protocol (MCP)",
+		title: "MCPs",
 		description: "Connect to MCP servers for AI tools",
 		connectorType: EnumConnectorName.MCP_CONNECTOR,
 	},

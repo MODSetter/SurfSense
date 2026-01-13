@@ -52,36 +52,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	onViewAccountsList,
 }) => {
 	const router = useRouter();
-	const [togglingConnectors, setTogglingConnectors] = useState<Set<number>>(new Set());
-
-	const handleToggleActive = async (connector: SearchSourceConnector, event: React.MouseEvent) => {
-		event.stopPropagation();
-		
-		if (togglingConnectors.has(connector.id)) return;
-
-		setTogglingConnectors(new Set([...togglingConnectors, connector.id]));
-		
-		try {
-			await connectorsApiService.updateConnector({
-				id: connector.id,
-				data: {
-					is_active: !connector.is_active,
-				},
-			});
-			
-			// Refresh the page to update the UI
-			window.location.reload();
-		} catch (error) {
-			console.error("Failed to toggle connector:", error);
-			alert(error instanceof Error ? error.message : "Failed to toggle connector");
-		} finally {
-			setTogglingConnectors((prev) => {
-				const next = new Set(prev);
-				next.delete(connector.id);
-				return next;
-			});
-		}
-	};
 
 	const handleViewAllDocuments = () => {
 		router.push(`/dashboard/${searchSpaceId}/documents`);
@@ -153,9 +123,12 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	// Get OAuth connector types set for quick lookup
 	const oauthConnectorTypes = new Set<string>(OAUTH_CONNECTORS.map((c) => c.connectorType));
 
-	// Separate OAuth and non-OAuth connectors
+	// Separate OAuth, MCP, and other non-OAuth connectors
 	const oauthConnectors = connectors.filter((c) => oauthConnectorTypes.has(c.connector_type));
-	const nonOauthConnectors = connectors.filter((c) => !oauthConnectorTypes.has(c.connector_type));
+	const mcpConnectors = connectors.filter((c) => c.connector_type === "MCP_CONNECTOR");
+	const nonOauthConnectors = connectors.filter(
+		(c) => !oauthConnectorTypes.has(c.connector_type) && c.connector_type !== "MCP_CONNECTOR"
+	);
 
 	// Group OAuth connectors by type
 	const oauthConnectorsByType = oauthConnectors.reduce(
@@ -206,8 +179,17 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		);
 	});
 
+	// Check if MCPs match search query
+	const showMCPs =
+		mcpConnectors.length > 0 &&
+		(!searchQuery ||
+			"mcps".includes(searchQuery.toLowerCase()) ||
+			"model context protocol".includes(searchQuery.toLowerCase()));
+
 	const hasActiveConnectors =
-		filteredOAuthConnectorTypes.length > 0 || filteredNonOAuthConnectors.length > 0;
+		filteredOAuthConnectorTypes.length > 0 ||
+		filteredNonOAuthConnectors.length > 0 ||
+		showMCPs;
 
 	return (
 		<TabsContent value="active" className="m-0">
@@ -301,6 +283,44 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 									);
 								})}
 
+								{/* MCP Connectors - Single Grouped Card */}
+								{showMCPs && (
+									<div
+										className={cn(
+											"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
+											"hover:bg-slate-400/10 dark:hover:bg-white/10"
+										)}
+									>
+										<div
+											className={cn(
+												"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
+												"bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+											)}
+										>
+											{getConnectorIcon("MCP_CONNECTOR", "size-6")}
+										</div>
+										<div className="flex-1 min-w-0">
+											<p className="text-[14px] font-semibold leading-tight truncate">MCPs</p>
+											<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
+												Active
+											</p>
+											<p className="text-[10px] text-muted-foreground mt-0.5">
+												{mcpConnectors.length} {mcpConnectors.length === 1 ? "Server" : "Servers"}
+											</p>
+										</div>
+										<Button
+											variant="secondary"
+											size="sm"
+											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+											onClick={
+												onManage && mcpConnectors[0] ? () => onManage(mcpConnectors[0]) : undefined
+											}
+										>
+											Manage
+										</Button>
+									</div>
+								)}
+
 								{/* Non-OAuth Connectors - Individual Cards */}
 								{filteredNonOAuthConnectors.map((connector) => {
 									const isIndexing = indexingConnectorIds.has(connector.id);
@@ -311,9 +331,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										connector.connector_type,
 										documentTypeCounts
 									);
-									const isMCP = connector.connector_type === "MCP_CONNECTOR";
-									const isToggling = togglingConnectors.has(connector.id);
-
 									return (
 										<div
 											key={`connector-${connector.id}`}
@@ -321,9 +338,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
 												isIndexing
 													? "bg-primary/5 border-primary/20"
-													: connector.is_active === false
-														? "bg-slate-400/5 dark:bg-white/5 opacity-60"
-														: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
 											)}
 										>
 											<div
@@ -338,14 +353,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 											</div>
 											<div className="flex-1 min-w-0">
 												<div className="flex items-center gap-2">
-													<p className="text-[14px] font-semibold leading-tight truncate">
+													<p className="text-[14px] font-semibold leading-tight">
 														{connector.name}
 													</p>
-													{connector.is_active === false && (
-														<span className="text-[10px] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
-															Disabled
-														</span>
-													)}
 												</div>
 												{isIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
@@ -363,9 +373,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 															? connector.last_indexed_at
 																? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
 																: "Never indexed"
-															: connector.is_active
-																? "Active"
-																: "Inactive"}
+															: "Active"}
 													</p>
 												)}
 												{isIndexableConnector(connector.connector_type) && (
@@ -374,21 +382,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 													</p>
 												)}
 											</div>
-											{isMCP && (
-												<div className="flex items-center gap-2 shrink-0">
-													<Switch
-														checked={connector.is_active !== false}
-														disabled={isToggling}
-														onCheckedChange={(checked) => {
-															handleToggleActive(connector, { stopPropagation: () => {} } as React.MouseEvent);
-														}}
-														className="data-[state=checked]:bg-primary"
-													/>
-													<span className="text-[10px] text-muted-foreground min-w-[50px]">
-														{isToggling ? "..." : connector.is_active !== false ? "Enabled" : "Disabled"}
-													</span>
-												</div>
-											)}
 											<Button
 												variant="secondary"
 												size="sm"

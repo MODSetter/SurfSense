@@ -239,6 +239,7 @@ export const ConnectorIndicator: FC = () => {
 						isSaving={isSaving}
 						isDisconnecting={isDisconnecting}
 						isIndexing={indexingConnectorIds.has(editingConnector.id)}
+						searchSpaceId={searchSpaceId?.toString()}
 						onStartDateChange={setStartDate}
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
