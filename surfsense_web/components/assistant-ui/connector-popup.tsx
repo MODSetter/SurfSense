@@ -1,17 +1,17 @@
 "use client";
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import { Cable, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { type FC, useEffect, useMemo } from "react";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import { type FC, useMemo } from "react";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useLogsSummary } from "@/hooks/use-logs";
+import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
+import { useDocumentsElectric } from "@/hooks/use-documents-electric";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
@@ -29,8 +29,9 @@ import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view
 export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const searchParams = useSearchParams();
-	const { data: documentTypeCounts, isLoading: documentTypesLoading } =
-		useAtomValue(documentTypeCountsAtom);
+	
+	// Fetch document type counts using Electric SQL + PGlite for real-time updates
+	const { documentTypeCounts, loading: documentTypesLoading } = useDocumentsElectric(searchSpaceId);
 
 	// Check if YouTube view is active
 	const isYouTubeView = searchParams.get("view") === "youtube";
@@ -93,47 +94,31 @@ export const ConnectorIndicator: FC = () => {
 		setConnectorName,
 	} = useConnectorDialog();
 
-	// Fetch connectors using React Query with conditional refetchInterval
-	// This automatically refetches when mutations invalidate the cache (event-driven)
-	// and also polls when dialog is open to catch external changes
+	// Fetch connectors using Electric SQL + PGlite for real-time updates
+	// This provides instant updates when connectors change, without polling
 	const {
-		data: connectors = [],
-		isLoading: connectorsLoading,
-		refetch: refreshConnectors,
-	} = useQuery({
-		queryKey: cacheKeys.connectors.all(searchSpaceId || ""),
-		queryFn: () =>
-			connectorsApiService.getConnectors({
-				queryParams: {
-					search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
-				},
-			}),
-		enabled: !!searchSpaceId,
-		staleTime: 5 * 60 * 1000, // 5 minutes (same as connectorsAtom)
-		// Poll when dialog is open to catch external changes
-		refetchInterval: isOpen ? 5000 : false, // 5 seconds when open, no polling when closed
-	});
+		connectors: connectorsFromElectric = [],
+		loading: connectorsLoading,
+		error: connectorsError,
+		refreshConnectors: refreshConnectorsElectric,
+	} = useConnectorsElectric(searchSpaceId);
 
-	const queryClient = useQueryClient();
+	// Fallback to API if Electric fails or is not available
+	const connectors = connectorsFromElectric.length > 0 || !connectorsError 
+		? connectorsFromElectric 
+		: allConnectors || [];
 
-	// Also refresh document type counts when dialog is open
-	useEffect(() => {
-		if (!isOpen || !searchSpaceId) return;
+	// Manual refresh function that works with both Electric and API
+	const refreshConnectors = async () => {
+		if (connectorsFromElectric.length > 0 || !connectorsError) {
+			await refreshConnectorsElectric();
+		} else {
+			// Fallback: use allConnectors from useConnectorDialog (which uses connectorsAtom)
+			// The connectorsAtom will handle refetching if needed
+		}
+	};
 
-		const POLL_INTERVAL = 5000; // 5 seconds, same as connectors
-
-		const intervalId = setInterval(() => {
-			// Invalidate document type counts to refresh active document types
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.documents.typeCounts(searchSpaceId),
-			});
-		}, POLL_INTERVAL);
-
-		// Cleanup interval on unmount or when dialog closes
-		return () => {
-			clearInterval(intervalId);
-		};
-	}, [isOpen, searchSpaceId, queryClient]);
+	// Document type counts now update in real-time via Electric SQL - no polling needed!
 
 	// Get connector IDs that are currently being indexed
 	const indexingConnectorIds = useMemo(() => {

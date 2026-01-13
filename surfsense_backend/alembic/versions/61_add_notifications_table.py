@@ -1,7 +1,7 @@
 """Add notifications table
 
-Revision ID: 60
-Revises: 59
+Revision ID: 61
+Revises: 60
 
 Note: Electric SQL replication setup (REPLICA IDENTITY FULL and publication)
 is handled in app/db.py setup_electric_replication() which runs on app startup.
@@ -11,8 +11,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "60"
-down_revision: str | None = "59"
+revision: str = "61"
+down_revision: str | None = "60"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

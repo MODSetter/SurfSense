@@ -1,6 +1,5 @@
 "use client";
 
-import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } from "date-fns";
 import { ArrowRight, Cable, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FC } from "react";
@@ -67,31 +66,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		return `${m.replace(/\.0$/, "")}M docs`;
 	};
 
-	// Format last indexed date with contextual messages
-	const formatLastIndexedDate = (dateString: string): string => {
-		const date = new Date(dateString);
-		const now = new Date();
-		const minutesAgo = differenceInMinutes(now, date);
-		const daysAgo = differenceInDays(now, date);
-
-		if (minutesAgo < 1) return "Just now";
-		if (minutesAgo < 60) return `${minutesAgo} ${minutesAgo === 1 ? "minute" : "minutes"} ago`;
-		if (isToday(date)) return `Today at ${format(date, "h:mm a")}`;
-		if (isYesterday(date)) return `Yesterday at ${format(date, "h:mm a")}`;
-		if (daysAgo < 7) return `${daysAgo} ${daysAgo === 1 ? "day" : "days"} ago`;
-		return format(date, "MMM d, yyyy");
-	};
-
-	// Get most recent last indexed date from a list of connectors
-	const getMostRecentLastIndexed = (
-		connectorsList: SearchSourceConnector[]
-	): string | undefined => {
-		return connectorsList.reduce<string | undefined>((latest, c) => {
-			if (!c.last_indexed_at) return latest;
-			if (!latest) return c.last_indexed_at;
-			return new Date(c.last_indexed_at) > new Date(latest) ? c.last_indexed_at : latest;
-		}, undefined);
-	};
 
 	// Document types that should be shown as standalone cards (not from connectors)
 	const standaloneDocumentTypes = ["EXTENSION", "FILE", "NOTE", "YOUTUBE_VIDEO", "CRAWLED_URL"];
@@ -190,7 +164,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										documentTypeCounts
 									);
 									const accountCount = typeConnectors.length;
-									const mostRecentLastIndexed = getMostRecentLastIndexed(typeConnectors);
 
 									const handleManageClick = () => {
 										if (onViewAccountsList) {
@@ -222,19 +195,13 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 											</div>
 											<div className="flex-1 min-w-0">
 												<p className="text-[14px] font-semibold leading-tight truncate">{title}</p>
-												{isAnyIndexing ? (
+												{isAnyIndexing && (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
 														Indexing...
 													</p>
-												) : (
-													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-														{mostRecentLastIndexed
-															? `Last indexed: ${formatLastIndexedDate(mostRecentLastIndexed)}`
-															: "Never indexed"}
-													</p>
 												)}
-												<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+												<p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
 													<span>{formatDocumentCount(documentCount)}</span>
 													<span className="text-muted-foreground/50">•</span>
 													<span>
@@ -289,7 +256,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												<p className="text-[14px] font-semibold leading-tight truncate">
 													{connector.name}
 												</p>
-												{isIndexing ? (
+												{isIndexing && (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
 														Indexing...
@@ -299,14 +266,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 															</span>
 														)}
 													</p>
-												) : (
-													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-														{connector.last_indexed_at
-															? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
-															: "Never indexed"}
-													</p>
 												)}
-												<p className="text-[10px] text-muted-foreground mt-0.5">
+												<p className="text-[10px] text-muted-foreground mt-1">
 													{formatDocumentCount(documentCount)}
 												</p>
 											</div>

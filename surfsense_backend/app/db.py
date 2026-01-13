@@ -939,13 +939,15 @@ async def create_db_and_tables():
 
 
 async def setup_electric_replication():
-    """Set up Electric SQL replication for the notifications table."""
+    """Set up Electric SQL replication for real-time sync tables."""
     async with engine.begin() as conn:
         # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
         # This logs full row data for UPDATE/DELETE operations in the WAL
         await conn.execute(text("ALTER TABLE notifications REPLICA IDENTITY FULL;"))
+        await conn.execute(text("ALTER TABLE search_source_connectors REPLICA IDENTITY FULL;"))
+        await conn.execute(text("ALTER TABLE documents REPLICA IDENTITY FULL;"))
 
-        # Add notifications table to Electric SQL publication for replication
+        # Add tables to Electric SQL publication for replication
         # Only add if publication exists and table not already in it
         await conn.execute(
             text(
@@ -953,12 +955,31 @@ async def setup_electric_replication():
                 DO $$
                 BEGIN
                     IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'electric_publication_default') THEN
+                        -- Add notifications if not already added
                         IF NOT EXISTS (
                             SELECT 1 FROM pg_publication_tables 
                             WHERE pubname = 'electric_publication_default' 
                             AND tablename = 'notifications'
                         ) THEN
                             ALTER PUBLICATION electric_publication_default ADD TABLE notifications;
+                        END IF;
+                        
+                        -- Add search_source_connectors if not already added
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_publication_tables 
+                            WHERE pubname = 'electric_publication_default' 
+                            AND tablename = 'search_source_connectors'
+                        ) THEN
+                            ALTER PUBLICATION electric_publication_default ADD TABLE search_source_connectors;
+                        END IF;
+                        
+                        -- Add documents if not already added
+                        IF NOT EXISTS (
+                            SELECT 1 FROM pg_publication_tables 
+                            WHERE pubname = 'electric_publication_default' 
+                            AND tablename = 'documents'
+                        ) THEN
+                            ALTER PUBLICATION electric_publication_default ADD TABLE documents;
                         END IF;
                     END IF;
                 END

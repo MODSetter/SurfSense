@@ -97,6 +97,44 @@ export async function initElectric(): Promise<ElectricClient> {
 				CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
 			`)
 
+			// Create the search_source_connectors table schema in PGlite
+			// This matches the backend schema
+			await db.exec(`
+				CREATE TABLE IF NOT EXISTS search_source_connectors (
+					id INTEGER PRIMARY KEY,
+					search_space_id INTEGER NOT NULL,
+					user_id TEXT NOT NULL,
+					connector_type TEXT NOT NULL,
+					name TEXT NOT NULL,
+					is_indexable BOOLEAN NOT NULL DEFAULT FALSE,
+					last_indexed_at TIMESTAMPTZ,
+					config JSONB DEFAULT '{}',
+					periodic_indexing_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+					indexing_frequency_minutes INTEGER,
+					next_scheduled_at TIMESTAMPTZ,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				);
+				
+				CREATE INDEX IF NOT EXISTS idx_connectors_search_space_id ON search_source_connectors(search_space_id);
+				CREATE INDEX IF NOT EXISTS idx_connectors_type ON search_source_connectors(connector_type);
+				CREATE INDEX IF NOT EXISTS idx_connectors_user_id ON search_source_connectors(user_id);
+			`)
+
+			// Create the documents table schema in PGlite
+			// Only sync minimal fields needed for type counts: id, document_type, search_space_id
+			await db.exec(`
+				CREATE TABLE IF NOT EXISTS documents (
+					id INTEGER PRIMARY KEY,
+					search_space_id INTEGER NOT NULL,
+					document_type TEXT NOT NULL,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				);
+				
+				CREATE INDEX IF NOT EXISTS idx_documents_search_space_id ON documents(search_space_id);
+				CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(document_type);
+				CREATE INDEX IF NOT EXISTS idx_documents_search_space_type ON documents(search_space_id, document_type);
+			`)
+
 			const electricUrl = getElectricUrl()
 
 			// Create the client wrapper
