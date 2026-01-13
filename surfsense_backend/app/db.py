@@ -80,6 +80,7 @@ class SearchSourceConnectorType(str, Enum):
     WEBCRAWLER_CONNECTOR = "WEBCRAWLER_CONNECTOR"
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
     CIRCLEBACK_CONNECTOR = "CIRCLEBACK_CONNECTOR"
+    MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
 
 
 class LiteLLMProvider(str, Enum):
@@ -605,13 +606,15 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
             "search_space_id",
             "user_id",
             "connector_type",
-            name="uq_searchspace_user_connector_type",
+            "name",
+            name="uq_searchspace_user_connector_type_name",
         ),
     )
 
     name = Column(String(100), nullable=False, index=True)
     connector_type = Column(SQLAlchemyEnum(SearchSourceConnectorType), nullable=False)
     is_indexable = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)  # Enable/disable connector
     last_indexed_at = Column(TIMESTAMP(timezone=True), nullable=True)
     config = Column(JSON, nullable=False)
 

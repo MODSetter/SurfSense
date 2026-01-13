@@ -55,6 +55,10 @@ from .rbac_schemas import (
     UserSearchSpaceAccess,
 )
 from .search_source_connector import (
+    MCPConnectorCreate,
+    MCPConnectorRead,
+    MCPConnectorUpdate,
+    MCPServerConfig,
     SearchSourceConnectorBase,
     SearchSourceConnectorCreate,
     SearchSourceConnectorRead,
@@ -108,6 +112,11 @@ __all__ = [
     "LogFilter",
     "LogRead",
     "LogUpdate",
+    # Search source connector schemas
+    "MCPConnectorCreate",
+    "MCPConnectorRead",
+    "MCPConnectorUpdate",
+    "MCPServerConfig",
     "MembershipRead",
     "MembershipReadWithUser",
     "MembershipUpdate",
@@ -135,7 +144,6 @@ __all__ = [
     "RoleCreate",
     "RoleRead",
     "RoleUpdate",
-    # Search source connector schemas
     "SearchSourceConnectorBase",
     "SearchSourceConnectorCreate",
     "SearchSourceConnectorRead",

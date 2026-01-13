@@ -14,6 +14,7 @@ import { GoogleDriveConfig } from "./components/google-drive-config";
 import { JiraConfig } from "./components/jira-config";
 import { LinkupApiConfig } from "./components/linkup-api-config";
 import { LumaConfig } from "./components/luma-config";
+import { MCPConfig } from "./components/mcp-config";
 import { SearxngConfig } from "./components/searxng-config";
 import { SlackConfig } from "./components/slack-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
@@ -24,6 +25,8 @@ export interface ConnectorConfigProps {
 	connector: SearchSourceConnector;
 	onConfigChange?: (config: Record<string, unknown>) => void;
 	onNameChange?: (name: string) => void;
+	searchSpaceId?: string;
+	onOtherMCPConnectorsLoaded?: (connectorIds: number[]) => void;
 }
 
 export type ConnectorConfigComponent = FC<ConnectorConfigProps>;
@@ -69,6 +72,8 @@ export function getConnectorConfigComponent(
 			return LumaConfig;
 		case "CIRCLEBACK_CONNECTOR":
 			return CirclebackConfig;
+		case "MCP_CONNECTOR":
+			return MCPConfig;
 		// OAuth connectors (Gmail, Calendar, Airtable, Notion) and others don't need special config UI
 		default:
 			return null;

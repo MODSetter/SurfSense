@@ -68,6 +68,7 @@ export const useConnectorDialog = () => {
 	const [isDisconnecting, setIsDisconnecting] = useState(false);
 	const [connectorConfig, setConnectorConfig] = useState<Record<string, unknown> | null>(null);
 	const [connectorName, setConnectorName] = useState<string | null>(null);
+	const [otherMCPConnectorIds, setOtherMCPConnectorIds] = useState<number[]>([]);
 
 	// Connect mode state (for non-OAuth connectors)
 	const [connectingConnectorType, setConnectingConnectorType] = useState<string | null>(null);
@@ -421,6 +422,7 @@ export const useConnectorDialog = () => {
 					connector_type: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 					config: {},
 					is_indexable: true,
+					is_active: true,
 					last_indexed_at: null,
 					periodic_indexing_enabled: false,
 					indexing_frequency_minutes: null,
@@ -522,17 +524,18 @@ export const useConnectorDialog = () => {
 					data: {
 						...connectorData,
 						connector_type: connectorData.connector_type as EnumConnectorName,
-						next_scheduled_at: connectorData.next_scheduled_at as string | null,
-					},
-					queryParams: {
-						search_space_id: searchSpaceId,
-					},
-				});
+					is_active: true,
+					next_scheduled_at: connectorData.next_scheduled_at as string | null,
+				},
+				queryParams: {
+					search_space_id: searchSpaceId,
+				},
+			});
 
-				// Refetch connectors to get the new one
-				const result = await refetchAllConnectors();
-				if (result.data) {
-					const connector = result.data.find(
+			// Refetch connectors to get the new one
+			const result = await refetchAllConnectors();
+			if (result.data) {
+				const connector = result.data.find(
 						(c: SearchSourceConnector) => c.id === newConnector.id
 					);
 					if (connector) {
@@ -1009,7 +1012,7 @@ export const useConnectorDialog = () => {
 	// Handle saving connector changes
 	const handleSaveConnector = useCallback(
 		async (refreshConnectors: () => void) => {
-			if (!editingConnector || !searchSpaceId) return;
+			if (!editingConnector || !searchSpaceId || isSaving) return;
 
 			// Validate date range (skip for Google Drive which uses folder selection, Webcrawler which uses config, and non-indexable connectors)
 			if (
@@ -1043,6 +1046,21 @@ export const useConnectorDialog = () => {
 			try {
 				const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
+
+				// For MCP connectors, delete other MCP connectors first (consolidate all into one)
+				if (editingConnector.connector_type === "MCP_CONNECTOR" && otherMCPConnectorIds.length > 0) {
+					// Silently delete other MCP connectors without showing toasts
+					await Promise.all(
+						otherMCPConnectorIds.map((id) =>
+							deleteConnector({
+								id,
+							}).catch(() => {
+								// Silently ignore errors for individual deletions
+							})
+						)
+					);
+					setOtherMCPConnectorIds([]);
+				}
 
 				// Update connector with periodic sync settings, config changes, and name
 				// Note: Periodic sync is disabled for Google Drive connectors and non-indexable connectors
@@ -1148,11 +1166,16 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-				toast.success(`${editingConnector.name} updated successfully`, {
-					description: periodicEnabled
-						? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
-						: indexingDescription,
-				});
+				toast.success(
+					editingConnector.connector_type === "MCP_CONNECTOR" 
+						? "MCPs updated successfully" 
+						: `${editingConnector.name} updated successfully`,
+					{
+						description: periodicEnabled
+							? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
+							: indexingDescription,
+					}
+				);
 
 				// Update URL - the effect will handle closing the modal and clearing state
 				const url = new URL(window.location.href);
@@ -1176,6 +1199,7 @@ export const useConnectorDialog = () => {
 		[
 			editingConnector,
 			searchSpaceId,
+			isSaving,
 			startDate,
 			endDate,
 			indexConnector,
@@ -1186,6 +1210,8 @@ export const useConnectorDialog = () => {
 			router,
 			connectorConfig,
 			connectorName,
+			otherMCPConnectorIds,
+			deleteConnector,
 		]
 	);
 
@@ -1207,7 +1233,11 @@ export const useConnectorDialog = () => {
 					editingConnector.id
 				);
 
-				toast.success(`${editingConnector.name} disconnected successfully`);
+				toast.success(
+					editingConnector.connector_type === "MCP_CONNECTOR"
+						? "MCPs disconnected successfully"
+						: `${editingConnector.name} disconnected successfully`
+				);
 
 				// Update URL - the effect will handle closing the modal and clearing state
 				const url = new URL(window.location.href);
@@ -1375,6 +1405,7 @@ export const useConnectorDialog = () => {
 		setPeriodicEnabled,
 		setFrequencyMinutes,
 		setConnectorName,
+		setOtherMCPConnectorIds,
 
 		// Handlers
 		handleOpenChange,

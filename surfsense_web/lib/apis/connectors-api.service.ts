@@ -24,6 +24,14 @@ import {
 	updateConnectorRequest,
 	updateConnectorResponse,
 } from "@/contracts/types/connector.types";
+import type {
+	CreateMCPConnectorRequest,
+	GetMCPConnectorsRequest,
+	MCPConnectorRead,
+	MCPServerConfig,
+	MCPTestConnectionResponse,
+	UpdateMCPConnectorRequest,
+} from "@/contracts/types/mcp.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
 
@@ -222,6 +230,76 @@ class ConnectorsApiService {
 		return baseApiService.get(
 			`/api/v1/connectors/${connector_id}/google-drive/folders${queryParams}`,
 			listGoogleDriveFoldersResponse
+		);
+	};
+
+	// =============================================================================
+	// MCP Connector Methods
+	// =============================================================================
+
+	/**
+	 * Get all MCP connectors for a search space
+	 */
+	getMCPConnectors = async (request: GetMCPConnectorsRequest) => {
+		const { search_space_id } = request.queryParams;
+
+		const queryString = new URLSearchParams({
+			search_space_id: String(search_space_id),
+		}).toString();
+
+		return baseApiService.get<MCPConnectorRead[]>(`/api/v1/connectors/mcp?${queryString}`);
+	};
+
+	/**
+	 * Get a single MCP connector by ID
+	 */
+	getMCPConnector = async (connectorId: number) => {
+		return baseApiService.get<MCPConnectorRead>(`/api/v1/connectors/mcp/${connectorId}`);
+	};
+
+	/**
+	 * Create a new MCP connector
+	 */
+	createMCPConnector = async (request: CreateMCPConnectorRequest) => {
+		const { data, queryParams } = request;
+
+		const queryString = new URLSearchParams({
+			search_space_id: String(queryParams.search_space_id),
+		}).toString();
+
+		return baseApiService.post<MCPConnectorRead>(`/api/v1/connectors/mcp?${queryString}`, undefined, {
+			body: data,
+		});
+	};
+
+	/**
+	 * Update an existing MCP connector
+	 */
+	updateMCPConnector = async (request: UpdateMCPConnectorRequest) => {
+		const { id, data } = request;
+
+		return baseApiService.put<MCPConnectorRead>(`/api/v1/connectors/mcp/${id}`, undefined, {
+			body: data,
+		});
+	};
+
+	/**
+	 * Delete an MCP connector
+	 */
+	deleteMCPConnector = async (connectorId: number) => {
+		return baseApiService.delete<void>(`/api/v1/connectors/mcp/${connectorId}`);
+	};
+
+	/**
+	 * Test MCP server connection and retrieve available tools
+	 */
+	testMCPConnection = async (serverConfig: MCPServerConfig) => {
+		return baseApiService.post<MCPTestConnectionResponse>(
+			"/api/v1/connectors/mcp/test",
+			undefined,
+			{
+				body: serverConfig,
+			}
 		);
 	};
 }

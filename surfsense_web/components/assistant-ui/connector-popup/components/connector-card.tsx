@@ -28,6 +28,16 @@ interface ConnectorCardProps {
 }
 
 /**
+ * Check if a connector type is indexable (has documents)
+ * MCP connectors are tools only and don't have indexable content
+ */
+function isIndexableConnector(connectorType?: string): boolean {
+	if (!connectorType) return true; // Default to true for unknown types
+	const nonIndexableTypes = ["MCP_CONNECTOR"];
+	return !nonIndexableTypes.includes(connectorType);
+}
+
+/**
  * Extract a number from the active task message for display
  * Looks for patterns like "45 indexed", "Processing 123", etc.
  */
@@ -135,7 +145,12 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 		}
 
 		if (isConnected) {
-			// Show last indexed date for connected connectors
+			// For non-indexable connectors (like MCP), show description instead of index status
+			if (!isIndexableConnector(connectorType)) {
+				return description;
+			}
+
+			// Show last indexed date for connected indexable connectors
 			if (lastIndexedAt) {
 				return (
 					<span className="whitespace-nowrap text-[10px]">
