@@ -5,14 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useSidebarState } from "../../hooks";
-import type {
-	ChatItem,
-	NavItem,
-	NoteItem,
-	PageUsage,
-	SearchSpace,
-	User,
-} from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import { MobileSidebar, MobileSidebarTrigger, Sidebar } from "../sidebar";
@@ -26,17 +19,13 @@ interface LayoutShellProps {
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -62,17 +51,13 @@ export function LayoutShell({
 	navItems,
 	onNavItemClick,
 	chats,
+	sharedChats,
 	activeChatId,
 	onNewChat,
 	onChatSelect,
 	onChatDelete,
-	onViewAllChats,
-	notes,
-	activeNoteId,
-	onNoteSelect,
-	onNoteDelete,
-	onAddNote,
-	onViewAllNotes,
+	onViewAllSharedChats,
+	onViewAllPrivateChats,
 	user,
 	onSettings,
 	onManageMembers,
@@ -116,17 +101,13 @@ export function LayoutShell({
 						navItems={navItems}
 						onNavItemClick={onNavItemClick}
 						chats={chats}
+						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={onNewChat}
 						onChatSelect={onChatSelect}
 						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={onNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
 						user={user}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
@@ -164,17 +145,13 @@ export function LayoutShell({
 						navItems={navItems}
 						onNavItemClick={onNavItemClick}
 						chats={chats}
+						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={onNewChat}
 						onChatSelect={onChatSelect}
 						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={onNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
 						user={user}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}

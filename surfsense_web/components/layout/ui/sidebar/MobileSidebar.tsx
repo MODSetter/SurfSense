@@ -1,18 +1,10 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import type {
-	ChatItem,
-	NavItem,
-	NoteItem,
-	PageUsage,
-	SearchSpace,
-	User,
-} from "../../types/layout.types";
-import { IconRail } from "../icon-rail";
+import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import { SearchSpaceAvatar } from "../icon-rail/SearchSpaceAvatar";
 import { Sidebar } from "./Sidebar";
 
 interface MobileSidebarProps {
@@ -26,17 +18,13 @@ interface MobileSidebarProps {
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -65,17 +53,13 @@ export function MobileSidebar({
 	navItems,
 	onNavItemClick,
 	chats,
+	sharedChats,
 	activeChatId,
 	onNewChat,
 	onChatSelect,
 	onChatDelete,
-	onViewAllChats,
-	notes,
-	activeNoteId,
-	onNoteSelect,
-	onNoteDelete,
-	onAddNote,
-	onViewAllNotes,
+	onViewAllSharedChats,
+	onViewAllPrivateChats,
 	user,
 	onSettings,
 	onManageMembers,
@@ -97,27 +81,37 @@ export function MobileSidebar({
 		onOpenChange(false);
 	};
 
-	const handleNoteSelect = (note: NoteItem) => {
-		onNoteSelect(note);
-		onOpenChange(false);
-	};
-
 	return (
 		<Sheet open={isOpen} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-[320px] p-0 flex">
+			<SheetContent side="left" className="w-[300px] p-0 flex flex-col">
 				<SheetTitle className="sr-only">Navigation</SheetTitle>
 
-				<div className="shrink-0 border-r bg-muted/40">
-					<ScrollArea className="h-full">
-						<IconRail
-							searchSpaces={searchSpaces}
-							activeSearchSpaceId={activeSearchSpaceId}
-							onSearchSpaceSelect={handleSearchSpaceSelect}
-							onAddSearchSpace={onAddSearchSpace}
-						/>
-					</ScrollArea>
+				{/* Horizontal Search Spaces Rail */}
+				<div className="shrink-0 border-b bg-muted/40 px-2 py-2 overflow-hidden">
+					<div className="flex items-center gap-2 px-1 py-1 overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20">
+						{searchSpaces.map((space) => (
+							<div key={space.id} className="shrink-0">
+								<SearchSpaceAvatar
+									name={space.name}
+									isActive={space.id === activeSearchSpaceId}
+									onClick={() => handleSearchSpaceSelect(space.id)}
+									size="md"
+								/>
+							</div>
+						))}
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={onAddSearchSpace}
+							className="h-10 w-10 shrink-0 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
+						>
+							<Plus className="h-5 w-5 text-muted-foreground" />
+							<span className="sr-only">Add search space</span>
+						</Button>
+					</div>
 				</div>
 
+				{/* Sidebar Content */}
 				<div className="flex-1 overflow-hidden">
 					<Sidebar
 						searchSpace={searchSpace}
@@ -125,6 +119,7 @@ export function MobileSidebar({
 						navItems={navItems}
 						onNavItemClick={handleNavItemClick}
 						chats={chats}
+						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={() => {
 							onNewChat();
@@ -132,21 +127,16 @@ export function MobileSidebar({
 						}}
 						onChatSelect={handleChatSelect}
 						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={handleNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
-					user={user}
-					onSettings={onSettings}
-					onManageMembers={onManageMembers}
-					onUserSettings={onUserSettings}
-					onLogout={onLogout}
-					pageUsage={pageUsage}
-					className="w-full border-none"
-				/>
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
+						user={user}
+						onSettings={onSettings}
+						onManageMembers={onManageMembers}
+						onUserSettings={onUserSettings}
+						onLogout={onLogout}
+						pageUsage={pageUsage}
+						className="w-full border-none"
+					/>
 				</div>
 			</SheetContent>
 		</Sheet>

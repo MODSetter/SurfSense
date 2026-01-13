@@ -267,21 +267,8 @@ export default function EditorPage() {
 				setHasUnsavedChanges(false);
 				toast.success("Note created successfully! Reindexing in background...");
 
-				// Invalidate notes query to refresh the sidebar
-				queryClient.invalidateQueries({
-					queryKey: ["notes", String(searchSpaceId)],
-				});
-
-				// Update URL to reflect the new document ID without navigation
-				window.history.replaceState({}, "", `/dashboard/${searchSpaceId}/editor/${note.id}`);
-				// Update document state to reflect the new ID
-				setDocument({
-					document_id: note.id,
-					title: title,
-					document_type: "NOTE",
-					blocknote_document: editorContent,
-					updated_at: new Date().toISOString(),
-				});
+				// Redirect to documents page after successful save
+				router.push(`/dashboard/${searchSpaceId}/documents`);
 			} else {
 				// Existing document - save normally
 				if (!editorContent) {
@@ -310,12 +297,8 @@ export default function EditorPage() {
 				setHasUnsavedChanges(false);
 				toast.success("Document saved! Reindexing in background...");
 
-				// Invalidate notes query when updating notes to refresh the sidebar
-				if (isNote) {
-					queryClient.invalidateQueries({
-						queryKey: ["notes", String(searchSpaceId)],
-					});
-				}
+				// Redirect to documents page after successful save
+				router.push(`/dashboard/${searchSpaceId}/documents`);
 			}
 		} catch (error) {
 			console.error("Error saving document:", error);
@@ -336,7 +319,7 @@ export default function EditorPage() {
 		if (hasUnsavedChanges) {
 			setShowUnsavedDialog(true);
 		} else {
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			router.push(`/dashboard/${searchSpaceId}/documents`);
 		}
 	};
 
@@ -346,12 +329,12 @@ export default function EditorPage() {
 		setGlobalHasUnsavedChanges(false);
 		setHasUnsavedChanges(false);
 
-		// If there's a pending navigation (from sidebar), use that; otherwise go back to chat
+		// If there's a pending navigation (from sidebar), use that; otherwise go back to documents
 		if (pendingNavigation) {
 			router.push(pendingNavigation);
 			setPendingNavigation(null);
 		} else {
-			router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			router.push(`/dashboard/${searchSpaceId}/documents`);
 		}
 	};
 
@@ -392,7 +375,7 @@ export default function EditorPage() {
 						</CardHeader>
 						<CardContent>
 							<Button
-								onClick={() => router.push(`/dashboard/${searchSpaceId}/new-chat`)}
+								onClick={() => router.push(`/dashboard/${searchSpaceId}/documents`)}
 								variant="outline"
 								className="gap-2"
 							>
