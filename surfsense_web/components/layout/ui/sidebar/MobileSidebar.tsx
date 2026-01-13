@@ -111,29 +111,24 @@ export function MobileSidebar({
 					</div>
 				</div>
 
-				{/* Sidebar Content */}
-				<div className="flex-1 overflow-hidden">
-					<Sidebar
-						searchSpace={searchSpace}
-						isCollapsed={false}
-						navItems={navItems}
-						onNavItemClick={handleNavItemClick}
-						chats={chats}
-						sharedChats={sharedChats}
-						activeChatId={activeChatId}
-						onNewChat={() => {
-							onNewChat();
-							onOpenChange(false);
-						}}
-						onChatSelect={handleChatSelect}
-						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={handleNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
+			{/* Sidebar Content */}
+			<div className="flex-1 overflow-hidden">
+				<Sidebar
+					searchSpace={searchSpace}
+					isCollapsed={false}
+					navItems={navItems}
+					onNavItemClick={handleNavItemClick}
+					chats={chats}
+					sharedChats={sharedChats}
+					activeChatId={activeChatId}
+					onNewChat={() => {
+						onNewChat();
+						onOpenChange(false);
+					}}
+					onChatSelect={handleChatSelect}
+					onChatDelete={onChatDelete}
+					onViewAllSharedChats={onViewAllSharedChats}
+					onViewAllPrivateChats={onViewAllPrivateChats}
 					user={user}
 					onSettings={onSettings}
 					onManageMembers={onManageMembers}
@@ -142,18 +137,7 @@ export function MobileSidebar({
 					pageUsage={pageUsage}
 					className="w-full border-none"
 				/>
-						onViewAllSharedChats={onViewAllSharedChats}
-						onViewAllPrivateChats={onViewAllPrivateChats}
-						user={user}
-						onSettings={onSettings}
-						onManageMembers={onManageMembers}
-						onSeeAllSearchSpaces={onSeeAllSearchSpaces}
-						onUserSettings={onUserSettings}
-						onLogout={onLogout}
-						pageUsage={pageUsage}
-						className="w-full border-none"
-					/>
-				</div>
+			</div>
 			</SheetContent>
 		</Sheet>
 	);
