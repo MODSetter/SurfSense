@@ -166,12 +166,21 @@ async def _process_extension_document(
                 {"error_type": type(e).__name__},
             )
 
-            # Update notification on failure
-            await NotificationService.document_processing.notify_processing_completed(
-                session=session,
-                notification=notification,
-                error_message=str(e)[:100],
-            )
+            # Update notification on failure - wrapped in try-except to ensure it doesn't fail silently
+            try:
+                # Refresh notification to ensure it's not stale after any rollback
+                await session.refresh(notification)
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=str(e)[:100],
+                    )
+                )
+            except Exception as notif_error:
+                logger.error(
+                    f"Failed to update notification on failure: {notif_error!s}"
+                )
 
             logger.error(f"Error processing extension document: {e!s}")
             raise
@@ -280,12 +289,21 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
                 {"error_type": type(e).__name__},
             )
 
-            # Update notification on failure
-            await NotificationService.document_processing.notify_processing_completed(
-                session=session,
-                notification=notification,
-                error_message=str(e)[:100],
-            )
+            # Update notification on failure - wrapped in try-except to ensure it doesn't fail silently
+            try:
+                # Refresh notification to ensure it's not stale after any rollback
+                await session.refresh(notification)
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=str(e)[:100],
+                    )
+                )
+            except Exception as notif_error:
+                logger.error(
+                    f"Failed to update notification on failure: {notif_error!s}"
+                )
 
             logger.error(f"Error processing YouTube video: {e!s}")
             raise
@@ -404,12 +422,21 @@ async def _process_file_upload(
             else:
                 error_message = str(e)[:100]
 
-            # Update notification on failure
-            await NotificationService.document_processing.notify_processing_completed(
-                session=session,
-                notification=notification,
-                error_message=error_message,
-            )
+            # Update notification on failure - wrapped in try-except to ensure it doesn't fail silently
+            try:
+                # Refresh notification to ensure it's not stale after any rollback
+                await session.refresh(notification)
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=error_message,
+                    )
+                )
+            except Exception as notif_error:
+                logger.error(
+                    f"Failed to update notification on failure: {notif_error!s}"
+                )
 
             await task_logger.log_task_failure(
                 log_entry,
@@ -564,15 +591,20 @@ async def _process_circleback_meeting(
                 {"error_type": type(e).__name__, "meeting_id": meeting_id},
             )
 
-            # Update notification on failure
+            # Update notification on failure - wrapped in try-except to ensure it doesn't fail silently
             if notification:
-                await (
-                    NotificationService.document_processing.notify_processing_completed(
+                try:
+                    # Refresh notification to ensure it's not stale after any rollback
+                    await session.refresh(notification)
+                    await NotificationService.document_processing.notify_processing_completed(
                         session=session,
                         notification=notification,
                         error_message=str(e)[:100],
                     )
-                )
+                except Exception as notif_error:
+                    logger.error(
+                        f"Failed to update notification on failure: {notif_error!s}"
+                    )
 
             logger.error(f"Error processing Circleback meeting: {e!s}")
             raise

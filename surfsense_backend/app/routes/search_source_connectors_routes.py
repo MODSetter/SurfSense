@@ -1090,6 +1090,8 @@ async def _run_indexing_with_notifications(
         # Update notification on exception
         if notification:
             try:
+                # Refresh notification to ensure it's not stale after any rollback
+                await session.refresh(notification)
                 await NotificationService.connector_indexing.notify_indexing_completed(
                     session=session,
                     notification=notification,
@@ -1824,6 +1826,8 @@ async def run_google_drive_indexing(
         # Update notification on exception
         if notification:
             try:
+                # Refresh notification to ensure it's not stale after any rollback
+                await session.refresh(notification)
                 await NotificationService.connector_indexing.notify_indexing_completed(
                     session=session,
                     notification=notification,
