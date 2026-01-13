@@ -4,12 +4,15 @@ import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } f
 import { ArrowRight, Cable, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FC } from "react";
+import { useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cn } from "@/lib/utils";
 import { OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
@@ -26,6 +29,14 @@ interface ActiveConnectorsTabProps {
 	onTabChange: (value: string) => void;
 	onManage?: (connector: SearchSourceConnector) => void;
 	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
+}
+
+/**
+ * Check if a connector type is indexable
+ */
+function isIndexableConnector(connectorType: string): boolean {
+	const nonIndexableTypes = ["MCP_CONNECTOR"];
+	return !nonIndexableTypes.includes(connectorType);
 }
 
 export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
@@ -112,9 +123,12 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	// Get OAuth connector types set for quick lookup
 	const oauthConnectorTypes = new Set<string>(OAUTH_CONNECTORS.map((c) => c.connectorType));
 
-	// Separate OAuth and non-OAuth connectors
+	// Separate OAuth, MCP, and other non-OAuth connectors
 	const oauthConnectors = connectors.filter((c) => oauthConnectorTypes.has(c.connector_type));
-	const nonOauthConnectors = connectors.filter((c) => !oauthConnectorTypes.has(c.connector_type));
+	const mcpConnectors = connectors.filter((c) => c.connector_type === "MCP_CONNECTOR");
+	const nonOauthConnectors = connectors.filter(
+		(c) => !oauthConnectorTypes.has(c.connector_type) && c.connector_type !== "MCP_CONNECTOR"
+	);
 
 	// Group OAuth connectors by type
 	const oauthConnectorsByType = oauthConnectors.reduce(
@@ -165,8 +179,17 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		);
 	});
 
+	// Check if MCPs match search query
+	const showMCPs =
+		mcpConnectors.length > 0 &&
+		(!searchQuery ||
+			"mcps".includes(searchQuery.toLowerCase()) ||
+			"model context protocol".includes(searchQuery.toLowerCase()));
+
 	const hasActiveConnectors =
-		filteredOAuthConnectorTypes.length > 0 || filteredNonOAuthConnectors.length > 0;
+		filteredOAuthConnectorTypes.length > 0 ||
+		filteredNonOAuthConnectors.length > 0 ||
+		showMCPs;
 
 	return (
 		<TabsContent value="active" className="m-0">
@@ -229,14 +252,20 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 													</p>
 												) : (
 													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-														{mostRecentLastIndexed
-															? `Last indexed: ${formatLastIndexedDate(mostRecentLastIndexed)}`
-															: "Never indexed"}
-													</p>
+														{isIndexableConnector(connectorType)
+															? mostRecentLastIndexed
+																? `Last indexed: ${formatLastIndexedDate(mostRecentLastIndexed)}`
+																: "Never indexed"
+															: "Active"}
+												</p>
 												)}
 												<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
-													<span>{formatDocumentCount(documentCount)}</span>
-													<span className="text-muted-foreground/50">•</span>
+													{isIndexableConnector(connectorType) && (
+														<>
+															<span>{formatDocumentCount(documentCount)}</span>
+															<span className="text-muted-foreground/50">•</span>
+														</>
+													)}
 													<span>
 														{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
 													</span>
@@ -254,6 +283,44 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 									);
 								})}
 
+								{/* MCP Connectors - Single Grouped Card */}
+								{showMCPs && (
+									<div
+										className={cn(
+											"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
+											"hover:bg-slate-400/10 dark:hover:bg-white/10"
+										)}
+									>
+										<div
+											className={cn(
+												"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
+												"bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+											)}
+										>
+											{getConnectorIcon("MCP_CONNECTOR", "size-6")}
+										</div>
+										<div className="flex-1 min-w-0">
+											<p className="text-[14px] font-semibold leading-tight truncate">MCPs</p>
+											<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
+												Active
+											</p>
+											<p className="text-[10px] text-muted-foreground mt-0.5">
+												{mcpConnectors.length} {mcpConnectors.length === 1 ? "Server" : "Servers"}
+											</p>
+										</div>
+										<Button
+											variant="secondary"
+											size="sm"
+											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+											onClick={
+												onManage && mcpConnectors[0] ? () => onManage(mcpConnectors[0]) : undefined
+											}
+										>
+											Manage
+										</Button>
+									</div>
+								)}
+
 								{/* Non-OAuth Connectors - Individual Cards */}
 								{filteredNonOAuthConnectors.map((connector) => {
 									const isIndexing = indexingConnectorIds.has(connector.id);
@@ -264,7 +331,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										connector.connector_type,
 										documentTypeCounts
 									);
-
 									return (
 										<div
 											key={`connector-${connector.id}`}
@@ -286,9 +352,11 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												{getConnectorIcon(connector.connector_type, "size-6")}
 											</div>
 											<div className="flex-1 min-w-0">
-												<p className="text-[14px] font-semibold leading-tight truncate">
-													{connector.name}
-												</p>
+												<div className="flex items-center gap-2">
+													<p className="text-[14px] font-semibold leading-tight">
+														{connector.name}
+													</p>
+												</div>
 												{isIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
@@ -301,14 +369,18 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 													</p>
 												) : (
 													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-														{connector.last_indexed_at
-															? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
-															: "Never indexed"}
+														{isIndexableConnector(connector.connector_type)
+															? connector.last_indexed_at
+																? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
+																: "Never indexed"
+															: "Active"}
 													</p>
 												)}
-												<p className="text-[10px] text-muted-foreground mt-0.5">
-													{formatDocumentCount(documentCount)}
-												</p>
+												{isIndexableConnector(connector.connector_type) && (
+													<p className="text-[10px] text-muted-foreground mt-0.5">
+														{formatDocumentCount(documentCount)}
+													</p>
+												)}
 											</div>
 											<Button
 												variant="secondary"

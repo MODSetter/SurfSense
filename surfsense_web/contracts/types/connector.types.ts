@@ -26,6 +26,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"YOUTUBE_CONNECTOR",
 	"BOOKSTACK_CONNECTOR",
 	"CIRCLEBACK_CONNECTOR",
+	"MCP_CONNECTOR",
 ]);
 
 export const searchSourceConnector = z.object({
@@ -33,6 +34,7 @@ export const searchSourceConnector = z.object({
 	name: z.string(),
 	connector_type: searchSourceConnectorTypeEnum,
 	is_indexable: z.boolean(),
+	is_active: z.boolean().default(true),
 	last_indexed_at: z.string().nullable(),
 	config: z.record(z.string(), z.any()),
 	periodic_indexing_enabled: z.boolean(),
@@ -85,6 +87,7 @@ export const createConnectorRequest = z.object({
 		name: true,
 		connector_type: true,
 		is_indexable: true,
+		is_active: true,
 		last_indexed_at: true,
 		config: true,
 		periodic_indexing_enabled: true,
@@ -108,6 +111,7 @@ export const updateConnectorRequest = z.object({
 			name: true,
 			connector_type: true,
 			is_indexable: true,
+			is_active: true,
 			last_indexed_at: true,
 			config: true,
 			periodic_indexing_enabled: true,

@@ -68,6 +68,7 @@ export const ConnectorIndicator: FC = () => {
 		setEndDate,
 		setPeriodicEnabled,
 		setFrequencyMinutes,
+		setOtherMCPConnectorIds,
 		handleOpenChange,
 		handleTabChange,
 		handleScroll,
@@ -239,6 +240,8 @@ export const ConnectorIndicator: FC = () => {
 						isSaving={isSaving}
 						isDisconnecting={isDisconnecting}
 						isIndexing={indexingConnectorIds.has(editingConnector.id)}
+						searchSpaceId={searchSpaceId?.toString()}
+						onOtherMCPConnectorsLoaded={setOtherMCPConnectorIds}
 						onStartDateChange={setStartDate}
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
