@@ -4,7 +4,6 @@ This module provides a client for communicating with MCP servers via stdio trans
 It handles server lifecycle management, tool discovery, and tool execution.
 """
 
-import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -54,15 +53,17 @@ class MCPClient:
             )
             
             # Spawn server process and create session
-            async with stdio_client(server=server_params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    # Initialize the connection
-                    await session.initialize()
-                    self.session = session
-                    logger.info(
-                        f"Connected to MCP server: {self.command} {' '.join(self.args)}"
-                    )
-                    yield session
+            async with (
+                stdio_client(server=server_params) as (read, write),
+                ClientSession(read, write) as session,
+            ):
+                # Initialize the connection
+                await session.initialize()
+                self.session = session
+                logger.info(
+                    f"Connected to MCP server: {self.command} {' '.join(self.args)}"
+                )
+                yield session
 
         except Exception as e:
             logger.error(f"Failed to connect to MCP server: {e!s}", exc_info=True)

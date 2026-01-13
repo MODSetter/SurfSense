@@ -8,9 +8,9 @@ from typing import Any
 from urllib.parse import urlparse
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
+from sqlalchemy.sql import func
 
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 
@@ -76,7 +76,7 @@ def extract_identifier_from_credentials(
                 if ".atlassian.net" in hostname:
                     return hostname.replace(".atlassian.net", "")
                 return hostname
-            except Exception:
+            except (ValueError, TypeError, AttributeError):
                 pass
         return None
 

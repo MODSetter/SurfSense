@@ -59,7 +59,7 @@ def _normalize_gemini_params(params: dict[str, Any], mcp_schema: dict[str, Any])
                             normalized_item[item_key] = item_value
                     
                     # Add missing required fields with empty defaults if needed
-                    for required_field in items_properties.keys():
+                    for required_field in items_properties:
                         if required_field not in normalized_item:
                             # For arrays like observations, default to empty array
                             if items_properties[required_field].get("type") == "array":
@@ -102,6 +102,7 @@ def _create_dynamic_input_model_from_schema(
         # Use Any type for complex schemas to preserve structure
         # This allows the MCP server to do its own validation
         from typing import Any as AnyType
+
         from pydantic import Field
         
         if is_required:
