@@ -9,10 +9,17 @@ import { baseApiService } from "@/lib/apis/base-api.service";
 // Types matching backend schemas
 // =============================================================================
 
+/**
+ * Chat visibility levels - matches backend ChatVisibility enum
+ */
+export type ChatVisibility = "PRIVATE" | "SEARCH_SPACE";
+
 export interface ThreadRecord {
 	id: number;
 	title: string;
 	archived: boolean;
+	visibility: ChatVisibility;
+	created_by_id: string | null;
 	search_space_id: number;
 	created_at: string;
 	updated_at: string;
@@ -35,6 +42,9 @@ export interface ThreadListItem {
 	id: number;
 	title: string;
 	archived: boolean;
+	visibility: ChatVisibility;
+	created_by_id: string | null;
+	is_own_thread: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -125,6 +135,25 @@ export async function updateThread(
  */
 export async function deleteThread(threadId: number): Promise<void> {
 	await baseApiService.delete(`/api/v1/threads/${threadId}`);
+}
+
+/**
+ * Update thread visibility (share/unshare)
+ */
+export async function updateThreadVisibility(
+	threadId: number,
+	visibility: ChatVisibility
+): Promise<ThreadRecord> {
+	return baseApiService.patch<ThreadRecord>(`/api/v1/threads/${threadId}/visibility`, undefined, {
+		body: { visibility },
+	});
+}
+
+/**
+ * Get full thread details including visibility
+ */
+export async function getThreadFull(threadId: number): Promise<ThreadRecord> {
+	return baseApiService.get<ThreadRecord>(`/api/v1/threads/${threadId}/full`);
 }
 
 // =============================================================================

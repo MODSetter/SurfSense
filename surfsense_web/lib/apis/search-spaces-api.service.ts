@@ -11,6 +11,7 @@ import {
 	getSearchSpaceResponse,
 	getSearchSpacesRequest,
 	getSearchSpacesResponse,
+	leaveSearchSpaceResponse,
 	type UpdateSearchSpaceRequest,
 	updateSearchSpaceRequest,
 	updateSearchSpaceResponse,
@@ -114,6 +115,17 @@ class SearchSpacesApiService {
 		}
 
 		return baseApiService.delete(`/api/v1/searchspaces/${request.id}`, deleteSearchSpaceResponse);
+	};
+
+	/**
+	 * Leave a search space (remove own membership)
+	 * This is used by non-owners to leave a shared search space
+	 */
+	leaveSearchSpace = async (searchSpaceId: number) => {
+		return baseApiService.delete(
+			`/api/v1/searchspaces/${searchSpaceId}/members/me`,
+			leaveSearchSpaceResponse
+		);
 	};
 }
 

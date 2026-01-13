@@ -11,7 +11,7 @@ enum ResponseType {
 }
 
 export type RequestOptions = {
-	method: "GET" | "POST" | "PUT" | "DELETE";
+	method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 	headers?: Record<string, string>;
 	contentType?: "application/json" | "application/x-www-form-urlencoded";
 	signal?: AbortSignal;
@@ -129,20 +129,24 @@ class BaseApiService {
 					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
 
+				// Handle 401 first before other error handling - ensures token is cleared and user redirected
+				if (response.status === 401) {
+					handleUnauthorized();
+					throw new AuthenticationError(
+						typeof data === "object" && "detail" in data
+							? data.detail
+							: "You are not authenticated. Please login again.",
+						response.status,
+						response.statusText
+					);
+				}
+
 				// For fastapi errors response
 				if (typeof data === "object" && "detail" in data) {
 					throw new AppError(data.detail, response.status, response.statusText);
 				}
 
 				switch (response.status) {
-					case 401:
-						// Use centralized auth handler for 401 responses
-						handleUnauthorized();
-						throw new AuthenticationError(
-							"You are not authenticated. Please login again.",
-							response.status,
-							response.statusText
-						);
 					case 403:
 						throw new AuthorizationError(
 							"You don't have permission to access this resource.",
@@ -261,6 +265,21 @@ class BaseApiService {
 	) {
 		return this.request(url, responseSchema, {
 			method: "DELETE",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			...options,
+			responseType: ResponseType.JSON,
+		});
+	}
+
+	async patch<T>(
+		url: string,
+		responseSchema?: ZodType<T>,
+		options?: Omit<RequestOptions, "method" | "responseType">
+	) {
+		return this.request(url, responseSchema, {
+			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
 			},

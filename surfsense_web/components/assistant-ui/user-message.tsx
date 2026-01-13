@@ -29,7 +29,7 @@ export const UserMessage: FC = () => {
 						{/* Mentioned documents as chips */}
 						{mentionedDocs?.map((doc) => (
 							<span
-								key={doc.id}
+								key={`${doc.document_type}:${doc.id}`}
 								className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
 								title={doc.title}
 							>

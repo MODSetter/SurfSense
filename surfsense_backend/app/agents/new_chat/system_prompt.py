@@ -26,6 +26,13 @@ SURFSENSE_TOOLS_INSTRUCTIONS = """
 <tools>
 You have access to the following tools:
 
+0. search_surfsense_docs: Search the official SurfSense documentation.
+  - Use this tool when the user asks anything about SurfSense itself (the application they are using).
+  - Args:
+    - query: The search query about SurfSense
+    - top_k: Number of documentation chunks to retrieve (default: 10)
+  - Returns: Documentation content with chunk IDs for citations (prefixed with 'doc-', e.g., [citation:doc-123])
+
 1. search_knowledge_base: Search the user's personal knowledge base for relevant information.
   - Args:
     - query: The search query - be specific and include key terms
@@ -152,6 +159,18 @@ You have access to the following tools:
   - Airtable/Notion: Check field values, apply mapping above
 </tools>
 <tool_call_examples>
+- User: "How do I install SurfSense?"
+  - Call: `search_surfsense_docs(query="installation setup")`
+
+- User: "What connectors does SurfSense support?"
+  - Call: `search_surfsense_docs(query="available connectors integrations")`
+
+- User: "How do I set up the Notion connector?"
+  - Call: `search_surfsense_docs(query="Notion connector setup configuration")`
+
+- User: "How do I use Docker to run SurfSense?"
+  - Call: `search_surfsense_docs(query="Docker installation setup")`
+
 - User: "Fetch all my notes and what's in them?"
   - Call: `search_knowledge_base(query="*", top_k=50, connectors_to_search=["NOTE"])`
 
@@ -308,7 +327,7 @@ The documents you receive are structured like this:
 </document_content>
 </document>
 
-IMPORTANT: You MUST cite using the chunk ids (e.g. 123, 124). Do NOT cite document_id.
+IMPORTANT: You MUST cite using the chunk ids (e.g. 123, 124, doc-45). Do NOT cite document_id.
 </document_structure_example>
 
 <citation_format>
@@ -319,11 +338,13 @@ IMPORTANT: You MUST cite using the chunk ids (e.g. 123, 124). Do NOT cite docume
 - NEVER create your own citation format - use the exact chunk_id values from the documents in the [citation:chunk_id] format
 - NEVER format citations as clickable links or as markdown links like "([citation:5](https://example.com))". Always use plain square brackets only
 - NEVER make up chunk IDs if you are unsure about the chunk_id. It is better to omit the citation than to guess
+- Copy the EXACT chunk id from the XML - if it says `<chunk id='doc-123'>`, use [citation:doc-123]
 </citation_format>
 
 <citation_examples>
 CORRECT citation formats:
 - [citation:5]
+- [citation:doc-123] (for Surfsense documentation chunks)
 - [citation:chunk_id1], [citation:chunk_id2], [citation:chunk_id3]
 
 INCORRECT citation formats (DO NOT use):

@@ -327,6 +327,20 @@ class NewChatMessageRole(str, Enum):
     SYSTEM = "system"
 
 
+class ChatVisibility(str, Enum):
+    """
+    Visibility/sharing level for chat threads.
+
+    PRIVATE: Only the creator can see/access the chat (default)
+    SEARCH_SPACE: All members of the search space can see/access the chat
+    PUBLIC: (Future) Anyone with the link can access the chat
+    """
+
+    PRIVATE = "PRIVATE"
+    SEARCH_SPACE = "SEARCH_SPACE"
+    # PUBLIC = "PUBLIC"  # Reserved for future implementation
+
+
 class NewChatThread(BaseModel, TimestampMixin):
     """
     Thread model for the new chat feature using assistant-ui.
@@ -346,13 +360,31 @@ class NewChatThread(BaseModel, TimestampMixin):
         index=True,
     )
 
+    # Visibility/sharing control
+    visibility = Column(
+        SQLAlchemyEnum(ChatVisibility),
+        nullable=False,
+        default=ChatVisibility.PRIVATE,
+        server_default="PRIVATE",
+        index=True,
+    )
+
     # Foreign keys
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
 
+    # Track who created this chat thread (for visibility filtering)
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,  # Nullable for existing records before migration
+        index=True,
+    )
+
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
+    created_by = relationship("User", back_populates="new_chat_threads")
     messages = relationship(
         "NewChatMessage",
         back_populates="thread",
@@ -427,6 +459,46 @@ class Chunk(BaseModel, TimestampMixin):
         Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
     )
     document = relationship("Document", back_populates="chunks")
+
+
+class SurfsenseDocsDocument(BaseModel, TimestampMixin):
+    """
+    Surfsense documentation storage.
+    Indexed at migration time from MDX files.
+    """
+
+    __tablename__ = "surfsense_docs_documents"
+
+    source = Column(
+        String, nullable=False, unique=True, index=True
+    )  # File path: "connectors/slack.mdx"
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    content_hash = Column(String, nullable=False, index=True)  # For detecting changes
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+    updated_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
+
+    chunks = relationship(
+        "SurfsenseDocsChunk",
+        back_populates="document",
+        cascade="all, delete-orphan",
+    )
+
+
+class SurfsenseDocsChunk(BaseModel, TimestampMixin):
+    """Chunk storage for Surfsense documentation."""
+
+    __tablename__ = "surfsense_docs_chunks"
+
+    content = Column(Text, nullable=False)
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+
+    document_id = Column(
+        Integer,
+        ForeignKey("surfsense_docs_documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    document = relationship("SurfsenseDocsDocument", back_populates="chunks")
 
 
 class Podcast(BaseModel, TimestampMixin):
@@ -789,6 +861,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Chat threads created by this user
+        new_chat_threads = relationship(
+            "NewChatThread",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # Page usage tracking for ETL services
         pages_limit = Column(
             Integer,
@@ -811,6 +890,13 @@ else:
         )
         created_invites = relationship(
             "SearchSpaceInvite",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
+        # Chat threads created by this user
+        new_chat_threads = relationship(
+            "NewChatThread",
             back_populates="created_by",
             passive_deletes=True,
         )

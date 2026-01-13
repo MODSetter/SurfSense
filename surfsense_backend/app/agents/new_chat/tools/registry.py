@@ -49,6 +49,7 @@ from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
 from .podcast import create_generate_podcast_tool
 from .scrape_webpage import create_scrape_webpage_tool
+from .search_surfsense_docs import create_search_surfsense_docs_tool
 
 # =============================================================================
 # Tool Definition
@@ -127,6 +128,15 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=[],  # firecrawl_api_key is optional
     ),
     # Note: write_todos is now provided by TodoListMiddleware from deepagents
+    # Surfsense documentation search tool
+    ToolDefinition(
+        name="search_surfsense_docs",
+        description="Search Surfsense documentation for help with using the application",
+        factory=lambda deps: create_search_surfsense_docs_tool(
+            db_session=deps["db_session"],
+        ),
+        requires=["db_session"],
+    ),
     # =========================================================================
     # ADD YOUR CUSTOM TOOLS BELOW
     # =========================================================================

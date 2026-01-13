@@ -28,6 +28,9 @@ import type { Document } from "./types";
 // Only FILE and NOTE document types can be edited
 const EDITABLE_DOCUMENT_TYPES = ["FILE", "NOTE"] as const;
 
+// SURFSENSE_DOCS are system-managed and cannot be deleted
+const NON_DELETABLE_DOCUMENT_TYPES = ["SURFSENSE_DOCS"] as const;
+
 export function RowActions({
 	document,
 	deleteDocument,
@@ -46,6 +49,10 @@ export function RowActions({
 
 	const isEditable = EDITABLE_DOCUMENT_TYPES.includes(
 		document.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
+	);
+
+	const isDeletable = !NON_DELETABLE_DOCUMENT_TYPES.includes(
+		document.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
 	);
 
 	const handleDelete = async () => {
@@ -120,29 +127,31 @@ export function RowActions({
 					</TooltipContent>
 				</Tooltip>
 
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<motion.div
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.95 }}
-							transition={{ type: "spring", stiffness: 400, damping: 17 }}
-						>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-								onClick={() => setIsDeleteOpen(true)}
-								disabled={isDeleting}
+				{isDeletable && (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<motion.div
+								whileHover={{ scale: 1.1 }}
+								whileTap={{ scale: 0.95 }}
+								transition={{ type: "spring", stiffness: 400, damping: 17 }}
 							>
-								<Trash2 className="h-4 w-4" />
-								<span className="sr-only">Delete</span>
-							</Button>
-						</motion.div>
-					</TooltipTrigger>
-					<TooltipContent side="top">
-						<p>Delete</p>
-					</TooltipContent>
-				</Tooltip>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+									onClick={() => setIsDeleteOpen(true)}
+									disabled={isDeleting}
+								>
+									<Trash2 className="h-4 w-4" />
+									<span className="sr-only">Delete</span>
+								</Button>
+							</motion.div>
+						</TooltipTrigger>
+						<TooltipContent side="top">
+							<p>Delete</p>
+						</TooltipContent>
+					</Tooltip>
+				)}
 			</div>
 
 			{/* Mobile Actions Dropdown */}
@@ -165,13 +174,15 @@ export function RowActions({
 							<FileText className="mr-2 h-4 w-4" />
 							<span>Metadata</span>
 						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() => setIsDeleteOpen(true)}
-							className="text-destructive focus:text-destructive"
-						>
-							<Trash2 className="mr-2 h-4 w-4" />
-							<span>Delete</span>
-						</DropdownMenuItem>
+						{isDeletable && (
+							<DropdownMenuItem
+								onClick={() => setIsDeleteOpen(true)}
+								className="text-destructive focus:text-destructive"
+							>
+								<Trash2 className="mr-2 h-4 w-4" />
+								<span>Delete</span>
+							</DropdownMenuItem>
+						)}
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>

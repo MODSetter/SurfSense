@@ -9,6 +9,7 @@ import {
 	type GetDocumentRequest,
 	type GetDocumentsRequest,
 	type GetDocumentTypeCountsRequest,
+	type GetSurfsenseDocsRequest,
 	getDocumentByChunkRequest,
 	getDocumentByChunkResponse,
 	getDocumentRequest,
@@ -17,6 +18,9 @@ import {
 	getDocumentsResponse,
 	getDocumentTypeCountsRequest,
 	getDocumentTypeCountsResponse,
+	getSurfsenseDocsByChunkResponse,
+	getSurfsenseDocsRequest,
+	getSurfsenseDocsResponse,
 	type SearchDocumentsRequest,
 	searchDocumentsRequest,
 	searchDocumentsResponse,
@@ -207,6 +211,46 @@ class DocumentsApiService {
 			`/api/v1/documents/by-chunk/${request.chunk_id}`,
 			getDocumentByChunkResponse
 		);
+	};
+
+	/**
+	 * Get Surfsense documentation by chunk ID
+	 * Used for resolving [citation:doc-XXX] citations
+	 */
+	getSurfsenseDocByChunk = async (chunkId: number) => {
+		return baseApiService.get(
+			`/api/v1/surfsense-docs/by-chunk/${chunkId}`,
+			getSurfsenseDocsByChunkResponse
+		);
+	};
+
+	/**
+	 * List all Surfsense documentation documents
+	 */
+	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest) => {
+		const parsedRequest = getSurfsenseDocsRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		// Transform query params to be string values
+		const transformedQueryParams = parsedRequest.data.queryParams
+			? Object.fromEntries(
+					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => [k, String(v)])
+				)
+			: undefined;
+
+		const queryParams = transformedQueryParams
+			? new URLSearchParams(transformedQueryParams).toString()
+			: "";
+
+		const url = `/api/v1/surfsense-docs?${queryParams}`;
+
+		return baseApiService.get(url, getSurfsenseDocsResponse);
 	};
 
 	/**

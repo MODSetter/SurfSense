@@ -3,7 +3,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import {
-	ArrowLeft,
 	Calendar,
 	Check,
 	Clock,
@@ -27,7 +26,7 @@ import {
 	Users,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -144,7 +143,6 @@ const cardVariants = {
 };
 
 export default function TeamManagementPage() {
-	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
 	const [activeTab, setActiveTab] = useState("members");
@@ -334,14 +332,6 @@ export default function TeamManagementPage() {
 					<div className="space-y-4">
 						<div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
 							<div className="flex items-start space-x-3 md:items-center md:space-x-4">
-								<button
-									onClick={() => router.push(`/dashboard/${searchSpaceId}`)}
-									className="flex items-center justify-center h-9 w-9 md:h-10 md:w-10 rounded-lg bg-primary/10 hover:bg-primary/20 transition-colors shrink-0"
-									aria-label="Back to Dashboard"
-									type="button"
-								>
-									<ArrowLeft className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-								</button>
 								<div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 ring-1 ring-primary/10 shrink-0">
 									<Users className="h-5 w-5 md:h-6 md:w-6 text-primary" />
 								</div>

@@ -1,22 +1,14 @@
 "use client";
 
-import { FileText, FolderOpen, MessageSquare, PenSquare, Plus } from "lucide-react";
+import { FolderOpen, MessageSquare, PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import type {
-	ChatItem,
-	NavItem,
-	NoteItem,
-	PageUsage,
-	User,
-	Workspace,
-} from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
-import { NoteListItem } from "./NoteListItem";
 import { PageUsageDisplay } from "./PageUsageDisplay";
 import { SidebarCollapseButton } from "./SidebarCollapseButton";
 import { SidebarHeader } from "./SidebarHeader";
@@ -24,54 +16,46 @@ import { SidebarSection } from "./SidebarSection";
 import { SidebarUserProfile } from "./SidebarUserProfile";
 
 interface SidebarProps {
-	workspace: Workspace | null;
+	searchSpace: SearchSpace | null;
 	isCollapsed?: boolean;
 	onToggleCollapse?: () => void;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSeeAllWorkspaces?: () => void;
+	onManageMembers?: () => void;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	className?: string;
 }
 
 export function Sidebar({
-	workspace,
+	searchSpace,
 	isCollapsed = false,
 	onToggleCollapse,
 	navItems,
 	onNavItemClick,
 	chats,
+	sharedChats = [],
 	activeChatId,
 	onNewChat,
 	onChatSelect,
 	onChatDelete,
-	onViewAllChats,
-	notes,
-	activeNoteId,
-	onNoteSelect,
-	onNoteDelete,
-	onAddNote,
-	onViewAllNotes,
+	onViewAllSharedChats,
+	onViewAllPrivateChats,
 	user,
 	onSettings,
-	onInviteMembers,
-	onSeeAllWorkspaces,
+	onManageMembers,
+	onUserSettings,
 	onLogout,
 	pageUsage,
 	className,
@@ -86,7 +70,7 @@ export function Sidebar({
 				className
 			)}
 		>
-			{/* Header - workspace name or collapse button when collapsed */}
+			{/* Header - search space name or collapse button when collapsed */}
 			{isCollapsed ? (
 				<div className="flex h-14 shrink-0 items-center justify-center border-b">
 					<SidebarCollapseButton
@@ -97,11 +81,10 @@ export function Sidebar({
 			) : (
 				<div className="flex h-14 shrink-0 items-center justify-between px-1 border-b">
 					<SidebarHeader
-						workspace={workspace}
+						searchSpace={searchSpace}
 						isCollapsed={isCollapsed}
 						onSettings={onSettings}
-						onInviteMembers={onInviteMembers}
-						onSeeAllWorkspaces={onSeeAllWorkspaces}
+						onManageMembers={onManageMembers}
 					/>
 					<div className="">
 						<SidebarCollapseButton
@@ -141,7 +124,7 @@ export function Sidebar({
 			<ScrollArea className="flex-1">
 				{isCollapsed ? (
 					<div className="flex flex-col items-center gap-2 py-2 w-[60px]">
-						{chats.length > 0 && (
+						{(chats.length > 0 || sharedChats.length > 0) && (
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<Button
@@ -151,52 +134,78 @@ export function Sidebar({
 										onClick={() => onToggleCollapse?.()}
 									>
 										<MessageSquare className="h-4 w-4" />
-										<span className="sr-only">{t("recent_chats")}</span>
+										<span className="sr-only">{t("chats")}</span>
 									</Button>
 								</TooltipTrigger>
 								<TooltipContent side="right">
-									{t("recent_chats")} ({chats.length})
-								</TooltipContent>
-							</Tooltip>
-						)}
-						{notes.length > 0 && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-10 w-10"
-										onClick={() => onToggleCollapse?.()}
-									>
-										<FileText className="h-4 w-4" />
-										<span className="sr-only">{t("notes")}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent side="right">
-									{t("notes")} ({notes.length})
+									{t("chats")} ({chats.length + sharedChats.length})
 								</TooltipContent>
 							</Tooltip>
 						)}
 					</div>
 				) : (
 					<div className="flex flex-col gap-1 py-2 w-[240px]">
+						{/* Shared Chats Section */}
 						<SidebarSection
-							title={t("recent_chats")}
+							title={t("shared_chats")}
 							defaultOpen={true}
 							action={
-								onViewAllChats && chats.length > 0 ? (
+								onViewAllSharedChats ? (
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<Button
 												variant="ghost"
 												size="icon"
 												className="h-5 w-5"
-												onClick={onViewAllChats}
+												onClick={onViewAllSharedChats}
 											>
 												<FolderOpen className="h-3.5 w-3.5" />
 											</Button>
 										</TooltipTrigger>
-										<TooltipContent side="top">{t("view_all_chats")}</TooltipContent>
+										<TooltipContent side="top">
+											{t("view_all_shared_chats") || "View all shared chats"}
+										</TooltipContent>
+									</Tooltip>
+								) : undefined
+							}
+						>
+							{sharedChats.length > 0 ? (
+								<div className="flex flex-col gap-0.5">
+									{sharedChats.map((chat) => (
+										<ChatListItem
+											key={chat.id}
+											name={chat.name}
+											isActive={chat.id === activeChatId}
+											onClick={() => onChatSelect(chat)}
+											onDelete={() => onChatDelete?.(chat)}
+										/>
+									))}
+								</div>
+							) : (
+								<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_shared_chats")}</p>
+							)}
+						</SidebarSection>
+
+						{/* Private Chats Section */}
+						<SidebarSection
+							title={t("chats")}
+							defaultOpen={true}
+							action={
+								onViewAllPrivateChats ? (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-5 w-5"
+												onClick={onViewAllPrivateChats}
+											>
+												<FolderOpen className="h-3.5 w-3.5" />
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent side="top">
+											{t("view_all_private_chats") || "View all private chats"}
+										</TooltipContent>
 									</Tooltip>
 								) : undefined
 							}
@@ -214,67 +223,7 @@ export function Sidebar({
 									))}
 								</div>
 							) : (
-								<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_recent_chats")}</p>
-							)}
-						</SidebarSection>
-
-						<SidebarSection
-							title={t("notes")}
-							defaultOpen={true}
-							action={
-								onViewAllNotes && notes.length > 0 ? (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-5 w-5"
-												onClick={onViewAllNotes}
-											>
-												<FolderOpen className="h-3.5 w-3.5" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent side="top">{t("view_all_notes")}</TooltipContent>
-									</Tooltip>
-								) : undefined
-							}
-							persistentAction={
-								onAddNote && notes.length > 0 ? (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button variant="ghost" size="icon" className="h-5 w-5" onClick={onAddNote}>
-												<Plus className="h-3.5 w-3.5" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent side="top">{t("add_note")}</TooltipContent>
-									</Tooltip>
-								) : undefined
-							}
-						>
-							{notes.length > 0 ? (
-								<div className="flex flex-col gap-0.5">
-									{notes.map((note) => (
-										<NoteListItem
-											key={note.id}
-											name={note.name}
-											isActive={note.id === activeNoteId}
-											isReindexing={note.isReindexing}
-											onClick={() => onNoteSelect(note)}
-											onDelete={() => onNoteDelete?.(note)}
-										/>
-									))}
-								</div>
-							) : onAddNote ? (
-								<button
-									type="button"
-									onClick={onAddNote}
-									className="flex items-center gap-2 px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-								>
-									<Plus className="h-3.5 w-3.5" />
-									{t("create_new_note")}
-								</button>
-							) : (
-								<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_notes")}</p>
+								<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_chats")}</p>
 							)}
 						</SidebarSection>
 					</div>
@@ -287,7 +236,12 @@ export function Sidebar({
 					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
 				)}
 
-				<SidebarUserProfile user={user} onLogout={onLogout} isCollapsed={isCollapsed} />
+				<SidebarUserProfile
+					user={user}
+					onUserSettings={onUserSettings}
+					onLogout={onLogout}
+					isCollapsed={isCollapsed}
+				/>
 			</div>
 		</div>
 	);

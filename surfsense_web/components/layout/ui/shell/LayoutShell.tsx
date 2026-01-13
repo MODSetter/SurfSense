@@ -5,42 +5,33 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { useSidebarState } from "../../hooks";
-import type {
-	ChatItem,
-	NavItem,
-	NoteItem,
-	PageUsage,
-	User,
-	Workspace,
-} from "../../types/layout.types";
+import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import { MobileSidebar, MobileSidebarTrigger, Sidebar } from "../sidebar";
 
 interface LayoutShellProps {
-	workspaces: Workspace[];
-	activeWorkspaceId: number | null;
-	onWorkspaceSelect: (id: number) => void;
-	onAddWorkspace: () => void;
-	workspace: Workspace | null;
+	searchSpaces: SearchSpace[];
+	activeSearchSpaceId: number | null;
+	onSearchSpaceSelect: (id: number) => void;
+	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
+	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
+	onAddSearchSpace: () => void;
+	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSeeAllWorkspaces?: () => void;
+	onManageMembers?: () => void;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	breadcrumb?: React.ReactNode;
@@ -54,29 +45,27 @@ interface LayoutShellProps {
 }
 
 export function LayoutShell({
-	workspaces,
-	activeWorkspaceId,
-	onWorkspaceSelect,
-	onAddWorkspace,
-	workspace,
+	searchSpaces,
+	activeSearchSpaceId,
+	onSearchSpaceSelect,
+	onSearchSpaceDelete,
+	onSearchSpaceSettings,
+	onAddSearchSpace,
+	searchSpace,
 	navItems,
 	onNavItemClick,
 	chats,
+	sharedChats,
 	activeChatId,
 	onNewChat,
 	onChatSelect,
 	onChatDelete,
-	onViewAllChats,
-	notes,
-	activeNoteId,
-	onNoteSelect,
-	onNoteDelete,
-	onAddNote,
-	onViewAllNotes,
+	onViewAllSharedChats,
+	onViewAllPrivateChats,
 	user,
 	onSettings,
-	onInviteMembers,
-	onSeeAllWorkspaces,
+	onManageMembers,
+	onUserSettings,
 	onLogout,
 	pageUsage,
 	breadcrumb,
@@ -108,29 +97,27 @@ export function LayoutShell({
 					<MobileSidebar
 						isOpen={mobileMenuOpen}
 						onOpenChange={setMobileMenuOpen}
-						workspaces={workspaces}
-						activeWorkspaceId={activeWorkspaceId}
-						onWorkspaceSelect={onWorkspaceSelect}
-						onAddWorkspace={onAddWorkspace}
-						workspace={workspace}
+						searchSpaces={searchSpaces}
+						activeSearchSpaceId={activeSearchSpaceId}
+						onSearchSpaceSelect={onSearchSpaceSelect}
+						onSearchSpaceDelete={onSearchSpaceDelete}
+						onSearchSpaceSettings={onSearchSpaceSettings}
+						onAddSearchSpace={onAddSearchSpace}
+						searchSpace={searchSpace}
 						navItems={navItems}
 						onNavItemClick={onNavItemClick}
 						chats={chats}
+						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={onNewChat}
 						onChatSelect={onChatSelect}
 						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={onNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
 						user={user}
 						onSettings={onSettings}
-						onInviteMembers={onInviteMembers}
-						onSeeAllWorkspaces={onSeeAllWorkspaces}
+						onManageMembers={onManageMembers}
+						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 					/>
@@ -149,36 +136,34 @@ export function LayoutShell({
 			<div className={cn("flex h-screen w-full gap-2 p-2 overflow-hidden bg-muted/40", className)}>
 				<div className="hidden md:flex overflow-hidden">
 					<IconRail
-						workspaces={workspaces}
-						activeWorkspaceId={activeWorkspaceId}
-						onWorkspaceSelect={onWorkspaceSelect}
-						onAddWorkspace={onAddWorkspace}
+						searchSpaces={searchSpaces}
+						activeSearchSpaceId={activeSearchSpaceId}
+						onSearchSpaceSelect={onSearchSpaceSelect}
+						onSearchSpaceDelete={onSearchSpaceDelete}
+						onSearchSpaceSettings={onSearchSpaceSettings}
+						onAddSearchSpace={onAddSearchSpace}
 					/>
 				</div>
 
 				<div className="flex flex-1 rounded-xl border bg-background overflow-hidden">
 					<Sidebar
-						workspace={workspace}
+						searchSpace={searchSpace}
 						isCollapsed={isCollapsed}
 						onToggleCollapse={toggleCollapsed}
 						navItems={navItems}
 						onNavItemClick={onNavItemClick}
 						chats={chats}
+						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={onNewChat}
 						onChatSelect={onChatSelect}
 						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={onNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
 						user={user}
 						onSettings={onSettings}
-						onInviteMembers={onInviteMembers}
-						onSeeAllWorkspaces={onSeeAllWorkspaces}
+						onManageMembers={onManageMembers}
+						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						className="hidden md:flex border-r shrink-0"

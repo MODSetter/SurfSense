@@ -1,46 +1,36 @@
 "use client";
 
-import { Menu } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import type {
-	ChatItem,
-	NavItem,
-	NoteItem,
-	PageUsage,
-	User,
-	Workspace,
-} from "../../types/layout.types";
-import { IconRail } from "../icon-rail";
+import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import { SearchSpaceAvatar } from "../icon-rail/SearchSpaceAvatar";
 import { Sidebar } from "./Sidebar";
 
 interface MobileSidebarProps {
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
-	workspaces: Workspace[];
-	activeWorkspaceId: number | null;
-	onWorkspaceSelect: (id: number) => void;
-	onAddWorkspace: () => void;
-	workspace: Workspace | null;
+	searchSpaces: SearchSpace[];
+	activeSearchSpaceId: number | null;
+	onSearchSpaceSelect: (id: number) => void;
+	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
+	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
+	onAddSearchSpace: () => void;
+	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
 	onNavItemClick?: (item: NavItem) => void;
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSeeAllWorkspaces?: () => void;
+	onManageMembers?: () => void;
+	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 }
@@ -57,34 +47,32 @@ export function MobileSidebarTrigger({ onClick }: { onClick: () => void }) {
 export function MobileSidebar({
 	isOpen,
 	onOpenChange,
-	workspaces,
-	activeWorkspaceId,
-	onWorkspaceSelect,
-	onAddWorkspace,
-	workspace,
+	searchSpaces,
+	activeSearchSpaceId,
+	onSearchSpaceSelect,
+	onSearchSpaceDelete,
+	onSearchSpaceSettings,
+	onAddSearchSpace,
+	searchSpace,
 	navItems,
 	onNavItemClick,
 	chats,
+	sharedChats,
 	activeChatId,
 	onNewChat,
 	onChatSelect,
 	onChatDelete,
-	onViewAllChats,
-	notes,
-	activeNoteId,
-	onNoteSelect,
-	onNoteDelete,
-	onAddNote,
-	onViewAllNotes,
+	onViewAllSharedChats,
+	onViewAllPrivateChats,
 	user,
 	onSettings,
-	onInviteMembers,
-	onSeeAllWorkspaces,
+	onManageMembers,
+	onUserSettings,
 	onLogout,
 	pageUsage,
 }: MobileSidebarProps) {
-	const handleWorkspaceSelect = (id: number) => {
-		onWorkspaceSelect(id);
+	const handleSearchSpaceSelect = (id: number) => {
+		onSearchSpaceSelect(id);
 	};
 
 	const handleNavItemClick = (item: NavItem) => {
@@ -97,34 +85,51 @@ export function MobileSidebar({
 		onOpenChange(false);
 	};
 
-	const handleNoteSelect = (note: NoteItem) => {
-		onNoteSelect(note);
-		onOpenChange(false);
-	};
-
 	return (
 		<Sheet open={isOpen} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-[320px] p-0 flex">
+			<SheetContent side="left" className="w-[300px] p-0 flex flex-col">
 				<SheetTitle className="sr-only">Navigation</SheetTitle>
 
-				<div className="shrink-0 border-r bg-muted/40">
-					<ScrollArea className="h-full">
-						<IconRail
-							workspaces={workspaces}
-							activeWorkspaceId={activeWorkspaceId}
-							onWorkspaceSelect={handleWorkspaceSelect}
-							onAddWorkspace={onAddWorkspace}
-						/>
-					</ScrollArea>
+				{/* Horizontal Search Spaces Rail */}
+				<div className="shrink-0 border-b bg-muted/40 px-2 py-2 overflow-hidden">
+					<div className="flex items-center gap-2 px-1 py-1 overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20">
+						{searchSpaces.map((space) => (
+							<div key={space.id} className="shrink-0">
+								<SearchSpaceAvatar
+									name={space.name}
+									isActive={space.id === activeSearchSpaceId}
+									isShared={space.memberCount > 1}
+									isOwner={space.isOwner}
+									onClick={() => handleSearchSpaceSelect(space.id)}
+									onDelete={onSearchSpaceDelete ? () => onSearchSpaceDelete(space) : undefined}
+									onSettings={
+										onSearchSpaceSettings ? () => onSearchSpaceSettings(space) : undefined
+									}
+									size="md"
+								/>
+							</div>
+						))}
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={onAddSearchSpace}
+							className="h-10 w-10 shrink-0 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
+						>
+							<Plus className="h-5 w-5 text-muted-foreground" />
+							<span className="sr-only">Add search space</span>
+						</Button>
+					</div>
 				</div>
 
+				{/* Sidebar Content */}
 				<div className="flex-1 overflow-hidden">
 					<Sidebar
-						workspace={workspace}
+						searchSpace={searchSpace}
 						isCollapsed={false}
 						navItems={navItems}
 						onNavItemClick={handleNavItemClick}
 						chats={chats}
+						sharedChats={sharedChats}
 						activeChatId={activeChatId}
 						onNewChat={() => {
 							onNewChat();
@@ -132,17 +137,12 @@ export function MobileSidebar({
 						}}
 						onChatSelect={handleChatSelect}
 						onChatDelete={onChatDelete}
-						onViewAllChats={onViewAllChats}
-						notes={notes}
-						activeNoteId={activeNoteId}
-						onNoteSelect={handleNoteSelect}
-						onNoteDelete={onNoteDelete}
-						onAddNote={onAddNote}
-						onViewAllNotes={onViewAllNotes}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
 						user={user}
 						onSettings={onSettings}
-						onInviteMembers={onInviteMembers}
-						onSeeAllWorkspaces={onSeeAllWorkspaces}
+						onManageMembers={onManageMembers}
+						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						className="w-full border-none"

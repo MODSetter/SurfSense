@@ -1,11 +1,12 @@
 import type { LucideIcon } from "lucide-react";
 
-export interface Workspace {
+export interface SearchSpace {
 	id: number;
 	name: string;
 	description?: string | null;
 	isOwner: boolean;
 	memberCount: number;
+	createdAt?: string;
 }
 
 export interface User {
@@ -26,14 +27,8 @@ export interface ChatItem {
 	name: string;
 	url: string;
 	isActive?: boolean;
-}
-
-export interface NoteItem {
-	id: number;
-	name: string;
-	url: string;
-	isActive?: boolean;
-	isReindexing?: boolean;
+	visibility?: "PRIVATE" | "SEARCH_SPACE";
+	isOwnThread?: boolean;
 }
 
 export interface PageUsage {
@@ -42,15 +37,15 @@ export interface PageUsage {
 }
 
 export interface IconRailProps {
-	workspaces: Workspace[];
-	activeWorkspaceId: number | null;
-	onWorkspaceSelect: (id: number) => void;
-	onAddWorkspace: () => void;
+	searchSpaces: SearchSpace[];
+	activeSearchSpaceId: number | null;
+	onSearchSpaceSelect: (id: number) => void;
+	onAddSearchSpace: () => void;
 	className?: string;
 }
 
 export interface SidebarHeaderProps {
-	workspace: Workspace | null;
+	searchSpace: SearchSpace | null;
 	onSettings?: () => void;
 }
 
@@ -71,17 +66,8 @@ export interface ChatsSectionProps {
 	activeChatId?: number | null;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	searchSpaceId?: string;
-}
-
-export interface NotesSectionProps {
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	searchSpaceId?: string;
 }
 
@@ -94,34 +80,29 @@ export interface SidebarUserProfileProps {
 	user: User;
 	searchSpaceId?: string;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSwitchWorkspace?: () => void;
+	onManageMembers?: () => void;
+	onSwitchSearchSpace?: () => void;
 	onToggleTheme?: () => void;
 	onLogout?: () => void;
 	theme?: string;
 }
 
 export interface SidebarProps {
-	workspace: Workspace | null;
+	searchSpace: SearchSpace | null;
 	searchSpaceId?: string;
 	navItems: NavItem[];
 	chats: ChatItem[];
+	sharedChats?: ChatItem[];
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
-	onViewAllChats?: () => void;
-	notes: NoteItem[];
-	activeNoteId?: number | null;
-	onNoteSelect: (note: NoteItem) => void;
-	onNoteDelete?: (note: NoteItem) => void;
-	onAddNote?: () => void;
-	onViewAllNotes?: () => void;
+	onViewAllSharedChats?: () => void;
+	onViewAllPrivateChats?: () => void;
 	user: User;
 	theme?: string;
 	onSettings?: () => void;
-	onInviteMembers?: () => void;
-	onSwitchWorkspace?: () => void;
+	onManageMembers?: () => void;
 	onToggleTheme?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
@@ -129,10 +110,10 @@ export interface SidebarProps {
 }
 
 export interface LayoutShellProps {
-	workspaces: Workspace[];
-	activeWorkspaceId: number | null;
-	onWorkspaceSelect: (id: number) => void;
-	onAddWorkspace: () => void;
+	searchSpaces: SearchSpace[];
+	activeSearchSpaceId: number | null;
+	onSearchSpaceSelect: (id: number) => void;
+	onAddSearchSpace: () => void;
 	sidebarProps: Omit<SidebarProps, "className">;
 	children: React.ReactNode;
 	className?: string;

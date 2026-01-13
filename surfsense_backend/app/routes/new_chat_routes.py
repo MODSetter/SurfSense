@@ -19,12 +19,14 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.db import (
+    ChatVisibility,
     NewChatMessage,
     NewChatMessageRole,
     NewChatThread,
@@ -40,6 +42,7 @@ from app.schemas.new_chat import (
     NewChatThreadCreate,
     NewChatThreadRead,
     NewChatThreadUpdate,
+    NewChatThreadVisibilityUpdate,
     NewChatThreadWithMessages,
     ThreadHistoryLoadResponse,
     ThreadListItem,
@@ -50,6 +53,82 @@ from app.users import current_active_user
 from app.utils.rbac import check_permission
 
 router = APIRouter()
+
+
+async def check_thread_access(
+    session: AsyncSession,
+    thread: NewChatThread,
+    user: User,
+    require_ownership: bool = False,
+) -> bool:
+    """
+    Check if a user has access to a thread based on visibility rules.
+
+    Access is granted if:
+    - User is the creator of the thread
+    - Thread visibility is SEARCH_SPACE (any member can access)
+    - Thread is a legacy thread (created_by_id is NULL) - only if user is search space owner
+
+    Args:
+        session: Database session
+        thread: The thread to check access for
+        user: The user requesting access
+        require_ownership: If True, only the creator can access (for edit/delete operations)
+                          For SEARCH_SPACE threads, any member with permission can access
+                          Legacy threads (NULL creator) are accessible by search space owner
+
+    Returns:
+        True if access is granted
+
+    Raises:
+        HTTPException: If access is denied
+    """
+    is_owner = thread.created_by_id == user.id
+    is_legacy = thread.created_by_id is None
+
+    # Shared threads (SEARCH_SPACE) are accessible by any member
+    # This check comes first so shared threads are always accessible
+    if thread.visibility == ChatVisibility.SEARCH_SPACE:
+        # For ownership-required operations on shared threads, any member can proceed
+        # (permission check is done at route level)
+        return True
+
+    # For legacy threads (created before visibility feature),
+    # only the search space owner can access
+    if is_legacy:
+        search_space_query = select(SearchSpace).filter(
+            SearchSpace.id == thread.search_space_id
+        )
+        search_space_result = await session.execute(search_space_query)
+        search_space = search_space_result.scalar_one_or_none()
+        is_search_space_owner = search_space and search_space.user_id == user.id
+
+        if is_search_space_owner:
+            return True
+        # Legacy threads are not accessible to non-owners
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have access to this chat",
+        )
+
+    # If ownership is required, only the creator can access
+    if require_ownership:
+        if not is_owner:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the creator of this chat can perform this action",
+            )
+        return True
+
+    # For read access: owner can access their own private threads
+    if is_owner:
+        return True
+
+    # Private thread and user is not the owner
+    raise HTTPException(
+        status_code=403,
+        detail="You don't have access to this private chat",
+    )
 
 
 # =============================================================================
@@ -65,8 +144,13 @@ async def list_threads(
     user: User = Depends(current_active_user),
 ):
     """
-    List all threads for the current user in a search space.
+    List all accessible threads for the current user in a search space.
     Returns threads and archived_threads for ThreadListPrimitive.
+
+    A user can see threads that are:
+    - Created by them (regardless of visibility)
+    - Shared with the search space (visibility = SEARCH_SPACE)
+    - Legacy threads with no creator (created_by_id is NULL) - only if user is search space owner
 
     Args:
         search_space_id: The search space to list threads for
@@ -83,10 +167,33 @@ async def list_threads(
             "You don't have permission to read chats in this search space",
         )
 
-        # Get all threads in this search space
+        # Check if user is the search space owner (for legacy thread visibility)
+        search_space_query = select(SearchSpace).filter(
+            SearchSpace.id == search_space_id
+        )
+        search_space_result = await session.execute(search_space_query)
+        search_space = search_space_result.scalar_one_or_none()
+        is_search_space_owner = search_space and search_space.user_id == user.id
+
+        # Build filter conditions:
+        # 1. Created by the current user (any visibility)
+        # 2. Shared with the search space (visibility = SEARCH_SPACE)
+        # 3. Legacy threads (created_by_id is NULL) - only visible to search space owner
+        filter_conditions = [
+            NewChatThread.created_by_id == user.id,
+            NewChatThread.visibility == ChatVisibility.SEARCH_SPACE,
+        ]
+
+        # Only include legacy threads for the search space owner
+        if is_search_space_owner:
+            filter_conditions.append(NewChatThread.created_by_id.is_(None))
+
         query = (
             select(NewChatThread)
-            .filter(NewChatThread.search_space_id == search_space_id)
+            .filter(
+                NewChatThread.search_space_id == search_space_id,
+                or_(*filter_conditions),
+            )
             .order_by(NewChatThread.updated_at.desc())
         )
 
@@ -98,10 +205,17 @@ async def list_threads(
         archived_threads = []
 
         for thread in all_threads:
+            # Legacy threads (no creator) are treated as own threads for owner
+            is_own_thread = thread.created_by_id == user.id or (
+                thread.created_by_id is None and is_search_space_owner
+            )
             item = ThreadListItem(
                 id=thread.id,
                 title=thread.title,
                 archived=thread.archived,
+                visibility=thread.visibility,
+                created_by_id=thread.created_by_id,
+                is_own_thread=is_own_thread,
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
             )
@@ -137,7 +251,12 @@ async def search_threads(
     user: User = Depends(current_active_user),
 ):
     """
-    Search threads by title in a search space.
+    Search accessible threads by title in a search space.
+
+    A user can search threads that are:
+    - Created by them (regardless of visibility)
+    - Shared with the search space (visibility = SEARCH_SPACE)
+    - Legacy threads with no creator (created_by_id is NULL) - only if user is search space owner
 
     Args:
         search_space_id: The search space to search in
@@ -154,12 +273,31 @@ async def search_threads(
             "You don't have permission to read chats in this search space",
         )
 
-        # Search threads by title (case-insensitive)
+        # Check if user is the search space owner (for legacy thread visibility)
+        search_space_query = select(SearchSpace).filter(
+            SearchSpace.id == search_space_id
+        )
+        search_space_result = await session.execute(search_space_query)
+        search_space = search_space_result.scalar_one_or_none()
+        is_search_space_owner = search_space and search_space.user_id == user.id
+
+        # Build filter conditions
+        filter_conditions = [
+            NewChatThread.created_by_id == user.id,
+            NewChatThread.visibility == ChatVisibility.SEARCH_SPACE,
+        ]
+
+        # Only include legacy threads for the search space owner
+        if is_search_space_owner:
+            filter_conditions.append(NewChatThread.created_by_id.is_(None))
+
+        # Search accessible threads by title (case-insensitive)
         query = (
             select(NewChatThread)
             .filter(
                 NewChatThread.search_space_id == search_space_id,
                 NewChatThread.title.ilike(f"%{title}%"),
+                or_(*filter_conditions),
             )
             .order_by(NewChatThread.updated_at.desc())
         )
@@ -172,6 +310,13 @@ async def search_threads(
                 id=thread.id,
                 title=thread.title,
                 archived=thread.archived,
+                visibility=thread.visibility,
+                created_by_id=thread.created_by_id,
+                # Legacy threads (no creator) are treated as own threads for owner
+                is_own_thread=(
+                    thread.created_by_id == user.id
+                    or (thread.created_by_id is None and is_search_space_owner)
+                ),
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
             )
@@ -200,6 +345,9 @@ async def create_thread(
     """
     Create a new chat thread.
 
+    The thread is created with the specified visibility (defaults to PRIVATE).
+    The current user is recorded as the creator of the thread.
+
     Requires CHATS_CREATE permission.
     """
     try:
@@ -215,7 +363,9 @@ async def create_thread(
         db_thread = NewChatThread(
             title=thread.title,
             archived=thread.archived,
+            visibility=thread.visibility,
             search_space_id=thread.search_space_id,
+            created_by_id=user.id,
             updated_at=now,
         )
         session.add(db_thread)
@@ -254,6 +404,10 @@ async def get_thread_messages(
     Get a thread with all its messages.
     This is used by ThreadHistoryAdapter.load() to restore conversation.
 
+    Access is granted if:
+    - User is the creator of the thread
+    - Thread visibility is SEARCH_SPACE
+
     Requires CHATS_READ permission.
     """
     try:
@@ -268,7 +422,7 @@ async def get_thread_messages(
         if not thread:
             raise HTTPException(status_code=404, detail="Thread not found")
 
-        # Check permission and ownership
+        # Check permission to read chats in this search space
         await check_permission(
             session,
             user,
@@ -276,6 +430,9 @@ async def get_thread_messages(
             Permission.CHATS_READ.value,
             "You don't have permission to read chats in this search space",
         )
+
+        # Check thread-level access based on visibility
+        await check_thread_access(session, thread, user)
 
         # Return messages in the format expected by assistant-ui
         messages = [
@@ -313,6 +470,10 @@ async def get_thread_full(
     """
     Get full thread details with all messages.
 
+    Access is granted if:
+    - User is the creator of the thread
+    - Thread visibility is SEARCH_SPACE
+
     Requires CHATS_READ permission.
     """
     try:
@@ -333,6 +494,9 @@ async def get_thread_full(
             Permission.CHATS_READ.value,
             "You don't have permission to read chats in this search space",
         )
+
+        # Check thread-level access based on visibility
+        await check_thread_access(session, thread, user)
 
         return thread
 
@@ -360,6 +524,9 @@ async def update_thread(
     Update a thread (title, archived status).
     Used for renaming and archiving threads.
 
+    - PRIVATE threads: Only the creator can update
+    - SEARCH_SPACE threads: Any member with CHATS_UPDATE permission can update
+
     Requires CHATS_UPDATE permission.
     """
     try:
@@ -378,6 +545,11 @@ async def update_thread(
             Permission.CHATS_UPDATE.value,
             "You don't have permission to update chats in this search space",
         )
+
+        # For PRIVATE threads, only the creator can update
+        # For SEARCH_SPACE threads, any member with permission can update
+        if db_thread.visibility == ChatVisibility.PRIVATE:
+            await check_thread_access(session, db_thread, user, require_ownership=True)
 
         # Update fields
         update_data = thread_update.model_dump(exclude_unset=True)
@@ -420,6 +592,9 @@ async def delete_thread(
     """
     Delete a thread and all its messages.
 
+    - PRIVATE threads: Only the creator can delete
+    - SEARCH_SPACE threads: Any member with CHATS_DELETE permission can delete
+
     Requires CHATS_DELETE permission.
     """
     try:
@@ -438,6 +613,11 @@ async def delete_thread(
             Permission.CHATS_DELETE.value,
             "You don't have permission to delete chats in this search space",
         )
+
+        # For PRIVATE threads, only the creator can delete
+        # For SEARCH_SPACE threads, any member with permission can delete
+        if db_thread.visibility == ChatVisibility.PRIVATE:
+            await check_thread_access(session, db_thread, user, require_ownership=True)
 
         await session.delete(db_thread)
         await session.commit()
@@ -463,6 +643,71 @@ async def delete_thread(
         ) from None
 
 
+@router.patch("/threads/{thread_id}/visibility", response_model=NewChatThreadRead)
+async def update_thread_visibility(
+    thread_id: int,
+    visibility_update: NewChatThreadVisibilityUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Update the visibility/sharing settings of a thread.
+
+    Only the creator of the thread can change its visibility.
+    - PRIVATE: Only the creator can access the thread (default)
+    - SEARCH_SPACE: All members of the search space can access the thread
+
+    Requires CHATS_UPDATE permission.
+    """
+    try:
+        result = await session.execute(
+            select(NewChatThread).filter(NewChatThread.id == thread_id)
+        )
+        db_thread = result.scalars().first()
+
+        if not db_thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        await check_permission(
+            session,
+            user,
+            db_thread.search_space_id,
+            Permission.CHATS_UPDATE.value,
+            "You don't have permission to update chats in this search space",
+        )
+
+        # Only the creator can change visibility
+        await check_thread_access(session, db_thread, user, require_ownership=True)
+
+        # Update visibility
+        db_thread.visibility = visibility_update.visibility
+        db_thread.updated_at = datetime.now(UTC)
+
+        await session.commit()
+        await session.refresh(db_thread)
+        return db_thread
+
+    except HTTPException:
+        raise
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=400,
+            detail="Database constraint violation. Please check your input data.",
+        ) from None
+    except OperationalError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=503, detail="Database operation failed. Please try again later."
+        ) from None
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while updating thread visibility: {e!s}",
+        ) from None
+
+
 # =============================================================================
 # Message Endpoints
 # =============================================================================
@@ -478,6 +723,10 @@ async def append_message(
     """
     Append a message to a thread.
     This is used by ThreadHistoryAdapter.append() to persist messages.
+
+    Access is granted if:
+    - User is the creator of the thread
+    - Thread visibility is SEARCH_SPACE
 
     Requires CHATS_UPDATE permission.
     """
@@ -512,6 +761,9 @@ async def append_message(
             Permission.CHATS_UPDATE.value,
             "You don't have permission to update chats in this search space",
         )
+
+        # Check thread-level access based on visibility
+        await check_thread_access(session, thread, user)
 
         # Convert string role to enum
         role_str = (
@@ -597,6 +849,10 @@ async def list_messages(
     """
     List messages in a thread with pagination.
 
+    Access is granted if:
+    - User is the creator of the thread
+    - Thread visibility is SEARCH_SPACE
+
     Requires CHATS_READ permission.
     """
     try:
@@ -616,6 +872,9 @@ async def list_messages(
             Permission.CHATS_READ.value,
             "You don't have permission to read chats in this search space",
         )
+
+        # Check thread-level access based on visibility
+        await check_thread_access(session, thread, user)
 
         # Get messages
         query = (
@@ -659,6 +918,10 @@ async def handle_new_chat(
     This endpoint handles the new chat functionality with streaming responses
     using Server-Sent Events (SSE) format compatible with Vercel AI SDK.
 
+    Access is granted if:
+    - User is the creator of the thread
+    - Thread visibility is SEARCH_SPACE
+
     Requires CHATS_CREATE permission.
     """
     try:
@@ -678,6 +941,9 @@ async def handle_new_chat(
             Permission.CHATS_CREATE.value,
             "You don't have permission to chat in this search space",
         )
+
+        # Check thread-level access based on visibility
+        await check_thread_access(session, thread, user)
 
         # Get search space to check LLM config preferences
         search_space_result = await session.execute(
@@ -706,6 +972,7 @@ async def handle_new_chat(
                 llm_config_id=llm_config_id,
                 attachments=request.attachments,
                 mentioned_document_ids=request.mentioned_document_ids,
+                mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
             ),
             media_type="text/event-stream",
             headers={
