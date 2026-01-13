@@ -148,7 +148,7 @@ export default function DocumentsTable() {
 			document_type: "SURFSENSE_DOCS",
 			document_metadata: { source: doc.source },
 			content: doc.content,
-			created_at: doc.created_at || doc.updated_at || new Date().toISOString(),
+			created_at: new Date().toISOString(),
 			search_space_id: -1, // Special value for global docs
 		}));
 	}, [surfsenseDocsResponse]);
