@@ -90,10 +90,6 @@ function parseTextWithCitations(text: string): ReactNode[] {
 }
 
 const MarkdownTextImpl = () => {
-	// Reset citation counter at the start of each render
-	// This ensures consistent numbering as the message streams in
-	resetCitationCounter();
-
 	return (
 		<MarkdownTextPrimitive
 			remarkPlugins={[remarkGfm]}

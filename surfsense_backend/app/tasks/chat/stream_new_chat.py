@@ -81,7 +81,8 @@ def format_mentioned_surfsense_docs_as_context(
     context_parts = ["<mentioned_surfsense_docs>"]
     context_parts.append(
         "The user has explicitly mentioned the following SurfSense documentation pages. "
-        "These are official documentation about how to use SurfSense and should be used to answer questions about the application."
+        "These are official documentation about how to use SurfSense and should be used to answer questions about the application. "
+        "Use [citation:CHUNK_ID] format for citations (e.g., [citation:doc-123])."
     )
     
     for doc in documents:
