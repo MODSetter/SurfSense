@@ -684,7 +684,7 @@ class Notification(BaseModel, TimestampMixin):
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
     )
-    type = Column(String(50), nullable=False)  # 'document_processed', 'connector_indexed', 'user_mentioned', etc.
+    type = Column(String(50), nullable=False)  # 'connector_indexing', 'document_processing', etc.
     title = Column(String(200), nullable=False)
     message = Column(Text, nullable=False)
     read = Column(Boolean, nullable=False, default=False, server_default=text("false"), index=True)

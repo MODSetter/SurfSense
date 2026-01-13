@@ -1003,6 +1003,15 @@ async def _run_indexing_with_notifications(
                 end_date=end_date,
             )
 
+        # Update notification to fetching stage
+        if notification:
+            await NotificationService.connector_indexing.notify_indexing_progress(
+                session=session,
+                notification=notification,
+                indexed_count=0,
+                stage="fetching",
+            )
+
         # Run the indexing function
         documents_processed, error_or_warning = await indexing_function(
             session=session,
@@ -1016,6 +1025,15 @@ async def _run_indexing_with_notifications(
 
         # Update connector timestamp if function provided and indexing was successful
         if documents_processed > 0 and update_timestamp_func:
+            # Update notification to storing stage
+            if notification:
+                await NotificationService.connector_indexing.notify_indexing_progress(
+                    session=session,
+                    notification=notification,
+                    indexed_count=documents_processed,
+                    stage="storing",
+                )
+
             await update_timestamp_func(session, connector_id)
             logger.info(
                 f"Indexing completed successfully: {documents_processed} documents processed"
@@ -1030,6 +1048,15 @@ async def _run_indexing_with_notifications(
                     error_message=None,
                 )
         elif documents_processed > 0:
+            # Update notification to storing stage
+            if notification:
+                await NotificationService.connector_indexing.notify_indexing_progress(
+                    session=session,
+                    notification=notification,
+                    indexed_count=documents_processed,
+                    stage="storing",
+                )
+
             # Success but no timestamp update function
             logger.info(
                 f"Indexing completed successfully: {documents_processed} documents processed"
@@ -1693,6 +1720,15 @@ async def run_google_drive_indexing(
                 file_names=items.get_file_names() if items.files else None,
             )
 
+        # Update notification to fetching stage
+        if notification:
+            await NotificationService.connector_indexing.notify_indexing_progress(
+                session=session,
+                notification=notification,
+                indexed_count=0,
+                stage="fetching",
+            )
+
         # Index each folder
         for folder in items.folders:
             try:
@@ -1747,6 +1783,15 @@ async def run_google_drive_indexing(
                 f"Google Drive indexing completed with errors for connector {connector_id}: {error_message}"
             )
         else:
+            # Update notification to storing stage
+            if notification:
+                await NotificationService.connector_indexing.notify_indexing_progress(
+                    session=session,
+                    notification=notification,
+                    indexed_count=total_indexed,
+                    stage="storing",
+                )
+
             logger.info(
                 f"Google Drive indexing successful for connector {connector_id}. Indexed {total_indexed} documents from {len(items.folders)} folder(s) and {len(items.files)} file(s)."
             )

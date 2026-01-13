@@ -1,12 +1,13 @@
 import { z } from "zod";
 import { searchSourceConnectorTypeEnum } from "./connector.types";
+import { documentTypeEnum } from "./document.types";
 
 /**
  * Notification type enum - matches backend notification types
  */
 export const notificationTypeEnum = z.enum([
 	"connector_indexing",
-	"document_processed",
+	"document_processing",
 ]);
 
 /**
@@ -14,6 +15,19 @@ export const notificationTypeEnum = z.enum([
  */
 export const notificationStatusEnum = z.enum([
 	"in_progress",
+	"completed",
+	"failed",
+]);
+
+/**
+ * Document processing stage enum
+ */
+export const documentProcessingStageEnum = z.enum([
+	"queued",
+	"parsing",
+	"chunking",
+	"embedding",
+	"storing",
 	"completed",
 	"failed",
 ]);
@@ -49,11 +63,16 @@ export const connectorIndexingMetadata = baseNotificationMetadata.extend({
 });
 
 /**
- * Document processed metadata schema
+ * Document processing metadata schema
  */
-export const documentProcessedMetadata = baseNotificationMetadata.extend({
-	document_id: z.number(),
-	status: z.string(),
+export const documentProcessingMetadata = baseNotificationMetadata.extend({
+	document_type: documentTypeEnum,
+	document_name: z.string(),
+	processing_stage: documentProcessingStageEnum,
+	file_size: z.number().optional(),
+	chunks_count: z.number().optional(),
+	document_id: z.number().optional(),
+	error_message: z.string().nullable().optional(),
 });
 
 /**
@@ -62,7 +81,7 @@ export const documentProcessedMetadata = baseNotificationMetadata.extend({
  */
 export const notificationMetadata = z.union([
 	connectorIndexingMetadata,
-	documentProcessedMetadata,
+	documentProcessingMetadata,
 	baseNotificationMetadata,
 ]);
 
@@ -90,19 +109,20 @@ export const connectorIndexingNotification = notification.extend({
 	metadata: connectorIndexingMetadata,
 });
 
-export const documentProcessedNotification = notification.extend({
-	type: z.literal("document_processed"),
-	metadata: documentProcessedMetadata,
+export const documentProcessingNotification = notification.extend({
+	type: z.literal("document_processing"),
+	metadata: documentProcessingMetadata,
 });
 
 // Inferred types
 export type NotificationTypeEnum = z.infer<typeof notificationTypeEnum>;
 export type NotificationStatusEnum = z.infer<typeof notificationStatusEnum>;
+export type DocumentProcessingStageEnum = z.infer<typeof documentProcessingStageEnum>;
 export type BaseNotificationMetadata = z.infer<typeof baseNotificationMetadata>;
 export type ConnectorIndexingMetadata = z.infer<typeof connectorIndexingMetadata>;
-export type DocumentProcessedMetadata = z.infer<typeof documentProcessedMetadata>;
+export type DocumentProcessingMetadata = z.infer<typeof documentProcessingMetadata>;
 export type NotificationMetadata = z.infer<typeof notificationMetadata>;
 export type Notification = z.infer<typeof notification>;
 export type ConnectorIndexingNotification = z.infer<typeof connectorIndexingNotification>;
-export type DocumentProcessedNotification = z.infer<typeof documentProcessedNotification>;
+export type DocumentProcessingNotification = z.infer<typeof documentProcessingNotification>;
 

@@ -245,8 +245,8 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             Notification: The created or updated notification
         """
         operation_id = self._generate_operation_id(connector_id, start_date, end_date)
-        title = f"Indexing: {connector_name}"
-        message = f'Indexing "{connector_name}" in progress...'
+        title = f"Syncing: {connector_name}"
+        message = "Connecting to your account"
 
         metadata = {
             "connector_id": connector_id,
@@ -255,6 +255,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             "start_date": start_date,
             "end_date": end_date,
             "indexed_count": 0,
+            "sync_stage": "connecting",
         }
 
         return await self.find_or_create_notification(
@@ -273,6 +274,8 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         notification: Notification,
         indexed_count: int,
         total_count: int | None = None,
+        stage: str | None = None,
+        stage_message: str | None = None,
     ) -> Notification:
         """
         Update notification with indexing progress.
@@ -282,21 +285,34 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             notification: Notification to update
             indexed_count: Number of items indexed so far
             total_count: Total number of items (optional)
+            stage: Current sync stage (fetching, processing, storing) (optional)
+            stage_message: Optional custom message for the stage
 
         Returns:
             Updated notification
         """
-        connector_name = notification.notification_metadata.get("connector_name", "Connector")
-        progress_msg = f'Indexing "{connector_name}": {indexed_count} items'
-        if total_count is not None:
-            progress_msg += f" of {total_count}"
-        progress_msg += " indexed..."
+        # User-friendly stage messages (clean, no ellipsis - spinner shows activity)
+        stage_messages = {
+            "connecting": "Connecting to your account",
+            "fetching": "Fetching your content",
+            "processing": "Preparing for search",
+            "storing": "Almost done",
+        }
+        
+        # Use stage-based message if stage provided, otherwise fallback
+        if stage or stage_message:
+            progress_msg = stage_message or stage_messages.get(stage, "Processing")
+        else:
+            # Fallback for backward compatibility
+            progress_msg = "Fetching your content"
 
         metadata_updates = {"indexed_count": indexed_count}
         if total_count is not None:
             metadata_updates["total_count"] = total_count
             progress_percent = int((indexed_count / total_count) * 100)
             metadata_updates["progress_percent"] = progress_percent
+        if stage:
+            metadata_updates["sync_stage"] = stage
 
         return await self.update_notification(
             session=session,
@@ -328,16 +344,18 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         connector_name = notification.notification_metadata.get("connector_name", "Connector")
 
         if error_message:
-            title = f"Indexing failed: {connector_name}"
-            message = f'Indexing "{connector_name}" failed: {error_message}'
+            title = f"Failed: {connector_name}"
+            message = f"Sync failed: {error_message}"
             status = "failed"
         else:
-            title = f"Indexing completed: {connector_name}"
-            message = f'Indexing "{connector_name}" completed successfully. {indexed_count} items indexed.'
+            title = f"Ready: {connector_name}"
+            item_text = "item" if indexed_count == 1 else "items"
+            message = f"Now searchable! {indexed_count} {item_text} synced."
             status = "completed"
 
         metadata_updates = {
             "indexed_count": indexed_count,
+            "sync_stage": "completed" if not error_message else "failed",
             "error_message": error_message,
         }
 
@@ -384,16 +402,8 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         operation_id = self._generate_google_drive_operation_id(
             connector_id, folder_count, file_count
         )
-        title = f"Indexing: {connector_name}"
-        
-        # Create descriptive message
-        items_desc = []
-        if folder_count > 0:
-            items_desc.append(f"{folder_count} folder{'s' if folder_count != 1 else ''}")
-        if file_count > 0:
-            items_desc.append(f"{file_count} file{'s' if file_count != 1 else ''}")
-        
-        message = f'Indexing "{connector_name}" ({", ".join(items_desc)}) in progress...'
+        title = f"Syncing: {connector_name}"
+        message = "Preparing your files"
 
         metadata = {
             "connector_id": connector_id,
@@ -402,6 +412,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             "folder_count": folder_count,
             "file_count": file_count,
             "indexed_count": 0,
+            "sync_stage": "connecting",
         }
         
         if folder_names:
@@ -420,11 +431,181 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         )
 
 
+class DocumentProcessingNotificationHandler(BaseNotificationHandler):
+    """Handler for document processing notifications."""
+
+    def __init__(self):
+        super().__init__("document_processing")
+
+    def _generate_operation_id(
+        self, document_type: str, filename: str, search_space_id: int
+    ) -> str:
+        """
+        Generate a unique operation ID for a document processing operation.
+
+        Args:
+            document_type: Type of document (FILE, YOUTUBE_VIDEO, CRAWLED_URL, etc.)
+            filename: Name of the file/document
+            search_space_id: Search space ID
+
+        Returns:
+            Unique operation ID string
+        """
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
+        # Create a short hash of filename to ensure uniqueness
+        import hashlib
+        filename_hash = hashlib.md5(filename.encode()).hexdigest()[:8]
+        return f"doc_{document_type}_{search_space_id}_{timestamp}_{filename_hash}"
+
+    async def notify_processing_started(
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        document_type: str,
+        document_name: str,
+        search_space_id: int,
+        file_size: int | None = None,
+    ) -> Notification:
+        """
+        Create notification when document processing starts.
+
+        Args:
+            session: Database session
+            user_id: User ID
+            document_type: Type of document (FILE, YOUTUBE_VIDEO, CRAWLED_URL, etc.)
+            document_name: Name/title of the document
+            search_space_id: Search space ID
+            file_size: Size of file in bytes (optional)
+
+        Returns:
+            Notification: The created notification
+        """
+        operation_id = self._generate_operation_id(document_type, document_name, search_space_id)
+        title = f"Processing: {document_name}"
+        message = "Waiting in queue"
+
+        metadata = {
+            "document_type": document_type,
+            "document_name": document_name,
+            "processing_stage": "queued",
+        }
+        
+        if file_size is not None:
+            metadata["file_size"] = file_size
+
+        return await self.find_or_create_notification(
+            session=session,
+            user_id=user_id,
+            operation_id=operation_id,
+            title=title,
+            message=message,
+            search_space_id=search_space_id,
+            initial_metadata=metadata,
+        )
+
+    async def notify_processing_progress(
+        self,
+        session: AsyncSession,
+        notification: Notification,
+        stage: str,
+        stage_message: str | None = None,
+        chunks_count: int | None = None,
+    ) -> Notification:
+        """
+        Update notification with processing progress.
+
+        Args:
+            session: Database session
+            notification: Notification to update
+            stage: Current processing stage (parsing, chunking, embedding, storing)
+            stage_message: Optional custom message for the stage
+            chunks_count: Number of chunks created (optional, stored in metadata only)
+
+        Returns:
+            Updated notification
+        """
+        # User-friendly stage messages
+        stage_messages = {
+            "parsing": "Reading your file",
+            "chunking": "Preparing for search",
+            "embedding": "Preparing for search",
+            "storing": "Finalizing",
+        }
+        
+        message = stage_message or stage_messages.get(stage, "Processing")
+
+        metadata_updates = {"processing_stage": stage}
+        # Store chunks_count in metadata for debugging, but don't show to user
+        if chunks_count is not None:
+            metadata_updates["chunks_count"] = chunks_count
+
+        return await self.update_notification(
+            session=session,
+            notification=notification,
+            message=message,
+            status="in_progress",
+            metadata_updates=metadata_updates,
+        )
+
+    async def notify_processing_completed(
+        self,
+        session: AsyncSession,
+        notification: Notification,
+        document_id: int | None = None,
+        chunks_count: int | None = None,
+        error_message: str | None = None,
+    ) -> Notification:
+        """
+        Update notification when document processing completes.
+
+        Args:
+            session: Database session
+            notification: Notification to update
+            document_id: ID of the created document (optional)
+            chunks_count: Total number of chunks created (optional)
+            error_message: Error message if processing failed (optional)
+
+        Returns:
+            Updated notification
+        """
+        document_name = notification.notification_metadata.get("document_name", "Document")
+
+        if error_message:
+            title = f"Failed: {document_name}"
+            message = f"Processing failed: {error_message}"
+            status = "failed"
+        else:
+            title = f"Ready: {document_name}"
+            message = "Now searchable!"
+            status = "completed"
+
+        metadata_updates = {
+            "processing_stage": "completed" if not error_message else "failed",
+            "error_message": error_message,
+        }
+        
+        if document_id is not None:
+            metadata_updates["document_id"] = document_id
+        # Store chunks_count in metadata for debugging, but don't show to user
+        if chunks_count is not None:
+            metadata_updates["chunks_count"] = chunks_count
+
+        return await self.update_notification(
+            session=session,
+            notification=notification,
+            title=title,
+            message=message,
+            status=status,
+            metadata_updates=metadata_updates,
+        )
+
+
 class NotificationService:
     """Service for creating and managing notifications that sync via Electric SQL."""
 
     # Handler instances
     connector_indexing = ConnectorIndexingNotificationHandler()
+    document_processing = DocumentProcessingNotificationHandler()
 
     @staticmethod
     async def create_notification(
@@ -442,7 +623,7 @@ class NotificationService:
         Args:
             session: Database session
             user_id: User to notify
-            notification_type: Type of notification (e.g., 'document_processed', 'connector_indexed')
+            notification_type: Type of notification (e.g., 'document_processing', 'connector_indexing')
             title: Notification title
             message: Notification message
             search_space_id: Optional search space ID
@@ -464,44 +645,4 @@ class NotificationService:
         await session.refresh(notification)
         logger.info(f"Created notification {notification.id} for user {user_id}")
         return notification
-
-    @staticmethod
-    async def create_document_processed_notification(
-        session: AsyncSession,
-        user_id: UUID,
-        document_id: int,
-        document_title: str,
-        status: str,
-        search_space_id: int,
-    ) -> Notification:
-        """
-        Create notification when document processing completes.
-
-        Args:
-            session: Database session
-            user_id: User to notify
-            document_id: ID of the processed document
-            document_title: Title of the document
-            status: Processing status ('SUCCESS', 'FAILED')
-            search_space_id: Search space ID
-
-        Returns:
-            Notification: The created notification
-        """
-        status_lower = status.lower()
-        title = f"Document processed: {document_title}"
-        message = f'Your document "{document_title}" has been {status_lower}.'
-
-        return await NotificationService.create_notification(
-            session=session,
-            user_id=user_id,
-            notification_type="document_processed",
-            title=title,
-            message=message,
-            search_space_id=search_space_id,
-            notification_metadata={
-                "document_id": document_id,
-                "status": status,
-            },
-        )
 
