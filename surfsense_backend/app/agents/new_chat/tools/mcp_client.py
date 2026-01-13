@@ -53,24 +53,26 @@ class MCPClient:
             )
             
             # Spawn server process and create session
-            async with (
-                stdio_client(server=server_params) as (read, write),
-                ClientSession(read, write) as session,
-            ):
-                # Initialize the connection
-                await session.initialize()
-                self.session = session
-                logger.info(
-                    f"Connected to MCP server: {self.command} {' '.join(self.args)}"
-                )
-                yield session
+            # Note: Cannot combine these context managers because ClientSession
+            # needs the read/write streams from stdio_client
+            async with stdio_client(server=server_params) as (read, write):
+                async with ClientSession(read, write) as session:
+                    # Initialize the connection
+                    await session.initialize()
+                    self.session = session
+                    logger.info(
+                        "Connected to MCP server: %s %s",
+                        self.command,
+                        " ".join(self.args),
+                    )
+                    yield session
 
         except Exception as e:
-            logger.error(f"Failed to connect to MCP server: {e!s}", exc_info=True)
+            logger.error("Failed to connect to MCP server: %s", e, exc_info=True)
             raise
         finally:
             self.session = None
-            logger.info(f"Disconnected from MCP server: {self.command}")
+            logger.info("Disconnected from MCP server: %s", self.command)
 
     async def list_tools(self) -> list[dict[str, Any]]:
         """List all tools available from the MCP server.
@@ -97,11 +99,11 @@ class MCPClient:
                     "input_schema": tool.inputSchema if hasattr(tool, "inputSchema") else {},
                 })
 
-            logger.info(f"Listed {len(tools)} tools from MCP server")
+            logger.info("Listed %d tools from MCP server", len(tools))
             return tools
 
         except Exception as e:
-            logger.error(f"Failed to list tools from MCP server: {e!s}", exc_info=True)
+            logger.error("Failed to list tools from MCP server: %s", e, exc_info=True)
             raise
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> Any:
@@ -122,7 +124,7 @@ class MCPClient:
             raise RuntimeError("Not connected to MCP server. Use 'async with client.connect():'")
 
         try:
-            logger.info(f"Calling MCP tool '{tool_name}' with arguments: {arguments}")
+            logger.info("Calling MCP tool '%s' with arguments: %s", tool_name, arguments)
 
             # Call tools/call RPC method
             response = await self.session.call_tool(tool_name, arguments=arguments)
@@ -138,19 +140,19 @@ class MCPClient:
                     result.append(str(content))
 
             result_str = "\n".join(result) if result else ""
-            logger.info(f"MCP tool '{tool_name}' succeeded: {result_str[:200]}")
+            logger.info("MCP tool '%s' succeeded: %s", tool_name, result_str[:200])
             return result_str
 
         except RuntimeError as e:
             # Handle validation errors from MCP server responses
             # Some MCP servers (like server-memory) return extra fields not in their schema
             if "Invalid structured content" in str(e):
-                logger.warning(f"MCP server returned data not matching its schema, but continuing: {e}")
+                logger.warning("MCP server returned data not matching its schema, but continuing: %s", e)
                 # Try to extract result from error message or return a success message
                 return "Operation completed (server returned unexpected format)"
             raise
-        except Exception as e:
-            logger.error(f"Failed to call MCP tool '{tool_name}': {e!s}", exc_info=True)
+        except (ValueError, TypeError, AttributeError, KeyError) as e:
+            logger.error("Failed to call MCP tool '%s': %s", tool_name, e, exc_info=True)
             return f"Error calling tool: {e!s}"
 
 
@@ -178,7 +180,7 @@ async def test_mcp_connection(
                 "message": f"Connected successfully. Found {len(tools)} tools.",
                 "tools": tools,
             }
-    except Exception as e:
+    except (RuntimeError, ConnectionError, TimeoutError, OSError) as e:
         return {
             "status": "error",
             "message": f"Failed to connect: {e!s}",

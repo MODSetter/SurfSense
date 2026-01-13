@@ -1,7 +1,7 @@
 """Add MCP connector type
 
-Revision ID: 60
-Revises: 59
+Revision ID: a1b2c3d4e5f6
+Revises: 60
 Create Date: 2026-01-09 15:19:51.827647
 
 """
@@ -10,8 +10,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '60'
-down_revision: str | None = '59'
+revision: str = 'a1b2c3d4e5f6'
+down_revision: str | None = '60'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

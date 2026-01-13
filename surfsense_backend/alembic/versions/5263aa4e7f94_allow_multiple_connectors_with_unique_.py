@@ -1,7 +1,7 @@
 """allow_multiple_connectors_with_unique_names
 
 Revision ID: 5263aa4e7f94
-Revises: ffd7445eb90a
+Revises: a1b2c3d4e5f6
 Create Date: 2026-01-13 12:23:31.481643
 
 """
@@ -11,7 +11,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '5263aa4e7f94'
-down_revision: str | None = 'ffd7445eb90a'
+down_revision: str | None = 'a1b2c3d4e5f6'
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
