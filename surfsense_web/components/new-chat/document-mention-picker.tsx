@@ -91,11 +91,15 @@ export const DocumentMentionPicker = forwardRef<
 	}, [debouncedSearch, searchSpaceId]);
 
 	const surfsenseDocsQueryParams = useMemo(() => {
-		return {
+		const params: { page: number; page_size: number; title?: string } = {
 			page: 0,
 			page_size: PAGE_SIZE,
 		};
-	}, []);
+		if (debouncedSearch.trim()) {
+			params.title = debouncedSearch;
+		}
+		return params;
+	}, [debouncedSearch]);
 
 	// Use query for fetching first page of documents
 	const { data: documents, isLoading: isDocumentsLoading } = useQuery({
@@ -115,7 +119,7 @@ export const DocumentMentionPicker = forwardRef<
 
 	// Use query for fetching first page of SurfSense docs
 	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading } = useQuery({
-		queryKey: ["surfsense-docs-mention", surfsenseDocsQueryParams],
+		queryKey: ["surfsense-docs-mention", debouncedSearch],
 		queryFn: () => documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }),
 		staleTime: 3 * 60 * 1000,
 	});
