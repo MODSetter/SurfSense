@@ -13,6 +13,8 @@ interface MobileSidebarProps {
 	searchSpaces: SearchSpace[];
 	activeSearchSpaceId: number | null;
 	onSearchSpaceSelect: (id: number) => void;
+	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
+	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
 	onAddSearchSpace: () => void;
 	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
@@ -48,6 +50,8 @@ export function MobileSidebar({
 	searchSpaces,
 	activeSearchSpaceId,
 	onSearchSpaceSelect,
+	onSearchSpaceDelete,
+	onSearchSpaceSettings,
 	onAddSearchSpace,
 	searchSpace,
 	navItems,
@@ -94,7 +98,13 @@ export function MobileSidebar({
 								<SearchSpaceAvatar
 									name={space.name}
 									isActive={space.id === activeSearchSpaceId}
+									isShared={space.memberCount > 1}
+									isOwner={space.isOwner}
 									onClick={() => handleSearchSpaceSelect(space.id)}
+									onDelete={onSearchSpaceDelete ? () => onSearchSpaceDelete(space) : undefined}
+									onSettings={
+										onSearchSpaceSettings ? () => onSearchSpaceSettings(space) : undefined
+									}
 									size="md"
 								/>
 							</div>
@@ -111,33 +121,33 @@ export function MobileSidebar({
 					</div>
 				</div>
 
-			{/* Sidebar Content */}
-			<div className="flex-1 overflow-hidden">
-				<Sidebar
-					searchSpace={searchSpace}
-					isCollapsed={false}
-					navItems={navItems}
-					onNavItemClick={handleNavItemClick}
-					chats={chats}
-					sharedChats={sharedChats}
-					activeChatId={activeChatId}
-					onNewChat={() => {
-						onNewChat();
-						onOpenChange(false);
-					}}
-					onChatSelect={handleChatSelect}
-					onChatDelete={onChatDelete}
-					onViewAllSharedChats={onViewAllSharedChats}
-					onViewAllPrivateChats={onViewAllPrivateChats}
-					user={user}
-					onSettings={onSettings}
-					onManageMembers={onManageMembers}
-					onUserSettings={onUserSettings}
-					onLogout={onLogout}
-					pageUsage={pageUsage}
-					className="w-full border-none"
-				/>
-			</div>
+				{/* Sidebar Content */}
+				<div className="flex-1 overflow-hidden">
+					<Sidebar
+						searchSpace={searchSpace}
+						isCollapsed={false}
+						navItems={navItems}
+						onNavItemClick={handleNavItemClick}
+						chats={chats}
+						sharedChats={sharedChats}
+						activeChatId={activeChatId}
+						onNewChat={() => {
+							onNewChat();
+							onOpenChange(false);
+						}}
+						onChatSelect={handleChatSelect}
+						onChatDelete={onChatDelete}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
+						user={user}
+						onSettings={onSettings}
+						onManageMembers={onManageMembers}
+						onUserSettings={onUserSettings}
+						onLogout={onLogout}
+						pageUsage={pageUsage}
+						className="w-full border-none"
+					/>
+				</div>
 			</SheetContent>
 		</Sheet>
 	);

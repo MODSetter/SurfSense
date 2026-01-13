@@ -57,7 +57,9 @@ export const DocumentMentionPicker = forwardRef<
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
 
 	// State for pagination
-	const [accumulatedDocuments, setAccumulatedDocuments] = useState<Pick<Document, "id" | "title" | "document_type">[]>([]);
+	const [accumulatedDocuments, setAccumulatedDocuments] = useState<
+		Pick<Document, "id" | "title" | "document_type">[]
+	>([]);
 	const [currentPage, setCurrentPage] = useState(0);
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -128,7 +130,7 @@ export const DocumentMentionPicker = forwardRef<
 	useEffect(() => {
 		if (currentPage === 0) {
 			const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
-			
+
 			// Add SurfSense docs first (they appear at top)
 			if (surfsenseDocs?.items) {
 				for (const doc of surfsenseDocs.items) {
@@ -139,7 +141,7 @@ export const DocumentMentionPicker = forwardRef<
 					});
 				}
 			}
-			
+
 			// Add regular documents
 			if (debouncedSearch.trim()) {
 				if (searchedDocuments?.items) {
@@ -152,7 +154,7 @@ export const DocumentMentionPicker = forwardRef<
 					setHasMore(documents.has_more);
 				}
 			}
-			
+
 			setAccumulatedDocuments(combinedDocs);
 		}
 	}, [documents, searchedDocuments, surfsenseDocs, debouncedSearch, currentPage]);
@@ -209,7 +211,9 @@ export const DocumentMentionPicker = forwardRef<
 
 	const actualDocuments = accumulatedDocuments;
 	const actualLoading =
-		((debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading) || isSurfsenseDocsLoading) && currentPage === 0;
+		((debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading) ||
+			isSurfsenseDocsLoading) &&
+		currentPage === 0;
 
 	// Track already selected documents using unique key (document_type:id) to avoid ID collisions
 	const selectedKeys = useMemo(

@@ -230,8 +230,12 @@ const Composer: FC = () => {
 	// Sync mentioned document IDs to atom for use in chat request
 	useEffect(() => {
 		setMentionedDocumentIds({
-			surfsense_doc_ids: mentionedDocuments.filter((doc) => doc.document_type === "SURFSENSE_DOCS").map((doc) => doc.id),
-			document_ids: mentionedDocuments.filter((doc) => doc.document_type !== "SURFSENSE_DOCS").map((doc) => doc.id),
+			surfsense_doc_ids: mentionedDocuments
+				.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
+				.map((doc) => doc.id),
+			document_ids: mentionedDocuments
+				.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
+				.map((doc) => doc.id),
 		});
 	}, [mentionedDocuments, setMentionedDocumentIds]);
 
@@ -314,12 +318,14 @@ const Composer: FC = () => {
 	const handleDocumentRemove = useCallback(
 		(docId: number, docType?: string) => {
 			setMentionedDocuments((prev) => {
-				const updated = prev.filter(
-					(doc) => !(doc.id === docId && doc.document_type === docType)
-				);
+				const updated = prev.filter((doc) => !(doc.id === docId && doc.document_type === docType));
 				setMentionedDocumentIds({
-					surfsense_doc_ids: updated.filter((doc) => doc.document_type === "SURFSENSE_DOCS").map((doc) => doc.id),
-					document_ids: updated.filter((doc) => doc.document_type !== "SURFSENSE_DOCS").map((doc) => doc.id),
+					surfsense_doc_ids: updated
+						.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
+						.map((doc) => doc.id),
+					document_ids: updated
+						.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
+						.map((doc) => doc.id),
 				});
 				return updated;
 			});
@@ -329,9 +335,7 @@ const Composer: FC = () => {
 
 	const handleDocumentsMention = useCallback(
 		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
-			const existingKeys = new Set(
-				mentionedDocuments.map((d) => `${d.document_type}:${d.id}`)
-			);
+			const existingKeys = new Set(mentionedDocuments.map((d) => `${d.document_type}:${d.id}`));
 			const newDocs = documents.filter(
 				(doc) => !existingKeys.has(`${doc.document_type}:${doc.id}`)
 			);
@@ -347,8 +351,12 @@ const Composer: FC = () => {
 				);
 				const updated = [...prev, ...uniqueNewDocs];
 				setMentionedDocumentIds({
-					surfsense_doc_ids: updated.filter((doc) => doc.document_type === "SURFSENSE_DOCS").map((doc) => doc.id),
-					document_ids: updated.filter((doc) => doc.document_type !== "SURFSENSE_DOCS").map((doc) => doc.id),
+					surfsense_doc_ids: updated
+						.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
+						.map((doc) => doc.id),
+					document_ids: updated
+						.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
+						.map((doc) => doc.id),
 				});
 				return updated;
 			});

@@ -459,7 +459,9 @@ export default function NewChatPage() {
 			// Track message sent
 			trackChatMessageSent(searchSpaceId, currentThreadId, {
 				hasAttachments: messageAttachments.length > 0,
-				hasMentionedDocuments: mentionedDocumentIds.surfsense_doc_ids.length > 0 || mentionedDocumentIds.document_ids.length > 0,
+				hasMentionedDocuments:
+					mentionedDocumentIds.surfsense_doc_ids.length > 0 ||
+					mentionedDocumentIds.document_ids.length > 0,
 				messageLength: userQuery.length,
 			});
 
@@ -683,7 +685,9 @@ export default function NewChatPage() {
 						messages: messageHistory,
 						attachments: attachments.length > 0 ? attachments : undefined,
 						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
-						mentioned_surfsense_doc_ids: hasSurfsenseDocIds ? mentionedDocumentIds.surfsense_doc_ids : undefined,
+						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
+							? mentionedDocumentIds.surfsense_doc_ids
+							: undefined,
 					}),
 					signal: controller.signal,
 				});

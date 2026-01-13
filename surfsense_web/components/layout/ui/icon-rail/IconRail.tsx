@@ -12,6 +12,8 @@ interface IconRailProps {
 	searchSpaces: SearchSpace[];
 	activeSearchSpaceId: number | null;
 	onSearchSpaceSelect: (id: number) => void;
+	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
+	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
 	onAddSearchSpace: () => void;
 	className?: string;
 }
@@ -20,6 +22,8 @@ export function IconRail({
 	searchSpaces,
 	activeSearchSpaceId,
 	onSearchSpaceSelect,
+	onSearchSpaceDelete,
+	onSearchSpaceSettings,
 	onAddSearchSpace,
 	className,
 }: IconRailProps) {
@@ -32,7 +36,13 @@ export function IconRail({
 							key={searchSpace.id}
 							name={searchSpace.name}
 							isActive={searchSpace.id === activeSearchSpaceId}
+							isShared={searchSpace.memberCount > 1}
+							isOwner={searchSpace.isOwner}
 							onClick={() => onSearchSpaceSelect(searchSpace.id)}
+							onDelete={onSearchSpaceDelete ? () => onSearchSpaceDelete(searchSpace) : undefined}
+							onSettings={
+								onSearchSpaceSettings ? () => onSearchSpaceSettings(searchSpace) : undefined
+							}
 							size="md"
 						/>
 					))}

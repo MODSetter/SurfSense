@@ -160,7 +160,6 @@ function UserSettingsSidebar({
 						);
 					})}
 				</nav>
-
 			</aside>
 		</>
 	);

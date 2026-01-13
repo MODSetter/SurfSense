@@ -65,8 +65,7 @@ export default function DocumentsTable() {
 	);
 
 	// Check if only SURFSENSE_DOCS is selected (skip regular docs query)
-	const onlySurfsenseDocsSelected =
-		activeTypes.length === 1 && activeTypes[0] === "SURFSENSE_DOCS";
+	const onlySurfsenseDocsSelected = activeTypes.length === 1 && activeTypes[0] === "SURFSENSE_DOCS";
 
 	// Build query parameters for fetching documents (excluding SURFSENSE_DOCS type)
 	const queryParams = useMemo(
@@ -130,9 +129,11 @@ export default function DocumentsTable() {
 		queryKey: ["surfsense-docs", debouncedSearch, pageIndex, pageSize],
 		queryFn: () =>
 			documentsApiService.getSurfsenseDocs({
-				page: pageIndex,
-				page_size: pageSize,
-				title: debouncedSearch.trim() || undefined,
+				queryParams: {
+					page: pageIndex,
+					page_size: pageSize,
+					title: debouncedSearch.trim() || undefined,
+				},
 			}),
 		staleTime: 3 * 60 * 1000, // 3 minutes
 		enabled: showSurfsenseDocs,
@@ -256,7 +257,16 @@ export default function DocumentsTable() {
 		} finally {
 			setIsRefreshing(false);
 		}
-	}, [debouncedSearch, refetchSearch, refetchDocuments, refetchSurfsenseDocs, showSurfsenseDocs, onlySurfsenseDocsSelected, t, isRefreshing]);
+	}, [
+		debouncedSearch,
+		refetchSearch,
+		refetchDocuments,
+		refetchSurfsenseDocs,
+		showSurfsenseDocs,
+		onlySurfsenseDocsSelected,
+		t,
+		isRefreshing,
+	]);
 
 	// Set up smart polling for active tasks - only polls when tasks are in progress
 	const { summary } = useLogsSummary(searchSpaceId, 24, {

@@ -19,7 +19,7 @@ export const mentionedDocumentIdsAtom = atom<{
  * Atom to store the full document objects mentioned in the current chat composer.
  * This persists across component remounts.
  */
-export const mentionedDocumentsAtom = atom<(Pick<Document, "id" | "title" | "document_type">)[]>([]);
+export const mentionedDocumentsAtom = atom<Pick<Document, "id" | "title" | "document_type">[]>([]);
 
 /**
  * Simplified document info for display purposes

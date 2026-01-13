@@ -56,6 +56,7 @@ router = APIRouter()
 
 
 async def check_thread_access(
+    session: AsyncSession,
     thread: NewChatThread,
     user: User,
     require_ownership: bool = False,
@@ -65,14 +66,16 @@ async def check_thread_access(
 
     Access is granted if:
     - User is the creator of the thread
-    - Thread visibility is SEARCH_SPACE (and user has permission to read chats)
-    - Thread is a legacy thread (created_by_id is NULL) - visible to all
+    - Thread visibility is SEARCH_SPACE (any member can access)
+    - Thread is a legacy thread (created_by_id is NULL) - only if user is search space owner
 
     Args:
+        session: Database session
         thread: The thread to check access for
         user: The user requesting access
         require_ownership: If True, only the creator can access (for edit/delete operations)
-                          Legacy threads (NULL creator) are treated as accessible by all
+                          For SEARCH_SPACE threads, any member with permission can access
+                          Legacy threads (NULL creator) are accessible by search space owner
 
     Returns:
         True if access is granted
@@ -83,9 +86,30 @@ async def check_thread_access(
     is_owner = thread.created_by_id == user.id
     is_legacy = thread.created_by_id is None
 
-    # Legacy threads are accessible to all users in the search space
-    if is_legacy:
+    # Shared threads (SEARCH_SPACE) are accessible by any member
+    # This check comes first so shared threads are always accessible
+    if thread.visibility == ChatVisibility.SEARCH_SPACE:
+        # For ownership-required operations on shared threads, any member can proceed
+        # (permission check is done at route level)
         return True
+
+    # For legacy threads (created before visibility feature),
+    # only the search space owner can access
+    if is_legacy:
+        search_space_query = select(SearchSpace).filter(
+            SearchSpace.id == thread.search_space_id
+        )
+        search_space_result = await session.execute(search_space_query)
+        search_space = search_space_result.scalar_one_or_none()
+        is_search_space_owner = search_space and search_space.user_id == user.id
+
+        if is_search_space_owner:
+            return True
+        # Legacy threads are not accessible to non-owners
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have access to this chat",
+        )
 
     # If ownership is required, only the creator can access
     if require_ownership:
@@ -96,11 +120,8 @@ async def check_thread_access(
             )
         return True
 
-    # For read access: owner or shared threads
+    # For read access: owner can access their own private threads
     if is_owner:
-        return True
-
-    if thread.visibility == ChatVisibility.SEARCH_SPACE:
         return True
 
     # Private thread and user is not the owner
@@ -129,7 +150,7 @@ async def list_threads(
     A user can see threads that are:
     - Created by them (regardless of visibility)
     - Shared with the search space (visibility = SEARCH_SPACE)
-    - Legacy threads with no creator (created_by_id is NULL)
+    - Legacy threads with no creator (created_by_id is NULL) - only if user is search space owner
 
     Args:
         search_space_id: The search space to list threads for
@@ -146,19 +167,32 @@ async def list_threads(
             "You don't have permission to read chats in this search space",
         )
 
-        # Get threads that are either:
+        # Check if user is the search space owner (for legacy thread visibility)
+        search_space_query = select(SearchSpace).filter(
+            SearchSpace.id == search_space_id
+        )
+        search_space_result = await session.execute(search_space_query)
+        search_space = search_space_result.scalar_one_or_none()
+        is_search_space_owner = search_space and search_space.user_id == user.id
+
+        # Build filter conditions:
         # 1. Created by the current user (any visibility)
         # 2. Shared with the search space (visibility = SEARCH_SPACE)
-        # 3. Legacy threads with no creator (created_by_id is NULL) - visible to all
+        # 3. Legacy threads (created_by_id is NULL) - only visible to search space owner
+        filter_conditions = [
+            NewChatThread.created_by_id == user.id,
+            NewChatThread.visibility == ChatVisibility.SEARCH_SPACE,
+        ]
+
+        # Only include legacy threads for the search space owner
+        if is_search_space_owner:
+            filter_conditions.append(NewChatThread.created_by_id.is_(None))
+
         query = (
             select(NewChatThread)
             .filter(
                 NewChatThread.search_space_id == search_space_id,
-                or_(
-                    NewChatThread.created_by_id == user.id,
-                    NewChatThread.visibility == ChatVisibility.SEARCH_SPACE,
-                    NewChatThread.created_by_id.is_(None),  # Legacy threads
-                ),
+                or_(*filter_conditions),
             )
             .order_by(NewChatThread.updated_at.desc())
         )
@@ -171,9 +205,9 @@ async def list_threads(
         archived_threads = []
 
         for thread in all_threads:
-            # Legacy threads (no creator) are treated as own threads for display purposes
-            is_own_thread = (
-                thread.created_by_id == user.id or thread.created_by_id is None
+            # Legacy threads (no creator) are treated as own threads for owner
+            is_own_thread = thread.created_by_id == user.id or (
+                thread.created_by_id is None and is_search_space_owner
             )
             item = ThreadListItem(
                 id=thread.id,
@@ -222,7 +256,7 @@ async def search_threads(
     A user can search threads that are:
     - Created by them (regardless of visibility)
     - Shared with the search space (visibility = SEARCH_SPACE)
-    - Legacy threads with no creator (created_by_id is NULL)
+    - Legacy threads with no creator (created_by_id is NULL) - only if user is search space owner
 
     Args:
         search_space_id: The search space to search in
@@ -239,17 +273,31 @@ async def search_threads(
             "You don't have permission to read chats in this search space",
         )
 
+        # Check if user is the search space owner (for legacy thread visibility)
+        search_space_query = select(SearchSpace).filter(
+            SearchSpace.id == search_space_id
+        )
+        search_space_result = await session.execute(search_space_query)
+        search_space = search_space_result.scalar_one_or_none()
+        is_search_space_owner = search_space and search_space.user_id == user.id
+
+        # Build filter conditions
+        filter_conditions = [
+            NewChatThread.created_by_id == user.id,
+            NewChatThread.visibility == ChatVisibility.SEARCH_SPACE,
+        ]
+
+        # Only include legacy threads for the search space owner
+        if is_search_space_owner:
+            filter_conditions.append(NewChatThread.created_by_id.is_(None))
+
         # Search accessible threads by title (case-insensitive)
         query = (
             select(NewChatThread)
             .filter(
                 NewChatThread.search_space_id == search_space_id,
                 NewChatThread.title.ilike(f"%{title}%"),
-                or_(
-                    NewChatThread.created_by_id == user.id,
-                    NewChatThread.visibility == ChatVisibility.SEARCH_SPACE,
-                    NewChatThread.created_by_id.is_(None),  # Legacy threads
-                ),
+                or_(*filter_conditions),
             )
             .order_by(NewChatThread.updated_at.desc())
         )
@@ -264,9 +312,10 @@ async def search_threads(
                 archived=thread.archived,
                 visibility=thread.visibility,
                 created_by_id=thread.created_by_id,
-                # Legacy threads (no creator) are treated as own threads
+                # Legacy threads (no creator) are treated as own threads for owner
                 is_own_thread=(
-                    thread.created_by_id == user.id or thread.created_by_id is None
+                    thread.created_by_id == user.id
+                    or (thread.created_by_id is None and is_search_space_owner)
                 ),
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
@@ -383,7 +432,7 @@ async def get_thread_messages(
         )
 
         # Check thread-level access based on visibility
-        await check_thread_access(thread, user)
+        await check_thread_access(session, thread, user)
 
         # Return messages in the format expected by assistant-ui
         messages = [
@@ -447,7 +496,7 @@ async def get_thread_full(
         )
 
         # Check thread-level access based on visibility
-        await check_thread_access(thread, user)
+        await check_thread_access(session, thread, user)
 
         return thread
 
@@ -500,7 +549,7 @@ async def update_thread(
         # For PRIVATE threads, only the creator can update
         # For SEARCH_SPACE threads, any member with permission can update
         if db_thread.visibility == ChatVisibility.PRIVATE:
-            await check_thread_access(db_thread, user, require_ownership=True)
+            await check_thread_access(session, db_thread, user, require_ownership=True)
 
         # Update fields
         update_data = thread_update.model_dump(exclude_unset=True)
@@ -568,7 +617,7 @@ async def delete_thread(
         # For PRIVATE threads, only the creator can delete
         # For SEARCH_SPACE threads, any member with permission can delete
         if db_thread.visibility == ChatVisibility.PRIVATE:
-            await check_thread_access(db_thread, user, require_ownership=True)
+            await check_thread_access(session, db_thread, user, require_ownership=True)
 
         await session.delete(db_thread)
         await session.commit()
@@ -628,7 +677,7 @@ async def update_thread_visibility(
         )
 
         # Only the creator can change visibility
-        await check_thread_access(db_thread, user, require_ownership=True)
+        await check_thread_access(session, db_thread, user, require_ownership=True)
 
         # Update visibility
         db_thread.visibility = visibility_update.visibility
@@ -714,7 +763,7 @@ async def append_message(
         )
 
         # Check thread-level access based on visibility
-        await check_thread_access(thread, user)
+        await check_thread_access(session, thread, user)
 
         # Convert string role to enum
         role_str = (
@@ -825,7 +874,7 @@ async def list_messages(
         )
 
         # Check thread-level access based on visibility
-        await check_thread_access(thread, user)
+        await check_thread_access(session, thread, user)
 
         # Get messages
         query = (
@@ -894,7 +943,7 @@ async def handle_new_chat(
         )
 
         # Check thread-level access based on visibility
-        await check_thread_access(thread, user)
+        await check_thread_access(session, thread, user)
 
         # Get search space to check LLM config preferences
         search_space_result = await session.execute(

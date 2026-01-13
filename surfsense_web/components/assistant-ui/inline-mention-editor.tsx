@@ -100,7 +100,9 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		// Sync initial documents
 		useEffect(() => {
 			if (initialDocuments.length > 0) {
-				setMentionedDocs(new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d])));
+				setMentionedDocs(
+					new Map(initialDocuments.map((d) => [`${d.document_type ?? "UNKNOWN"}:${d.id}`, d]))
+				);
 			}
 		}, [initialDocuments]);
 
