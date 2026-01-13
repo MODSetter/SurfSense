@@ -6,19 +6,17 @@ import { RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { Button } from "@/components/ui/button";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { useLogsSummary } from "@/hooks/use-logs";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
-import { ProcessingIndicator } from "./components/ProcessingIndicator";
 import type { ColumnVisibility } from "./components/types";
 
 function useDebounced<T>(value: T, delay = 250) {
@@ -142,30 +140,6 @@ export default function DocumentsTable() {
 		}
 	}, [debouncedSearch, refetchSearch, refetchDocuments, t, isRefreshing]);
 
-	// Set up smart polling for active tasks - only polls when tasks are in progress
-	const { summary } = useLogsSummary(searchSpaceId, 24, {
-		enablePolling: true,
-		refetchInterval: 5000, // Poll every 5 seconds when tasks are active
-	});
-
-	// Filter active tasks to only include document_processor tasks (uploads via "add sources")
-	// Exclude connector_indexing_task tasks (periodic reindexing)
-	const documentProcessorTasks =
-		summary?.active_tasks.filter((task) => task.source === "document_processor") || [];
-	const documentProcessorTasksCount = documentProcessorTasks.length;
-
-	const activeTasksCount = summary?.active_tasks.length || 0;
-	const prevActiveTasksCount = useRef(activeTasksCount);
-
-	// Auto-refresh when a task finishes
-	useEffect(() => {
-		if (prevActiveTasksCount.current > activeTasksCount) {
-			// A task has finished!
-			refreshCurrentView();
-		}
-		prevActiveTasksCount.current = activeTasksCount;
-	}, [activeTasksCount, refreshCurrentView]);
-
 	// Create a delete function for single document deletion
 	const deleteDocument = useCallback(
 		async (id: number) => {
@@ -243,8 +217,6 @@ export default function DocumentsTable() {
 					{t("refresh")}
 				</Button>
 			</motion.div>
-
-			<ProcessingIndicator documentProcessorTasksCount={documentProcessorTasksCount} />
 
 			<DocumentsFilters
 				typeCounts={typeCounts ?? {}}

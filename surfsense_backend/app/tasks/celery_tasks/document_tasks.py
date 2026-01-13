@@ -130,12 +130,11 @@ async def _process_extension_document(
                 )
 
                 # Update notification on success
-                chunks_count = len(result.chunks) if hasattr(result, 'chunks') and result.chunks else None
                 await NotificationService.document_processing.notify_processing_completed(
                     session=session,
                     notification=notification,
                     document_id=result.id,
-                    chunks_count=chunks_count,
+                    chunks_count=None,
                 )
             else:
                 await task_logger.log_task_success(
@@ -236,12 +235,11 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
                 )
 
                 # Update notification on success
-                chunks_count = len(result.chunks) if hasattr(result, 'chunks') and result.chunks else None
                 await NotificationService.document_processing.notify_processing_completed(
                     session=session,
                     notification=notification,
                     document_id=result.id,
-                    chunks_count=chunks_count,
+                    chunks_count=None,
                 )
             else:
                 await task_logger.log_task_success(
@@ -354,12 +352,11 @@ async def _process_file_upload(
 
             # Update notification on success
             if result:
-                chunks_count = len(result.chunks) if hasattr(result, 'chunks') and result.chunks else None
                 await NotificationService.document_processing.notify_processing_completed(
                     session=session,
                     notification=notification,
                     document_id=result.id,
-                    chunks_count=chunks_count,
+                    chunks_count=None,
                 )
             else:
                 # Duplicate detected
@@ -508,12 +505,11 @@ async def _process_circleback_meeting(
 
                 # Update notification on success
                 if notification:
-                    chunks_count = len(result.chunks) if hasattr(result, 'chunks') and result.chunks else None
                     await NotificationService.document_processing.notify_processing_completed(
                         session=session,
                         notification=notification,
                         document_id=result.id,
-                        chunks_count=chunks_count,
+                        chunks_count=None,
                     )
             else:
                 await task_logger.log_task_success(
