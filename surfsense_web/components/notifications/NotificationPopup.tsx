@@ -78,7 +78,7 @@ export function NotificationPopup({
 			<ScrollArea className="h-[400px]">
 				{loading ? (
 					<div className="flex items-center justify-center py-8">
-						<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+						<Loader2 className="h-5 w-5 animate-spin text-white" />
 					</div>
 				) : notifications.length === 0 ? (
 					<div className="flex flex-col items-center justify-center py-8 px-4 text-center">
@@ -86,7 +86,7 @@ export function NotificationPopup({
 						<p className="text-sm text-muted-foreground">No notifications</p>
 					</div>
 				) : (
-					<div className="py-2">
+					<div className="pt-0 pb-2">
 						{notifications.map((notification, index) => (
 							<div key={notification.id}>
 								<button
