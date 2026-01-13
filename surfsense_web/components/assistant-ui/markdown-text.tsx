@@ -16,7 +16,8 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { cn } from "@/lib/utils";
 
 // Citation pattern: [citation:CHUNK_ID] or [citation:doc-CHUNK_ID]
-const CITATION_REGEX = /\[citation:(doc-)?(\d+)\]/g;
+// Also matches Chinese brackets 【】 and handles zero-width spaces that LLM sometimes inserts
+const CITATION_REGEX = /[[【]\u200B?citation:(doc-)?(\d+)\u200B?[\]】]/g;
 
 // Track chunk IDs to citation numbers mapping for consistent numbering
 // This map is reset when a new message starts rendering
@@ -90,10 +91,6 @@ function parseTextWithCitations(text: string): ReactNode[] {
 }
 
 const MarkdownTextImpl = () => {
-	// Reset citation counter at the start of each render
-	// This ensures consistent numbering as the message streams in
-	resetCitationCounter();
-
 	return (
 		<MarkdownTextPrimitive
 			remarkPlugins={[remarkGfm]}

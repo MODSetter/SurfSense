@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
@@ -23,28 +24,28 @@ import { cn } from "@/lib/utils";
 
 interface SettingsNavItem {
 	id: string;
-	label: string;
-	description: string;
+	labelKey: string;
+	descriptionKey: string;
 	icon: LucideIcon;
 }
 
 const settingsNavItems: SettingsNavItem[] = [
 	{
 		id: "models",
-		label: "Agent Configs",
-		description: "LLM models with prompts & citations",
+		labelKey: "nav_agent_configs",
+		descriptionKey: "nav_agent_configs_desc",
 		icon: Bot,
 	},
 	{
 		id: "roles",
-		label: "Role Assignments",
-		description: "Assign configs to agent roles",
+		labelKey: "nav_role_assignments",
+		descriptionKey: "nav_role_assignments_desc",
 		icon: Brain,
 	},
 	{
 		id: "prompts",
-		label: "System Instructions",
-		description: "SearchSpace-wide AI instructions",
+		labelKey: "nav_system_instructions",
+		descriptionKey: "nav_system_instructions_desc",
 		icon: MessageSquare,
 	},
 ];
@@ -62,6 +63,8 @@ function SettingsSidebar({
 	isOpen: boolean;
 	onClose: () => void;
 }) {
+	const t = useTranslations("searchSpaceSettings");
+
 	const handleNavClick = (sectionId: string) => {
 		onSectionChange(sectionId);
 		onClose(); // Close sidebar on mobile after selection
@@ -94,22 +97,28 @@ function SettingsSidebar({
 					isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
 				)}
 			>
-				{/* Header with back button */}
-				<div className="p-4 flex items-center justify-between">
-					<Button
-						variant="ghost"
-						onClick={onBackToApp}
-						className="flex-1 justify-start gap-3 h-11 px-3 hover:bg-muted group"
-					>
-						<div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-							<ArrowLeft className="h-4 w-4 text-primary" />
-						</div>
-						<span className="font-medium">Back to app</span>
-					</Button>
-					{/* Mobile close button */}
-					<Button variant="ghost" size="icon" onClick={onClose} className="md:hidden h-9 w-9">
-						<X className="h-5 w-5" />
-					</Button>
+				{/* Header with title */}
+				<div className="p-4 space-y-3">
+					<div className="flex items-center justify-between">
+						<Button
+							variant="ghost"
+							onClick={onBackToApp}
+							className="justify-start gap-3 h-11 px-3 hover:bg-muted group"
+						>
+							<div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+								<ArrowLeft className="h-4 w-4 text-primary" />
+							</div>
+							<span className="font-medium">{t("back_to_app")}</span>
+						</Button>
+						{/* Mobile close button */}
+						<Button variant="ghost" size="icon" onClick={onClose} className="md:hidden h-9 w-9">
+							<X className="h-5 w-5" />
+						</Button>
+					</div>
+					{/* Settings Title */}
+					<div className="px-3">
+						<h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
+					</div>
 				</div>
 
 				{/* Navigation Items */}
@@ -159,9 +168,11 @@ function SettingsSidebar({
 											isActive ? "text-foreground" : "text-muted-foreground"
 										)}
 									>
-										{item.label}
+										{t(item.labelKey)}
 									</p>
-									<p className="text-xs text-muted-foreground/70 truncate">{item.description}</p>
+									<p className="text-xs text-muted-foreground/70 truncate">
+										{t(item.descriptionKey)}
+									</p>
 								</div>
 								<ChevronRight
 									className={cn(
@@ -175,11 +186,6 @@ function SettingsSidebar({
 						);
 					})}
 				</nav>
-
-				{/* Footer */}
-				<div className="p-4">
-					<p className="text-xs text-muted-foreground text-center">Search Space Settings</p>
-				</div>
 			</aside>
 		</>
 	);
@@ -194,6 +200,7 @@ function SettingsContent({
 	searchSpaceId: number;
 	onMenuClick: () => void;
 }) {
+	const t = useTranslations("searchSpaceSettings");
 	const activeItem = settingsNavItems.find((item) => item.id === activeSection);
 	const Icon = activeItem?.icon || Settings;
 
@@ -236,7 +243,7 @@ function SettingsContent({
 								</motion.div>
 								<div className="min-w-0">
 									<h1 className="text-lg md:text-2xl font-bold tracking-tight truncate">
-										{activeItem?.label}
+										{activeItem ? t(activeItem.labelKey) : ""}
 									</h1>
 								</div>
 							</div>

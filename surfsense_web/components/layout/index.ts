@@ -4,14 +4,12 @@ export type {
 	ChatItem,
 	IconRailProps,
 	NavItem,
-	NoteItem,
 	PageUsage,
 	SearchSpace,
 	SidebarSectionProps,
 	User,
 } from "./types/layout.types";
 export {
-	AllSearchSpacesSheet,
 	ChatListItem,
 	CreateSearchSpaceDialog,
 	Header,
@@ -21,7 +19,6 @@ export {
 	MobileSidebarTrigger,
 	NavIcon,
 	NavSection,
-	NoteListItem,
 	PageUsageDisplay,
 	SearchSpaceAvatar,
 	Sidebar,

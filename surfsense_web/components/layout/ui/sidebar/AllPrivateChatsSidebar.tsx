@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import {
 	ArchiveIcon,
 	Loader2,
+	Lock,
 	MessageCircleMore,
 	MoreHorizontal,
 	RotateCcwIcon,
@@ -15,7 +16,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -38,25 +39,24 @@ import {
 } from "@/lib/chat/thread-persistence";
 import { cn } from "@/lib/utils";
 
-interface AllChatsSidebarProps {
+interface AllPrivateChatsSidebarProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onCloseMobileSidebar?: () => void;
 }
 
-export function AllChatsSidebar({
+export function AllPrivateChatsSidebar({
 	open,
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllChatsSidebarProps) {
+}: AllPrivateChatsSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
 	const queryClient = useQueryClient();
 
-	// Get the current chat ID from URL to check if user is deleting the currently open chat
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
 		: params.chat_id
@@ -72,12 +72,10 @@ export function AllChatsSidebar({
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
-	// Handle mounting for portal
 	useEffect(() => {
 		setMounted(true);
 	}, []);
 
-	// Handle escape key
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && open) {
@@ -88,7 +86,6 @@ export function AllChatsSidebar({
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
 
-	// Lock body scroll when open
 	useEffect(() => {
 		if (open) {
 			document.body.style.overflow = "hidden";
@@ -100,7 +97,6 @@ export function AllChatsSidebar({
 		};
 	}, [open]);
 
-	// Fetch all threads (when not searching)
 	const {
 		data: threadsData,
 		error: threadsError,
@@ -111,7 +107,6 @@ export function AllChatsSidebar({
 		enabled: !!searchSpaceId && open && !isSearchMode,
 	});
 
-	// Search threads (when searching)
 	const {
 		data: searchData,
 		error: searchError,
@@ -122,18 +117,41 @@ export function AllChatsSidebar({
 		enabled: !!searchSpaceId && open && isSearchMode,
 	});
 
-	// Handle thread navigation
+	// Filter to only private chats (PRIVATE visibility or no visibility set)
+	const { activeChats, archivedChats } = useMemo(() => {
+		if (isSearchMode) {
+			const privateSearchResults = (searchData ?? []).filter(
+				(thread) => thread.visibility !== "SEARCH_SPACE"
+			);
+			return {
+				activeChats: privateSearchResults.filter((t) => !t.archived),
+				archivedChats: privateSearchResults.filter((t) => t.archived),
+			};
+		}
+
+		if (!threadsData) return { activeChats: [], archivedChats: [] };
+
+		const activePrivate = threadsData.threads.filter(
+			(thread) => thread.visibility !== "SEARCH_SPACE"
+		);
+		const archivedPrivate = threadsData.archived_threads.filter(
+			(thread) => thread.visibility !== "SEARCH_SPACE"
+		);
+
+		return { activeChats: activePrivate, archivedChats: archivedPrivate };
+	}, [threadsData, searchData, isSearchMode]);
+
+	const threads = showArchived ? archivedChats : activeChats;
+
 	const handleThreadClick = useCallback(
 		(threadId: number) => {
 			router.push(`/dashboard/${searchSpaceId}/new-chat/${threadId}`);
 			onOpenChange(false);
-			// Also close the main sidebar on mobile
 			onCloseMobileSidebar?.();
 		},
 		[router, onOpenChange, searchSpaceId, onCloseMobileSidebar]
 	);
 
-	// Handle thread deletion
 	const handleDeleteThread = useCallback(
 		async (threadId: number) => {
 			setDeletingThreadId(threadId);
@@ -144,10 +162,8 @@ export function AllChatsSidebar({
 				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 
-				// If the deleted chat is currently open, close sidebar first then redirect
 				if (currentChatId === threadId) {
 					onOpenChange(false);
-					// Wait for sidebar close animation to complete before navigating
 					setTimeout(() => {
 						router.push(`/dashboard/${searchSpaceId}/new-chat`);
 					}, 250);
@@ -162,7 +178,6 @@ export function AllChatsSidebar({
 		[queryClient, searchSpaceId, t, currentChatId, router, onOpenChange]
 	);
 
-	// Handle thread archive/unarchive
 	const handleToggleArchive = useCallback(
 		async (threadId: number, currentlyArchived: boolean) => {
 			setArchivingThreadId(threadId);
@@ -186,25 +201,15 @@ export function AllChatsSidebar({
 		[queryClient, searchSpaceId, t]
 	);
 
-	// Clear search
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
 	}, []);
 
-	// Determine which data source to use
-	let threads: ThreadListItem[] = [];
-	if (isSearchMode) {
-		threads = searchData ?? [];
-	} else if (threadsData) {
-		threads = showArchived ? threadsData.archived_threads : threadsData.threads;
-	}
-
 	const isLoading = isSearchMode ? isLoadingSearch : isLoadingThreads;
 	const error = isSearchMode ? searchError : threadsError;
 
-	// Get counts for tabs
-	const activeCount = threadsData?.threads.length ?? 0;
-	const archivedCount = threadsData?.archived_threads.length ?? 0;
+	const activeCount = activeChats.length;
+	const archivedCount = archivedChats.length;
 
 	if (!mounted) return null;
 
@@ -212,32 +217,32 @@ export function AllChatsSidebar({
 		<AnimatePresence>
 			{open && (
 				<>
-					{/* Backdrop */}
 					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-[70] bg-black/50"
+						className="fixed inset-0 z-70 bg-black/50"
 						onClick={() => onOpenChange(false)}
 						aria-hidden="true"
 					/>
 
-					{/* Panel */}
 					<motion.div
 						initial={{ x: "-100%" }}
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
 						transition={{ type: "spring", damping: 25, stiffness: 300 }}
-						className="fixed inset-y-0 left-0 z-[70] w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
+						className="fixed inset-y-0 left-0 z-70 w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"
-						aria-label={t("all_chats") || "All Chats"}
+						aria-label={t("chats") || "Private Chats"}
 					>
-						{/* Header */}
-						<div className="flex-shrink-0 p-4 pb-2 space-y-3">
+						<div className="shrink-0 p-4 pb-2 space-y-3">
 							<div className="flex items-center justify-between">
-								<h2 className="text-lg font-semibold">{t("all_chats") || "All Chats"}</h2>
+								<div className="flex items-center gap-2">
+									<Lock className="h-5 w-5 text-primary" />
+									<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
+								</div>
 								<Button
 									variant="ghost"
 									size="icon"
@@ -249,7 +254,6 @@ export function AllChatsSidebar({
 								</Button>
 							</div>
 
-							{/* Search Input */}
 							<div className="relative">
 								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 								<Input
@@ -273,9 +277,8 @@ export function AllChatsSidebar({
 							</div>
 						</div>
 
-						{/* Tab toggle for active/archived (only show when not searching) */}
 						{!isSearchMode && (
-							<div className="flex-shrink-0 flex border-b mx-4">
+							<div className="shrink-0 flex border-b mx-4">
 								<button
 									type="button"
 									onClick={() => setShowArchived(false)}
@@ -303,7 +306,6 @@ export function AllChatsSidebar({
 							</div>
 						)}
 
-						{/* Scrollable Content */}
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{isLoading ? (
 								<div className="flex items-center justify-center py-8">
@@ -332,7 +334,6 @@ export function AllChatsSidebar({
 													isBusy && "opacity-50 pointer-events-none"
 												)}
 											>
-												{/* Main clickable area for navigation */}
 												<Tooltip>
 													<TooltipTrigger asChild>
 														<button
@@ -353,7 +354,6 @@ export function AllChatsSidebar({
 													</TooltipContent>
 												</Tooltip>
 
-												{/* Actions dropdown */}
 												<DropdownMenu
 													open={openDropdownId === thread.id}
 													onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
@@ -377,7 +377,7 @@ export function AllChatsSidebar({
 															<span className="sr-only">{t("more_options") || "More options"}</span>
 														</Button>
 													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end" className="w-40 z-[80]">
+													<DropdownMenuContent align="end" className="w-40 z-80">
 														<DropdownMenuItem
 															onClick={() => handleToggleArchive(thread.id, thread.archived)}
 															disabled={isArchiving}
@@ -420,11 +420,11 @@ export function AllChatsSidebar({
 								</div>
 							) : (
 								<div className="text-center py-8">
-									<MessageCircleMore className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+									<Lock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
 									<p className="text-sm text-muted-foreground">
 										{showArchived
 											? t("no_archived_chats") || "No archived chats"
-											: t("no_chats") || "No chats yet"}
+											: t("no_chats") || "No private chats"}
 									</p>
 									{!showArchived && (
 										<p className="text-xs text-muted-foreground/70 mt-1">

@@ -75,20 +75,27 @@ function UserSettingsSidebar({
 					isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
 				)}
 			>
-				<div className="flex items-center justify-between p-4">
-					<Button
-						variant="ghost"
-						onClick={onBackToApp}
-						className="group h-11 flex-1 justify-start gap-3 px-3 hover:bg-muted"
-					>
-						<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
-							<ArrowLeft className="h-4 w-4 text-primary" />
-						</div>
-						<span className="font-medium">{t("back_to_app")}</span>
-					</Button>
-					<Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9 md:hidden">
-						<X className="h-5 w-5" />
-					</Button>
+				{/* Header with title */}
+				<div className="space-y-3 p-4">
+					<div className="flex items-center justify-between">
+						<Button
+							variant="ghost"
+							onClick={onBackToApp}
+							className="group h-11 justify-start gap-3 px-3 hover:bg-muted"
+						>
+							<div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 transition-colors group-hover:bg-primary/20">
+								<ArrowLeft className="h-4 w-4 text-primary" />
+							</div>
+							<span className="font-medium">{t("back_to_app")}</span>
+						</Button>
+						<Button variant="ghost" size="icon" onClick={onClose} className="h-9 w-9 md:hidden">
+							<X className="h-5 w-5" />
+						</Button>
+					</div>
+					{/* Settings Title */}
+					<div className="px-3">
+						<h2 className="text-lg font-semibold text-foreground">{t("title")}</h2>
+					</div>
 				</div>
 
 				<nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2">
@@ -153,10 +160,6 @@ function UserSettingsSidebar({
 						);
 					})}
 				</nav>
-
-				<div className="p-4">
-					<p className="text-center text-xs text-muted-foreground">{t("footer")}</p>
-				</div>
 			</aside>
 		</>
 	);

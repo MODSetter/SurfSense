@@ -40,9 +40,12 @@ import {
 } from "@/lib/chat/podcast-state";
 import {
 	appendMessage,
+	type ChatVisibility,
 	createThread,
+	getThreadFull,
 	getThreadMessages,
 	type MessageRecord,
+	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
 import {
 	trackChatCreated,
@@ -217,6 +220,7 @@ export default function NewChatPage() {
 	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
 	const [threadId, setThreadId] = useState<number | null>(null);
+	const [currentThread, setCurrentThread] = useState<ThreadRecord | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
 	const [isRunning, setIsRunning] = useState(false);
 	// Store thinking steps per message ID - kept separate from content to avoid
@@ -264,19 +268,31 @@ export default function NewChatPage() {
 		// Reset all state when switching between chats to prevent stale data
 		setMessages([]);
 		setThreadId(null);
+		setCurrentThread(null);
 		setMessageThinkingSteps(new Map());
-		setMentionedDocumentIds([]);
+		setMentionedDocumentIds({
+			surfsense_doc_ids: [],
+			document_ids: [],
+		});
 		setMentionedDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
 
 		try {
 			if (urlChatId > 0) {
-				// Thread exists - load messages
+				// Thread exists - load thread data and messages
 				setThreadId(urlChatId);
-				const response = await getThreadMessages(urlChatId);
-				if (response.messages && response.messages.length > 0) {
-					const loadedMessages = response.messages.map(convertToThreadMessage);
+
+				// Load thread data (for visibility info) and messages in parallel
+				const [threadData, messagesResponse] = await Promise.all([
+					getThreadFull(urlChatId),
+					getThreadMessages(urlChatId),
+				]);
+
+				setCurrentThread(threadData);
+
+				if (messagesResponse.messages && messagesResponse.messages.length > 0) {
+					const loadedMessages = messagesResponse.messages.map(convertToThreadMessage);
 					setMessages(loadedMessages);
 
 					// Extract and restore thinking steps from persisted messages
@@ -284,7 +300,7 @@ export default function NewChatPage() {
 					// Extract and restore mentioned documents from persisted messages
 					const restoredDocsMap: Record<string, MentionedDocumentInfo[]> = {};
 
-					for (const msg of response.messages) {
+					for (const msg of messagesResponse.messages) {
 						if (msg.role === "assistant") {
 							const steps = extractThinkingSteps(msg.content);
 							if (steps.length > 0) {
@@ -320,6 +336,7 @@ export default function NewChatPage() {
 			// Keep threadId as null - don't use Date.now() as it creates an invalid ID
 			// that will cause 404 errors on subsequent API calls
 			setThreadId(null);
+			setCurrentThread(null);
 			toast.error("Failed to load chat. Please try again.");
 		} finally {
 			setIsInitializing(false);
@@ -345,6 +362,19 @@ export default function NewChatPage() {
 		}
 		setIsRunning(false);
 	}, []);
+
+	// Handle visibility change from ChatShareButton
+	const handleVisibilityChange = useCallback(
+		(newVisibility: ChatVisibility) => {
+			setCurrentThread((prev) => (prev ? { ...prev, visibility: newVisibility } : null));
+			// Refetch all thread queries so sidebar reflects the change immediately
+			// Use predicate to match any query that starts with "threads"
+			queryClient.refetchQueries({
+				predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "threads",
+			});
+		},
+		[queryClient]
+	);
 
 	// Handle new message from user
 	const onNew = useCallback(
@@ -429,7 +459,9 @@ export default function NewChatPage() {
 			// Track message sent
 			trackChatMessageSent(searchSpaceId, currentThreadId, {
 				hasAttachments: messageAttachments.length > 0,
-				hasMentionedDocuments: mentionedDocumentIds.length > 0,
+				hasMentionedDocuments:
+					mentionedDocumentIds.surfsense_doc_ids.length > 0 ||
+					mentionedDocumentIds.document_ids.length > 0,
 				messageLength: userQuery.length,
 			});
 
@@ -627,12 +659,16 @@ export default function NewChatPage() {
 				// Extract attachment content to send with the request
 				const attachments = extractAttachmentContent(messageAttachments);
 
-				// Get mentioned document IDs for context
-				const documentIds = mentionedDocumentIds.length > 0 ? [...mentionedDocumentIds] : undefined;
+				// Get mentioned document IDs for context (separate fields for backend)
+				const hasDocumentIds = mentionedDocumentIds.document_ids.length > 0;
+				const hasSurfsenseDocIds = mentionedDocumentIds.surfsense_doc_ids.length > 0;
 
 				// Clear mentioned documents after capturing them
-				if (mentionedDocumentIds.length > 0) {
-					setMentionedDocumentIds([]);
+				if (hasDocumentIds || hasSurfsenseDocIds) {
+					setMentionedDocumentIds({
+						surfsense_doc_ids: [],
+						document_ids: [],
+					});
 					setMentionedDocuments([]);
 				}
 
@@ -648,7 +684,10 @@ export default function NewChatPage() {
 						search_space_id: searchSpaceId,
 						messages: messageHistory,
 						attachments: attachments.length > 0 ? attachments : undefined,
-						mentioned_document_ids: documentIds,
+						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
+						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
+							? mentionedDocumentIds.surfsense_doc_ids
+							: undefined,
 					}),
 					signal: controller.signal,
 				});
@@ -916,7 +955,13 @@ export default function NewChatPage() {
 			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 				<Thread
 					messageThinkingSteps={messageThinkingSteps}
-					header={<ChatHeader searchSpaceId={searchSpaceId} />}
+					header={
+						<ChatHeader
+							searchSpaceId={searchSpaceId}
+							thread={currentThread}
+							onThreadVisibilityChange={handleVisibilityChange}
+						/>
+					}
 				/>
 			</div>
 		</AssistantRuntimeProvider>

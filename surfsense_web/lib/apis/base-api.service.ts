@@ -11,7 +11,7 @@ enum ResponseType {
 }
 
 export type RequestOptions = {
-	method: "GET" | "POST" | "PUT" | "DELETE";
+	method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 	headers?: Record<string, string>;
 	contentType?: "application/json" | "application/x-www-form-urlencoded";
 	signal?: AbortSignal;
@@ -265,6 +265,21 @@ class BaseApiService {
 	) {
 		return this.request(url, responseSchema, {
 			method: "DELETE",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			...options,
+			responseType: ResponseType.JSON,
+		});
+	}
+
+	async patch<T>(
+		url: string,
+		responseSchema?: ZodType<T>,
+		options?: Omit<RequestOptions, "method" | "responseType">
+	) {
+		return this.request(url, responseSchema, {
+			method: "PATCH",
 			headers: {
 				"Content-Type": "application/json",
 			},

@@ -556,6 +556,54 @@ async def update_member_role(
         ) from e
 
 
+# NOTE: /members/me must be defined BEFORE /members/{membership_id}
+# because FastAPI matches routes in order, and "me" would otherwise
+# be interpreted as a membership_id (causing a 422 validation error)
+@router.delete("/searchspaces/{search_space_id}/members/me")
+async def leave_search_space(
+    search_space_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Leave a search space (remove own membership).
+    Owners cannot leave their search space.
+    """
+    try:
+        result = await session.execute(
+            select(SearchSpaceMembership).filter(
+                SearchSpaceMembership.user_id == user.id,
+                SearchSpaceMembership.search_space_id == search_space_id,
+            )
+        )
+        db_membership = result.scalars().first()
+
+        if not db_membership:
+            raise HTTPException(
+                status_code=404,
+                detail="You are not a member of this search space",
+            )
+
+        if db_membership.is_owner:
+            raise HTTPException(
+                status_code=400,
+                detail="Owners cannot leave their search space. Transfer ownership first or delete the search space.",
+            )
+
+        await session.delete(db_membership)
+        await session.commit()
+        return {"message": "Successfully left the search space"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to leave search space: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to leave search space: {e!s}"
+        ) from e
+
+
 @router.delete("/searchspaces/{search_space_id}/members/{membership_id}")
 async def remove_member(
     search_space_id: int,
@@ -605,51 +653,6 @@ async def remove_member(
         logger.error(f"Failed to remove member: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to remove member: {e!s}"
-        ) from e
-
-
-@router.delete("/searchspaces/{search_space_id}/members/me")
-async def leave_search_space(
-    search_space_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """
-    Leave a search space (remove own membership).
-    Owners cannot leave their search space.
-    """
-    try:
-        result = await session.execute(
-            select(SearchSpaceMembership).filter(
-                SearchSpaceMembership.user_id == user.id,
-                SearchSpaceMembership.search_space_id == search_space_id,
-            )
-        )
-        db_membership = result.scalars().first()
-
-        if not db_membership:
-            raise HTTPException(
-                status_code=404,
-                detail="You are not a member of this search space",
-            )
-
-        if db_membership.is_owner:
-            raise HTTPException(
-                status_code=400,
-                detail="Owners cannot leave their search space. Transfer ownership first or delete the search space.",
-            )
-
-        await session.delete(db_membership)
-        await session.commit()
-        return {"message": "Successfully left the search space"}
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        logger.error(f"Failed to leave search space: {e!s}", exc_info=True)
-        raise HTTPException(
-            status_code=500, detail=f"Failed to leave search space: {e!s}"
         ) from e
 
 

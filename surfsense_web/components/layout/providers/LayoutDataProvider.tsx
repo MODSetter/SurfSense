@@ -1,13 +1,12 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
-import { Logs, SquareLibrary, Trash2 } from "lucide-react";
+import { useAtomValue } from "jotai";
+import { LogOut, Logs, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useState } from "react";
-import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -20,18 +19,15 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
-import { useLogsSummary } from "@/hooks/use-logs";
-import { notesApiService } from "@/lib/apis/notes-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { deleteThread, fetchThreads } from "@/lib/chat/thread-persistence";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import type { ChatItem, NavItem, NoteItem, SearchSpace } from "../types/layout.types";
+import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
-import { AllSearchSpacesSheet } from "../ui/sheets";
 import { LayoutShell } from "../ui/shell";
-import { AllChatsSidebar } from "../ui/sidebar/AllChatsSidebar";
-import { AllNotesSidebar } from "../ui/sidebar/AllNotesSidebar";
+import { AllPrivateChatsSidebar } from "../ui/sidebar/AllPrivateChatsSidebar";
+import { AllSharedChatsSidebar } from "../ui/sidebar/AllSharedChatsSidebar";
 
 interface LayoutDataProviderProps {
 	searchSpaceId: string;
@@ -58,15 +54,10 @@ export function LayoutDataProvider({
 	const { data: user } = useAtomValue(currentUserAtom);
 	const { data: searchSpacesData, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
-	const hasUnsavedEditorChanges = useAtomValue(hasUnsavedEditorChangesAtom);
-	const setPendingNavigation = useSetAtom(pendingEditorNavigationAtom);
 
 	// Current IDs from URL
 	const currentChatId = params?.chat_id
 		? Number(Array.isArray(params.chat_id) ? params.chat_id[0] : params.chat_id)
-		: null;
-	const currentNoteId = params?.note_id
-		? Number(Array.isArray(params.note_id) ? params.note_id[0] : params.note_id)
 		: null;
 
 	// Fetch current search space
@@ -77,45 +68,17 @@ export function LayoutDataProvider({
 	});
 
 	// Fetch threads
-	const { data: threadsData, refetch: refetchThreads } = useQuery({
+	const { data: threadsData } = useQuery({
 		queryKey: ["threads", searchSpaceId, { limit: 4 }],
 		queryFn: () => fetchThreads(Number(searchSpaceId), 4),
 		enabled: !!searchSpaceId,
 	});
 
-	// Fetch notes
-	const { data: notesData, refetch: refetchNotes } = useQuery({
-		queryKey: ["notes", searchSpaceId],
-		queryFn: () =>
-			notesApiService.getNotes({
-				search_space_id: Number(searchSpaceId),
-				page_size: 4,
-			}),
-		enabled: !!searchSpaceId,
-	});
+	// Separate sidebar states for shared and private chats
+	const [isAllSharedChatsSidebarOpen, setIsAllSharedChatsSidebarOpen] = useState(false);
+	const [isAllPrivateChatsSidebarOpen, setIsAllPrivateChatsSidebarOpen] = useState(false);
 
-	// Poll for active reindexing tasks to show inline loading indicators
-	const { summary } = useLogsSummary(searchSpaceId ? Number(searchSpaceId) : 0, 24, {
-		enablePolling: true,
-		refetchInterval: 5000,
-	});
-
-	// Create a Set of document IDs that are currently being reindexed
-	const reindexingDocumentIds = useMemo(() => {
-		if (!summary?.active_tasks) return new Set<number>();
-		return new Set(
-			summary.active_tasks
-				.filter((task) => task.document_id != null)
-				.map((task) => task.document_id as number)
-		);
-	}, [summary?.active_tasks]);
-
-	// All chats/notes sidebars state
-	const [isAllChatsSidebarOpen, setIsAllChatsSidebarOpen] = useState(false);
-	const [isAllNotesSidebarOpen, setIsAllNotesSidebarOpen] = useState(false);
-
-	// Search space sheet and dialog state
-	const [isAllSearchSpacesSheetOpen, setIsAllSearchSpacesSheetOpen] = useState(false);
+	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
 	// Delete dialogs state
@@ -123,13 +86,13 @@ export function LayoutDataProvider({
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
 	const [isDeletingChat, setIsDeletingChat] = useState(false);
 
-	const [showDeleteNoteDialog, setShowDeleteNoteDialog] = useState(false);
-	const [noteToDelete, setNoteToDelete] = useState<{
-		id: number;
-		name: string;
-		search_space_id: number;
-	} | null>(null);
-	const [isDeletingNote, setIsDeletingNote] = useState(false);
+	// Delete/Leave search space dialog state
+	const [showDeleteSearchSpaceDialog, setShowDeleteSearchSpaceDialog] = useState(false);
+	const [showLeaveSearchSpaceDialog, setShowLeaveSearchSpaceDialog] = useState(false);
+	const [searchSpaceToDelete, setSearchSpaceToDelete] = useState<SearchSpace | null>(null);
+	const [searchSpaceToLeave, setSearchSpaceToLeave] = useState<SearchSpace | null>(null);
+	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
+	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -149,35 +112,34 @@ export function LayoutDataProvider({
 		return searchSpaces.find((s) => s.id === Number(searchSpaceId)) ?? null;
 	}, [searchSpaceId, searchSpaces]);
 
-	// Transform chats
-	const chats: ChatItem[] = useMemo(() => {
-		if (!threadsData?.threads) return [];
-		return threadsData.threads.map((thread) => ({
-			id: thread.id,
-			name: thread.title || `Chat ${thread.id}`,
-			url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
-		}));
-	}, [threadsData, searchSpaceId]);
+	// Transform and split chats into private and shared based on visibility
+	const { myChats, sharedChats } = useMemo(() => {
+		if (!threadsData?.threads) return { myChats: [], sharedChats: [] };
 
-	// Transform notes
-	const notes: NoteItem[] = useMemo(() => {
-		if (!notesData?.items) return [];
-		const sortedNotes = [...notesData.items].sort((a, b) => {
-			const dateA = a.updated_at
-				? new Date(a.updated_at).getTime()
-				: new Date(a.created_at).getTime();
-			const dateB = b.updated_at
-				? new Date(b.updated_at).getTime()
-				: new Date(b.created_at).getTime();
-			return dateB - dateA;
-		});
-		return sortedNotes.slice(0, 4).map((note) => ({
-			id: note.id,
-			name: note.title,
-			url: `/dashboard/${note.search_space_id}/editor/${note.id}`,
-			isReindexing: reindexingDocumentIds.has(note.id),
-		}));
-	}, [notesData, reindexingDocumentIds]);
+		const privateChats: ChatItem[] = [];
+		const sharedChatsList: ChatItem[] = [];
+
+		for (const thread of threadsData.threads) {
+			const chatItem: ChatItem = {
+				id: thread.id,
+				name: thread.title || `Chat ${thread.id}`,
+				url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
+				visibility: thread.visibility,
+				isOwnThread: thread.is_own_thread,
+			};
+
+			// Split based on visibility, not ownership:
+			// - PRIVATE chats go to "Private Chats" section
+			// - SEARCH_SPACE chats go to "Shared Chats" section
+			if (thread.visibility === "SEARCH_SPACE") {
+				sharedChatsList.push(chatItem);
+			} else {
+				privateChats.push(chatItem);
+			}
+		}
+
+		return { myChats: privateChats, sharedChats: sharedChatsList };
+	}, [threadsData, searchSpaceId]);
 
 	// Navigation items
 	const navItems: NavItem[] = useMemo(
@@ -210,36 +172,80 @@ export function LayoutDataProvider({
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
-	const handleSeeAllSearchSpaces = useCallback(() => {
-		setIsAllSearchSpacesSheetOpen(true);
-	}, []);
-
 	const handleUserSettings = useCallback(() => {
 		router.push("/dashboard/user/settings");
 	}, [router]);
 
 	const handleSearchSpaceSettings = useCallback(
-		(id: number) => {
-			router.push(`/dashboard/${id}/settings`);
+		(space: SearchSpace) => {
+			router.push(`/dashboard/${space.id}/settings`);
 		},
 		[router]
 	);
 
-	const handleDeleteSearchSpace = useCallback(
-		async (id: number) => {
-			await deleteSearchSpace({ id });
+	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
+		// If user is owner, show delete dialog; otherwise show leave dialog
+		if (space.isOwner) {
+			setSearchSpaceToDelete(space);
+			setShowDeleteSearchSpaceDialog(true);
+		} else {
+			setSearchSpaceToLeave(space);
+			setShowLeaveSearchSpaceDialog(true);
+		}
+	}, []);
+
+	const confirmDeleteSearchSpace = useCallback(async () => {
+		if (!searchSpaceToDelete) return;
+		setIsDeletingSearchSpace(true);
+		try {
+			await deleteSearchSpace({ id: searchSpaceToDelete.id });
 			refetchSearchSpaces();
-			if (Number(searchSpaceId) === id && searchSpaces.length > 1) {
-				const remaining = searchSpaces.filter((s) => s.id !== id);
+			if (Number(searchSpaceId) === searchSpaceToDelete.id && searchSpaces.length > 1) {
+				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToDelete.id);
 				if (remaining.length > 0) {
 					router.push(`/dashboard/${remaining[0].id}/new-chat`);
 				}
 			} else if (searchSpaces.length === 1) {
 				router.push("/dashboard");
 			}
-		},
-		[deleteSearchSpace, refetchSearchSpaces, searchSpaceId, searchSpaces, router]
-	);
+		} catch (error) {
+			console.error("Error deleting search space:", error);
+		} finally {
+			setIsDeletingSearchSpace(false);
+			setShowDeleteSearchSpaceDialog(false);
+			setSearchSpaceToDelete(null);
+		}
+	}, [
+		searchSpaceToDelete,
+		deleteSearchSpace,
+		refetchSearchSpaces,
+		searchSpaceId,
+		searchSpaces,
+		router,
+	]);
+
+	const confirmLeaveSearchSpace = useCallback(async () => {
+		if (!searchSpaceToLeave) return;
+		setIsLeavingSearchSpace(true);
+		try {
+			await searchSpacesApiService.leaveSearchSpace(searchSpaceToLeave.id);
+			refetchSearchSpaces();
+			if (Number(searchSpaceId) === searchSpaceToLeave.id && searchSpaces.length > 1) {
+				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToLeave.id);
+				if (remaining.length > 0) {
+					router.push(`/dashboard/${remaining[0].id}/new-chat`);
+				}
+			} else if (searchSpaces.length === 1) {
+				router.push("/dashboard");
+			}
+		} catch (error) {
+			console.error("Error leaving search space:", error);
+		} finally {
+			setIsLeavingSearchSpace(false);
+			setShowLeaveSearchSpaceDialog(false);
+			setSearchSpaceToLeave(null);
+		}
+	}, [searchSpaceToLeave, refetchSearchSpaces, searchSpaceId, searchSpaces, router]);
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
@@ -263,34 +269,6 @@ export function LayoutDataProvider({
 		setChatToDelete({ id: chat.id, name: chat.name });
 		setShowDeleteChatDialog(true);
 	}, []);
-
-	const handleNoteSelect = useCallback(
-		(note: NoteItem) => {
-			if (hasUnsavedEditorChanges) {
-				setPendingNavigation(note.url);
-			} else {
-				router.push(note.url);
-			}
-		},
-		[router, hasUnsavedEditorChanges, setPendingNavigation]
-	);
-
-	const handleNoteDelete = useCallback(
-		(note: NoteItem) => {
-			setNoteToDelete({ id: note.id, name: note.name, search_space_id: Number(searchSpaceId) });
-			setShowDeleteNoteDialog(true);
-		},
-		[searchSpaceId]
-	);
-
-	const handleAddNote = useCallback(() => {
-		const newNoteUrl = `/dashboard/${searchSpaceId}/editor/new`;
-		if (hasUnsavedEditorChanges) {
-			setPendingNavigation(newNoteUrl);
-		} else {
-			router.push(newNoteUrl);
-		}
-	}, [router, searchSpaceId, hasUnsavedEditorChanges, setPendingNavigation]);
 
 	const handleSettings = useCallback(() => {
 		router.push(`/dashboard/${searchSpaceId}/settings`);
@@ -318,12 +296,12 @@ export function LayoutDataProvider({
 		setTheme(theme === "dark" ? "light" : "dark");
 	}, [theme, setTheme]);
 
-	const handleViewAllChats = useCallback(() => {
-		setIsAllChatsSidebarOpen(true);
+	const handleViewAllSharedChats = useCallback(() => {
+		setIsAllSharedChatsSidebarOpen(true);
 	}, []);
 
-	const handleViewAllNotes = useCallback(() => {
-		setIsAllNotesSidebarOpen(true);
+	const handleViewAllPrivateChats = useCallback(() => {
+		setIsAllPrivateChatsSidebarOpen(true);
 	}, []);
 
 	// Delete handlers
@@ -345,24 +323,6 @@ export function LayoutDataProvider({
 		}
 	}, [chatToDelete, queryClient, searchSpaceId, router, currentChatId]);
 
-	const confirmDeleteNote = useCallback(async () => {
-		if (!noteToDelete) return;
-		setIsDeletingNote(true);
-		try {
-			await notesApiService.deleteNote({
-				search_space_id: noteToDelete.search_space_id,
-				note_id: noteToDelete.id,
-			});
-			refetchNotes();
-		} catch (error) {
-			console.error("Error deleting note:", error);
-		} finally {
-			setIsDeletingNote(false);
-			setShowDeleteNoteDialog(false);
-			setNoteToDelete(null);
-		}
-	}, [noteToDelete, refetchNotes]);
-
 	// Page usage
 	const pageUsage = user
 		? {
@@ -380,26 +340,23 @@ export function LayoutDataProvider({
 				searchSpaces={searchSpaces}
 				activeSearchSpaceId={Number(searchSpaceId)}
 				onSearchSpaceSelect={handleSearchSpaceSelect}
+				onSearchSpaceDelete={handleSearchSpaceDeleteClick}
+				onSearchSpaceSettings={handleSearchSpaceSettings}
 				onAddSearchSpace={handleAddSearchSpace}
 				searchSpace={activeSearchSpace}
 				navItems={navItems}
 				onNavItemClick={handleNavItemClick}
-				chats={chats}
+				chats={myChats}
+				sharedChats={sharedChats}
 				activeChatId={currentChatId}
 				onNewChat={handleNewChat}
 				onChatSelect={handleChatSelect}
 				onChatDelete={handleChatDelete}
-				onViewAllChats={handleViewAllChats}
-				notes={notes}
-				activeNoteId={currentNoteId}
-				onNoteSelect={handleNoteSelect}
-				onNoteDelete={handleNoteDelete}
-				onAddNote={handleAddNote}
-				onViewAllNotes={handleViewAllNotes}
+				onViewAllSharedChats={handleViewAllSharedChats}
+				onViewAllPrivateChats={handleViewAllPrivateChats}
 				user={{ email: user?.email || "", name: user?.email?.split("@")[0] }}
 				onSettings={handleSettings}
 				onManageMembers={handleManageMembers}
-				onSeeAllSearchSpaces={handleSeeAllSearchSpaces}
 				onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
@@ -455,69 +412,33 @@ export function LayoutDataProvider({
 				</DialogContent>
 			</Dialog>
 
-			{/* All Chats Sidebar */}
-			<AllChatsSidebar
-				open={isAllChatsSidebarOpen}
-				onOpenChange={setIsAllChatsSidebarOpen}
-				searchSpaceId={searchSpaceId}
-			/>
-
-			{/* All Notes Sidebar */}
-			<AllNotesSidebar
-				open={isAllNotesSidebarOpen}
-				onOpenChange={setIsAllNotesSidebarOpen}
-				searchSpaceId={searchSpaceId}
-				onAddNote={handleAddNote}
-			/>
-
-			{/* All Search Spaces Sheet */}
-			<AllSearchSpacesSheet
-				open={isAllSearchSpacesSheetOpen}
-				onOpenChange={setIsAllSearchSpacesSheetOpen}
-				searchSpaces={searchSpaces}
-				onSearchSpaceSelect={handleSearchSpaceSelect}
-				onCreateNew={() => {
-					setIsAllSearchSpacesSheetOpen(false);
-					setIsCreateSearchSpaceDialogOpen(true);
-				}}
-				onSettings={handleSearchSpaceSettings}
-				onDelete={handleDeleteSearchSpace}
-			/>
-
-			{/* Create Search Space Dialog */}
-			<CreateSearchSpaceDialog
-				open={isCreateSearchSpaceDialogOpen}
-				onOpenChange={setIsCreateSearchSpaceDialogOpen}
-			/>
-
-			{/* Delete Note Dialog */}
-			<Dialog open={showDeleteNoteDialog} onOpenChange={setShowDeleteNoteDialog}>
+			{/* Delete Search Space Dialog */}
+			<Dialog open={showDeleteSearchSpaceDialog} onOpenChange={setShowDeleteSearchSpaceDialog}>
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
 							<Trash2 className="h-5 w-5 text-destructive" />
-							<span>{t("delete_note")}</span>
+							<span>{t("delete_search_space")}</span>
 						</DialogTitle>
 						<DialogDescription>
-							{t("delete_note_confirm")} <span className="font-medium">{noteToDelete?.name}</span>?{" "}
-							{t("action_cannot_undone")}
+							{t("delete_space_confirm", { name: searchSpaceToDelete?.name || "" })}
 						</DialogDescription>
 					</DialogHeader>
 					<DialogFooter className="flex gap-2 sm:justify-end">
 						<Button
 							variant="outline"
-							onClick={() => setShowDeleteNoteDialog(false)}
-							disabled={isDeletingNote}
+							onClick={() => setShowDeleteSearchSpaceDialog(false)}
+							disabled={isDeletingSearchSpace}
 						>
 							{tCommon("cancel")}
 						</Button>
 						<Button
 							variant="destructive"
-							onClick={confirmDeleteNote}
-							disabled={isDeletingNote}
+							onClick={confirmDeleteSearchSpace}
+							disabled={isDeletingSearchSpace}
 							className="gap-2"
 						>
-							{isDeletingNote ? (
+							{isDeletingSearchSpace ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 									{t("deleting")}
@@ -532,6 +453,68 @@ export function LayoutDataProvider({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+
+			{/* Leave Search Space Dialog */}
+			<Dialog open={showLeaveSearchSpaceDialog} onOpenChange={setShowLeaveSearchSpaceDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<LogOut className="h-5 w-5 text-destructive" />
+							<span>{t("leave_title")}</span>
+						</DialogTitle>
+						<DialogDescription>
+							{t("leave_confirm", { name: searchSpaceToLeave?.name || "" })}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowLeaveSearchSpaceDialog(false)}
+							disabled={isLeavingSearchSpace}
+						>
+							{tCommon("cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={confirmLeaveSearchSpace}
+							disabled={isLeavingSearchSpace}
+							className="gap-2"
+						>
+							{isLeavingSearchSpace ? (
+								<>
+									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{t("leaving")}
+								</>
+							) : (
+								<>
+									<LogOut className="h-4 w-4" />
+									{t("leave")}
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* All Shared Chats Sidebar */}
+			<AllSharedChatsSidebar
+				open={isAllSharedChatsSidebarOpen}
+				onOpenChange={setIsAllSharedChatsSidebarOpen}
+				searchSpaceId={searchSpaceId}
+			/>
+
+			{/* All Private Chats Sidebar */}
+			<AllPrivateChatsSidebar
+				open={isAllPrivateChatsSidebarOpen}
+				onOpenChange={setIsAllPrivateChatsSidebarOpen}
+				searchSpaceId={searchSpaceId}
+			/>
+
+			{/* Create Search Space Dialog */}
+			<CreateSearchSpaceDialog
+				open={isCreateSearchSpaceDialogOpen}
+				onOpenChange={setIsCreateSearchSpaceDialogOpen}
+			/>
 		</>
 	);
 }
