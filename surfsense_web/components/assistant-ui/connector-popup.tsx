@@ -3,17 +3,14 @@
 import { useAtomValue } from "jotai";
 import { Cable, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { type FC, useMemo } from "react";
+import type { FC } from "react";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import { useLogsSummary } from "@/hooks/use-logs";
 import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
 import { useDocumentsElectric } from "@/hooks/use-documents-electric";
-import { connectorsApiService } from "@/lib/apis/connectors-api.service";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
@@ -21,6 +18,7 @@ import { ConnectorEditView } from "./connector-popup/connector-configs/views/con
 import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
 import { OAUTH_CONNECTORS } from "./connector-popup/constants/connector-constants";
 import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
+import { useIndexingConnectors } from "./connector-popup/hooks/use-indexing-connectors";
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
@@ -35,12 +33,6 @@ export const ConnectorIndicator: FC = () => {
 
 	// Check if YouTube view is active
 	const isYouTubeView = searchParams.get("view") === "youtube";
-
-	// Track active indexing tasks
-	const { summary: logsSummary } = useLogsSummary(searchSpaceId ? Number(searchSpaceId) : 0, 24, {
-		enablePolling: true,
-		refetchInterval: 5000,
-	});
 
 	// Use the custom hook for dialog state management
 	const {
@@ -118,17 +110,10 @@ export const ConnectorIndicator: FC = () => {
 		}
 	};
 
-	// Document type counts now update in real-time via Electric SQL - no polling needed!
-
-	// Get connector IDs that are currently being indexed
-	const indexingConnectorIds = useMemo(() => {
-		if (!logsSummary?.active_tasks) return new Set<number>();
-		return new Set(
-			logsSummary.active_tasks
-				.filter((task) => task.source?.includes("connector_indexing") && task.connector_id != null)
-				.map((task) => task.connector_id as number)
-		);
-	}, [logsSummary?.active_tasks]);
+	// Track indexing state locally - clears automatically when Electric SQL detects last_indexed_at changed
+	const { indexingConnectorIds, startIndexing } = useIndexingConnectors(
+		connectors as SearchSourceConnector[]
+	);
 
 	const isLoading = connectorsLoading || documentTypesLoading;
 
@@ -143,8 +128,9 @@ export const ConnectorIndicator: FC = () => {
 	const activeConnectorsCount = connectors.length; // Only actual connectors, not document types
 
 	// Check which connectors are already connected
+	// Using Electric SQL + PGlite for real-time connector updates
 	const connectedTypes = new Set(
-		(allConnectors || []).map((c: SearchSourceConnector) => c.connector_type)
+		(connectors || []).map((c: SearchSourceConnector) => c.connector_type)
 	);
 
 	if (!searchSpaceId) return null;
@@ -188,9 +174,8 @@ export const ConnectorIndicator: FC = () => {
 					<ConnectorAccountsListView
 						connectorType={viewingAccountsType.connectorType}
 						connectorTitle={viewingAccountsType.connectorTitle}
-						connectors={(allConnectors || []) as SearchSourceConnector[]}
+						connectors={(connectors || []) as SearchSourceConnector[]} // Using Electric SQL + PGlite for real-time connector updates (all connector types)
 						indexingConnectorIds={indexingConnectorIds}
-						logsSummary={logsSummary}
 						onBack={handleBackFromAccountsList}
 						onManage={handleStartEdit}
 						onAddAccount={() => {
@@ -228,13 +213,18 @@ export const ConnectorIndicator: FC = () => {
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
 						onFrequencyChange={setFrequencyMinutes}
-						onSave={() => handleSaveConnector(() => refreshConnectors())}
+						onSave={() => {
+							startIndexing(editingConnector.id);
+							handleSaveConnector(() => refreshConnectors());
+						}}
 						onDisconnect={() => handleDisconnectConnector(() => refreshConnectors())}
 						onBack={handleBackFromEdit}
 						onQuickIndex={
 							editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
-								? () =>
-										handleQuickIndexConnector(editingConnector.id, editingConnector.connector_type)
+								? () => {
+										startIndexing(editingConnector.id);
+										handleQuickIndexConnector(editingConnector.id, editingConnector.connector_type);
+									}
 								: undefined
 						}
 						onConfigChange={setConnectorConfig}
@@ -261,7 +251,12 @@ export const ConnectorIndicator: FC = () => {
 						onPeriodicEnabledChange={setPeriodicEnabled}
 						onFrequencyChange={setFrequencyMinutes}
 						onConfigChange={setIndexingConnectorConfig}
-						onStartIndexing={() => handleStartIndexing(() => refreshConnectors())}
+						onStartIndexing={() => {
+							if (indexingConfig.connectorId) {
+								startIndexing(indexingConfig.connectorId);
+							}
+							handleStartIndexing(() => refreshConnectors());
+						}}
 						onSkip={handleSkipIndexing}
 					/>
 				) : (
@@ -290,10 +285,9 @@ export const ConnectorIndicator: FC = () => {
 											searchSpaceId={searchSpaceId}
 											connectedTypes={connectedTypes}
 											connectingId={connectingId}
-											allConnectors={allConnectors}
+											allConnectors={connectors}
 											documentTypeCounts={documentTypeCounts}
 											indexingConnectorIds={indexingConnectorIds}
-											logsSummary={logsSummary}
 											onConnectOAuth={handleConnectOAuth}
 											onConnectNonOAuth={handleConnectNonOAuth}
 											onCreateWebcrawler={handleCreateWebcrawler}
@@ -310,7 +304,6 @@ export const ConnectorIndicator: FC = () => {
 										activeDocumentTypes={activeDocumentTypes}
 										connectors={connectors as SearchSourceConnector[]}
 										indexingConnectorIds={indexingConnectorIds}
-										logsSummary={logsSummary}
 										searchSpaceId={searchSpaceId}
 										onTabChange={handleTabChange}
 										onManage={handleStartEdit}

@@ -5,7 +5,6 @@ import { FileText, Loader2 } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { LogActiveTask } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { ConnectorStatusBadge } from "./connector-status-badge";
@@ -20,20 +19,8 @@ interface ConnectorCardProps {
 	documentCount?: number;
 	accountCount?: number;
 	isIndexing?: boolean;
-	activeTask?: LogActiveTask;
 	onConnect?: () => void;
 	onManage?: () => void;
-}
-
-/**
- * Extract a number from the active task message for display
- * Looks for patterns like "45 indexed", "Processing 123", etc.
- */
-function extractIndexedCount(message: string | undefined): number | null {
-	if (!message) return null;
-	// Try to find a number in the message
-	const match = message.match(/(\d+)/);
-	return match ? parseInt(match[1], 10) : null;
 }
 
 /**
@@ -60,7 +47,6 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	documentCount,
 	accountCount,
 	isIndexing = false,
-	activeTask,
 	onConnect,
 	onManage,
 }) => {
@@ -73,32 +59,29 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	const statusMessage = getConnectorStatusMessage(connectorType);
 	const showWarnings = shouldShowWarnings();
 
-	// Extract count from active task message during indexing
-	const indexingCount = extractIndexedCount(activeTask?.message);
-
-		// Determine the status content to display
-		const getStatusContent = () => {
-			if (isIndexing) {
-				return (
-					<div className="flex items-center gap-2 w-full max-w-[200px]">
-						<span className="text-[11px] text-primary font-medium whitespace-nowrap">
-							{indexingCount !== null ? <>{indexingCount.toLocaleString()} indexed</> : "Syncing..."}
-						</span>
-						{/* Indeterminate progress bar with animation */}
-						<div className="relative flex-1 h-1 overflow-hidden rounded-full bg-primary/20">
-							<div className="absolute h-full bg-primary rounded-full animate-progress-indeterminate" />
-						</div>
+	// Determine the status content to display
+	const getStatusContent = () => {
+		if (isIndexing) {
+			return (
+				<div className="flex items-center gap-2 w-full max-w-[200px]">
+					<span className="text-[11px] text-primary font-medium whitespace-nowrap">
+						Syncing...
+					</span>
+					{/* Indeterminate progress bar with animation */}
+					<div className="relative flex-1 h-1 overflow-hidden rounded-full bg-primary/20">
+						<div className="absolute h-full bg-primary rounded-full animate-progress-indeterminate" />
 					</div>
-				);
-			}
+				</div>
+			);
+		}
 
-			if (isConnected) {
-				// Don't show last indexed in overview tabs - only show in accounts list view
-				return null;
-			}
+		if (isConnected) {
+			// Don't show last indexed in overview tabs - only show in accounts list view
+			return null;
+		}
 
-			return description;
-		};
+		return description;
+	};
 
 	const cardContent = (
 		<div

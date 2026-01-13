@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import { OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
@@ -20,7 +19,6 @@ interface ActiveConnectorsTabProps {
 	activeDocumentTypes: Array<[string, number]>;
 	connectors: SearchSourceConnector[];
 	indexingConnectorIds: Set<number>;
-	logsSummary: LogSummary | undefined;
 	searchSpaceId: string;
 	onTabChange: (value: string) => void;
 	onManage?: (connector: SearchSourceConnector) => void;
@@ -33,7 +31,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	activeDocumentTypes,
 	connectors,
 	indexingConnectorIds,
-	logsSummary,
 	searchSpaceId,
 	onTabChange,
 	onManage,
@@ -224,9 +221,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 								{/* Non-OAuth Connectors - Individual Cards */}
 								{filteredNonOAuthConnectors.map((connector) => {
 									const isIndexing = indexingConnectorIds.has(connector.id);
-									const activeTask = logsSummary?.active_tasks?.find(
-										(task: LogActiveTask) => task.connector_id === connector.id
-									);
 									const documentCount = getDocumentCountForConnector(
 										connector.connector_type,
 										documentTypeCounts
@@ -259,12 +253,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												{isIndexing && (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
-														Indexing...
-														{activeTask?.message && (
-															<span className="text-muted-foreground truncate max-w-[150px]">
-																• {activeTask.message}
-															</span>
-														)}
+														Syncing...
 													</p>
 												)}
 												<p className="text-[10px] text-muted-foreground mt-1">

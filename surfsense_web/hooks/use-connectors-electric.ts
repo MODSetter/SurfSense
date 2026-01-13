@@ -12,6 +12,29 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 	const syncHandleRef = useRef<SyncHandle | null>(null)
 	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null)
 
+	// Transform connector data from Electric SQL/PGlite to match expected format
+	// Converts Date objects to ISO strings as expected by Zod schema
+	function transformConnector(connector: any): SearchSourceConnector {
+		return {
+			...connector,
+			last_indexed_at: connector.last_indexed_at
+				? typeof connector.last_indexed_at === 'string'
+					? connector.last_indexed_at
+					: new Date(connector.last_indexed_at).toISOString()
+				: null,
+			next_scheduled_at: connector.next_scheduled_at
+				? typeof connector.next_scheduled_at === 'string'
+					? connector.next_scheduled_at
+					: new Date(connector.next_scheduled_at).toISOString()
+				: null,
+			created_at: connector.created_at
+				? typeof connector.created_at === 'string'
+					? connector.created_at
+					: new Date(connector.created_at).toISOString()
+				: new Date().toISOString(), // fallback
+		}
+	}
+
 	// Initialize Electric SQL and start syncing with real-time updates
 	useEffect(() => {
 		if (!searchSpaceId) {
@@ -107,20 +130,20 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 						// Set initial results immediately from the resolved query
 						if (liveQuery.initialResults?.rows) {
 							console.log('📋 Initial live query results for connectors:', liveQuery.initialResults.rows.length)
-							setConnectors(liveQuery.initialResults.rows)
+							setConnectors(liveQuery.initialResults.rows.map(transformConnector))
 						} else if (liveQuery.rows) {
 							// Some versions have rows directly on the result
 							console.log('📋 Initial live query results for connectors (direct):', liveQuery.rows.length)
-							setConnectors(liveQuery.rows)
+							setConnectors(liveQuery.rows.map(transformConnector))
 						}
 						
 						// Subscribe to changes - this is the correct API!
 						// The callback fires automatically when Electric SQL syncs new data to PGlite
 						if (typeof liveQuery.subscribe === 'function') {
-							liveQuery.subscribe((result: { rows: SearchSourceConnector[] }) => {
+							liveQuery.subscribe((result: { rows: any[] }) => {
 								if (mounted && result.rows) {
 									console.log('🔄 Connectors updated via live query:', result.rows.length)
-									setConnectors(result.rows)
+									setConnectors(result.rows.map(transformConnector))
 								}
 							})
 							
@@ -161,7 +184,7 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 				[searchSpaceId]
 			)
 			console.log('📋 Fetched connectors from PGlite:', result.rows?.length || 0)
-			setConnectors(result.rows || [])
+			setConnectors((result.rows || []).map(transformConnector))
 		} catch (err) {
 			console.error('Failed to fetch connectors from PGlite:', err)
 		}
