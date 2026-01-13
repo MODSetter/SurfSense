@@ -191,7 +191,7 @@ export const ConnectorIndicator: FC = () => {
 				) : connectingConnectorType ? (
 					<ConnectorConnectView
 						connectorType={connectingConnectorType}
-						onSubmit={handleSubmitConnectForm}
+						onSubmit={(formData) => handleSubmitConnectForm(formData, startIndexing)}
 						onBack={handleBackFromConnect}
 						isSubmitting={isCreatingConnector}
 					/>

@@ -139,10 +139,10 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 							<div
 								key={connector.id}
 								className={cn(
-									"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
+									"flex items-center gap-4 p-4 rounded-xl transition-all",
 									isIndexing
-										? "bg-primary/5 border-primary/20"
-										: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+										? "bg-primary/5 border-0"
+										: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
 								)}
 							>
 								<div

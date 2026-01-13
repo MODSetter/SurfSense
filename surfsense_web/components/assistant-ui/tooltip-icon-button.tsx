@@ -29,7 +29,6 @@ export const TooltipIconButton = forwardRef<HTMLButtonElement, TooltipIconButton
 				</TooltipTrigger>
 				<TooltipContent
 					side={side}
-					className="bg-black text-white font-medium shadow-xl px-3 py-1.5 dark:bg-zinc-800 dark:text-zinc-50 border-none"
 				>
 					{tooltip}
 				</TooltipContent>
