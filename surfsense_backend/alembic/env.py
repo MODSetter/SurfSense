@@ -27,9 +27,7 @@ if database_url:
 
 # Electric SQL user credentials - centralized configuration for migrations
 # These are used by migrations that set up Electric SQL replication
-config.set_main_option(
-    "electric_db_user", os.getenv("ELECTRIC_DB_USER", "electric")
-)
+config.set_main_option("electric_db_user", os.getenv("ELECTRIC_DB_USER", "electric"))
 config.set_main_option(
     "electric_db_password", os.getenv("ELECTRIC_DB_PASSWORD", "electric_password")
 )

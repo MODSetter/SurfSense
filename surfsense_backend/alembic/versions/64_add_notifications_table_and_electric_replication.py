@@ -15,7 +15,9 @@ from alembic import context, op
 # Get Electric SQL user credentials from env.py configuration
 _config = context.config
 ELECTRIC_DB_USER = _config.get_main_option("electric_db_user", "electric")
-ELECTRIC_DB_PASSWORD = _config.get_main_option("electric_db_password", "electric_password")
+ELECTRIC_DB_PASSWORD = _config.get_main_option(
+    "electric_db_password", "electric_password"
+)
 
 # revision identifiers, used by Alembic.
 revision: str = "64"
@@ -53,7 +55,7 @@ def upgrade() -> None:
     # =====================================================
     # Electric SQL Setup - User and Publication
     # =====================================================
-    
+
     # Create Electric SQL replication user if not exists
     op.execute(
         f"""
@@ -66,7 +68,7 @@ def upgrade() -> None:
         $$;
         """
     )
-    
+
     # Grant necessary permissions to electric user
     op.execute(
         f"""
@@ -82,9 +84,13 @@ def upgrade() -> None:
     op.execute(f"GRANT USAGE ON SCHEMA public TO {ELECTRIC_DB_USER};")
     op.execute(f"GRANT SELECT ON ALL TABLES IN SCHEMA public TO {ELECTRIC_DB_USER};")
     op.execute(f"GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {ELECTRIC_DB_USER};")
-    op.execute(f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {ELECTRIC_DB_USER};")
-    op.execute(f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {ELECTRIC_DB_USER};")
-    
+    op.execute(
+        f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {ELECTRIC_DB_USER};"
+    )
+    op.execute(
+        f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {ELECTRIC_DB_USER};"
+    )
+
     # Create the publication if not exists
     op.execute(
         """
@@ -101,7 +107,7 @@ def upgrade() -> None:
     # =====================================================
     # Electric SQL Setup - Table Configuration
     # =====================================================
-    
+
     # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
     op.execute("ALTER TABLE notifications REPLICA IDENTITY FULL;")
     op.execute("ALTER TABLE search_source_connectors REPLICA IDENTITY FULL;")
