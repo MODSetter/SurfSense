@@ -8,8 +8,8 @@ export const user = z.object({
 	is_verified: z.boolean(),
 	pages_limit: z.number(),
 	pages_used: z.number(),
-	display_name: z.string().nullable().optional(),
-	avatar_url: z.string().nullable().optional(),
+	display_name: z.string().nullish(),
+	avatar_url: z.string().nullish(),
 });
 
 /**
@@ -17,5 +17,20 @@ export const user = z.object({
  */
 export const getMeResponse = user;
 
+/**
+ * Update current user request
+ */
+export const updateUserRequest = z.object({
+	display_name: z.string().nullish(),
+	avatar_url: z.string().nullish(),
+});
+
+/**
+ * Update current user response
+ */
+export const updateUserResponse = user;
+
 export type User = z.infer<typeof user>;
 export type GetMeResponse = z.infer<typeof getMeResponse>;
+export type UpdateUserRequest = z.infer<typeof updateUserRequest>;
+export type UpdateUserResponse = z.infer<typeof updateUserResponse>;
