@@ -123,6 +123,15 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 			setJsonError(null);
 		}
 		
+		// Treat empty/whitespace-only input as empty array (user wants to remove all servers)
+		const trimmedValue = value.trim();
+		if (trimmedValue === "") {
+			if (onConfigChange) {
+				onConfigChange({ server_configs: [] });
+			}
+			return;
+		}
+		
 		// Try to parse and update parent if valid
 		try {
 			const parsed = JSON.parse(value);
@@ -141,8 +150,9 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 				}
 			}
 			
-			// Update parent if we have valid configs
-			if (validConfigs.length > 0 && onConfigChange) {
+			// Always update parent with configs (including empty array)
+			// Empty array signals that all servers should be removed
+			if (onConfigChange) {
 				onConfigChange({ server_configs: validConfigs });
 			}
 		} catch {

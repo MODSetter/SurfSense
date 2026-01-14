@@ -1047,6 +1047,57 @@ export const useConnectorDialog = () => {
 				const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
+				// For MCP connectors, check if all servers were removed (empty array)
+				if (editingConnector.connector_type === "MCP_CONNECTOR") {
+					const serverConfigs = connectorConfig?.server_configs;
+					if (!serverConfigs || (Array.isArray(serverConfigs) && serverConfigs.length === 0)) {
+						// All servers removed - delete the entire connector
+						await deleteConnector({
+							id: editingConnector.id,
+						});
+
+						// Also delete other MCP connectors that were consolidated
+						if (otherMCPConnectorIds.length > 0) {
+							await Promise.all(
+								otherMCPConnectorIds.map((id) =>
+									deleteConnector({
+										id,
+									}).catch(() => {
+										// Silently ignore errors for individual deletions
+									})
+								)
+							);
+							setOtherMCPConnectorIds([]);
+						}
+
+						toast.success("MCPs disconnected successfully", {
+							description: "All MCP servers have been removed.",
+						});
+
+						// Update URL to close modal
+						const url = new URL(window.location.href);
+						url.searchParams.delete("modal");
+						url.searchParams.delete("tab");
+						url.searchParams.delete("view");
+						url.searchParams.delete("connectorId");
+						router.replace(url.pathname + url.search, { scroll: false });
+
+						// Refresh connectors and reset state
+						refreshConnectors();
+						setEditingConnector(null);
+						setConnectorName("");
+						setConnectorConfig(null);
+						setPeriodicEnabled(false);
+						setFrequencyMinutes("1440");
+						setStartDate(undefined);
+						setEndDate(undefined);
+						setOtherMCPConnectorIds([]);
+
+						setIsSaving(false);
+						return;
+					}
+				}
+
 				// For MCP connectors, delete other MCP connectors first (consolidate all into one)
 				if (editingConnector.connector_type === "MCP_CONNECTOR" && otherMCPConnectorIds.length > 0) {
 					// Silently delete other MCP connectors without showing toasts
