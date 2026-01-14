@@ -358,8 +358,11 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             status = "failed"
         else:
             title = f"Ready: {connector_name}"
-            item_text = "item" if indexed_count == 1 else "items"
-            message = f"Now searchable! {indexed_count} {item_text} synced."
+            if indexed_count == 0:
+                message = "Already up to date! No new items to sync."
+            else:
+                item_text = "item" if indexed_count == 1 else "items"
+                message = f"Now searchable! {indexed_count} {item_text} synced."
             status = "completed"
 
         metadata_updates = {

@@ -1073,17 +1073,30 @@ async def _run_indexing_with_notifications(
                     error_message=None,
                 )
         else:
-            # Failure or no documents processed
-            logger.error(
-                f"Indexing failed or no documents processed: {error_or_warning}"
-            )
-            if notification:
-                await NotificationService.connector_indexing.notify_indexing_completed(
-                    session=session,
-                    notification=notification,
-                    indexed_count=0,
-                    error_message=error_or_warning or "No documents processed",
-                )
+            # No new documents processed - check if this is an error or just no changes
+            if error_or_warning:
+                # Actual failure
+                logger.error(f"Indexing failed: {error_or_warning}")
+                if notification:
+                    await NotificationService.connector_indexing.notify_indexing_completed(
+                        session=session,
+                        notification=notification,
+                        indexed_count=0,
+                        error_message=error_or_warning,
+                    )
+            else:
+                # Success - just no new documents to index (all skipped/unchanged)
+                logger.info("Indexing completed: No new documents to process (all up to date)")
+                # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
+                if update_timestamp_func:
+                    await update_timestamp_func(session, connector_id)
+                if notification:
+                    await NotificationService.connector_indexing.notify_indexing_completed(
+                        session=session,
+                        notification=notification,
+                        indexed_count=0,
+                        error_message=None,  # No error - sync succeeded
+                    )
     except Exception as e:
         logger.error(f"Error in indexing task: {e!s}", exc_info=True)
 
