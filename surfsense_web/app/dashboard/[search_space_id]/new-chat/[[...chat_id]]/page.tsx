@@ -23,6 +23,7 @@ import {
 	// extractWriteTodosFromContent,
 	hydratePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
@@ -251,6 +252,9 @@ export default function NewChatPage() {
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const hydratePlanState = useSetAtom(hydratePlanStateAtom);
 
+	// Get current user for author info in shared chats
+	const { data: currentUser } = useAtomValue(currentUserAtom);
+
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
 
@@ -455,13 +459,27 @@ export default function NewChatPage() {
 
 			// Add user message to state
 			const userMsgId = `msg-user-${Date.now()}`;
+
+			// Include author metadata for shared chats
+			const authorMetadata =
+				currentThread?.visibility === "SEARCH_SPACE" && currentUser
+					? {
+							custom: {
+								author: {
+									displayName: currentUser.display_name ?? null,
+									avatarUrl: currentUser.avatar_url ?? null,
+								},
+							},
+						}
+					: undefined;
+
 			const userMessage: ThreadMessageLike = {
 				id: userMsgId,
 				role: "user",
 				content: message.content,
 				createdAt: new Date(),
-				// Include attachments so they can be displayed
 				attachments: message.attachments || [],
+				metadata: authorMetadata,
 			};
 			setMessages((prev) => [...prev, userMessage]);
 
@@ -891,6 +909,8 @@ export default function NewChatPage() {
 			setMentionedDocuments,
 			setMessageDocumentsMap,
 			queryClient,
+			currentThread,
+			currentUser,
 		]
 	);
 
