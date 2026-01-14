@@ -8,6 +8,8 @@ export const user = z.object({
 	is_verified: z.boolean(),
 	pages_limit: z.number(),
 	pages_used: z.number(),
+	display_name: z.string().nullable().optional(),
+	avatar_url: z.string().nullable().optional(),
 });
 
 /**
