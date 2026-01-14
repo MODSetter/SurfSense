@@ -411,10 +411,12 @@ async def get_thread_messages(
     Requires CHATS_READ permission.
     """
     try:
-        # Get thread with messages
+        # Get thread with messages and their authors
         result = await session.execute(
             select(NewChatThread)
-            .options(selectinload(NewChatThread.messages))
+            .options(
+                selectinload(NewChatThread.messages).selectinload(NewChatMessage.author)
+            )
             .filter(NewChatThread.id == thread_id)
         )
         thread = result.scalars().first()
@@ -442,6 +444,9 @@ async def get_thread_messages(
                 role=msg.role,
                 content=msg.content,
                 created_at=msg.created_at,
+                author_id=msg.author_id,
+                author_display_name=msg.author.display_name if msg.author else None,
+                author_avatar_url=msg.author.avatar_url if msg.author else None,
             )
             for msg in thread.messages
         ]
