@@ -782,6 +782,7 @@ async def append_message(
             thread_id=thread_id,
             role=message_role,
             content=message.content,
+            author_id=user.id,
         )
         session.add(db_message)
 
