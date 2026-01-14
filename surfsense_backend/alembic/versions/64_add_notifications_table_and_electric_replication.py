@@ -1,7 +1,7 @@
 """Add notifications table and Electric SQL replication
 
-Revision ID: 62
-Revises: 61
+Revision ID: 64
+Revises: 63
 
 Creates notifications table and sets up Electric SQL replication
 (user, publication, REPLICA IDENTITY FULL) for notifications,
@@ -18,8 +18,8 @@ ELECTRIC_DB_USER = _config.get_main_option("electric_db_user", "electric")
 ELECTRIC_DB_PASSWORD = _config.get_main_option("electric_db_password", "electric_password")
 
 # revision identifiers, used by Alembic.
-revision: str = "62"
-down_revision: str | None = "61"
+revision: str = "64"
+down_revision: str | None = "63"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
