@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
+import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
@@ -134,11 +135,11 @@ export function HeroSection() {
 }
 
 function GetStartedButton() {
-	const isGoogleAuth = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE === "GOOGLE";
+	const isGoogleAuth = AUTH_TYPE === "GOOGLE";
 
 	const handleGoogleLogin = () => {
 		trackLoginAttempt("google");
-		window.location.href = `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/auth/google/authorize-redirect`;
+		window.location.href = `${BACKEND_URL}/auth/google/authorize-redirect`;
 	};
 
 	if (isGoogleAuth) {

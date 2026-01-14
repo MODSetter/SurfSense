@@ -13,6 +13,8 @@ interface MobileSidebarProps {
 	searchSpaces: SearchSpace[];
 	activeSearchSpaceId: number | null;
 	onSearchSpaceSelect: (id: number) => void;
+	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
+	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
 	onAddSearchSpace: () => void;
 	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
@@ -48,6 +50,8 @@ export function MobileSidebar({
 	searchSpaces,
 	activeSearchSpaceId,
 	onSearchSpaceSelect,
+	onSearchSpaceDelete,
+	onSearchSpaceSettings,
 	onAddSearchSpace,
 	searchSpace,
 	navItems,
@@ -94,7 +98,13 @@ export function MobileSidebar({
 								<SearchSpaceAvatar
 									name={space.name}
 									isActive={space.id === activeSearchSpaceId}
+									isShared={space.memberCount > 1}
+									isOwner={space.isOwner}
 									onClick={() => handleSearchSpaceSelect(space.id)}
+									onDelete={onSearchSpaceDelete ? () => onSearchSpaceDelete(space) : undefined}
+									onSettings={
+										onSearchSpaceSettings ? () => onSearchSpaceSettings(space) : undefined
+									}
 									size="md"
 								/>
 							</div>

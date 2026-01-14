@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { Logs, SquareLibrary, Trash2 } from "lucide-react";
+import { LogOut, Logs, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -85,6 +85,14 @@ export function LayoutDataProvider({
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
 	const [isDeletingChat, setIsDeletingChat] = useState(false);
+
+	// Delete/Leave search space dialog state
+	const [showDeleteSearchSpaceDialog, setShowDeleteSearchSpaceDialog] = useState(false);
+	const [showLeaveSearchSpaceDialog, setShowLeaveSearchSpaceDialog] = useState(false);
+	const [searchSpaceToDelete, setSearchSpaceToDelete] = useState<SearchSpace | null>(null);
+	const [searchSpaceToLeave, setSearchSpaceToLeave] = useState<SearchSpace | null>(null);
+	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
+	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -169,27 +177,75 @@ export function LayoutDataProvider({
 	}, [router]);
 
 	const handleSearchSpaceSettings = useCallback(
-		(id: number) => {
-			router.push(`/dashboard/${id}/settings`);
+		(space: SearchSpace) => {
+			router.push(`/dashboard/${space.id}/settings`);
 		},
 		[router]
 	);
 
-	const handleDeleteSearchSpace = useCallback(
-		async (id: number) => {
-			await deleteSearchSpace({ id });
+	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
+		// If user is owner, show delete dialog; otherwise show leave dialog
+		if (space.isOwner) {
+			setSearchSpaceToDelete(space);
+			setShowDeleteSearchSpaceDialog(true);
+		} else {
+			setSearchSpaceToLeave(space);
+			setShowLeaveSearchSpaceDialog(true);
+		}
+	}, []);
+
+	const confirmDeleteSearchSpace = useCallback(async () => {
+		if (!searchSpaceToDelete) return;
+		setIsDeletingSearchSpace(true);
+		try {
+			await deleteSearchSpace({ id: searchSpaceToDelete.id });
 			refetchSearchSpaces();
-			if (Number(searchSpaceId) === id && searchSpaces.length > 1) {
-				const remaining = searchSpaces.filter((s) => s.id !== id);
+			if (Number(searchSpaceId) === searchSpaceToDelete.id && searchSpaces.length > 1) {
+				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToDelete.id);
 				if (remaining.length > 0) {
 					router.push(`/dashboard/${remaining[0].id}/new-chat`);
 				}
 			} else if (searchSpaces.length === 1) {
 				router.push("/dashboard");
 			}
-		},
-		[deleteSearchSpace, refetchSearchSpaces, searchSpaceId, searchSpaces, router]
-	);
+		} catch (error) {
+			console.error("Error deleting search space:", error);
+		} finally {
+			setIsDeletingSearchSpace(false);
+			setShowDeleteSearchSpaceDialog(false);
+			setSearchSpaceToDelete(null);
+		}
+	}, [
+		searchSpaceToDelete,
+		deleteSearchSpace,
+		refetchSearchSpaces,
+		searchSpaceId,
+		searchSpaces,
+		router,
+	]);
+
+	const confirmLeaveSearchSpace = useCallback(async () => {
+		if (!searchSpaceToLeave) return;
+		setIsLeavingSearchSpace(true);
+		try {
+			await searchSpacesApiService.leaveSearchSpace(searchSpaceToLeave.id);
+			refetchSearchSpaces();
+			if (Number(searchSpaceId) === searchSpaceToLeave.id && searchSpaces.length > 1) {
+				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToLeave.id);
+				if (remaining.length > 0) {
+					router.push(`/dashboard/${remaining[0].id}/new-chat`);
+				}
+			} else if (searchSpaces.length === 1) {
+				router.push("/dashboard");
+			}
+		} catch (error) {
+			console.error("Error leaving search space:", error);
+		} finally {
+			setIsLeavingSearchSpace(false);
+			setShowLeaveSearchSpaceDialog(false);
+			setSearchSpaceToLeave(null);
+		}
+	}, [searchSpaceToLeave, refetchSearchSpaces, searchSpaceId, searchSpaces, router]);
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
@@ -284,6 +340,8 @@ export function LayoutDataProvider({
 				searchSpaces={searchSpaces}
 				activeSearchSpaceId={Number(searchSpaceId)}
 				onSearchSpaceSelect={handleSearchSpaceSelect}
+				onSearchSpaceDelete={handleSearchSpaceDeleteClick}
+				onSearchSpaceSettings={handleSearchSpaceSettings}
 				onAddSearchSpace={handleAddSearchSpace}
 				searchSpace={activeSearchSpace}
 				navItems={navItems}
@@ -297,9 +355,9 @@ export function LayoutDataProvider({
 				onViewAllSharedChats={handleViewAllSharedChats}
 				onViewAllPrivateChats={handleViewAllPrivateChats}
 				user={{ email: user?.email || "", name: user?.email?.split("@")[0] }}
-			onSettings={handleSettings}
-			onManageMembers={handleManageMembers}
-			onUserSettings={handleUserSettings}
+				onSettings={handleSettings}
+				onManageMembers={handleManageMembers}
+				onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}
@@ -347,6 +405,90 @@ export function LayoutDataProvider({
 								<>
 									<Trash2 className="h-4 w-4" />
 									{tCommon("delete")}
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Delete Search Space Dialog */}
+			<Dialog open={showDeleteSearchSpaceDialog} onOpenChange={setShowDeleteSearchSpaceDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<Trash2 className="h-5 w-5 text-destructive" />
+							<span>{t("delete_search_space")}</span>
+						</DialogTitle>
+						<DialogDescription>
+							{t("delete_space_confirm", { name: searchSpaceToDelete?.name || "" })}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowDeleteSearchSpaceDialog(false)}
+							disabled={isDeletingSearchSpace}
+						>
+							{tCommon("cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={confirmDeleteSearchSpace}
+							disabled={isDeletingSearchSpace}
+							className="gap-2"
+						>
+							{isDeletingSearchSpace ? (
+								<>
+									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{t("deleting")}
+								</>
+							) : (
+								<>
+									<Trash2 className="h-4 w-4" />
+									{tCommon("delete")}
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Leave Search Space Dialog */}
+			<Dialog open={showLeaveSearchSpaceDialog} onOpenChange={setShowLeaveSearchSpaceDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<LogOut className="h-5 w-5 text-destructive" />
+							<span>{t("leave_title")}</span>
+						</DialogTitle>
+						<DialogDescription>
+							{t("leave_confirm", { name: searchSpaceToLeave?.name || "" })}
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowLeaveSearchSpaceDialog(false)}
+							disabled={isLeavingSearchSpace}
+						>
+							{tCommon("cancel")}
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={confirmLeaveSearchSpace}
+							disabled={isLeavingSearchSpace}
+							className="gap-2"
+						>
+							{isLeavingSearchSpace ? (
+								<>
+									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{t("leaving")}
+								</>
+							) : (
+								<>
+									<LogOut className="h-4 w-4" />
+									{t("leave")}
 								</>
 							)}
 						</Button>

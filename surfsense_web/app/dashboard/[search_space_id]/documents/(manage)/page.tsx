@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { RefreshCw, SquarePlus } from "lucide-react";
+import { RefreshCw, SquarePlus, Upload } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -10,6 +10,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { toast } from "sonner";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Button } from "@/components/ui/button";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useLogsSummary } from "@/hooks/use-logs";
@@ -36,6 +37,7 @@ export default function DocumentsTable() {
 	const params = useParams();
 	const router = useRouter();
 	const searchSpaceId = Number(params.search_space_id);
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 
 	const handleNewNote = useCallback(() => {
 		router.push(`/dashboard/${searchSpaceId}/editor/new`);
@@ -65,8 +67,7 @@ export default function DocumentsTable() {
 	);
 
 	// Check if only SURFSENSE_DOCS is selected (skip regular docs query)
-	const onlySurfsenseDocsSelected =
-		activeTypes.length === 1 && activeTypes[0] === "SURFSENSE_DOCS";
+	const onlySurfsenseDocsSelected = activeTypes.length === 1 && activeTypes[0] === "SURFSENSE_DOCS";
 
 	// Build query parameters for fetching documents (excluding SURFSENSE_DOCS type)
 	const queryParams = useMemo(
@@ -130,9 +131,11 @@ export default function DocumentsTable() {
 		queryKey: ["surfsense-docs", debouncedSearch, pageIndex, pageSize],
 		queryFn: () =>
 			documentsApiService.getSurfsenseDocs({
-				page: pageIndex,
-				page_size: pageSize,
-				title: debouncedSearch.trim() || undefined,
+				queryParams: {
+					page: pageIndex,
+					page_size: pageSize,
+					title: debouncedSearch.trim() || undefined,
+				},
 			}),
 		staleTime: 3 * 60 * 1000, // 3 minutes
 		enabled: showSurfsenseDocs,
@@ -256,7 +259,16 @@ export default function DocumentsTable() {
 		} finally {
 			setIsRefreshing(false);
 		}
-	}, [debouncedSearch, refetchSearch, refetchDocuments, refetchSurfsenseDocs, showSurfsenseDocs, onlySurfsenseDocsSelected, t, isRefreshing]);
+	}, [
+		debouncedSearch,
+		refetchSearch,
+		refetchDocuments,
+		refetchSurfsenseDocs,
+		showSurfsenseDocs,
+		onlySurfsenseDocsSelected,
+		t,
+		isRefreshing,
+	]);
 
 	// Set up smart polling for active tasks - only polls when tasks are in progress
 	const { summary } = useLogsSummary(searchSpaceId, 24, {
@@ -355,7 +367,11 @@ export default function DocumentsTable() {
 					<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
 				</div>
 				<div className="flex items-center gap-2">
-					<Button onClick={handleNewNote} variant="default" size="sm">
+					<Button onClick={openUploadDialog} variant="default" size="sm">
+						<Upload className="w-4 h-4 mr-2" />
+						{t("upload_documents")}
+					</Button>
+					<Button onClick={handleNewNote} variant="outline" size="sm">
 						<SquarePlus className="w-4 h-4 mr-2" />
 						{t("create_shared_note")}
 					</Button>

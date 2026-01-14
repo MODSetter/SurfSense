@@ -170,7 +170,9 @@ function SettingsSidebar({
 									>
 										{t(item.labelKey)}
 									</p>
-									<p className="text-xs text-muted-foreground/70 truncate">{t(item.descriptionKey)}</p>
+									<p className="text-xs text-muted-foreground/70 truncate">
+										{t(item.descriptionKey)}
+									</p>
 								</div>
 								<ChevronRight
 									className={cn(
@@ -184,7 +186,6 @@ function SettingsSidebar({
 						);
 					})}
 				</nav>
-
 			</aside>
 		</>
 	);

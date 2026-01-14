@@ -10,6 +10,14 @@ interface MarkdownViewerProps {
 export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 	const components: StreamdownProps["components"] = {
 		// Define custom components for markdown elements
+		callout: ({ children, ...props }) => (
+			<div
+				className="my-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
+				{...props}
+			>
+				{children}
+			</div>
+		),
 		p: ({ children, ...props }) => (
 			<p className="my-2" {...props}>
 				{children}

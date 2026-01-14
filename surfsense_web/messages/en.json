@@ -97,6 +97,10 @@
 		"create_new_search_space": "Create new search space",
 		"delete_title": "Delete Search Space",
 		"delete_confirm": "Are you sure you want to delete \"{name}\"? This action cannot be undone and will permanently remove all data.",
+		"leave": "Leave",
+		"leave_title": "Leave Search Space",
+		"leave_confirm": "Are you sure you want to leave \"{name}\"? You will lose access to all documents and chats in this search space.",
+		"leaving": "Leaving...",
 		"welcome_title": "Welcome to SurfSense",
 		"welcome_description": "Create your first search space to start organizing your knowledge, connecting sources, and chatting with AI.",
 		"create_first_button": "Create your first search space"
@@ -159,6 +163,10 @@
 		"go_home": "Go Home",
 		"delete_search_space": "Delete Search Space",
 		"delete_space_confirm": "Are you sure you want to delete \"{name}\"? This action cannot be undone. All documents and chats in this search space will be permanently deleted.",
+		"leave": "Leave",
+		"leave_title": "Leave Search Space",
+		"leave_confirm": "Are you sure you want to leave \"{name}\"? You will lose access to all documents and chats in this search space.",
+		"leaving": "Leaving...",
 		"no_spaces_found": "No search spaces found",
 		"create_first_space": "Create your first search space to get started",
 		"created": "Created"
@@ -311,6 +319,7 @@
 		"rows_per_page": "Rows per page",
 		"refresh": "Refresh",
 		"refresh_success": "Documents refreshed",
+		"upload_documents": "Upload Documents",
 		"create_shared_note": "Create Shared Note",
 		"processing_documents": "Processing documents...",
 		"active_tasks_count": "{count} active task(s)"

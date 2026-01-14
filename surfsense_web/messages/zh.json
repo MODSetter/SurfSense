@@ -159,6 +159,10 @@
 		"go_home": "返回首页",
 		"delete_search_space": "删除搜索空间",
 		"delete_space_confirm": "您确定要删除\"{name}\"吗？此操作无法撤销。此搜索空间中的所有文档、对话和播客将被永久删除。",
+		"leave": "退出",
+		"leave_title": "退出搜索空间",
+		"leave_confirm": "您确定要退出\"{name}\"吗？您将无法访问此搜索空间中的所有文档和对话。",
+		"leaving": "退出中...",
 		"no_spaces_found": "未找到搜索空间",
 		"create_first_space": "创建您的第一个搜索空间以开始使用",
 		"created": "创建于"
@@ -311,6 +315,7 @@
 		"rows_per_page": "每页行数",
 		"refresh": "刷新",
 		"refresh_success": "文档已刷新",
+		"upload_documents": "上传文档",
 		"create_shared_note": "创建共享笔记",
 		"processing_documents": "正在处理文档...",
 		"active_tasks_count": "{count} 个正在进行的工作项"

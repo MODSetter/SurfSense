@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 
 // Citation pattern: [citation:CHUNK_ID] or [citation:doc-CHUNK_ID]
 // Also matches Chinese brackets 【】 and handles zero-width spaces that LLM sometimes inserts
-const CITATION_REGEX = /[\[【]\u200B?citation:(doc-)?(\d+)\u200B?[\]】]/g;
+const CITATION_REGEX = /[[【]\u200B?citation:(doc-)?(\d+)\u200B?[\]】]/g;
 
 // Track chunk IDs to citation numbers mapping for consistent numbering
 // This map is reset when a new message starts rendering

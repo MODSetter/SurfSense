@@ -14,6 +14,8 @@ interface LayoutShellProps {
 	searchSpaces: SearchSpace[];
 	activeSearchSpaceId: number | null;
 	onSearchSpaceSelect: (id: number) => void;
+	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
+	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
 	onAddSearchSpace: () => void;
 	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
@@ -46,6 +48,8 @@ export function LayoutShell({
 	searchSpaces,
 	activeSearchSpaceId,
 	onSearchSpaceSelect,
+	onSearchSpaceDelete,
+	onSearchSpaceSettings,
 	onAddSearchSpace,
 	searchSpace,
 	navItems,
@@ -96,6 +100,8 @@ export function LayoutShell({
 						searchSpaces={searchSpaces}
 						activeSearchSpaceId={activeSearchSpaceId}
 						onSearchSpaceSelect={onSearchSpaceSelect}
+						onSearchSpaceDelete={onSearchSpaceDelete}
+						onSearchSpaceSettings={onSearchSpaceSettings}
 						onAddSearchSpace={onAddSearchSpace}
 						searchSpace={searchSpace}
 						navItems={navItems}
@@ -133,6 +139,8 @@ export function LayoutShell({
 						searchSpaces={searchSpaces}
 						activeSearchSpaceId={activeSearchSpaceId}
 						onSearchSpaceSelect={onSearchSpaceSelect}
+						onSearchSpaceDelete={onSearchSpaceDelete}
+						onSearchSpaceSettings={onSearchSpaceSettings}
 						onAddSearchSpace={onAddSearchSpace}
 					/>
 				</div>

@@ -19,6 +19,7 @@ import {
 	getDocumentTypeCountsRequest,
 	getDocumentTypeCountsResponse,
 	getSurfsenseDocsByChunkResponse,
+	getSurfsenseDocsRequest,
 	getSurfsenseDocsResponse,
 	type SearchDocumentsRequest,
 	searchDocumentsRequest,
@@ -29,7 +30,6 @@ import {
 	updateDocumentResponse,
 	uploadDocumentRequest,
 	uploadDocumentResponse,
-	getSurfsenseDocsRequest,
 } from "@/contracts/types/document.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
