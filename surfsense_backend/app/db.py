@@ -412,8 +412,17 @@ class NewChatMessage(BaseModel, TimestampMixin):
         index=True,
     )
 
-    # Relationship
+    # Track who sent this message (for shared chats)
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # Relationships
     thread = relationship("NewChatThread", back_populates="messages")
+    author = relationship("User")
 
 
 class Document(BaseModel, TimestampMixin):
