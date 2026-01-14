@@ -874,6 +874,10 @@ if config.AUTH_TYPE == "GOOGLE":
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
 
+        # User profile from OAuth
+        display_name = Column(String, nullable=True)
+        avatar_url = Column(String, nullable=True)
+
 else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
@@ -906,6 +910,10 @@ else:
             server_default=str(config.PAGES_LIMIT),
         )
         pages_used = Column(Integer, nullable=False, default=0, server_default="0")
+
+        # User profile (can be set manually for non-OAuth users)
+        display_name = Column(String, nullable=True)
+        avatar_url = Column(String, nullable=True)
 
 
 engine = create_async_engine(DATABASE_URL)
