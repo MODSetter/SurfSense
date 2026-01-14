@@ -75,7 +75,12 @@ function UserAvatar({
 }) {
 	if (avatarUrl) {
 		return (
-			<img src={avatarUrl} alt="User avatar" className="h-8 w-8 shrink-0 rounded-lg object-cover" />
+			<img
+				src={avatarUrl}
+				alt="User avatar"
+				className="h-8 w-8 shrink-0 rounded-lg object-cover"
+				referrerPolicy="no-referrer"
+			/>
 		);
 	}
 

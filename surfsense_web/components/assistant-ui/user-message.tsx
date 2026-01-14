@@ -30,6 +30,7 @@ const UserAvatar: FC<AuthorMetadata> = ({ displayName, avatarUrl }) => {
 				src={avatarUrl}
 				alt={displayName || "User"}
 				className="size-8 rounded-full object-cover"
+				referrerPolicy="no-referrer"
 				onError={() => setHasError(true)}
 			/>
 		);
