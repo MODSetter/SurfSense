@@ -1086,7 +1086,9 @@ async def _run_indexing_with_notifications(
                     )
             else:
                 # Success - just no new documents to index (all skipped/unchanged)
-                logger.info("Indexing completed: No new documents to process (all up to date)")
+                logger.info(
+                    "Indexing completed: No new documents to process (all up to date)"
+                )
                 # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
                 if update_timestamp_func:
                     await update_timestamp_func(session, connector_id)

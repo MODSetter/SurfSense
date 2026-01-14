@@ -549,7 +549,10 @@ async def index_discord_messages(
         logger.info(
             f"Discord indexing completed: {documents_indexed} new messages, {documents_skipped} skipped"
         )
-        return documents_indexed, None  # Return None on success (result_message is for logging only)
+        return (
+            documents_indexed,
+            None,
+        )  # Return None on success (result_message is for logging only)
 
     except SQLAlchemyError as db_error:
         await session.rollback()

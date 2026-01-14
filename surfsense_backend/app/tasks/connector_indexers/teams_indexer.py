@@ -460,7 +460,10 @@ async def index_teams_messages(
             documents_indexed,
             documents_skipped,
         )
-        return total_processed, None  # Return None on success (result_message is for logging only)
+        return (
+            total_processed,
+            None,
+        )  # Return None on success (result_message is for logging only)
 
     except SQLAlchemyError as db_error:
         await session.rollback()
