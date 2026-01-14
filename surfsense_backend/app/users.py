@@ -46,6 +46,60 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_secret = SECRET
     verification_token_secret = SECRET
 
+    async def oauth_callback(
+        self,
+        oauth_name: str,
+        access_token: str,
+        account_id: str,
+        account_email: str,
+        expires_at: int | None = None,
+        refresh_token: str | None = None,
+        request: Request | None = None,
+        *,
+        associate_by_email: bool = False,
+        is_verified_by_default: bool = False,
+    ) -> User:
+        """
+        Override OAuth callback to capture Google profile data (name, avatar).
+        """
+        # Call parent implementation to create/get user
+        user = await super().oauth_callback(
+            oauth_name,
+            access_token,
+            account_id,
+            account_email,
+            expires_at,
+            refresh_token,
+            request,
+            associate_by_email=associate_by_email,
+            is_verified_by_default=is_verified_by_default,
+        )
+
+        # Fetch and store Google profile data if not already set
+        if oauth_name == "google" and (not user.display_name or not user.avatar_url):
+            try:
+                profile = await google_oauth_client.get_profile(access_token)
+                update_dict = {}
+
+                if not user.display_name and profile.get("name"):
+                    update_dict["display_name"] = profile["name"]
+
+                if not user.avatar_url and profile.get("picture"):
+                    update_dict["avatar_url"] = profile["picture"]
+
+                if update_dict:
+                    user = await self.user_db.update(user, update_dict)
+                    logger.info(
+                        f"Updated profile for user {user.id}: {list(update_dict.keys())}"
+                    )
+
+            except Exception as e:
+                logger.warning(
+                    f"Failed to fetch Google profile for user {user.id}: {e}"
+                )
+
+        return user
+
     async def on_after_register(self, user: User, request: Request | None = None):
         """
         Called after a user registers. Creates a default search space for the user
