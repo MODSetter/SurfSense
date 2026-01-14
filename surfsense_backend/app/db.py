@@ -80,6 +80,7 @@ class SearchSourceConnectorType(str, Enum):
     WEBCRAWLER_CONNECTOR = "WEBCRAWLER_CONNECTOR"
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
     CIRCLEBACK_CONNECTOR = "CIRCLEBACK_CONNECTOR"
+    MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
 
 
 class LiteLLMProvider(str, Enum):
@@ -605,7 +606,8 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
             "search_space_id",
             "user_id",
             "connector_type",
-            name="uq_searchspace_user_connector_type",
+            "name",
+            name="uq_searchspace_user_connector_type_name",
         ),
     )
 

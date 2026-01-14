@@ -20,7 +20,7 @@ from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
     build_surfsense_system_prompt,
 )
-from app.agents.new_chat.tools import build_tools
+from app.agents.new_chat.tools.registry import build_tools_async
 from app.services.connector_service import ConnectorService
 
 # =============================================================================
@@ -28,7 +28,7 @@ from app.services.connector_service import ConnectorService
 # =============================================================================
 
 
-def create_surfsense_deep_agent(
+async def create_surfsense_deep_agent(
     llm: ChatLiteLLM,
     search_space_id: int,
     db_session: AsyncSession,
@@ -120,8 +120,8 @@ def create_surfsense_deep_agent(
         "firecrawl_api_key": firecrawl_api_key,
     }
 
-    # Build tools using the registry
-    tools = build_tools(
+    # Build tools using the async registry (includes MCP tools)
+    tools = await build_tools_async(
         dependencies=dependencies,
         enabled_tools=enabled_tools,
         disabled_tools=disabled_tools,
