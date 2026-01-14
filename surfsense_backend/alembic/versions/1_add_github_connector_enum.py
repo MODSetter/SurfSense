@@ -11,13 +11,9 @@ import sqlalchemy as sa
 
 from alembic import op
 
-# Import pgvector if needed for other types, though not for this ENUM change
-# import pgvector
-
-
 # revision identifiers, used by Alembic.
 revision: str = "1"
-down_revision: str | None = None
+down_revision: str | None = "0"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
