@@ -15,19 +15,19 @@ export const mcpServerConfig = z.object({
  */
 export const mcpConnectorCreate = z.object({
 	name: z.string().min(1, "Connector name is required"),
-	server_config: mcpServerConfig,
+	server_configs: z.array(mcpServerConfig).min(1, "At least one server configuration is required"),
 });
 
 export const mcpConnectorUpdate = z.object({
 	name: z.string().min(1).optional(),
-	server_config: mcpServerConfig.optional(),
+	server_configs: z.array(mcpServerConfig).optional(),
 });
 
 export const mcpConnectorRead = z.object({
 	id: z.number(),
 	name: z.string(),
 	connector_type: z.literal("MCP_CONNECTOR"),
-	server_config: mcpServerConfig,
+	server_configs: z.array(mcpServerConfig),
 	search_space_id: z.number(),
 	user_id: z.string(),
 	created_at: z.string(),

@@ -56,12 +56,6 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 					const serverConfigs = mcpConn.config?.server_configs as MCPServerConfig[] | undefined;
 					if (serverConfigs && Array.isArray(serverConfigs)) {
 						allServerConfigs.push(...serverConfigs);
-					} else {
-						// Fallback to single server_config
-						const serverConfig = mcpConn.config?.server_config as MCPServerConfig | undefined;
-						if (serverConfig) {
-							allServerConfigs.push(serverConfig);
-						}
 					}
 				}
 				

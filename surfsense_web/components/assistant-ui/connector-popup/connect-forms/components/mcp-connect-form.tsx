@@ -164,20 +164,19 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 
 		isSubmittingRef.current = true;
 		try {
-			// Submit all servers
-			for (const config of configs) {
-				await onSubmit({
-					name: config.name,
-					connector_type: EnumConnectorName.MCP_CONNECTOR,
-					config: { server_config: config },
-					is_indexable: false,
-					is_active: true,
-					last_indexed_at: null,
-					periodic_indexing_enabled: false,
-					indexing_frequency_minutes: null,
-					next_scheduled_at: null,
-				});
-			}
+			// Submit all servers as a single connector with server_configs array
+			// This creates one connector instead of N connectors (one toast instead of N toasts)
+			await onSubmit({
+				name: configs.length === 1 ? configs[0].name : "MCPs",
+				connector_type: EnumConnectorName.MCP_CONNECTOR,
+				config: { server_configs: configs },
+				is_indexable: false,
+				is_active: true,
+				last_indexed_at: null,
+				periodic_indexing_enabled: false,
+				indexing_frequency_minutes: null,
+				next_scheduled_at: null,
+			});
 		} finally {
 			isSubmittingRef.current = false;
 		}

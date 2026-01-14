@@ -2018,12 +2018,12 @@ async def create_mcp_connector(
             "You don't have permission to create connectors in this search space",
         )
 
-        # Create the connector with server config
+        # Create the connector with server configs array
         db_connector = SearchSourceConnector(
             name=connector_data.name,
             connector_type=SearchSourceConnectorType.MCP_CONNECTOR,
             is_indexable=False,  # MCP connectors are not indexable
-            config={"server_config": connector_data.server_config.model_dump()},
+            config={"server_configs": [sc.model_dump() for sc in connector_data.server_configs]},
             periodic_indexing_enabled=False,
             indexing_frequency_minutes=None,
             search_space_id=search_space_id,
@@ -2035,7 +2035,7 @@ async def create_mcp_connector(
         await session.refresh(db_connector)
 
         logger.info(
-            f"Created MCP connector {db_connector.id} for server '{connector_data.server_config.command}' "
+            f"Created MCP connector {db_connector.id} with {len(connector_data.server_configs)} server(s) "
             f"for user {user.id} in search space {search_space_id}"
         )
 
@@ -2202,9 +2202,9 @@ async def update_mcp_connector(
         if connector_update.name is not None:
             connector.name = connector_update.name
 
-        if connector_update.server_config is not None:
+        if connector_update.server_configs is not None:
             connector.config = {
-                "server_config": connector_update.server_config.model_dump()
+                "server_configs": [sc.model_dump() for sc in connector_update.server_configs]
             }
 
         connector.updated_at = datetime.now(UTC)

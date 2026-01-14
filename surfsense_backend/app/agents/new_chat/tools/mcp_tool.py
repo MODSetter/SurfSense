@@ -141,40 +141,46 @@ async def load_mcp_tools(
         tools: list[StructuredTool] = []
         for connector in result.scalars():
             try:
-                # Extract server config
+                # Extract server configs array
                 config = connector.config or {}
-                server_config = config.get("server_config", {})
-
-                command = server_config.get("command")
-                args = server_config.get("args", [])
-                env = server_config.get("env", {})
-
-                if not command:
-                    logger.warning(f"MCP connector {connector.id} missing command, skipping")
+                server_configs = config.get("server_configs", [])
+                
+                if not server_configs:
+                    logger.warning(f"MCP connector {connector.id} missing server_configs, skipping")
                     continue
 
-                # Create MCP client
-                mcp_client = MCPClient(command, args, env)
+                # Process each server config
+                for server_config in server_configs:
+                    command = server_config.get("command")
+                    args = server_config.get("args", [])
+                    env = server_config.get("env", {})
 
-                # Connect and discover tools
-                async with mcp_client.connect():
-                    tool_definitions = await mcp_client.list_tools()
+                    if not command:
+                        logger.warning(f"MCP connector {connector.id} server config missing command, skipping")
+                        continue
 
-                    logger.info(
-                        f"Discovered {len(tool_definitions)} tools from MCP server "
-                        f"'{command}' (connector {connector.id})"
-                    )
+                    # Create MCP client
+                    mcp_client = MCPClient(command, args, env)
 
-                    # Create LangChain tools from definitions
-                    for tool_def in tool_definitions:
-                        try:
-                            tool = await _create_mcp_tool_from_definition(tool_def, mcp_client)
-                            tools.append(tool)
-                        except Exception as e:
-                            logger.exception(
-                                f"Failed to create tool '{tool_def.get('name')}' "
-                                f"from connector {connector.id}: {e!s}",
-                            )
+                    # Connect and discover tools
+                    async with mcp_client.connect():
+                        tool_definitions = await mcp_client.list_tools()
+
+                        logger.info(
+                            f"Discovered {len(tool_definitions)} tools from MCP server "
+                            f"'{command}' (connector {connector.id})"
+                        )
+
+                        # Create LangChain tools from definitions
+                        for tool_def in tool_definitions:
+                            try:
+                                tool = await _create_mcp_tool_from_definition(tool_def, mcp_client)
+                                tools.append(tool)
+                            except Exception as e:
+                                logger.exception(
+                                    f"Failed to create tool '{tool_def.get('name')}' "
+                                    f"from connector {connector.id}: {e!s}",
+                                )
 
             except Exception as e:
                 logger.exception(

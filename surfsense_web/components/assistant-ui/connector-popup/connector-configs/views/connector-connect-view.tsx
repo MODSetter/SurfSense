@@ -99,7 +99,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 					</div>
 					<div>
 						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-							Connect {getConnectorTypeDisplay(connectorType)}
+							Connect {connectorType === "MCP_CONNECTOR" ? "MCP(s)" : getConnectorTypeDisplay(connectorType)}
 						</h2>
 						<p className="text-xs sm:text-base text-muted-foreground mt-1">
 							Enter your connection details
@@ -139,7 +139,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 							Connecting...
 						</>
 					) : (
-						<>Connect {getConnectorTypeDisplay(connectorType)}</>
+						<>Connect {connectorType === "MCP_CONNECTOR" ? "MCP(s)" : getConnectorTypeDisplay(connectorType)}</>
 					)}
 				</Button>
 			</div>

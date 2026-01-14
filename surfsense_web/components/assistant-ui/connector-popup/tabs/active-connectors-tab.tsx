@@ -130,6 +130,12 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		(c) => !oauthConnectorTypes.has(c.connector_type) && c.connector_type !== "MCP_CONNECTOR"
 	);
 
+	// Calculate total number of MCP servers across all MCP connectors
+	const totalMCPServers = mcpConnectors.reduce((total, connector) => {
+		const serverConfigs = connector.config?.server_configs;
+		return total + (Array.isArray(serverConfigs) ? serverConfigs.length : 0);
+	}, 0);
+
 	// Group OAuth connectors by type
 	const oauthConnectorsByType = oauthConnectors.reduce(
 		(acc, connector) => {
@@ -305,7 +311,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												Active
 											</p>
 											<p className="text-[10px] text-muted-foreground mt-0.5">
-												{mcpConnectors.length} {mcpConnectors.length === 1 ? "Server" : "Servers"}
+												{totalMCPServers} {totalMCPServers === 1 ? "Server" : "Servers"}
 											</p>
 										</div>
 										<Button
