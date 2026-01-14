@@ -60,14 +60,28 @@ def downgrade() -> None:
 
     connection = op.get_bind()
 
-    connection.execute(
+    # Only update if the target enum value exists (it won't on fresh databases)
+    result = connection.execute(
         text(
             """
-            UPDATE documents
-            SET document_type = 'GOOGLE_DRIVE_CONNECTOR'
-            WHERE document_type = 'GOOGLE_DRIVE_FILE';
+            SELECT EXISTS (
+                SELECT 1 FROM pg_type t
+                JOIN pg_enum e ON t.oid = e.enumtypid
+                WHERE t.typname = 'documenttype' AND e.enumlabel = 'GOOGLE_DRIVE_CONNECTOR'
+            );
             """
         )
     )
+    enum_exists = result.scalar()
 
-    connection.commit()
+    if enum_exists:
+        connection.execute(
+            text(
+                """
+                UPDATE documents
+                SET document_type = 'GOOGLE_DRIVE_CONNECTOR'
+                WHERE document_type = 'GOOGLE_DRIVE_FILE';
+                """
+            )
+        )
+        connection.commit()
