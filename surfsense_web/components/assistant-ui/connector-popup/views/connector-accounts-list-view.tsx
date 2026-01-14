@@ -122,7 +122,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 							)}
 						</div>
 						<span className="text-[11px] sm:text-[12px] font-medium">
-							{isConnecting ? "Connecting..." : "Add Account"}
+							{isConnecting ? "Connecting" : "Add Account"}
 						</span>
 					</button>
 				</div>

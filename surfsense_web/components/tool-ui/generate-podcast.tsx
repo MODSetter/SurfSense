@@ -98,7 +98,7 @@ function PodcastGeneratingState({ title }: { title: string }) {
 					<h3 className="font-semibold text-foreground text-lg">{title}</h3>
 					<div className="mt-2 flex items-center gap-2 text-muted-foreground">
 						<Loader2Icon className="size-4 animate-spin" />
-						<span className="text-sm">Generating podcast... This may take a few minutes</span>
+						<span className="text-sm">Generating podcast. This may take a few minutes</span>
 					</div>
 					<div className="mt-3">
 						<div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
