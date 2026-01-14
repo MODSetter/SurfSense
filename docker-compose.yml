@@ -8,7 +8,6 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/docker/postgresql.conf:/etc/postgresql/postgresql.conf:ro
-      - ./scripts/docker/init-electric-user.sql:/docker-entrypoint-initdb.d/init-electric-user.sql:ro
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}

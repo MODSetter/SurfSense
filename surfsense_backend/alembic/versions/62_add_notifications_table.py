@@ -4,7 +4,7 @@ Revision ID: 62
 Revises: 61
 
 Creates notifications table and sets up Electric SQL replication
-(REPLICA IDENTITY FULL and publication) for notifications,
+(user, publication, REPLICA IDENTITY FULL) for notifications,
 search_source_connectors, and documents tables.
 """
 
@@ -45,45 +45,93 @@ def upgrade() -> None:
     op.create_index("ix_notifications_created_at", "notifications", ["created_at"])
     op.create_index("ix_notifications_user_read", "notifications", ["user_id", "read"])
 
-    # Set up Electric SQL replication for real-time sync tables
-    # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
-    # This logs full row data for UPDATE/DELETE operations in the WAL
-    op.execute("ALTER TABLE notifications REPLICA IDENTITY FULL;")
-    op.execute("ALTER TABLE search_source_connectors REPLICA IDENTITY FULL;")
-    op.execute("ALTER TABLE documents REPLICA IDENTITY FULL;")
-
-    # Add tables to Electric SQL publication for replication if publication exists
+    # =====================================================
+    # Electric SQL Setup - User and Publication
+    # =====================================================
+    
+    # Create Electric SQL replication user if not exists
     op.execute(
         """
         DO $$
         BEGIN
-            IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'electric_publication_default') THEN
-                -- Add notifications if not already added
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_publication_tables 
-                    WHERE pubname = 'electric_publication_default' 
-                    AND tablename = 'notifications'
-                ) THEN
-                    ALTER PUBLICATION electric_publication_default ADD TABLE notifications;
-                END IF;
-                
-                -- Add search_source_connectors if not already added
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_publication_tables 
-                    WHERE pubname = 'electric_publication_default' 
-                    AND tablename = 'search_source_connectors'
-                ) THEN
-                    ALTER PUBLICATION electric_publication_default ADD TABLE search_source_connectors;
-                END IF;
-                
-                -- Add documents if not already added
-                IF NOT EXISTS (
-                    SELECT 1 FROM pg_publication_tables 
-                    WHERE pubname = 'electric_publication_default' 
-                    AND tablename = 'documents'
-                ) THEN
-                    ALTER PUBLICATION electric_publication_default ADD TABLE documents;
-                END IF;
+            IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'electric') THEN
+                CREATE USER electric WITH REPLICATION PASSWORD 'electric_password';
+            END IF;
+        END
+        $$;
+        """
+    )
+    
+    # Grant necessary permissions to electric user
+    op.execute(
+        """
+        DO $$
+        DECLARE
+            db_name TEXT := current_database();
+        BEGIN
+            EXECUTE format('GRANT CONNECT ON DATABASE %I TO electric', db_name);
+        END
+        $$;
+        """
+    )
+    op.execute("GRANT USAGE ON SCHEMA public TO electric;")
+    op.execute("GRANT SELECT ON ALL TABLES IN SCHEMA public TO electric;")
+    op.execute("GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO electric;")
+    op.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO electric;")
+    op.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO electric;")
+    
+    # Create the publication if not exists
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            IF NOT EXISTS (SELECT FROM pg_publication WHERE pubname = 'electric_publication_default') THEN
+                CREATE PUBLICATION electric_publication_default;
+            END IF;
+        END
+        $$;
+        """
+    )
+
+    # =====================================================
+    # Electric SQL Setup - Table Configuration
+    # =====================================================
+    
+    # Set REPLICA IDENTITY FULL (required by Electric SQL for replication)
+    op.execute("ALTER TABLE notifications REPLICA IDENTITY FULL;")
+    op.execute("ALTER TABLE search_source_connectors REPLICA IDENTITY FULL;")
+    op.execute("ALTER TABLE documents REPLICA IDENTITY FULL;")
+
+    # Add tables to Electric SQL publication for replication
+    op.execute(
+        """
+        DO $$
+        BEGIN
+            -- Add notifications if not already added
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_publication_tables 
+                WHERE pubname = 'electric_publication_default' 
+                AND tablename = 'notifications'
+            ) THEN
+                ALTER PUBLICATION electric_publication_default ADD TABLE notifications;
+            END IF;
+            
+            -- Add search_source_connectors if not already added
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_publication_tables 
+                WHERE pubname = 'electric_publication_default' 
+                AND tablename = 'search_source_connectors'
+            ) THEN
+                ALTER PUBLICATION electric_publication_default ADD TABLE search_source_connectors;
+            END IF;
+            
+            -- Add documents if not already added
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_publication_tables 
+                WHERE pubname = 'electric_publication_default' 
+                AND tablename = 'documents'
+            ) THEN
+                ALTER PUBLICATION electric_publication_default ADD TABLE documents;
             END IF;
         END
         $$;
