@@ -38,6 +38,9 @@ class NewChatMessageRead(NewChatMessageBase, IDModel, TimestampModel):
     """Schema for reading a message."""
 
     thread_id: int
+    author_id: UUID | None = None
+    author_display_name: str | None = None
+    author_avatar_url: str | None = None
     model_config = ConfigDict(from_attributes=True)
 
 
