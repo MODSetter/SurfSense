@@ -10,7 +10,12 @@ search_source_connectors, and documents tables.
 
 from collections.abc import Sequence
 
-from alembic import op
+from alembic import context, op
+
+# Get Electric SQL user credentials from env.py configuration
+_config = context.config
+ELECTRIC_DB_USER = _config.get_main_option("electric_db_user", "electric")
+ELECTRIC_DB_PASSWORD = _config.get_main_option("electric_db_password", "electric_password")
 
 # revision identifiers, used by Alembic.
 revision: str = "62"
@@ -51,11 +56,11 @@ def upgrade() -> None:
     
     # Create Electric SQL replication user if not exists
     op.execute(
-        """
+        f"""
         DO $$
         BEGIN
-            IF NOT EXISTS (SELECT FROM pg_user WHERE usename = 'electric') THEN
-                CREATE USER electric WITH REPLICATION PASSWORD 'electric_password';
+            IF NOT EXISTS (SELECT FROM pg_user WHERE usename = '{ELECTRIC_DB_USER}') THEN
+                CREATE USER {ELECTRIC_DB_USER} WITH REPLICATION PASSWORD '{ELECTRIC_DB_PASSWORD}';
             END IF;
         END
         $$;
@@ -64,21 +69,21 @@ def upgrade() -> None:
     
     # Grant necessary permissions to electric user
     op.execute(
-        """
+        f"""
         DO $$
         DECLARE
             db_name TEXT := current_database();
         BEGIN
-            EXECUTE format('GRANT CONNECT ON DATABASE %I TO electric', db_name);
+            EXECUTE format('GRANT CONNECT ON DATABASE %I TO {ELECTRIC_DB_USER}', db_name);
         END
         $$;
         """
     )
-    op.execute("GRANT USAGE ON SCHEMA public TO electric;")
-    op.execute("GRANT SELECT ON ALL TABLES IN SCHEMA public TO electric;")
-    op.execute("GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO electric;")
-    op.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO electric;")
-    op.execute("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO electric;")
+    op.execute(f"GRANT USAGE ON SCHEMA public TO {ELECTRIC_DB_USER};")
+    op.execute(f"GRANT SELECT ON ALL TABLES IN SCHEMA public TO {ELECTRIC_DB_USER};")
+    op.execute(f"GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {ELECTRIC_DB_USER};")
+    op.execute(f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {ELECTRIC_DB_USER};")
+    op.execute(f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {ELECTRIC_DB_USER};")
     
     # Create the publication if not exists
     op.execute(
