@@ -1,6 +1,7 @@
 import logging
 import uuid
 
+import httpx
 from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, models
@@ -78,25 +79,36 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         # Fetch and store Google profile data if not already set
         if oauth_name == "google" and (not user.display_name or not user.avatar_url):
             try:
-                profile = await google_oauth_client.get_profile(access_token)
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        "https://people.googleapis.com/v1/people/me",
+                        params={"personFields": "names,photos"},
+                        headers={"Authorization": f"Bearer {access_token}"},
+                    )
+                    response.raise_for_status()
+                    profile = response.json()
+
                 update_dict = {}
 
-                if not user.display_name and profile.get("name"):
-                    update_dict["display_name"] = profile["name"]
+                # Extract name from names array
+                names = profile.get("names", [])
+                if not user.display_name and names:
+                    display_name = names[0].get("displayName")
+                    if display_name:
+                        update_dict["display_name"] = display_name
 
-                if not user.avatar_url and profile.get("picture"):
-                    update_dict["avatar_url"] = profile["picture"]
+                # Extract photo URL from photos array
+                photos = profile.get("photos", [])
+                if not user.avatar_url and photos:
+                    photo_url = photos[0].get("url")
+                    if photo_url:
+                        update_dict["avatar_url"] = photo_url
 
                 if update_dict:
                     user = await self.user_db.update(user, update_dict)
-                    logger.info(
-                        f"Updated profile for user {user.id}: {list(update_dict.keys())}"
-                    )
 
             except Exception as e:
-                logger.warning(
-                    f"Failed to fetch Google profile for user {user.id}: {e}"
-                )
+                logger.warning(f"Failed to fetch Google profile: {e}")
 
         return user
 
