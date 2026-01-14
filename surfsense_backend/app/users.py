@@ -1,6 +1,7 @@
 import logging
 import uuid
 
+import httpx
 from fastapi import Depends, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi_users import BaseUserManager, FastAPIUsers, UUIDIDMixin, models
@@ -45,6 +46,71 @@ if config.AUTH_TYPE == "GOOGLE":
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
     reset_password_token_secret = SECRET
     verification_token_secret = SECRET
+
+    async def oauth_callback(
+        self,
+        oauth_name: str,
+        access_token: str,
+        account_id: str,
+        account_email: str,
+        expires_at: int | None = None,
+        refresh_token: str | None = None,
+        request: Request | None = None,
+        *,
+        associate_by_email: bool = False,
+        is_verified_by_default: bool = False,
+    ) -> User:
+        """
+        Override OAuth callback to capture Google profile data (name, avatar).
+        """
+        # Call parent implementation to create/get user
+        user = await super().oauth_callback(
+            oauth_name,
+            access_token,
+            account_id,
+            account_email,
+            expires_at,
+            refresh_token,
+            request,
+            associate_by_email=associate_by_email,
+            is_verified_by_default=is_verified_by_default,
+        )
+
+        # Fetch and store Google profile data if not already set
+        if oauth_name == "google" and (not user.display_name or not user.avatar_url):
+            try:
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(
+                        "https://people.googleapis.com/v1/people/me",
+                        params={"personFields": "names,photos"},
+                        headers={"Authorization": f"Bearer {access_token}"},
+                    )
+                    response.raise_for_status()
+                    profile = response.json()
+
+                update_dict = {}
+
+                # Extract name from names array
+                names = profile.get("names", [])
+                if not user.display_name and names:
+                    display_name = names[0].get("displayName")
+                    if display_name:
+                        update_dict["display_name"] = display_name
+
+                # Extract photo URL from photos array
+                photos = profile.get("photos", [])
+                if not user.avatar_url and photos:
+                    photo_url = photos[0].get("url")
+                    if photo_url:
+                        update_dict["avatar_url"] = photo_url
+
+                if update_dict:
+                    user = await self.user_db.update(user, update_dict)
+
+            except Exception as e:
+                logger.warning(f"Failed to fetch Google profile: {e}")
+
+        return user
 
     async def on_after_register(self, user: User, request: Request | None = None):
         """

@@ -1,10 +1,10 @@
 /**
  * Environment configuration for the frontend.
- * 
+ *
  * This file centralizes access to NEXT_PUBLIC_* environment variables.
  * For Docker deployments, these placeholders are replaced at container startup
  * via sed in the entrypoint script.
- * 
+ *
  * IMPORTANT: Do not use template literals or complex expressions with these values
  * as it may prevent the sed replacement from working correctly.
  */
@@ -24,5 +24,5 @@ export const ETL_SERVICE = process.env.NEXT_PUBLIC_ETL_SERVICE || "DOCLING";
 // Helper to check if local auth is enabled
 export const isLocalAuth = () => AUTH_TYPE === "LOCAL";
 
-// Helper to check if Google auth is enabled  
+// Helper to check if Google auth is enabled
 export const isGoogleAuth = () => AUTH_TYPE === "GOOGLE";

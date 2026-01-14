@@ -7,6 +7,13 @@ PUT /search-source-connectors/{connector_id} - Update a specific connector
 DELETE /search-source-connectors/{connector_id} - Delete a specific connector
 POST /search-source-connectors/{connector_id}/index - Index content from a connector to a search space
 
+MCP (Model Context Protocol) Connector routes:
+POST /connectors/mcp - Create a new MCP connector with custom API tools
+GET /connectors/mcp - List all MCP connectors for the current user's search space
+GET /connectors/mcp/{connector_id} - Get a specific MCP connector with tools config
+PUT /connectors/mcp/{connector_id} - Update an MCP connector's tools config
+DELETE /connectors/mcp/{connector_id} - Delete an MCP connector
+
 Note: OAuth connectors (Gmail, Drive, Slack, etc.) support multiple accounts per search space.
 Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search space.
 """
@@ -32,6 +39,9 @@ from app.db import (
 )
 from app.schemas import (
     GoogleDriveIndexRequest,
+    MCPConnectorCreate,
+    MCPConnectorRead,
+    MCPConnectorUpdate,
     SearchSourceConnectorBase,
     SearchSourceConnectorCreate,
     SearchSourceConnectorRead,
@@ -128,18 +138,20 @@ async def create_search_source_connector(
 
         # Check if a connector with the same type already exists for this search space
         # (for non-OAuth connectors that don't support multiple accounts)
-        result = await session.execute(
-            select(SearchSourceConnector).filter(
-                SearchSourceConnector.search_space_id == search_space_id,
-                SearchSourceConnector.connector_type == connector.connector_type,
+        # Exception: MCP_CONNECTOR can have multiple instances with different names
+        if connector.connector_type != SearchSourceConnectorType.MCP_CONNECTOR:
+            result = await session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.connector_type == connector.connector_type,
+                )
             )
-        )
-        existing_connector = result.scalars().first()
-        if existing_connector:
-            raise HTTPException(
-                status_code=409,
-                detail=f"A connector with type {connector.connector_type} already exists in this search space.",
-            )
+            existing_connector = result.scalars().first()
+            if existing_connector:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"A connector with type {connector.connector_type} already exists in this search space.",
+                )
 
         # Prepare connector data
         connector_data = connector.model_dump()
@@ -2054,3 +2066,348 @@ async def run_bookstack_indexing(
         indexing_function=index_bookstack_pages,
         update_timestamp_func=_update_connector_timestamp_by_id,
     )
+
+
+# =============================================================================
+# MCP Connector Routes
+# =============================================================================
+
+
+@router.post("/connectors/mcp", response_model=MCPConnectorRead, status_code=201)
+async def create_mcp_connector(
+    connector_data: MCPConnectorCreate,
+    search_space_id: int = Query(..., description="Search space ID"),
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Create a new MCP (Model Context Protocol) connector.
+
+    MCP connectors allow users to connect to MCP servers (like in Cursor).
+    Tools are auto-discovered from the server - no manual configuration needed.
+
+    Args:
+        connector_data: MCP server configuration (command, args, env)
+        search_space_id: ID of the search space to attach the connector to
+        session: Database session
+        user: Current authenticated user
+
+    Returns:
+        Created MCP connector with server configuration
+
+    Raises:
+        HTTPException: If search space not found or permission denied
+    """
+    try:
+        # Check user has permission to create connectors
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.CONNECTORS_CREATE.value,
+            "You don't have permission to create connectors in this search space",
+        )
+
+        # Create the connector with server config
+        db_connector = SearchSourceConnector(
+            name=connector_data.name,
+            connector_type=SearchSourceConnectorType.MCP_CONNECTOR,
+            is_indexable=False,  # MCP connectors are not indexable
+            config={"server_config": connector_data.server_config.model_dump()},
+            periodic_indexing_enabled=False,
+            indexing_frequency_minutes=None,
+            search_space_id=search_space_id,
+            user_id=user.id,
+        )
+
+        session.add(db_connector)
+        await session.commit()
+        await session.refresh(db_connector)
+
+        logger.info(
+            f"Created MCP connector {db_connector.id} for server '{connector_data.server_config.command}' "
+            f"for user {user.id} in search space {search_space_id}"
+        )
+
+        # Convert to read schema
+        connector_read = SearchSourceConnectorRead.model_validate(db_connector)
+        return MCPConnectorRead.from_connector(connector_read)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to create MCP connector: {e!s}", exc_info=True)
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create MCP connector: {e!s}"
+        ) from e
+
+
+@router.get("/connectors/mcp", response_model=list[MCPConnectorRead])
+async def list_mcp_connectors(
+    search_space_id: int = Query(..., description="Search space ID"),
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    List all MCP connectors for a search space.
+
+    Args:
+        search_space_id: ID of the search space
+        session: Database session
+        user: Current authenticated user
+
+    Returns:
+        List of MCP connectors with their tool configurations
+    """
+    try:
+        # Check user has permission to read connectors
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.CONNECTORS_READ.value,
+            "You don't have permission to view connectors in this search space",
+        )
+
+        # Fetch MCP connectors
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.MCP_CONNECTOR,
+                SearchSourceConnector.search_space_id == search_space_id,
+            )
+        )
+
+        connectors = result.scalars().all()
+        return [
+            MCPConnectorRead.from_connector(SearchSourceConnectorRead.model_validate(c))
+            for c in connectors
+        ]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to list MCP connectors: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list MCP connectors: {e!s}"
+        ) from e
+
+
+@router.get("/connectors/mcp/{connector_id}", response_model=MCPConnectorRead)
+async def get_mcp_connector(
+    connector_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Get a specific MCP connector by ID.
+
+    Args:
+        connector_id: ID of the connector
+        session: Database session
+        user: Current authenticated user
+
+    Returns:
+        MCP connector with tool configurations
+    """
+    try:
+        # Fetch connector
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.MCP_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+
+        if not connector:
+            raise HTTPException(status_code=404, detail="MCP connector not found")
+
+        # Check user has permission to read connectors
+        await check_permission(
+            session,
+            user,
+            connector.search_space_id,
+            Permission.CONNECTORS_READ.value,
+            "You don't have permission to view this connector",
+        )
+
+        connector_read = SearchSourceConnectorRead.model_validate(connector)
+        return MCPConnectorRead.from_connector(connector_read)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get MCP connector: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get MCP connector: {e!s}"
+        ) from e
+
+
+@router.put("/connectors/mcp/{connector_id}", response_model=MCPConnectorRead)
+async def update_mcp_connector(
+    connector_id: int,
+    connector_update: MCPConnectorUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Update an MCP connector.
+
+    Args:
+        connector_id: ID of the connector to update
+        connector_update: Updated connector data
+        session: Database session
+        user: Current authenticated user
+
+    Returns:
+        Updated MCP connector
+    """
+    try:
+        # Fetch connector
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.MCP_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+
+        if not connector:
+            raise HTTPException(status_code=404, detail="MCP connector not found")
+
+        # Check user has permission to update connectors
+        await check_permission(
+            session,
+            user,
+            connector.search_space_id,
+            Permission.CONNECTORS_UPDATE.value,
+            "You don't have permission to update this connector",
+        )
+
+        # Update fields
+        if connector_update.name is not None:
+            connector.name = connector_update.name
+
+        if connector_update.server_config is not None:
+            connector.config = {
+                "server_config": connector_update.server_config.model_dump()
+            }
+
+        connector.updated_at = datetime.now(UTC)
+
+        await session.commit()
+        await session.refresh(connector)
+
+        logger.info(f"Updated MCP connector {connector_id}")
+
+        connector_read = SearchSourceConnectorRead.model_validate(connector)
+        return MCPConnectorRead.from_connector(connector_read)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to update MCP connector: {e!s}", exc_info=True)
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update MCP connector: {e!s}"
+        ) from e
+
+
+@router.delete("/connectors/mcp/{connector_id}", status_code=204)
+async def delete_mcp_connector(
+    connector_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Delete an MCP connector.
+
+    Args:
+        connector_id: ID of the connector to delete
+        session: Database session
+        user: Current authenticated user
+    """
+    try:
+        # Fetch connector
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.MCP_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+
+        if not connector:
+            raise HTTPException(status_code=404, detail="MCP connector not found")
+
+        # Check user has permission to delete connectors
+        await check_permission(
+            session,
+            user,
+            connector.search_space_id,
+            Permission.CONNECTORS_DELETE.value,
+            "You don't have permission to delete this connector",
+        )
+
+        await session.delete(connector)
+        await session.commit()
+
+        logger.info(f"Deleted MCP connector {connector_id}")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete MCP connector: {e!s}", exc_info=True)
+        await session.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete MCP connector: {e!s}"
+        ) from e
+
+
+@router.post("/connectors/mcp/test")
+async def test_mcp_server_connection(
+    server_config: dict = Body(...),
+    user: User = Depends(current_active_user),
+):
+    """
+    Test connection to an MCP server and fetch available tools.
+
+    This endpoint allows users to test their MCP server configuration
+    before saving it, similar to Cursor's flow.
+
+    Args:
+        server_config: Server configuration with command, args, env
+        user: Current authenticated user
+
+    Returns:
+        Connection status and list of available tools
+    """
+    try:
+        from app.agents.new_chat.tools.mcp_client import test_mcp_connection
+
+        command = server_config.get("command")
+        args = server_config.get("args", [])
+        env = server_config.get("env", {})
+
+        if not command:
+            raise HTTPException(status_code=400, detail="Server command is required")
+
+        # Test the connection
+        result = await test_mcp_connection(command, args, env)
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to test MCP connection: {e!s}", exc_info=True)
+        return {
+            "status": "error",
+            "message": f"Failed to test connection: {e!s}",
+            "tools": [],
+        }

@@ -215,6 +215,16 @@ export const DocumentMentionPicker = forwardRef<
 			isSurfsenseDocsLoading) &&
 		currentPage === 0;
 
+	// Split documents into SurfSense docs and user docs for grouped rendering
+	const surfsenseDocsList = useMemo(
+		() => actualDocuments.filter((doc) => doc.document_type === "SURFSENSE_DOCS"),
+		[actualDocuments]
+	);
+	const userDocsList = useMemo(
+		() => actualDocuments.filter((doc) => doc.document_type !== "SURFSENSE_DOCS"),
+		[actualDocuments]
+	);
+
 	// Track already selected documents using unique key (document_type:id) to avoid ID collisions
 	const selectedKeys = useMemo(
 		() => new Set(initialSelectedDocuments.map((d) => `${d.document_type}:${d.id}`)),
@@ -324,47 +334,102 @@ export const DocumentMentionPicker = forwardRef<
 					</div>
 				) : (
 					<div className="py-1">
-						{actualDocuments.map((doc) => {
-							const docKey = `${doc.document_type}:${doc.id}`;
-							const isAlreadySelected = selectedKeys.has(docKey);
-							const selectableIndex = selectableDocuments.findIndex(
-								(d) => d.document_type === doc.document_type && d.id === doc.id
-							);
-							const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
+						{/* SurfSense Documentation Section */}
+						{surfsenseDocsList.length > 0 && (
+							<>
+								<div className="sticky top-0 z-10 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-muted text-foreground/80 border-b border-border">
+									SurfSense Docs
+								</div>
+								{surfsenseDocsList.map((doc) => {
+									const docKey = `${doc.document_type}:${doc.id}`;
+									const isAlreadySelected = selectedKeys.has(docKey);
+									const selectableIndex = selectableDocuments.findIndex(
+										(d) => d.document_type === doc.document_type && d.id === doc.id
+									);
+									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
 
-							return (
-								<button
-									key={docKey}
-									ref={(el) => {
-										if (el && selectableIndex >= 0) {
-											itemRefs.current.set(selectableIndex, el);
-										}
-									}}
-									type="button"
-									onClick={() => !isAlreadySelected && handleSelectDocument(doc)}
-									onMouseEnter={() => {
-										if (!isAlreadySelected && selectableIndex >= 0) {
-											setHighlightedIndex(selectableIndex);
-										}
-									}}
-									disabled={isAlreadySelected}
-									className={cn(
-										"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
-										isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
-										isHighlighted && "bg-accent"
-									)}
-								>
-									{/* Type icon */}
-									<span className="flex-shrink-0 text-muted-foreground text-sm">
-										{getConnectorIcon(doc.document_type)}
-									</span>
-									{/* Title */}
-									<span className="flex-1 text-sm truncate" title={doc.title}>
-										{doc.title}
-									</span>
-								</button>
-							);
-						})}
+									return (
+										<button
+											key={docKey}
+											ref={(el) => {
+												if (el && selectableIndex >= 0) {
+													itemRefs.current.set(selectableIndex, el);
+												}
+											}}
+											type="button"
+											onClick={() => !isAlreadySelected && handleSelectDocument(doc)}
+											onMouseEnter={() => {
+												if (!isAlreadySelected && selectableIndex >= 0) {
+													setHighlightedIndex(selectableIndex);
+												}
+											}}
+											disabled={isAlreadySelected}
+											className={cn(
+												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
+												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+												isHighlighted && "bg-accent"
+											)}
+										>
+											<span className="shrink-0 text-muted-foreground text-sm">
+												{getConnectorIcon(doc.document_type)}
+											</span>
+											<span className="flex-1 text-sm truncate" title={doc.title}>
+												{doc.title}
+											</span>
+										</button>
+									);
+								})}
+							</>
+						)}
+
+						{/* User Documents Section */}
+						{userDocsList.length > 0 && (
+							<>
+								<div className="sticky top-0 z-10 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-muted text-foreground/80 border-b border-border">
+									Your Documents
+								</div>
+								{userDocsList.map((doc) => {
+									const docKey = `${doc.document_type}:${doc.id}`;
+									const isAlreadySelected = selectedKeys.has(docKey);
+									const selectableIndex = selectableDocuments.findIndex(
+										(d) => d.document_type === doc.document_type && d.id === doc.id
+									);
+									const isHighlighted = !isAlreadySelected && selectableIndex === highlightedIndex;
+
+									return (
+										<button
+											key={docKey}
+											ref={(el) => {
+												if (el && selectableIndex >= 0) {
+													itemRefs.current.set(selectableIndex, el);
+												}
+											}}
+											type="button"
+											onClick={() => !isAlreadySelected && handleSelectDocument(doc)}
+											onMouseEnter={() => {
+												if (!isAlreadySelected && selectableIndex >= 0) {
+													setHighlightedIndex(selectableIndex);
+												}
+											}}
+											disabled={isAlreadySelected}
+											className={cn(
+												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
+												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
+												isHighlighted && "bg-accent"
+											)}
+										>
+											<span className="shrink-0 text-muted-foreground text-sm">
+												{getConnectorIcon(doc.document_type)}
+											</span>
+											<span className="flex-1 text-sm truncate" title={doc.title}>
+												{doc.title}
+											</span>
+										</button>
+									);
+								})}
+							</>
+						)}
+
 						{/* Loading indicator for additional pages */}
 						{isLoadingMore && (
 							<div className="flex items-center justify-center py-2">

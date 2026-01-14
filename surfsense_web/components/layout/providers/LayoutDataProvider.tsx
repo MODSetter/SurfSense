@@ -354,7 +354,11 @@ export function LayoutDataProvider({
 				onChatDelete={handleChatDelete}
 				onViewAllSharedChats={handleViewAllSharedChats}
 				onViewAllPrivateChats={handleViewAllPrivateChats}
-				user={{ email: user?.email || "", name: user?.email?.split("@")[0] }}
+				user={{
+					email: user?.email || "",
+					name: user?.display_name || user?.email?.split("@")[0],
+					avatarUrl: user?.avatar_url || undefined,
+				}}
 				onSettings={handleSettings}
 				onManageMembers={handleManageMembers}
 				onUserSettings={handleUserSettings}
