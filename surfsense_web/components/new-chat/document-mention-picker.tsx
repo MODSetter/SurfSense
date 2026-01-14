@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { BookOpen, FileText } from "lucide-react";
+import { FileText } from "lucide-react";
 import {
 	forwardRef,
 	useCallback,
@@ -337,9 +337,8 @@ export const DocumentMentionPicker = forwardRef<
 						{/* SurfSense Documentation Section */}
 						{surfsenseDocsList.length > 0 && (
 							<>
-								<div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b border-border/50 bg-muted/30">
-									<BookOpen className="h-3 w-3" />
-									<span>SurfSense Docs</span>
+								<div className="sticky top-0 z-10 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-muted text-foreground/80 border-b border-border">
+									SurfSense Docs
 								</div>
 								{surfsenseDocsList.map((doc) => {
 									const docKey = `${doc.document_type}:${doc.id}`;
@@ -386,9 +385,8 @@ export const DocumentMentionPicker = forwardRef<
 						{/* User Documents Section */}
 						{userDocsList.length > 0 && (
 							<>
-								<div className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground border-b border-border/50 bg-muted/30">
-									<FileText className="h-3 w-3" />
-									<span>Your Documents</span>
+								<div className="sticky top-0 z-10 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-muted text-foreground/80 border-b border-border">
+									Your Documents
 								</div>
 								{userDocsList.map((doc) => {
 									const docKey = `${doc.document_type}:${doc.id}`;
