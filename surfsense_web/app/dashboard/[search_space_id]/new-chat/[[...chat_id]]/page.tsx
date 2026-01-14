@@ -23,6 +23,7 @@ import {
 	// extractWriteTodosFromContent,
 	hydratePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
@@ -185,12 +186,25 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 		}
 	}
 
+	// Build metadata.custom for author display in shared chats
+	const metadata = msg.author_id
+		? {
+				custom: {
+					author: {
+						displayName: msg.author_display_name ?? null,
+						avatarUrl: msg.author_avatar_url ?? null,
+					},
+				},
+			}
+		: undefined;
+
 	return {
 		id: `msg-${msg.id}`,
 		role: msg.role,
 		content,
 		createdAt: new Date(msg.created_at),
 		attachments,
+		metadata,
 	};
 }
 
@@ -237,6 +251,9 @@ export default function NewChatPage() {
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const hydratePlanState = useSetAtom(hydratePlanStateAtom);
+
+	// Get current user for author info in shared chats
+	const { data: currentUser } = useAtomValue(currentUserAtom);
 
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
@@ -306,12 +323,6 @@ export default function NewChatPage() {
 							if (steps.length > 0) {
 								restoredThinkingSteps.set(`msg-${msg.id}`, steps);
 							}
-							// Hydrate write_todos plan state from persisted tool calls
-							// Disabled for now
-							// const writeTodosCalls = extractWriteTodosFromContent(msg.content);
-							// for (const todoData of writeTodosCalls) {
-							// 	hydratePlanState(todoData);
-							// }
 						}
 						if (msg.role === "user") {
 							const docs = extractMentionedDocuments(msg.content);
@@ -448,13 +459,27 @@ export default function NewChatPage() {
 
 			// Add user message to state
 			const userMsgId = `msg-user-${Date.now()}`;
+
+			// Include author metadata for shared chats
+			const authorMetadata =
+				currentThread?.visibility === "SEARCH_SPACE" && currentUser
+					? {
+							custom: {
+								author: {
+									displayName: currentUser.display_name ?? null,
+									avatarUrl: currentUser.avatar_url ?? null,
+								},
+							},
+						}
+					: undefined;
+
 			const userMessage: ThreadMessageLike = {
 				id: userMsgId,
 				role: "user",
 				content: message.content,
 				createdAt: new Date(),
-				// Include attachments so they can be displayed
 				attachments: message.attachments || [],
+				metadata: authorMetadata,
 			};
 			setMessages((prev) => [...prev, userMessage]);
 
@@ -884,6 +909,8 @@ export default function NewChatPage() {
 			setMentionedDocuments,
 			setMessageDocumentsMap,
 			queryClient,
+			currentThread,
+			currentUser,
 		]
 	);
 

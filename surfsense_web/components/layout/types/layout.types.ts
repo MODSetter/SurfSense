@@ -12,6 +12,7 @@ export interface SearchSpace {
 export interface User {
 	email: string;
 	name?: string;
+	avatarUrl?: string;
 }
 
 export interface NavItem {

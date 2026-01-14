@@ -119,10 +119,7 @@ const DocumentUploadPopupContent: FC<{
 				<div className="flex-1 min-h-0 relative overflow-hidden">
 					<div className="h-full overflow-y-auto">
 						<div className="px-6 sm:px-12 pb-5 sm:pb-16">
-							<DocumentUploadTab
-								searchSpaceId={searchSpaceId}
-								onSuccess={handleSuccess}
-							/>
+							<DocumentUploadTab searchSpaceId={searchSpaceId} onSuccess={handleSuccess} />
 						</div>
 					</div>
 					{/* Bottom fade shadow */}

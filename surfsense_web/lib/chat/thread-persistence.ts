@@ -31,6 +31,9 @@ export interface MessageRecord {
 	role: "user" | "assistant" | "system";
 	content: unknown;
 	created_at: string;
+	author_id?: string | null;
+	author_display_name?: string | null;
+	author_avatar_url?: string | null;
 }
 
 export interface ThreadListResponse {

@@ -61,6 +61,39 @@ function getInitials(email: string): string {
 	return name.slice(0, 2).toUpperCase();
 }
 
+/**
+ * User avatar component - shows image if available, otherwise falls back to initials
+ */
+function UserAvatar({
+	avatarUrl,
+	initials,
+	bgColor,
+}: {
+	avatarUrl?: string;
+	initials: string;
+	bgColor: string;
+}) {
+	if (avatarUrl) {
+		return (
+			<img
+				src={avatarUrl}
+				alt="User avatar"
+				className="h-8 w-8 shrink-0 rounded-lg object-cover"
+				referrerPolicy="no-referrer"
+			/>
+		);
+	}
+
+	return (
+		<div
+			className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white"
+			style={{ backgroundColor: bgColor }}
+		>
+			{initials}
+		</div>
+	);
+}
+
 export function SidebarUserProfile({
 	user,
 	onUserSettings,
@@ -88,12 +121,7 @@ export function SidebarUserProfile({
 										"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 									)}
 								>
-									<div
-										className="flex h-8 w-8 items-center justify-center rounded-lg text-xs font-semibold text-white"
-										style={{ backgroundColor: bgColor }}
-									>
-										{initials}
-									</div>
+									<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
 									<span className="sr-only">{displayName}</span>
 								</button>
 							</DropdownMenuTrigger>
@@ -104,12 +132,7 @@ export function SidebarUserProfile({
 					<DropdownMenuContent className="w-56" side="right" align="end" sideOffset={8}>
 						<DropdownMenuLabel className="font-normal">
 							<div className="flex items-center gap-2">
-								<div
-									className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white"
-									style={{ backgroundColor: bgColor }}
-								>
-									{initials}
-								</div>
+								<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
 								<div className="flex-1 min-w-0">
 									<p className="truncate text-sm font-medium">{displayName}</p>
 									<p className="truncate text-xs text-muted-foreground">{user.email}</p>
@@ -149,13 +172,7 @@ export function SidebarUserProfile({
 							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 						)}
 					>
-						{/* Avatar */}
-						<div
-							className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white"
-							style={{ backgroundColor: bgColor }}
-						>
-							{initials}
-						</div>
+						<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
 
 						{/* Name and email */}
 						<div className="flex-1 min-w-0">
@@ -171,12 +188,7 @@ export function SidebarUserProfile({
 				<DropdownMenuContent className="w-56" side="top" align="start" sideOffset={4}>
 					<DropdownMenuLabel className="font-normal">
 						<div className="flex items-center gap-2">
-							<div
-								className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-semibold text-white"
-								style={{ backgroundColor: bgColor }}
-							>
-								{initials}
-							</div>
+							<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
 							<div className="flex-1 min-w-0">
 								<p className="truncate text-sm font-medium">{displayName}</p>
 								<p className="truncate text-xs text-muted-foreground">{user.email}</p>

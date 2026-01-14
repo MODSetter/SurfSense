@@ -411,11 +411,9 @@ async def get_thread_messages(
     Requires CHATS_READ permission.
     """
     try:
-        # Get thread with messages
+        # Get thread first
         result = await session.execute(
-            select(NewChatThread)
-            .options(selectinload(NewChatThread.messages))
-            .filter(NewChatThread.id == thread_id)
+            select(NewChatThread).filter(NewChatThread.id == thread_id)
         )
         thread = result.scalars().first()
 
@@ -434,6 +432,15 @@ async def get_thread_messages(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
 
+        # Get messages with their authors loaded
+        messages_result = await session.execute(
+            select(NewChatMessage)
+            .options(selectinload(NewChatMessage.author))
+            .filter(NewChatMessage.thread_id == thread_id)
+            .order_by(NewChatMessage.created_at)
+        )
+        db_messages = messages_result.scalars().all()
+
         # Return messages in the format expected by assistant-ui
         messages = [
             NewChatMessageRead(
@@ -442,8 +449,11 @@ async def get_thread_messages(
                 role=msg.role,
                 content=msg.content,
                 created_at=msg.created_at,
+                author_id=msg.author_id,
+                author_display_name=msg.author.display_name if msg.author else None,
+                author_avatar_url=msg.author.avatar_url if msg.author else None,
             )
-            for msg in thread.messages
+            for msg in db_messages
         ]
 
         return ThreadHistoryLoadResponse(messages=messages)
@@ -782,6 +792,7 @@ async def append_message(
             thread_id=thread_id,
             role=message_role,
             content=message.content,
+            author_id=user.id,
         )
         session.add(db_message)
 
