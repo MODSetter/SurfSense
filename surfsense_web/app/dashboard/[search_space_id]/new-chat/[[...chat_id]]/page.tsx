@@ -185,12 +185,25 @@ function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
 		}
 	}
 
+	// Build metadata.custom for author display in shared chats
+	const metadata = msg.author_id
+		? {
+				custom: {
+					author: {
+						displayName: msg.author_display_name ?? null,
+						avatarUrl: msg.author_avatar_url ?? null,
+					},
+				},
+			}
+		: undefined;
+
 	return {
 		id: `msg-${msg.id}`,
 		role: msg.role,
 		content,
 		createdAt: new Date(msg.created_at),
 		attachments,
+		metadata,
 	};
 }
 
@@ -306,12 +319,6 @@ export default function NewChatPage() {
 							if (steps.length > 0) {
 								restoredThinkingSteps.set(`msg-${msg.id}`, steps);
 							}
-							// Hydrate write_todos plan state from persisted tool calls
-							// Disabled for now
-							// const writeTodosCalls = extractWriteTodosFromContent(msg.content);
-							// for (const todoData of writeTodosCalls) {
-							// 	hydratePlanState(todoData);
-							// }
 						}
 						if (msg.role === "user") {
 							const docs = extractMentionedDocuments(msg.content);
