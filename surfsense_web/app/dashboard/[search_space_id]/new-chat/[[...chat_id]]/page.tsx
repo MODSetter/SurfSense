@@ -425,6 +425,8 @@ export default function NewChatPage() {
 					const newThread = await createThread(searchSpaceId, "New Chat");
 					currentThreadId = newThread.id;
 					setThreadId(currentThreadId);
+					// Set currentThread so ChatHeader can show share button immediately
+					setCurrentThread(newThread);
 
 					// Track chat creation
 					trackChatCreated(searchSpaceId, currentThreadId);
