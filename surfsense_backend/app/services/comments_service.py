@@ -363,3 +363,51 @@ async def update_comment(
         can_edit=True,
         can_delete=True,
     )
+
+
+async def delete_comment(
+    session: AsyncSession,
+    comment_id: int,
+    user: User,
+) -> dict:
+    """
+    Delete a comment (author or user with COMMENTS_DELETE permission).
+
+    Args:
+        session: Database session
+        comment_id: ID of the comment to delete
+        user: The current authenticated user
+
+    Returns:
+        Dict with deletion confirmation
+
+    Raises:
+        HTTPException: If comment not found or user lacks permission to delete
+    """
+    result = await session.execute(
+        select(ChatComment)
+        .options(selectinload(ChatComment.message).selectinload(NewChatMessage.thread))
+        .filter(ChatComment.id == comment_id)
+    )
+    comment = result.scalars().first()
+
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    is_author = comment.author_id == user.id
+
+    # Check if user has COMMENTS_DELETE permission
+    search_space_id = comment.message.thread.search_space_id
+    user_permissions = await get_user_permissions(session, user.id, search_space_id)
+    can_delete_any = has_permission(user_permissions, Permission.COMMENTS_DELETE.value)
+
+    if not is_author and not can_delete_any:
+        raise HTTPException(
+            status_code=403,
+            detail="You do not have permission to delete this comment",
+        )
+
+    await session.delete(comment)
+    await session.commit()
+
+    return {"message": "Comment deleted successfully", "comment_id": comment_id}
