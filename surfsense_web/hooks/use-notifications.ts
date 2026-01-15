@@ -14,6 +14,12 @@ export type { Notification } from "@/contracts/types/notification.types";
  * Uses the Electric client from context (provided by ElectricProvider)
  * instead of initializing its own - prevents race conditions and memory leaks
  * 
+ * Architecture:
+ * - User-level sync: Syncs ALL notifications for a user (runs once per user)
+ * - Search-space-level query: Filters notifications by searchSpaceId (updates on search space change)
+ * 
+ * This separation ensures smooth transitions when switching search spaces (no flash).
+ * 
  * @param userId - The user ID to fetch notifications for
  * @param searchSpaceId - The search space ID to filter notifications (null shows global notifications only)
  */
@@ -26,42 +32,39 @@ export function useNotifications(userId: string | null, searchSpaceId: number | 
 	const [error, setError] = useState<Error | null>(null);
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
-	const syncKeyRef = useRef<string | null>(null);
+	
+	// Track user-level sync key to prevent duplicate sync subscriptions
+	const userSyncKeyRef = useRef<string | null>(null);
 
-	// Start syncing when Electric client is available
+	// EFFECT 1: User-level sync - runs once per user, syncs ALL notifications
 	useEffect(() => {
-		// Wait for both userId and Electric client to be available
 		if (!userId || !electricClient) {
-			setLoading(!electricClient); // Still loading if waiting for Electric
+			setLoading(!electricClient);
 			return;
 		}
 
-		// Create a unique key for this sync - includes searchSpaceId for proper tracking
-		// Note: We sync ALL user notifications but filter by searchSpaceId in queries (memory efficient)
-		const syncKey = `notifications_${userId}_space_${searchSpaceId ?? "global"}`;
-		if (syncKeyRef.current === syncKey) {
-			// Already syncing for this user/searchSpace combo
+		const userSyncKey = `notifications_${userId}`;
+		if (userSyncKeyRef.current === userSyncKey) {
+			// Already syncing for this user
 			return;
 		}
 
 		let mounted = true;
-		syncKeyRef.current = syncKey;
+		userSyncKeyRef.current = userSyncKey;
 
-		async function startSync() {
+		async function startUserSync() {
 			try {
-				console.log("[useNotifications] Starting sync for user:", userId, "searchSpace:", searchSpaceId);
+				console.log("[useNotifications] Starting user-level sync for:", userId);
 
-				// Sync ALL notifications for this user (one subscription for all search spaces)
-				// This is memory efficient - we filter by searchSpaceId in queries only
+				// Sync ALL notifications for this user (cached via syncShape caching)
 				const handle = await electricClient.syncShape({
 					table: "notifications",
 					where: `user_id = '${userId}'`,
 					primaryKey: ["id"],
 				});
 
-				console.log("[useNotifications] Sync started:", {
+				console.log("[useNotifications] User sync started:", {
 					isUpToDate: handle.isUpToDate,
-					hasStream: !!handle.stream,
 				});
 
 				// Wait for initial sync with timeout
@@ -84,23 +87,47 @@ export function useNotifications(userId: string | null, searchSpaceId: number | 
 				syncHandleRef.current = handle;
 				setLoading(false);
 				setError(null);
-
-				// Fetch initial notifications
-				await fetchNotifications();
-
-				// Set up live query for real-time updates
-				await setupLiveQuery();
 			} catch (err) {
 				if (!mounted) return;
-				console.error("[useNotifications] Failed to start sync:", err);
+				console.error("[useNotifications] Failed to start user sync:", err);
 				setError(err instanceof Error ? err : new Error("Failed to sync notifications"));
 				setLoading(false);
 			}
 		}
 
-		async function fetchNotifications() {
+		startUserSync();
+
+		return () => {
+			mounted = false;
+			userSyncKeyRef.current = null;
+			
+			if (syncHandleRef.current) {
+				syncHandleRef.current.unsubscribe();
+				syncHandleRef.current = null;
+			}
+		};
+	}, [userId, electricClient]);
+
+	// EFFECT 2: Search-space-level query - updates when searchSpaceId changes
+	// This runs independently of sync, allowing smooth transitions between search spaces
+	useEffect(() => {
+		if (!userId || !electricClient) {
+			return;
+		}
+
+		let mounted = true;
+
+		async function updateQuery() {
+			// Clean up previous live query (but DON'T clear notifications - keep showing old until new arrive)
+			if (liveQueryRef.current) {
+				liveQueryRef.current.unsubscribe();
+				liveQueryRef.current = null;
+			}
+
 			try {
-				// Filter by user_id AND searchSpaceId (or global notifications where search_space_id IS NULL)
+				console.log("[useNotifications] Updating query for searchSpace:", searchSpaceId);
+
+				// Fetch notifications for current search space immediately
 				const result = await electricClient.db.query<Notification>(
 					`SELECT * FROM notifications 
 					 WHERE user_id = $1 
@@ -108,21 +135,16 @@ export function useNotifications(userId: string | null, searchSpaceId: number | 
 					 ORDER BY created_at DESC`,
 					[userId, searchSpaceId]
 				);
+				
 				if (mounted) {
 					setNotifications(result.rows || []);
 				}
-			} catch (err) {
-				console.error("[useNotifications] Failed to fetch:", err);
-			}
-		}
 
-		async function setupLiveQuery() {
-			try {
+				// Set up live query for real-time updates
 				// eslint-disable-next-line @typescript-eslint/no-explicit-any
 				const db = electricClient.db as any;
 
 				if (db.live?.query && typeof db.live.query === "function") {
-					// Filter by user_id AND searchSpaceId (or global notifications)
 					const liveQuery = await db.live.query(
 						`SELECT * FROM notifications 
 						 WHERE user_id = $1 
@@ -136,7 +158,7 @@ export function useNotifications(userId: string | null, searchSpaceId: number | 
 						return;
 					}
 
-					// Set initial results
+					// Set initial results from live query
 					if (liveQuery.initialResults?.rows) {
 						setNotifications(liveQuery.initialResults.rows);
 					} else if (liveQuery.rows) {
@@ -156,21 +178,15 @@ export function useNotifications(userId: string | null, searchSpaceId: number | 
 						liveQueryRef.current = liveQuery;
 					}
 				}
-			} catch (liveErr) {
-				console.error("[useNotifications] Failed to set up live query:", liveErr);
+			} catch (err) {
+				console.error("[useNotifications] Failed to update query:", err);
 			}
 		}
 
-		startSync();
+		updateQuery();
 
 		return () => {
 			mounted = false;
-			syncKeyRef.current = null;
-			
-			if (syncHandleRef.current) {
-				syncHandleRef.current.unsubscribe();
-				syncHandleRef.current = null;
-			}
 			if (liveQueryRef.current) {
 				liveQueryRef.current.unsubscribe();
 				liveQueryRef.current = null;
