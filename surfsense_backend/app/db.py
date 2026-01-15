@@ -152,6 +152,11 @@ class Permission(str, Enum):
     CHATS_UPDATE = "chats:update"
     CHATS_DELETE = "chats:delete"
 
+    # Comments
+    COMMENTS_CREATE = "comments:create"
+    COMMENTS_READ = "comments:read"
+    COMMENTS_DELETE = "comments:delete"
+
     # LLM Configs
     LLM_CONFIGS_CREATE = "llm_configs:create"
     LLM_CONFIGS_READ = "llm_configs:read"
