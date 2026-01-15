@@ -110,6 +110,11 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 
 const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
 
+// Upload limits
+const MAX_FILES = 10;
+const MAX_TOTAL_SIZE_MB = 200;
+const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
+
 export function DocumentUploadTab({
 	searchSpaceId,
 	onSuccess,
@@ -135,14 +140,36 @@ export function DocumentUploadTab({
 	);
 
 	const onDrop = useCallback((acceptedFiles: File[]) => {
-		setFiles((prev) => [...prev, ...acceptedFiles]);
-	}, []);
+		setFiles((prev) => {
+			const newFiles = [...prev, ...acceptedFiles];
+			
+			// Check file count limit
+			if (newFiles.length > MAX_FILES) {
+				toast.error(t("max_files_exceeded"), {
+					description: t("max_files_exceeded_desc", { max: MAX_FILES }),
+				});
+				return prev;
+			}
+			
+			// Check total size limit
+			const newTotalSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+			if (newTotalSize > MAX_TOTAL_SIZE_BYTES) {
+				toast.error(t("max_size_exceeded"), {
+					description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
+				});
+				return prev;
+			}
+			
+			return newFiles;
+		});
+	}, [t]);
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
 		accept: acceptedFileTypes,
-		maxSize: 50 * 1024 * 1024,
+		maxSize: 50 * 1024 * 1024, // 50MB per file
 		noClick: false,
+		disabled: files.length >= MAX_FILES,
 	});
 
 	// Handle file input click to prevent event bubbling that might reopen dialog
@@ -159,6 +186,12 @@ export function DocumentUploadTab({
 	};
 
 	const totalFileSize = files.reduce((total, file) => total + file.size, 0);
+
+	// Check if limits are reached
+	const isFileCountLimitReached = files.length >= MAX_FILES;
+	const isSizeLimitReached = totalFileSize >= MAX_TOTAL_SIZE_BYTES;
+	const remainingFiles = MAX_FILES - files.length;
+	const remainingSizeMB = Math.max(0, (MAX_TOTAL_SIZE_BYTES - totalFileSize) / (1024 * 1024)).toFixed(1);
 
 	// Track accordion state changes
 	const handleAccordionChange = useCallback(
@@ -210,7 +243,7 @@ export function DocumentUploadTab({
 			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5 flex items-start gap-3 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg~*]:pl-0">
 				<Info className="h-4 w-4 shrink-0 mt-0.5" />
 				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
-					{t("file_size_limit")}
+					{t("file_size_limit")} {t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
 				</AlertDescription>
 			</Alert>
 
@@ -221,7 +254,11 @@ export function DocumentUploadTab({
 				<CardContent className="p-4 sm:p-10 relative z-10">
 					<div
 						{...getRootProps()}
-						className="flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed border-border rounded-lg hover:border-primary/50 transition-colors cursor-pointer"
+						className={`flex flex-col items-center justify-center min-h-[200px] sm:min-h-[300px] border-2 border-dashed rounded-lg transition-colors ${
+							isFileCountLimitReached || isSizeLimitReached
+								? "border-destructive/50 bg-destructive/5 cursor-not-allowed"
+								: "border-border hover:border-primary/50 cursor-pointer"
+						}`}
 					>
 						<input
 							{...getInputProps()}
@@ -229,7 +266,17 @@ export function DocumentUploadTab({
 							className="hidden"
 							onClick={handleFileInputClick}
 						/>
-						{isDragActive ? (
+						{isFileCountLimitReached ? (
+							<div className="flex flex-col items-center gap-2 sm:gap-4 text-center px-4">
+								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-destructive/70" />
+								<div>
+									<p className="text-sm sm:text-lg font-medium text-destructive">{t("file_limit_reached")}</p>
+									<p className="text-xs sm:text-sm text-muted-foreground mt-1">
+										{t("file_limit_reached_desc", { max: MAX_FILES })}
+									</p>
+								</div>
+							</div>
+						) : isDragActive ? (
 							<motion.div
 								initial={{ opacity: 0, scale: 0.8 }}
 								animate={{ opacity: 1, scale: 1 }}
@@ -245,22 +292,29 @@ export function DocumentUploadTab({
 									<p className="text-sm sm:text-lg font-medium">{t("drag_drop")}</p>
 									<p className="text-xs sm:text-sm text-muted-foreground mt-1">{t("or_browse")}</p>
 								</div>
+								{files.length > 0 && (
+									<p className="text-xs text-muted-foreground">
+										{t("remaining_capacity", { files: remainingFiles, sizeMB: remainingSizeMB })}
+									</p>
+								)}
 							</div>
 						)}
-						<div className="mt-2 sm:mt-4">
-							<Button
-								variant="outline"
-								size="sm"
-								className="text-xs sm:text-sm"
-								onClick={(e) => {
-									e.stopPropagation();
-									e.preventDefault();
-									fileInputRef.current?.click();
-								}}
-							>
-								{t("browse_files")}
-							</Button>
-						</div>
+						{!isFileCountLimitReached && (
+							<div className="mt-2 sm:mt-4">
+								<Button
+									variant="outline"
+									size="sm"
+									className="text-xs sm:text-sm"
+									onClick={(e) => {
+										e.stopPropagation();
+										e.preventDefault();
+										fileInputRef.current?.click();
+									}}
+								>
+									{t("browse_files")}
+								</Button>
+							</div>
+						)}
 					</div>
 				</CardContent>
 			</Card>

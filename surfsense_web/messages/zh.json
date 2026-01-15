@@ -363,6 +363,7 @@
 		"title": "上传文档",
 		"subtitle": "上传您的文件，使其可通过 AI 对话进行搜索和访问。",
 		"file_size_limit": "最大文件大小：每个文件 50MB。支持的格式因您的 ETL 服务配置而异。",
+		"upload_limits": "上传限制：最多 {maxFiles} 个文件，总大小不超过 {maxSizeMB}MB。",
 		"drop_files": "放下文件到这里",
 		"drag_drop": "拖放文件到这里",
 		"or_browse": "或点击浏览",
@@ -378,7 +379,14 @@
 		"upload_error": "上传错误",
 		"upload_error_desc": "上传文件时出错",
 		"supported_file_types": "支持的文件类型",
-		"file_types_desc": "根据您当前的 ETL 服务配置支持这些文件类型。"
+		"file_types_desc": "根据您当前的 ETL 服务配置支持这些文件类型。",
+		"max_files_exceeded": "超过文件数量限制",
+		"max_files_exceeded_desc": "一次最多只能上传 {max} 个文件。",
+		"max_size_exceeded": "超过文件大小限制",
+		"max_size_exceeded_desc": "文件总大小不能超过 {max}MB。",
+		"file_limit_reached": "已达到最大文件数量",
+		"file_limit_reached_desc": "移除一些文件以添加更多（最多 {max} 个文件）。",
+		"remaining_capacity": "剩余 {files} 个文件名额 • 可用 {sizeMB}MB"
 	},
 	"add_webpage": {
 		"title": "添加网页爬取",
