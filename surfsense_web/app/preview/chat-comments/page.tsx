@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { MemberMentionPicker } from "@/components/chat-comments/member-mention-picker";
-import type { MemberOption } from "@/components/chat-comments/member-mention-picker";
+import { MemberMentionPicker } from "@/components/chat-comments/member-mention-picker/member-mention-picker";
+import type { MemberOption } from "@/components/chat-comments/member-mention-picker/types";
 
 const fakeMembersData: MemberOption[] = [
 	{
