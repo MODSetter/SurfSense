@@ -58,6 +58,7 @@ services:
       - LANGSMITH_TRACING=false
       - ELECTRIC_DB_USER=${ELECTRIC_DB_USER:-electric}
       - ELECTRIC_DB_PASSWORD=${ELECTRIC_DB_PASSWORD:-electric_password}
+      - NEXT_FRONTEND_URL=http://frontend:3000
     depends_on:
       - db
       - redis

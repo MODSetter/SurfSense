@@ -147,7 +147,18 @@ If you're using a local PostgreSQL installation, follow these steps:
 
 **1. Enable logical replication in PostgreSQL:**
 
-Locate your `postgresql.conf` file and add the following settings:
+Open your `postgresql.conf` file using vim (or your preferred editor):
+
+```bash
+# Common locations:
+# macOS (Homebrew): /opt/homebrew/var/postgresql@15/postgresql.conf
+# Linux: /etc/postgresql/15/main/postgresql.conf
+# Windows: C:\Program Files\PostgreSQL\15\data\postgresql.conf
+
+sudo vim /path/to/postgresql.conf
+```
+
+Add the following settings:
 
 ```ini
 # Enable logical replication (required for Electric SQL)
@@ -156,7 +167,7 @@ max_replication_slots = 10
 max_wal_senders = 10
 ```
 
-After saving the changes, restart your PostgreSQL server for the configuration to take effect.
+After saving the changes (`:wq` in vim), restart your PostgreSQL server for the configuration to take effect.
 
 **2. Update environment variable:**
 
