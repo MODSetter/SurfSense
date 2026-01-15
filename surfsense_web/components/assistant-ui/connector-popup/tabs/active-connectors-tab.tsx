@@ -313,19 +313,12 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 			) : (
 				<div className="flex flex-col items-center justify-center py-20 text-center">
 					<div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-						<Cable className="size-8 text-muted-foreground/50" />
+						<Cable className="size-8 text-muted-foreground" />
 					</div>
 					<h4 className="text-lg font-semibold">No active sources</h4>
 					<p className="text-sm text-muted-foreground mt-1 max-w-[280px]">
 						Connect your first service to start searching across all your data.
 					</p>
-					<Button
-						variant="link"
-						className="mt-6 text-primary hover:underline"
-						onClick={() => onTabChange("all")}
-					>
-						Browse available connectors
-					</Button>
 				</div>
 			)}
 		</TabsContent>

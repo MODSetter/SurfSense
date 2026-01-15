@@ -111,24 +111,13 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				align="end"
 				sideOffset={8}
 			>
-				<div className="p-3 md:p-4">
-					<div className="flex items-center gap-2">
-						<div>
-							<h4 className="text-sm font-semibold">Share Chat</h4>
-							<p className="text-xs text-muted-foreground">
-								Control who can access this conversation
-							</p>
-						</div>
-					</div>
-				</div>
-
 				<div className="p-1.5 space-y-1">
 					{/* Updating overlay */}
 					{isUpdating && (
 						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
 							<div className="flex items-center gap-2 text-sm text-muted-foreground">
 								<Loader2 className="size-4 animate-spin" />
-								<span>Updating...</span>
+								<span>Updating</span>
 							</div>
 						</div>
 					)}
