@@ -424,6 +424,59 @@ class NewChatMessage(BaseModel, TimestampMixin):
     # Relationships
     thread = relationship("NewChatThread", back_populates="messages")
     author = relationship("User")
+    comments = relationship(
+        "ChatComment",
+        back_populates="message",
+        cascade="all, delete-orphan",
+    )
+
+
+class ChatComment(BaseModel, TimestampMixin):
+    """
+    Comment model for comments on AI chat responses.
+    Supports one level of nesting (replies to comments, but no replies to replies).
+    """
+
+    __tablename__ = "chat_comments"
+
+    message_id = Column(
+        Integer,
+        ForeignKey("new_chat_messages.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    parent_id = Column(
+        Integer,
+        ForeignKey("chat_comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    content = Column(Text, nullable=False)
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    # Relationships
+    message = relationship("NewChatMessage", back_populates="comments")
+    author = relationship("User")
+    parent = relationship(
+        "ChatComment", remote_side="ChatComment.id", backref="replies"
+    )
+    mentions = relationship(
+        "ChatCommentMention",
+        back_populates="comment",
+        cascade="all, delete-orphan",
+    )
 
 
 class Document(BaseModel, TimestampMixin):
