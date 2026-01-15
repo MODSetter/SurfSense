@@ -6,6 +6,8 @@ Revises: 9
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -18,8 +20,34 @@ depends_on: str | Sequence[str] | None = None
 CHAT_TYPE_ENUM = "chattype"
 
 
+def enum_exists(enum_name: str) -> bool:
+    """Check if an enum type exists in the database."""
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text("SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = :enum_name)"),
+        {"enum_name": enum_name},
+    )
+    return result.scalar()
+
+
+def table_exists(table_name: str) -> bool:
+    """Check if a table exists in the database."""
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :table_name)"
+        ),
+        {"table_name": table_name},
+    )
+    return result.scalar()
+
+
 def upgrade() -> None:
     """Upgrade schema - replace ChatType enum values with new QNA/REPORT structure."""
+
+    # Skip if chats table or chattype enum doesn't exist (fresh database)
+    if not table_exists("chats") or not enum_exists(CHAT_TYPE_ENUM):
+        return
 
     # Old enum name for temporary storage
     old_enum_name = f"{CHAT_TYPE_ENUM}_old"
@@ -71,6 +99,10 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema - revert ChatType enum to old GENERAL/DEEP/DEEPER/DEEPEST structure."""
+
+    # Skip if chats table or chattype enum doesn't exist
+    if not table_exists("chats") or not enum_exists(CHAT_TYPE_ENUM):
+        return
 
     # Old enum name for temporary storage
     old_enum_name = f"{CHAT_TYPE_ENUM}_old"

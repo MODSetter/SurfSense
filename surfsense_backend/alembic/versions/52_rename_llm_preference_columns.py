@@ -39,7 +39,7 @@ def upgrade():
         """
     )
 
-    # Rename columns (only if they exist with old names)
+    # Rename columns (only if source exists and target doesn't already exist)
     op.execute(
         """
         DO $$
@@ -47,6 +47,9 @@ def upgrade():
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'searchspaces' AND column_name = 'fast_llm_id'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'searchspaces' AND column_name = 'agent_llm_id'
             ) THEN
                 ALTER TABLE searchspaces RENAME COLUMN fast_llm_id TO agent_llm_id;
             END IF;
@@ -61,6 +64,9 @@ def upgrade():
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'searchspaces' AND column_name = 'long_context_llm_id'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'searchspaces' AND column_name = 'document_summary_llm_id'
             ) THEN
                 ALTER TABLE searchspaces RENAME COLUMN long_context_llm_id TO document_summary_llm_id;
             END IF;
@@ -100,7 +106,7 @@ def downgrade():
         """
     )
 
-    # Rename columns back
+    # Rename columns back (only if source exists and target doesn't already exist)
     op.execute(
         """
         DO $$
@@ -108,6 +114,9 @@ def downgrade():
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'searchspaces' AND column_name = 'agent_llm_id'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'searchspaces' AND column_name = 'fast_llm_id'
             ) THEN
                 ALTER TABLE searchspaces RENAME COLUMN agent_llm_id TO fast_llm_id;
             END IF;
@@ -122,6 +131,9 @@ def downgrade():
             IF EXISTS (
                 SELECT 1 FROM information_schema.columns
                 WHERE table_name = 'searchspaces' AND column_name = 'document_summary_llm_id'
+            ) AND NOT EXISTS (
+                SELECT 1 FROM information_schema.columns
+                WHERE table_name = 'searchspaces' AND column_name = 'long_context_llm_id'
             ) THEN
                 ALTER TABLE searchspaces RENAME COLUMN document_summary_llm_id TO long_context_llm_id;
             END IF;

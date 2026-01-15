@@ -1,4 +1,8 @@
-import { getMeResponse } from "@/contracts/types/user.types";
+import {
+	getMeResponse,
+	type UpdateUserRequest,
+	updateUserResponse,
+} from "@/contracts/types/user.types";
 import { baseApiService } from "./base-api.service";
 
 class UserApiService {
@@ -7,6 +11,15 @@ class UserApiService {
 	 */
 	getMe = async () => {
 		return baseApiService.get(`/users/me`, getMeResponse);
+	};
+
+	/**
+	 * Update current authenticated user
+	 */
+	updateMe = async (request: UpdateUserRequest) => {
+		return baseApiService.patch(`/users/me`, updateUserResponse, {
+			body: request,
+		});
 	};
 }
 

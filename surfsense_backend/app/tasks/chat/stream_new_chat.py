@@ -237,7 +237,7 @@ async def stream_new_chat(
         checkpointer = await get_checkpointer()
 
         # Create the deep agent with checkpointer and configurable prompts
-        agent = create_surfsense_deep_agent(
+        agent = await create_surfsense_deep_agent(
             llm=llm,
             search_space_id=search_space_id,
             db_session=session,

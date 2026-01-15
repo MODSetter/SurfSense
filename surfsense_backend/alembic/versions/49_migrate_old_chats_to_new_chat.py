@@ -62,8 +62,25 @@ def parse_timestamp(ts, fallback):
     return fallback
 
 
+def table_exists(table_name: str) -> bool:
+    """Check if a table exists in the database."""
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text(
+            "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = :table_name)"
+        ),
+        {"table_name": table_name},
+    )
+    return result.scalar()
+
+
 def upgrade() -> None:
     """Migrate old chats to new_chat_threads and remove old tables."""
+    # Skip if chats table doesn't exist (fresh database)
+    if not table_exists("chats"):
+        print("[Migration 49] Chats table does not exist, skipping migration")
+        return
+
     connection = op.get_bind()
 
     # Get all old chats
@@ -176,36 +193,47 @@ def upgrade() -> None:
     print("[Migration 49] Migration complete!")
 
 
+def enum_exists(enum_name: str) -> bool:
+    """Check if an enum type exists in the database."""
+    conn = op.get_bind()
+    result = conn.execute(
+        sa.text("SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = :enum_name)"),
+        {"enum_name": enum_name},
+    )
+    return result.scalar()
+
+
 def downgrade() -> None:
     """Recreate old chats table (data cannot be restored)."""
-    # Recreate chattype enum
+    # Skip if chats table already exists
+    if table_exists("chats"):
+        print("[Migration 49 Downgrade] Chats table already exists, skipping")
+        return
+
+    # Recreate chattype enum if it doesn't exist
+    if not enum_exists("chattype"):
+        op.execute(
+            sa.text("""
+                CREATE TYPE chattype AS ENUM ('QNA')
+            """)
+        )
+
+    # Recreate chats table using raw SQL to avoid SQLAlchemy trying to create the enum
     op.execute(
         sa.text("""
-            CREATE TYPE chattype AS ENUM ('QNA')
+            CREATE TABLE chats (
+                id SERIAL PRIMARY KEY,
+                type chattype NOT NULL,
+                title VARCHAR NOT NULL,
+                initial_connectors VARCHAR[],
+                messages JSON NOT NULL,
+                state_version BIGINT NOT NULL DEFAULT 1,
+                search_space_id INTEGER NOT NULL REFERENCES searchspaces(id) ON DELETE CASCADE,
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+            )
         """)
     )
-
-    # Recreate chats table
-    op.create_table(
-        "chats",
-        sa.Column("id", sa.Integer(), primary_key=True, index=True),
-        sa.Column("type", sa.Enum("QNA", name="chattype"), nullable=False),
-        sa.Column("title", sa.String(), nullable=False, index=True),
-        sa.Column("initial_connectors", sa.ARRAY(sa.String()), nullable=True),
-        sa.Column("messages", sa.JSON(), nullable=False),
-        sa.Column("state_version", sa.BigInteger(), nullable=False, default=1),
-        sa.Column(
-            "search_space_id",
-            sa.Integer(),
-            sa.ForeignKey("searchspaces.id", ondelete="CASCADE"),
-            nullable=False,
-        ),
-        sa.Column(
-            "created_at",
-            sa.TIMESTAMP(timezone=True),
-            nullable=False,
-            server_default=sa.func.now(),
-        ),
-    )
+    op.execute(sa.text("CREATE INDEX ix_chats_id ON chats (id)"))
+    op.execute(sa.text("CREATE INDEX ix_chats_title ON chats (title)"))
 
     print("[Migration 49 Downgrade] Chats table recreated (data not restored)")

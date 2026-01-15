@@ -1,5 +1,4 @@
-"""
-Tools registry for SurfSense deep agent.
+"""Tools registry for SurfSense deep agent.
 
 This module provides a registry pattern for managing tools in the SurfSense agent.
 It makes it easy for OSS contributors to add new tools by:
@@ -37,6 +36,7 @@ Example of adding a new tool:
     ),
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -46,6 +46,7 @@ from langchain_core.tools import BaseTool
 from .display_image import create_display_image_tool
 from .knowledge_base import create_search_knowledge_base_tool
 from .link_preview import create_link_preview_tool
+from .mcp_tool import load_mcp_tools
 from .podcast import create_generate_podcast_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
@@ -57,8 +58,7 @@ from .search_surfsense_docs import create_search_surfsense_docs_tool
 
 @dataclass
 class ToolDefinition:
-    """
-    Definition of a tool that can be added to the agent.
+    """Definition of a tool that can be added to the agent.
 
     Attributes:
         name: Unique identifier for the tool
@@ -66,6 +66,7 @@ class ToolDefinition:
         factory: Callable that creates the tool. Receives a dict of dependencies.
         requires: List of dependency names this tool needs (e.g., "search_space_id", "db_session")
         enabled_by_default: Whether the tool is enabled when no explicit config is provided
+
     """
 
     name: str
@@ -178,8 +179,7 @@ def build_tools(
     disabled_tools: list[str] | None = None,
     additional_tools: list[BaseTool] | None = None,
 ) -> list[BaseTool]:
-    """
-    Build the list of tools for the agent.
+    """Build the list of tools for the agent.
 
     Args:
         dependencies: Dict containing all possible dependencies:
@@ -206,6 +206,7 @@ def build_tools(
 
         # Add custom tools
         tools = build_tools(deps, additional_tools=[my_custom_tool])
+
     """
     # Determine which tools to enable
     if enabled_tools is not None:
@@ -226,8 +227,9 @@ def build_tools(
         # Check that all required dependencies are provided
         missing_deps = [dep for dep in tool_def.requires if dep not in dependencies]
         if missing_deps:
+            msg = f"Tool '{tool_def.name}' requires dependencies: {missing_deps}"
             raise ValueError(
-                f"Tool '{tool_def.name}' requires dependencies: {missing_deps}"
+                msg,
             )
 
         # Create the tool
@@ -237,5 +239,64 @@ def build_tools(
     # Add any additional custom tools
     if additional_tools:
         tools.extend(additional_tools)
+
+    return tools
+
+
+async def build_tools_async(
+    dependencies: dict[str, Any],
+    enabled_tools: list[str] | None = None,
+    disabled_tools: list[str] | None = None,
+    additional_tools: list[BaseTool] | None = None,
+    include_mcp_tools: bool = True,
+) -> list[BaseTool]:
+    """Async version of build_tools that also loads MCP tools from database.
+
+    Design Note:
+    This function exists because MCP tools require database queries to load user configs,
+    while built-in tools are created synchronously from static code.
+
+    Alternative: We could make build_tools() itself async and always query the database,
+    but that would force async everywhere even when only using built-in tools. The current
+    design keeps the simple case (static tools only) synchronous while supporting dynamic
+    database-loaded tools through this async wrapper.
+
+    Args:
+        dependencies: Dict containing all possible dependencies
+        enabled_tools: Explicit list of tool names to enable. If None, uses defaults.
+        disabled_tools: List of tool names to disable (applied after enabled_tools).
+        additional_tools: Extra tools to add (e.g., custom tools not in registry).
+        include_mcp_tools: Whether to load user's MCP tools from database.
+
+    Returns:
+        List of configured tool instances ready for the agent, including MCP tools.
+
+    """
+    # Build standard tools
+    tools = build_tools(dependencies, enabled_tools, disabled_tools, additional_tools)
+
+    # Load MCP tools if requested and dependencies are available
+    if (
+        include_mcp_tools
+        and "db_session" in dependencies
+        and "search_space_id" in dependencies
+    ):
+        try:
+            mcp_tools = await load_mcp_tools(
+                dependencies["db_session"],
+                dependencies["search_space_id"],
+            )
+            tools.extend(mcp_tools)
+            logging.info(
+                f"Registered {len(mcp_tools)} MCP tools: {[t.name for t in mcp_tools]}",
+            )
+        except Exception as e:
+            # Log error but don't fail - just continue without MCP tools
+            logging.exception(f"Failed to load MCP tools: {e!s}")
+
+    # Log all tools being returned to agent
+    logging.info(
+        f"Total tools for agent: {len(tools)} - {[t.name for t in tools]}",
+    )
 
     return tools
