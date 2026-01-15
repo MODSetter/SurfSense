@@ -8,7 +8,6 @@ export const mentionsAtom = atomWithQuery((get) => {
 
 	return {
 		queryKey: cacheKeys.mentions.all(searchSpaceId ? Number(searchSpaceId) : undefined),
-		staleTime: 60 * 1000, // 1 minute
 		queryFn: async () => {
 			return chatCommentsApiService.getMentions({
 				search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
@@ -22,7 +21,6 @@ export const unreadMentionsAtom = atomWithQuery((get) => {
 
 	return {
 		queryKey: cacheKeys.mentions.unreadOnly(searchSpaceId ? Number(searchSpaceId) : undefined),
-		staleTime: 30 * 1000, // 30 seconds
 		queryFn: async () => {
 			return chatCommentsApiService.getMentions({
 				search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
