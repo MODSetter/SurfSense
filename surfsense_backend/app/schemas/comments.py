@@ -55,8 +55,6 @@ class CommentReplyResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_edited: bool
-    can_edit: bool
-    can_delete: bool
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -72,8 +70,6 @@ class CommentResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_edited: bool
-    can_edit: bool
-    can_delete: bool
     reply_count: int
     replies: list[CommentReplyResponse] = []
 
