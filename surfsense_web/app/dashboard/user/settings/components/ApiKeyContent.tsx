@@ -120,4 +120,3 @@ export function ApiKeyContent({ onMenuClick }: ApiKeyContentProps) {
 		</motion.div>
 	);
 }
-

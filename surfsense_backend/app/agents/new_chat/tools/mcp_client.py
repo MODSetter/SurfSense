@@ -18,7 +18,9 @@ logger = logging.getLogger(__name__)
 class MCPClient:
     """Client for communicating with an MCP server."""
 
-    def __init__(self, command: str, args: list[str], env: dict[str, str] | None = None):
+    def __init__(
+        self, command: str, args: list[str], env: dict[str, str] | None = None
+    ):
         """Initialize MCP client.
 
         Args:
@@ -44,18 +46,16 @@ class MCPClient:
             # Merge env vars with current environment
             server_env = os.environ.copy()
             server_env.update(self.env)
-            
+
             # Create server parameters with env
             server_params = StdioServerParameters(
-                command=self.command,
-                args=self.args,
-                env=server_env
+                command=self.command, args=self.args, env=server_env
             )
-            
+
             # Spawn server process and create session
             # Note: Cannot combine these context managers because ClientSession
             # needs the read/write streams from stdio_client
-            async with stdio_client(server=server_params) as (read, write):
+            async with stdio_client(server=server_params) as (read, write):  # noqa: SIM117
                 async with ClientSession(read, write) as session:
                     # Initialize the connection
                     await session.initialize()
@@ -85,7 +85,9 @@ class MCPClient:
 
         """
         if not self.session:
-            raise RuntimeError("Not connected to MCP server. Use 'async with client.connect():'")
+            raise RuntimeError(
+                "Not connected to MCP server. Use 'async with client.connect():'"
+            )
 
         try:
             # Call tools/list RPC method
@@ -93,11 +95,15 @@ class MCPClient:
 
             tools = []
             for tool in response.tools:
-                tools.append({
-                    "name": tool.name,
-                    "description": tool.description or "",
-                    "input_schema": tool.inputSchema if hasattr(tool, "inputSchema") else {},
-                })
+                tools.append(
+                    {
+                        "name": tool.name,
+                        "description": tool.description or "",
+                        "input_schema": tool.inputSchema
+                        if hasattr(tool, "inputSchema")
+                        else {},
+                    }
+                )
 
             logger.info("Listed %d tools from MCP server", len(tools))
             return tools
@@ -121,10 +127,14 @@ class MCPClient:
 
         """
         if not self.session:
-            raise RuntimeError("Not connected to MCP server. Use 'async with client.connect():'")
+            raise RuntimeError(
+                "Not connected to MCP server. Use 'async with client.connect():'"
+            )
 
         try:
-            logger.info("Calling MCP tool '%s' with arguments: %s", tool_name, arguments)
+            logger.info(
+                "Calling MCP tool '%s' with arguments: %s", tool_name, arguments
+            )
 
             # Call tools/call RPC method
             response = await self.session.call_tool(tool_name, arguments=arguments)
@@ -147,12 +157,17 @@ class MCPClient:
             # Handle validation errors from MCP server responses
             # Some MCP servers (like server-memory) return extra fields not in their schema
             if "Invalid structured content" in str(e):
-                logger.warning("MCP server returned data not matching its schema, but continuing: %s", e)
+                logger.warning(
+                    "MCP server returned data not matching its schema, but continuing: %s",
+                    e,
+                )
                 # Try to extract result from error message or return a success message
                 return "Operation completed (server returned unexpected format)"
             raise
         except (ValueError, TypeError, AttributeError, KeyError) as e:
-            logger.error("Failed to call MCP tool '%s': %s", tool_name, e, exc_info=True)
+            logger.error(
+                "Failed to call MCP tool '%s': %s", tool_name, e, exc_info=True
+            )
             return f"Error calling tool: {e!s}"
 
 

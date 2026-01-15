@@ -44,4 +44,3 @@ def downgrade() -> None:
         DROP COLUMN IF EXISTS author_id;
         """
     )
-

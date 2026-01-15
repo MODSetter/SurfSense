@@ -139,30 +139,33 @@ export function DocumentUploadTab({
 		[acceptedFileTypes]
 	);
 
-	const onDrop = useCallback((acceptedFiles: File[]) => {
-		setFiles((prev) => {
-			const newFiles = [...prev, ...acceptedFiles];
-			
-			// Check file count limit
-			if (newFiles.length > MAX_FILES) {
-				toast.error(t("max_files_exceeded"), {
-					description: t("max_files_exceeded_desc", { max: MAX_FILES }),
-				});
-				return prev;
-			}
-			
-			// Check total size limit
-			const newTotalSize = newFiles.reduce((sum, file) => sum + file.size, 0);
-			if (newTotalSize > MAX_TOTAL_SIZE_BYTES) {
-				toast.error(t("max_size_exceeded"), {
-					description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
-				});
-				return prev;
-			}
-			
-			return newFiles;
-		});
-	}, [t]);
+	const onDrop = useCallback(
+		(acceptedFiles: File[]) => {
+			setFiles((prev) => {
+				const newFiles = [...prev, ...acceptedFiles];
+
+				// Check file count limit
+				if (newFiles.length > MAX_FILES) {
+					toast.error(t("max_files_exceeded"), {
+						description: t("max_files_exceeded_desc", { max: MAX_FILES }),
+					});
+					return prev;
+				}
+
+				// Check total size limit
+				const newTotalSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+				if (newTotalSize > MAX_TOTAL_SIZE_BYTES) {
+					toast.error(t("max_size_exceeded"), {
+						description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
+					});
+					return prev;
+				}
+
+				return newFiles;
+			});
+		},
+		[t]
+	);
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
 		onDrop,
@@ -191,7 +194,10 @@ export function DocumentUploadTab({
 	const isFileCountLimitReached = files.length >= MAX_FILES;
 	const isSizeLimitReached = totalFileSize >= MAX_TOTAL_SIZE_BYTES;
 	const remainingFiles = MAX_FILES - files.length;
-	const remainingSizeMB = Math.max(0, (MAX_TOTAL_SIZE_BYTES - totalFileSize) / (1024 * 1024)).toFixed(1);
+	const remainingSizeMB = Math.max(
+		0,
+		(MAX_TOTAL_SIZE_BYTES - totalFileSize) / (1024 * 1024)
+	).toFixed(1);
 
 	// Track accordion state changes
 	const handleAccordionChange = useCallback(
@@ -243,7 +249,8 @@ export function DocumentUploadTab({
 			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5 flex items-start gap-3 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg~*]:pl-0">
 				<Info className="h-4 w-4 shrink-0 mt-0.5" />
 				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
-					{t("file_size_limit")} {t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
+					{t("file_size_limit")}{" "}
+					{t("upload_limits", { maxFiles: MAX_FILES, maxSizeMB: MAX_TOTAL_SIZE_MB })}
 				</AlertDescription>
 			</Alert>
 
@@ -270,7 +277,9 @@ export function DocumentUploadTab({
 							<div className="flex flex-col items-center gap-2 sm:gap-4 text-center px-4">
 								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-destructive/70" />
 								<div>
-									<p className="text-sm sm:text-lg font-medium text-destructive">{t("file_limit_reached")}</p>
+									<p className="text-sm sm:text-lg font-medium text-destructive">
+										{t("file_limit_reached")}
+									</p>
 									<p className="text-xs sm:text-sm text-muted-foreground mt-1">
 										{t("file_limit_reached_desc", { max: MAX_FILES })}
 									</p>

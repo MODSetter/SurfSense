@@ -36,11 +36,7 @@ import {
 	newLLMConfigsAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import {
-	ComposerAddAttachment,
-	ComposerAttachments,
-} from "@/components/assistant-ui/attachment";
-import { UserMessage } from "@/components/assistant-ui/user-message";
+import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import {
 	InlineMentionEditor,
@@ -53,6 +49,7 @@ import {
 } from "@/components/assistant-ui/thinking-steps";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { UserMessage } from "@/components/assistant-ui/user-message";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -635,7 +632,6 @@ const AssistantActionBar: FC = () => {
 		</ActionBarPrimitive.Root>
 	);
 };
-
 
 const EditComposer: FC = () => {
 	return (

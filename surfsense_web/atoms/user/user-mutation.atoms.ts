@@ -16,4 +16,3 @@ export const updateUserMutationAtom = atomWithMutation((get) => {
 		},
 	};
 });
-
