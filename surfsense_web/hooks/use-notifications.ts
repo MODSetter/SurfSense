@@ -10,29 +10,29 @@ export type { Notification } from "@/contracts/types/notification.types";
 
 /**
  * Hook for managing notifications with Electric SQL real-time sync
- * 
+ *
  * Uses the Electric client from context (provided by ElectricProvider)
  * instead of initializing its own - prevents race conditions and memory leaks
- * 
+ *
  * Architecture:
  * - User-level sync: Syncs ALL notifications for a user (runs once per user)
  * - Search-space-level query: Filters notifications by searchSpaceId (updates on search space change)
- * 
+ *
  * This separation ensures smooth transitions when switching search spaces (no flash).
- * 
+ *
  * @param userId - The user ID to fetch notifications for
  * @param searchSpaceId - The search space ID to filter notifications (null shows global notifications only)
  */
 export function useNotifications(userId: string | null, searchSpaceId: number | null) {
 	// Get Electric client from context - ElectricProvider handles initialization
 	const electricClient = useElectricClient();
-	
+
 	const [notifications, setNotifications] = useState<Notification[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
-	
+
 	// Track user-level sync key to prevent duplicate sync subscriptions
 	const userSyncKeyRef = useRef<string | null>(null);
 
@@ -100,7 +100,7 @@ export function useNotifications(userId: string | null, searchSpaceId: number | 
 		return () => {
 			mounted = false;
 			userSyncKeyRef.current = null;
-			
+
 			if (syncHandleRef.current) {
 				syncHandleRef.current.unsubscribe();
 				syncHandleRef.current = null;
@@ -135,7 +135,7 @@ export function useNotifications(userId: string | null, searchSpaceId: number | 
 					 ORDER BY created_at DESC`,
 					[userId, searchSpaceId]
 				);
-				
+
 				if (mounted) {
 					setNotifications(result.rows || []);
 				}

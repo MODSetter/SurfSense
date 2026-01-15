@@ -5,7 +5,7 @@ import type { ElectricClient } from "./client";
 
 /**
  * Context for sharing the Electric SQL client across the app
- * 
+ *
  * This ensures:
  * 1. Single initialization point (ElectricProvider only)
  * 2. No race conditions (hooks wait for context)
@@ -34,4 +34,3 @@ export function useElectricClientOrThrow(): ElectricClient {
 	}
 	return client;
 }
-

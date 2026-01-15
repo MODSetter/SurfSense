@@ -29,7 +29,11 @@ interface ElectricProviderProps {
 export function ElectricProvider({ children }: ElectricProviderProps) {
 	const [electricClient, setElectricClient] = useState<ElectricClient | null>(null);
 	const [error, setError] = useState<Error | null>(null);
-	const { data: user, isSuccess: isUserLoaded, isError: isUserError } = useAtomValue(currentUserAtom);
+	const {
+		data: user,
+		isSuccess: isUserLoaded,
+		isError: isUserError,
+	} = useAtomValue(currentUserAtom);
 	const previousUserIdRef = useRef<string | null>(null);
 	const initializingRef = useRef(false);
 
@@ -104,11 +108,7 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 	// For non-authenticated pages (like landing page), render immediately with null context
 	// Also render immediately if user query failed (e.g., token expired)
 	if (!isUserLoaded || !user?.id || isUserError) {
-		return (
-			<ElectricContext.Provider value={null}>
-				{children}
-			</ElectricContext.Provider>
-		);
+		return <ElectricContext.Provider value={null}>{children}</ElectricContext.Provider>;
 	}
 
 	// Show loading state while initializing for authenticated users
@@ -128,9 +128,5 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 	}
 
 	// Provide the Electric client to children
-	return (
-		<ElectricContext.Provider value={electricClient}>
-			{children}
-		</ElectricContext.Provider>
-	);
+	return <ElectricContext.Provider value={electricClient}>{children}</ElectricContext.Provider>;
 }

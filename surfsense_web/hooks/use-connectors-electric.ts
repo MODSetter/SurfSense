@@ -7,14 +7,14 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 
 /**
  * Hook for managing connectors with Electric SQL real-time sync
- * 
+ *
  * Uses the Electric client from context (provided by ElectricProvider)
  * instead of initializing its own - prevents race conditions and memory leaks
  */
 export function useConnectorsElectric(searchSpaceId: number | string | null) {
 	// Get Electric client from context - ElectricProvider handles initialization
 	const electricClient = useElectricClient();
-	
+
 	const [connectors, setConnectors] = useState<SearchSourceConnector[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
@@ -173,7 +173,7 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 		return () => {
 			mounted = false;
 			syncKeyRef.current = null;
-			
+
 			if (syncHandleRef.current) {
 				syncHandleRef.current.unsubscribe();
 				syncHandleRef.current = null;

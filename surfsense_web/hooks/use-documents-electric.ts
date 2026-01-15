@@ -13,14 +13,14 @@ interface Document {
 
 /**
  * Hook for managing documents with Electric SQL real-time sync
- * 
+ *
  * Uses the Electric client from context (provided by ElectricProvider)
  * instead of initializing its own - prevents race conditions and memory leaks
  */
 export function useDocumentsElectric(searchSpaceId: number | string | null) {
 	// Get Electric client from context - ElectricProvider handles initialization
 	const electricClient = useElectricClient();
-	
+
 	const [documents, setDocuments] = useState<Document[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
@@ -169,7 +169,7 @@ export function useDocumentsElectric(searchSpaceId: number | string | null) {
 		return () => {
 			mounted = false;
 			syncKeyRef.current = null;
-			
+
 			if (syncHandleRef.current) {
 				syncHandleRef.current.unsubscribe();
 				syncHandleRef.current = null;

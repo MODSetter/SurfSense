@@ -381,7 +381,10 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 							},
 						};
 
-						console.log("[Electric] syncShapeToTable config:", JSON.stringify(shapeConfig, null, 2));
+						console.log(
+							"[Electric] syncShapeToTable config:",
+							JSON.stringify(shapeConfig, null, 2)
+						);
 
 						// Type assertion to PGlite with electric extension
 						const pgWithElectric = db as PGlite & {
@@ -452,9 +455,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 													(typeof msg === "object" && "up-to-date" in msg)
 												) {
 													if (!syncResolved) {
-														console.log(
-															`[Electric] ✅ Received up-to-date message for ${table}`
-														);
+														console.log(`[Electric] ✅ Received up-to-date message for ${table}`);
 														resolveInitialSync();
 													}
 													// Continue listening for real-time updates - don't return!
@@ -477,9 +478,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 									// Also check stream's isUpToDate property immediately
 									if (stream?.isUpToDate) {
-										console.log(
-											`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`
-										);
+										console.log(`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`);
 										resolveInitialSync();
 									}
 								}
@@ -530,7 +529,9 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 						// Cache the sync handle for reuse (memory optimization)
 						activeSyncHandles.set(cacheKey, syncHandle);
-						console.log(`[Electric] Cached sync handle for: ${cacheKey} (total cached: ${activeSyncHandles.size})`);
+						console.log(
+							`[Electric] Cached sync handle for: ${cacheKey} (total cached: ${activeSyncHandles.size})`
+						);
 
 						return syncHandle;
 					} catch (error) {

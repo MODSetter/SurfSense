@@ -19,7 +19,7 @@ from alembic import context, op
 
 # Get Electric SQL user credentials from env.py configuration
 _config = context.config
-ELECTRIC_DB_USER =_config.get_main_option("electric_db_user", "electric")
+ELECTRIC_DB_USER = _config.get_main_option("electric_db_user", "electric")
 ELECTRIC_DB_PASSWORD = _config.get_main_option(
     "electric_db_password", "electric_password"
 )
@@ -52,10 +52,18 @@ def upgrade() -> None:
     )
 
     # Create indexes (using IF NOT EXISTS for idempotency)
-    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_read ON notifications (read);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (created_at);")
-    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_user_read ON notifications (user_id, read);")
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_notifications_read ON notifications (read);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (created_at);"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_notifications_user_read ON notifications (user_id, read);"
+    )
 
     # =====================================================
     # Electric SQL Setup - User and Publication
