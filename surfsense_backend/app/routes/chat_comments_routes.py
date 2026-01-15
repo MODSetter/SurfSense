@@ -12,12 +12,16 @@ from app.schemas.chat_comments import (
     CommentReplyResponse,
     CommentResponse,
     CommentUpdateRequest,
+    MentionListResponse,
 )
 from app.services.chat_comments_service import (
     create_comment,
     create_reply,
     delete_comment,
     get_comments_for_message,
+    get_user_mentions,
+    mark_all_mentions_as_read,
+    mark_mention_as_read,
     update_comment,
 )
 from app.users import current_active_user
@@ -76,3 +80,38 @@ async def remove_comment(
 ):
     """Delete a comment (author or user with COMMENTS_DELETE permission)."""
     return await delete_comment(session, comment_id, user)
+
+
+# =============================================================================
+# Mention Routes
+# =============================================================================
+
+
+@router.get("/mentions", response_model=MentionListResponse)
+async def list_mentions(
+    search_space_id: int | None = None,
+    unread_only: bool = False,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """List mentions for the current user."""
+    return await get_user_mentions(session, user, search_space_id, unread_only)
+
+
+@router.put("/mentions/{mention_id}/read")
+async def read_mention(
+    mention_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Mark a specific mention as read."""
+    return await mark_mention_as_read(session, mention_id, user)
+
+
+@router.put("/mentions/read-all")
+async def read_all_mentions(
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Mark all mentions as read for the current user."""
+    return await mark_all_mentions_as_read(session, user)
