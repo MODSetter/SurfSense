@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import {
 	type ConnectorStatusConfig,
 	connectorStatusConfig,
@@ -14,34 +14,45 @@ export function useConnectorStatus() {
 	/**
 	 * Get status configuration for a specific connector type
 	 */
-	const getConnectorStatus = (connectorType: string | undefined): ConnectorStatusConfig => {
-		if (!connectorType) {
-			return getDefaultConnectorStatus();
-		}
+	const getConnectorStatus = useCallback(
+		(connectorType: string | undefined): ConnectorStatusConfig => {
+			if (!connectorType) {
+				return getDefaultConnectorStatus();
+			}
 
-		return connectorStatusConfig.connectorStatuses[connectorType] || getDefaultConnectorStatus();
-	};
+			return (
+				connectorStatusConfig.connectorStatuses[connectorType] || getDefaultConnectorStatus()
+			);
+		},
+		[]
+	);
 
 	/**
 	 * Check if a connector is enabled
 	 */
-	const isConnectorEnabled = (connectorType: string | undefined): boolean => {
-		return getConnectorStatus(connectorType).enabled;
-	};
+	const isConnectorEnabled = useCallback(
+		(connectorType: string | undefined): boolean => {
+			return getConnectorStatus(connectorType).enabled;
+		},
+		[getConnectorStatus]
+	);
 
 	/**
 	 * Get status message for a connector
 	 */
-	const getConnectorStatusMessage = (connectorType: string | undefined): string | null => {
-		return getConnectorStatus(connectorType).statusMessage || null;
-	};
+	const getConnectorStatusMessage = useCallback(
+		(connectorType: string | undefined): string | null => {
+			return getConnectorStatus(connectorType).statusMessage || null;
+		},
+		[getConnectorStatus]
+	);
 
 	/**
 	 * Check if warnings should be shown globally
 	 */
-	const shouldShowWarnings = (): boolean => {
+	const shouldShowWarnings = useCallback((): boolean => {
 		return connectorStatusConfig.globalSettings.showWarnings;
-	};
+	}, []);
 
 	return useMemo(
 		() => ({
@@ -50,6 +61,6 @@ export function useConnectorStatus() {
 			getConnectorStatusMessage,
 			shouldShowWarnings,
 		}),
-		[]
+		[getConnectorStatus, isConnectorEnabled, getConnectorStatusMessage, shouldShowWarnings]
 	);
 }

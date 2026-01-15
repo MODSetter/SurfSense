@@ -44,7 +44,7 @@ export const ConnectorStatusBadge: FC<ConnectorStatusBadgeProps> = ({
 			case "deprecated":
 				return {
 					icon: AlertTriangle,
-					className: "ext-slate-500 dark:text-slate-400",
+					className: "text-slate-500 dark:text-slate-400",
 					defaultTitle: "Deprecated",
 				};
 			default:
