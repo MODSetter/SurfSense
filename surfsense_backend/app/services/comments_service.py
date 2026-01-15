@@ -301,3 +301,65 @@ async def create_reply(
         can_edit=True,
         can_delete=True,  # Author can always delete their own reply
     )
+
+
+async def update_comment(
+    session: AsyncSession,
+    comment_id: int,
+    content: str,
+    user: User,
+) -> CommentReplyResponse:
+    """
+    Update a comment's content (author only).
+
+    Args:
+        session: Database session
+        comment_id: ID of the comment to update
+        content: New comment text content
+        user: The current authenticated user
+
+    Returns:
+        CommentReplyResponse for the updated comment
+
+    Raises:
+        HTTPException: If comment not found or user is not the author
+    """
+    result = await session.execute(
+        select(ChatComment)
+        .options(selectinload(ChatComment.author))
+        .filter(ChatComment.id == comment_id)
+    )
+    comment = result.scalars().first()
+
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    # Only author can edit their own comment
+    if comment.author_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only edit your own comments",
+        )
+
+    comment.content = content
+    await session.commit()
+    await session.refresh(comment)
+
+    author = AuthorResponse(
+        id=user.id,
+        display_name=user.display_name,
+        avatar_url=user.avatar_url,
+        email=user.email,
+    )
+
+    return CommentReplyResponse(
+        id=comment.id,
+        content=comment.content,
+        content_rendered=comment.content,  # TODO: Phase 3
+        author=author,
+        created_at=comment.created_at,
+        updated_at=comment.updated_at,
+        is_edited=comment.updated_at > comment.created_at,
+        can_edit=True,
+        can_delete=True,
+    )
