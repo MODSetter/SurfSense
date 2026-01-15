@@ -222,3 +222,82 @@ async def create_comment(
         reply_count=0,
         replies=[],
     )
+
+
+async def create_reply(
+    session: AsyncSession,
+    comment_id: int,
+    content: str,
+    user: User,
+) -> CommentReplyResponse:
+    """
+    Create a reply to an existing comment.
+
+    Args:
+        session: Database session
+        comment_id: ID of the parent comment to reply to
+        content: Reply text content
+        user: The current authenticated user
+
+    Returns:
+        CommentReplyResponse for the created reply
+
+    Raises:
+        HTTPException: If comment not found, is already a reply, or user lacks COMMENTS_CREATE permission
+    """
+    # Get parent comment with its message and thread
+    result = await session.execute(
+        select(ChatComment)
+        .options(selectinload(ChatComment.message).selectinload(NewChatMessage.thread))
+        .filter(ChatComment.id == comment_id)
+    )
+    parent_comment = result.scalars().first()
+
+    if not parent_comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    # Validate parent is a top-level comment (cannot reply to a reply)
+    if parent_comment.parent_id is not None:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot reply to a reply",
+        )
+
+    search_space_id = parent_comment.message.thread.search_space_id
+
+    # Check permission to create comments
+    user_permissions = await get_user_permissions(session, user.id, search_space_id)
+    if not has_permission(user_permissions, Permission.COMMENTS_CREATE.value):
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to create comments in this search space",
+        )
+
+    reply = ChatComment(
+        message_id=parent_comment.message_id,
+        parent_id=comment_id,
+        author_id=user.id,
+        content=content,
+    )
+    session.add(reply)
+    await session.commit()
+    await session.refresh(reply)
+
+    author = AuthorResponse(
+        id=user.id,
+        display_name=user.display_name,
+        avatar_url=user.avatar_url,
+        email=user.email,
+    )
+
+    return CommentReplyResponse(
+        id=reply.id,
+        content=reply.content,
+        content_rendered=reply.content,  # TODO: Phase 3
+        author=author,
+        created_at=reply.created_at,
+        updated_at=reply.updated_at,
+        is_edited=False,
+        can_edit=True,
+        can_delete=True,  # Author can always delete their own reply
+    )
