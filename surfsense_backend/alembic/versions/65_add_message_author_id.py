@@ -1,15 +1,15 @@
 """Add author_id column to new_chat_messages table
 
-Revision ID: 63
-Revises: 62
+Revision ID: 65
+Revises: 64
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "63"
-down_revision: str | None = "62"
+revision: str = "65"
+down_revision: str | None = "64"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
