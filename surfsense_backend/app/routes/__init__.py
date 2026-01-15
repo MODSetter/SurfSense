@@ -3,9 +3,9 @@ from fastapi import APIRouter
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
-from .comments_routes import router as comments_router
 from .confluence_add_connector_route import router as confluence_add_connector_router
 from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
@@ -43,7 +43,7 @@ router.include_router(editor_router)
 router.include_router(documents_router)
 router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
-router.include_router(comments_router)
+router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)

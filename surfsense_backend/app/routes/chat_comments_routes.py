@@ -6,14 +6,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import User, get_async_session
-from app.schemas.comments import (
+from app.schemas.chat_comments import (
     CommentCreateRequest,
     CommentListResponse,
     CommentReplyResponse,
     CommentResponse,
     CommentUpdateRequest,
 )
-from app.services.comments_service import (
+from app.services.chat_comments_service import (
     create_comment,
     create_reply,
     delete_comment,

@@ -15,7 +15,7 @@ from app.db import (
     User,
     has_permission,
 )
-from app.schemas.comments import (
+from app.schemas.chat_comments import (
     AuthorResponse,
     CommentListResponse,
     CommentReplyResponse,
