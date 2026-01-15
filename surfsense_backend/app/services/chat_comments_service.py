@@ -2,16 +2,20 @@
 Service layer for chat comments and mentions.
 """
 
+from uuid import UUID
+
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db import (
     ChatComment,
+    ChatCommentMention,
     NewChatMessage,
     NewChatMessageRole,
     Permission,
+    SearchSpaceMembership,
     User,
     has_permission,
 )
@@ -21,7 +25,70 @@ from app.schemas.chat_comments import (
     CommentReplyResponse,
     CommentResponse,
 )
+from app.utils.chat_comments import parse_mentions, render_mentions
 from app.utils.rbac import check_permission, get_user_permissions
+
+
+async def get_user_names_for_mentions(
+    session: AsyncSession,
+    user_ids: set[UUID],
+) -> dict[UUID, str]:
+    """
+    Fetch display names for a set of user IDs.
+
+    Args:
+        session: Database session
+        user_ids: Set of user UUIDs to look up
+
+    Returns:
+        Dictionary mapping user UUID to display name
+    """
+    if not user_ids:
+        return {}
+
+    result = await session.execute(
+        select(User.id, User.display_name).filter(User.id.in_(user_ids))
+    )
+    return {row.id: row.display_name or "Unknown" for row in result.all()}
+
+
+async def process_mentions(
+    session: AsyncSession,
+    comment_id: int,
+    content: str,
+    search_space_id: int,
+) -> None:
+    """
+    Parse mentions from content, validate users are members, and insert mention records.
+
+    Args:
+        session: Database session
+        comment_id: ID of the comment containing mentions
+        content: Comment text with @[uuid] mentions
+        search_space_id: ID of the search space for membership validation
+    """
+    mentioned_uuids = parse_mentions(content)
+    if not mentioned_uuids:
+        return
+
+    # Get valid members from the mentioned UUIDs
+    result = await session.execute(
+        select(SearchSpaceMembership.user_id).filter(
+            SearchSpaceMembership.search_space_id == search_space_id,
+            SearchSpaceMembership.user_id.in_(mentioned_uuids),
+        )
+    )
+    valid_member_ids = result.scalars().all()
+
+    # Insert mention records for valid members
+    for user_id in valid_member_ids:
+        mention = ChatCommentMention(
+            comment_id=comment_id,
+            mentioned_user_id=user_id,
+        )
+        session.add(mention)
+
+    await session.flush()
 
 
 async def get_comments_for_message(
@@ -83,6 +150,16 @@ async def get_comments_for_message(
     )
     top_level_comments = result.scalars().all()
 
+    # Collect all mentioned UUIDs from comments and replies for rendering
+    all_mentioned_uuids: set[UUID] = set()
+    for comment in top_level_comments:
+        all_mentioned_uuids.update(parse_mentions(comment.content))
+        for reply in comment.replies:
+            all_mentioned_uuids.update(parse_mentions(reply.content))
+
+    # Fetch display names for mentioned users
+    user_names = await get_user_names_for_mentions(session, all_mentioned_uuids)
+
     comments = []
     for comment in top_level_comments:
         author = None
@@ -110,7 +187,7 @@ async def get_comments_for_message(
                 CommentReplyResponse(
                     id=reply.id,
                     content=reply.content,
-                    content_rendered=reply.content,  # TODO: render mentions in Phase 3
+                    content_rendered=render_mentions(reply.content, user_names),
                     author=reply_author,
                     created_at=reply.created_at,
                     updated_at=reply.updated_at,
@@ -126,7 +203,7 @@ async def get_comments_for_message(
                 id=comment.id,
                 message_id=comment.message_id,
                 content=comment.content,
-                content_rendered=comment.content,  # TODO: render mentions in Phase 3
+                content_rendered=render_mentions(comment.content, user_names),
                 author=author,
                 created_at=comment.created_at,
                 updated_at=comment.updated_at,
@@ -198,8 +275,17 @@ async def create_comment(
         content=content,
     )
     session.add(comment)
+    await session.flush()
+
+    # Process mentions
+    await process_mentions(session, comment.id, content, search_space_id)
+
     await session.commit()
     await session.refresh(comment)
+
+    # Fetch user names for rendering mentions
+    mentioned_uuids = set(parse_mentions(content))
+    user_names = await get_user_names_for_mentions(session, mentioned_uuids)
 
     author = AuthorResponse(
         id=user.id,
@@ -212,13 +298,13 @@ async def create_comment(
         id=comment.id,
         message_id=comment.message_id,
         content=comment.content,
-        content_rendered=comment.content,  # TODO: Phase 3
+        content_rendered=render_mentions(content, user_names),
         author=author,
         created_at=comment.created_at,
         updated_at=comment.updated_at,
         is_edited=False,
         can_edit=True,
-        can_delete=True,  # Author can always delete their own comment
+        can_delete=True,
         reply_count=0,
         replies=[],
     )
@@ -280,8 +366,17 @@ async def create_reply(
         content=content,
     )
     session.add(reply)
+    await session.flush()
+
+    # Process mentions
+    await process_mentions(session, reply.id, content, search_space_id)
+
     await session.commit()
     await session.refresh(reply)
+
+    # Fetch user names for rendering mentions
+    mentioned_uuids = set(parse_mentions(content))
+    user_names = await get_user_names_for_mentions(session, mentioned_uuids)
 
     author = AuthorResponse(
         id=user.id,
@@ -293,13 +388,13 @@ async def create_reply(
     return CommentReplyResponse(
         id=reply.id,
         content=reply.content,
-        content_rendered=reply.content,  # TODO: Phase 3
+        content_rendered=render_mentions(content, user_names),
         author=author,
         created_at=reply.created_at,
         updated_at=reply.updated_at,
         is_edited=False,
         can_edit=True,
-        can_delete=True,  # Author can always delete their own reply
+        can_delete=True,
     )
 
 
@@ -326,7 +421,10 @@ async def update_comment(
     """
     result = await session.execute(
         select(ChatComment)
-        .options(selectinload(ChatComment.author))
+        .options(
+            selectinload(ChatComment.author),
+            selectinload(ChatComment.message).selectinload(NewChatMessage.thread),
+        )
         .filter(ChatComment.id == comment_id)
     )
     comment = result.scalars().first()
@@ -334,16 +432,65 @@ async def update_comment(
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    # Only author can edit their own comment
     if comment.author_id != user.id:
         raise HTTPException(
             status_code=403,
             detail="You can only edit your own comments",
         )
 
+    search_space_id = comment.message.thread.search_space_id
+
+    # Get existing mentioned user IDs
+    existing_result = await session.execute(
+        select(ChatCommentMention.mentioned_user_id).filter(
+            ChatCommentMention.comment_id == comment_id
+        )
+    )
+    existing_mention_ids = set(existing_result.scalars().all())
+
+    # Parse new mentions from updated content
+    new_mention_uuids = set(parse_mentions(content))
+
+    # Validate new mentions are search space members
+    if new_mention_uuids:
+        valid_result = await session.execute(
+            select(SearchSpaceMembership.user_id).filter(
+                SearchSpaceMembership.search_space_id == search_space_id,
+                SearchSpaceMembership.user_id.in_(new_mention_uuids),
+            )
+        )
+        valid_new_mentions = set(valid_result.scalars().all())
+    else:
+        valid_new_mentions = set()
+
+    # Compute diff: removed, kept (preserve read status), added
+    mentions_to_remove = existing_mention_ids - valid_new_mentions
+    mentions_to_add = valid_new_mentions - existing_mention_ids
+
+    # Delete removed mentions
+    if mentions_to_remove:
+        await session.execute(
+            delete(ChatCommentMention).where(
+                ChatCommentMention.comment_id == comment_id,
+                ChatCommentMention.mentioned_user_id.in_(mentions_to_remove),
+            )
+        )
+
+    # Add new mentions (existing ones keep their read status)
+    for user_id in mentions_to_add:
+        mention = ChatCommentMention(
+            comment_id=comment_id,
+            mentioned_user_id=user_id,
+        )
+        session.add(mention)
+
     comment.content = content
+
     await session.commit()
     await session.refresh(comment)
+
+    # Fetch user names for rendering mentions
+    user_names = await get_user_names_for_mentions(session, valid_new_mentions)
 
     author = AuthorResponse(
         id=user.id,
@@ -355,7 +502,7 @@ async def update_comment(
     return CommentReplyResponse(
         id=comment.id,
         content=comment.content,
-        content_rendered=comment.content,  # TODO: Phase 3
+        content_rendered=render_mentions(content, user_names),
         author=author,
         created_at=comment.created_at,
         updated_at=comment.updated_at,
