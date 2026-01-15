@@ -20,9 +20,7 @@ export function useConnectorStatus() {
 				return getDefaultConnectorStatus();
 			}
 
-			return (
-				connectorStatusConfig.connectorStatuses[connectorType] || getDefaultConnectorStatus()
-			);
+			return connectorStatusConfig.connectorStatuses[connectorType] || getDefaultConnectorStatus();
 		},
 		[]
 	);
