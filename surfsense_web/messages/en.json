@@ -658,7 +658,7 @@
 	"sidebar": {
 		"chats": "Private Chats",
 		"shared_chats": "Shared Chats",
-		"search_chats": "Search chats...",
+		"search_chats": "Search chats",
 		"no_chats_found": "No chats found",
 		"no_shared_chats": "No shared chats",
 		"view_all_shared_chats": "View all shared chats",

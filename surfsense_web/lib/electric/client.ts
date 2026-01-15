@@ -49,8 +49,8 @@ let initPromise: Promise<ElectricClient> | null = null;
 const activeSyncHandles = new Map<string, SyncHandle>();
 
 // Version for sync state - increment this to force fresh sync when Electric config changes
-// Incremented to v5 for user-specific database architecture
-const SYNC_VERSION = 5;
+// Set to v2 for user-specific database architecture
+const SYNC_VERSION = 2;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";
