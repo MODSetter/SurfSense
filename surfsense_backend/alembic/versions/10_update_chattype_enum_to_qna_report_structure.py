@@ -24,9 +24,7 @@ def enum_exists(enum_name: str) -> bool:
     """Check if an enum type exists in the database."""
     conn = op.get_bind()
     result = conn.execute(
-        sa.text(
-            "SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = :enum_name)"
-        ),
+        sa.text("SELECT EXISTS (SELECT 1 FROM pg_type WHERE typname = :enum_name)"),
         {"enum_name": enum_name},
     )
     return result.scalar()

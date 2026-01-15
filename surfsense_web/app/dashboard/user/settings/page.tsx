@@ -7,7 +7,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { ApiKeyContent } from "./components/ApiKeyContent";
 import { ProfileContent } from "./components/ProfileContent";
-import { UserSettingsSidebar, type SettingsNavItem } from "./components/UserSettingsSidebar";
+import { type SettingsNavItem, UserSettingsSidebar } from "./components/UserSettingsSidebar";
 
 export default function UserSettingsPage() {
 	const t = useTranslations("userSettings");

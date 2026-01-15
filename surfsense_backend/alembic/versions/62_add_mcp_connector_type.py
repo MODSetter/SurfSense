@@ -5,13 +5,14 @@ Revises: 61
 Create Date: 2026-01-09 15:19:51.827647
 
 """
+
 from collections.abc import Sequence
 
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '62'
-down_revision: str | None = '61'
+revision: str = "62"
+down_revision: str | None = "61"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
