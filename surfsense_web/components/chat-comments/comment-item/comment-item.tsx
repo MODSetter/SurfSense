@@ -1,0 +1,155 @@
+"use client";
+
+import { MessageSquare } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { CommentActions } from "./comment-actions";
+import type { CommentItemProps } from "./types";
+
+function getInitials(name: string | null, email: string): string {
+	if (name) {
+		return name
+			.split(" ")
+			.map((part) => part[0])
+			.join("")
+			.toUpperCase()
+			.slice(0, 2);
+	}
+	return email[0].toUpperCase();
+}
+
+function formatTimestamp(dateString: string): string {
+	const date = new Date(dateString);
+	const now = new Date();
+	const diffMs = now.getTime() - date.getTime();
+	const diffMins = Math.floor(diffMs / 60000);
+	const diffHours = Math.floor(diffMs / 3600000);
+	const diffDays = Math.floor(diffMs / 86400000);
+
+	const timeStr = date.toLocaleTimeString("en-US", {
+		hour: "numeric",
+		minute: "2-digit",
+		hour12: true,
+	});
+
+	if (diffMins < 1) {
+		return "Just now";
+	}
+
+	if (diffMins < 60) {
+		return `${diffMins}m ago`;
+	}
+
+	if (diffHours < 24 && date.getDate() === now.getDate()) {
+		return `Today at ${timeStr}`;
+	}
+
+	const yesterday = new Date(now);
+	yesterday.setDate(yesterday.getDate() - 1);
+	if (date.getDate() === yesterday.getDate() && diffDays < 2) {
+		return `Yesterday at ${timeStr}`;
+	}
+
+	if (diffDays < 7) {
+		const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+		return `${dayName} at ${timeStr}`;
+	}
+
+	return date.toLocaleDateString("en-US", {
+		month: "short",
+		day: "numeric",
+		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+	}) + ` at ${timeStr}`;
+}
+
+function renderMentions(content: string): React.ReactNode {
+	const mentionPattern = /@(\w+(?:\s+\w+)*)/g;
+	const parts: React.ReactNode[] = [];
+	let lastIndex = 0;
+	let match: RegExpExecArray | null;
+
+	while ((match = mentionPattern.exec(content)) !== null) {
+		if (match.index > lastIndex) {
+			parts.push(content.slice(lastIndex, match.index));
+		}
+
+		parts.push(
+			<span
+				key={match.index}
+				className="rounded bg-primary/10 px-1 font-medium text-primary"
+			>
+				{match[0]}
+			</span>
+		);
+
+		lastIndex = match.index + match[0].length;
+	}
+
+	if (lastIndex < content.length) {
+		parts.push(content.slice(lastIndex));
+	}
+
+	return parts.length > 0 ? parts : content;
+}
+
+export function CommentItem({
+	comment,
+	onEdit,
+	onDelete,
+	onReply,
+	isReply = false,
+}: CommentItemProps) {
+	const displayName = comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
+	const email = comment.author?.email || "";
+
+	return (
+		<div className={cn("group flex gap-3", isReply && "ml-10")}>
+			<Avatar className="size-8 shrink-0">
+				{comment.author?.avatarUrl && (
+					<AvatarImage src={comment.author.avatarUrl} alt={displayName} />
+				)}
+				<AvatarFallback className="text-xs">
+					{getInitials(comment.author?.displayName ?? null, email || "U")}
+				</AvatarFallback>
+			</Avatar>
+
+			<div className="flex min-w-0 flex-1 flex-col">
+				<div className="flex items-center gap-2">
+					<span className="truncate text-sm font-medium">{displayName}</span>
+					<span className="shrink-0 text-xs text-muted-foreground">
+						{formatTimestamp(comment.createdAt)}
+					</span>
+					{comment.isEdited && (
+						<span className="shrink-0 text-xs text-muted-foreground">(edited)</span>
+					)}
+					<div className="ml-auto">
+						<CommentActions
+							canEdit={comment.canEdit}
+							canDelete={comment.canDelete}
+							onEdit={() => onEdit?.(comment.id)}
+							onDelete={() => onDelete?.(comment.id)}
+						/>
+					</div>
+				</div>
+
+				<div className="mt-1 text-sm text-foreground whitespace-pre-wrap break-words">
+					{renderMentions(comment.contentRendered)}
+				</div>
+
+				{!isReply && onReply && (
+					<Button
+						variant="ghost"
+						size="sm"
+						className="mt-1 h-7 w-fit px-2 text-xs text-muted-foreground hover:text-foreground"
+						onClick={() => onReply(comment.id)}
+					>
+						<MessageSquare className="mr-1 size-3" />
+						Reply
+					</Button>
+				)}
+			</div>
+		</div>
+	);
+}
+
