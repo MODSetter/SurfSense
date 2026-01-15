@@ -479,6 +479,32 @@ class ChatComment(BaseModel, TimestampMixin):
     )
 
 
+class ChatCommentMention(BaseModel, TimestampMixin):
+    """
+    Tracks @mentions in chat comments for notification purposes.
+    """
+
+    __tablename__ = "chat_comment_mentions"
+
+    comment_id = Column(
+        Integer,
+        ForeignKey("chat_comments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mentioned_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    read = Column(Boolean, nullable=False, default=False)
+
+    # Relationships
+    comment = relationship("ChatComment", back_populates="mentions")
+    mentioned_user = relationship("User")
+
+
 class Document(BaseModel, TimestampMixin):
     __tablename__ = "documents"
 
