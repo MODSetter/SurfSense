@@ -4,6 +4,8 @@ import { useState } from "react";
 import { CommentComposer } from "@/components/chat-comments/comment-composer/comment-composer";
 import { CommentItem } from "@/components/chat-comments/comment-item/comment-item";
 import type { CommentData } from "@/components/chat-comments/comment-item/types";
+import { CommentThread } from "@/components/chat-comments/comment-thread/comment-thread";
+import type { CommentThreadData } from "@/components/chat-comments/comment-thread/types";
 import { MemberMentionPicker } from "@/components/chat-comments/member-mention-picker/member-mention-picker";
 import type { MemberOption } from "@/components/chat-comments/member-mention-picker/types";
 
@@ -91,6 +93,97 @@ const fakeCommentsData: CommentData[] = [
 	},
 ];
 
+const fakeThreadsData: CommentThreadData[] = [
+	{
+		id: 1,
+		messageId: 101,
+		content: "This is a great response! @Alice Smith can you review?",
+		contentRendered: "This is a great response! @Alice Smith can you review?",
+		author: {
+			id: "550e8400-e29b-41d4-a716-446655440002",
+			displayName: "Bob Johnson",
+			email: "bob.johnson@example.com",
+			avatarUrl: null,
+		},
+		createdAt: new Date(Date.now() - 3600000).toISOString(),
+		updatedAt: new Date(Date.now() - 3600000).toISOString(),
+		isEdited: false,
+		canEdit: true,
+		canDelete: true,
+		replyCount: 2,
+		replies: [
+			{
+				id: 2,
+				content: "I checked this yesterday and it looks good.",
+				contentRendered: "I checked this yesterday and it looks good.",
+				author: {
+					id: "550e8400-e29b-41d4-a716-446655440001",
+					displayName: "Alice Smith",
+					email: "alice@example.com",
+					avatarUrl: null,
+				},
+				createdAt: new Date(Date.now() - 1800000).toISOString(),
+				updatedAt: new Date(Date.now() - 1800000).toISOString(),
+				isEdited: false,
+				canEdit: false,
+				canDelete: true,
+			},
+			{
+				id: 3,
+				content: "Thanks @Alice Smith!",
+				contentRendered: "Thanks @Alice Smith!",
+				author: {
+					id: "550e8400-e29b-41d4-a716-446655440002",
+					displayName: "Bob Johnson",
+					email: "bob.johnson@example.com",
+					avatarUrl: null,
+				},
+				createdAt: new Date(Date.now() - 900000).toISOString(),
+				updatedAt: new Date(Date.now() - 900000).toISOString(),
+				isEdited: false,
+				canEdit: true,
+				canDelete: true,
+			},
+		],
+	},
+	{
+		id: 4,
+		messageId: 101,
+		content: "Can we also add some documentation for this feature?",
+		contentRendered: "Can we also add some documentation for this feature?",
+		author: {
+			id: "550e8400-e29b-41d4-a716-446655440003",
+			displayName: "Charlie Brown",
+			email: "charlie@example.com",
+			avatarUrl: null,
+		},
+		createdAt: new Date(Date.now() - 7200000).toISOString(),
+		updatedAt: new Date(Date.now() - 7200000).toISOString(),
+		isEdited: false,
+		canEdit: false,
+		canDelete: true,
+		replyCount: 1,
+		replies: [
+			{
+				id: 5,
+				content: "Good idea @Charlie Brown, I'll create a ticket for that.",
+				contentRendered: "Good idea @Charlie Brown, I'll create a ticket for that.",
+				author: {
+					id: "550e8400-e29b-41d4-a716-446655440002",
+					displayName: "Bob Johnson",
+					email: "bob.johnson@example.com",
+					avatarUrl: null,
+				},
+				createdAt: new Date(Date.now() - 6000000).toISOString(),
+				updatedAt: new Date(Date.now() - 6000000).toISOString(),
+				isEdited: false,
+				canEdit: true,
+				canDelete: true,
+			},
+		],
+	},
+];
+
 export default function ChatCommentsPreviewPage() {
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const [selectedMember, setSelectedMember] = useState<MemberOption | null>(null);
@@ -133,31 +226,35 @@ export default function ChatCommentsPreviewPage() {
 					)}
 				</section>
 
+				{/* Comment Thread Section */}
+				<section className="space-y-4">
+					<h2 className="text-xl font-semibold border-b pb-2">Comment Thread</h2>
+					<p className="text-sm text-muted-foreground">
+						Two top-level comments with replies. Click Reply to open composer. Click the replies count to collapse/expand.
+					</p>
+
+					<div className="max-w-lg space-y-6 rounded-lg border p-4">
+						{fakeThreadsData.map((thread) => (
+							<CommentThread
+								key={thread.id}
+								thread={thread}
+								members={fakeMembersData}
+								onCreateReply={(commentId, content) => alert(`Reply to ${commentId}: ${content}`)}
+								onEditComment={(commentId) => alert(`Edit comment ${commentId}`)}
+								onDeleteComment={(commentId) => alert(`Delete comment ${commentId}`)}
+							/>
+						))}
+					</div>
+				</section>
+
 				{/* Comment Item Section */}
 				<section className="space-y-4">
-					<h2 className="text-xl font-semibold border-b pb-2">Comment Item</h2>
+					<h2 className="text-xl font-semibold border-b pb-2">Comment Item (Standalone)</h2>
 					<p className="text-sm text-muted-foreground">
-						Hover over comments to see the action menu. Mentions are highlighted.
+						Individual comment components. Hover to see action menu.
 					</p>
 
 					<div className="max-w-lg space-y-4 rounded-lg border p-4">
-						{/* Comment with replies */}
-						<div className="space-y-3">
-							<CommentItem
-								comment={fakeCommentsData[0]}
-								onEdit={(id) => alert(`Edit comment ${id}`)}
-								onDelete={(id) => alert(`Delete comment ${id}`)}
-								onReply={(id) => alert(`Reply to comment ${id}`)}
-							/>
-							<CommentItem
-								comment={fakeCommentsData[1]}
-								isReply
-								onEdit={(id) => alert(`Edit reply ${id}`)}
-								onDelete={(id) => alert(`Delete reply ${id}`)}
-							/>
-						</div>
-
-						{/* Standalone comment */}
 						<CommentItem
 							comment={fakeCommentsData[2]}
 							onEdit={(id) => alert(`Edit comment ${id}`)}
