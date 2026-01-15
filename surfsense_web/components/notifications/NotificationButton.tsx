@@ -9,12 +9,20 @@ import { useAtomValue } from "jotai";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { NotificationPopup } from "./NotificationPopup";
 import { cn } from "@/lib/utils";
+import { useParams } from "next/navigation";
 
 export function NotificationButton() {
 	const { data: user } = useAtomValue(currentUserAtom);
+	const params = useParams();
+	
 	const userId = user?.id ? String(user.id) : null;
+	// Get searchSpaceId from URL params - the component is rendered within /dashboard/[search_space_id]/
+	const searchSpaceId = params?.search_space_id 
+		? Number(params.search_space_id) 
+		: null;
+	
 	const { notifications, unreadCount, loading, markAsRead, markAllAsRead } =
-		useNotifications(userId);
+		useNotifications(userId, searchSpaceId);
 
 	return (
 		<Popover>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo } from "react";
-import { initElectric, type ElectricClient, type SyncHandle } from "@/lib/electric/client";
+import { useElectricClient } from "@/lib/electric/context";
+import type { SyncHandle } from "@/lib/electric/client";
 
 interface Document {
 	id: number;
@@ -10,13 +11,22 @@ interface Document {
 	created_at: string;
 }
 
+/**
+ * Hook for managing documents with Electric SQL real-time sync
+ * 
+ * Uses the Electric client from context (provided by ElectricProvider)
+ * instead of initializing its own - prevents race conditions and memory leaks
+ */
 export function useDocumentsElectric(searchSpaceId: number | string | null) {
-	const [electric, setElectric] = useState<ElectricClient | null>(null);
+	// Get Electric client from context - ElectricProvider handles initialization
+	const electricClient = useElectricClient();
+	
 	const [documents, setDocuments] = useState<Document[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
+	const syncKeyRef = useRef<string | null>(null);
 
 	// Calculate document type counts from synced documents
 	const documentTypeCounts = useMemo(() => {
@@ -29,26 +39,30 @@ export function useDocumentsElectric(searchSpaceId: number | string | null) {
 		return counts;
 	}, [documents]);
 
-	// Initialize Electric SQL and start syncing with real-time updates
+	// Start syncing when Electric client is available
 	useEffect(() => {
-		if (!searchSpaceId) {
-			setLoading(false);
-			setDocuments([]);
+		// Wait for both searchSpaceId and Electric client to be available
+		if (!searchSpaceId || !electricClient) {
+			setLoading(!electricClient); // Still loading if waiting for Electric
+			if (!searchSpaceId) {
+				setDocuments([]);
+			}
+			return;
+		}
+
+		// Create a unique key for this sync to prevent duplicate subscriptions
+		const syncKey = `documents_${searchSpaceId}`;
+		if (syncKeyRef.current === syncKey) {
+			// Already syncing for this search space
 			return;
 		}
 
 		let mounted = true;
+		syncKeyRef.current = syncKey;
 
-		async function init() {
+		async function startSync() {
 			try {
-				const electricClient = await initElectric();
-				if (!mounted) return;
-
-				setElectric(electricClient);
-
-				// Start syncing documents for this search space via Electric SQL
-				// Only sync id, document_type, search_space_id columns for efficiency
-				console.log("Starting Electric SQL sync for documents, search_space_id:", searchSpaceId);
+				console.log("[useDocumentsElectric] Starting sync for search space:", searchSpaceId);
 
 				const handle = await electricClient.syncShape({
 					table: "documents",
@@ -57,37 +71,21 @@ export function useDocumentsElectric(searchSpaceId: number | string | null) {
 					primaryKey: ["id"],
 				});
 
-				console.log("Electric SQL sync started for documents:", {
+				console.log("[useDocumentsElectric] Sync started:", {
 					isUpToDate: handle.isUpToDate,
-					hasStream: !!handle.stream,
-					hasInitialSyncPromise: !!handle.initialSyncPromise,
 				});
 
-				// Optimized: Check if already up-to-date before waiting
-				if (handle.isUpToDate) {
-					console.log("Documents sync already up-to-date, skipping wait");
-				} else if (handle.initialSyncPromise) {
-					// Only wait if not already up-to-date
-					console.log("Waiting for initial documents sync to complete...");
+				// Wait for initial sync with timeout
+				if (!handle.isUpToDate && handle.initialSyncPromise) {
 					try {
-						// Use Promise.race with a shorter timeout to avoid long waits
 						await Promise.race([
 							handle.initialSyncPromise,
-							new Promise((resolve) => setTimeout(resolve, 2000)), // Max 2s wait
+							new Promise((resolve) => setTimeout(resolve, 2000)),
 						]);
-						console.log("Initial documents sync promise resolved or timed out, checking status:", {
-							isUpToDate: handle.isUpToDate,
-						});
 					} catch (syncErr) {
-						console.error("Initial documents sync failed:", syncErr);
+						console.error("[useDocumentsElectric] Initial sync failed:", syncErr);
 					}
 				}
-
-				// Check status after waiting
-				console.log("Documents sync status after waiting:", {
-					isUpToDate: handle.isUpToDate,
-					hasStream: !!handle.stream,
-				});
 
 				if (!mounted) {
 					handle.unsubscribe();
@@ -98,104 +96,90 @@ export function useDocumentsElectric(searchSpaceId: number | string | null) {
 				setLoading(false);
 				setError(null);
 
-				// Fetch documents after sync is complete (we already waited above)
-				await fetchDocuments(electricClient.db);
+				// Fetch initial documents
+				await fetchDocuments();
 
-				// Set up real-time updates using PGlite live queries
-				// Electric SQL syncs data to PGlite in real-time via HTTP streaming
-				// PGlite live queries detect when the synced data changes and trigger callbacks
-				try {
-					// eslint-disable-next-line @typescript-eslint/no-explicit-any
-					const db = electricClient.db as any;
-
-					// Use PGlite's live query API for real-time updates
-					// CORRECT API: await db.live.query() then use .subscribe()
-					if (db.live?.query && typeof db.live.query === "function") {
-						// IMPORTANT: db.live.query() returns a Promise - must await it!
-						const liveQuery = await db.live.query(
-							`SELECT id, document_type, search_space_id, created_at FROM documents WHERE search_space_id = $1 ORDER BY created_at DESC`,
-							[searchSpaceId]
-						);
-
-						if (!mounted) {
-							liveQuery.unsubscribe?.();
-							return;
-						}
-
-						// Set initial results immediately from the resolved query
-						if (liveQuery.initialResults?.rows) {
-							console.log(
-								"📋 Initial live query results for documents:",
-								liveQuery.initialResults.rows.length
-							);
-							setDocuments(liveQuery.initialResults.rows);
-						} else if (liveQuery.rows) {
-							// Some versions have rows directly on the result
-							console.log(
-								"📋 Initial live query results for documents (direct):",
-								liveQuery.rows.length
-							);
-							setDocuments(liveQuery.rows);
-						}
-
-						// Subscribe to changes - this is the correct API!
-						// The callback fires automatically when Electric SQL syncs new data to PGlite
-						if (typeof liveQuery.subscribe === "function") {
-							liveQuery.subscribe((result: { rows: Document[] }) => {
-								if (mounted && result.rows) {
-									console.log("🔄 Documents updated via live query:", result.rows.length);
-									setDocuments(result.rows);
-								}
-							});
-
-							// Store unsubscribe function for cleanup
-							liveQueryRef.current = liveQuery;
-						}
-					} else {
-						console.warn(
-							"PGlite live query API not available for documents, falling back to polling"
-						);
-					}
-				} catch (liveQueryErr) {
-					console.error("Failed to set up live query for documents:", liveQueryErr);
-					// Don't fail completely - we still have the initial fetch
-				}
+				// Set up live query for real-time updates
+				await setupLiveQuery();
 			} catch (err) {
-				console.error("Failed to initialize Electric SQL for documents:", err);
-				if (mounted) {
-					setError(
-						err instanceof Error
-							? err
-							: new Error("Failed to initialize Electric SQL for documents")
-					);
-					setLoading(false);
-				}
+				if (!mounted) return;
+				console.error("[useDocumentsElectric] Failed to start sync:", err);
+				setError(err instanceof Error ? err : new Error("Failed to sync documents"));
+				setLoading(false);
 			}
 		}
 
-		init();
+		async function fetchDocuments() {
+			try {
+				const result = await electricClient.db.query<Document>(
+					`SELECT id, document_type, search_space_id, created_at FROM documents WHERE search_space_id = $1 ORDER BY created_at DESC`,
+					[searchSpaceId]
+				);
+				if (mounted) {
+					setDocuments(result.rows || []);
+				}
+			} catch (err) {
+				console.error("[useDocumentsElectric] Failed to fetch:", err);
+			}
+		}
+
+		async function setupLiveQuery() {
+			try {
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+				const db = electricClient.db as any;
+
+				if (db.live?.query && typeof db.live.query === "function") {
+					const liveQuery = await db.live.query(
+						`SELECT id, document_type, search_space_id, created_at FROM documents WHERE search_space_id = $1 ORDER BY created_at DESC`,
+						[searchSpaceId]
+					);
+
+					if (!mounted) {
+						liveQuery.unsubscribe?.();
+						return;
+					}
+
+					// Set initial results
+					if (liveQuery.initialResults?.rows) {
+						setDocuments(liveQuery.initialResults.rows);
+					} else if (liveQuery.rows) {
+						setDocuments(liveQuery.rows);
+					}
+
+					// Subscribe to changes
+					if (typeof liveQuery.subscribe === "function") {
+						liveQuery.subscribe((result: { rows: Document[] }) => {
+							if (mounted && result.rows) {
+								setDocuments(result.rows);
+							}
+						});
+					}
+
+					if (typeof liveQuery.unsubscribe === "function") {
+						liveQueryRef.current = liveQuery;
+					}
+				}
+			} catch (liveErr) {
+				console.error("[useDocumentsElectric] Failed to set up live query:", liveErr);
+			}
+		}
+
+		startSync();
 
 		return () => {
 			mounted = false;
-			syncHandleRef.current?.unsubscribe?.();
-			liveQueryRef.current?.unsubscribe?.();
-			syncHandleRef.current = null;
-			liveQueryRef.current = null;
+			syncKeyRef.current = null;
+			
+			if (syncHandleRef.current) {
+				syncHandleRef.current.unsubscribe();
+				syncHandleRef.current = null;
+			}
+			if (liveQueryRef.current) {
+				liveQueryRef.current.unsubscribe();
+				liveQueryRef.current = null;
+			}
 		};
-	}, [searchSpaceId]);
-
-	async function fetchDocuments(db: any) {
-		try {
-			const result = await db.query(
-				`SELECT id, document_type, search_space_id, created_at FROM documents WHERE search_space_id = $1 ORDER BY created_at DESC`,
-				[searchSpaceId]
-			);
-			console.log("📋 Fetched documents from PGlite:", result.rows?.length || 0);
-			setDocuments(result.rows || []);
-		} catch (err) {
-			console.error("Failed to fetch documents from PGlite:", err);
-		}
-	}
+	}, [searchSpaceId, electricClient]);
 
 	return { documentTypeCounts, loading, error };
 }

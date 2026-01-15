@@ -1,10 +1,15 @@
 /**
  * Electric SQL client setup for ElectricSQL 1.x with PGlite
  *
- * This uses the new ElectricSQL 1.x architecture:
- * - PGlite: In-browser PostgreSQL database (local storage)
- * - @electric-sql/pglite-sync: Sync plugin to sync Electric shapes into PGlite
- * - @electric-sql/client: HTTP client for subscribing to shapes
+ * USER-SPECIFIC DATABASE ARCHITECTURE:
+ * - Each user gets their own IndexedDB database: idb://surfsense-{userId}-v{version}
+ * - On login: cleanup databases from other users, then initialize current user's DB
+ * - On logout: best-effort cleanup (not relied upon)
+ *
+ * This ensures:
+ * 1. Complete user isolation (data can never leak between users)
+ * 2. Self-healing on login (stale databases are cleaned up)
+ * 3. Works even if logout cleanup fails
  */
 
 import { PGlite } from "@electric-sql/pglite";
@@ -14,6 +19,7 @@ import { live } from "@electric-sql/pglite/live";
 // Types
 export interface ElectricClient {
 	db: PGlite;
+	userId: string;
 	syncShape: (options: SyncShapeOptions) => Promise<SyncHandle>;
 }
 
@@ -33,14 +39,21 @@ export interface SyncHandle {
 	initialSyncPromise?: Promise<void>;
 }
 
-// Singleton instance
+// Singleton state - now tracks the user ID
 let electricClient: ElectricClient | null = null;
+let currentUserId: string | null = null;
 let isInitializing = false;
 let initPromise: Promise<ElectricClient> | null = null;
 
+// Cache for sync handles to prevent duplicate subscriptions (memory optimization)
+const activeSyncHandles = new Map<string, SyncHandle>();
+
 // Version for sync state - increment this to force fresh sync when Electric config changes
-// Incremented to v4 to fix sync completion issues
-const SYNC_VERSION = 4;
+// Incremented to v5 for user-specific database architecture
+const SYNC_VERSION = 5;
+
+// Database name prefix for identifying SurfSense databases
+const DB_PREFIX = "surfsense-";
 
 // Get Electric URL from environment
 function getElectricUrl(): string {
@@ -51,24 +64,100 @@ function getElectricUrl(): string {
 }
 
 /**
- * Initialize the Electric SQL client with PGlite and sync plugin
+ * Get the database name for a specific user
  */
-export async function initElectric(): Promise<ElectricClient> {
-	if (electricClient) {
+function getDbName(userId: string): string {
+	return `idb://${DB_PREFIX}${userId}-v${SYNC_VERSION}`;
+}
+
+/**
+ * Clean up databases from OTHER users (not the current user)
+ * This is called on login to ensure clean state
+ */
+async function cleanupOtherUserDatabases(currentUserId: string): Promise<void> {
+	if (typeof window === "undefined" || !window.indexedDB) {
+		return;
+	}
+
+	try {
+		// Try to list all databases (not supported in all browsers)
+		if (typeof window.indexedDB.databases === "function") {
+			const databases = await window.indexedDB.databases();
+
+			for (const dbInfo of databases) {
+				const dbName = dbInfo.name;
+				if (!dbName) continue;
+
+				// Check if this is a SurfSense database
+				if (dbName.startsWith(DB_PREFIX) || dbName.includes("surfsense")) {
+					// Don't delete current user's database
+					if (dbName.includes(currentUserId)) {
+						console.log(`[Electric] Keeping current user's database: ${dbName}`);
+						continue;
+					}
+
+					// Delete databases from other users
+					try {
+						console.log(`[Electric] Deleting stale database: ${dbName}`);
+						window.indexedDB.deleteDatabase(dbName);
+					} catch (deleteErr) {
+						console.warn(`[Electric] Failed to delete database ${dbName}:`, deleteErr);
+					}
+				}
+			}
+		}
+	} catch (err) {
+		// indexedDB.databases() not supported - that's okay, login cleanup is best-effort
+		console.warn("[Electric] Could not enumerate databases for cleanup:", err);
+	}
+}
+
+/**
+ * Initialize the Electric SQL client for a specific user
+ *
+ * KEY BEHAVIORS:
+ * 1. If already initialized for the SAME user, returns existing client
+ * 2. If initialized for a DIFFERENT user, closes old client and creates new one
+ * 3. On first init, cleans up databases from other users
+ *
+ * @param userId - The current user's ID (required)
+ */
+export async function initElectric(userId: string): Promise<ElectricClient> {
+	if (!userId) {
+		throw new Error("userId is required for Electric initialization");
+	}
+
+	// If already initialized for this user, return existing client
+	if (electricClient && currentUserId === userId) {
 		return electricClient;
 	}
 
+	// If initialized for a different user, close the old client first
+	if (electricClient && currentUserId !== userId) {
+		console.log(`[Electric] User changed from ${currentUserId} to ${userId}, reinitializing...`);
+		await cleanupElectric();
+	}
+
+	// If already initializing, wait for it
 	if (isInitializing && initPromise) {
 		return initPromise;
 	}
 
 	isInitializing = true;
+	currentUserId = userId;
+
 	initPromise = (async () => {
 		try {
-			// Create PGlite instance with Electric sync plugin and live queries
-			// Include version in database name to force fresh sync when Electric config changes
+			// STEP 1: Clean up databases from other users (login-time cleanup)
+			console.log("[Electric] Cleaning up databases from other users...");
+			await cleanupOtherUserDatabases(userId);
+
+			// STEP 2: Create user-specific PGlite database
+			const dbName = getDbName(userId);
+			console.log(`[Electric] Initializing database: ${dbName}`);
+
 			const db = await PGlite.create({
-				dataDir: `idb://surfsense-notifications-v${SYNC_VERSION}`,
+				dataDir: dbName,
 				relaxedDurability: true,
 				extensions: {
 					// Enable debug mode in electricSync to see detailed sync logs
@@ -77,7 +166,7 @@ export async function initElectric(): Promise<ElectricClient> {
 				},
 			});
 
-			// Create the notifications table schema in PGlite
+			// STEP 3: Create the notifications table schema in PGlite
 			// This matches the backend schema
 			await db.exec(`
 				CREATE TABLE IF NOT EXISTS notifications (
@@ -137,11 +226,22 @@ export async function initElectric(): Promise<ElectricClient> {
 
 			const electricUrl = getElectricUrl();
 
-			// Create the client wrapper
+			// STEP 4: Create the client wrapper
 			electricClient = {
 				db,
+				userId,
 				syncShape: async (options: SyncShapeOptions): Promise<SyncHandle> => {
 					const { table, where, columns, primaryKey = ["id"] } = options;
+
+					// Create cache key for this sync shape
+					const cacheKey = `${table}_${where || "all"}_${columns?.join(",") || "all"}`;
+
+					// Check if we already have an active sync for this shape (memory optimization)
+					const existingHandle = activeSyncHandles.get(cacheKey);
+					if (existingHandle) {
+						console.log(`[Electric] Reusing existing sync handle for: ${cacheKey}`);
+						return existingHandle;
+					}
 
 					// Build params for the shape request
 					// Electric SQL expects params as URL query parameters
@@ -177,15 +277,15 @@ export async function initElectric(): Promise<ElectricClient> {
 
 					if (columns) params.columns = columns.join(",");
 
-					console.log("Syncing shape with params:", params);
-					console.log("Electric URL:", `${electricUrl}/v1/shape`);
-					console.log("Where clause:", where, "Validated:", validatedWhere);
+					console.log("[Electric] Syncing shape with params:", params);
+					console.log("[Electric] Electric URL:", `${electricUrl}/v1/shape`);
+					console.log("[Electric] Where clause:", where, "Validated:", validatedWhere);
 
 					try {
 						// Debug: Test Electric SQL connection directly first
 						// Use validatedWhere to ensure proper URL encoding
 						const testUrl = `${electricUrl}/v1/shape?table=${table}&offset=-1${validatedWhere ? `&where=${encodeURIComponent(validatedWhere)}` : ""}`;
-						console.log("Testing Electric SQL directly:", testUrl);
+						console.log("[Electric] Testing Electric SQL directly:", testUrl);
 						try {
 							const testResponse = await fetch(testUrl);
 							const testHeaders = {
@@ -193,15 +293,15 @@ export async function initElectric(): Promise<ElectricClient> {
 								offset: testResponse.headers.get("electric-offset"),
 								upToDate: testResponse.headers.get("electric-up-to-date"),
 							};
-							console.log("Direct Electric SQL response headers:", testHeaders);
+							console.log("[Electric] Direct Electric SQL response headers:", testHeaders);
 							const testData = await testResponse.json();
 							console.log(
-								"Direct Electric SQL data count:",
+								"[Electric] Direct Electric SQL data count:",
 								Array.isArray(testData) ? testData.length : "not array",
 								testData
 							);
 						} catch (testErr) {
-							console.error("Direct Electric SQL test failed:", testErr);
+							console.error("[Electric] Direct Electric SQL test failed:", testErr);
 						}
 
 						// Use PGlite's electric sync plugin to sync the shape
@@ -211,9 +311,10 @@ export async function initElectric(): Promise<ElectricClient> {
 						// Create a promise that resolves when initial sync is complete
 						// Using recommended approach: check isUpToDate immediately, watch stream, shorter timeout
 						// IMPORTANT: We don't unsubscribe from the stream - it must stay active for real-time updates
-						let resolveInitialSync: () => void;
-						let rejectInitialSync: (error: Error) => void;
 						let syncResolved = false;
+						// Initialize with no-op functions to satisfy TypeScript
+						let resolveInitialSync: () => void = () => {};
+						let rejectInitialSync: (error: Error) => void = () => {};
 
 						const initialSyncPromise = new Promise<void>((resolve, reject) => {
 							resolveInitialSync = () => {
@@ -232,26 +333,26 @@ export async function initElectric(): Promise<ElectricClient> {
 							};
 
 							// Shorter timeout (5 seconds) as fallback
-							const timeoutId = setTimeout(() => {
+							setTimeout(() => {
 								if (!syncResolved) {
 									console.warn(
-										`⚠️ Sync timeout for ${table} - checking isUpToDate one more time...`
+										`[Electric] ⚠️ Sync timeout for ${table} - checking isUpToDate one more time...`
 									);
 									// Check isUpToDate one more time before resolving
 									// This will be checked after shape is created
 									setTimeout(() => {
 										if (!syncResolved) {
-											console.warn(`⚠️ Sync timeout for ${table} - resolving anyway after 5s`);
+											console.warn(
+												`[Electric] ⚠️ Sync timeout for ${table} - resolving anyway after 5s`
+											);
 											resolveInitialSync();
 										}
 									}, 100);
 								}
 							}, 5000);
-
-							// Store timeout ID for cleanup if needed
-							// Note: timeout will be cleared if sync completes early
 						});
 
+						// Include userId in shapeKey for user-specific sync state
 						const shapeConfig = {
 							shape: {
 								url: `${electricUrl}/v1/shape`,
@@ -263,22 +364,24 @@ export async function initElectric(): Promise<ElectricClient> {
 							},
 							table,
 							primaryKey,
-							shapeKey: `v${SYNC_VERSION}_${table}_${where?.replace(/[^a-zA-Z0-9]/g, "_") || "all"}`, // Versioned key to force fresh sync when needed
+							shapeKey: `${userId}_v${SYNC_VERSION}_${table}_${where?.replace(/[^a-zA-Z0-9]/g, "_") || "all"}`, // User-specific versioned key
 							onInitialSync: () => {
-								console.log(`✅ Initial sync complete for ${table} - data should now be in PGlite`);
+								console.log(
+									`[Electric] ✅ Initial sync complete for ${table} - data should now be in PGlite`
+								);
 								resolveInitialSync();
 							},
 							onError: (error: Error) => {
-								console.error(`❌ Shape sync error for ${table}:`, error);
+								console.error(`[Electric] ❌ Shape sync error for ${table}:`, error);
 								console.error(
-									"Error details:",
+									"[Electric] Error details:",
 									JSON.stringify(error, Object.getOwnPropertyNames(error))
 								);
 								rejectInitialSync(error);
 							},
 						};
 
-						console.log("syncShapeToTable config:", JSON.stringify(shapeConfig, null, 2));
+						console.log("[Electric] syncShapeToTable config:", JSON.stringify(shapeConfig, null, 2));
 
 						// Type assertion to PGlite with electric extension
 						const pgWithElectric = db as PGlite & {
@@ -295,7 +398,7 @@ export async function initElectric(): Promise<ElectricClient> {
 						}
 
 						// Log the actual shape result structure
-						console.log("Shape sync result (initial):", {
+						console.log("[Electric] Shape sync result (initial):", {
 							hasUnsubscribe: typeof shape?.unsubscribe === "function",
 							isUpToDate: shape?.isUpToDate,
 							hasStream: !!shape?.stream,
@@ -304,13 +407,15 @@ export async function initElectric(): Promise<ElectricClient> {
 
 						// Recommended Approach Step 1: Check isUpToDate immediately
 						if (shape.isUpToDate) {
-							console.log(`✅ Sync already up-to-date for ${table} (resuming from previous state)`);
+							console.log(
+								`[Electric] ✅ Sync already up-to-date for ${table} (resuming from previous state)`
+							);
 							resolveInitialSync();
 						} else {
 							// Recommended Approach Step 2: Subscribe to stream and watch for "up-to-date" message
 							if (shape?.stream) {
 								const stream = shape.stream as any;
-								console.log("Shape stream details:", {
+								console.log("[Electric] Shape stream details:", {
 									shapeHandle: stream?.shapeHandle,
 									lastOffset: stream?.lastOffset,
 									isUpToDate: stream?.isUpToDate,
@@ -323,12 +428,17 @@ export async function initElectric(): Promise<ElectricClient> {
 								// NOTE: We keep this subscription active - don't unsubscribe!
 								// The stream is what Electric SQL uses for real-time updates
 								if (typeof stream?.subscribe === "function") {
-									console.log("Subscribing to shape stream to watch for up-to-date message...");
+									console.log(
+										"[Electric] Subscribing to shape stream to watch for up-to-date message..."
+									);
 									// Subscribe but don't store unsubscribe - we want it to stay active
 									stream.subscribe((messages: unknown[]) => {
 										// Continue receiving updates even after sync is resolved
 										if (!syncResolved) {
-											console.log("🔵 Shape stream received messages:", messages?.length || 0);
+											console.log(
+												"[Electric] 🔵 Shape stream received messages:",
+												messages?.length || 0
+											);
 										}
 
 										// Check if any message indicates sync is complete
@@ -342,27 +452,34 @@ export async function initElectric(): Promise<ElectricClient> {
 													(typeof msg === "object" && "up-to-date" in msg)
 												) {
 													if (!syncResolved) {
-														console.log(`✅ Received up-to-date message for ${table}`);
+														console.log(
+															`[Electric] ✅ Received up-to-date message for ${table}`
+														);
 														resolveInitialSync();
 													}
 													// Continue listening for real-time updates - don't return!
 												}
 											}
 											if (!syncResolved && messages.length > 0) {
-												console.log("First message:", JSON.stringify(messages[0], null, 2));
+												console.log(
+													"[Electric] First message:",
+													JSON.stringify(messages[0], null, 2)
+												);
 											}
 										}
 
 										// Also check stream's isUpToDate property after receiving messages
 										if (!syncResolved && stream?.isUpToDate) {
-											console.log(`✅ Stream isUpToDate is true for ${table}`);
+											console.log(`[Electric] ✅ Stream isUpToDate is true for ${table}`);
 											resolveInitialSync();
 										}
 									});
 
 									// Also check stream's isUpToDate property immediately
 									if (stream?.isUpToDate) {
-										console.log(`✅ Stream isUpToDate is true immediately for ${table}`);
+										console.log(
+											`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`
+										);
 										resolveInitialSync();
 									}
 								}
@@ -375,7 +492,7 @@ export async function initElectric(): Promise<ElectricClient> {
 									}
 
 									if (shape.isUpToDate || stream?.isUpToDate) {
-										console.log(`✅ Sync completed (detected via polling) for ${table}`);
+										console.log(`[Electric] ✅ Sync completed (detected via polling) for ${table}`);
 										clearInterval(pollInterval);
 										resolveInitialSync();
 									}
@@ -386,14 +503,19 @@ export async function initElectric(): Promise<ElectricClient> {
 									clearInterval(pollInterval);
 								});
 							} else {
-								console.warn(`⚠️ No stream available for ${table}, relying on callback and timeout`);
+								console.warn(
+									`[Electric] ⚠️ No stream available for ${table}, relying on callback and timeout`
+								);
 							}
 						}
 
-						// Return the shape handle - isUpToDate is a getter that reflects current state
-						return {
+						// Create the sync handle with proper cleanup
+						const syncHandle: SyncHandle = {
 							unsubscribe: () => {
-								console.log("unsubscribing");
+								console.log(`[Electric] Unsubscribing from: ${cacheKey}`);
+								// Remove from cache first
+								activeSyncHandles.delete(cacheKey);
+								// Then unsubscribe from the shape
 								if (shape && typeof shape.unsubscribe === "function") {
 									shape.unsubscribe();
 								}
@@ -405,30 +527,43 @@ export async function initElectric(): Promise<ElectricClient> {
 							stream: shape?.stream,
 							initialSyncPromise, // Expose promise so callers can wait for sync
 						};
+
+						// Cache the sync handle for reuse (memory optimization)
+						activeSyncHandles.set(cacheKey, syncHandle);
+						console.log(`[Electric] Cached sync handle for: ${cacheKey} (total cached: ${activeSyncHandles.size})`);
+
+						return syncHandle;
 					} catch (error) {
-						console.error("Failed to sync shape:", error);
+						console.error("[Electric] Failed to sync shape:", error);
 						// Check if Electric SQL server is reachable
 						try {
 							const response = await fetch(`${electricUrl}/v1/shape?table=${table}&offset=-1`, {
 								method: "GET",
 							});
-							console.log("Electric SQL server response:", response.status, response.statusText);
+							console.log(
+								"[Electric] Electric SQL server response:",
+								response.status,
+								response.statusText
+							);
 							if (!response.ok) {
-								console.error("Electric SQL server error:", await response.text());
+								console.error("[Electric] Electric SQL server error:", await response.text());
 							}
 						} catch (fetchError) {
-							console.error("Cannot reach Electric SQL server:", fetchError);
-							console.error("Make sure Electric SQL is running at:", electricUrl);
+							console.error("[Electric] Cannot reach Electric SQL server:", fetchError);
+							console.error("[Electric] Make sure Electric SQL is running at:", electricUrl);
 						}
 						throw error;
 					}
 				},
 			};
 
-			console.log("Electric SQL initialized successfully with PGlite");
+			console.log(`[Electric] ✅ Initialized successfully for user: ${userId}`);
 			return electricClient;
 		} catch (error) {
-			console.error("Failed to initialize Electric SQL:", error);
+			console.error("[Electric] Failed to initialize:", error);
+			// Reset state on failure
+			electricClient = null;
+			currentUserId = null;
 			throw error;
 		} finally {
 			isInitializing = false;
@@ -439,20 +574,86 @@ export async function initElectric(): Promise<ElectricClient> {
 }
 
 /**
+ * Cleanup Electric SQL - close database and reset singleton
+ * Called on logout (best-effort) and when switching users
+ */
+export async function cleanupElectric(): Promise<void> {
+	if (!electricClient) {
+		return;
+	}
+
+	const userIdToClean = currentUserId;
+	console.log(`[Electric] Cleaning up for user: ${userIdToClean}`);
+
+	// Unsubscribe from all active sync handles first (memory cleanup)
+	console.log(`[Electric] Unsubscribing from ${activeSyncHandles.size} active sync handles`);
+	// Copy keys to array to avoid mutation during iteration
+	const handleKeys = Array.from(activeSyncHandles.keys());
+	for (const key of handleKeys) {
+		const handle = activeSyncHandles.get(key);
+		if (handle) {
+			try {
+				handle.unsubscribe();
+			} catch (err) {
+				console.warn(`[Electric] Failed to unsubscribe from ${key}:`, err);
+			}
+		}
+	}
+	// Ensure cache is empty
+	activeSyncHandles.clear();
+
+	try {
+		// Close the PGlite database connection
+		await electricClient.db.close();
+		console.log("[Electric] Database closed");
+	} catch (error) {
+		console.error("[Electric] Error closing database:", error);
+	}
+
+	// Reset singleton state
+	electricClient = null;
+	currentUserId = null;
+	isInitializing = false;
+	initPromise = null;
+
+	// Delete the user's IndexedDB database (best-effort cleanup on logout)
+	if (typeof window !== "undefined" && window.indexedDB && userIdToClean) {
+		try {
+			const dbName = `${DB_PREFIX}${userIdToClean}-v${SYNC_VERSION}`;
+			window.indexedDB.deleteDatabase(dbName);
+			console.log(`[Electric] Deleted database: ${dbName}`);
+		} catch (err) {
+			console.warn("[Electric] Failed to delete database:", err);
+		}
+	}
+
+	console.log("[Electric] Cleanup complete");
+}
+
+/**
  * Get the Electric client (throws if not initialized)
  */
 export function getElectric(): ElectricClient {
 	if (!electricClient) {
-		throw new Error("Electric not initialized. Call initElectric() first.");
+		throw new Error("Electric not initialized. Call initElectric(userId) first.");
 	}
 	return electricClient;
 }
 
 /**
- * Check if Electric is initialized
+ * Check if Electric is initialized for a specific user
  */
-export function isElectricInitialized(): boolean {
-	return electricClient !== null;
+export function isElectricInitialized(userId?: string): boolean {
+	if (!electricClient) return false;
+	if (userId && currentUserId !== userId) return false;
+	return true;
+}
+
+/**
+ * Get the current user ID that Electric is initialized for
+ */
+export function getCurrentElectricUserId(): string | null {
+	return currentUserId;
 }
 
 /**
