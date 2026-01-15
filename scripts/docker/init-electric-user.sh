@@ -1,11 +1,18 @@
 #!/bin/sh
 # ============================================================================
-# Electric SQL User Initialization Script (Docker deployments)
+# Electric SQL User Initialization Script (docker-compose only)
 # ============================================================================
-# Creates the Electric SQL replication user for Docker deployments.
-# 
-# For local PostgreSQL users (non-Docker), this is handled by Alembic 
-# migration 66 (66_add_notifications_table_and_electric_replication.py).
+# This script is ONLY used when running via docker-compose.
+#
+# How it works:
+# - docker-compose.yml mounts this script into the PostgreSQL container's
+#   /docker-entrypoint-initdb.d/ directory
+# - PostgreSQL automatically executes scripts in that directory on first
+#   container initialization
+#
+# For local PostgreSQL users (non-Docker), this script is NOT used.
+# Instead, the Electric user is created by Alembic migration 66
+# (66_add_notifications_table_and_electric_replication.py).
 #
 # Both approaches are idempotent (use IF NOT EXISTS), so running both
 # will not cause conflicts.
