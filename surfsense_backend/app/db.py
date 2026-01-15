@@ -214,6 +214,10 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.CHATS_READ.value,
         Permission.CHATS_UPDATE.value,
         Permission.CHATS_DELETE.value,
+        # Comments
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
+        Permission.COMMENTS_DELETE.value,
         # LLM Configs
         Permission.LLM_CONFIGS_CREATE.value,
         Permission.LLM_CONFIGS_READ.value,
@@ -257,6 +261,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.CHATS_READ.value,
         Permission.CHATS_UPDATE.value,
         Permission.CHATS_DELETE.value,
+        # Comments (no delete)
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
         # LLM Configs (read only)
         Permission.LLM_CONFIGS_READ.value,
         Permission.LLM_CONFIGS_CREATE.value,
@@ -284,6 +291,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.DOCUMENTS_READ.value,
         # Chats (read only)
         Permission.CHATS_READ.value,
+        # Comments (no delete)
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
         # LLM Configs (read only)
         Permission.LLM_CONFIGS_READ.value,
         # Podcasts (read only)
