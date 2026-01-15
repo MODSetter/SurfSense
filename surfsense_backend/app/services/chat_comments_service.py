@@ -14,6 +14,7 @@ from app.db import (
     ChatCommentMention,
     NewChatMessage,
     NewChatMessageRole,
+    NewChatThread,
     Permission,
     SearchSpaceMembership,
     User,
@@ -24,6 +25,10 @@ from app.schemas.chat_comments import (
     CommentListResponse,
     CommentReplyResponse,
     CommentResponse,
+    MentionCommentResponse,
+    MentionContextResponse,
+    MentionListResponse,
+    MentionResponse,
 )
 from app.utils.chat_comments import parse_mentions, render_mentions
 from app.utils.rbac import check_permission, get_user_permissions
@@ -558,3 +563,177 @@ async def delete_comment(
     await session.commit()
 
     return {"message": "Comment deleted successfully", "comment_id": comment_id}
+
+
+async def get_user_mentions(
+    session: AsyncSession,
+    user: User,
+    search_space_id: int | None = None,
+    unread_only: bool = False,
+) -> MentionListResponse:
+    """
+    Get mentions for the current user, optionally filtered by search space.
+
+    Args:
+        session: Database session
+        user: The current authenticated user
+        search_space_id: Optional search space ID to filter mentions
+        unread_only: If True, only return unread mentions
+
+    Returns:
+        MentionListResponse with mentions and unread count
+    """
+    # Build query with joins for filtering by search_space_id
+    query = (
+        select(ChatCommentMention)
+        .join(ChatComment, ChatCommentMention.comment_id == ChatComment.id)
+        .join(NewChatMessage, ChatComment.message_id == NewChatMessage.id)
+        .join(NewChatThread, NewChatMessage.thread_id == NewChatThread.id)
+        .options(
+            selectinload(ChatCommentMention.comment).selectinload(ChatComment.author),
+        )
+        .filter(ChatCommentMention.mentioned_user_id == user.id)
+        .order_by(ChatCommentMention.created_at.desc())
+    )
+
+    if search_space_id is not None:
+        query = query.filter(NewChatThread.search_space_id == search_space_id)
+
+    if unread_only:
+        query = query.filter(ChatCommentMention.read.is_(False))
+
+    result = await session.execute(query)
+    mention_records = result.scalars().all()
+
+    # Fetch search space info for context (single query for all unique search spaces)
+    thread_ids = {m.comment.message.thread_id for m in mention_records}
+    if thread_ids:
+        thread_result = await session.execute(
+            select(NewChatThread)
+            .options(selectinload(NewChatThread.search_space))
+            .filter(NewChatThread.id.in_(thread_ids))
+        )
+        threads_map = {t.id: t for t in thread_result.scalars().all()}
+    else:
+        threads_map = {}
+
+    # Count unread from fetched data
+    unread_count = sum(1 for m in mention_records if not m.read)
+
+    mentions = []
+    for mention in mention_records:
+        comment = mention.comment
+        message = comment.message
+        thread = threads_map.get(message.thread_id)
+        search_space = thread.search_space if thread else None
+
+        author = None
+        if comment.author:
+            author = AuthorResponse(
+                id=comment.author.id,
+                display_name=comment.author.display_name,
+                avatar_url=comment.author.avatar_url,
+                email=comment.author.email,
+            )
+
+        content_preview = (
+            comment.content[:100] + "..."
+            if len(comment.content) > 100
+            else comment.content
+        )
+
+        mentions.append(
+            MentionResponse(
+                id=mention.id,
+                read=mention.read,
+                created_at=mention.created_at,
+                comment=MentionCommentResponse(
+                    id=comment.id,
+                    content_preview=content_preview,
+                    author=author,
+                    created_at=comment.created_at,
+                ),
+                context=MentionContextResponse(
+                    thread_id=thread.id if thread else 0,
+                    thread_title=thread.title or "Untitled" if thread else "Unknown",
+                    message_id=message.id,
+                    search_space_id=search_space.id if search_space else 0,
+                    search_space_name=search_space.name if search_space else "Unknown",
+                ),
+            )
+        )
+
+    return MentionListResponse(
+        mentions=mentions,
+        unread_count=unread_count,
+    )
+
+
+async def mark_mention_as_read(
+    session: AsyncSession,
+    mention_id: int,
+    user: User,
+) -> dict:
+    """
+    Mark a specific mention as read.
+
+    Args:
+        session: Database session
+        mention_id: ID of the mention to mark as read
+        user: The current authenticated user
+
+    Returns:
+        Dict with mention_id and read status
+
+    Raises:
+        HTTPException: If mention not found or doesn't belong to user
+    """
+    result = await session.execute(
+        select(ChatCommentMention).filter(ChatCommentMention.id == mention_id)
+    )
+    mention = result.scalars().first()
+
+    if not mention:
+        raise HTTPException(status_code=404, detail="Mention not found")
+
+    if mention.mentioned_user_id != user.id:
+        raise HTTPException(
+            status_code=403,
+            detail="You can only mark your own mentions as read",
+        )
+
+    mention.read = True
+    await session.commit()
+
+    return {"mention_id": mention_id, "read": True}
+
+
+async def mark_all_mentions_as_read(
+    session: AsyncSession,
+    user: User,
+) -> dict:
+    """
+    Mark all mentions for the current user as read.
+
+    Args:
+        session: Database session
+        user: The current authenticated user
+
+    Returns:
+        Dict with count of mentions marked as read
+    """
+    from sqlalchemy import update
+
+    result = await session.execute(
+        update(ChatCommentMention)
+        .where(
+            ChatCommentMention.mentioned_user_id == user.id,
+            ChatCommentMention.read.is_(False),
+        )
+        .values(read=True)
+        .returning(ChatCommentMention.id)
+    )
+    marked_ids = result.scalars().all()
+    await session.commit()
+
+    return {"message": "All mentions marked as read", "count": len(marked_ids)}
