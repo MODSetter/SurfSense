@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.db import (
     ChatComment,
     NewChatMessage,
+    NewChatMessageRole,
     Permission,
     User,
     has_permission,
@@ -40,9 +41,8 @@ async def get_comments_for_message(
         CommentListResponse with all top-level comments and their replies
 
     Raises:
-        HTTPException: If message not found or user lacks permission
+        HTTPException: If message not found or user lacks COMMENTS_READ permission
     """
-    # Get the message with its thread to find search_space_id
     result = await session.execute(
         select(NewChatMessage)
         .options(selectinload(NewChatMessage.thread))
@@ -85,7 +85,6 @@ async def get_comments_for_message(
 
     comments = []
     for comment in top_level_comments:
-        # Build author response
         author = None
         if comment.author:
             author = AuthorResponse(
@@ -95,7 +94,6 @@ async def get_comments_for_message(
                 email=comment.author.email,
             )
 
-        # Build replies
         replies = []
         for reply in sorted(comment.replies, key=lambda r: r.created_at):
             reply_author = None
@@ -143,4 +141,84 @@ async def get_comments_for_message(
     return CommentListResponse(
         comments=comments,
         total_count=len(comments),
+    )
+
+
+async def create_comment(
+    session: AsyncSession,
+    message_id: int,
+    content: str,
+    user: User,
+) -> CommentResponse:
+    """
+    Create a top-level comment on an AI response.
+
+    Args:
+        session: Database session
+        message_id: ID of the message to comment on
+        content: Comment text content
+        user: The current authenticated user
+
+    Returns:
+        CommentResponse for the created comment
+
+    Raises:
+        HTTPException: If message not found, not AI response, or user lacks COMMENTS_CREATE permission
+    """
+    result = await session.execute(
+        select(NewChatMessage)
+        .options(selectinload(NewChatMessage.thread))
+        .filter(NewChatMessage.id == message_id)
+    )
+    message = result.scalars().first()
+
+    if not message:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    # Validate message is an AI response
+    if message.role != NewChatMessageRole.ASSISTANT:
+        raise HTTPException(
+            status_code=400,
+            detail="Comments can only be added to AI responses",
+        )
+
+    search_space_id = message.thread.search_space_id
+
+    # Check permission to create comments
+    user_permissions = await get_user_permissions(session, user.id, search_space_id)
+    if not has_permission(user_permissions, Permission.COMMENTS_CREATE.value):
+        raise HTTPException(
+            status_code=403,
+            detail="You don't have permission to create comments in this search space",
+        )
+
+    comment = ChatComment(
+        message_id=message_id,
+        author_id=user.id,
+        content=content,
+    )
+    session.add(comment)
+    await session.commit()
+    await session.refresh(comment)
+
+    author = AuthorResponse(
+        id=user.id,
+        display_name=user.display_name,
+        avatar_url=user.avatar_url,
+        email=user.email,
+    )
+
+    return CommentResponse(
+        id=comment.id,
+        message_id=comment.message_id,
+        content=comment.content,
+        content_rendered=comment.content,  # TODO: Phase 3
+        author=author,
+        created_at=comment.created_at,
+        updated_at=comment.updated_at,
+        is_edited=False,
+        can_edit=True,
+        can_delete=True,  # Author can always delete their own comment
+        reply_count=0,
+        replies=[],
     )
