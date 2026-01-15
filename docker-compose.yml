@@ -8,10 +8,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./scripts/docker/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./scripts/docker/init-electric-user.sh:/docker-entrypoint-initdb.d/init-electric-user.sh:ro
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-surfsense}
+      - ELECTRIC_DB_USER=${ELECTRIC_DB_USER:-electric}
+      - ELECTRIC_DB_PASSWORD=${ELECTRIC_DB_PASSWORD:-electric_password}
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
 
   pgadmin:
@@ -123,6 +126,8 @@ services:
       - ELECTRIC_INSECURE=true
       - ELECTRIC_WRITE_TO_PG_MODE=direct
     restart: unless-stopped
+    # depends_on:
+    #   - db
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
       interval: 10s

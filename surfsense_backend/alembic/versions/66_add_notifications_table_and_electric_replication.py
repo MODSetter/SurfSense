@@ -6,6 +6,11 @@ Revises: 65
 Creates notifications table and sets up Electric SQL replication
 (user, publication, REPLICA IDENTITY FULL) for notifications,
 search_source_connectors, and documents tables.
+
+NOTE: Electric SQL user creation is idempotent (uses IF NOT EXISTS).
+- Docker deployments: user is pre-created by scripts/docker/init-electric-user.sh
+- Local PostgreSQL: user is created here during migration
+Both approaches are safe to run together without conflicts as this migraiton is idempotent
 """
 
 from collections.abc import Sequence
@@ -46,11 +51,11 @@ def upgrade() -> None:
         """
     )
 
-    # Create indexes
-    op.create_index("ix_notifications_user_id", "notifications", ["user_id"])
-    op.create_index("ix_notifications_read", "notifications", ["read"])
-    op.create_index("ix_notifications_created_at", "notifications", ["created_at"])
-    op.create_index("ix_notifications_user_read", "notifications", ["user_id", "read"])
+    # Create indexes (using IF NOT EXISTS for idempotency)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_user_id ON notifications (user_id);")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_read ON notifications (read);")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_created_at ON notifications (created_at);")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_notifications_user_read ON notifications (user_id, read);")
 
     # =====================================================
     # Electric SQL Setup - User and Publication

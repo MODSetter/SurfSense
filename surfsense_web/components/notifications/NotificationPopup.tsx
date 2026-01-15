@@ -44,7 +44,7 @@ export function NotificationPopup({
 
 		switch (status) {
 			case "in_progress":
-				return <Loader2 className="h-4 w-4 text-white animate-spin" />;
+				return <Loader2 className="h-4 w-4 text-foreground animate-spin" />;
 			case "completed":
 				return <CheckCircle2 className="h-4 w-4 text-green-500" />;
 			case "failed":
@@ -73,7 +73,7 @@ export function NotificationPopup({
 			<ScrollArea className="h-[400px]">
 				{loading ? (
 					<div className="flex items-center justify-center py-8">
-						<Loader2 className="h-5 w-5 animate-spin text-white" />
+						<Loader2 className="h-5 w-5 animate-spin text-foreground" />
 					</div>
 				) : notifications.length === 0 ? (
 					<div className="flex flex-col items-center justify-center py-8 px-4 text-center">
