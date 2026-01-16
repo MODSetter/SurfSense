@@ -116,7 +116,7 @@ export const AssistantMessage: FC = () => {
 						onClick={() => setIsCommentPanelOpen(!isCommentPanelOpen)}
 					/>
 					{isCommentPanelOpen && (
-						<div className="absolute left-full top-0 z-50 ml-2 animate-in fade-in slide-in-from-left-2 duration-200">
+						<div className="absolute top-full left-0 z-50 mt-2 animate-in fade-in slide-in-from-top-2 duration-200">
 							<CommentPanelContainer
 								messageId={dbMessageId}
 								searchSpaceId={Number(searchSpaceId)}
