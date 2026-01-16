@@ -45,65 +45,91 @@ export function CommentThread({
 		setIsReplyComposerOpen(false);
 	};
 
+	const hasReplies = thread.replies.length > 0;
+	const showReplies = thread.replies.length === 1 || isRepliesExpanded;
+
 	return (
-		<div className="space-y-2">
+		<div>
+			{/* Parent comment */}
 			<CommentItem
 				comment={parentComment}
 				onEdit={(id) => onEditComment(id, "")}
 				onDelete={onDeleteComment}
 			/>
 
-			{thread.replies.length > 1 && (
-				<div className="ml-11">
-					<Button
-						variant="ghost"
-						size="sm"
-						className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-						onClick={() => setIsRepliesExpanded(!isRepliesExpanded)}
-					>
-						{isRepliesExpanded ? (
-							<ChevronDown className="mr-1 size-3" />
-						) : (
-							<ChevronRight className="mr-1 size-3" />
+			{/* Replies and actions - using flex layout with connector */}
+			{(hasReplies || isReplyComposerOpen) && (
+				<div className="flex">
+					{/* Connector column - vertical line */}
+					<div className="flex w-7 flex-col items-center">
+						<div className="w-px flex-1 bg-border" />
+					</div>
+
+					{/* Content column */}
+					<div className="min-w-0 flex-1 space-y-2 pb-1">
+						{/* Expand/collapse for multiple replies */}
+						{thread.replies.length > 1 && (
+							<Button
+								variant="ghost"
+								size="sm"
+								className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+								onClick={() => setIsRepliesExpanded(!isRepliesExpanded)}
+							>
+								{isRepliesExpanded ? (
+									<ChevronDown className="mr-1 size-3" />
+								) : (
+									<ChevronRight className="mr-1 size-3" />
+								)}
+								{thread.replies.length} replies
+							</Button>
 						)}
-						{thread.replies.length} replies
-					</Button>
+
+						{/* Reply items */}
+						{showReplies && hasReplies && (
+							<div className="space-y-2">
+								{thread.replies.map((reply) => (
+									<CommentItem
+										key={reply.id}
+										comment={reply}
+										isReply
+										onEdit={(id) => onEditComment(id, "")}
+										onDelete={onDeleteComment}
+									/>
+								))}
+							</div>
+						)}
+
+						{/* Reply composer or button */}
+						{isReplyComposerOpen ? (
+							<CommentComposer
+								members={members}
+								membersLoading={membersLoading}
+								placeholder="Write a reply..."
+								submitLabel="Reply"
+								isSubmitting={isSubmitting}
+								onSubmit={handleReplySubmit}
+								onCancel={handleReplyCancel}
+								autoFocus
+							/>
+						) : (
+							<Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleReply}>
+								<MessageSquare className="mr-1.5 size-3" />
+								Reply
+							</Button>
+						)}
+					</div>
 				</div>
 			)}
 
-			{thread.replies.length > 0 && (thread.replies.length === 1 || isRepliesExpanded) && (
-				<div className="ml-11 space-y-3">
-					{thread.replies.map((reply) => (
-						<CommentItem
-							key={reply.id}
-							comment={reply}
-							isReply
-							onEdit={(id) => onEditComment(id, "")}
-							onDelete={onDeleteComment}
-						/>
-					))}
-				</div>
-			)}
-
-			<div className="ml-11">
-				{isReplyComposerOpen ? (
-					<CommentComposer
-						members={members}
-						membersLoading={membersLoading}
-						placeholder="Write a reply..."
-						submitLabel="Reply"
-						isSubmitting={isSubmitting}
-						onSubmit={handleReplySubmit}
-						onCancel={handleReplyCancel}
-						autoFocus
-					/>
-				) : (
-					<Button variant="outline" size="sm" className="h-7 px-3 text-xs" onClick={handleReply}>
+			{/* Reply button when no replies yet */}
+			{!hasReplies && !isReplyComposerOpen && (
+				<div className="ml-7 mt-1">
+					<Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleReply}>
 						<MessageSquare className="mr-1.5 size-3" />
 						Reply
 					</Button>
-				)}
-			</div>
+				</div>
+			)}
 		</div>
 	);
 }
