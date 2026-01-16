@@ -218,7 +218,14 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										connectorType,
 										documentTypeCounts
 									);
-									const accountCount = typeConnectors.length;
+									// Calculate account count - for MCP, count servers; for others, count connectors
+									const accountCount =
+										connectorType === "MCP_CONNECTOR"
+											? typeConnectors.reduce((total, c) => {
+													const serverConfigs = c.config?.server_configs;
+													return total + (Array.isArray(serverConfigs) ? serverConfigs.length : 0);
+												}, 0)
+											: typeConnectors.length;
 									const mostRecentLastIndexed = getMostRecentLastIndexed(typeConnectors);
 
 									const handleManageClick = () => {

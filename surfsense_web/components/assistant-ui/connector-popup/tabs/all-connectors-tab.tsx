@@ -103,6 +103,15 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 										)
 									: [];
 
+							// Calculate account count - for MCP, count servers; for others, count connectors
+							const accountCount =
+								connector.connectorType === "MCP_CONNECTOR"
+									? typeConnectors.reduce((total, c) => {
+											const serverConfigs = c.config?.server_configs;
+											return total + (Array.isArray(serverConfigs) ? serverConfigs.length : 0);
+										}, 0)
+									: typeConnectors.length;
+
 							// Get the most recent last_indexed_at across all accounts
 							const mostRecentLastIndexed = typeConnectors.reduce<string | undefined>(
 								(latest, c) => {
@@ -138,7 +147,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnected={isConnected}
 									isConnecting={isConnecting}
 									documentCount={documentCount}
-									accountCount={typeConnectors.length}
+									accountCount={accountCount}
 									lastIndexedAt={mostRecentLastIndexed}
 									isIndexing={isIndexing}
 									activeTask={activeTask}

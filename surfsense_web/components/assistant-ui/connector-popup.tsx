@@ -156,7 +156,15 @@ export const ConnectorIndicator: FC = () => {
 	const hasConnectors = connectors.length > 0;
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
 	const totalSourceCount = connectors.length + activeDocumentTypes.length;
-	const activeConnectorsCount = connectors.length; // Only actual connectors, not document types
+	
+	// Count connectors properly: for MCP, count each server; for others, count connectors
+	const activeConnectorsCount = connectors.reduce((total, c: SearchSourceConnector) => {
+		if (c.connector_type === "MCP_CONNECTOR") {
+			const serverConfigs = c.config?.server_configs;
+			return total + (Array.isArray(serverConfigs) ? serverConfigs.length : 0);
+		}
+		return total + 1;
+	}, 0);
 
 	// Check which connectors are already connected
 	const connectedTypes = new Set(
