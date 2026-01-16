@@ -37,10 +37,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove author_id column from new_chat_messages table."""
-    op.execute(
-        """
-        DROP INDEX IF EXISTS ix_new_chat_messages_author_id;
-        ALTER TABLE new_chat_messages
-        DROP COLUMN IF EXISTS author_id;
-        """
-    )
+    op.execute("DROP INDEX IF EXISTS ix_new_chat_messages_author_id")
+    op.execute("ALTER TABLE new_chat_messages DROP COLUMN IF EXISTS author_id")

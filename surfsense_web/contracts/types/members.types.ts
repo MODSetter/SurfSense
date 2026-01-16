@@ -11,6 +11,8 @@ export const membership = z.object({
 	created_at: z.string(),
 	role: role.nullable().optional(),
 	user_email: z.string().nullable().optional(),
+	user_display_name: z.string().nullable().optional(),
+	user_avatar_url: z.string().nullable().optional(),
 	user_is_active: z.boolean().nullable().optional(),
 });
 

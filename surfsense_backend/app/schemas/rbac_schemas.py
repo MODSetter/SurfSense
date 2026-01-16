@@ -73,8 +73,10 @@ class MembershipRead(BaseModel):
     created_at: datetime
     # Nested role info
     role: RoleRead | None = None
-    # User email (populated separately)
+    # User details (populated separately)
     user_email: str | None = None
+    user_display_name: str | None = None
+    user_avatar_url: str | None = None
 
     class Config:
         from_attributes = True

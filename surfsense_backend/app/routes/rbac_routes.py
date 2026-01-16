@@ -452,6 +452,8 @@ async def list_members(
                 "created_at": membership.created_at,
                 "role": membership.role,
                 "user_email": member_user.email if member_user else None,
+                "user_display_name": member_user.display_name if member_user else None,
+                "user_avatar_url": member_user.avatar_url if member_user else None,
             }
             response.append(membership_dict)
 
