@@ -1,4 +1,5 @@
 export enum EnumConnectorName {
+	SERPER_API = "SERPER_API",
 	TAVILY_API = "TAVILY_API",
 	SEARXNG_API = "SEARXNG_API",
 	LINKUP_API = "LINKUP_API",

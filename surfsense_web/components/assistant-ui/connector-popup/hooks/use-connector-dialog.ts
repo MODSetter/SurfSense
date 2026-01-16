@@ -508,20 +508,23 @@ export const useConnectorDialog = () => {
 
 	// Handle submitting connect form
 	const handleSubmitConnectForm = useCallback(
-		async (formData: {
-			name: string;
-			connector_type: string;
-			config: Record<string, unknown>;
-			is_indexable: boolean;
-			last_indexed_at: null;
-			periodic_indexing_enabled: boolean;
-			indexing_frequency_minutes: number | null;
-			next_scheduled_at: null;
-			startDate?: Date;
-			endDate?: Date;
-			periodicEnabled?: boolean;
-			frequencyMinutes?: string;
-		}) => {
+		async (
+			formData: {
+				name: string;
+				connector_type: string;
+				config: Record<string, unknown>;
+				is_indexable: boolean;
+				last_indexed_at: null;
+				periodic_indexing_enabled: boolean;
+				indexing_frequency_minutes: number | null;
+				next_scheduled_at: null;
+				startDate?: Date;
+				endDate?: Date;
+				periodicEnabled?: boolean;
+				frequencyMinutes?: string;
+			},
+			onIndexingStart?: (connectorId: number) => void
+		) => {
 			if (!searchSpaceId || !connectingConnectorType) return;
 
 			// Prevent multiple submissions using ref for immediate check
@@ -619,6 +622,11 @@ export const useConnectorDialog = () => {
 											indexing_frequency_minutes: frequency,
 										},
 									});
+								}
+
+								// Notify caller that indexing is starting (for UI syncing state)
+								if (onIndexingStart) {
+									onIndexingStart(connector.id);
 								}
 
 								// Start indexing (backend will use defaults if dates are undefined)

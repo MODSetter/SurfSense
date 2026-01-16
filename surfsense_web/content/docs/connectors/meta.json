@@ -19,5 +19,5 @@
 		"elasticsearch",
 		"bookstack"
 	],
-	"defaultOpen": true
+	"defaultOpen": false
 }
