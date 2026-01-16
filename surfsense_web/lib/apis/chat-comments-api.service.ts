@@ -14,10 +14,6 @@ import {
 	getCommentsResponse,
 	getMentionsRequest,
 	getMentionsResponse,
-	type MarkMentionReadRequest,
-	markAllMentionsReadResponse,
-	markMentionReadRequest,
-	markMentionReadResponse,
 	type UpdateCommentRequest,
 	updateCommentRequest,
 	updateCommentResponse,
@@ -127,38 +123,11 @@ class ChatCommentsApiService {
 		if (parsed.data.search_space_id !== undefined) {
 			params.set("search_space_id", String(parsed.data.search_space_id));
 		}
-		if (parsed.data.unread_only !== undefined) {
-			params.set("unread_only", String(parsed.data.unread_only));
-		}
 
 		const queryString = params.toString();
 		const url = queryString ? `/api/v1/mentions?${queryString}` : "/api/v1/mentions";
 
 		return baseApiService.get(url, getMentionsResponse);
-	};
-
-	/**
-	 * Mark a mention as read
-	 */
-	markMentionRead = async (request: MarkMentionReadRequest) => {
-		const parsed = markMentionReadRequest.safeParse(request);
-
-		if (!parsed.success) {
-			const errorMessage = parsed.error.issues.map((issue) => issue.message).join(", ");
-			throw new ValidationError(`Invalid request: ${errorMessage}`);
-		}
-
-		return baseApiService.put(
-			`/api/v1/mentions/${parsed.data.mention_id}/read`,
-			markMentionReadResponse
-		);
-	};
-
-	/**
-	 * Mark all mentions as read
-	 */
-	markAllMentionsRead = async () => {
-		return baseApiService.put("/api/v1/mentions/read-all", markAllMentionsReadResponse);
 	};
 }
 

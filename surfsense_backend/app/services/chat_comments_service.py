@@ -569,7 +569,6 @@ async def get_user_mentions(
     session: AsyncSession,
     user: User,
     search_space_id: int | None = None,
-    unread_only: bool = False,
 ) -> MentionListResponse:
     """
     Get mentions for the current user, optionally filtered by search space.
@@ -578,10 +577,9 @@ async def get_user_mentions(
         session: Database session
         user: The current authenticated user
         search_space_id: Optional search space ID to filter mentions
-        unread_only: If True, only return unread mentions
 
     Returns:
-        MentionListResponse with mentions and unread count
+        MentionListResponse with mentions and total count
     """
     # Build query with joins for filtering by search_space_id
     query = (
@@ -599,9 +597,6 @@ async def get_user_mentions(
     if search_space_id is not None:
         query = query.filter(NewChatThread.search_space_id == search_space_id)
 
-    if unread_only:
-        query = query.filter(ChatCommentMention.read.is_(False))
-
     result = await session.execute(query)
     mention_records = result.scalars().all()
 
@@ -616,9 +611,6 @@ async def get_user_mentions(
         threads_map = {t.id: t for t in thread_result.scalars().all()}
     else:
         threads_map = {}
-
-    # Count unread from fetched data
-    unread_count = sum(1 for m in mention_records if not m.read)
 
     mentions = []
     for mention in mention_records:
@@ -645,7 +637,6 @@ async def get_user_mentions(
         mentions.append(
             MentionResponse(
                 id=mention.id,
-                read=mention.read,
                 created_at=mention.created_at,
                 comment=MentionCommentResponse(
                     id=comment.id,
@@ -665,75 +656,5 @@ async def get_user_mentions(
 
     return MentionListResponse(
         mentions=mentions,
-        unread_count=unread_count,
+        total_count=len(mentions),
     )
-
-
-async def mark_mention_as_read(
-    session: AsyncSession,
-    mention_id: int,
-    user: User,
-) -> dict:
-    """
-    Mark a specific mention as read.
-
-    Args:
-        session: Database session
-        mention_id: ID of the mention to mark as read
-        user: The current authenticated user
-
-    Returns:
-        Dict with mention_id and read status
-
-    Raises:
-        HTTPException: If mention not found or doesn't belong to user
-    """
-    result = await session.execute(
-        select(ChatCommentMention).filter(ChatCommentMention.id == mention_id)
-    )
-    mention = result.scalars().first()
-
-    if not mention:
-        raise HTTPException(status_code=404, detail="Mention not found")
-
-    if mention.mentioned_user_id != user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="You can only mark your own mentions as read",
-        )
-
-    mention.read = True
-    await session.commit()
-
-    return {"mention_id": mention_id, "read": True}
-
-
-async def mark_all_mentions_as_read(
-    session: AsyncSession,
-    user: User,
-) -> dict:
-    """
-    Mark all mentions for the current user as read.
-
-    Args:
-        session: Database session
-        user: The current authenticated user
-
-    Returns:
-        Dict with count of mentions marked as read
-    """
-    from sqlalchemy import update
-
-    result = await session.execute(
-        update(ChatCommentMention)
-        .where(
-            ChatCommentMention.mentioned_user_id == user.id,
-            ChatCommentMention.read.is_(False),
-        )
-        .values(read=True)
-        .returning(ChatCommentMention.id)
-    )
-    marked_ids = result.scalars().all()
-    await session.commit()
-
-    return {"message": "All mentions marked as read", "count": len(marked_ids)}

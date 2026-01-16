@@ -115,7 +115,6 @@ class MentionResponse(BaseModel):
     """Schema for a mention notification."""
 
     id: int
-    read: bool
     created_at: datetime
     comment: MentionCommentResponse
     context: MentionContextResponse
@@ -127,4 +126,4 @@ class MentionListResponse(BaseModel):
     """Response for listing user's mentions."""
 
     mentions: list[MentionResponse]
-    unread_count: int
+    total_count: int

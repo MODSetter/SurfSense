@@ -77,6 +77,5 @@ export const cacheKeys = {
 	},
 	mentions: {
 		all: (searchSpaceId?: number) => ["mentions", searchSpaceId] as const,
-		unreadOnly: (searchSpaceId?: number) => ["mentions", "unread", searchSpaceId] as const,
 	},
 };

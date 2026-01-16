@@ -4,7 +4,6 @@ import type {
 	CreateCommentRequest,
 	CreateReplyRequest,
 	DeleteCommentRequest,
-	MarkMentionReadRequest,
 	UpdateCommentRequest,
 } from "@/contracts/types/chat-comments.types";
 import { chatCommentsApiService } from "@/lib/apis/chat-comments-api.service";
@@ -69,41 +68,5 @@ export const deleteCommentMutationAtom = atomWithMutation(() => ({
 	onError: (error: Error) => {
 		console.error("Error deleting comment:", error);
 		toast.error("Failed to delete comment");
-	},
-}));
-
-export const markMentionReadMutationAtom = atomWithMutation(() => ({
-	mutationFn: async (request: MarkMentionReadRequest & { search_space_id?: number }) => {
-		return chatCommentsApiService.markMentionRead(request);
-	},
-	onSuccess: (_, variables) => {
-		queryClient.invalidateQueries({
-			queryKey: cacheKeys.mentions.all(variables.search_space_id),
-		});
-		queryClient.invalidateQueries({
-			queryKey: cacheKeys.mentions.unreadOnly(variables.search_space_id),
-		});
-	},
-	onError: (error: Error) => {
-		console.error("Error marking mention as read:", error);
-	},
-}));
-
-export const markAllMentionsReadMutationAtom = atomWithMutation(() => ({
-	mutationFn: async (request: { search_space_id?: number }) => {
-		return chatCommentsApiService.markAllMentionsRead();
-	},
-	onSuccess: (_, variables) => {
-		queryClient.invalidateQueries({
-			queryKey: cacheKeys.mentions.all(variables.search_space_id),
-		});
-		queryClient.invalidateQueries({
-			queryKey: cacheKeys.mentions.unreadOnly(variables.search_space_id),
-		});
-		toast.success("All mentions marked as read");
-	},
-	onError: (error: Error) => {
-		console.error("Error marking all mentions as read:", error);
-		toast.error("Failed to mark mentions as read");
 	},
 }));

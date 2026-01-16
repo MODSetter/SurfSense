@@ -513,7 +513,6 @@ class ChatCommentMention(BaseModel, TimestampMixin):
         nullable=False,
         index=True,
     )
-    read = Column(Boolean, nullable=False, default=False)
 
     # Relationships
     comment = relationship("ChatComment", back_populates="mentions")

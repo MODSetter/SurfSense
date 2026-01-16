@@ -51,7 +51,6 @@ export const mentionComment = z.object({
 
 export const mention = z.object({
 	id: z.number(),
-	read: z.boolean(),
 	created_at: z.string(),
 	comment: mentionComment,
 	context: mentionContext,
@@ -116,32 +115,11 @@ export const deleteCommentResponse = z.object({
  */
 export const getMentionsRequest = z.object({
 	search_space_id: z.number().optional(),
-	unread_only: z.boolean().optional(),
 });
 
 export const getMentionsResponse = z.object({
 	mentions: z.array(mention),
-	unread_count: z.number(),
-});
-
-/**
- * Mark mention as read
- */
-export const markMentionReadRequest = z.object({
-	mention_id: z.number(),
-});
-
-export const markMentionReadResponse = z.object({
-	mention_id: z.number(),
-	read: z.boolean(),
-});
-
-/**
- * Mark all mentions as read
- */
-export const markAllMentionsReadResponse = z.object({
-	message: z.string(),
-	count: z.number(),
+	total_count: z.number(),
 });
 
 export type Author = z.infer<typeof author>;
@@ -162,6 +140,3 @@ export type DeleteCommentRequest = z.infer<typeof deleteCommentRequest>;
 export type DeleteCommentResponse = z.infer<typeof deleteCommentResponse>;
 export type GetMentionsRequest = z.infer<typeof getMentionsRequest>;
 export type GetMentionsResponse = z.infer<typeof getMentionsResponse>;
-export type MarkMentionReadRequest = z.infer<typeof markMentionReadRequest>;
-export type MarkMentionReadResponse = z.infer<typeof markMentionReadResponse>;
-export type MarkAllMentionsReadResponse = z.infer<typeof markAllMentionsReadResponse>;

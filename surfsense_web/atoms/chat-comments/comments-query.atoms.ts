@@ -15,17 +15,3 @@ export const mentionsAtom = atomWithQuery((get) => {
 		},
 	};
 });
-
-export const unreadMentionsAtom = atomWithQuery((get) => {
-	const searchSpaceId = get(activeSearchSpaceIdAtom);
-
-	return {
-		queryKey: cacheKeys.mentions.unreadOnly(searchSpaceId ? Number(searchSpaceId) : undefined),
-		queryFn: async () => {
-			return chatCommentsApiService.getMentions({
-				search_space_id: searchSpaceId ? Number(searchSpaceId) : undefined,
-				unread_only: true,
-			});
-		},
-	};
-});
