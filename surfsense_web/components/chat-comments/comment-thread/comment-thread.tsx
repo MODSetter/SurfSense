@@ -53,17 +53,8 @@ export function CommentThread({
 				onDelete={onDeleteComment}
 			/>
 
-			<div className="ml-11 flex items-center gap-2">
-				<Button
-					variant="outline"
-					size="sm"
-					className="h-7 px-3 text-xs"
-					onClick={handleReply}
-				>
-					<MessageSquare className="mr-1.5 size-3" />
-					Reply
-				</Button>
-				{thread.replies.length > 1 && (
+			{thread.replies.length > 1 && (
+				<div className="ml-11">
 					<Button
 						variant="ghost"
 						size="sm"
@@ -77,8 +68,8 @@ export function CommentThread({
 						)}
 						{thread.replies.length} replies
 					</Button>
-				)}
-			</div>
+				</div>
+			)}
 
 			{thread.replies.length > 0 && (thread.replies.length === 1 || isRepliesExpanded) && (
 				<div className="ml-11 space-y-3">
@@ -94,8 +85,8 @@ export function CommentThread({
 				</div>
 			)}
 
-			{isReplyComposerOpen && (
-				<div className="ml-11">
+			<div className="ml-11">
+				{isReplyComposerOpen ? (
 					<CommentComposer
 						members={members}
 						membersLoading={membersLoading}
@@ -106,9 +97,13 @@ export function CommentThread({
 						onCancel={handleReplyCancel}
 						autoFocus
 					/>
-				</div>
-			)}
+				) : (
+					<Button variant="outline" size="sm" className="h-7 px-3 text-xs" onClick={handleReply}>
+						<MessageSquare className="mr-1.5 size-3" />
+						Reply
+					</Button>
+				)}
+			</div>
 		</div>
 	);
 }
-

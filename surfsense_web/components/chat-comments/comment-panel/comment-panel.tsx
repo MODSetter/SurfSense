@@ -32,7 +32,7 @@ export function CommentPanel({
 
 	if (isLoading) {
 		return (
-			<div className="flex min-h-[120px] w-80 items-center justify-center rounded-lg border bg-card p-4">
+			<div className="flex min-h-[120px] w-96 items-center justify-center rounded-lg border bg-card p-4">
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
 					<div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 					Loading comments...
@@ -44,7 +44,7 @@ export function CommentPanel({
 	const hasThreads = threads.length > 0;
 
 	return (
-		<div className="flex w-80 flex-col rounded-lg border bg-card">
+		<div className="flex w-96 flex-col rounded-lg border bg-card">
 			{hasThreads ? (
 				<div
 					className="overflow-y-auto"
