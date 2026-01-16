@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Server, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Server, XCircle } from "lucide-react";
 import { type FC, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,13 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 	const [configJson, setConfigJson] = useState(DEFAULT_CONFIG);
 	const [jsonError, setJsonError] = useState<string | null>(null);
 	const [isTesting, setIsTesting] = useState(false);
-	const [testResults, setTestResults] = useState<Array<{
-		name: string;
+	const [showDetails, setShowDetails] = useState(false);
+	const [testResult, setTestResult] = useState<{
 		status: "success" | "error";
 		message: string;
 		tools: MCPToolDefinition[];
-	}> | null>(null);
+		errors?: string[];
+	} | null>(null);
 
 	const parseConfigs = (): { configs: MCPServerWithName[] | null; error: string | null } => {
 		try {
@@ -105,44 +106,56 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 		
 		if (!configs || error) {
 			setJsonError(error);
-			setTestResults([{
-				name: "Parse Error",
+			setTestResult({
 				status: "error",
 				message: error || "Invalid configuration",
 				tools: [],
-			}]);
+			});
 			return;
 		}
 
 		setIsTesting(true);
-		setTestResults(null);
+		setTestResult(null);
 		setJsonError(null);
 
-		const results: Array<{
-			name: string;
-			status: "success" | "error";
-			message: string;
-			tools: MCPToolDefinition[];
-		}> = [];
+		const allTools: MCPToolDefinition[] = [];
+		const errors: string[] = [];
 
 		for (const config of configs) {
 			try {
 				const result = await connectorsApiService.testMCPConnection(config);
-				results.push({
-					name: config.name,
-					...result,
-				});
+				if (result.status === "success") {
+					allTools.push(...result.tools);
+				} else {
+					errors.push(`${config.name}: ${result.message}`);
+				}
 			} catch (error) {
-				results.push({
-					name: config.name,
-					status: "error",
-					message: error instanceof Error ? error.message : "Failed to connect to MCP server",
-					tools: [],
-				});
+				errors.push(`${config.name}: ${error instanceof Error ? error.message : "Failed to connect"}`);
 			}
 		}
 
-		setTestResults(results);
+		if (errors.length === 0) {
+			setTestResult({
+				status: "success",
+				message: `Successfully connected to ${configs.length} server${configs.length !== 1 ? 's' : ''}. Found ${allTools.length} tool${allTools.length !== 1 ? 's' : ''}.`,
+				tools: allTools,
+			});
+		} else if (allTools.length > 0) {
+			setTestResult({
+				status: "success",
+				message: `Partially successful. Connected ${allTools.length} tool${allTools.length !== 1 ? 's' : ''}.`,
+				tools: allTools,
+				errors,
+			});
+		} else {
+			setTestResult({
+				status: "error",
+				message: "Failed to connect to all servers",
+				tools: [],
+				errors,
+			});
+		}
+
 		setIsTesting(false);
 	};
 
@@ -226,47 +239,75 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 						</Button>
 					</div>
 
-					{testResults && testResults.length > 0 && (
-						<div className="space-y-3">
-							{testResults.map((result, index) => (
-								<Alert
-									key={index}
-									className={
-										result.status === "success"
-											? "border-green-500/50 bg-green-500/10"
-											: "border-red-500/50 bg-red-500/10"
-									}
-								>
-									{result.status === "success" ? (
-										<CheckCircle2 className="h-4 w-4 text-green-500" />
-									) : (
-										<XCircle className="h-4 w-4 text-red-500" />
-									)}
-									<div>
-										<AlertTitle className="text-sm">
-											{result.name}: {result.status === "success" ? "Connected" : "Failed"}
-										</AlertTitle>
-										<AlertDescription className="text-xs">
-											{result.message}
-											{result.status === "success" && result.tools.length > 0 && (
-												<div className="mt-2">
-													<p className="font-semibold mb-1">
-														Found {result.tools.length} tools:
-													</p>
-													<ul className="list-disc list-inside space-y-1">
-														{result.tools.map((tool, i) => (
-															<li key={i} className="text-xs">
-																<strong>{tool.name}</strong>: {tool.description}
-															</li>
-														))}
-													</ul>
-												</div>
+					{testResult && (
+						<Alert
+							className={
+								testResult.status === "success"
+									? "border-green-500/50 bg-green-500/10"
+									: "border-red-500/50 bg-red-500/10"
+							}
+						>
+							{testResult.status === "success" ? (
+								<CheckCircle2 className="h-4 w-4 text-green-500" />
+							) : (
+								<XCircle className="h-4 w-4 text-red-500" />
+							)}
+							<div className="flex-1">
+								<div className="flex items-center justify-between">
+									<AlertTitle className="text-sm">
+										{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
+									</AlertTitle>
+									{testResult.tools.length > 0 && (
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="h-6 px-2"
+											onClick={(e) => {
+												e.preventDefault();
+												e.stopPropagation();
+												setShowDetails(!showDetails);
+											}}
+										>
+											{showDetails ? (
+												<>
+													<ChevronUp className="h-3 w-3 mr-1" />
+													Hide Details
+												</>
+											) : (
+												<>
+													<ChevronDown className="h-3 w-3 mr-1" />
+													Show Details
+												</>
 											)}
-										</AlertDescription>
-									</div>
-								</Alert>
-							))}
-						</div>
+										</Button>
+									)}
+								</div>
+								<AlertDescription className="text-xs mt-1">
+									{testResult.message}
+									{testResult.errors && testResult.errors.length > 0 && (
+										<div className="mt-2 text-red-600">
+											<p className="font-semibold">Errors:</p>
+											{testResult.errors.map((err, i) => (
+												<div key={i}>• {err}</div>
+											))}
+										</div>
+									)}
+									{showDetails && testResult.tools.length > 0 && (
+										<div className="mt-3 pt-3 border-t border-green-500/20">
+											<p className="font-semibold mb-2">
+												Available tools:
+											</p>
+											<ul className="list-disc list-inside text-xs space-y-0.5">
+												{testResult.tools.map((tool, i) => (
+													<li key={i}>{tool.name}</li>
+												))}
+											</ul>
+										</div>
+									)}
+								</AlertDescription>
+							</div>
+						</Alert>
 					)}
 				</div>
 			</form>

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Server, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronDown, ChevronUp, Server, XCircle } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -23,6 +23,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 	const [configJson, setConfigJson] = useState("");
 	const [jsonError, setJsonError] = useState<string | null>(null);
 	const [isTesting, setIsTesting] = useState(false);
+	const [showDetails, setShowDetails] = useState(false);
 	const [testResult, setTestResult] = useState<{
 		status: "success" | "error";
 		message: string;
@@ -283,22 +284,47 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							) : (
 								<XCircle className="h-4 w-4 text-red-500" />
 							)}
-							<div>
-								<AlertTitle className="text-sm">
-									{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
-								</AlertTitle>
-								<AlertDescription className="text-xs">
+							<div className="flex-1">
+								<div className="flex items-center justify-between">
+									<AlertTitle className="text-sm">
+										{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
+									</AlertTitle>
+									{testResult.tools.length > 0 && (
+										<Button
+											type="button"
+											variant="ghost"
+											size="sm"
+											className="h-6 px-2"
+											onClick={(e) => {
+												e.preventDefault();
+												e.stopPropagation();
+												setShowDetails(!showDetails);
+											}}
+										>
+											{showDetails ? (
+												<>
+													<ChevronUp className="h-3 w-3 mr-1" />
+													Hide Details
+												</>
+											) : (
+												<>
+													<ChevronDown className="h-3 w-3 mr-1" />
+													Show Details
+												</>
+											)}
+										</Button>
+									)}
+								</div>
+								<AlertDescription className="text-xs mt-1">
 									{testResult.message}
-									{testResult.status === "success" && testResult.tools.length > 0 && (
-										<div className="mt-2">
-											<p className="font-semibold mb-1">
-												Found {testResult.tools.length} tools:
+									{showDetails && testResult.status === "success" && testResult.tools.length > 0 && (
+										<div className="mt-3 pt-3 border-t border-green-500/20">
+											<p className="font-semibold mb-2">
+												Found {testResult.tools.length} tool{testResult.tools.length !== 1 ? 's' : ''}:
 											</p>
-											<ul className="list-disc list-inside space-y-1">
+											<ul className="list-disc list-inside text-xs space-y-0.5">
 												{testResult.tools.map((tool, i) => (
-													<li key={i} className="text-xs">
-														<strong>{tool.name}</strong>: {tool.description}
-													</li>
+													<li key={i}>{tool.name}</li>
 												))}
 											</ul>
 										</div>
