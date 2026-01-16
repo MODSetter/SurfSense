@@ -9,10 +9,6 @@ POSTGRES_USER=${POSTGRES_USER:-surfsense}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-surfsense}
 POSTGRES_DB=${POSTGRES_DB:-surfsense}
 
-# Electric SQL user credentials (configurable)
-ELECTRIC_DB_USER=${ELECTRIC_DB_USER:-electric}
-ELECTRIC_DB_PASSWORD=${ELECTRIC_DB_PASSWORD:-electric_password}
-
 echo "Initializing PostgreSQL..."
 
 # Check if PostgreSQL is already initialized
@@ -27,18 +23,8 @@ fi
 # Configure PostgreSQL
 cat >> "$PGDATA/postgresql.conf" << EOF
 listen_addresses = '*'
-max_connections = 200
-shared_buffers = 256MB
-
-# Enable logical replication (required for Electric SQL)
-wal_level = logical
-max_replication_slots = 10
-max_wal_senders = 10
-
-# Performance settings
-checkpoint_timeout = 10min
-max_wal_size = 1GB
-min_wal_size = 80MB
+max_connections = 100
+shared_buffers = 128MB
 EOF
 
 cat >> "$PGDATA/pg_hba.conf" << EOF
@@ -59,15 +45,6 @@ CREATE USER $POSTGRES_USER WITH PASSWORD '$POSTGRES_PASSWORD' SUPERUSER;
 CREATE DATABASE $POSTGRES_DB OWNER $POSTGRES_USER;
 \c $POSTGRES_DB
 CREATE EXTENSION IF NOT EXISTS vector;
-
--- Create Electric SQL replication user
-CREATE USER $ELECTRIC_DB_USER WITH REPLICATION PASSWORD '$ELECTRIC_DB_PASSWORD';
-GRANT CONNECT ON DATABASE $POSTGRES_DB TO $ELECTRIC_DB_USER;
-GRANT USAGE ON SCHEMA public TO $ELECTRIC_DB_USER;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO $ELECTRIC_DB_USER;
-GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO $ELECTRIC_DB_USER;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO $ELECTRIC_DB_USER;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO $ELECTRIC_DB_USER;
 EOF
 
 echo "PostgreSQL initialized successfully."

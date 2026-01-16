@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/dialog";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { deleteThread, fetchThreads } from "@/lib/chat/thread-persistence";
-import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
@@ -279,19 +278,10 @@ export function LayoutDataProvider({
 		router.push(`/dashboard/${searchSpaceId}/team`);
 	}, [router, searchSpaceId]);
 
-	const handleLogout = useCallback(async () => {
+	const handleLogout = useCallback(() => {
 		try {
 			trackLogout();
 			resetUser();
-
-			// Best-effort cleanup of Electric SQL / PGlite
-			// Even if this fails, login-time cleanup will handle it
-			try {
-				await cleanupElectric();
-			} catch (err) {
-				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
-			}
-
 			if (typeof window !== "undefined") {
 				localStorage.removeItem("surfsense_bearer_token");
 				router.push("/");

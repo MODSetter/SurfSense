@@ -3,6 +3,7 @@
 import { useAtom } from "jotai";
 import { CheckCircle2, FileType, Info, Loader2, Tag, Upload, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -120,6 +121,7 @@ export function DocumentUploadTab({
 	onAccordionStateChange,
 }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
+	const router = useRouter();
 	const [files, setFiles] = useState<File[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
@@ -222,7 +224,7 @@ export function DocumentUploadTab({
 					setUploadProgress(100);
 					trackDocumentUploadSuccess(Number(searchSpaceId), files.length);
 					toast(t("upload_initiated"), { description: t("upload_initiated_desc") });
-					onSuccess?.();
+					onSuccess?.() || router.push(`/dashboard/${searchSpaceId}/documents`);
 				},
 				onError: (error: unknown) => {
 					clearInterval(progressInterval);

@@ -8,7 +8,6 @@
 		"installation",
 		"docker-installation",
 		"manual-installation",
-		"connectors",
-		"how-to"
+		"connectors"
 	]
 }

@@ -124,23 +124,14 @@ const ThreadScrollToBottom: FC = () => {
 	);
 };
 
-const getTimeBasedGreeting = (user?: { display_name?: string | null; email?: string }): string => {
+const getTimeBasedGreeting = (userEmail?: string): string => {
 	const hour = new Date().getHours();
 
-	// Extract first name: prefer display_name, fall back to email extraction
-	let firstName: string | null = null;
-
-	if (user?.display_name?.trim()) {
-		// Use display_name if available and not empty
-		// Extract first name from display_name (take first word)
-		const nameParts = user.display_name.trim().split(/\s+/);
-		firstName = nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1).toLowerCase();
-	} else if (user?.email) {
-		// Fall back to email extraction if display_name is not available
-		firstName =
-			user.email.split("@")[0].split(".")[0].charAt(0).toUpperCase() +
-			user.email.split("@")[0].split(".")[0].slice(1);
-	}
+	// Extract first name from email if available
+	const firstName = userEmail
+		? userEmail.split("@")[0].split(".")[0].charAt(0).toUpperCase() +
+			userEmail.split("@")[0].split(".")[0].slice(1)
+		: null;
 
 	// Array of greeting variations for each time period
 	const morningGreetings = ["Good morning", "Fresh start today", "Morning", "Hey there"];
@@ -181,7 +172,7 @@ const ThreadWelcome: FC = () => {
 	const { data: user } = useAtomValue(currentUserAtom);
 
 	// Memoize greeting so it doesn't change on re-renders (only on user change)
-	const greeting = useMemo(() => getTimeBasedGreeting(user), [user]);
+	const greeting = useMemo(() => getTimeBasedGreeting(user?.email), [user?.email]);
 
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">

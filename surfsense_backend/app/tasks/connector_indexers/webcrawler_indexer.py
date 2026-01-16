@@ -371,14 +371,17 @@ async def index_crawled_urls(
         )
         await session.commit()
 
-        # Log failed URLs if any (for debugging purposes)
+        # Build result message
+        result_message = None
         if failed_urls:
             failed_summary = "; ".join(
                 [f"{url}: {error}" for url, error in failed_urls[:5]]
             )
             if len(failed_urls) > 5:
                 failed_summary += f" (and {len(failed_urls) - 5} more)"
-            logger.warning(f"Some URLs failed to index: {failed_summary}")
+            result_message = (
+                f"Completed with {len(failed_urls)} failures: {failed_summary}"
+            )
 
         await task_logger.log_task_success(
             log_entry,
@@ -397,10 +400,7 @@ async def index_crawled_urls(
             f"{documents_updated} updated, {documents_skipped} skipped, "
             f"{len(failed_urls)} failed"
         )
-        return (
-            total_processed,
-            None,
-        )  # Return None on success (result_message is for logging only)
+        return total_processed, result_message
 
     except SQLAlchemyError as db_error:
         await session.rollback()

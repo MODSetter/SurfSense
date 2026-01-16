@@ -574,12 +574,6 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="Log.id",
         cascade="all, delete-orphan",
     )
-    notifications = relationship(
-        "Notification",
-        back_populates="search_space",
-        order_by="Notification.created_at.desc()",
-        cascade="all, delete-orphan",
-    )
     search_source_connectors = relationship(
         "SearchSourceConnector",
         back_populates="search_space",
@@ -716,39 +710,6 @@ class Log(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
     search_space = relationship("SearchSpace", back_populates="logs")
-
-
-class Notification(BaseModel, TimestampMixin):
-    __tablename__ = "notifications"
-
-    user_id = Column(
-        UUID(as_uuid=True),
-        ForeignKey("user.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
-    )
-    type = Column(
-        String(50), nullable=False
-    )  # 'connector_indexing', 'document_processing', etc.
-    title = Column(String(200), nullable=False)
-    message = Column(Text, nullable=False)
-    read = Column(
-        Boolean, nullable=False, default=False, server_default=text("false"), index=True
-    )
-    notification_metadata = Column("metadata", JSONB, nullable=True, default={})
-    updated_at = Column(
-        TIMESTAMP(timezone=True),
-        nullable=True,
-        default=lambda: datetime.now(UTC),
-        onupdate=lambda: datetime.now(UTC),
-        index=True,
-    )
-
-    user = relationship("User", back_populates="notifications")
-    search_space = relationship("SearchSpace", back_populates="notifications")
 
 
 class SearchSpaceRole(BaseModel, TimestampMixin):
@@ -895,12 +856,6 @@ if config.AUTH_TYPE == "GOOGLE":
             "OAuthAccount", lazy="joined"
         )
         search_spaces = relationship("SearchSpace", back_populates="user")
-        notifications = relationship(
-            "Notification",
-            back_populates="user",
-            order_by="Notification.created_at.desc()",
-            cascade="all, delete-orphan",
-        )
 
         # RBAC relationships
         search_space_memberships = relationship(
@@ -938,12 +893,6 @@ else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
         search_spaces = relationship("SearchSpace", back_populates="user")
-        notifications = relationship(
-            "Notification",
-            back_populates="user",
-            order_by="Notification.created_at.desc()",
-            cascade="all, delete-orphan",
-        )
 
         # RBAC relationships
         search_space_memberships = relationship(

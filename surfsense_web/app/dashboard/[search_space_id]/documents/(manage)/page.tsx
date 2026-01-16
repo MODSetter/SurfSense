@@ -6,18 +6,20 @@ import { RefreshCw, SquarePlus, Upload } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Button } from "@/components/ui/button";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useLogsSummary } from "@/hooks/use-logs";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
 import { PaginationControls } from "./components/PaginationControls";
+import { ProcessingIndicator } from "./components/ProcessingIndicator";
 import type { ColumnVisibility } from "./components/types";
 
 function useDebounced<T>(value: T, delay = 250) {
@@ -107,52 +109,6 @@ export default function DocumentsTable() {
 		enabled: !!searchSpaceId && !!debouncedSearch.trim(),
 	});
 
-	// Determine if we should show SurfSense docs (when no type filter or SURFSENSE_DOCS is selected)
-	const showSurfsenseDocs =
-		activeTypes.length === 0 || activeTypes.includes("SURFSENSE_DOCS" as DocumentTypeEnum);
-
-	// Use query for fetching SurfSense docs
-	const {
-		data: surfsenseDocsResponse,
-		isLoading: isSurfsenseDocsLoading,
-		refetch: refetchSurfsenseDocs,
-	} = useQuery({
-		queryKey: ["surfsense-docs", debouncedSearch, pageIndex, pageSize],
-		queryFn: () =>
-			documentsApiService.getSurfsenseDocs({
-				queryParams: {
-					page: pageIndex,
-					page_size: pageSize,
-					title: debouncedSearch.trim() || undefined,
-				},
-			}),
-		staleTime: 3 * 60 * 1000, // 3 minutes
-		enabled: showSurfsenseDocs,
-	});
-
-	// Transform SurfSense docs to match the Document type
-	const surfsenseDocsAsDocuments: Document[] = useMemo(() => {
-		if (!surfsenseDocsResponse?.items) return [];
-		return surfsenseDocsResponse.items.map((doc) => ({
-			id: doc.id,
-			title: doc.title,
-			document_type: "SURFSENSE_DOCS",
-			document_metadata: { source: doc.source },
-			content: doc.content,
-			created_at: new Date().toISOString(),
-			search_space_id: -1, // Special value for global docs
-		}));
-	}, [surfsenseDocsResponse]);
-
-	// Merge type counts with SURFSENSE_DOCS count
-	const typeCounts = useMemo(() => {
-		const counts = { ...(rawTypeCounts || {}) };
-		if (surfsenseDocsResponse?.total) {
-			counts.SURFSENSE_DOCS = surfsenseDocsResponse.total;
-		}
-		return counts;
-	}, [rawTypeCounts, surfsenseDocsResponse?.total]);
-
 	// Extract documents and total based on search state
 	const documents = debouncedSearch.trim()
 		? searchResponse?.items || []
@@ -193,6 +149,30 @@ export default function DocumentsTable() {
 			setIsRefreshing(false);
 		}
 	}, [debouncedSearch, refetchSearch, refetchDocuments, t, isRefreshing]);
+
+	// Set up smart polling for active tasks - only polls when tasks are in progress
+	const { summary } = useLogsSummary(searchSpaceId, 24, {
+		enablePolling: true,
+		refetchInterval: 5000, // Poll every 5 seconds when tasks are active
+	});
+
+	// Filter active tasks to only include document_processor tasks (uploads via "add sources")
+	// Exclude connector_indexing_task tasks (periodic reindexing)
+	const documentProcessorTasks =
+		summary?.active_tasks.filter((task) => task.source === "document_processor") || [];
+	const documentProcessorTasksCount = documentProcessorTasks.length;
+
+	const activeTasksCount = summary?.active_tasks.length || 0;
+	const prevActiveTasksCount = useRef(activeTasksCount);
+
+	// Auto-refresh when a task finishes
+	useEffect(() => {
+		if (prevActiveTasksCount.current > activeTasksCount) {
+			// A task has finished!
+			refreshCurrentView();
+		}
+		prevActiveTasksCount.current = activeTasksCount;
+	}, [activeTasksCount, refreshCurrentView]);
 
 	// Create a delete function for single document deletion
 	const deleteDocument = useCallback(
@@ -281,6 +261,8 @@ export default function DocumentsTable() {
 					</Button>
 				</div>
 			</motion.div>
+
+			<ProcessingIndicator documentProcessorTasksCount={documentProcessorTasksCount} />
 
 			<DocumentsFilters
 				typeCounts={rawTypeCounts ?? {}}

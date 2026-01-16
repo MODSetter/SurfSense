@@ -329,7 +329,7 @@ export const DocumentMentionPicker = forwardRef<
 					</div>
 				) : actualDocuments.length === 0 ? (
 					<div className="flex flex-col items-center justify-center py-4 text-center px-4">
-						<FileText className="h-5 w-5 text-muted-foreground/55 mb-1" />
+						<FileText className="h-5 w-5 text-muted-foreground/50 mb-1" />
 						<p className="text-sm text-muted-foreground">No documents found</p>
 					</div>
 				) : (
@@ -337,7 +337,7 @@ export const DocumentMentionPicker = forwardRef<
 						{/* SurfSense Documentation Section */}
 						{surfsenseDocsList.length > 0 && (
 							<>
-								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
+								<div className="sticky top-0 z-10 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-muted text-foreground/80 border-b border-border">
 									SurfSense Docs
 								</div>
 								{surfsenseDocsList.map((doc) => {
@@ -385,7 +385,7 @@ export const DocumentMentionPicker = forwardRef<
 						{/* User Documents Section */}
 						{userDocsList.length > 0 && (
 							<>
-								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
+								<div className="sticky top-0 z-10 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-muted text-foreground/80 border-b border-border">
 									Your Documents
 								</div>
 								{userDocsList.map((doc) => {

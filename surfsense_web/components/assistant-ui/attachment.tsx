@@ -357,7 +357,7 @@ export const ComposerAddAttachment: FC = () => {
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={handleFileUpload} className="cursor-pointer">
 						<Upload className="size-4" />
-						<span>Upload Documents</span>
+						<span>Upload Files</span>
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>

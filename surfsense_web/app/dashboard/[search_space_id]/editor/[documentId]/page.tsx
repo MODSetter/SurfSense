@@ -438,7 +438,9 @@ export default function EditorPage() {
 						{saving ? (
 							<>
 								<Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
-								<span className="text-xs md:text-sm">{isNewNote ? "Creating" : "Saving"}</span>
+								<span className="text-xs md:text-sm">
+									{isNewNote ? "Creating..." : "Saving..."}
+								</span>
 							</>
 						) : (
 							<>

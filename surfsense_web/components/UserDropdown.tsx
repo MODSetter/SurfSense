@@ -13,7 +13,6 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 
 export function UserDropdown({
@@ -27,19 +26,11 @@ export function UserDropdown({
 }) {
 	const router = useRouter();
 
-	const handleLogout = async () => {
+	const handleLogout = () => {
 		try {
 			// Track logout event and reset PostHog identity
 			trackLogout();
 			resetUser();
-
-			// Best-effort cleanup of Electric SQL / PGlite
-			// Even if this fails, login-time cleanup will handle it
-			try {
-				await cleanupElectric();
-			} catch (err) {
-				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
-			}
 
 			if (typeof window !== "undefined") {
 				localStorage.removeItem("surfsense_bearer_token");
@@ -49,7 +40,7 @@ export function UserDropdown({
 			console.error("Error during logout:", error);
 			// Optionally, provide user feedback
 			if (typeof window !== "undefined") {
-				localStorage.removeItem("surfsense_bearer_token");
+				alert("Logout failed. Please try again.");
 				window.location.href = "/";
 			}
 		}

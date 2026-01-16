@@ -1,5 +1,6 @@
 "use client";
 
+import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } from "date-fns";
 import { ArrowRight, Cable, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FC } from "react";
@@ -8,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import { OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
@@ -19,6 +21,7 @@ interface ActiveConnectorsTabProps {
 	activeDocumentTypes: Array<[string, number]>;
 	connectors: SearchSourceConnector[];
 	indexingConnectorIds: Set<number>;
+	logsSummary: LogSummary | undefined;
 	searchSpaceId: string;
 	onTabChange: (value: string) => void;
 	onManage?: (connector: SearchSourceConnector) => void;
@@ -31,6 +34,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	activeDocumentTypes,
 	connectors,
 	indexingConnectorIds,
+	logsSummary,
 	searchSpaceId,
 	onTabChange,
 	onManage,
@@ -61,6 +65,32 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		}
 		const m = (count / 1000000).toFixed(1);
 		return `${m.replace(/\.0$/, "")}M docs`;
+	};
+
+	// Format last indexed date with contextual messages
+	const formatLastIndexedDate = (dateString: string): string => {
+		const date = new Date(dateString);
+		const now = new Date();
+		const minutesAgo = differenceInMinutes(now, date);
+		const daysAgo = differenceInDays(now, date);
+
+		if (minutesAgo < 1) return "Just now";
+		if (minutesAgo < 60) return `${minutesAgo} ${minutesAgo === 1 ? "minute" : "minutes"} ago`;
+		if (isToday(date)) return `Today at ${format(date, "h:mm a")}`;
+		if (isYesterday(date)) return `Yesterday at ${format(date, "h:mm a")}`;
+		if (daysAgo < 7) return `${daysAgo} ${daysAgo === 1 ? "day" : "days"} ago`;
+		return format(date, "MMM d, yyyy");
+	};
+
+	// Get most recent last indexed date from a list of connectors
+	const getMostRecentLastIndexed = (
+		connectorsList: SearchSourceConnector[]
+	): string | undefined => {
+		return connectorsList.reduce<string | undefined>((latest, c) => {
+			if (!c.last_indexed_at) return latest;
+			if (!latest) return c.last_indexed_at;
+			return new Date(c.last_indexed_at) > new Date(latest) ? c.last_indexed_at : latest;
+		}, undefined);
 	};
 
 	// Document types that should be shown as standalone cards (not from connectors)
@@ -160,6 +190,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										documentTypeCounts
 									);
 									const accountCount = typeConnectors.length;
+									const mostRecentLastIndexed = getMostRecentLastIndexed(typeConnectors);
 
 									const handleManageClick = () => {
 										if (onViewAccountsList) {
@@ -173,10 +204,10 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										<div
 											key={`oauth-type-${connectorType}`}
 											className={cn(
-												"relative flex items-center gap-4 p-4 rounded-xl transition-all",
+												"relative flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
 												isAnyIndexing
-													? "bg-primary/5 border-0"
-													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
+													? "bg-primary/5 border-primary/20"
+													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
 											)}
 										>
 											<div
@@ -194,17 +225,22 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												{isAnyIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
-														Syncing
+														Indexing...
 													</p>
 												) : (
-													<p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
-														<span>{formatDocumentCount(documentCount)}</span>
-														<span className="text-muted-foreground/50">•</span>
-														<span>
-															{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
-														</span>
+													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
+														{mostRecentLastIndexed
+															? `Last indexed: ${formatLastIndexedDate(mostRecentLastIndexed)}`
+															: "Never indexed"}
 													</p>
 												)}
+												<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
+													<span>{formatDocumentCount(documentCount)}</span>
+													<span className="text-muted-foreground/50">•</span>
+													<span>
+														{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
+													</span>
+												</p>
 											</div>
 											<Button
 												variant="secondary"
@@ -221,6 +257,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 								{/* Non-OAuth Connectors - Individual Cards */}
 								{filteredNonOAuthConnectors.map((connector) => {
 									const isIndexing = indexingConnectorIds.has(connector.id);
+									const activeTask = logsSummary?.active_tasks?.find(
+										(task: LogActiveTask) => task.connector_id === connector.id
+									);
 									const documentCount = getDocumentCountForConnector(
 										connector.connector_type,
 										documentTypeCounts
@@ -230,10 +269,10 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										<div
 											key={`connector-${connector.id}`}
 											className={cn(
-												"flex items-center gap-4 p-4 rounded-xl transition-all",
+												"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
 												isIndexing
-													? "bg-primary/5 border-0"
-													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
+													? "bg-primary/5 border-primary/20"
+													: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
 											)}
 										>
 											<div
@@ -253,13 +292,23 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												{isIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
-														Syncing
+														Indexing...
+														{activeTask?.message && (
+															<span className="text-muted-foreground truncate max-w-[150px]">
+																• {activeTask.message}
+															</span>
+														)}
 													</p>
 												) : (
-													<p className="text-[10px] text-muted-foreground mt-1">
-														{formatDocumentCount(documentCount)}
+													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
+														{connector.last_indexed_at
+															? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
+															: "Never indexed"}
 													</p>
 												)}
+												<p className="text-[10px] text-muted-foreground mt-0.5">
+													{formatDocumentCount(documentCount)}
+												</p>
 											</div>
 											<Button
 												variant="secondary"
@@ -313,12 +362,19 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 			) : (
 				<div className="flex flex-col items-center justify-center py-20 text-center">
 					<div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted mb-4">
-						<Cable className="size-8 text-muted-foreground" />
+						<Cable className="size-8 text-muted-foreground/50" />
 					</div>
 					<h4 className="text-lg font-semibold">No active sources</h4>
 					<p className="text-sm text-muted-foreground mt-1 max-w-[280px]">
 						Connect your first service to start searching across all your data.
 					</p>
+					<Button
+						variant="link"
+						className="mt-6 text-primary hover:underline"
+						onClick={() => onTabChange("all")}
+					>
+						Browse available connectors
+					</Button>
 				</div>
 			)}
 		</TabsContent>

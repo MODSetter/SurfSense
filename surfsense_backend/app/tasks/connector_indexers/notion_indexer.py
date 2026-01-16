@@ -464,10 +464,7 @@ async def index_notion_pages(
         # Clean up the async client
         await notion_client.close()
 
-        return (
-            total_processed,
-            None,
-        )  # Return None on success (result_message is for logging only)
+        return total_processed, result_message
 
     except SQLAlchemyError as db_error:
         await session.rollback()

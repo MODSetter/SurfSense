@@ -6,11 +6,9 @@ export const documentTypeEnum = z.enum([
 	"CRAWLED_URL",
 	"FILE",
 	"SLACK_CONNECTOR",
-	"TEAMS_CONNECTOR",
 	"NOTION_CONNECTOR",
 	"YOUTUBE_VIDEO",
 	"GITHUB_CONNECTOR",
-	"LINEAR_CONNECTOR",
 	"DISCORD_CONNECTOR",
 	"JIRA_CONNECTOR",
 	"CONFLUENCE_CONNECTOR",
@@ -21,10 +19,10 @@ export const documentTypeEnum = z.enum([
 	"AIRTABLE_CONNECTOR",
 	"LUMA_CONNECTOR",
 	"ELASTICSEARCH_CONNECTOR",
-	"BOOKSTACK_CONNECTOR",
+	"LINEAR_CONNECTOR",
+	"NOTE",
 	"CIRCLEBACK",
 	"SURFSENSE_DOCS",
-	"NOTE",
 ]);
 
 export const document = z.object({
