@@ -7,6 +7,7 @@ import type { CommentData } from "@/components/chat-comments/comment-item/types"
 import { CommentPanel } from "@/components/chat-comments/comment-panel/comment-panel";
 import { CommentThread } from "@/components/chat-comments/comment-thread/comment-thread";
 import type { CommentThreadData } from "@/components/chat-comments/comment-thread/types";
+import { CommentTrigger } from "@/components/chat-comments/comment-trigger/comment-trigger";
 import { MemberMentionPicker } from "@/components/chat-comments/member-mention-picker/member-mention-picker";
 import type { MemberOption } from "@/components/chat-comments/member-mention-picker/types";
 
@@ -328,16 +329,100 @@ export default function ChatCommentsPreviewPage() {
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const [selectedMember, setSelectedMember] = useState<MemberOption | null>(null);
 	const [submittedContent, setSubmittedContent] = useState<string | null>(null);
+	const [isPanelOpen, setIsPanelOpen] = useState(false);
+	const [isEmptyPanelOpen, setIsEmptyPanelOpen] = useState(false);
 
 	return (
 		<div className="min-h-screen bg-background p-8">
-			<div className="mx-auto max-w-4xl space-y-12">
+			<div className="mx-auto max-w-6xl space-y-12">
 				<div>
 					<h1 className="text-2xl font-bold">Chat Comments UI Preview</h1>
 					<p className="text-muted-foreground">
 						Preview page for chat comments components with fake data
 					</p>
 				</div>
+
+				{/* Full Integration Simulation */}
+				<section className="space-y-6">
+					<div>
+						<h2 className="text-xl font-semibold border-b pb-2">🎯 Full Integration Simulation</h2>
+						<p className="text-sm text-muted-foreground">
+							Two scenarios: no comments (hover to see trigger) and with comments (always visible).
+						</p>
+					</div>
+
+					{/* Scenario 1: No comments yet */}
+					<div className="space-y-2">
+						<h3 className="text-sm font-medium text-muted-foreground">No comments yet — hover to see trigger, click to add first comment</h3>
+						<div className="group flex items-start gap-2">
+							<div className="max-w-2xl rounded-lg border bg-muted/20 p-4">
+								<div className="space-y-2">
+									<div className="flex items-center gap-2">
+										<div className="size-8 rounded-full bg-gradient-to-br from-green-500 to-teal-600" />
+										<span className="font-medium">AI Assistant</span>
+									</div>
+									<p className="text-sm leading-relaxed">
+										This is an AI response with no comments yet. Hover over this message to reveal the comment trigger icon on the right. Click to open the panel and add the first comment.
+									</p>
+								</div>
+							</div>
+							<CommentTrigger 
+								commentCount={0} 
+								isOpen={isEmptyPanelOpen} 
+								onClick={() => setIsEmptyPanelOpen(!isEmptyPanelOpen)} 
+							/>
+							{isEmptyPanelOpen && (
+								<CommentPanel
+									messageId={102}
+									threads={[]}
+									members={fakeMembersData}
+									onCreateComment={(content) => alert(`Create first comment: ${content}`)}
+									onCreateReply={() => {}}
+									onEditComment={() => {}}
+									onDeleteComment={() => {}}
+									maxHeight={300}
+								/>
+							)}
+						</div>
+					</div>
+
+					{/* Scenario 2: Has comments */}
+					<div className="space-y-2">
+						<h3 className="text-sm font-medium text-muted-foreground">Has comments — trigger always visible, click to toggle panel</h3>
+						<div className="group flex items-start gap-2">
+							<div className="max-w-2xl rounded-lg border bg-muted/20 p-4">
+								<div className="space-y-2">
+									<div className="flex items-center gap-2">
+										<div className="size-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600" />
+										<span className="font-medium">AI Assistant</span>
+									</div>
+									<p className="text-sm leading-relaxed">
+										Based on my analysis, the quarterly revenue increased by 15% compared to the previous period. 
+										The main drivers were the expansion into new markets and improved customer retention rates. 
+										I recommend focusing on the following areas for continued growth...
+									</p>
+								</div>
+							</div>
+							<CommentTrigger 
+								commentCount={fakeThreadsData.length} 
+								isOpen={isPanelOpen} 
+								onClick={() => setIsPanelOpen(!isPanelOpen)} 
+							/>
+							{isPanelOpen && (
+								<CommentPanel
+									messageId={101}
+									threads={fakeThreadsData.slice(0, 2)}
+									members={fakeMembersData}
+									onCreateComment={(content) => alert(`Create comment: ${content}`)}
+									onCreateReply={(id, content) => alert(`Reply to ${id}: ${content}`)}
+									onEditComment={(id) => alert(`Edit ${id}`)}
+									onDeleteComment={(id) => alert(`Delete ${id}`)}
+									maxHeight={350}
+								/>
+							)}
+						</div>
+					</div>
+				</section>
 
 				{/* Comment Composer Section */}
 				<section className="space-y-4">
@@ -365,6 +450,43 @@ export default function ChatCommentsPreviewPage() {
 							</code>
 						</div>
 					)}
+				</section>
+
+				{/* Comment Trigger Section */}
+				<section className="space-y-4">
+					<h2 className="text-xl font-semibold border-b pb-2">Comment Trigger</h2>
+					<p className="text-sm text-muted-foreground">
+						Toggle button on AI messages. Clicking opens/closes the comment panel.
+					</p>
+
+					<div className="flex items-center gap-8">
+						<div className="space-y-2">
+							<h3 className="text-sm font-medium">No comments yet</h3>
+							<p className="text-xs text-muted-foreground">Hidden until hover</p>
+							<div className="group flex items-center gap-2 rounded-lg border bg-muted/30 p-4">
+								<span className="text-sm">AI response...</span>
+								<CommentTrigger commentCount={0} isOpen={false} onClick={() => {}} />
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<h3 className="text-sm font-medium">5 comments exist</h3>
+							<p className="text-xs text-muted-foreground">Always visible with count</p>
+							<div className="group flex items-center gap-2 rounded-lg border bg-muted/30 p-4">
+								<span className="text-sm">AI response...</span>
+								<CommentTrigger commentCount={5} isOpen={false} onClick={() => {}} />
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<h3 className="text-sm font-medium">Panel is open</h3>
+							<p className="text-xs text-muted-foreground">Active/pressed state</p>
+							<div className="group flex items-center gap-2 rounded-lg border bg-muted/30 p-4">
+								<span className="text-sm">AI response...</span>
+								<CommentTrigger commentCount={3} isOpen={true} onClick={() => {}} />
+							</div>
+						</div>
+					</div>
 				</section>
 
 				{/* Comment Panel Section */}

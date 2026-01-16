@@ -42,10 +42,11 @@ export function CommentPanel({
 	}
 
 	const hasThreads = threads.length > 0;
+	const showEmptyState = !hasThreads && !isComposerOpen;
 
 	return (
 		<div className="flex w-96 flex-col rounded-lg border bg-card">
-			{hasThreads ? (
+			{hasThreads && (
 				<div
 					className="overflow-y-auto"
 					style={{ maxHeight }}
@@ -65,7 +66,9 @@ export function CommentPanel({
 						))}
 					</div>
 				</div>
-			) : (
+			)}
+
+			{showEmptyState && (
 				<div className="flex min-h-[120px] flex-col items-center justify-center gap-2 p-4 text-center">
 					<MessageSquarePlus className="size-8 text-muted-foreground/50" />
 					<p className="text-sm text-muted-foreground">No comments yet</p>
@@ -75,7 +78,7 @@ export function CommentPanel({
 				</div>
 			)}
 
-			<div className="border-t p-3">
+			<div className={showEmptyState ? "border-t p-3" : "p-3"}>
 				{isComposerOpen ? (
 					<CommentComposer
 						members={members}
