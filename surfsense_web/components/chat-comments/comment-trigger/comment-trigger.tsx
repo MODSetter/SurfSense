@@ -21,7 +21,7 @@ export function CommentTrigger({ commentCount, isOpen, onClick }: CommentTrigger
 		>
 			<MessageSquare className={cn("size-4", isOpen && "fill-current")} />
 			{hasComments && (
-				<span className="min-w-[1.25rem] text-xs font-medium">{commentCount}</span>
+				<span className="min-w-5 text-xs font-medium">{commentCount}</span>
 			)}
 		</Button>
 	);

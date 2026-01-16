@@ -133,7 +133,7 @@ export function CommentItem({
 					</div>
 				</div>
 
-				<div className="mt-1 text-sm text-foreground whitespace-pre-wrap break-words">
+				<div className="mt-1 text-sm text-foreground whitespace-pre-wrap wrap-break-word">
 					{renderMentions(comment.contentRendered)}
 				</div>
 
