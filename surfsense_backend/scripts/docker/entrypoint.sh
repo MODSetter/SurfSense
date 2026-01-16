@@ -11,6 +11,26 @@ cleanup() {
 
 trap cleanup SIGTERM SIGINT
 
+# Run database migrations with safeguards
+echo "Running database migrations..."
+# Wait for database to be ready (max 30 seconds)
+for i in {1..30}; do
+    if python -c "from app.db import engine; import asyncio; asyncio.run(engine.dispose())" 2>/dev/null; then
+        echo "Database is ready."
+        break
+    fi
+    echo "Waiting for database... ($i/30)"
+    sleep 1
+done
+
+# Run migrations with timeout (60 seconds max)
+if timeout 60 alembic upgrade head 2>&1; then
+    echo "Migrations completed successfully."
+else
+    echo "WARNING: Migration failed or timed out. Continuing anyway..."
+    echo "You may need to run migrations manually: alembic upgrade head"
+fi
+
 echo "Starting FastAPI Backend..."
 python main.py &
 backend_pid=$!

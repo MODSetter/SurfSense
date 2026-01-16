@@ -170,7 +170,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{isQuickIndexing || isIndexing ? (
 									<>
 										<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-										Indexing...
+										Syncing
 									</>
 								) : (
 									<>
@@ -277,7 +277,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{isDisconnecting ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-										Disconnecting...
+										Disconnecting
 									</>
 								) : (
 									"Confirm Disconnect"

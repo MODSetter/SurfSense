@@ -156,10 +156,10 @@ export function Sidebar({
 											<Button
 												variant="ghost"
 												size="icon"
-												className="h-5 w-5"
+												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
 												onClick={onViewAllSharedChats}
 											>
-												<FolderOpen className="h-3.5 w-3.5" />
+												<FolderOpen className="h-4 w-4" />
 											</Button>
 										</TooltipTrigger>
 										<TooltipContent side="top">
@@ -197,10 +197,10 @@ export function Sidebar({
 											<Button
 												variant="ghost"
 												size="icon"
-												className="h-5 w-5"
+												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
 												onClick={onViewAllPrivateChats}
 											>
-												<FolderOpen className="h-3.5 w-3.5" />
+												<FolderOpen className="h-4 w-4" />
 											</Button>
 										</TooltipTrigger>
 										<TooltipContent side="top">
