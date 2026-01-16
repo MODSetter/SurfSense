@@ -123,18 +123,11 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	// Get OAuth connector types set for quick lookup
 	const oauthConnectorTypes = new Set<string>(OAUTH_CONNECTORS.map((c) => c.connectorType));
 
-	// Separate OAuth, MCP, and other non-OAuth connectors
+	// Separate OAuth and non-OAuth connectors
 	const oauthConnectors = connectors.filter((c) => oauthConnectorTypes.has(c.connector_type));
-	const mcpConnectors = connectors.filter((c) => c.connector_type === "MCP_CONNECTOR");
 	const nonOauthConnectors = connectors.filter(
-		(c) => !oauthConnectorTypes.has(c.connector_type) && c.connector_type !== "MCP_CONNECTOR"
+		(c) => !oauthConnectorTypes.has(c.connector_type)
 	);
-
-	// Calculate total number of MCP servers across all MCP connectors
-	const totalMCPServers = mcpConnectors.reduce((total, connector) => {
-		const serverConfigs = connector.config?.server_configs;
-		return total + (Array.isArray(serverConfigs) ? serverConfigs.length : 0);
-	}, 0);
 
 	// Group OAuth connectors by type
 	const oauthConnectorsByType = oauthConnectors.reduce(
@@ -185,17 +178,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 		);
 	});
 
-	// Check if MCPs match search query
-	const showMCPs =
-		mcpConnectors.length > 0 &&
-		(!searchQuery ||
-			"mcps".includes(searchQuery.toLowerCase()) ||
-			"model context protocol".includes(searchQuery.toLowerCase()));
-
 	const hasActiveConnectors =
 		filteredOAuthConnectorTypes.length > 0 ||
-		filteredNonOAuthConnectors.length > 0 ||
-		showMCPs;
+		filteredNonOAuthConnectors.length > 0;
 
 	return (
 		<TabsContent value="active" className="m-0">
@@ -217,16 +202,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 									const documentCount = getDocumentCountForConnector(
 										connectorType,
 										documentTypeCounts
-									);
-									// Calculate account count - for MCP, count servers; for others, count connectors
-									const accountCount =
-										connectorType === "MCP_CONNECTOR"
-											? typeConnectors.reduce((total, c) => {
-													const serverConfigs = c.config?.server_configs;
-													return total + (Array.isArray(serverConfigs) ? serverConfigs.length : 0);
-												}, 0)
-											: typeConnectors.length;
-									const mostRecentLastIndexed = getMostRecentLastIndexed(typeConnectors);
+					);
+						const accountCount = typeConnectors.length;
 
 									const handleManageClick = () => {
 										if (onViewAccountsList) {
@@ -297,41 +274,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										</div>
 									);
 								})}
-
-								{/* MCP Connectors - Single Grouped Card */}
-								{showMCPs && (
-									<div
-										className={cn(
-											"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
-											"hover:bg-slate-400/10 dark:hover:bg-white/10"
-										)}
-									>
-										<div
-											className={cn(
-												"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
-												"bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
-											)}
-										>
-											{getConnectorIcon("MCP_CONNECTOR", "size-6")}
-										</div>
-										<div className="flex-1 min-w-0">
-											<p className="text-[14px] font-semibold leading-tight truncate">MCPs</p>
-										<p className="text-[10px] text-muted-foreground mt-1">
-												{totalMCPServers} {totalMCPServers === 1 ? "Server" : "Servers"}
-											</p>
-										</div>
-										<Button
-											variant="secondary"
-											size="sm"
-											className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
-											onClick={
-												onManage && mcpConnectors[0] ? () => onManage(mcpConnectors[0]) : undefined
-											}
-										>
-											Manage
-										</Button>
-									</div>
-								)}
 
 								{/* Non-OAuth Connectors - Individual Cards */}
 								{filteredNonOAuthConnectors.map((connector) => {

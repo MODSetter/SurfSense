@@ -146,19 +146,17 @@ async def load_mcp_tools(
         tools: list[StructuredTool] = []
         for connector in result.scalars():
             try:
-                # Extract server configs array
+                # Extract single server config
                 config = connector.config or {}
-                server_configs = config.get("server_configs", [])
+                server_config = config.get("server_config", {})
                 
-                if not server_configs:
-                    logger.warning(f"MCP connector {connector.id} missing server_configs, skipping")
+                if not server_config:
+                    logger.warning(f"MCP connector {connector.id} missing server_config, skipping")
                     continue
 
-                # Process each server config
-                for server_config in server_configs:
-                    command = server_config.get("command")
-                    args = server_config.get("args", [])
-                    env = server_config.get("env", {})
+                command = server_config.get("command")
+                args = server_config.get("args", [])
+                env = server_config.get("env", {})
 
                 if not command:
                     logger.warning(
@@ -166,34 +164,33 @@ async def load_mcp_tools(
                     )
                     continue
 
-                    # Create MCP client
-                    mcp_client = MCPClient(command, args, env)
+                # Create MCP client
+                mcp_client = MCPClient(command, args, env)
 
-                    # Connect and discover tools
-                    async with mcp_client.connect():
-                        tool_definitions = await mcp_client.list_tools()
+                # Connect and discover tools
+                async with mcp_client.connect():
+                    tool_definitions = await mcp_client.list_tools()
 
-                        logger.info(
-                            f"Discovered {len(tool_definitions)} tools from MCP server "
-                            f"'{command}' (connector {connector.id})"
+                    logger.info(
+                        f"Discovered {len(tool_definitions)} tools from MCP server "
+                        f"'{command}' (connector {connector.id})"
+                    )
+
+                # Create LangChain tools from definitions
+                for tool_def in tool_definitions:
+                    try:
+                        tool = await _create_mcp_tool_from_definition(
+                            tool_def, mcp_client
                         )
-
-                    # Create LangChain tools from definitions
-                    for tool_def in tool_definitions:
-                        try:
-                            tool = await _create_mcp_tool_from_definition(
-                                tool_def, mcp_client
-                            )
-                            tools.append(tool)
-                        except Exception as e:
-                            logger.exception(
-                                f"Failed to create tool '{tool_def.get('name')}' "
-                                f"from connector {connector.id}: {e!s}",
-                            )
-
+                        tools.append(tool)
+                    except Exception as e:
+                        logger.exception(
+                            f"Failed to create tool '{tool_def.get('name')}' "
+                            f"from connector {connector.id}: {e!s}"
+                        )
             except Exception as e:
                 logger.exception(
-                    f"Failed to load tools from MCP connector {connector.id}: {e!s}",
+                    f"Failed to load tools from MCP connector {connector.id}: {e!s}"
                 )
 
         logger.info(f"Loaded {len(tools)} MCP tools for search space {search_space_id}")

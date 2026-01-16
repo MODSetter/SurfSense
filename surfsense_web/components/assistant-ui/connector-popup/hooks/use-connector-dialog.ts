@@ -68,7 +68,6 @@ export const useConnectorDialog = () => {
 	const [isDisconnecting, setIsDisconnecting] = useState(false);
 	const [connectorConfig, setConnectorConfig] = useState<Record<string, unknown> | null>(null);
 	const [connectorName, setConnectorName] = useState<string | null>(null);
-	const [otherMCPConnectorIds, setOtherMCPConnectorIds] = useState<number[]>([]);
 
 	// Connect mode state (for non-OAuth connectors)
 	const [connectingConnectorType, setConnectingConnectorType] = useState<string | null>(null);
@@ -81,11 +80,17 @@ export const useConnectorDialog = () => {
 		connectorTitle: string;
 	} | null>(null);
 
+	// MCP list view state (for managing multiple MCP connectors)
+	const [viewingMCPList, setViewingMCPList] = useState(false);
+
 	// Track if we came from accounts list when entering edit mode
 	const [cameFromAccountsList, setCameFromAccountsList] = useState<{
 		connectorType: string;
 		connectorTitle: string;
 	} | null>(null);
+
+	// Track if we came from MCP list view when entering edit mode
+	const [cameFromMCPList, setCameFromMCPList] = useState(false);
 
 	// Helper function to get frequency label
 	const getFrequencyLabel = useCallback((minutes: string): string => {
@@ -138,6 +143,16 @@ export const useConnectorDialog = () => {
 				// Clear viewing accounts type if view is not "accounts" anymore
 				if (params.view !== "accounts" && viewingAccountsType) {
 					setViewingAccountsType(null);
+				}
+
+				// Clear MCP list view if view is not "mcp-list" anymore
+				if (params.view !== "mcp-list" && viewingMCPList) {
+					setViewingMCPList(false);
+				}
+
+				// Handle MCP list view
+				if (params.view === "mcp-list" && !viewingMCPList) {
+					setViewingMCPList(true);
 				}
 
 				// Handle connect view
@@ -623,32 +638,34 @@ export const useConnectorDialog = () => {
 									},
 								});
 
-								toast.success(`${connectorTitle} connected and indexing started!`, {
-									description: periodicEnabledForIndexing
-										? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutesForIndexing)}.`
-										: "You can continue working while we sync your data.",
-								});
+							const successMessage = currentConnectorType === "MCP_CONNECTOR"
+								? `${connector.name} MCP server added successfully`
+								: `${connectorTitle} connected and indexing started!`;
+							toast.success(successMessage, {
+								description: periodicEnabledForIndexing
+									? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutesForIndexing)}.`
+									: "You can continue working while we sync your data.",
+							});
 
-								// Close modal and return to main view
-								const url = new URL(window.location.href);
-								url.searchParams.delete("modal");
-								url.searchParams.delete("tab");
-								url.searchParams.delete("view");
-								url.searchParams.delete("connectorType");
-								router.replace(url.pathname + url.search, { scroll: false });
+							const url = new URL(window.location.href);
+							url.searchParams.delete("modal");
+							url.searchParams.delete("tab");
+							url.searchParams.delete("view");
+							url.searchParams.delete("connectorType");
+							router.replace(url.pathname + url.search, { scroll: false });
 
-								// Clear indexing config state since we're not showing the view
-								setIndexingConfig(null);
-								setIndexingConnector(null);
-								setIndexingConnectorConfig(null);
+							// Clear indexing config state since we're not showing the view
+							setIndexingConfig(null);
+							setIndexingConnector(null);
+							setIndexingConnectorConfig(null);
 
-								// Invalidate queries to refresh data
-								queryClient.invalidateQueries({
-									queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-								});
+							// Invalidate queries to refresh data
+							queryClient.invalidateQueries({
+								queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+							});
 
-								// Refresh connectors list
-								await refetchAllConnectors();
+							// Refresh connectors list
+							await refetchAllConnectors();
 							} else {
 								// Non-indexable connector
 								// For Circleback, transition to edit view to show webhook URL
@@ -685,7 +702,10 @@ export const useConnectorDialog = () => {
 									await refetchAllConnectors();
 								} else {
 									// Other non-indexable connectors - just show success message and close
-									toast.success(`${connectorTitle} connected successfully!`);
+									const successMessage = currentConnectorType === "MCP_CONNECTOR"
+										? `${connector.name} MCP server added successfully`
+										: `${connectorTitle} connected successfully!`;
+									toast.success(successMessage);
 
 									// Close modal and return to main view
 									const url = new URL(window.location.href);
@@ -729,11 +749,18 @@ export const useConnectorDialog = () => {
 	const handleBackFromConnect = useCallback(() => {
 		const url = new URL(window.location.href);
 		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("tab", "all");
-		url.searchParams.delete("view");
+		
+		// If we're connecting an MCP and came from list view, go back to list
+		if (connectingConnectorType === "MCP_CONNECTOR" && viewingMCPList) {
+			url.searchParams.set("view", "mcp-list");
+		} else {
+			url.searchParams.set("tab", "all");
+			url.searchParams.delete("view");
+		}
+		
 		url.searchParams.delete("connectorType");
 		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
+	}, [router, connectingConnectorType, viewingMCPList]);
 
 	// Handle going back from YouTube view
 	const handleBackFromYouTube = useCallback(() => {
@@ -773,6 +800,38 @@ export const useConnectorDialog = () => {
 		// Keep the current tab (don't change it) - just remove view-specific params
 		url.searchParams.delete("view");
 		url.searchParams.delete("connectorType");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
+	// Handle viewing MCP list
+	const handleViewMCPList = useCallback(() => {
+		if (!searchSpaceId) return;
+
+		setViewingMCPList(true);
+
+		// Update URL to show MCP list view
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("view", "mcp-list");
+		window.history.pushState({ modal: true }, "", url.toString());
+	}, [searchSpaceId]);
+
+	// Handle going back from MCP list view
+	const handleBackFromMCPList = useCallback(() => {
+		setViewingMCPList(false);
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.delete("view");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
+	// Handle adding new MCP from list view
+	const handleAddNewMCPFromList = useCallback(() => {
+		setConnectingConnectorType("MCP_CONNECTOR");
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("view", "connect");
+		url.searchParams.set("connectorType", "MCP_CONNECTOR");
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
 
@@ -961,6 +1020,13 @@ export const useConnectorDialog = () => {
 		(connector: SearchSourceConnector) => {
 			if (!searchSpaceId) return;
 
+			// For MCP connectors from "All Connectors" tab, show the list view instead of directly editing
+			// (unless we're already in the MCP list view or on the Active tab where individual MCPs are shown)
+			if (connector.connector_type === "MCP_CONNECTOR" && !viewingMCPList && activeTab === "all") {
+				handleViewMCPList();
+				return;
+			}
+
 			// All connector types should be handled in the popup edit view
 			// Validate connector data
 			const connectorValidation = searchSourceConnector.safeParse(connector);
@@ -975,6 +1041,13 @@ export const useConnectorDialog = () => {
 				setCameFromAccountsList(viewingAccountsType);
 			} else {
 				setCameFromAccountsList(null);
+			}
+
+			// Track if we came from MCP list view
+			if (viewingMCPList && connector.connector_type === "MCP_CONNECTOR") {
+				setCameFromMCPList(true);
+			} else {
+				setCameFromMCPList(false);
 			}
 
 			// Track index with date range opened event
@@ -1006,7 +1079,7 @@ export const useConnectorDialog = () => {
 			url.searchParams.set("connectorId", connector.id.toString());
 			window.history.pushState({ modal: true }, "", url.toString());
 		},
-		[searchSpaceId, viewingAccountsType]
+		[searchSpaceId, viewingAccountsType, viewingMCPList, handleViewMCPList, activeTab]
 	);
 
 	// Handle saving connector changes
@@ -1046,82 +1119,6 @@ export const useConnectorDialog = () => {
 			try {
 				const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
-
-				// For MCP connectors, track original server count for toast messages
-				let originalServerCount = 0;
-				let newServerCount = 0;
-				if (editingConnector.connector_type === "MCP_CONNECTOR") {
-					const originalServerConfigs = editingConnector.config?.server_configs;
-					originalServerCount = Array.isArray(originalServerConfigs) ? originalServerConfigs.length : 0;
-					const newServerConfigs = connectorConfig?.server_configs;
-					newServerCount = Array.isArray(newServerConfigs) ? newServerConfigs.length : 0;
-				}
-
-				// For MCP connectors, check if all servers were removed (empty array)
-				if (editingConnector.connector_type === "MCP_CONNECTOR") {
-					const serverConfigs = connectorConfig?.server_configs;
-					if (!serverConfigs || (Array.isArray(serverConfigs) && serverConfigs.length === 0)) {
-						// All servers removed - delete the entire connector
-						await deleteConnector({
-							id: editingConnector.id,
-						});
-
-						// Also delete other MCP connectors that were consolidated
-						if (otherMCPConnectorIds.length > 0) {
-							await Promise.all(
-								otherMCPConnectorIds.map((id) =>
-									deleteConnector({
-										id,
-									}).catch(() => {
-										// Silently ignore errors for individual deletions
-									})
-								)
-							);
-							setOtherMCPConnectorIds([]);
-						}
-
-						toast.success("MCPs disconnected successfully", {
-							description: "All MCP servers have been removed.",
-						});
-
-						// Update URL to close modal
-						const url = new URL(window.location.href);
-						url.searchParams.delete("modal");
-						url.searchParams.delete("tab");
-						url.searchParams.delete("view");
-						url.searchParams.delete("connectorId");
-						router.replace(url.pathname + url.search, { scroll: false });
-
-						// Refresh connectors and reset state
-						refreshConnectors();
-						setEditingConnector(null);
-						setConnectorName("");
-						setConnectorConfig(null);
-						setPeriodicEnabled(false);
-						setFrequencyMinutes("1440");
-						setStartDate(undefined);
-						setEndDate(undefined);
-						setOtherMCPConnectorIds([]);
-
-						setIsSaving(false);
-						return;
-					}
-				}
-
-				// For MCP connectors, delete other MCP connectors first (consolidate all into one)
-				if (editingConnector.connector_type === "MCP_CONNECTOR" && otherMCPConnectorIds.length > 0) {
-					// Silently delete other MCP connectors without showing toasts
-					await Promise.all(
-						otherMCPConnectorIds.map((id) =>
-							deleteConnector({
-								id,
-							}).catch(() => {
-								// Silently ignore errors for individual deletions
-							})
-						)
-					);
-					setOtherMCPConnectorIds([]);
-				}
 
 				// Update connector with periodic sync settings, config changes, and name
 				// Note: Periodic sync is disabled for Google Drive connectors and non-indexable connectors
@@ -1228,17 +1225,7 @@ export const useConnectorDialog = () => {
 				}
 
 			// Generate toast message based on connector type
-			let toastTitle = `${editingConnector.name} updated successfully`;
-			if (editingConnector.connector_type === "MCP_CONNECTOR") {
-				const serverDiff = newServerCount - originalServerCount;
-				if (serverDiff > 0) {
-					toastTitle = `${serverDiff} MCP ${serverDiff === 1 ? "server" : "servers"} added`;
-				} else if (serverDiff < 0) {
-					toastTitle = `${Math.abs(serverDiff)} MCP ${Math.abs(serverDiff) === 1 ? "server" : "servers"} removed`;
-				} else {
-					toastTitle = "MCPs updated successfully";
-				}
-			}
+			const toastTitle = `${editingConnector.name} updated successfully`;
 
 			toast.success(toastTitle, {
 				description: periodicEnabled
@@ -1279,8 +1266,6 @@ export const useConnectorDialog = () => {
 			router,
 			connectorConfig,
 			connectorName,
-			otherMCPConnectorIds,
-			deleteConnector,
 		]
 	);
 
@@ -1304,16 +1289,24 @@ export const useConnectorDialog = () => {
 
 				toast.success(
 					editingConnector.connector_type === "MCP_CONNECTOR"
-						? "MCPs disconnected successfully"
+						? `${editingConnector.name} MCP server removed successfully`
 						: `${editingConnector.name} disconnected successfully`
 				);
 
-				// Update URL - the effect will handle closing the modal and clearing state
+				// Update URL - for MCP, go back to list; for others, close modal
 				const url = new URL(window.location.href);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("view");
-				url.searchParams.delete("connectorId");
+				if (editingConnector.connector_type === "MCP_CONNECTOR") {
+					// Go back to MCP list view
+					setViewingMCPList(true);
+					url.searchParams.set("modal", "connectors");
+					url.searchParams.set("view", "mcp-list");
+					url.searchParams.delete("connectorId");
+				} else {
+					url.searchParams.delete("modal");
+					url.searchParams.delete("tab");
+					url.searchParams.delete("view");
+					url.searchParams.delete("connectorId");
+				}
 				router.replace(url.pathname + url.search, { scroll: false });
 
 				refreshConnectors();
@@ -1365,6 +1358,21 @@ export const useConnectorDialog = () => {
 
 	// Handle going back from edit view
 	const handleBackFromEdit = useCallback(() => {
+		// If editing an MCP connector and came from MCP list, go back to MCP list view
+		if (editingConnector?.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
+			setViewingMCPList(true);
+			setCameFromMCPList(false);
+			const url = new URL(window.location.href);
+			url.searchParams.set("modal", "connectors");
+			url.searchParams.set("view", "mcp-list");
+			url.searchParams.delete("connectorId");
+			router.replace(url.pathname + url.search, { scroll: false });
+			setEditingConnector(null);
+			setConnectorName(null);
+			setConnectorConfig(null);
+			return;
+		}
+
 		// If we came from accounts list view, go back there
 		if (cameFromAccountsList && editingConnector) {
 			// Restore accounts list view
@@ -1377,10 +1385,10 @@ export const useConnectorDialog = () => {
 			url.searchParams.delete("connectorId");
 			router.replace(url.pathname + url.search, { scroll: false });
 		} else {
-			// Otherwise, go back to main connector popup
+			// Otherwise, go back to main connector popup (preserve the tab the user was on)
 			const url = new URL(window.location.href);
 			url.searchParams.set("modal", "connectors");
-			url.searchParams.set("tab", "all");
+			url.searchParams.set("tab", activeTab); // Use current tab instead of always "all"
 			url.searchParams.delete("view");
 			url.searchParams.delete("connectorId");
 			router.replace(url.pathname + url.search, { scroll: false });
@@ -1388,7 +1396,7 @@ export const useConnectorDialog = () => {
 		setEditingConnector(null);
 		setConnectorName(null);
 		setConnectorConfig(null);
-	}, [router, cameFromAccountsList, editingConnector]);
+	}, [router, cameFromAccountsList, editingConnector, cameFromMCPList, activeTab]);
 
 	// Handle dialog open/close
 	const handleOpenChange = useCallback(
@@ -1466,6 +1474,7 @@ export const useConnectorDialog = () => {
 		searchSpaceId,
 		allConnectors,
 		viewingAccountsType,
+		viewingMCPList,
 
 		// Setters
 		setSearchQuery,
@@ -1474,7 +1483,6 @@ export const useConnectorDialog = () => {
 		setPeriodicEnabled,
 		setFrequencyMinutes,
 		setConnectorName,
-		setOtherMCPConnectorIds,
 
 		// Handlers
 		handleOpenChange,
@@ -1495,6 +1503,9 @@ export const useConnectorDialog = () => {
 		handleBackFromYouTube,
 		handleViewAccountsList,
 		handleBackFromAccountsList,
+		handleViewMCPList,
+		handleBackFromMCPList,
+		handleAddNewMCPFromList,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,

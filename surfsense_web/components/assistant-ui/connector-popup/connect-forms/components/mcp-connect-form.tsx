@@ -4,6 +4,7 @@ import { CheckCircle2, ChevronDown, ChevronUp, Server, XCircle } from "lucide-re
 import { type FC, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EnumConnectorName } from "@/contracts/enums/connector";
@@ -11,23 +12,9 @@ import type { MCPServerConfig, MCPToolDefinition } from "@/contracts/types/mcp.t
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import type { ConnectFormProps } from "..";
 
-const DEFAULT_CONFIG = `[
-  {
-    "name": "MCP Server 1",
-    "command": "npx",
-    "args": ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/allowed/directory"],
-    "env": {},
-    "transport": "stdio"
-  }
-]`;
-
-interface MCPServerWithName extends MCPServerConfig {
-	name: string;
-}
-
 export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
-	const [configJson, setConfigJson] = useState(DEFAULT_CONFIG);
+	const [configJson, setConfigJson] = useState("");
 	const [jsonError, setJsonError] = useState<string | null>(null);
 	const [isTesting, setIsTesting] = useState(false);
 	const [showDetails, setShowDetails] = useState(false);
@@ -35,62 +22,50 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 		status: "success" | "error";
 		message: string;
 		tools: MCPToolDefinition[];
-		errors?: string[];
 	} | null>(null);
 
-	const parseConfigs = (): { configs: MCPServerWithName[] | null; error: string | null } => {
+	const DEFAULT_CONFIG = JSON.stringify(
+		{
+			name: "My MCP Server",
+			command: "npx",
+			args: ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/directory"],
+			env: {
+				API_KEY: "your_api_key_here",
+			},
+			transport: "stdio",
+		},
+		null,
+		2
+	);
+
+	const parseConfig = (): MCPServerConfig | null => {
 		try {
 			const parsed = JSON.parse(configJson);
-			
-			// Must be an array
-			if (!Array.isArray(parsed)) {
-				return {
-					configs: null,
-					error: "Configuration must be an array of MCP server objects",
-				};
+
+			// Validate that it's an object, not an array
+			if (Array.isArray(parsed)) {
+				setJsonError("Please provide a single server configuration object, not an array");
+				return null;
 			}
 
-			if (parsed.length === 0) {
-				return {
-					configs: null,
-					error: "Array must contain at least one MCP server configuration",
-				};
+			// Validate required fields
+			if (!parsed.command || typeof parsed.command !== "string") {
+				setJsonError("'command' field is required and must be a string");
+				return null;
 			}
 
-			// Validate each server config
-			const configs: MCPServerWithName[] = [];
-			for (let i = 0; i < parsed.length; i++) {
-				const server = parsed[i];
-				
-				if (!server.name || typeof server.name !== "string") {
-					return {
-						configs: null,
-						error: `Server ${i + 1}: 'name' field is required and must be a string`,
-					};
-				}
-
-				if (!server.command || typeof server.command !== "string") {
-					return {
-						configs: null,
-						error: `Server ${i + 1} (${server.name}): 'command' field is required and must be a string`,
-					};
-				}
-
-				configs.push({
-					name: server.name,
-					command: server.command,
-					args: Array.isArray(server.args) ? server.args : [],
-					env: typeof server.env === "object" && server.env !== null ? server.env : {},
-					transport: server.transport || "stdio",
-				});
-			}
-
-			return { configs, error: null };
-		} catch (error) {
-			return {
-				configs: null,
-				error: error instanceof Error ? error.message : "Invalid JSON",
+			const config: MCPServerConfig = {
+				command: parsed.command,
+				args: parsed.args || [],
+				env: parsed.env || {},
+				transport: parsed.transport || "stdio",
 			};
+
+			setJsonError(null);
+			return config;
+		} catch (error) {
+			setJsonError(error instanceof Error ? error.message : "Invalid JSON");
+			return null;
 		}
 	};
 
@@ -102,13 +77,11 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 	};
 
 	const handleTestConnection = async () => {
-		const { configs, error } = parseConfigs();
-		
-		if (!configs || error) {
-			setJsonError(error);
+		const serverConfig = parseConfig();
+		if (!serverConfig) {
 			setTestResult({
 				status: "error",
-				message: error || "Invalid configuration",
+				message: jsonError || "Invalid configuration",
 				tools: [],
 			});
 			return;
@@ -116,47 +89,32 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 
 		setIsTesting(true);
 		setTestResult(null);
-		setJsonError(null);
 
-		const allTools: MCPToolDefinition[] = [];
-		const errors: string[] = [];
-
-		for (const config of configs) {
-			try {
-				const result = await connectorsApiService.testMCPConnection(config);
-				if (result.status === "success") {
-					allTools.push(...result.tools);
-				} else {
-					errors.push(`${config.name}: ${result.message}`);
-				}
-			} catch (error) {
-				errors.push(`${config.name}: ${error instanceof Error ? error.message : "Failed to connect"}`);
+		try {
+			const result = await connectorsApiService.testMCPConnection(serverConfig);
+			
+			if (result.status === "success") {
+				setTestResult({
+					status: "success",
+					message: `Successfully connected. Found ${result.tools.length} tool${result.tools.length !== 1 ? 's' : ''}.`,
+					tools: result.tools,
+				});
+			} else {
+				setTestResult({
+					status: "error",
+					message: result.message || "Failed to connect",
+					tools: [],
+				});
 			}
-		}
-
-		if (errors.length === 0) {
-			setTestResult({
-				status: "success",
-				message: `Successfully connected to ${configs.length} server${configs.length !== 1 ? 's' : ''}. Found ${allTools.length} tool${allTools.length !== 1 ? 's' : ''}.`,
-				tools: allTools,
-			});
-		} else if (allTools.length > 0) {
-			setTestResult({
-				status: "success",
-				message: `Partially successful. Connected ${allTools.length} tool${allTools.length !== 1 ? 's' : ''}.`,
-				tools: allTools,
-				errors,
-			});
-		} else {
+		} catch (error) {
 			setTestResult({
 				status: "error",
-				message: "Failed to connect to all servers",
+				message: error instanceof Error ? error.message : "Failed to connect",
 				tools: [],
-				errors,
 			});
+		} finally {
+			setIsTesting(false);
 		}
-
-		setIsTesting(false);
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -167,22 +125,28 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 			return;
 		}
 
-		const { configs, error } = parseConfigs();
-		
-		if (!configs || error) {
-			setJsonError(error);
-			alert(error || "Invalid JSON configuration");
+		const serverConfig = parseConfig();
+		if (!serverConfig) {
 			return;
+		}
+
+		// Extract server name from config if provided
+		let serverName = "MCP Server";
+		try {
+			const parsed = JSON.parse(configJson);
+			if (parsed.name && typeof parsed.name === "string") {
+				serverName = parsed.name;
+			}
+		} catch {
+			// Use default name
 		}
 
 		isSubmittingRef.current = true;
 		try {
-			// Submit all servers as a single connector with server_configs array
-			// This creates one connector instead of N connectors (one toast instead of N toasts)
 			await onSubmit({
-				name: configs.length === 1 ? configs[0].name : "MCPs",
+				name: serverName,
 				connector_type: EnumConnectorName.MCP_CONNECTOR,
-				config: { server_configs: configs },
+				config: { server_config: serverConfig },
 				is_indexable: false,
 				is_active: true,
 				last_indexed_at: null,
@@ -200,9 +164,9 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-start [&>svg]:relative [&>svg]:left-0 [&>svg]:top-1">
 				<Server className="h-4 w-4 shrink-0 ml-1" />
 				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">MCP Servers</AlertTitle>
+					<AlertTitle className="text-xs sm:text-sm">MCP Server</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs pl-0!">
-						Connect to one or more MCP (Model Context Protocol) servers. Paste a JSON array of server configurations below.
+						Connect to an MCP (Model Context Protocol) server. Each MCP server is added as a separate connector.
 					</AlertDescription>
 				</div>
 			</Alert>
@@ -210,7 +174,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 			<form id="mcp-connect-form" onSubmit={handleSubmit} className="space-y-6">
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-4 sm:p-6 space-y-4">
 					<div className="space-y-2">
-						<Label htmlFor="config">MCP Servers Configuration (JSON Array)</Label>
+						<Label htmlFor="config">MCP Server Configuration (JSON)</Label>
 						<Textarea
 							id="config"
 							value={configJson}
@@ -223,7 +187,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 							<p className="text-xs text-red-500">JSON Error: {jsonError}</p>
 						)}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							Paste an array of MCP server configurations. Each object must have: name, command, args (optional), env (optional), transport (optional).
+							Paste a single MCP server configuration. Must include: name, command, args (optional), env (optional), transport (optional).
 						</p>
 					</div>
 
@@ -235,7 +199,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 							variant="outline"
 							className="w-full"
 						>
-							{isTesting ? "Testing All Servers..." : "Test All Connections"}
+							{isTesting ? "Testing Connection..." : "Test Connection"}
 						</Button>
 					</div>
 
@@ -248,9 +212,9 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 							}
 						>
 							{testResult.status === "success" ? (
-								<CheckCircle2 className="h-4 w-4 text-green-500" />
+								<CheckCircle2 className="h-4 w-4 text-green-600" />
 							) : (
-								<XCircle className="h-4 w-4 text-red-500" />
+								<XCircle className="h-4 w-4 text-red-600" />
 							)}
 							<div className="flex-1">
 								<div className="flex items-center justify-between">
@@ -285,14 +249,6 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 								</div>
 								<AlertDescription className="text-xs mt-1">
 									{testResult.message}
-									{testResult.errors && testResult.errors.length > 0 && (
-										<div className="mt-2 text-red-600">
-											<p className="font-semibold">Errors:</p>
-											{testResult.errors.map((err, i) => (
-												<div key={i}>• {err}</div>
-											))}
-										</div>
-									)}
 									{showDetails && testResult.tools.length > 0 && (
 										<div className="mt-3 pt-3 border-t border-green-500/20">
 											<p className="font-semibold mb-2">

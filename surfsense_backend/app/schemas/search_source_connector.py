@@ -95,14 +95,14 @@ class MCPConnectorCreate(BaseModel):
     """Schema for creating an MCP connector."""
 
     name: str
-    server_configs: list[MCPServerConfig]  # Array of MCP server configurations
+    server_config: MCPServerConfig  # Single MCP server configuration
 
 
 class MCPConnectorUpdate(BaseModel):
     """Schema for updating an MCP connector."""
 
     name: str | None = None
-    server_configs: list[MCPServerConfig] | None = None
+    server_config: MCPServerConfig | None = None
 
 
 class MCPConnectorRead(BaseModel):
@@ -111,7 +111,7 @@ class MCPConnectorRead(BaseModel):
     id: int
     name: str
     connector_type: SearchSourceConnectorType
-    server_configs: list[MCPServerConfig]
+    server_config: MCPServerConfig
     search_space_id: int
     user_id: uuid.UUID
     created_at: datetime
@@ -123,14 +123,14 @@ class MCPConnectorRead(BaseModel):
     def from_connector(cls, connector: SearchSourceConnectorRead) -> "MCPConnectorRead":
         """Convert from base SearchSourceConnectorRead."""
         config = connector.config or {}
-        server_configs_data = config.get("server_configs", [])
-        server_configs = [MCPServerConfig(**sc) for sc in server_configs_data]
+        server_config_data = config.get("server_config", {})
+        server_config = MCPServerConfig(**server_config_data)
 
         return cls(
             id=connector.id,
             name=connector.name,
             connector_type=connector.connector_type,
-            server_configs=server_configs,
+            server_config=server_config,
             search_space_id=connector.search_space_id,
             user_id=connector.user_id,
             created_at=connector.created_at,

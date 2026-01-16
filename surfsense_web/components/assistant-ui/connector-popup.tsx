@@ -24,6 +24,7 @@ import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
+import { MCPConnectorListView } from "./connector-popup/views/mcp-connector-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
 export const ConnectorIndicator: FC = () => {
@@ -63,6 +64,7 @@ export const ConnectorIndicator: FC = () => {
 		frequencyMinutes,
 		allConnectors,
 		viewingAccountsType,
+		viewingMCPList,
 		setSearchQuery,
 		setStartDate,
 		setEndDate,
@@ -87,6 +89,8 @@ export const ConnectorIndicator: FC = () => {
 		handleBackFromYouTube,
 		handleViewAccountsList,
 		handleBackFromAccountsList,
+		handleBackFromMCPList,
+		handleAddNewMCPFromList,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
@@ -157,14 +161,7 @@ export const ConnectorIndicator: FC = () => {
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
 	const totalSourceCount = connectors.length + activeDocumentTypes.length;
 	
-	// Count connectors properly: for MCP, count each server; for others, count connectors
-	const activeConnectorsCount = connectors.reduce((total, c: SearchSourceConnector) => {
-		if (c.connector_type === "MCP_CONNECTOR") {
-			const serverConfigs = c.config?.server_configs;
-			return total + (Array.isArray(serverConfigs) ? serverConfigs.length : 0);
-		}
-		return total + 1;
-	}, 0);
+	const activeConnectorsCount = connectors.length;
 
 	// Check which connectors are already connected
 	const connectedTypes = new Set(
@@ -208,6 +205,19 @@ export const ConnectorIndicator: FC = () => {
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
+				) : viewingMCPList ? (
+					<div className="p-6 sm:p-12 h-full overflow-hidden">
+						<MCPConnectorListView
+							mcpConnectors={
+								(allConnectors || []).filter(
+									(c: SearchSourceConnector) => c.connector_type === "MCP_CONNECTOR"
+								) as SearchSourceConnector[]
+							}
+							onAddNew={handleAddNewMCPFromList}
+							onManageConnector={handleStartEdit}
+							onBack={handleBackFromMCPList}
+						/>
+					</div>
 				) : viewingAccountsType ? (
 					<ConnectorAccountsListView
 						connectorType={viewingAccountsType.connectorType}
