@@ -203,11 +203,9 @@ export const useConnectorDialog = () => {
 							setEditingConnector(connector);
 							setConnectorConfig(connector.config);
 							setConnectorName(connector.name);
-							// Load existing periodic sync settings (disabled for Google Drive and non-indexable connectors)
+							// Load existing periodic sync settings (disabled for non-indexable connectors)
 							setPeriodicEnabled(
-								connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" || !connector.is_indexable
-									? false
-									: connector.periodic_indexing_enabled
+								!connector.is_indexable ? false : connector.periodic_indexing_enabled
 							);
 							setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
 							// Reset dates - user can set new ones for re-indexing
@@ -809,20 +807,14 @@ export const useConnectorDialog = () => {
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 				// Update connector with periodic sync settings and config changes
-				// Note: Periodic sync is disabled for Google Drive connectors
 				if (periodicEnabled || indexingConnectorConfig) {
 					const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
 					await updateConnector({
 						id: indexingConfig.connectorId,
 						data: {
-							...(periodicEnabled &&
-								indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && {
-									periodic_indexing_enabled: true,
-									indexing_frequency_minutes: frequency,
-								}),
-							...(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" && {
-								periodic_indexing_enabled: false,
-								indexing_frequency_minutes: null,
+							...(periodicEnabled && {
+								periodic_indexing_enabled: true,
+								indexing_frequency_minutes: frequency,
 							}),
 							...(indexingConnectorConfig && {
 								config: indexingConnectorConfig,
@@ -843,7 +835,14 @@ export const useConnectorDialog = () => {
 						(selectedFolders && selectedFolders.length > 0) ||
 						(selectedFiles && selectedFiles.length > 0)
 					) {
-						// Index with folder/file selection
+						// Extract indexing options from config
+						const maxFiles = indexingConnectorConfig.max_files as number | undefined;
+						const useDeltaSync = indexingConnectorConfig.use_delta_sync as boolean | undefined;
+						const includeSubfolders = indexingConnectorConfig.include_subfolders as
+							| boolean
+							| undefined;
+
+						// Index with folder/file selection and indexing options
 						await indexConnector({
 							connector_id: indexingConfig.connectorId,
 							queryParams: {
@@ -852,6 +851,9 @@ export const useConnectorDialog = () => {
 							body: {
 								folders: selectedFolders || [],
 								files: selectedFiles || [],
+								max_files: maxFiles ? parseInt(String(maxFiles), 10) : 500,
+								use_delta_sync: useDeltaSync !== false,
+								include_subfolders: includeSubfolders || false,
 							},
 						});
 					} else {
@@ -891,7 +893,7 @@ export const useConnectorDialog = () => {
 				);
 
 				// Track periodic indexing started if enabled
-				if (periodicEnabled && indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR") {
+				if (periodicEnabled) {
 					trackPeriodicIndexingStarted(
 						Number(searchSpaceId),
 						indexingConfig.connectorType,
@@ -985,12 +987,8 @@ export const useConnectorDialog = () => {
 
 			setEditingConnector(connector);
 			setConnectorName(connector.name);
-			// Load existing periodic sync settings (disabled for Google Drive and non-indexable connectors)
-			setPeriodicEnabled(
-				connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" || !connector.is_indexable
-					? false
-					: connector.periodic_indexing_enabled
-			);
+			// Load existing periodic sync settings (disabled for non-indexable connectors)
+			setPeriodicEnabled(!connector.is_indexable ? false : connector.periodic_indexing_enabled);
 			setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
 			// Reset dates - user can set new ones for re-indexing
 			setStartDate(undefined);
@@ -1045,23 +1043,15 @@ export const useConnectorDialog = () => {
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 				// Update connector with periodic sync settings, config changes, and name
-				// Note: Periodic sync is disabled for Google Drive connectors and non-indexable connectors
+				// Note: Periodic sync is disabled for non-indexable connectors
 				const frequency =
 					periodicEnabled && editingConnector.is_indexable ? parseInt(frequencyMinutes, 10) : null;
 				await updateConnector({
 					id: editingConnector.id,
 					data: {
 						name: connectorName || editingConnector.name,
-						periodic_indexing_enabled:
-							editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-							!editingConnector.is_indexable
-								? false
-								: periodicEnabled,
-						indexing_frequency_minutes:
-							editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-							!editingConnector.is_indexable
-								? null
-								: frequency,
+						periodic_indexing_enabled: !editingConnector.is_indexable ? false : periodicEnabled,
+						indexing_frequency_minutes: !editingConnector.is_indexable ? null : frequency,
 						config: connectorConfig || editingConnector.config,
 					},
 				});
@@ -1083,6 +1073,12 @@ export const useConnectorDialog = () => {
 						(selectedFolders && selectedFolders.length > 0) ||
 						(selectedFiles && selectedFiles.length > 0)
 					) {
+						// Extract indexing options from config
+						const currentConfig = connectorConfig || editingConnector.config;
+						const maxFiles = currentConfig?.max_files as number | undefined;
+						const useDeltaSync = currentConfig?.use_delta_sync as boolean | undefined;
+						const includeSubfolders = currentConfig?.include_subfolders as boolean | undefined;
+
 						await indexConnector({
 							connector_id: editingConnector.id,
 							queryParams: {
@@ -1091,6 +1087,9 @@ export const useConnectorDialog = () => {
 							body: {
 								folders: selectedFolders || [],
 								files: selectedFiles || [],
+								max_files: maxFiles ? parseInt(String(maxFiles), 10) : 500,
+								use_delta_sync: useDeltaSync !== false,
+								include_subfolders: includeSubfolders || false,
 							},
 						});
 						const totalItems = (selectedFolders?.length || 0) + (selectedFiles?.length || 0);
@@ -1134,12 +1133,8 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-				// Track periodic indexing if enabled (for non-Google Drive connectors)
-				if (
-					periodicEnabled &&
-					editingConnector.is_indexable &&
-					editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
-				) {
+				// Track periodic indexing if enabled
+				if (periodicEnabled && editingConnector.is_indexable) {
 					trackPeriodicIndexingStarted(
 						Number(searchSpaceId),
 						editingConnector.connector_type,
@@ -1242,12 +1237,51 @@ export const useConnectorDialog = () => {
 			}
 
 			try {
-				await indexConnector({
-					connector_id: connectorId,
-					queryParams: {
-						search_space_id: searchSpaceId,
-					},
-				});
+				// Handle Google Drive specifically - use folder/file selection from config
+				if (connectorType === "GOOGLE_DRIVE_CONNECTOR") {
+					const currentConfig = connectorConfig || editingConnector?.config;
+					const selectedFolders = currentConfig?.selected_folders as
+						| Array<{ id: string; name: string }>
+						| undefined;
+					const selectedFiles = currentConfig?.selected_files as
+						| Array<{ id: string; name: string }>
+						| undefined;
+
+					if (
+						(!selectedFolders || selectedFolders.length === 0) &&
+						(!selectedFiles || selectedFiles.length === 0)
+					) {
+						toast.error("Please select folders or files to index first");
+						return;
+					}
+
+					// Extract indexing options from config
+					const maxFiles = currentConfig?.max_files as number | undefined;
+					const useDeltaSync = currentConfig?.use_delta_sync as boolean | undefined;
+					const includeSubfolders = currentConfig?.include_subfolders as boolean | undefined;
+
+					await indexConnector({
+						connector_id: connectorId,
+						queryParams: {
+							search_space_id: searchSpaceId,
+						},
+						body: {
+							folders: selectedFolders || [],
+							files: selectedFiles || [],
+							max_files: maxFiles ? parseInt(String(maxFiles), 10) : 500,
+							use_delta_sync: useDeltaSync !== false,
+							include_subfolders: includeSubfolders || false,
+						},
+					});
+				} else {
+					await indexConnector({
+						connector_id: connectorId,
+						queryParams: {
+							search_space_id: searchSpaceId,
+						},
+					});
+				}
+
 				toast.success("Indexing started", {
 					description: "You can continue working while we sync your data.",
 				});
@@ -1261,7 +1295,7 @@ export const useConnectorDialog = () => {
 				toast.error(error instanceof Error ? error.message : "Failed to start indexing");
 			}
 		},
-		[searchSpaceId, indexConnector]
+		[searchSpaceId, indexConnector, connectorConfig, editingConnector?.config]
 	);
 
 	// Handle going back from edit view

@@ -156,30 +156,28 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							</p>
 						</div>
 					</div>
-					{/* Quick Index Button - only show for indexable connectors, but not for Google Drive (requires folder selection) */}
-					{connector.is_indexable &&
-						onQuickIndex &&
-						connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
-							<Button
-								variant="secondary"
-								size="sm"
-								onClick={handleQuickIndex}
-								disabled={isQuickIndexing || isIndexing || isSaving || isDisconnecting}
-								className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
-							>
-								{isQuickIndexing || isIndexing ? (
-									<>
-										<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-										Indexing...
-									</>
-								) : (
-									<>
-										<RefreshCw className="mr-2 h-4 w-4" />
-										Quick Index
-									</>
-								)}
-							</Button>
-						)}
+					{/* Quick Index Button - show for indexable connectors */}
+					{connector.is_indexable && onQuickIndex && (
+						<Button
+							variant="secondary"
+							size="sm"
+							onClick={handleQuickIndex}
+							disabled={isQuickIndexing || isIndexing || isSaving || isDisconnecting}
+							className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
+						>
+							{isQuickIndexing || isIndexing ? (
+								<>
+									<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+									Indexing...
+								</>
+							) : (
+								<>
+									<RefreshCw className="mr-2 h-4 w-4" />
+									Quick Index
+								</>
+							)}
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -218,15 +216,13 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										/>
 									)}
 
-								{/* Periodic sync - not shown for Google Drive */}
-								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
-									<PeriodicSyncConfig
-										enabled={periodicEnabled}
-										frequencyMinutes={frequencyMinutes}
-										onEnabledChange={onPeriodicEnabledChange}
-										onFrequencyChange={onFrequencyChange}
-									/>
-								)}
+								{/* Periodic sync configuration */}
+								<PeriodicSyncConfig
+									enabled={periodicEnabled}
+									frequencyMinutes={frequencyMinutes}
+									onEnabledChange={onPeriodicEnabledChange}
+									onFrequencyChange={onFrequencyChange}
+								/>
 							</>
 						)}
 

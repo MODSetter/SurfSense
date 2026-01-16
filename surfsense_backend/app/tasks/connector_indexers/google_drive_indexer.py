@@ -37,6 +37,7 @@ async def index_google_drive_files(
     use_delta_sync: bool = True,
     update_last_indexed: bool = True,
     max_files: int = 500,
+    include_subfolders: bool = False,
 ) -> tuple[int, str | None]:
     """
     Index Google Drive files for a specific connector.
@@ -51,6 +52,7 @@ async def index_google_drive_files(
         use_delta_sync: Whether to use change tracking for incremental sync
         update_last_indexed: Whether to update last_indexed_at timestamp
         max_files: Maximum number of files to index
+        include_subfolders: Whether to recursively index subfolders
 
     Returns:
         Tuple of (number_of_indexed_files, error_message)
@@ -67,6 +69,7 @@ async def index_google_drive_files(
             "folder_id": folder_id,
             "use_delta_sync": use_delta_sync,
             "max_files": max_files,
+            "include_subfolders": include_subfolders,
         },
     )
 
@@ -159,6 +162,7 @@ async def index_google_drive_files(
                 task_logger=task_logger,
                 log_entry=log_entry,
                 max_files=max_files,
+                include_subfolders=include_subfolders,
             )
 
         documents_indexed, documents_skipped = result
@@ -375,12 +379,13 @@ async def _index_full_scan(
     task_logger: TaskLoggingService,
     log_entry: any,
     max_files: int,
+    include_subfolders: bool = False,
 ) -> tuple[int, int]:
     """Perform full scan indexing of a folder."""
     await task_logger.log_task_progress(
         log_entry,
-        f"Starting full scan of folder: {folder_name}",
-        {"stage": "full_scan", "folder_id": folder_id},
+        f"Starting full scan of folder: {folder_name} (include_subfolders={include_subfolders})",
+        {"stage": "full_scan", "folder_id": folder_id, "include_subfolders": include_subfolders},
     )
 
     documents_indexed = 0
@@ -390,7 +395,7 @@ async def _index_full_scan(
 
     while files_processed < max_files:
         files, next_token, error = await get_files_in_folder(
-            drive_client, folder_id, include_subfolders=False, page_token=page_token
+            drive_client, folder_id, include_subfolders=include_subfolders, page_token=page_token
         )
 
         if error:

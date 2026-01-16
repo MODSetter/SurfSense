@@ -1648,7 +1648,7 @@ async def run_google_drive_indexing(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
+    items_dict: dict,  # Dictionary with 'folders', 'files', and indexing options
 ):
     """Runs the Google Drive indexing task for folders and files and updates the timestamp."""
     try:
@@ -1662,6 +1662,15 @@ async def run_google_drive_indexing(
         total_indexed = 0
         errors = []
 
+        # Extract indexing options from the request
+        max_files = items.max_files
+        use_delta_sync = items.use_delta_sync
+        include_subfolders = items.include_subfolders
+
+        logger.info(
+            f"Google Drive indexing options: max_files={max_files}, use_delta_sync={use_delta_sync}, include_subfolders={include_subfolders}"
+        )
+
         # Index each folder
         for folder in items.folders:
             try:
@@ -1672,8 +1681,10 @@ async def run_google_drive_indexing(
                     user_id,
                     folder_id=folder.id,
                     folder_name=folder.name,
-                    use_delta_sync=True,
+                    use_delta_sync=use_delta_sync,
                     update_last_indexed=False,
+                    max_files=max_files,
+                    include_subfolders=include_subfolders,
                 )
                 if error_message:
                     errors.append(f"Folder '{folder.name}': {error_message}")

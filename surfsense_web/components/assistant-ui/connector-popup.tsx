@@ -246,11 +246,8 @@ export const ConnectorIndicator: FC = () => {
 						onSave={() => handleSaveConnector(() => refreshConnectors())}
 						onDisconnect={() => handleDisconnectConnector(() => refreshConnectors())}
 						onBack={handleBackFromEdit}
-						onQuickIndex={
-							editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
-								? () =>
-										handleQuickIndexConnector(editingConnector.id, editingConnector.connector_type)
-								: undefined
+						onQuickIndex={() =>
+							handleQuickIndexConnector(editingConnector.id, editingConnector.connector_type)
 						}
 						onConfigChange={setConnectorConfig}
 						onNameChange={setConnectorName}

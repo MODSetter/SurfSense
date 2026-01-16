@@ -144,6 +144,10 @@ export const googleDriveIndexBody = z.object({
 			name: z.string(),
 		})
 	),
+	// Indexing options
+	max_files: z.number().min(1).max(5000).default(500).optional(),
+	use_delta_sync: z.boolean().default(true).optional(),
+	include_subfolders: z.boolean().default(false).optional(),
 });
 
 /**
