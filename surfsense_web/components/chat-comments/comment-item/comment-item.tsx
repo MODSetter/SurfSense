@@ -68,7 +68,8 @@ function formatTimestamp(dateString: string): string {
 }
 
 function renderMentions(content: string): React.ReactNode {
-	const mentionPattern = /@(\w+(?:\s+\w+)*)/g;
+	// Match @{DisplayName} format from backend
+	const mentionPattern = /@\{([^}]+)\}/g;
 	const parts: React.ReactNode[] = [];
 	let lastIndex = 0;
 	let match: RegExpExecArray | null;
@@ -78,9 +79,10 @@ function renderMentions(content: string): React.ReactNode {
 			parts.push(content.slice(lastIndex, match.index));
 		}
 
+		// Display as @DisplayName (without curly braces)
 		parts.push(
 			<span key={match.index} className="rounded bg-primary/10 px-1 font-medium text-primary">
-				{match[0]}
+				@{match[1]}
 			</span>
 		);
 

@@ -38,14 +38,16 @@ def parse_mentions(content: str) -> list[UUID]:
 
 def render_mentions(content: str, user_names: dict[UUID, str]) -> str:
     """
-    Replace @[uuid] mentions with @DisplayName in content.
+    Replace @[uuid] mentions with @{DisplayName} in content.
+
+    Uses curly braces as delimiters for unambiguous frontend parsing.
 
     Args:
         content: Comment text with @[uuid] mentions
         user_names: Dict mapping user UUIDs to display names
 
     Returns:
-        Content with mentions rendered as @DisplayName
+        Content with mentions rendered as @{DisplayName}
     """
 
     def replace_mention(match: re.Match) -> str:
@@ -53,7 +55,7 @@ def render_mentions(content: str, user_names: dict[UUID, str]) -> str:
             uuid = UUID(match.group(1))
             name = user_names.get(uuid)
             if name:
-                return f"@{name}"
+                return f"@{{{name}}}"
             # Keep original format if user not found
             return match.group(0)
         except ValueError:
