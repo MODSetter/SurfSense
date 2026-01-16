@@ -34,6 +34,8 @@ CONNECTOR_TASK_MAP = {
     SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: "index_elasticsearch_documents",
     SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: "index_crawled_urls",
     SearchSourceConnectorType.BOOKSTACK_CONNECTOR: "index_bookstack_pages",
+    # Google Drive uses a special periodic task that reads config from DB
+    SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: "index_google_drive_files_periodic",
 }
 
 
@@ -78,6 +80,7 @@ def create_periodic_schedule(
             index_elasticsearch_documents_task,
             index_github_repos_task,
             index_google_calendar_events_task,
+            index_google_drive_files_periodic_task,
             index_google_gmail_messages_task,
             index_jira_issues_task,
             index_linear_issues_task,
@@ -103,6 +106,8 @@ def create_periodic_schedule(
             SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
             SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
             SearchSourceConnectorType.BOOKSTACK_CONNECTOR: index_bookstack_pages_task,
+            # Google Drive periodic task - uses stored config from connector instead of date params
+            SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_periodic_task,
         }
 
         # Trigger the first run immediately

@@ -777,3 +777,94 @@ async def _index_bookstack_pages(
         await run_bookstack_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
+
+
+@celery_app.task(name="index_google_drive_files_periodic", bind=True)
+def index_google_drive_files_periodic_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,  # Ignored for Google Drive, but keeps signature consistent with other tasks
+    end_date: str,    # Ignored for Google Drive, but keeps signature consistent with other tasks
+):
+    """Celery task to periodically index Google Drive files using stored connector config."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_google_drive_files_periodic(
+                connector_id,
+                search_space_id,
+                user_id,
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_google_drive_files_periodic(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+):
+    """Index Google Drive files using stored connector config for periodic sync.
+    
+    Unlike other connectors that use date ranges, Google Drive periodic sync:
+    1. Reads selected_folders and selected_files from the connector's stored config
+    2. Uses delta sync (change tracking) when available for efficient incremental updates
+    3. Respects indexing options like max_files and include_subfolders from config
+    """
+    from sqlalchemy.future import select
+
+    from app.db import SearchSourceConnector
+    from app.routes.search_source_connectors_routes import run_google_drive_indexing
+
+    async with get_celery_session_maker()() as session:
+        # Fetch the connector to get its stored config
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id
+            )
+        )
+        connector = result.scalar_one_or_none()
+
+        if not connector:
+            logger.error(f"Google Drive connector {connector_id} not found for periodic sync")
+            return
+
+        # Extract folders and files from stored config
+        config = connector.config or {}
+        selected_folders = config.get("selected_folders", [])
+        selected_files = config.get("selected_files", [])
+
+        if not selected_folders and not selected_files:
+            logger.warning(
+                f"Google Drive connector {connector_id} has no folders or files configured for periodic sync"
+            )
+            return
+
+        # Build items_dict from stored config - matches GoogleDriveIndexRequest schema
+        items_dict = {
+            "folders": selected_folders,
+            "files": selected_files,
+            "max_files": int(config.get("max_files", 500)),
+            "use_delta_sync": config.get("use_delta_sync", True),
+            "include_subfolders": config.get("include_subfolders", False),
+        }
+
+        logger.info(
+            f"Starting periodic Google Drive indexing for connector {connector_id} "
+            f"with {len(selected_folders)} folders and {len(selected_files)} files"
+        )
+
+        await run_google_drive_indexing(
+            session,
+            connector_id,
+            search_space_id,
+            user_id,
+            items_dict,
+        )

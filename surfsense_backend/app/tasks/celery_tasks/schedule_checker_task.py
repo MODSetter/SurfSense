@@ -72,6 +72,7 @@ async def _check_and_trigger_schedules():
                 index_elasticsearch_documents_task,
                 index_github_repos_task,
                 index_google_calendar_events_task,
+                index_google_drive_files_periodic_task,
                 index_google_gmail_messages_task,
                 index_jira_issues_task,
                 index_linear_issues_task,
@@ -96,6 +97,8 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
                 SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
+                # Google Drive uses a special periodic task that reads config from connector
+                SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_periodic_task,
             }
 
             # Trigger indexing for each due connector
