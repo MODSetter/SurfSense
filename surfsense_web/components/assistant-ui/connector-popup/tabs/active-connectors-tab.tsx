@@ -202,17 +202,16 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 									const documentCount = getDocumentCountForConnector(
 										connectorType,
 										documentTypeCounts
-					);
-						const accountCount = typeConnectors.length;
-
-									const handleManageClick = () => {
-										if (onViewAccountsList) {
-											onViewAccountsList(connectorType, title);
-										} else if (onManage && typeConnectors[0]) {
-											onManage(typeConnectors[0]);
-										}
-									};
-
+								);
+								const accountCount = typeConnectors.length;
+								const mostRecentLastIndexed = getMostRecentLastIndexed(typeConnectors);
+								const handleManageClick = () => {
+									if (onViewAccountsList) {
+										onViewAccountsList(connectorType, title);
+									} else if (onManage && typeConnectors[0]) {
+										onManage(typeConnectors[0]);
+									}
+								};
 									return (
 										<div
 											key={`oauth-type-${connectorType}`}
