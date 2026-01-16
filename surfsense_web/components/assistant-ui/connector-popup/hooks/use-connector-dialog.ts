@@ -1047,6 +1047,16 @@ export const useConnectorDialog = () => {
 				const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
+				// For MCP connectors, track original server count for toast messages
+				let originalServerCount = 0;
+				let newServerCount = 0;
+				if (editingConnector.connector_type === "MCP_CONNECTOR") {
+					const originalServerConfigs = editingConnector.config?.server_configs;
+					originalServerCount = Array.isArray(originalServerConfigs) ? originalServerConfigs.length : 0;
+					const newServerConfigs = connectorConfig?.server_configs;
+					newServerCount = Array.isArray(newServerConfigs) ? newServerConfigs.length : 0;
+				}
+
 				// For MCP connectors, check if all servers were removed (empty array)
 				if (editingConnector.connector_type === "MCP_CONNECTOR") {
 					const serverConfigs = connectorConfig?.server_configs;
@@ -1217,35 +1227,43 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-				toast.success(
-					editingConnector.connector_type === "MCP_CONNECTOR" 
-						? "MCPs updated successfully" 
-						: `${editingConnector.name} updated successfully`,
-					{
-						description: periodicEnabled
-							? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
-							: indexingDescription,
-					}
-				);
-
-				// Update URL - the effect will handle closing the modal and clearing state
-				const url = new URL(window.location.href);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("view");
-				url.searchParams.delete("connectorId");
-				router.replace(url.pathname + url.search, { scroll: false });
-
-				refreshConnectors();
-				queryClient.invalidateQueries({
-					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-				});
-			} catch (error) {
-				console.error("Error saving connector:", error);
-				toast.error("Failed to save connector changes");
-			} finally {
-				setIsSaving(false);
+			// Generate toast message based on connector type
+			let toastTitle = `${editingConnector.name} updated successfully`;
+			if (editingConnector.connector_type === "MCP_CONNECTOR") {
+				const serverDiff = newServerCount - originalServerCount;
+				if (serverDiff > 0) {
+					toastTitle = `${serverDiff} MCP ${serverDiff === 1 ? "server" : "servers"} added`;
+				} else if (serverDiff < 0) {
+					toastTitle = `${Math.abs(serverDiff)} MCP ${Math.abs(serverDiff) === 1 ? "server" : "servers"} removed`;
+				} else {
+					toastTitle = "MCPs updated successfully";
+				}
 			}
+
+			toast.success(toastTitle, {
+				description: periodicEnabled
+					? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
+					: indexingDescription,
+			});
+
+			// Update URL - the effect will handle closing the modal and clearing state
+			const url = new URL(window.location.href);
+			url.searchParams.delete("modal");
+			url.searchParams.delete("tab");
+			url.searchParams.delete("view");
+			url.searchParams.delete("connectorId");
+			router.replace(url.pathname + url.search, { scroll: false });
+
+			refreshConnectors();
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+		} catch (error) {
+			console.error("Error saving connector:", error);
+			toast.error("Failed to save connector changes");
+		} finally {
+			setIsSaving(false);
+		}
 		},
 		[
 			editingConnector,
