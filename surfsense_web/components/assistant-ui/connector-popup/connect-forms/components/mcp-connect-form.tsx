@@ -161,15 +161,12 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-start [&>svg]:relative [&>svg]:left-0 [&>svg]:top-1">
-				<Server className="h-4 w-4 shrink-0 ml-1" />
-				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">MCP Server</AlertTitle>
-					<AlertDescription className="text-[10px] sm:text-xs pl-0!">
-						Connect to an MCP (Model Context Protocol) server. Each MCP server is added as a separate connector.
-					</AlertDescription>
-				</div>
-			</Alert>
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 [&>svg]:top-2 sm:[&>svg]:top-3">
+			<Server className="h-4 w-4 shrink-0" />
+			<AlertDescription className="text-[10px] sm:text-xs">
+				Connect to an MCP (Model Context Protocol) server. Each MCP server is added as a separate connector.
+			</AlertDescription>
+		</Alert>
 
 			<form id="mcp-connect-form" onSubmit={handleSubmit} className="space-y-6">
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-4 sm:p-6 space-y-4">

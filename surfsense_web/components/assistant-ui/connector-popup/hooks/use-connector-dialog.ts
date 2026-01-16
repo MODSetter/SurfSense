@@ -1293,15 +1293,16 @@ export const useConnectorDialog = () => {
 						: `${editingConnector.name} disconnected successfully`
 				);
 
-				// Update URL - for MCP, go back to list; for others, close modal
+				// Update URL - for MCP from list view, go back to list; otherwise close modal
 				const url = new URL(window.location.href);
-				if (editingConnector.connector_type === "MCP_CONNECTOR") {
-					// Go back to MCP list view
+				if (editingConnector.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
+					// Go back to MCP list view only if we came from there
 					setViewingMCPList(true);
 					url.searchParams.set("modal", "connectors");
 					url.searchParams.set("view", "mcp-list");
 					url.searchParams.delete("connectorId");
 				} else {
+					// Close modal for all other cases
 					url.searchParams.delete("modal");
 					url.searchParams.delete("tab");
 					url.searchParams.delete("view");

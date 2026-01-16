@@ -327,6 +327,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 															? connector.last_indexed_at
 																? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
 																: "Never indexed"
+														: connector.connector_type === "MCP_CONNECTOR"
+															? ""
 															: "Active"}
 													</p>
 												)}
