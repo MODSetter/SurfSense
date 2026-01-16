@@ -1,6 +1,8 @@
 "use client";
 
+import { useAtom } from "jotai";
 import { MessageSquare } from "lucide-react";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -99,8 +101,12 @@ export function CommentItem({
 	onReply,
 	isReply = false,
 }: CommentItemProps) {
-	const displayName =
-		comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
+	const [{ data: currentUser }] = useAtom(currentUserAtom);
+	
+	const isCurrentUser = currentUser?.id === comment.author?.id;
+	const displayName = isCurrentUser
+		? "Me"
+		: comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
 	const email = comment.author?.email || "";
 
 	return (
