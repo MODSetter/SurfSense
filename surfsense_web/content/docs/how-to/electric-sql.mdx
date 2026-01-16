@@ -100,18 +100,26 @@ Follow the steps below based on your PostgreSQL setup.
 
 ### Step 1: Configure Environment Variables
 
-Add the following variables to your root `.env` file:
+Ensure your environment files are configured. If you haven't set up SurfSense yet, follow the [Manual Installation Guide](/docs/manual-installation) first.
+
+For Electric SQL, verify these variables are set:
+
+**Root `.env`:**
 
 ```bash
 ELECTRIC_PORT=5133
-POSTGRES_DB=surfsense
-POSTGRES_HOST=db
+POSTGRES_HOST=host.docker.internal  # Use 'db' for Docker PostgreSQL instance
 ELECTRIC_DB_USER=electric
 ELECTRIC_DB_PASSWORD=electric_password
 NEXT_PUBLIC_ELECTRIC_URL=http://localhost:5133
 ```
 
-> **Note:** Set `POSTGRES_HOST=db` for Docker PostgreSQL, or `POSTGRES_HOST=host.docker.internal` for local PostgreSQL.
+**Frontend `.env` (`surfsense_web/.env`):**
+
+```bash
+NEXT_PUBLIC_ELECTRIC_URL=http://localhost:5133
+NEXT_PUBLIC_ELECTRIC_AUTH_MODE=insecure
+```
 
 ---
 
@@ -119,20 +127,28 @@ NEXT_PUBLIC_ELECTRIC_URL=http://localhost:5133
 
 If you're using the Docker-managed PostgreSQL instance, follow these steps:
 
-**1. Start PostgreSQL and Electric SQL:**
+**1. Update environment variable:**
+
+In your root `.env` file, set:
+
+```bash
+POSTGRES_HOST=db
+```
+
+**2. Start PostgreSQL and Electric SQL:**
 
 ```bash
 docker-compose up -d db electric
 ```
 
-**2. Run database migration:**
+**3. Run database migration:**
 
 ```bash
 cd surfsense_backend
 uv run alembic upgrade head
 ```
 
-**3. Start the backend:**
+**4. Start the backend:**
 
 ```bash
 uv run main.py
@@ -203,11 +219,12 @@ Electric SQL is now configured and connected to your local PostgreSQL database.
 
 | Variable | Location | Description | Default |
 |----------|----------|-------------|---------|
-| `ELECTRIC_PORT` | docker-compose | Port to expose Electric SQL | `5133` |
-| `ELECTRIC_DB_USER` | Backend | Database user for Electric | `electric` |
-| `ELECTRIC_DB_PASSWORD` | Backend | Database password for Electric | `electric_password` |
-| `NEXT_PUBLIC_ELECTRIC_URL` | Frontend | Electric SQL server URL (PGlite connects to this) | `http://localhost:5133` |
-
+| `ELECTRIC_PORT` | Root `.env` | Port to expose Electric SQL | `5133` |
+| `POSTGRES_HOST` | Root `.env` | PostgreSQL host (`db` for Docker, `host.docker.internal` for local) | `host.docker.internal` |
+| `ELECTRIC_DB_USER` | Root `.env` | Database user for Electric | `electric` |
+| `ELECTRIC_DB_PASSWORD` | Root `.env` | Database password for Electric | `electric_password` |
+| `NEXT_PUBLIC_ELECTRIC_URL` | Frontend `.env` | Electric SQL server URL (PGlite connects to this) | `http://localhost:5133` |
+| `NEXT_PUBLIC_ELECTRIC_AUTH_MODE` | Frontend `.env` | Authentication mode (`insecure` for dev, `secure` for production) | `insecure` |
 ## Verify Setup
 
 To verify Electric SQL is running correctly:
@@ -216,7 +233,11 @@ To verify Electric SQL is running correctly:
 curl http://localhost:5133/v1/health
 ```
 
-You should receive a healthy response.
+You should receive:
+
+```json
+{"status":"active"}
+```
 
 ## Troubleshooting
 
