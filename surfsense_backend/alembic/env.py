@@ -25,6 +25,13 @@ database_url = os.getenv("DATABASE_URL")
 if database_url:
     config.set_main_option("sqlalchemy.url", database_url)
 
+# Electric SQL user credentials - centralized configuration for migrations
+# These are used by migrations that set up Electric SQL replication
+config.set_main_option("electric_db_user", os.getenv("ELECTRIC_DB_USER", "electric"))
+config.set_main_option(
+    "electric_db_password", os.getenv("ELECTRIC_DB_PASSWORD", "electric_password")
+)
+
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
 if config.config_file_name is not None:

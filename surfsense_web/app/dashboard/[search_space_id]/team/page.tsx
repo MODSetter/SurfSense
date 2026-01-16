@@ -1294,7 +1294,7 @@ function CreateInviteDialog({
 								{creating ? (
 									<>
 										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-										Creating...
+										Creating
 									</>
 								) : (
 									"Create Invite"
@@ -1471,7 +1471,7 @@ function CreateRoleDialog({
 						{creating ? (
 							<>
 								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-								Creating...
+								Creating
 							</>
 						) : (
 							"Create Role"

@@ -17,8 +17,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config as app_config
-from app.db import Document, DocumentType, Log
+from app.db import Document, DocumentType, Log, Notification
 from app.services.llm_service import get_user_long_context_llm
+from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     convert_document_to_markdown,
@@ -594,10 +595,23 @@ async def process_file_in_background(
     log_entry: Log,
     connector: dict
     | None = None,  # Optional: {"type": "GOOGLE_DRIVE_FILE", "metadata": {...}}
-):
+    notification: Notification
+    | None = None,  # Optional notification for progress updates
+) -> Document | None:
     try:
         # Check if the file is a markdown or text file
         if filename.lower().endswith((".md", ".markdown", ".txt")):
+            # Update notification: parsing stage
+            if notification:
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Reading file",
+                    )
+                )
+
             await task_logger.log_task_progress(
                 log_entry,
                 f"Processing markdown/text file: {filename}",
@@ -616,6 +630,14 @@ async def process_file_in_background(
             except Exception as e:
                 print("Error deleting temp file", e)
                 pass
+
+            # Update notification: chunking stage
+            if notification:
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="chunking"
+                    )
+                )
 
             await task_logger.log_task_progress(
                 log_entry,
@@ -644,17 +666,30 @@ async def process_file_in_background(
                         "file_type": "markdown",
                     },
                 )
+                return result
             else:
                 await task_logger.log_task_success(
                     log_entry,
                     f"Markdown file already exists (duplicate): {filename}",
                     {"duplicate_detected": True, "file_type": "markdown"},
                 )
+                return None
 
         # Check if the file is an audio file
         elif filename.lower().endswith(
             (".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")
         ):
+            # Update notification: parsing stage (transcription)
+            if notification:
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Transcribing audio",
+                    )
+                )
+
             await task_logger.log_task_progress(
                 log_entry,
                 f"Processing audio file for transcription: {filename}",
@@ -738,6 +773,14 @@ async def process_file_in_background(
                 },
             )
 
+            # Update notification: chunking stage
+            if notification:
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="chunking"
+                    )
+                )
+
             # Clean up the temp file
             try:
                 os.unlink(file_path)
@@ -765,12 +808,14 @@ async def process_file_in_background(
                         "stt_service": stt_service_type,
                     },
                 )
+                return result
             else:
                 await task_logger.log_task_success(
                     log_entry,
                     f"Audio file transcript already exists (duplicate): {filename}",
                     {"duplicate_detected": True, "file_type": "audio"},
                 )
+                return None
 
         else:
             # Import page limit service
@@ -835,6 +880,15 @@ async def process_file_in_background(
                 ) from e
 
             if app_config.ETL_SERVICE == "UNSTRUCTURED":
+                # Update notification: parsing stage
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
+                    )
+
                 await task_logger.log_task_progress(
                     log_entry,
                     f"Processing file with Unstructured ETL: {filename}",
@@ -859,6 +913,12 @@ async def process_file_in_background(
                 )
 
                 docs = await loader.aload()
+
+                # Update notification: chunking stage
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="chunking", chunks_count=len(docs)
+                    )
 
                 await task_logger.log_task_progress(
                     log_entry,
@@ -919,6 +979,7 @@ async def process_file_in_background(
                             "pages_processed": final_page_count,
                         },
                     )
+                    return result
                 else:
                     await task_logger.log_task_success(
                         log_entry,
@@ -929,8 +990,18 @@ async def process_file_in_background(
                             "etl_service": "UNSTRUCTURED",
                         },
                     )
+                    return None
 
             elif app_config.ETL_SERVICE == "LLAMACLOUD":
+                # Update notification: parsing stage
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
+                    )
+
                 await task_logger.log_task_progress(
                     log_entry,
                     f"Processing file with LlamaCloud ETL: {filename}",
@@ -963,6 +1034,15 @@ async def process_file_in_background(
                 markdown_documents = await result.aget_markdown_documents(
                     split_by_page=False
                 )
+
+                # Update notification: chunking stage
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="chunking",
+                        chunks_count=len(markdown_documents),
+                    )
 
                 await task_logger.log_task_progress(
                     log_entry,
@@ -1056,6 +1136,7 @@ async def process_file_in_background(
                             "documents_count": len(markdown_documents),
                         },
                     )
+                    return last_created_doc
                 else:
                     # All documents were duplicates (markdown_documents was not empty, but all returned None)
                     await task_logger.log_task_success(
@@ -1068,8 +1149,18 @@ async def process_file_in_background(
                             "documents_count": len(markdown_documents),
                         },
                     )
+                    return None
 
             elif app_config.ETL_SERVICE == "DOCLING":
+                # Update notification: parsing stage
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
+                    )
+
                 await task_logger.log_task_progress(
                     log_entry,
                     f"Processing file with Docling ETL: {filename}",
@@ -1152,6 +1243,12 @@ async def process_file_in_background(
                         },
                     )
 
+                # Update notification: chunking stage
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="chunking"
+                    )
+
                 # Process the document using our Docling background task
                 doc_result = await add_received_file_document_using_docling(
                     session,
@@ -1184,6 +1281,7 @@ async def process_file_in_background(
                             "pages_processed": final_page_count,
                         },
                     )
+                    return doc_result
                 else:
                     await task_logger.log_task_success(
                         log_entry,
@@ -1194,6 +1292,7 @@ async def process_file_in_background(
                             "etl_service": "DOCLING",
                         },
                     )
+                    return None
     except Exception as e:
         await session.rollback()
 

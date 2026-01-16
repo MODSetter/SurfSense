@@ -29,6 +29,10 @@
 		"@blocknote/mantine": "^0.45.0",
 		"@blocknote/react": "^0.45.0",
 		"@blocknote/server-util": "^0.45.0",
+		"@electric-sql/client": "^1.4.0",
+		"@electric-sql/pglite": "^0.3.14",
+		"@electric-sql/pglite-sync": "^0.4.0",
+		"@electric-sql/react": "^1.0.26",
 		"@hookform/resolvers": "^5.2.2",
 		"@number-flow/react": "^0.5.10",
 		"@posthog/react": "^1.5.2",
@@ -120,6 +124,7 @@
 		"eslint-config-next": "15.2.0",
 		"tailwindcss": "^4.1.11",
 		"tsx": "^4.20.6",
-		"typescript": "^5.8.3"
+		"typescript": "^5.8.3",
+		"vite": "^7.3.1"
 	}
 }

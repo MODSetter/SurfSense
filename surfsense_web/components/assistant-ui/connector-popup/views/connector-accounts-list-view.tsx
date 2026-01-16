@@ -6,7 +6,6 @@ import type { FC } from "react";
 import { Button } from "@/components/ui/button";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { cn } from "@/lib/utils";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
@@ -16,7 +15,6 @@ interface ConnectorAccountsListViewProps {
 	connectorTitle: string;
 	connectors: SearchSourceConnector[];
 	indexingConnectorIds: Set<number>;
-	logsSummary: LogSummary | undefined;
 	onBack: () => void;
 	onManage: (connector: SearchSourceConnector) => void;
 	onAddAccount: () => void;
@@ -60,7 +58,6 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	connectorTitle,
 	connectors,
 	indexingConnectorIds,
-	logsSummary,
 	onBack,
 	onManage,
 	onAddAccount,
@@ -125,7 +122,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 							)}
 						</div>
 						<span className="text-[11px] sm:text-[12px] font-medium">
-							{isConnecting ? "Connecting..." : "Add Account"}
+							{isConnecting ? "Connecting" : "Add Account"}
 						</span>
 					</button>
 				</div>
@@ -137,18 +134,15 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 					{typeConnectors.map((connector) => {
 						const isIndexing = indexingConnectorIds.has(connector.id);
-						const activeTask = logsSummary?.active_tasks?.find(
-							(task: LogActiveTask) => task.connector_id === connector.id
-						);
 
 						return (
 							<div
 								key={connector.id}
 								className={cn(
-									"flex items-center gap-4 p-4 rounded-xl border border-border transition-all",
+									"flex items-center gap-4 p-4 rounded-xl transition-all",
 									isIndexing
-										? "bg-primary/5 border-primary/20"
-										: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10"
+										? "bg-primary/5 border-0"
+										: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
 								)}
 							>
 								<div
@@ -168,12 +162,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 									{isIndexing ? (
 										<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 											<Loader2 className="size-3 animate-spin" />
-											Indexing...
-											{activeTask?.message && (
-												<span className="text-muted-foreground truncate max-w-[100px]">
-													• {activeTask.message}
-												</span>
-											)}
+											Syncing
 										</p>
 									) : (
 										<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">

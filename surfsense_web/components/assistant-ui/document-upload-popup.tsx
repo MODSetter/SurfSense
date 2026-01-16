@@ -2,7 +2,6 @@
 
 import { useAtomValue } from "jotai";
 import { Upload } from "lucide-react";
-import { useRouter } from "next/navigation";
 import {
 	createContext,
 	type FC,
@@ -85,13 +84,11 @@ const DocumentUploadPopupContent: FC<{
 	onOpenChange: (open: boolean) => void;
 }> = ({ isOpen, onOpenChange }) => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-	const router = useRouter();
 
 	if (!searchSpaceId) return null;
 
 	const handleSuccess = () => {
 		onOpenChange(false);
-		router.push(`/dashboard/${searchSpaceId}/documents`);
 	};
 
 	return (
