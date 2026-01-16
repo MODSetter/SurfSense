@@ -21,7 +21,8 @@ logger = logging.getLogger(__name__)
 
 
 def _create_dynamic_input_model_from_schema(
-    tool_name: str, input_schema: dict[str, Any],
+    tool_name: str,
+    input_schema: dict[str, Any],
 ) -> type[BaseModel]:
     """Create a Pydantic model from MCP tool's JSON schema.
 
@@ -41,15 +42,18 @@ def _create_dynamic_input_model_from_schema(
     for param_name, param_schema in properties.items():
         param_description = param_schema.get("description", "")
         is_required = param_name in required_fields
-        
+
         # Use Any type for complex schemas to preserve structure
         # This allows the MCP server to do its own validation
         from typing import Any as AnyType
 
         from pydantic import Field
-        
+
         if is_required:
-            field_definitions[param_name] = (AnyType, Field(..., description=param_description))
+            field_definitions[param_name] = (
+                AnyType,
+                Field(..., description=param_description),
+            )
         else:
             field_definitions[param_name] = (
                 AnyType | None,
@@ -88,7 +92,7 @@ async def _create_mcp_tool_from_definition(
     async def mcp_tool_call(**kwargs) -> str:
         """Execute the MCP tool call via the client."""
         logger.info(f"MCP tool '{tool_name}' called with params: {kwargs}")
-        
+
         try:
             # Connect to server and call tool
             async with mcp_client.connect():
@@ -114,7 +118,8 @@ async def _create_mcp_tool_from_definition(
 
 
 async def load_mcp_tools(
-    session: AsyncSession, search_space_id: int,
+    session: AsyncSession,
+    search_space_id: int,
 ) -> list[StructuredTool]:
     """Load all MCP tools from user's active MCP server connectors.
 
@@ -155,9 +160,11 @@ async def load_mcp_tools(
                     args = server_config.get("args", [])
                     env = server_config.get("env", {})
 
-                    if not command:
-                        logger.warning(f"MCP connector {connector.id} server config missing command, skipping")
-                        continue
+                if not command:
+                    logger.warning(
+                        f"MCP connector {connector.id} missing command, skipping"
+                    )
+                    continue
 
                     # Create MCP client
                     mcp_client = MCPClient(command, args, env)
@@ -171,16 +178,18 @@ async def load_mcp_tools(
                             f"'{command}' (connector {connector.id})"
                         )
 
-                        # Create LangChain tools from definitions
-                        for tool_def in tool_definitions:
-                            try:
-                                tool = await _create_mcp_tool_from_definition(tool_def, mcp_client)
-                                tools.append(tool)
-                            except Exception as e:
-                                logger.exception(
-                                    f"Failed to create tool '{tool_def.get('name')}' "
-                                    f"from connector {connector.id}: {e!s}",
-                                )
+                    # Create LangChain tools from definitions
+                    for tool_def in tool_definitions:
+                        try:
+                            tool = await _create_mcp_tool_from_definition(
+                                tool_def, mcp_client
+                            )
+                            tools.append(tool)
+                        except Exception as e:
+                            logger.exception(
+                                f"Failed to create tool '{tool_def.get('name')}' "
+                                f"from connector {connector.id}: {e!s}",
+                            )
 
             except Exception as e:
                 logger.exception(

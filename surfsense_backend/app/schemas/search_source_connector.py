@@ -23,7 +23,9 @@ class SearchSourceConnectorBase(BaseModel):
     @field_validator("config")
     @classmethod
     def validate_config_for_connector_type(
-        cls, config: dict[str, Any], values: dict[str, Any],
+        cls,
+        config: dict[str, Any],
+        values: dict[str, Any],
     ) -> dict[str, Any]:
         connector_type = values.data.get("connector_type")
         return validate_connector_config(connector_type, config)

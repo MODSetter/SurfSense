@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeft, ChevronRight, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ArrowLeft, ChevronRight, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -152,4 +152,3 @@ export function UserSettingsSidebar({
 		</>
 	);
 }
-

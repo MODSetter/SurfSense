@@ -4,8 +4,8 @@ This migration adds:
 - display_name column for user's full name from OAuth
 - avatar_url column for user's profile picture URL from OAuth
 
-Revision ID: 62
-Revises: 61
+Revision ID: 64
+Revises: 63
 """
 
 from collections.abc import Sequence
@@ -13,8 +13,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "62"
-down_revision: str | None = "61"
+revision: str = "64"
+down_revision: str | None = "63"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -1,7 +1,7 @@
 import {
 	getMeResponse,
-	updateUserResponse,
 	type UpdateUserRequest,
+	updateUserResponse,
 } from "@/contracts/types/user.types";
 import { baseApiService } from "./base-api.service";
 

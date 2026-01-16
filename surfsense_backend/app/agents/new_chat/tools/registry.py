@@ -283,7 +283,8 @@ async def build_tools_async(
     ):
         try:
             mcp_tools = await load_mcp_tools(
-                dependencies["db_session"], dependencies["search_space_id"],
+                dependencies["db_session"],
+                dependencies["search_space_id"],
             )
             tools.extend(mcp_tools)
             logging.info(
