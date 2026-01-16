@@ -1,7 +1,9 @@
 """Google Drive indexer using Surfsense file processors."""
 
 import logging
+from datetime import datetime, timezone
 
+from sqlalchemy import String, cast, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,16 +17,41 @@ from app.connectors.google_drive import (
     get_files_in_folder,
     get_start_page_token,
 )
-from app.db import DocumentType, SearchSourceConnectorType
+from app.db import Document, DocumentType, SearchSourceConnectorType
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
-    check_document_by_unique_identifier,
     get_connector_by_id,
     update_connector_last_indexed,
 )
-from app.utils.document_converters import generate_unique_identifier_hash
 
 logger = logging.getLogger(__name__)
+
+
+async def find_document_by_google_drive_file_id(
+    session: AsyncSession,
+    file_id: str,
+    search_space_id: int,
+) -> Document | None:
+    """
+    Find an existing document by its Google Drive file ID stored in metadata.
+    
+    This works for both legacy documents (already indexed) and new documents,
+    as all Google Drive documents have google_drive_file_id in their metadata.
+    
+    Args:
+        session: Database session
+        file_id: Google Drive file ID
+        search_space_id: Search space to look in
+        
+    Returns:
+        Document if found, None otherwise
+    """
+    query = select(Document).where(
+        Document.search_space_id == search_space_id,
+        cast(Document.document_metadata["google_drive_file_id"], String) == file_id,
+    )
+    result = await session.execute(query)
+    return result.scalars().first()
 
 
 async def index_google_drive_files(
@@ -532,16 +559,59 @@ async def _process_single_file(
 ) -> tuple[int, int]:
     """
     Process a single file by downloading and using Surfsense's file processor.
+    
+    Handles file renames gracefully by checking if a document with the same
+    Google Drive file ID already exists. If found and only the name changed
+    (content unchanged), performs a lightweight metadata-only update instead
+    of full reprocessing.
 
     Returns:
         Tuple of (indexed_count, skipped_count)
     """
+    file_id = file.get("id")
     file_name = file.get("name", "Unknown")
     mime_type = file.get("mimeType", "")
 
     try:
         logger.info(f"Processing file: {file_name} ({mime_type})")
 
+        # Check if this file already exists by Google Drive file ID
+        # This works for both legacy and new documents
+        existing_doc = await find_document_by_google_drive_file_id(
+            session, file_id, search_space_id
+        )
+
+        if existing_doc:
+            # Document exists - check if it's just a rename
+            old_name = existing_doc.document_metadata.get("google_drive_file_name", "")
+            
+            if old_name and old_name != file_name:
+                # Name has changed - this could be a rename or content+rename
+                # For efficiency, we'll do a rename-only update here
+                # If content also changed, the next full sync will catch it
+                # (or user can manually trigger reindex)
+                logger.info(
+                    f"Detected file rename: '{old_name}' -> '{file_name}' (file_id: {file_id})"
+                )
+                
+                await _update_document_metadata_for_rename(
+                    session=session,
+                    document=existing_doc,
+                    new_file_name=file_name,
+                    file=file,
+                    task_logger=task_logger,
+                    log_entry=log_entry,
+                )
+                
+                return 1, 0
+            else:
+                # Same name - check if we should skip (already indexed)
+                # For delta sync, we still process as the content might have changed
+                logger.info(
+                    f"File {file_name} already indexed, processing for potential content changes"
+                )
+
+        # Process the file (new file or potential content update)
         _, error, _ = await download_and_process_file(
             client=drive_client,
             file=file,
@@ -568,16 +638,83 @@ async def _process_single_file(
         return 0, 1
 
 
-async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
-    """Remove a document that was deleted in Drive."""
-    unique_identifier_hash = generate_unique_identifier_hash(
-        DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
+async def _update_document_metadata_for_rename(
+    session: AsyncSession,
+    document: Document,
+    new_file_name: str,
+    file: dict,
+    task_logger: TaskLoggingService,
+    log_entry: any,
+) -> None:
+    """
+    Update document metadata when a Google Drive file is renamed.
+    
+    This is a lightweight update that skips expensive operations like
+    re-generating embeddings, chunks, and LLM summaries since only the
+    file name changed, not the content.
+    
+    Args:
+        session: Database session
+        document: Existing document to update
+        new_file_name: New file name from Google Drive
+        file: Full file metadata from Google Drive API
+        task_logger: Task logging service
+        log_entry: Current log entry
+    """
+    from sqlalchemy.orm.attributes import flag_modified
+    
+    old_name = document.title
+    
+    # Update the document title
+    document.title = new_file_name
+    
+    # Update metadata fields
+    if document.document_metadata:
+        document.document_metadata["FILE_NAME"] = new_file_name
+        document.document_metadata["google_drive_file_name"] = new_file_name
+        
+        # Update other Drive metadata that might have changed
+        if "modifiedTime" in file:
+            document.document_metadata["modified_time"] = file["modifiedTime"]
+        if "webViewLink" in file:
+            document.document_metadata["web_view_link"] = file["webViewLink"]
+        
+        # Flag the JSON column as modified for SQLAlchemy to detect the change
+        flag_modified(document, "document_metadata")
+    
+    # Update the updated_at timestamp
+    document.updated_at = datetime.now(timezone.utc)
+    
+    await session.flush()
+    
+    logger.info(f"Updated document metadata for rename: '{old_name}' -> '{new_file_name}'")
+    
+    await task_logger.log_task_progress(
+        log_entry,
+        f"Renamed file updated: '{old_name}' -> '{new_file_name}'",
+        {
+            "status": "renamed",
+            "old_name": old_name,
+            "new_name": new_file_name,
+            "document_id": document.id,
+        },
     )
 
-    existing_document = await check_document_by_unique_identifier(
-        session, unique_identifier_hash
+
+async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
+    """
+    Remove a document that was deleted or trashed in Google Drive.
+    
+    Uses the google_drive_file_id stored in document metadata to find
+    the document, which works for both legacy and new documents.
+    """
+    existing_document = await find_document_by_google_drive_file_id(
+        session, file_id, search_space_id
     )
 
     if existing_document:
+        doc_title = existing_document.title
         await session.delete(existing_document)
-        logger.info(f"Removed deleted file document: {file_id}")
+        logger.info(f"Removed deleted/trashed file document: {doc_title} (file_id: {file_id})")
+    else:
+        logger.debug(f"No document found to remove for file_id: {file_id}")
