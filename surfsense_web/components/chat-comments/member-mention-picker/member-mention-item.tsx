@@ -4,7 +4,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import type { MemberMentionItemProps } from "./types";
 
-function getInitials(name: string, email: string): string {
+function getInitials(name: string | null, email: string): string {
 	if (name) {
 		return name
 			.split(" ")
@@ -13,7 +13,7 @@ function getInitials(name: string, email: string): string {
 			.toUpperCase()
 			.slice(0, 2);
 	}
-	return email[0].toUpperCase();
+	return email[0]?.toUpperCase() ?? "?";
 }
 
 export function MemberMentionItem({

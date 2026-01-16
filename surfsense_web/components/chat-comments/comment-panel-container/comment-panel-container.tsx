@@ -9,6 +9,7 @@ import {
 	updateCommentMutationAtom,
 } from "@/atoms/chat-comments/comments-mutation.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { useComments } from "@/hooks/use-comments";
 import { CommentPanel } from "../comment-panel/comment-panel";
 import type { CommentPanelContainerProps } from "./types";
@@ -25,6 +26,7 @@ export function CommentPanelContainer({
 	});
 
 	const [{ data: membersData, isLoading: isMembersLoading }] = useAtom(membersAtom);
+	const [{ data: currentUser }] = useAtom(currentUserAtom);
 
 	const [{ mutate: createComment, isPending: isCreating }] = useAtom(createCommentMutationAtom);
 	const [{ mutate: createReply, isPending: isCreatingReply }] = useAtom(createReplyMutationAtom);
@@ -38,8 +40,13 @@ export function CommentPanelContainer({
 
 	const members = useMemo(() => {
 		if (!membersData) return [];
-		return membersData.map(transformMember);
-	}, [membersData]);
+		const allMembers = membersData.map(transformMember);
+		// Filter out current user from mention picker
+		if (currentUser?.id) {
+			return allMembers.filter((member) => member.id !== currentUser.id);
+		}
+		return allMembers;
+	}, [membersData, currentUser?.id]);
 
 	const isSubmitting = isCreating || isCreatingReply || isUpdating || isDeleting;
 

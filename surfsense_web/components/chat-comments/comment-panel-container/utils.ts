@@ -48,9 +48,9 @@ export function transformComment(comment: Comment): CommentThreadData {
 export function transformMember(membership: Membership): MemberOption {
 	return {
 		id: membership.user_id,
-		displayName: membership.user_email ?? "",
+		displayName: membership.user_display_name ?? null,
 		email: membership.user_email ?? "",
-		avatarUrl: null,
+		avatarUrl: membership.user_avatar_url ?? null,
 	};
 }
 

@@ -1,6 +1,6 @@
 export interface MemberOption {
 	id: string;
-	displayName: string;
+	displayName: string | null;
 	email: string;
 	avatarUrl?: string | null;
 }
