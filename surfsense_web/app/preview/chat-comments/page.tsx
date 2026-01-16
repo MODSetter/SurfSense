@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CommentComposer } from "@/components/chat-comments/comment-composer/comment-composer";
 import { CommentItem } from "@/components/chat-comments/comment-item/comment-item";
 import type { CommentData } from "@/components/chat-comments/comment-item/types";
+import { CommentPanel } from "@/components/chat-comments/comment-panel/comment-panel";
 import { CommentThread } from "@/components/chat-comments/comment-thread/comment-thread";
 import type { CommentThreadData } from "@/components/chat-comments/comment-thread/types";
 import { MemberMentionPicker } from "@/components/chat-comments/member-mention-picker/member-mention-picker";
@@ -182,6 +183,145 @@ const fakeThreadsData: CommentThreadData[] = [
 			},
 		],
 	},
+	{
+		id: 6,
+		messageId: 101,
+		content: "I think we should also consider edge cases here. What happens if the input is empty?",
+		contentRendered: "I think we should also consider edge cases here. What happens if the input is empty?",
+		author: {
+			id: "550e8400-e29b-41d4-a716-446655440001",
+			displayName: "Alice Smith",
+			email: "alice@example.com",
+			avatarUrl: null,
+		},
+		createdAt: new Date(Date.now() - 10800000).toISOString(),
+		updatedAt: new Date(Date.now() - 10800000).toISOString(),
+		isEdited: false,
+		canEdit: false,
+		canDelete: true,
+		replyCount: 3,
+		replies: [
+			{
+				id: 7,
+				content: "Good point! We should add validation.",
+				contentRendered: "Good point! We should add validation.",
+				author: {
+					id: "550e8400-e29b-41d4-a716-446655440002",
+					displayName: "Bob Johnson",
+					email: "bob.johnson@example.com",
+					avatarUrl: null,
+				},
+				createdAt: new Date(Date.now() - 10000000).toISOString(),
+				updatedAt: new Date(Date.now() - 10000000).toISOString(),
+				isEdited: false,
+				canEdit: true,
+				canDelete: true,
+			},
+			{
+				id: 8,
+				content: "I'll handle the validation logic @Alice Smith",
+				contentRendered: "I'll handle the validation logic @Alice Smith",
+				author: {
+					id: "550e8400-e29b-41d4-a716-446655440003",
+					displayName: "Charlie Brown",
+					email: "charlie@example.com",
+					avatarUrl: null,
+				},
+				createdAt: new Date(Date.now() - 9500000).toISOString(),
+				updatedAt: new Date(Date.now() - 9500000).toISOString(),
+				isEdited: false,
+				canEdit: false,
+				canDelete: true,
+			},
+			{
+				id: 9,
+				content: "Thanks @Charlie Brown!",
+				contentRendered: "Thanks @Charlie Brown!",
+				author: {
+					id: "550e8400-e29b-41d4-a716-446655440001",
+					displayName: "Alice Smith",
+					email: "alice@example.com",
+					avatarUrl: null,
+				},
+				createdAt: new Date(Date.now() - 9000000).toISOString(),
+				updatedAt: new Date(Date.now() - 9000000).toISOString(),
+				isEdited: false,
+				canEdit: false,
+				canDelete: true,
+			},
+		],
+	},
+	{
+		id: 10,
+		messageId: 101,
+		content: "The performance looks great in the benchmarks. Nice work everyone!",
+		contentRendered: "The performance looks great in the benchmarks. Nice work everyone!",
+		author: {
+			id: "550e8400-e29b-41d4-a716-446655440005",
+			displayName: "Emma Davis",
+			email: "emma@example.com",
+			avatarUrl: null,
+		},
+		createdAt: new Date(Date.now() - 14400000).toISOString(),
+		updatedAt: new Date(Date.now() - 14400000).toISOString(),
+		isEdited: false,
+		canEdit: false,
+		canDelete: true,
+		replyCount: 0,
+		replies: [],
+	},
+	{
+		id: 11,
+		messageId: 101,
+		content: "Should we schedule a review meeting for this?",
+		contentRendered: "Should we schedule a review meeting for this?",
+		author: {
+			id: "550e8400-e29b-41d4-a716-446655440004",
+			displayName: null,
+			email: "david.wilson@example.com",
+			avatarUrl: null,
+		},
+		createdAt: new Date(Date.now() - 18000000).toISOString(),
+		updatedAt: new Date(Date.now() - 18000000).toISOString(),
+		isEdited: true,
+		canEdit: true,
+		canDelete: true,
+		replyCount: 2,
+		replies: [
+			{
+				id: 12,
+				content: "Yes, let's do it tomorrow at 10am",
+				contentRendered: "Yes, let's do it tomorrow at 10am",
+				author: {
+					id: "550e8400-e29b-41d4-a716-446655440002",
+					displayName: "Bob Johnson",
+					email: "bob.johnson@example.com",
+					avatarUrl: null,
+				},
+				createdAt: new Date(Date.now() - 17000000).toISOString(),
+				updatedAt: new Date(Date.now() - 17000000).toISOString(),
+				isEdited: false,
+				canEdit: true,
+				canDelete: true,
+			},
+			{
+				id: 13,
+				content: "Works for me!",
+				contentRendered: "Works for me!",
+				author: {
+					id: "550e8400-e29b-41d4-a716-446655440005",
+					displayName: "Emma Davis",
+					email: "emma@example.com",
+					avatarUrl: null,
+				},
+				createdAt: new Date(Date.now() - 16000000).toISOString(),
+				updatedAt: new Date(Date.now() - 16000000).toISOString(),
+				isEdited: false,
+				canEdit: false,
+				canDelete: true,
+			},
+		],
+	},
 ];
 
 export default function ChatCommentsPreviewPage() {
@@ -203,7 +343,8 @@ export default function ChatCommentsPreviewPage() {
 				<section className="space-y-4">
 					<h2 className="text-xl font-semibold border-b pb-2">Comment Composer</h2>
 					<p className="text-sm text-muted-foreground">
-						Type @ to trigger mention picker. Use Tab/Shift+Tab/Arrow keys to navigate, Enter to select.
+						Type @ to trigger mention picker. Use Tab/Shift+Tab/Arrow keys to navigate, Enter to
+						select.
 					</p>
 
 					<div className="max-w-md rounded-lg border p-4">
@@ -226,11 +367,62 @@ export default function ChatCommentsPreviewPage() {
 					)}
 				</section>
 
+				{/* Comment Panel Section */}
+				<section className="space-y-4">
+					<h2 className="text-xl font-semibold border-b pb-2">Comment Panel</h2>
+					<p className="text-sm text-muted-foreground">
+						Full panel with scrollable threads and composer. Shows alongside AI responses.
+					</p>
+
+					<div className="flex gap-8">
+						<div className="space-y-2">
+							<h3 className="text-sm font-medium">With comments</h3>
+							<CommentPanel
+								messageId={101}
+								threads={fakeThreadsData}
+								members={fakeMembersData}
+								onCreateComment={(content) => alert(`Create: ${content}`)}
+								onCreateReply={(id, content) => alert(`Reply ${id}: ${content}`)}
+								onEditComment={(id) => alert(`Edit ${id}`)}
+								onDeleteComment={(id) => alert(`Delete ${id}`)}
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<h3 className="text-sm font-medium">Empty state</h3>
+							<CommentPanel
+								messageId={102}
+								threads={[]}
+								members={fakeMembersData}
+								onCreateComment={(content) => alert(`Create: ${content}`)}
+								onCreateReply={(id, content) => alert(`Reply ${id}: ${content}`)}
+								onEditComment={(id) => alert(`Edit ${id}`)}
+								onDeleteComment={(id) => alert(`Delete ${id}`)}
+							/>
+						</div>
+
+						<div className="space-y-2">
+							<h3 className="text-sm font-medium">Loading</h3>
+							<CommentPanel
+								messageId={103}
+								threads={[]}
+								members={[]}
+								isLoading
+								onCreateComment={() => {}}
+								onCreateReply={() => {}}
+								onEditComment={() => {}}
+								onDeleteComment={() => {}}
+							/>
+						</div>
+					</div>
+				</section>
+
 				{/* Comment Thread Section */}
 				<section className="space-y-4">
 					<h2 className="text-xl font-semibold border-b pb-2">Comment Thread</h2>
 					<p className="text-sm text-muted-foreground">
-						Two top-level comments with replies. Click Reply to open composer. Click the replies count to collapse/expand.
+						Two top-level comments with replies. Click Reply to open composer. Click the replies
+						count to collapse/expand.
 					</p>
 
 					<div className="max-w-lg space-y-6 rounded-lg border p-4">
@@ -266,7 +458,9 @@ export default function ChatCommentsPreviewPage() {
 
 				{/* Member Mention Picker Section */}
 				<section className="space-y-4">
-					<h2 className="text-xl font-semibold border-b pb-2">Member Mention Picker (Standalone)</h2>
+					<h2 className="text-xl font-semibold border-b pb-2">
+						Member Mention Picker (Standalone)
+					</h2>
 
 					<div className="grid gap-8 md:grid-cols-2">
 						<div className="space-y-4">
