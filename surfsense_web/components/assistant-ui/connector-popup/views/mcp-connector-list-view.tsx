@@ -1,8 +1,10 @@
 "use client";
 
-import { Plus, Server } from "lucide-react";
+import { Plus, Server, XCircle } from "lucide-react";
 import type { FC } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
@@ -20,6 +22,27 @@ export const MCPConnectorListView: FC<MCPConnectorListViewProps> = ({
 	onManageConnector,
 	onBack,
 }) => {
+	// Validate that all connectors are MCP connectors
+	const invalidConnectors = mcpConnectors.filter(
+		(c) => c.connector_type !== EnumConnectorName.MCP_CONNECTOR
+	);
+
+	if (invalidConnectors.length > 0) {
+		console.error(
+			"MCPConnectorListView received non-MCP connectors:",
+			invalidConnectors.map((c) => c.connector_type)
+		);
+		return (
+			<Alert className="border-red-500/50 bg-red-500/10">
+				<XCircle className="h-4 w-4 text-red-600" />
+				<AlertTitle>Invalid Connector Type</AlertTitle>
+				<AlertDescription>
+					This view can only display MCP connectors. Found {invalidConnectors.length} invalid
+					connector(s).
+				</AlertDescription>
+			</Alert>
+		);
+	}
 	return (
 		<div className="flex flex-col h-full">
 			{/* Header */}

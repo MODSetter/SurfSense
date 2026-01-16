@@ -8,25 +8,43 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { MCPServerConfig, MCPToolDefinition } from "@/contracts/types/mcp.types";
-import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import type { ConnectorConfigProps } from "../index";
+import {
+	parseMCPConfig,
+	testMCPConnection,
+	type MCPConnectionTestResult,
+} from "../../utils/mcp-config-validator";
 
 interface MCPConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
 export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
+	// Validate that this is an MCP connector
+	if (connector.connector_type !== EnumConnectorName.MCP_CONNECTOR) {
+		console.error(
+			"MCPConfig received non-MCP connector:",
+			connector.connector_type
+		);
+		return (
+			<Alert className="border-red-500/50 bg-red-500/10">
+				<XCircle className="h-4 w-4 text-red-600" />
+				<AlertTitle>Invalid Connector Type</AlertTitle>
+				<AlertDescription>
+					This component can only be used with MCP connectors.
+				</AlertDescription>
+			</Alert>
+		);
+	}
+
 	const [name, setName] = useState<string>("");
 	const [configJson, setConfigJson] = useState("");
 	const [jsonError, setJsonError] = useState<string | null>(null);
 	const [isTesting, setIsTesting] = useState(false);
 	const [showDetails, setShowDetails] = useState(false);
-	const [testResult, setTestResult] = useState<{
-		status: "success" | "error";
-		message: string;
-		tools: MCPToolDefinition[];
-	} | null>(null);
+	const [testResult, setTestResult] = useState<MCPConnectionTestResult | null>(null);
 
 	// Initialize form from connector config (only on mount)
 	useEffect(() => {
@@ -55,35 +73,14 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		}
 	};
 
-	const parseConfig = (): MCPServerConfig | null => {
-		try {
-			const parsed = JSON.parse(configJson);
-
-			// Validate that it's an object, not an array
-			if (Array.isArray(parsed)) {
-				setJsonError("Please provide a single server configuration object, not an array");
-				return null;
-			}
-
-			// Validate required fields
-			if (!parsed.command || typeof parsed.command !== "string") {
-				setJsonError("'command' field is required and must be a string");
-				return null;
-			}
-
-			const config: MCPServerConfig = {
-				command: parsed.command,
-				args: parsed.args || [],
-				env: parsed.env || {},
-				transport: parsed.transport || "stdio",
-			};
-
+	const parseConfig = () => {
+		const result = parseMCPConfig(configJson);
+		if (result.error) {
+			setJsonError(result.error);
+		} else {
 			setJsonError(null);
-			return config;
-		} catch (error) {
-			setJsonError(error instanceof Error ? error.message : "Invalid JSON");
-			return null;
 		}
+		return result.config;
 	};
 
 	const handleConfigChange = (value: string) => {
@@ -130,31 +127,9 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		setIsTesting(true);
 		setTestResult(null);
 
-		try {
-			const result = await connectorsApiService.testMCPConnection(serverConfig);
-			
-			if (result.status === "success") {
-				setTestResult({
-					status: "success",
-					message: `Connected successfully! Found ${result.tools.length} tool(s).`,
-					tools: result.tools,
-				});
-			} else {
-				setTestResult({
-					status: "error",
-					message: result.message || "Failed to connect",
-					tools: [],
-				});
-			}
-		} catch (error) {
-			setTestResult({
-				status: "error",
-				message: error instanceof Error ? error.message : "Failed to connect",
-				tools: [],
-			});
-		} finally {
-			setIsTesting(false);
-		}
+		const result = await testMCPConnection(serverConfig);
+		setTestResult(result);
+		setIsTesting(false);
 	};
 
 	return (

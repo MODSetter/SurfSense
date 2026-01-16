@@ -8,9 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { MCPServerConfig, MCPToolDefinition } from "@/contracts/types/mcp.types";
-import { connectorsApiService } from "@/lib/apis/connectors-api.service";
+import type { MCPToolDefinition } from "@/contracts/types/mcp.types";
 import type { ConnectFormProps } from "..";
+import {
+	extractServerName,
+	parseMCPConfig,
+	testMCPConnection,
+	type MCPConnectionTestResult,
+} from "../../utils/mcp-config-validator";
 
 export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
@@ -18,11 +23,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 	const [jsonError, setJsonError] = useState<string | null>(null);
 	const [isTesting, setIsTesting] = useState(false);
 	const [showDetails, setShowDetails] = useState(false);
-	const [testResult, setTestResult] = useState<{
-		status: "success" | "error";
-		message: string;
-		tools: MCPToolDefinition[];
-	} | null>(null);
+	const [testResult, setTestResult] = useState<MCPConnectionTestResult | null>(null);
 
 	const DEFAULT_CONFIG = JSON.stringify(
 		{
@@ -38,35 +39,14 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 		2
 	);
 
-	const parseConfig = (): MCPServerConfig | null => {
-		try {
-			const parsed = JSON.parse(configJson);
-
-			// Validate that it's an object, not an array
-			if (Array.isArray(parsed)) {
-				setJsonError("Please provide a single server configuration object, not an array");
-				return null;
-			}
-
-			// Validate required fields
-			if (!parsed.command || typeof parsed.command !== "string") {
-				setJsonError("'command' field is required and must be a string");
-				return null;
-			}
-
-			const config: MCPServerConfig = {
-				command: parsed.command,
-				args: parsed.args || [],
-				env: parsed.env || {},
-				transport: parsed.transport || "stdio",
-			};
-
+	const parseConfig = () => {
+		const result = parseMCPConfig(configJson);
+		if (result.error) {
+			setJsonError(result.error);
+		} else {
 			setJsonError(null);
-			return config;
-		} catch (error) {
-			setJsonError(error instanceof Error ? error.message : "Invalid JSON");
-			return null;
 		}
+		return result.config;
 	};
 
 	const handleConfigChange = (value: string) => {
@@ -90,31 +70,9 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 		setIsTesting(true);
 		setTestResult(null);
 
-		try {
-			const result = await connectorsApiService.testMCPConnection(serverConfig);
-			
-			if (result.status === "success") {
-				setTestResult({
-					status: "success",
-					message: `Successfully connected. Found ${result.tools.length} tool${result.tools.length !== 1 ? 's' : ''}.`,
-					tools: result.tools,
-				});
-			} else {
-				setTestResult({
-					status: "error",
-					message: result.message || "Failed to connect",
-					tools: [],
-				});
-			}
-		} catch (error) {
-			setTestResult({
-				status: "error",
-				message: error instanceof Error ? error.message : "Failed to connect",
-				tools: [],
-			});
-		} finally {
-			setIsTesting(false);
-		}
+		const result = await testMCPConnection(serverConfig);
+		setTestResult(result);
+		setIsTesting(false);
 	};
 
 	const handleSubmit = async (e: React.FormEvent) => {
@@ -131,15 +89,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 		}
 
 		// Extract server name from config if provided
-		let serverName = "MCP Server";
-		try {
-			const parsed = JSON.parse(configJson);
-			if (parsed.name && typeof parsed.name === "string") {
-				serverName = parsed.name;
-			}
-		} catch {
-			// Use default name
-		}
+		const serverName = extractServerName(configJson);
 
 		isSubmittingRef.current = true;
 		try {
