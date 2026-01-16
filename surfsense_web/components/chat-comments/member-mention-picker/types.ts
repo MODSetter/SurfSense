@@ -20,4 +20,3 @@ export interface MemberMentionItemProps {
 	onSelect: (member: MemberOption) => void;
 	onMouseEnter: () => void;
 }
-

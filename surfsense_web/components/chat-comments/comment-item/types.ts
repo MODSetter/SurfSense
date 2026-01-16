@@ -31,4 +31,3 @@ export interface CommentActionsProps {
 	onEdit: () => void;
 	onDelete: () => void;
 }
-

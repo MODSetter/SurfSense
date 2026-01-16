@@ -10,18 +10,16 @@ import { MemberMentionPicker } from "../member-mention-picker/member-mention-pic
 import type { MemberOption } from "../member-mention-picker/types";
 import type { CommentComposerProps, InsertedMention, MentionState } from "./types";
 
-function convertDisplayToData(
-	displayContent: string,
-	mentions: InsertedMention[]
-): string {
+function convertDisplayToData(displayContent: string, mentions: InsertedMention[]): string {
 	let result = displayContent;
 
-	const sortedMentions = [...mentions].sort(
-		(a, b) => b.displayName.length - a.displayName.length
-	);
+	const sortedMentions = [...mentions].sort((a, b) => b.displayName.length - a.displayName.length);
 
 	for (const mention of sortedMentions) {
-		const displayPattern = new RegExp(`@${escapeRegExp(mention.displayName)}(?=\\s|$|[.,!?;:])`, 'g');
+		const displayPattern = new RegExp(
+			`@${escapeRegExp(mention.displayName)}(?=\\s|$|[.,!?;:])`,
+			"g"
+		);
 		const dataFormat = `@[${mention.id}]`;
 		result = result.replace(displayPattern, dataFormat);
 	}
@@ -30,7 +28,7 @@ function convertDisplayToData(
 }
 
 function escapeRegExp(string: string): string {
-	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+	return string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function findMentionTrigger(
@@ -39,9 +37,9 @@ function findMentionTrigger(
 	insertedMentions: InsertedMention[]
 ): { isActive: boolean; query: string; startIndex: number } {
 	const textBeforeCursor = text.slice(0, cursorPos);
-	
+
 	const mentionMatch = textBeforeCursor.match(/(?:^|[\s])@([^\s]*)$/);
-	
+
 	if (!mentionMatch) {
 		return { isActive: false, query: "", startIndex: 0 };
 	}
@@ -58,10 +56,10 @@ function findMentionTrigger(
 	}
 
 	const textFromAt = text.slice(atIndex);
-	
+
 	for (const mention of insertedMentions) {
 		const mentionPattern = `@${mention.displayName}`;
-		
+
 		if (textFromAt.startsWith(mentionPattern)) {
 			const charAfterMention = text[atIndex + mentionPattern.length];
 			if (!charAfterMention || /[\s.,!?;:]/.test(charAfterMention)) {
@@ -146,7 +144,7 @@ export function CommentComposer({
 		setDisplayContent(value);
 
 		const triggerResult = findMentionTrigger(value, cursorPos, insertedMentions);
-		
+
 		if (triggerResult.isActive) {
 			setMentionState(triggerResult);
 			setHighlightedIndex(0);
@@ -169,21 +167,15 @@ export function CommentComposer({
 			case "Tab":
 				if (!e.shiftKey) {
 					e.preventDefault();
-					setHighlightedIndex((prev) =>
-						prev < filteredMembers.length - 1 ? prev + 1 : 0
-					);
+					setHighlightedIndex((prev) => (prev < filteredMembers.length - 1 ? prev + 1 : 0));
 				} else if (e.key === "Tab") {
 					e.preventDefault();
-					setHighlightedIndex((prev) =>
-						prev > 0 ? prev - 1 : filteredMembers.length - 1
-					);
+					setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : filteredMembers.length - 1));
 				}
 				break;
 			case "ArrowUp":
 				e.preventDefault();
-				setHighlightedIndex((prev) =>
-					prev > 0 ? prev - 1 : filteredMembers.length - 1
-				);
+				setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : filteredMembers.length - 1));
 				break;
 			case "Enter":
 				e.preventDefault();

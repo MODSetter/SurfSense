@@ -16,4 +16,3 @@ export function useComments({ messageId, enabled = true }: UseCommentsOptions) {
 		enabled: enabled && !!messageId,
 	});
 }
-

@@ -29,4 +29,3 @@ export const unreadMentionsAtom = atomWithQuery((get) => {
 		},
 	};
 });
-

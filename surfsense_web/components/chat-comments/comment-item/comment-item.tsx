@@ -56,11 +56,13 @@ function formatTimestamp(dateString: string): string {
 		return `${dayName} at ${timeStr}`;
 	}
 
-	return date.toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
-	}) + ` at ${timeStr}`;
+	return (
+		date.toLocaleDateString("en-US", {
+			month: "short",
+			day: "numeric",
+			year: date.getFullYear() !== now.getFullYear() ? "numeric" : undefined,
+		}) + ` at ${timeStr}`
+	);
 }
 
 function renderMentions(content: string): React.ReactNode {
@@ -75,10 +77,7 @@ function renderMentions(content: string): React.ReactNode {
 		}
 
 		parts.push(
-			<span
-				key={match.index}
-				className="rounded bg-primary/10 px-1 font-medium text-primary"
-			>
+			<span key={match.index} className="rounded bg-primary/10 px-1 font-medium text-primary">
 				{match[0]}
 			</span>
 		);
@@ -100,11 +99,12 @@ export function CommentItem({
 	onReply,
 	isReply = false,
 }: CommentItemProps) {
-	const displayName = comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
+	const displayName =
+		comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
 	const email = comment.author?.email || "";
 
 	return (
-		<div className={cn("group flex gap-3", isReply && "ml-10")}>
+		<div className={cn("group flex gap-3")}>
 			<Avatar className="size-8 shrink-0">
 				{comment.author?.avatarUrl && (
 					<AvatarImage src={comment.author.avatarUrl} alt={displayName} />
@@ -152,4 +152,3 @@ export function CommentItem({
 		</div>
 	);
 }
-

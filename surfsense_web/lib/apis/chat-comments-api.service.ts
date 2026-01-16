@@ -1,24 +1,24 @@
 import {
 	type CreateCommentRequest,
 	type CreateReplyRequest,
-	type DeleteCommentRequest,
-	type GetCommentsRequest,
-	type GetMentionsRequest,
-	type MarkMentionReadRequest,
-	type UpdateCommentRequest,
 	createCommentRequest,
 	createCommentResponse,
 	createReplyRequest,
 	createReplyResponse,
+	type DeleteCommentRequest,
 	deleteCommentRequest,
 	deleteCommentResponse,
+	type GetCommentsRequest,
+	type GetMentionsRequest,
 	getCommentsRequest,
 	getCommentsResponse,
 	getMentionsRequest,
 	getMentionsResponse,
+	type MarkMentionReadRequest,
 	markAllMentionsReadResponse,
 	markMentionReadRequest,
 	markMentionReadResponse,
+	type UpdateCommentRequest,
 	updateCommentRequest,
 	updateCommentResponse,
 } from "@/contracts/types/chat-comments.types";
@@ -90,11 +90,9 @@ class ChatCommentsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		return baseApiService.put(
-			`/api/v1/comments/${parsed.data.comment_id}`,
-			updateCommentResponse,
-			{ body: { content: parsed.data.content } }
-		);
+		return baseApiService.put(`/api/v1/comments/${parsed.data.comment_id}`, updateCommentResponse, {
+			body: { content: parsed.data.content },
+		});
 	};
 
 	/**
@@ -165,4 +163,3 @@ class ChatCommentsApiService {
 }
 
 export const chatCommentsApiService = new ChatCommentsApiService();
-

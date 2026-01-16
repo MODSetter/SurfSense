@@ -10,12 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { CommentActionsProps } from "./types";
 
-export function CommentActions({
-	canEdit,
-	canDelete,
-	onEdit,
-	onDelete,
-}: CommentActionsProps) {
+export function CommentActions({ canEdit, canDelete, onEdit, onDelete }: CommentActionsProps) {
 	if (!canEdit && !canDelete) {
 		return null;
 	}
@@ -48,4 +43,3 @@ export function CommentActions({
 		</DropdownMenu>
 	);
 }
-

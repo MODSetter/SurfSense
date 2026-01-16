@@ -107,4 +107,3 @@ export const markAllMentionsReadMutationAtom = atomWithMutation(() => ({
 		toast.error("Failed to mark mentions as read");
 	},
 }));
-

@@ -1,5 +1,5 @@
-import type { MemberOption } from "../member-mention-picker/types";
 import type { CommentData } from "../comment-item/types";
+import type { MemberOption } from "../member-mention-picker/types";
 
 export interface CommentThreadData {
 	id: number;
@@ -25,4 +25,3 @@ export interface CommentThreadProps {
 	onDeleteComment: (commentId: number) => void;
 	isSubmitting?: boolean;
 }
-

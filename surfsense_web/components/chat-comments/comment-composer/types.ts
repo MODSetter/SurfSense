@@ -21,4 +21,3 @@ export interface InsertedMention {
 	id: string;
 	displayName: string;
 }
-
