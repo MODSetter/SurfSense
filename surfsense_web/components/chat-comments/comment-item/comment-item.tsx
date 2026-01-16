@@ -6,6 +6,7 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CommentComposer } from "../comment-composer/comment-composer";
 import { CommentActions } from "./comment-actions";
 import type { CommentItemProps } from "./types";
 
@@ -67,6 +68,11 @@ function formatTimestamp(dateString: string): string {
 	);
 }
 
+function convertRenderedToDisplay(contentRendered: string): string {
+	// Convert @{DisplayName} format to @DisplayName for editing
+	return contentRendered.replace(/@\{([^}]+)\}/g, "@$1");
+}
+
 function renderMentions(content: string): React.ReactNode {
 	// Match @{DisplayName} format from backend
 	const mentionPattern = /@\{([^}]+)\}/g;
@@ -99,9 +105,15 @@ function renderMentions(content: string): React.ReactNode {
 export function CommentItem({
 	comment,
 	onEdit,
+	onEditSubmit,
+	onEditCancel,
 	onDelete,
 	onReply,
 	isReply = false,
+	isEditing = false,
+	isSubmitting = false,
+	members = [],
+	membersLoading = false,
 }: CommentItemProps) {
 	const [{ data: currentUser }] = useAtom(currentUserAtom);
 	
@@ -110,6 +122,10 @@ export function CommentItem({
 		? "Me"
 		: comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
 	const email = comment.author?.email || "";
+
+	const handleEditSubmit = (content: string) => {
+		onEditSubmit?.(comment.id, content);
+	};
 
 	return (
 		<div className={cn("group flex gap-3")}>
@@ -131,21 +147,39 @@ export function CommentItem({
 					{comment.isEdited && (
 						<span className="shrink-0 text-xs text-muted-foreground">(edited)</span>
 					)}
-					<div className="ml-auto">
-						<CommentActions
-							canEdit={comment.canEdit}
-							canDelete={comment.canDelete}
-							onEdit={() => onEdit?.(comment.id)}
-							onDelete={() => onDelete?.(comment.id)}
+					{!isEditing && (
+						<div className="ml-auto">
+							<CommentActions
+								canEdit={comment.canEdit}
+								canDelete={comment.canDelete}
+								onEdit={() => onEdit?.(comment.id)}
+								onDelete={() => onDelete?.(comment.id)}
+							/>
+						</div>
+					)}
+				</div>
+
+				{isEditing ? (
+					<div className="mt-1">
+						<CommentComposer
+							members={members}
+							membersLoading={membersLoading}
+							placeholder="Edit your comment..."
+							submitLabel="Save"
+							isSubmitting={isSubmitting}
+							onSubmit={handleEditSubmit}
+							onCancel={onEditCancel}
+							initialValue={convertRenderedToDisplay(comment.contentRendered)}
+							autoFocus
 						/>
 					</div>
-				</div>
+				) : (
+					<div className="mt-1 text-sm text-foreground whitespace-pre-wrap wrap-break-word">
+						{renderMentions(comment.contentRendered)}
+					</div>
+				)}
 
-				<div className="mt-1 text-sm text-foreground whitespace-pre-wrap wrap-break-word">
-					{renderMentions(comment.contentRendered)}
-				</div>
-
-				{!isReply && onReply && (
+				{!isReply && onReply && !isEditing && (
 					<Button
 						variant="ghost"
 						size="sm"

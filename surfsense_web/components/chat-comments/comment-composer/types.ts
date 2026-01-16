@@ -9,6 +9,7 @@ export interface CommentComposerProps {
 	onSubmit: (content: string) => void;
 	onCancel?: () => void;
 	autoFocus?: boolean;
+	initialValue?: string;
 }
 
 export interface MentionState {

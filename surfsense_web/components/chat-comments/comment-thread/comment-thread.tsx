@@ -18,6 +18,7 @@ export function CommentThread({
 }: CommentThreadProps) {
 	const [isRepliesExpanded, setIsRepliesExpanded] = useState(true);
 	const [isReplyComposerOpen, setIsReplyComposerOpen] = useState(false);
+	const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
 
 	const parentComment = {
 		id: thread.id,
@@ -45,6 +46,19 @@ export function CommentThread({
 		setIsReplyComposerOpen(false);
 	};
 
+	const handleEditStart = (commentId: number) => {
+		setEditingCommentId(commentId);
+	};
+
+	const handleEditSubmit = (commentId: number, content: string) => {
+		onEditComment(commentId, content);
+		setEditingCommentId(null);
+	};
+
+	const handleEditCancel = () => {
+		setEditingCommentId(null);
+	};
+
 	const hasReplies = thread.replies.length > 0;
 	const showReplies = thread.replies.length === 1 || isRepliesExpanded;
 
@@ -53,8 +67,14 @@ export function CommentThread({
 			{/* Parent comment */}
 			<CommentItem
 				comment={parentComment}
-				onEdit={(id) => onEditComment(id, "")}
+				onEdit={handleEditStart}
+				onEditSubmit={handleEditSubmit}
+				onEditCancel={handleEditCancel}
 				onDelete={onDeleteComment}
+				isEditing={editingCommentId === parentComment.id}
+				isSubmitting={isSubmitting}
+				members={members}
+				membersLoading={membersLoading}
 			/>
 
 			{/* Replies and actions - using flex layout with connector */}
@@ -92,8 +112,14 @@ export function CommentThread({
 										key={reply.id}
 										comment={reply}
 										isReply
-										onEdit={(id) => onEditComment(id, "")}
+										onEdit={handleEditStart}
+										onEditSubmit={handleEditSubmit}
+										onEditCancel={handleEditCancel}
 										onDelete={onDeleteComment}
+										isEditing={editingCommentId === reply.id}
+										isSubmitting={isSubmitting}
+										members={members}
+										membersLoading={membersLoading}
 									/>
 								))}
 							</div>

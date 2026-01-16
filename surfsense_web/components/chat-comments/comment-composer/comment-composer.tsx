@@ -86,9 +86,11 @@ export function CommentComposer({
 	onSubmit,
 	onCancel,
 	autoFocus = false,
+	initialValue = "",
 }: CommentComposerProps) {
-	const [displayContent, setDisplayContent] = useState("");
+	const [displayContent, setDisplayContent] = useState(initialValue);
 	const [insertedMentions, setInsertedMentions] = useState<InsertedMention[]>([]);
+	const [mentionsInitialized, setMentionsInitialized] = useState(false);
 	const [mentionState, setMentionState] = useState<MentionState>({
 		isActive: false,
 		query: "",
@@ -199,6 +201,33 @@ export function CommentComposer({
 		setDisplayContent("");
 		setInsertedMentions([]);
 	};
+
+	// Pre-populate insertedMentions from initialValue when members are loaded
+	useEffect(() => {
+		if (mentionsInitialized || !initialValue || members.length === 0) return;
+		
+		const mentionPattern = /@([^\s@]+(?:\s+[^\s@]+)*?)(?=\s|$|[.,!?;:]|@)/g;
+		const foundMentions: InsertedMention[] = [];
+		let match: RegExpExecArray | null;
+		
+		while ((match = mentionPattern.exec(initialValue)) !== null) {
+			const displayName = match[1];
+			const member = members.find(
+				(m) => m.displayName === displayName || m.email.split("@")[0] === displayName
+			);
+			if (member) {
+				const exists = foundMentions.some((m) => m.id === member.id);
+				if (!exists) {
+					foundMentions.push({ id: member.id, displayName });
+				}
+			}
+		}
+		
+		if (foundMentions.length > 0) {
+			setInsertedMentions(foundMentions);
+		}
+		setMentionsInitialized(true);
+	}, [initialValue, members, mentionsInitialized]);
 
 	useEffect(() => {
 		if (autoFocus && textareaRef.current) {

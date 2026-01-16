@@ -20,9 +20,15 @@ export interface CommentData {
 export interface CommentItemProps {
 	comment: CommentData;
 	onEdit?: (commentId: number) => void;
+	onEditSubmit?: (commentId: number, content: string) => void;
+	onEditCancel?: () => void;
 	onDelete?: (commentId: number) => void;
 	onReply?: (commentId: number) => void;
 	isReply?: boolean;
+	isEditing?: boolean;
+	isSubmitting?: boolean;
+	members?: Array<{ id: string; displayName: string | null; email: string; avatarUrl?: string | null }>;
+	membersLoading?: boolean;
 }
 
 export interface CommentActionsProps {
