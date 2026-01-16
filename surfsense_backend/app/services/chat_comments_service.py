@@ -589,6 +589,7 @@ async def get_user_mentions(
         .join(NewChatThread, NewChatMessage.thread_id == NewChatThread.id)
         .options(
             selectinload(ChatCommentMention.comment).selectinload(ChatComment.author),
+            selectinload(ChatCommentMention.comment).selectinload(ChatComment.message),
         )
         .filter(ChatCommentMention.mentioned_user_id == user.id)
         .order_by(ChatCommentMention.created_at.desc())
