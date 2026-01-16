@@ -210,7 +210,7 @@ export function CommentComposer({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<Popover open={mentionState.isActive} onOpenChange={(open) => !open && closeMentionPicker()}>
+			<Popover open={mentionState.isActive} onOpenChange={(open) => !open && closeMentionPicker()} modal={false}>
 				<PopoverAnchor asChild>
 					<Textarea
 						ref={textareaRef}

@@ -5,9 +5,11 @@ import {
 	MessagePrimitive,
 	useAssistantState,
 } from "@assistant-ui/react";
+import { useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
-import { useContext } from "react";
+import { useContext, useState } from "react";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { BranchPicker } from "@/components/assistant-ui/branch-picker";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
@@ -16,6 +18,9 @@ import {
 } from "@/components/assistant-ui/thinking-steps";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
+import { CommentTrigger } from "@/components/chat-comments/comment-trigger/comment-trigger";
+import { useComments } from "@/hooks/use-comments";
 
 export const MessageError: FC = () => {
 	return (
@@ -76,13 +81,53 @@ const AssistantMessageInner: FC = () => {
 	);
 };
 
+function parseMessageId(assistantUiMessageId: string | undefined): number | null {
+	if (!assistantUiMessageId) return null;
+	const match = assistantUiMessageId.match(/^msg-(\d+)$/);
+	return match ? Number.parseInt(match[1], 10) : null;
+}
+
 export const AssistantMessage: FC = () => {
+	const [isCommentPanelOpen, setIsCommentPanelOpen] = useState(false);
+	const messageId = useAssistantState(({ message }) => message?.id);
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const dbMessageId = parseMessageId(messageId);
+
+	const { data: commentsData } = useComments({
+		messageId: dbMessageId ?? 0,
+		enabled: !!dbMessageId,
+	});
+
+	const commentCount = commentsData?.total_count ?? 0;
+
 	return (
 		<MessagePrimitive.Root
-			className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
+			className="aui-assistant-message-root group fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
 			data-role="assistant"
 		>
 			<AssistantMessageInner />
+
+			{/* Comment trigger and floating panel */}
+			{dbMessageId && searchSpaceId && (
+				<div className="absolute -right-10 top-3">
+					<CommentTrigger
+						commentCount={commentCount}
+						isOpen={isCommentPanelOpen}
+						onClick={() => setIsCommentPanelOpen(!isCommentPanelOpen)}
+					/>
+					{isCommentPanelOpen && (
+						<div className="absolute left-full top-0 z-50 ml-2 animate-in fade-in slide-in-from-left-2 duration-200">
+							<CommentPanelContainer
+								messageId={dbMessageId}
+								searchSpaceId={Number(searchSpaceId)}
+								isOpen={true}
+								onClose={() => setIsCommentPanelOpen(false)}
+								maxHeight={400}
+							/>
+						</div>
+					)}
+				</div>
+			)}
 		</MessagePrimitive.Root>
 	);
 };

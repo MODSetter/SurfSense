@@ -45,7 +45,7 @@ export function CommentPanel({
 	const showEmptyState = !hasThreads && !isComposerOpen;
 
 	return (
-		<div className="flex w-96 flex-col rounded-lg border bg-card">
+		<div className="flex w-70 flex-col rounded-lg border bg-card">
 			{hasThreads && (
 				<div
 					className="overflow-y-auto"

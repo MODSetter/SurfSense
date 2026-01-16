@@ -36,6 +36,7 @@ import {
 	newLLMConfigsAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import {
@@ -587,17 +588,6 @@ const AssistantMessageInner: FC = () => {
 				<AssistantActionBar />
 			</div>
 		</>
-	);
-};
-
-const AssistantMessage: FC = () => {
-	return (
-		<MessagePrimitive.Root
-			className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
-			data-role="assistant"
-		>
-			<AssistantMessageInner />
-		</MessagePrimitive.Root>
 	);
 };
 

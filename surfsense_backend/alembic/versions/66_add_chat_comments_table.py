@@ -26,14 +26,20 @@ def upgrade() -> None:
             content TEXT NOT NULL,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
             updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        );
-
-        -- Create indexes
-        CREATE INDEX IF NOT EXISTS idx_chat_comments_message_id ON chat_comments(message_id);
-        CREATE INDEX IF NOT EXISTS idx_chat_comments_parent_id ON chat_comments(parent_id);
-        CREATE INDEX IF NOT EXISTS idx_chat_comments_author_id ON chat_comments(author_id);
-        CREATE INDEX IF NOT EXISTS idx_chat_comments_created_at ON chat_comments(created_at);
+        )
         """
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chat_comments_message_id ON chat_comments(message_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chat_comments_parent_id ON chat_comments(parent_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chat_comments_author_id ON chat_comments(author_id)"
+    )
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS idx_chat_comments_created_at ON chat_comments(created_at)"
     )
 
 
