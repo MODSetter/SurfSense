@@ -264,13 +264,15 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 														Indexing...
 													</p>
 												) : (
-													<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-														{isIndexableConnector(connectorType)
-															? mostRecentLastIndexed
+												<>
+													{isIndexableConnector(connectorType) && (
+														<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
+															{mostRecentLastIndexed
 																? `Last indexed: ${formatLastIndexedDate(mostRecentLastIndexed)}`
-																: "Never indexed"
-															: "Active"}
-												</p>
+																: "Never indexed"}
+														</p>
+													)}
+												</>
 												)}
 												<p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1.5">
 													{isIndexableConnector(connectorType) && (
@@ -314,10 +316,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										</div>
 										<div className="flex-1 min-w-0">
 											<p className="text-[14px] font-semibold leading-tight truncate">MCPs</p>
-											<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap">
-												Active
-											</p>
-											<p className="text-[10px] text-muted-foreground mt-0.5">
+										<p className="text-[10px] text-muted-foreground mt-1">
 												{totalMCPServers} {totalMCPServers === 1 ? "Server" : "Servers"}
 											</p>
 										</div>
