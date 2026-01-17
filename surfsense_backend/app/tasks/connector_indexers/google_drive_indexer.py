@@ -596,7 +596,14 @@ async def _process_single_file(
 
 
 async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
-    """Remove a document that was deleted in Drive."""
+    """Remove a document that was deleted in Drive.
+    
+    Handles both new (file_id-based) and legacy (filename-based) hash schemes.
+    """
+    from sqlalchemy import select
+    from app.db import Document
+    
+    # First try with file_id-based hash (new method)
     unique_identifier_hash = generate_unique_identifier_hash(
         DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
     )
@@ -604,6 +611,19 @@ async def _remove_document(session: AsyncSession, file_id: str, search_space_id:
     existing_document = await check_document_by_unique_identifier(
         session, unique_identifier_hash
     )
+
+    # If not found, search by metadata (for legacy documents with filename-based hash)
+    if not existing_document:
+        result = await session.execute(
+            select(Document).where(
+                Document.search_space_id == search_space_id,
+                Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
+                Document.document_metadata["google_drive_file_id"].astext == file_id
+            )
+        )
+        existing_document = result.scalar_one_or_none()
+        if existing_document:
+            logger.info(f"Found legacy document by metadata for file_id: {file_id}")
 
     if existing_document:
         await session.delete(existing_document)

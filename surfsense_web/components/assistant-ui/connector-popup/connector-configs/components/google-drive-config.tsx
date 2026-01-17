@@ -1,10 +1,9 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { File, FileText, FileSpreadsheet, FolderClosed, Image, Presentation } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -33,6 +32,29 @@ const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
 	incremental_sync: true,
 	include_subfolders: true,
 };
+
+// Helper to get appropriate icon for file type based on file name
+function getFileIconFromName(fileName: string, className: string = "size-3.5 shrink-0") {
+	const lowerName = fileName.toLowerCase();
+	// Spreadsheets
+	if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls") || lowerName.endsWith(".csv") || lowerName.includes("spreadsheet")) {
+		return <FileSpreadsheet className={`${className} text-green-500`} />;
+	}
+	// Presentations
+	if (lowerName.endsWith(".pptx") || lowerName.endsWith(".ppt") || lowerName.includes("presentation")) {
+		return <Presentation className={`${className} text-orange-500`} />;
+	}
+	// Documents (word, text only - not PDF)
+	if (lowerName.endsWith(".docx") || lowerName.endsWith(".doc") || lowerName.endsWith(".txt") || lowerName.includes("document") || lowerName.includes("word") || lowerName.includes("text")) {
+		return <FileText className={`${className} text-gray-500`} />;
+	}
+	// Images
+	if (lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") || lowerName.endsWith(".gif") || lowerName.endsWith(".webp") || lowerName.endsWith(".svg")) {
+		return <Image className={`${className} text-purple-500`} />;
+	}
+	// Default (including PDF)
+	return <File className={`${className} text-gray-500`} />;
+}
 
 export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
 	// Initialize with existing selected folders and files from connector config
@@ -103,29 +125,37 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 				{totalSelected > 0 && (
 					<div className="p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm space-y-1 sm:space-y-2">
 						<p className="font-medium">
-							Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}:
-							{selectedFolders.length > 0 &&
-								` ${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`}
-							{selectedFiles.length > 0 &&
-								` ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`}
+							Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}:{" "}
+							{(() => {
+								const parts: string[] = [];
+								if (selectedFolders.length > 0) {
+									parts.push(`${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`);
+								}
+								if (selectedFiles.length > 0) {
+									parts.push(`${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`);
+								}
+								return parts.length > 0 ? `(${parts.join(" ")})` : "";
+							})()}
 						</p>
 						<div className="max-h-20 sm:max-h-24 overflow-y-auto space-y-1">
 							{selectedFolders.map((folder) => (
 								<p
 									key={folder.id}
-									className="text-xs sm:text-sm text-muted-foreground truncate"
+									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={folder.name}
 								>
-									📁 {folder.name}
+									<FolderClosed className="size-3.5 shrink-0 text-gray-500" />
+									{folder.name}
 								</p>
 							))}
 							{selectedFiles.map((file) => (
 								<p
 									key={file.id}
-									className="text-xs sm:text-sm text-muted-foreground truncate"
+									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={file.name}
 								>
-									📄 {file.name}
+									{getFileIconFromName(file.name)}
+									{file.name}
 								</p>
 							))}
 						</div>
