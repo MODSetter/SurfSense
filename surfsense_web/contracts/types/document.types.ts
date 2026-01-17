@@ -156,6 +156,29 @@ export const searchDocumentsResponse = z.object({
 });
 
 /**
+ * Search document titles (lightweight, for mention picker)
+ */
+export const documentTitleRead = z.object({
+	id: z.number(),
+	title: z.string(),
+	document_type: documentTypeEnum,
+});
+
+export const searchDocumentTitlesRequest = z.object({
+	queryParams: z.object({
+		search_space_id: z.number(),
+		title: z.string().optional(),
+		page: z.number().optional(),
+		page_size: z.number().optional(),
+	}),
+});
+
+export const searchDocumentTitlesResponse = z.object({
+	items: z.array(documentTitleRead),
+	has_more: z.boolean(),
+});
+
+/**
  * Get document type counts
  */
 export const getDocumentTypeCountsRequest = z.object({
@@ -223,6 +246,7 @@ export const deleteDocumentResponse = z.object({
 });
 
 export type Document = z.infer<typeof document>;
+export type DocumentTitleRead = z.infer<typeof documentTitleRead>;
 export type GetDocumentsRequest = z.infer<typeof getDocumentsRequest>;
 export type GetDocumentsResponse = z.infer<typeof getDocumentsResponse>;
 export type GetDocumentRequest = z.infer<typeof getDocumentRequest>;
@@ -233,6 +257,8 @@ export type UploadDocumentRequest = z.infer<typeof uploadDocumentRequest>;
 export type UploadDocumentResponse = z.infer<typeof uploadDocumentResponse>;
 export type SearchDocumentsRequest = z.infer<typeof searchDocumentsRequest>;
 export type SearchDocumentsResponse = z.infer<typeof searchDocumentsResponse>;
+export type SearchDocumentTitlesRequest = z.infer<typeof searchDocumentTitlesRequest>;
+export type SearchDocumentTitlesResponse = z.infer<typeof searchDocumentTitlesResponse>;
 export type GetDocumentTypeCountsRequest = z.infer<typeof getDocumentTypeCountsRequest>;
 export type GetDocumentTypeCountsResponse = z.infer<typeof getDocumentTypeCountsResponse>;
 export type GetDocumentByChunkRequest = z.infer<typeof getDocumentByChunkRequest>;

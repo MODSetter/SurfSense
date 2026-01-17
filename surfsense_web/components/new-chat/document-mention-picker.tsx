@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { FileText } from "lucide-react";
 import {
 	forwardRef,
@@ -12,9 +12,8 @@ import {
 	useState,
 } from "react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { Document, GetDocumentsResponse } from "@/contracts/types/document.types";
+import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
 export interface DocumentMentionPickerRef {
@@ -32,14 +31,45 @@ interface DocumentMentionPickerProps {
 }
 
 const PAGE_SIZE = 20;
+const MIN_SEARCH_LENGTH = 2;
+const THROTTLE_MS = 200;
 
-function useDebounced<T>(value: T, delay = 300) {
-	const [debounced, setDebounced] = useState(value);
+/**
+ * Throttle hook - fires immediately, then at most once per interval
+ * Better than debounce for typeahead: user sees results updating as they type
+ */
+function useThrottled<T>(value: T, delay = THROTTLE_MS) {
+	const [throttled, setThrottled] = useState(value);
+	const lastExecuted = useRef(Date.now());
+	const timeoutRef = useRef<ReturnType<typeof setTimeout>>();
+
 	useEffect(() => {
-		const t = setTimeout(() => setDebounced(value), delay);
-		return () => clearTimeout(t);
+		const now = Date.now();
+		const elapsed = now - lastExecuted.current;
+
+		if (elapsed >= delay) {
+			// Enough time has passed, update immediately
+			lastExecuted.current = now;
+			setThrottled(value);
+		} else {
+			// Schedule update for remaining time
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+			timeoutRef.current = setTimeout(() => {
+				lastExecuted.current = Date.now();
+				setThrottled(value);
+			}, delay - elapsed);
+		}
+
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
 	}, [value, delay]);
-	return debounced;
+
+	return throttled;
 }
 
 export const DocumentMentionPicker = forwardRef<
@@ -49,9 +79,11 @@ export const DocumentMentionPicker = forwardRef<
 	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
 	ref
 ) {
-	// Use external search
+	const queryClient = useQueryClient();
+
+	// Use external search with throttle (not debounce) for responsive feel
 	const search = externalSearch;
-	const debouncedSearch = useDebounced(search, 150);
+	const throttledSearch = useThrottled(search, THROTTLE_MS);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -64,6 +96,38 @@ export const DocumentMentionPicker = forwardRef<
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+	// Check if search is long enough
+	const isSearchValid = throttledSearch.trim().length >= MIN_SEARCH_LENGTH;
+	const shouldSearch = throttledSearch.trim().length > 0;
+
+	// Prefetch first page when picker mounts - results appear instantly
+	useEffect(() => {
+		if (!searchSpaceId) return;
+
+		const prefetchParams = {
+			search_space_id: searchSpaceId,
+			page: 0,
+			page_size: PAGE_SIZE,
+		};
+
+		// Prefetch document titles (user docs)
+		queryClient.prefetchQuery({
+			queryKey: ["document-titles", prefetchParams],
+			queryFn: () => documentsApiService.searchDocumentTitles({ queryParams: prefetchParams }),
+			staleTime: 60 * 1000,
+		});
+
+		// Prefetch SurfSense docs
+		queryClient.prefetchQuery({
+			queryKey: ["surfsense-docs-mention", "", false],
+			queryFn: () =>
+				documentsApiService.getSurfsenseDocs({
+					queryParams: { page: 0, page_size: PAGE_SIZE },
+				}),
+			staleTime: 3 * 60 * 1000,
+		});
+	}, [searchSpaceId, queryClient]);
+
 	// Reset pagination when search or search space changes
 	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset pagination when search/space changes
 	useEffect(() => {
@@ -71,59 +135,44 @@ export const DocumentMentionPicker = forwardRef<
 		setCurrentPage(0);
 		setHasMore(false);
 		setHighlightedIndex(0);
-	}, [debouncedSearch, searchSpaceId]);
+	}, [throttledSearch, searchSpaceId]);
 
-	// Query params for initial fetch (page 0)
-	const fetchQueryParams = useMemo(
+	// Query params for lightweight title search
+	const titleSearchParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
 			page: 0,
 			page_size: PAGE_SIZE,
+			...(isSearchValid ? { title: throttledSearch.trim() } : {}),
 		}),
-		[searchSpaceId]
+		[searchSpaceId, throttledSearch, isSearchValid]
 	);
-
-	const searchQueryParams = useMemo(() => {
-		return {
-			search_space_id: searchSpaceId,
-			page: 0,
-			page_size: PAGE_SIZE,
-			title: debouncedSearch,
-		};
-	}, [debouncedSearch, searchSpaceId]);
 
 	const surfsenseDocsQueryParams = useMemo(() => {
 		const params: { page: number; page_size: number; title?: string } = {
 			page: 0,
 			page_size: PAGE_SIZE,
 		};
-		if (debouncedSearch.trim()) {
-			params.title = debouncedSearch;
+		if (isSearchValid) {
+			params.title = throttledSearch.trim();
 		}
 		return params;
-	}, [debouncedSearch]);
+	}, [throttledSearch, isSearchValid]);
 
-	// Use query for fetching first page of documents
-	const { data: documents, isLoading: isDocumentsLoading } = useQuery({
-		queryKey: cacheKeys.documents.withQueryParams(fetchQueryParams),
-		queryFn: () => documentsApiService.getDocuments({ queryParams: fetchQueryParams }),
-		staleTime: 3 * 60 * 1000,
-		enabled: !!searchSpaceId && !debouncedSearch.trim() && currentPage === 0,
-	});
-
-	// Searching - first page
-	const { data: searchedDocuments, isLoading: isSearchedDocumentsLoading } = useQuery({
-		queryKey: cacheKeys.documents.withQueryParams(searchQueryParams),
-		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
-		staleTime: 3 * 60 * 1000,
-		enabled: !!searchSpaceId && !!debouncedSearch.trim() && currentPage === 0,
+	// Use the new lightweight endpoint for document title search
+	const { data: titleSearchResults, isLoading: isTitleSearchLoading } = useQuery({
+		queryKey: ["document-titles", titleSearchParams],
+		queryFn: () => documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }),
+		staleTime: 60 * 1000, // 1 minute - shorter for fresher results
+		enabled: !!searchSpaceId && currentPage === 0 && (!shouldSearch || isSearchValid),
 	});
 
 	// Use query for fetching first page of SurfSense docs
 	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading } = useQuery({
-		queryKey: ["surfsense-docs-mention", debouncedSearch],
+		queryKey: ["surfsense-docs-mention", throttledSearch, isSearchValid],
 		queryFn: () => documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }),
 		staleTime: 3 * 60 * 1000,
+		enabled: !shouldSearch || isSearchValid,
 	});
 
 	// Update accumulated documents when first page loads - combine both sources
@@ -142,24 +191,17 @@ export const DocumentMentionPicker = forwardRef<
 				}
 			}
 
-			// Add regular documents
-			if (debouncedSearch.trim()) {
-				if (searchedDocuments?.items) {
-					combinedDocs.push(...searchedDocuments.items);
-					setHasMore(searchedDocuments.has_more);
-				}
-			} else {
-				if (documents?.items) {
-					combinedDocs.push(...documents.items);
-					setHasMore(documents.has_more);
-				}
+			// Add regular documents from lightweight endpoint
+			if (titleSearchResults?.items) {
+				combinedDocs.push(...titleSearchResults.items);
+				setHasMore(titleSearchResults.has_more);
 			}
 
 			setAccumulatedDocuments(combinedDocs);
 		}
-	}, [documents, searchedDocuments, surfsenseDocs, debouncedSearch, currentPage]);
+	}, [titleSearchResults, surfsenseDocs, currentPage]);
 
-	// Function to load next page
+	// Function to load next page using lightweight endpoint
 	const loadNextPage = useCallback(async () => {
 		if (isLoadingMore || !hasMore) return;
 
@@ -167,23 +209,14 @@ export const DocumentMentionPicker = forwardRef<
 		setIsLoadingMore(true);
 
 		try {
-			let response: GetDocumentsResponse;
-			if (debouncedSearch.trim()) {
-				const queryParams = {
-					search_space_id: searchSpaceId,
-					page: nextPage,
-					page_size: PAGE_SIZE,
-					title: debouncedSearch,
-				};
-				response = await documentsApiService.searchDocuments({ queryParams });
-			} else {
-				const queryParams = {
-					search_space_id: searchSpaceId,
-					page: nextPage,
-					page_size: PAGE_SIZE,
-				};
-				response = await documentsApiService.getDocuments({ queryParams });
-			}
+			const queryParams = {
+				search_space_id: searchSpaceId,
+				page: nextPage,
+				page_size: PAGE_SIZE,
+				...(isSearchValid ? { title: throttledSearch.trim() } : {}),
+			};
+			const response: SearchDocumentTitlesResponse =
+				await documentsApiService.searchDocumentTitles({ queryParams });
 
 			setAccumulatedDocuments((prev) => [...prev, ...response.items]);
 			setHasMore(response.has_more);
@@ -193,7 +226,7 @@ export const DocumentMentionPicker = forwardRef<
 		} finally {
 			setIsLoadingMore(false);
 		}
-	}, [currentPage, hasMore, isLoadingMore, debouncedSearch, searchSpaceId]);
+	}, [currentPage, hasMore, isLoadingMore, throttledSearch, searchSpaceId, isSearchValid]);
 
 	// Infinite scroll handler
 	const handleScroll = useCallback(
@@ -210,10 +243,10 @@ export const DocumentMentionPicker = forwardRef<
 	);
 
 	const actualDocuments = accumulatedDocuments;
-	const actualLoading =
-		((debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading) ||
-			isSurfsenseDocsLoading) &&
-		currentPage === 0;
+	const actualLoading = (isTitleSearchLoading || isSurfsenseDocsLoading) && currentPage === 0;
+
+	// Show hint when search is too short
+	const showSearchHint = shouldSearch && !isSearchValid;
 
 	// Split documents into SurfSense docs and user docs for grouped rendering
 	const surfsenseDocsList = useMemo(
@@ -323,7 +356,14 @@ export const DocumentMentionPicker = forwardRef<
 				className="max-h-[180px] sm:max-h-[280px] overflow-y-auto"
 				onScroll={handleScroll}
 			>
-				{actualLoading ? (
+				{showSearchHint ? (
+					<div className="flex flex-col items-center justify-center py-4 text-center px-4">
+						<p className="text-sm text-muted-foreground">
+							Type {MIN_SEARCH_LENGTH - throttledSearch.trim().length} more character
+							{MIN_SEARCH_LENGTH - throttledSearch.trim().length > 1 ? "s" : ""} to search
+						</p>
+					</div>
+				) : actualLoading ? (
 					<div className="flex items-center justify-center py-4">
 						<div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
 					</div>

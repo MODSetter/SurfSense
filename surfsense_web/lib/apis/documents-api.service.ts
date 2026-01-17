@@ -22,8 +22,11 @@ import {
 	getSurfsenseDocsRequest,
 	getSurfsenseDocsResponse,
 	type SearchDocumentsRequest,
+	type SearchDocumentTitlesRequest,
 	searchDocumentsRequest,
 	searchDocumentsResponse,
+	searchDocumentTitlesRequest,
+	searchDocumentTitlesResponse,
 	type UpdateDocumentRequest,
 	type UploadDocumentRequest,
 	updateDocumentRequest,
@@ -158,6 +161,35 @@ class DocumentsApiService {
 			: "";
 
 		return baseApiService.get(`/api/v1/documents/search?${queryParams}`, searchDocumentsResponse);
+	};
+
+	/**
+	 * Search document titles (lightweight, optimized for mention picker)
+	 * Returns only id, title, document_type - no content or metadata
+	 */
+	searchDocumentTitles = async (request: SearchDocumentTitlesRequest) => {
+		const parsedRequest = searchDocumentTitlesRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		// Transform query params to be string values
+		const transformedQueryParams = Object.fromEntries(
+			Object.entries(parsedRequest.data.queryParams)
+				.filter(([, v]) => v !== undefined)
+				.map(([k, v]) => [k, String(v)])
+		);
+
+		const queryParams = new URLSearchParams(transformedQueryParams).toString();
+
+		return baseApiService.get(
+			`/api/v1/documents/search/titles?${queryParams}`,
+			searchDocumentTitlesResponse
+		);
 	};
 
 	/**
