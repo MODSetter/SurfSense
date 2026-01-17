@@ -1,10 +1,11 @@
 # SurfSense All-in-One Docker Image
-# This image bundles PostgreSQL+pgvector, Redis, Backend, and Frontend
-# Usage: docker run -d -p 3000:3000 -p 8000:8000 -v surfsense-data:/data --name surfsense ghcr.io/modsetter/surfsense:latest
+# This image bundles PostgreSQL+pgvector, Redis, Electric SQL, Backend, and Frontend
+# Usage: docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --name surfsense ghcr.io/modsetter/surfsense:latest
 #
 # Included Services (all run locally by default):
 # - PostgreSQL 14 + pgvector (vector database)
 # - Redis (task queue)
+# - Electric SQL (real-time sync)
 # - Docling (document processing, CPU-only, OCR disabled)
 # - Kokoro TTS (local text-to-speech for podcasts)
 # - Faster-Whisper (local speech-to-text for audio files)
@@ -14,7 +15,12 @@
 # will be available in the future for faster AI inference.
 
 # ====================
-# Stage 1: Build Frontend
+# Stage 1: Get Electric SQL Binary
+# ====================
+FROM electricsql/electric:latest AS electric-builder
+
+# ====================
+# Stage 2: Build Frontend
 # ====================
 FROM node:20-alpine AS frontend-builder
 
@@ -42,12 +48,14 @@ RUN pnpm fumadocs-mdx
 ENV NEXT_PUBLIC_FASTAPI_BACKEND_URL=__NEXT_PUBLIC_FASTAPI_BACKEND_URL__
 ENV NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__
 ENV NEXT_PUBLIC_ETL_SERVICE=__NEXT_PUBLIC_ETL_SERVICE__
+ENV NEXT_PUBLIC_ELECTRIC_URL=__NEXT_PUBLIC_ELECTRIC_URL__
+ENV NEXT_PUBLIC_ELECTRIC_AUTH_MODE=__NEXT_PUBLIC_ELECTRIC_AUTH_MODE__
 
 # Build
 RUN pnpm run build
 
 # ====================
-# Stage 2: Runtime Image
+# Stage 3: Runtime Image
 # ====================
 FROM ubuntu:22.04 AS runtime
 
@@ -168,6 +176,11 @@ COPY --from=frontend-builder /app/public ./public
 COPY surfsense_web/content/docs /app/surfsense_web/content/docs
 
 # ====================
+# Copy Electric SQL Release
+# ====================
+COPY --from=electric-builder /app /app/electric-release
+
+# ====================
 # Setup Backend
 # ====================
 WORKDIR /app/backend
@@ -238,11 +251,22 @@ ENV NEXT_PUBLIC_FASTAPI_BACKEND_URL=http://localhost:8000
 ENV NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=LOCAL
 ENV NEXT_PUBLIC_ETL_SERVICE=DOCLING
 
+# Electric SQL configuration (ELECTRIC_DATABASE_URL is built dynamically by entrypoint from these values)
+ENV ELECTRIC_DB_USER=electric
+ENV ELECTRIC_DB_PASSWORD=electric_password
+# Note: ELECTRIC_DATABASE_URL is NOT set here - entrypoint builds it dynamically from ELECTRIC_DB_USER/PASSWORD
+ENV ELECTRIC_INSECURE=true
+ENV ELECTRIC_WRITE_TO_PG_MODE=direct
+ENV ELECTRIC_PORT=5133
+ENV PORT=5133
+ENV NEXT_PUBLIC_ELECTRIC_URL=http://localhost:5133
+ENV NEXT_PUBLIC_ELECTRIC_AUTH_MODE=insecure
+
 # Data volume
 VOLUME ["/data"]
 
-# Expose ports
-EXPOSE 3000 8000
+# Expose ports (Frontend: 3000, Backend: 8000, Electric: 5133)
+EXPOSE 3000 8000 5133
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \

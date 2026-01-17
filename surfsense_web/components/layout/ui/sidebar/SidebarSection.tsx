@@ -37,14 +37,14 @@ export function SidebarSection({
 
 				{/* Action button - visible on hover (always visible on mobile) */}
 				{action && (
-					<div className="shrink-0 opacity-0 group-hover/section:opacity-100 transition-opacity pr-1 flex items-center gap-0.5">
+					<div className="shrink-0 opacity-0 group-hover/section:opacity-100 transition-opacity pr-1 flex items-center">
 						{action}
 					</div>
 				)}
 
 				{/* Persistent action - always visible */}
 				{persistentAction && (
-					<div className="shrink-0 pr-1 flex items-center gap-0.5">{persistentAction}</div>
+					<div className="shrink-0 pr-1 flex items-center">{persistentAction}</div>
 				)}
 			</div>
 

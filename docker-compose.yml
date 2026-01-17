@@ -7,10 +7,15 @@ services:
       - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./scripts/docker/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      - ./scripts/docker/init-electric-user.sh:/docker-entrypoint-initdb.d/init-electric-user.sh:ro
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-postgres}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
       - POSTGRES_DB=${POSTGRES_DB:-surfsense}
+      - ELECTRIC_DB_USER=${ELECTRIC_DB_USER:-electric}
+      - ELECTRIC_DB_PASSWORD=${ELECTRIC_DB_PASSWORD:-electric_password}
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
 
   pgadmin:
     image: dpage/pgadmin4
@@ -51,11 +56,14 @@ services:
       - UNSTRUCTURED_HAS_PATCHED_LOOP=1
       - LANGCHAIN_TRACING_V2=false
       - LANGSMITH_TRACING=false
+      - ELECTRIC_DB_USER=${ELECTRIC_DB_USER:-electric}
+      - ELECTRIC_DB_PASSWORD=${ELECTRIC_DB_PASSWORD:-electric_password}
+      - NEXT_FRONTEND_URL=http://frontend:3000
     depends_on:
       - db
       - redis
 
-  # Run these services seperately in production
+  # Run these services separately in production
   # celery_worker:
   #   build: ./surfsense_backend
   #   # image: ghcr.io/modsetter/surfsense_backend:latest
@@ -110,6 +118,23 @@ services:
   #     - redis
   #     - celery_worker
 
+  electric:
+    image: electricsql/electric:latest
+    ports:
+      - "${ELECTRIC_PORT:-5133}:3000"
+    environment:
+      - DATABASE_URL=${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-surfsense}?sslmode=disable}
+      - ELECTRIC_INSECURE=true
+      - ELECTRIC_WRITE_TO_PG_MODE=direct
+    restart: unless-stopped
+    # depends_on:
+    #   - db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   frontend:
     build:
       context: ./surfsense_web
@@ -122,8 +147,12 @@ services:
       - "${FRONTEND_PORT:-3000}:3000"
     env_file:
       - ./surfsense_web/.env
+    environment:
+      - NEXT_PUBLIC_ELECTRIC_URL=${NEXT_PUBLIC_ELECTRIC_URL:-http://localhost:5133}
+      - NEXT_PUBLIC_ELECTRIC_AUTH_MODE=insecure
     depends_on:
       - backend
+      - electric
 
 volumes:
   postgres_data:

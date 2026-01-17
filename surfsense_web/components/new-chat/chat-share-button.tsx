@@ -1,7 +1,7 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Globe, Loader2, Lock, Share2, Users } from "lucide-react";
+import { Loader2, Lock, Share2, Users } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -92,8 +92,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					variant="ghost"
 					size="sm"
 					className={cn(
-						"h-7 md:h-9 gap-1.5 md:gap-2 px-2 md:px-3 rounded-lg md:rounded-xl",
-						"border border-border/80 bg-background/50 backdrop-blur-sm",
+						"h-7 md:h-9 gap-1 md:gap-2 px-2 md:px-3 rounded-lg md:rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm",
 						"hover:bg-muted/80 hover:border-border/30 transition-all duration-200",
 						"text-xs md:text-sm font-medium text-foreground",
 						"focus-visible:ring-0 focus-visible:ring-offset-0",
@@ -104,7 +103,6 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					<span className="hidden md:inline">
 						{currentVisibility === "PRIVATE" ? "Private" : "Shared"}
 					</span>
-					<Share2 className="size-3 md:size-3.5 text-muted-foreground" />
 				</Button>
 			</PopoverTrigger>
 
@@ -113,25 +111,13 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				align="end"
 				sideOffset={8}
 			>
-				<div className="p-3 md:p-4 border-b border-border/30">
-					<div className="flex items-center gap-2">
-						<Share2 className="size-4 md:size-5 text-primary" />
-						<div>
-							<h4 className="text-sm font-semibold">Share Chat</h4>
-							<p className="text-xs text-muted-foreground">
-								Control who can access this conversation
-							</p>
-						</div>
-					</div>
-				</div>
-
 				<div className="p-1.5 space-y-1">
 					{/* Updating overlay */}
 					{isUpdating && (
 						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
 							<div className="flex items-center gap-2 text-sm text-muted-foreground">
 								<Loader2 className="size-4 animate-spin" />
-								<span>Updating...</span>
+								<span>Updating</span>
 							</div>
 						</div>
 					)}
@@ -149,8 +135,8 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 								className={cn(
 									"w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md transition-all",
 									"hover:bg-accent/50 cursor-pointer",
-									"focus:outline-none focus:ring-2 focus:ring-primary/20",
-									isSelected && "bg-accent/80 ring-1 ring-primary/20"
+									"focus:outline-none",
+									isSelected && "bg-accent/80"
 								)}
 							>
 								<div
@@ -184,18 +170,6 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							</button>
 						);
 					})}
-				</div>
-
-				{/* Info footer */}
-				<div className="p-3 bg-muted/30 border-t border-border/30 rounded-b-xl">
-					<div className="flex items-start gap-2">
-						<Globe className="size-3.5 text-muted-foreground mt-0.5 shrink-0" />
-						<p className="text-[11px] text-muted-foreground leading-relaxed">
-							{currentVisibility === "PRIVATE"
-								? "This chat is private. Only you can view and interact with it."
-								: "This chat is shared. All search space members can view, continue the conversation, and delete it."}
-						</p>
-					</div>
 				</div>
 			</PopoverContent>
 		</Popover>

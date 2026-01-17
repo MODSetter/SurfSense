@@ -135,7 +135,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 					{isSubmitting ? (
 						<>
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							Connecting...
+							Connecting
 						</>
 					) : (
 						<>Connect {getConnectorTypeDisplay(connectorType)}</>

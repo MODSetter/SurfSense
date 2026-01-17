@@ -423,9 +423,9 @@ async def stream_new_chat(
                     title = title[:27] + "..."
                 doc_names.append(title)
             if len(doc_names) == 1:
-                processing_parts.append(f"[📖 {doc_names[0]}]")
+                processing_parts.append(f"[{doc_names[0]}]")
             else:
-                processing_parts.append(f"[📖 {len(doc_names)} docs]")
+                processing_parts.append(f"[{len(doc_names)} docs]")
 
         last_active_step_items = [f"{action_verb}: {' '.join(processing_parts)}"]
 

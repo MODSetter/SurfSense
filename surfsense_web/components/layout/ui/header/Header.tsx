@@ -3,6 +3,7 @@
 import { Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { NotificationButton } from "@/components/notifications/NotificationButton";
 
 interface HeaderProps {
 	breadcrumb?: React.ReactNode;
@@ -29,6 +30,9 @@ export function Header({
 
 			{/* Right side - Actions */}
 			<div className="flex items-center gap-2">
+				{/* Notifications */}
+				<NotificationButton />
+
 				{/* Theme toggle */}
 				{onToggleTheme && (
 					<Tooltip>

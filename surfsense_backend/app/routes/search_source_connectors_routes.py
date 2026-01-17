@@ -47,6 +47,7 @@ from app.schemas import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
+from app.services.notification_service import NotificationService
 from app.tasks.connector_indexers import (
     index_airtable_records,
     index_clickup_tasks,
@@ -956,30 +957,176 @@ async def run_slack_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_slack_messages,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
+
+
+async def _run_indexing_with_notifications(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+    indexing_function,
+    update_timestamp_func=None,
+):
+    """
+    Generic helper to run indexing with real-time notifications.
+
+    Args:
+        session: Database session
+        connector_id: ID of the connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+        indexing_function: Async function that performs the indexing
+        update_timestamp_func: Optional function to update connector timestamp
+    """
+    from uuid import UUID
+
+    notification = None
     try:
-        # Index Slack messages without updating last_indexed_at (we'll do it separately)
-        documents_processed, error_or_warning = await index_slack_messages(
+        # Get connector info for notification
+        connector_result = await session.execute(
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.id == connector_id
+            )
+        )
+        connector = connector_result.scalar_one_or_none()
+
+        if connector:
+            # Create notification when indexing starts
+            notification = (
+                await NotificationService.connector_indexing.notify_indexing_started(
+                    session=session,
+                    user_id=UUID(user_id),
+                    connector_id=connector_id,
+                    connector_name=connector.name,
+                    connector_type=connector.connector_type.value,
+                    search_space_id=search_space_id,
+                    start_date=start_date,
+                    end_date=end_date,
+                )
+            )
+
+        # Update notification to fetching stage
+        if notification:
+            await NotificationService.connector_indexing.notify_indexing_progress(
+                session=session,
+                notification=notification,
+                indexed_count=0,
+                stage="fetching",
+            )
+
+        # Run the indexing function
+        documents_processed, error_or_warning = await indexing_function(
             session=session,
             connector_id=connector_id,
             search_space_id=search_space_id,
             user_id=user_id,
             start_date=start_date,
             end_date=end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
+            update_last_indexed=False,
         )
 
-        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
-        if documents_processed > 0:
-            await _update_connector_timestamp_by_id(session, connector_id)
+        # Update connector timestamp if function provided and indexing was successful
+        if documents_processed > 0 and update_timestamp_func:
+            # Update notification to storing stage
+            if notification:
+                await NotificationService.connector_indexing.notify_indexing_progress(
+                    session=session,
+                    notification=notification,
+                    indexed_count=documents_processed,
+                    stage="storing",
+                )
+
+            await update_timestamp_func(session, connector_id)
             logger.info(
-                f"Slack indexing completed successfully: {documents_processed} documents processed"
+                f"Indexing completed successfully: {documents_processed} documents processed"
             )
+
+            # Update notification on success
+            if notification:
+                await NotificationService.connector_indexing.notify_indexing_completed(
+                    session=session,
+                    notification=notification,
+                    indexed_count=documents_processed,
+                    error_message=None,
+                )
+        elif documents_processed > 0:
+            # Update notification to storing stage
+            if notification:
+                await NotificationService.connector_indexing.notify_indexing_progress(
+                    session=session,
+                    notification=notification,
+                    indexed_count=documents_processed,
+                    stage="storing",
+                )
+
+            # Success but no timestamp update function
+            logger.info(
+                f"Indexing completed successfully: {documents_processed} documents processed"
+            )
+            if notification:
+                await NotificationService.connector_indexing.notify_indexing_completed(
+                    session=session,
+                    notification=notification,
+                    indexed_count=documents_processed,
+                    error_message=None,
+                )
         else:
-            logger.error(
-                f"Slack indexing failed or no documents processed: {error_or_warning}"
-            )
+            # No new documents processed - check if this is an error or just no changes
+            if error_or_warning:
+                # Actual failure
+                logger.error(f"Indexing failed: {error_or_warning}")
+                if notification:
+                    await NotificationService.connector_indexing.notify_indexing_completed(
+                        session=session,
+                        notification=notification,
+                        indexed_count=0,
+                        error_message=error_or_warning,
+                    )
+            else:
+                # Success - just no new documents to index (all skipped/unchanged)
+                logger.info(
+                    "Indexing completed: No new documents to process (all up to date)"
+                )
+                # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
+                if update_timestamp_func:
+                    await update_timestamp_func(session, connector_id)
+                if notification:
+                    await NotificationService.connector_indexing.notify_indexing_completed(
+                        session=session,
+                        notification=notification,
+                        indexed_count=0,
+                        error_message=None,  # No error - sync succeeded
+                    )
     except Exception as e:
-        logger.error(f"Error in background Slack indexing task: {e!s}")
+        logger.error(f"Error in indexing task: {e!s}", exc_info=True)
+
+        # Update notification on exception
+        if notification:
+            try:
+                # Refresh notification to ensure it's not stale after any rollback
+                await session.refresh(notification)
+                await NotificationService.connector_indexing.notify_indexing_completed(
+                    session=session,
+                    notification=notification,
+                    indexed_count=0,
+                    error_message=str(e),
+                )
+            except Exception as notif_error:
+                logger.error(f"Failed to update notification: {notif_error!s}")
 
 
 async def run_notion_indexing_with_new_session(
@@ -994,8 +1141,15 @@ async def run_notion_indexing_with_new_session(
     This prevents session leaks by creating a dedicated session for the background task.
     """
     async with async_session_maker() as session:
-        await run_notion_indexing(
-            session, connector_id, search_space_id, user_id, start_date, end_date
+        await _run_indexing_with_notifications(
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            indexing_function=index_notion_pages,
+            update_timestamp_func=_update_connector_timestamp_by_id,
         )
 
 
@@ -1018,30 +1172,16 @@ async def run_notion_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
-    try:
-        # Index Notion pages without updating last_indexed_at (we'll do it separately)
-        documents_processed, error_or_warning = await index_notion_pages(
-            session=session,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            start_date=start_date,
-            end_date=end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
-        )
-
-        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
-        if documents_processed > 0:
-            await _update_connector_timestamp_by_id(session, connector_id)
-            logger.info(
-                f"Notion indexing completed successfully: {documents_processed} documents processed"
-            )
-        else:
-            logger.error(
-                f"Notion indexing failed or no documents processed: {error_or_warning}"
-            )
-    except Exception as e:
-        logger.error(f"Error in background Notion indexing task: {e!s}")
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_notion_pages,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for GitHub indexing
@@ -1071,36 +1211,27 @@ async def run_github_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the GitHub indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_github_repos(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"GitHub indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"GitHub indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        await session.rollback()
-        logger.error(
-            f"Critical error in run_github_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run GitHub indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the GitHub connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_github_repos,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for Linear indexing
@@ -1130,36 +1261,27 @@ async def run_linear_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Linear indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_linear_issues(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Linear indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Linear indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        await session.rollback()
-        logger.error(
-            f"Critical error in run_linear_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run Linear indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Linear connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_linear_issues,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for discord indexing
@@ -1190,6 +1312,7 @@ async def run_discord_indexing(
 ):
     """
     Background task to run Discord indexing.
+
     Args:
         session: Database session
         connector_id: ID of the Discord connector
@@ -1198,30 +1321,16 @@ async def run_discord_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
-    try:
-        # Index Discord messages without updating last_indexed_at (we'll do it separately)
-        documents_processed, error_or_warning = await index_discord_messages(
-            session=session,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            start_date=start_date,
-            end_date=end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
-        )
-
-        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
-        if documents_processed > 0:
-            await _update_connector_timestamp_by_id(session, connector_id)
-            logger.info(
-                f"Discord indexing completed successfully: {documents_processed} documents processed"
-            )
-        else:
-            logger.error(
-                f"Discord indexing failed or no documents processed: {error_or_warning}"
-            )
-    except Exception as e:
-        logger.error(f"Error in background Discord indexing task: {e!s}")
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_discord_messages,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 async def run_teams_indexing_with_new_session(
@@ -1251,6 +1360,7 @@ async def run_teams_indexing(
 ):
     """
     Background task to run Microsoft Teams indexing.
+
     Args:
         session: Database session
         connector_id: ID of the Teams connector
@@ -1259,27 +1369,18 @@ async def run_teams_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
-    try:
-        from app.tasks.connector_indexers.teams_indexer import index_teams_messages
+    from app.tasks.connector_indexers.teams_indexer import index_teams_messages
 
-        # Index Teams messages without updating last_indexed_at (we'll do it separately)
-        documents_processed, error_or_warning = await index_teams_messages(
-            session=session,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            start_date=start_date,
-            end_date=end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
-        )
-
-        # Update last_indexed_at after successful indexing (even if 0 new docs - they were checked)
-        await _update_connector_timestamp_by_id(session, connector_id)
-        logger.info(
-            f"Teams indexing completed successfully: {documents_processed} documents processed. {error_or_warning or ''}"
-        )
-    except Exception as e:
-        logger.error(f"Error in background Teams indexing task: {e!s}")
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_teams_messages,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for Jira indexing
@@ -1309,35 +1410,27 @@ async def run_jira_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Jira indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_jira_issues(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Jira indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Jira indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_jira_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run Jira indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Jira connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_jira_issues,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for Confluence indexing
@@ -1369,35 +1462,27 @@ async def run_confluence_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Confluence indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_confluence_pages(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Confluence indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Confluence indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_confluence_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run Confluence indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Confluence connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_confluence_pages,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for ClickUp indexing
@@ -1427,35 +1512,27 @@ async def run_clickup_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the ClickUp indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_clickup_tasks(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"ClickUp indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"ClickUp indexing successful for connector {connector_id}. Indexed {indexed_count} tasks."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_clickup_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run ClickUp indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the ClickUp connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_clickup_tasks,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for Airtable indexing
@@ -1485,35 +1562,27 @@ async def run_airtable_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Airtable indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_airtable_records(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Airtable indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Airtable indexing successful for connector {connector_id}. Indexed {indexed_count} records."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_airtable_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run Airtable indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Airtable connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_airtable_records,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for Google Calendar indexing
@@ -1545,55 +1614,44 @@ async def run_google_calendar_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Google Calendar indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_google_calendar_events(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Google Calendar indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Google Calendar indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_google_calendar_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+    """
+    Background task to run Google Calendar indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Google Calendar connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_google_calendar_events,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 async def run_google_gmail_indexing_with_new_session(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    max_messages: int,
-    days_back: int,
+    start_date: str,
+    end_date: str,
 ):
-    """Wrapper to run Google Gmail indexing with its own database session."""
-    logger.info(
-        f"Background task started: Indexing Google Gmail connector {connector_id} into space {search_space_id} for {max_messages} messages from the last {days_back} days"
-    )
+    """
+    Create a new session and run the Google Gmail indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
     async with async_session_maker() as session:
         await run_google_gmail_indexing(
-            session, connector_id, search_space_id, user_id, max_messages, days_back
+            session, connector_id, search_space_id, user_id, start_date, end_date
         )
-    logger.info(
-        f"Background task finished: Indexing Google Gmail connector {connector_id}"
-    )
 
 
 async def run_google_gmail_indexing(
@@ -1601,46 +1659,56 @@ async def run_google_gmail_indexing(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    max_messages: int,
-    days_back: int,
+    start_date: str,
+    end_date: str,
 ):
-    """Runs the Google Gmail indexing task and updates the timestamp."""
-    try:
-        # Convert days_back to start_date string in YYYY-MM-DD format
-        from datetime import datetime, timedelta
+    """
+    Background task to run Google Gmail indexing.
 
-        start_date_obj = datetime.now() - timedelta(days=days_back)
-        start_date = start_date_obj.strftime("%Y-%m-%d")
-        end_date = None  # No end date, index up to current time
+    Args:
+        session: Database session
+        connector_id: ID of the Google Gmail connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
 
+    # Create a wrapper function that calls index_google_gmail_messages with max_messages
+    async def gmail_indexing_wrapper(
+        session: AsyncSession,
+        connector_id: int,
+        search_space_id: int,
+        user_id: str,
+        start_date: str | None,
+        end_date: str | None,
+        update_last_indexed: bool,
+    ) -> tuple[int, str | None]:
+        # Use a reasonable default for max_messages
+        max_messages = 1000
         indexed_count, error_message = await index_google_gmail_messages(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
+            session=session,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
             start_date=start_date,
             end_date=end_date,
-            update_last_indexed=False,
+            update_last_indexed=update_last_indexed,
             max_messages=max_messages,
         )
-        if error_message:
-            logger.error(
-                f"Google Gmail indexing failed for connector {connector_id}: {error_message}"
-            )
-            # Optionally update status in DB to indicate failure
-        else:
-            logger.info(
-                f"Google Gmail indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_google_gmail_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
-        # Optionally update status in DB to indicate failure
+        # index_google_gmail_messages returns (int, str) but we need (int, str | None)
+        return indexed_count, error_message if error_message else None
+
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=gmail_indexing_wrapper,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 async def run_google_drive_indexing(
@@ -1650,7 +1718,10 @@ async def run_google_drive_indexing(
     user_id: str,
     items_dict: dict,  # Dictionary with 'folders', 'files', and indexing options
 ):
-    """Runs the Google Drive indexing task for folders and files and updates the timestamp."""
+    """Runs the Google Drive indexing task for folders and files with notifications."""
+    from uuid import UUID
+
+    notification = None
     try:
         from app.tasks.connector_indexers.google_drive_indexer import (
             index_google_drive_files,
@@ -1670,6 +1741,38 @@ async def run_google_drive_indexing(
         logger.info(
             f"Google Drive indexing options: max_files={max_files}, use_delta_sync={use_delta_sync}, include_subfolders={include_subfolders}"
         )
+
+        # Get connector info for notification
+        connector_result = await session.execute(
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.id == connector_id
+            )
+        )
+        connector = connector_result.scalar_one_or_none()
+
+        if connector:
+            # Create notification when indexing starts
+            notification = await NotificationService.connector_indexing.notify_google_drive_indexing_started(
+                session=session,
+                user_id=UUID(user_id),
+                connector_id=connector_id,
+                connector_name=connector.name,
+                connector_type=connector.connector_type.value,
+                search_space_id=search_space_id,
+                folder_count=len(items.folders),
+                file_count=len(items.files),
+                folder_names=items.get_folder_names() if items.folders else None,
+                file_names=items.get_file_names() if items.files else None,
+            )
+
+        # Update notification to fetching stage
+        if notification:
+            await NotificationService.connector_indexing.notify_indexing_progress(
+                session=session,
+                notification=notification,
+                indexed_count=0,
+                stage="fetching",
+            )
 
         # Index each folder
         for folder in items.folders:
@@ -1719,23 +1822,58 @@ async def run_google_drive_indexing(
                     exc_info=True,
                 )
 
+        # Prepare error message for notification
+        error_message = None
         if errors:
+            error_message = "; ".join(errors)
             logger.error(
-                f"Google Drive indexing completed with errors for connector {connector_id}: {'; '.join(errors)}"
+                f"Google Drive indexing completed with errors for connector {connector_id}: {error_message}"
             )
         else:
+            # Update notification to storing stage
+            if notification:
+                await NotificationService.connector_indexing.notify_indexing_progress(
+                    session=session,
+                    notification=notification,
+                    indexed_count=total_indexed,
+                    stage="storing",
+                )
+
             logger.info(
                 f"Google Drive indexing successful for connector {connector_id}. Indexed {total_indexed} documents from {len(items.folders)} folder(s) and {len(items.files)} file(s)."
             )
             # Update the last indexed timestamp only on full success
             await _update_connector_timestamp_by_id(session, connector_id)
             await session.commit()  # Commit timestamp update
+
+        # Update notification on completion
+        if notification:
+            await NotificationService.connector_indexing.notify_indexing_completed(
+                session=session,
+                notification=notification,
+                indexed_count=total_indexed,
+                error_message=error_message,
+            )
+
     except Exception as e:
         logger.error(
             f"Critical error in run_google_drive_indexing for connector {connector_id}: {e}",
             exc_info=True,
         )
-        # Optionally update status in DB to indicate failure
+
+        # Update notification on exception
+        if notification:
+            try:
+                # Refresh notification to ensure it's not stale after any rollback
+                await session.refresh(notification)
+                await NotificationService.connector_indexing.notify_indexing_completed(
+                    session=session,
+                    notification=notification,
+                    indexed_count=0,
+                    error_message=str(e),
+                )
+            except Exception as notif_error:
+                logger.error(f"Failed to update notification: {notif_error!s}")
 
 
 # Add new helper functions for luma indexing
@@ -1766,6 +1904,7 @@ async def run_luma_indexing(
 ):
     """
     Background task to run Luma indexing.
+
     Args:
         session: Database session
         connector_id: ID of the Luma connector
@@ -1774,30 +1913,16 @@ async def run_luma_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
-    try:
-        # Index Luma events without updating last_indexed_at (we'll do it separately)
-        documents_processed, error_or_warning = await index_luma_events(
-            session=session,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            start_date=start_date,
-            end_date=end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
-        )
-
-        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
-        if documents_processed > 0:
-            await _update_connector_timestamp_by_id(session, connector_id)
-            logger.info(
-                f"Luma indexing completed successfully: {documents_processed} documents processed"
-            )
-        else:
-            logger.error(
-                f"Luma indexing failed or no documents processed: {error_or_warning}"
-            )
-    except Exception as e:
-        logger.error(f"Error in background Luma indexing task: {e!s}")
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_luma_events,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 async def run_elasticsearch_indexing_with_new_session(
@@ -1828,34 +1953,27 @@ async def run_elasticsearch_indexing(
     start_date: str,
     end_date: str,
 ):
-    """Runs the Elasticsearch indexing task and updates the timestamp."""
-    try:
-        indexed_count, error_message = await index_elasticsearch_documents(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"Elasticsearch indexing failed for connector {connector_id}: {error_message}"
-            )
-        else:
-            logger.info(
-                f"Elasticsearch indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()
-    except Exception as e:
-        await session.rollback()
-        logger.error(
-            f"Critical error in run_elasticsearch_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
+    """
+    Background task to run Elasticsearch indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Elasticsearch connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_elasticsearch_documents,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for crawled web page indexing
@@ -1886,6 +2004,7 @@ async def run_web_page_indexing(
 ):
     """
     Background task to run Web page indexing.
+
     Args:
         session: Database session
         connector_id: ID of the webcrawler connector
@@ -1894,29 +2013,16 @@ async def run_web_page_indexing(
         start_date: Start date for indexing
         end_date: End date for indexing
     """
-    try:
-        documents_processed, error_or_warning = await index_crawled_urls(
-            session=session,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            start_date=start_date,
-            end_date=end_date,
-            update_last_indexed=False,  # Don't update timestamp in the indexing function
-        )
-
-        # Only update last_indexed_at if indexing was successful (either new docs or updated docs)
-        if documents_processed > 0:
-            await _update_connector_timestamp_by_id(session, connector_id)
-            logger.info(
-                f"Web page indexing completed successfully: {documents_processed} documents processed"
-            )
-        else:
-            logger.error(
-                f"Web page indexing failed or no documents processed: {error_or_warning}"
-            )
-    except Exception as e:
-        logger.error(f"Error in background Web page indexing task: {e!s}")
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_crawled_urls,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # Add new helper functions for BookStack indexing
@@ -1961,32 +2067,16 @@ async def run_bookstack_indexing(
     """
     from app.tasks.connector_indexers import index_bookstack_pages
 
-    try:
-        indexed_count, error_message = await index_bookstack_pages(
-            session,
-            connector_id,
-            search_space_id,
-            user_id,
-            start_date,
-            end_date,
-            update_last_indexed=False,
-        )
-        if error_message:
-            logger.error(
-                f"BookStack indexing failed for connector {connector_id}: {error_message}"
-            )
-        else:
-            logger.info(
-                f"BookStack indexing successful for connector {connector_id}. Indexed {indexed_count} documents."
-            )
-            # Update the last indexed timestamp only on success
-            await _update_connector_timestamp_by_id(session, connector_id)
-            await session.commit()  # Commit timestamp update
-    except Exception as e:
-        logger.error(
-            f"Critical error in run_bookstack_indexing for connector {connector_id}: {e}",
-            exc_info=True,
-        )
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_bookstack_pages,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
 
 
 # =============================================================================
