@@ -12,6 +12,7 @@ import {
 } from "react";
 import ReactDOMServer from "react-dom/server";
 import type { Document } from "@/contracts/types/document.types";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { cn } from "@/lib/utils";
 
 export interface MentionedDocument {
@@ -166,12 +167,19 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				chip.setAttribute(CHIP_DOCTYPE_ATTR, doc.document_type ?? "UNKNOWN");
 				chip.contentEditable = "false";
 				chip.className =
-					"inline-flex items-center gap-0.5 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary border border-primary/10 select-none";
+					"inline-flex items-center gap-1 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary border border-primary/10 select-none";
 				chip.style.userSelect = "none";
 				chip.style.verticalAlign = "baseline";
 
+				// Add document type icon
+				const iconSpan = document.createElement("span");
+				iconSpan.className = "shrink-0 flex items-center text-muted-foreground";
+				iconSpan.innerHTML = ReactDOMServer.renderToString(
+					getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3")
+				);
+
 				const titleSpan = document.createElement("span");
-				titleSpan.className = "max-w-[80px] truncate";
+				titleSpan.className = "max-w-[120px] truncate";
 				titleSpan.textContent = doc.title;
 				titleSpan.title = doc.title;
 
@@ -197,6 +205,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					focusAtEnd();
 				};
 
+				chip.appendChild(iconSpan);
 				chip.appendChild(titleSpan);
 				chip.appendChild(removeBtn);
 

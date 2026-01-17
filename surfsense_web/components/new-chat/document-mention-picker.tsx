@@ -156,7 +156,7 @@ export const DocumentMentionPicker = forwardRef<
 	// Use the new lightweight endpoint for document title search
 	// TanStack Query provides signal for automatic request cancellation
 	// keepPreviousData: shows old results while fetching new ones (no spinner flicker)
-	const { data: titleSearchResults, isLoading: isTitleSearchLoading } = useQuery({
+	const { data: titleSearchResults, isLoading: isTitleSearchLoading, isFetching: isTitleSearchFetching } = useQuery({
 		queryKey: ["document-titles", titleSearchParams],
 		queryFn: ({ signal }) =>
 			documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }, signal),
@@ -168,7 +168,7 @@ export const DocumentMentionPicker = forwardRef<
 	// Use query for fetching first page of SurfSense docs
 	// TanStack Query provides signal for automatic request cancellation
 	// keepPreviousData: shows old results while fetching new ones (no spinner flicker)
-	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading } = useQuery({
+	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading, isFetching: isSurfsenseDocsFetching } = useQuery({
 		queryKey: ["surfsense-docs-mention", debouncedSearch, isSearchValid],
 		queryFn: ({ signal }) =>
 			documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }, signal),
@@ -176,6 +176,16 @@ export const DocumentMentionPicker = forwardRef<
 		enabled: !shouldSearch || isSearchValid,
 		placeholderData: keepPreviousData,
 	});
+
+	// Client-side filter to verify search term is actually in the title (handles backend fuzzy false positives)
+	const filterBySearchTerm = useCallback(
+		(docs: Pick<Document, "id" | "title" | "document_type">[]) => {
+			if (!isSearchValid) return docs; // No filtering when not searching
+			const searchLower = debouncedSearch.trim().toLowerCase();
+			return docs.filter((doc) => doc.title.toLowerCase().includes(searchLower));
+		},
+		[debouncedSearch, isSearchValid]
+	);
 
 	// Update accumulated documents when first page loads - combine both sources
 	useEffect(() => {
@@ -199,9 +209,10 @@ export const DocumentMentionPicker = forwardRef<
 				setHasMore(titleSearchResults.has_more);
 			}
 
-			setAccumulatedDocuments(combinedDocs);
+			// Apply client-side filter to remove fuzzy false positives
+			setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
 		}
-	}, [titleSearchResults, surfsenseDocs, currentPage]);
+	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm]);
 
 	// Function to load next page using lightweight endpoint
 	const loadNextPage = useCallback(async () => {
@@ -246,9 +257,13 @@ export const DocumentMentionPicker = forwardRef<
 
 	const actualDocuments = accumulatedDocuments;
 	const actualLoading = (isTitleSearchLoading || isSurfsenseDocsLoading) && currentPage === 0;
+	const isFetchingResults = isTitleSearchFetching || isSurfsenseDocsFetching;
 
 	// Show hint when search is too short
 	const showSearchHint = shouldSearch && !isSearchValid;
+
+	// Hide popup entirely when user is searching and no documents match (only after fetch completes)
+	const hasNoSearchResults = isSearchValid && !actualLoading && !isFetchingResults && actualDocuments.length === 0;
 
 	// Split documents into SurfSense docs and user docs for grouped rendering
 	const surfsenseDocsList = useMemo(
@@ -344,6 +359,11 @@ export const DocumentMentionPicker = forwardRef<
 		},
 		[selectableDocuments, highlightedIndex, handleSelectDocument, onDone]
 	);
+
+	// Don't show popup when user is searching and no documents match
+	if (hasNoSearchResults) {
+		return null;
+	}
 
 	return (
 		<div
