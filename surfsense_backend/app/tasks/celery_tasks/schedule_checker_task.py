@@ -72,6 +72,7 @@ async def _check_and_trigger_schedules():
                 index_elasticsearch_documents_task,
                 index_github_repos_task,
                 index_google_calendar_events_task,
+                index_google_drive_files_task,
                 index_google_gmail_messages_task,
                 index_jira_issues_task,
                 index_linear_issues_task,
@@ -96,6 +97,7 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.LUMA_CONNECTOR: index_luma_events_task,
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
                 SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
+                SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
             }
 
             # Trigger indexing for each due connector
@@ -106,13 +108,42 @@ async def _check_and_trigger_schedules():
                         f"Triggering periodic indexing for connector {connector.id} "
                         f"({connector.connector_type.value})"
                     )
-                    task.delay(
-                        connector.id,
-                        connector.search_space_id,
-                        str(connector.user_id),
-                        None,  # start_date - uses last_indexed_at
-                        None,  # end_date - uses now
-                    )
+
+                    # Special handling for Google Drive - uses config for folder/file selection
+                    if connector.connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR:
+                        config = connector.config or {}
+                        selected_folders = config.get("selected_folders", [])
+                        selected_files = config.get("selected_files", [])
+                        indexing_options = config.get("indexing_options", {
+                            "max_files_per_folder": 100,
+                            "incremental_sync": True,
+                            "include_subfolders": True,
+                        })
+
+                        if selected_folders or selected_files:
+                            task.delay(
+                                connector.id,
+                                connector.search_space_id,
+                                str(connector.user_id),
+                                {
+                                    "folders": selected_folders,
+                                    "files": selected_files,
+                                    "indexing_options": indexing_options,
+                                },
+                            )
+                        else:
+                            logger.warning(
+                                f"Google Drive connector {connector.id} has no folders or files selected, skipping periodic indexing"
+                            )
+                            continue
+                    else:
+                        task.delay(
+                            connector.id,
+                            connector.search_space_id,
+                            str(connector.user_id),
+                            None,  # start_date - uses last_indexed_at
+                            None,  # end_date - uses now
+                        )
 
                     # Update next_scheduled_at for next run
                     from datetime import timedelta

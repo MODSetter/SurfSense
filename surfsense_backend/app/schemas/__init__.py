@@ -10,7 +10,7 @@ from .documents import (
     ExtensionDocumentMetadata,
     PaginatedResponse,
 )
-from .google_drive import DriveItem, GoogleDriveIndexRequest
+from .google_drive import DriveItem, GoogleDriveIndexingOptions, GoogleDriveIndexRequest
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
 from .new_chat import (
     ChatMessage,
@@ -90,6 +90,7 @@ __all__ = [
     "DocumentsCreate",
     # Google Drive schemas
     "DriveItem",
+    "GoogleDriveIndexingOptions",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
     "GlobalNewLLMConfigRead",

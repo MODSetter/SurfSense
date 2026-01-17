@@ -37,6 +37,7 @@ async def index_google_drive_files(
     use_delta_sync: bool = True,
     update_last_indexed: bool = True,
     max_files: int = 500,
+    include_subfolders: bool = False,
 ) -> tuple[int, str | None]:
     """
     Index Google Drive files for a specific connector.
@@ -51,6 +52,7 @@ async def index_google_drive_files(
         use_delta_sync: Whether to use change tracking for incremental sync
         update_last_indexed: Whether to update last_indexed_at timestamp
         max_files: Maximum number of files to index
+        include_subfolders: Whether to recursively index files in subfolders
 
     Returns:
         Tuple of (number_of_indexed_files, error_message)
@@ -144,6 +146,7 @@ async def index_google_drive_files(
                 task_logger=task_logger,
                 log_entry=log_entry,
                 max_files=max_files,
+                include_subfolders=include_subfolders,
             )
         else:
             logger.info(f"Using full scan for connector {connector_id}")
@@ -159,6 +162,7 @@ async def index_google_drive_files(
                 task_logger=task_logger,
                 log_entry=log_entry,
                 max_files=max_files,
+                include_subfolders=include_subfolders,
             )
 
         documents_indexed, documents_skipped = result
@@ -375,60 +379,80 @@ async def _index_full_scan(
     task_logger: TaskLoggingService,
     log_entry: any,
     max_files: int,
+    include_subfolders: bool = False,
 ) -> tuple[int, int]:
     """Perform full scan indexing of a folder."""
     await task_logger.log_task_progress(
         log_entry,
-        f"Starting full scan of folder: {folder_name}",
-        {"stage": "full_scan", "folder_id": folder_id},
+        f"Starting full scan of folder: {folder_name} (include_subfolders={include_subfolders})",
+        {"stage": "full_scan", "folder_id": folder_id, "include_subfolders": include_subfolders},
     )
 
     documents_indexed = 0
     documents_skipped = 0
-    page_token = None
     files_processed = 0
 
-    while files_processed < max_files:
-        files, next_token, error = await get_files_in_folder(
-            drive_client, folder_id, include_subfolders=False, page_token=page_token
-        )
+    # Queue of folders to process: (folder_id, folder_name)
+    folders_to_process = [(folder_id, folder_name)]
 
-        if error:
-            logger.error(f"Error listing files: {error}")
-            break
+    while folders_to_process and files_processed < max_files:
+        current_folder_id, current_folder_name = folders_to_process.pop(0)
+        logger.info(f"Processing folder: {current_folder_name} ({current_folder_id})")
+        page_token = None
 
-        if not files:
-            break
-
-        for file in files:
-            if files_processed >= max_files:
-                break
-
-            files_processed += 1
-
-            indexed, skipped = await _process_single_file(
-                drive_client=drive_client,
-                session=session,
-                file=file,
-                connector_id=connector_id,
-                search_space_id=search_space_id,
-                user_id=user_id,
-                task_logger=task_logger,
-                log_entry=log_entry,
+        while files_processed < max_files:
+            # Get files and folders in current folder
+            # include_subfolders=True here so we get folder items to queue them
+            files, next_token, error = await get_files_in_folder(
+                drive_client, current_folder_id, include_subfolders=True, page_token=page_token
             )
 
-            documents_indexed += indexed
-            documents_skipped += skipped
+            if error:
+                logger.error(f"Error listing files in {current_folder_name}: {error}")
+                break
 
-            if documents_indexed % 10 == 0 and documents_indexed > 0:
-                await session.commit()
-                logger.info(
-                    f"Committed batch: {documents_indexed} files indexed so far"
+            if not files:
+                break
+
+            for file in files:
+                if files_processed >= max_files:
+                    break
+
+                mime_type = file.get("mimeType", "")
+
+                # If this is a folder and include_subfolders is enabled, queue it for processing
+                if mime_type == "application/vnd.google-apps.folder":
+                    if include_subfolders:
+                        folders_to_process.append((file["id"], file.get("name", "Unknown")))
+                        logger.debug(f"Queued subfolder: {file.get('name', 'Unknown')}")
+                    continue
+
+                # Process the file
+                files_processed += 1
+
+                indexed, skipped = await _process_single_file(
+                    drive_client=drive_client,
+                    session=session,
+                    file=file,
+                    connector_id=connector_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    task_logger=task_logger,
+                    log_entry=log_entry,
                 )
 
-        page_token = next_token
-        if not page_token:
-            break
+                documents_indexed += indexed
+                documents_skipped += skipped
+
+                if documents_indexed % 10 == 0 and documents_indexed > 0:
+                    await session.commit()
+                    logger.info(
+                        f"Committed batch: {documents_indexed} files indexed so far"
+                    )
+
+            page_token = next_token
+            if not page_token:
+                break
 
     logger.info(
         f"Full scan complete: {documents_indexed} indexed, {documents_skipped} skipped"
@@ -448,8 +472,13 @@ async def _index_with_delta_sync(
     task_logger: TaskLoggingService,
     log_entry: any,
     max_files: int,
+    include_subfolders: bool = False,
 ) -> tuple[int, int]:
-    """Perform delta sync indexing using change tracking."""
+    """Perform delta sync indexing using change tracking.
+    
+    Note: include_subfolders is accepted for API consistency but delta sync
+    automatically tracks changes across all folders including subfolders.
+    """
     await task_logger.log_task_progress(
         log_entry,
         f"Starting delta sync from token: {start_page_token[:20]}...",

@@ -6,6 +6,15 @@ import { useEffect, useState } from "react";
 import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import type { ConnectorConfigProps } from "../index";
 
 interface SelectedFolder {
@@ -13,128 +22,238 @@ interface SelectedFolder {
 	name: string;
 }
 
+interface IndexingOptions {
+	max_files_per_folder: number;
+	incremental_sync: boolean;
+	include_subfolders: boolean;
+}
+
+const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
+	max_files_per_folder: 100,
+	incremental_sync: true,
+	include_subfolders: true,
+};
+
 export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
 	// Initialize with existing selected folders and files from connector config
 	const existingFolders =
 		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 	const existingFiles = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
+	const existingIndexingOptions = (connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
+
 	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
 	const [showFolderSelector, setShowFolderSelector] = useState(false);
+	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
 
 	// Update selected folders and files when connector config changes
 	useEffect(() => {
 		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
+		const options = (connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
 		setSelectedFolders(folders);
 		setSelectedFiles(files);
+		setIndexingOptions(options);
 	}, [connector.config]);
 
-	const handleSelectFolders = (folders: SelectedFolder[]) => {
-		setSelectedFolders(folders);
+	const updateConfig = (
+		folders: SelectedFolder[],
+		files: SelectedFolder[],
+		options: IndexingOptions
+	) => {
 		if (onConfigChange) {
-			// Store folder IDs and names in config for indexing
 			onConfigChange({
 				...connector.config,
 				selected_folders: folders,
-				selected_files: selectedFiles, // Preserve existing files
+				selected_files: files,
+				indexing_options: options,
 			});
 		}
 	};
 
+	const handleSelectFolders = (folders: SelectedFolder[]) => {
+		setSelectedFolders(folders);
+		updateConfig(folders, selectedFiles, indexingOptions);
+	};
+
 	const handleSelectFiles = (files: SelectedFolder[]) => {
 		setSelectedFiles(files);
-		if (onConfigChange) {
-			// Store file IDs and names in config for indexing
-			onConfigChange({
-				...connector.config,
-				selected_folders: selectedFolders, // Preserve existing folders
-				selected_files: files,
-			});
-		}
+		updateConfig(selectedFolders, files, indexingOptions);
+	};
+
+	const handleIndexingOptionChange = (key: keyof IndexingOptions, value: number | boolean) => {
+		const newOptions = { ...indexingOptions, [key]: value };
+		setIndexingOptions(newOptions);
+		updateConfig(selectedFolders, selectedFiles, newOptions);
 	};
 
 	const totalSelected = selectedFolders.length + selectedFiles.length;
 
 	return (
-		<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
-			<div className="space-y-1 sm:space-y-2">
-				<h3 className="font-medium text-sm sm:text-base">Folder & File Selection</h3>
-				<p className="text-xs sm:text-sm text-muted-foreground">
-					Select specific folders and/or individual files to index. Only files directly in each
-					folder will be processed—subfolders must be selected separately.
-				</p>
-			</div>
-
-			{totalSelected > 0 && (
-				<div className="p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm space-y-1 sm:space-y-2">
-					<p className="font-medium">
-						Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}:
-						{selectedFolders.length > 0 &&
-							` ${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`}
-						{selectedFiles.length > 0 &&
-							` ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`}
+		<div className="space-y-4">
+			{/* Folder & File Selection */}
+			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
+				<div className="space-y-1 sm:space-y-2">
+					<h3 className="font-medium text-sm sm:text-base">Folder & File Selection</h3>
+					<p className="text-xs sm:text-sm text-muted-foreground">
+						Select specific folders and/or individual files to index.
 					</p>
-					<div className="max-h-20 sm:max-h-24 overflow-y-auto space-y-1">
-						{selectedFolders.map((folder) => (
-							<p
-								key={folder.id}
-								className="text-xs sm:text-sm text-muted-foreground truncate"
-								title={folder.name}
-							>
-								📁 {folder.name}
-							</p>
-						))}
-						{selectedFiles.map((file) => (
-							<p
-								key={file.id}
-								className="text-xs sm:text-sm text-muted-foreground truncate"
-								title={file.name}
-							>
-								📄 {file.name}
-							</p>
-						))}
-					</div>
 				</div>
-			)}
 
-			{showFolderSelector ? (
-				<div className="space-y-2 sm:space-y-3">
-					<GoogleDriveFolderTree
-						connectorId={connector.id}
-						selectedFolders={selectedFolders}
-						onSelectFolders={handleSelectFolders}
-						selectedFiles={selectedFiles}
-						onSelectFiles={handleSelectFiles}
-					/>
+				{totalSelected > 0 && (
+					<div className="p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm space-y-1 sm:space-y-2">
+						<p className="font-medium">
+							Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}:
+							{selectedFolders.length > 0 &&
+								` ${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`}
+							{selectedFiles.length > 0 &&
+								` ${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`}
+						</p>
+						<div className="max-h-20 sm:max-h-24 overflow-y-auto space-y-1">
+							{selectedFolders.map((folder) => (
+								<p
+									key={folder.id}
+									className="text-xs sm:text-sm text-muted-foreground truncate"
+									title={folder.name}
+								>
+									📁 {folder.name}
+								</p>
+							))}
+							{selectedFiles.map((file) => (
+								<p
+									key={file.id}
+									className="text-xs sm:text-sm text-muted-foreground truncate"
+									title={file.name}
+								>
+									📄 {file.name}
+								</p>
+							))}
+						</div>
+					</div>
+				)}
+
+				{showFolderSelector ? (
+					<div className="space-y-2 sm:space-y-3">
+						<GoogleDriveFolderTree
+							connectorId={connector.id}
+							selectedFolders={selectedFolders}
+							onSelectFolders={handleSelectFolders}
+							selectedFiles={selectedFiles}
+							onSelectFiles={handleSelectFiles}
+						/>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => setShowFolderSelector(false)}
+							className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+						>
+							Done Selecting
+						</Button>
+					</div>
+				) : (
 					<Button
 						type="button"
 						variant="outline"
-						size="sm"
-						onClick={() => setShowFolderSelector(false)}
+						onClick={() => setShowFolderSelector(true)}
 						className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
 					>
-						Done Selecting
+						{totalSelected > 0 ? "Change Selection" : "Select Folders & Files"}
 					</Button>
-				</div>
-			) : (
-				<Button
-					type="button"
-					variant="outline"
-					onClick={() => setShowFolderSelector(true)}
-					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-				>
-					{totalSelected > 0 ? "Change Selection" : "Select Folders & Files"}
-				</Button>
-			)}
+				)}
+			</div>
 
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center gap-2 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-				<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-					Folder and file selection is used when indexing. You can change this selection when you
-					start indexing.
-				</AlertDescription>
-			</Alert>
+			{/* Indexing Options */}
+			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-4">
+				<div className="space-y-1 sm:space-y-2">
+					<h3 className="font-medium text-sm sm:text-base">Indexing Options</h3>
+					<p className="text-xs sm:text-sm text-muted-foreground">
+						Configure how files are indexed from your Google Drive.
+					</p>
+				</div>
+
+				{/* Max files per folder */}
+				<div className="space-y-2">
+					<div className="flex items-center justify-between">
+						<div className="space-y-0.5">
+							<Label htmlFor="max-files" className="text-sm font-medium">
+								Max files per folder
+							</Label>
+							<p className="text-xs text-muted-foreground">
+								Maximum number of files to index from each folder
+							</p>
+						</div>
+						<Select
+							value={indexingOptions.max_files_per_folder.toString()}
+							onValueChange={(value) =>
+								handleIndexingOptionChange("max_files_per_folder", parseInt(value, 10))
+							}
+						>
+							<SelectTrigger
+								id="max-files"
+								className="w-[140px] bg-slate-400/5 dark:bg-slate-400/5 border-slate-400/20 text-xs sm:text-sm"
+							>
+								<SelectValue placeholder="Select limit" />
+							</SelectTrigger>
+							<SelectContent className="z-[100]">
+								<SelectItem value="50" className="text-xs sm:text-sm">
+									50 files
+								</SelectItem>
+								<SelectItem value="100" className="text-xs sm:text-sm">
+									100 files
+								</SelectItem>
+								<SelectItem value="250" className="text-xs sm:text-sm">
+									250 files
+								</SelectItem>
+								<SelectItem value="500" className="text-xs sm:text-sm">
+									500 files
+								</SelectItem>
+								<SelectItem value="1000" className="text-xs sm:text-sm">
+									1000 files
+								</SelectItem>
+							</SelectContent>
+						</Select>
+					</div>
+				</div>
+
+				{/* Incremental sync toggle */}
+				<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
+					<div className="space-y-0.5">
+						<Label htmlFor="incremental-sync" className="text-sm font-medium">
+							Incremental sync
+						</Label>
+						<p className="text-xs text-muted-foreground">
+							Only sync changes since last index (faster). Disable for a full re-index.
+						</p>
+					</div>
+					<Switch
+						id="incremental-sync"
+						checked={indexingOptions.incremental_sync}
+						onCheckedChange={(checked) =>
+							handleIndexingOptionChange("incremental_sync", checked)
+						}
+					/>
+				</div>
+
+				{/* Include subfolders toggle */}
+				<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
+					<div className="space-y-0.5">
+						<Label htmlFor="include-subfolders" className="text-sm font-medium">
+							Include subfolders
+						</Label>
+						<p className="text-xs text-muted-foreground">
+							Recursively index files in subfolders of selected folders
+						</p>
+					</div>
+					<Switch
+						id="include-subfolders"
+						checked={indexingOptions.include_subfolders}
+						onCheckedChange={(checked) =>
+							handleIndexingOptionChange("include_subfolders", checked)
+						}
+					/>
+				</div>
+			</div>
 		</div>
 	);
 };
