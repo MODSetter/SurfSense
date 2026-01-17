@@ -156,7 +156,11 @@ export const DocumentMentionPicker = forwardRef<
 	// Use the new lightweight endpoint for document title search
 	// TanStack Query provides signal for automatic request cancellation
 	// keepPreviousData: shows old results while fetching new ones (no spinner flicker)
-	const { data: titleSearchResults, isLoading: isTitleSearchLoading, isFetching: isTitleSearchFetching } = useQuery({
+	const {
+		data: titleSearchResults,
+		isLoading: isTitleSearchLoading,
+		isFetching: isTitleSearchFetching,
+	} = useQuery({
 		queryKey: ["document-titles", titleSearchParams],
 		queryFn: ({ signal }) =>
 			documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }, signal),
@@ -168,7 +172,11 @@ export const DocumentMentionPicker = forwardRef<
 	// Use query for fetching first page of SurfSense docs
 	// TanStack Query provides signal for automatic request cancellation
 	// keepPreviousData: shows old results while fetching new ones (no spinner flicker)
-	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading, isFetching: isSurfsenseDocsFetching } = useQuery({
+	const {
+		data: surfsenseDocs,
+		isLoading: isSurfsenseDocsLoading,
+		isFetching: isSurfsenseDocsFetching,
+	} = useQuery({
 		queryKey: ["surfsense-docs-mention", debouncedSearch, isSearchValid],
 		queryFn: ({ signal }) =>
 			documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }, signal),
@@ -228,8 +236,9 @@ export const DocumentMentionPicker = forwardRef<
 				page_size: PAGE_SIZE,
 				...(isSearchValid ? { title: debouncedSearch.trim() } : {}),
 			};
-			const response: SearchDocumentTitlesResponse =
-				await documentsApiService.searchDocumentTitles({ queryParams });
+			const response: SearchDocumentTitlesResponse = await documentsApiService.searchDocumentTitles(
+				{ queryParams }
+			);
 
 			setAccumulatedDocuments((prev) => [...prev, ...response.items]);
 			setHasMore(response.has_more);
@@ -265,7 +274,8 @@ export const DocumentMentionPicker = forwardRef<
 	// Hide popup when user is searching and no documents match (only after fetch completes)
 	// We return null instead of calling onDone() so that mention mode stays active
 	// This allows the popup to reappear when user deletes characters and results come back
-	const hasNoSearchResults = isSearchValid && !actualLoading && !isFetchingResults && actualDocuments.length === 0;
+	const hasNoSearchResults =
+		isSearchValid && !actualLoading && !isFetchingResults && actualDocuments.length === 0;
 
 	// Split documents into SurfSense docs and user docs for grouped rendering
 	const surfsenseDocsList = useMemo(
@@ -311,30 +321,30 @@ export const DocumentMentionPicker = forwardRef<
 		const rafId = requestAnimationFrame(() => {
 			const item = itemRefs.current.get(highlightedIndex);
 			const container = scrollContainerRef.current;
-			
+
 			if (item && container) {
 				// Get item and container positions
 				const itemRect = item.getBoundingClientRect();
 				const containerRect = container.getBoundingClientRect();
-				
+
 				// Calculate if item is outside viewport (with some padding)
 				const padding = 8; // Small padding to ensure item is fully visible
 				const isAboveViewport = itemRect.top < containerRect.top + padding;
 				const isBelowViewport = itemRect.bottom > containerRect.bottom - padding;
-				
+
 				if (isAboveViewport || isBelowViewport) {
 					// Calculate scroll position to center the item in viewport
 					const itemOffsetTop = item.offsetTop;
 					const containerHeight = container.clientHeight;
 					const itemHeight = item.offsetHeight;
-					
+
 					// Center the item in the viewport
 					const targetScrollTop = itemOffsetTop - containerHeight / 2 + itemHeight / 2;
-					
+
 					// Ensure we don't scroll beyond bounds
 					const maxScrollTop = container.scrollHeight - containerHeight;
 					const clampedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
-					
+
 					// Smooth scroll to target position
 					container.scrollTo({
 						top: clampedScrollTop,
@@ -343,7 +353,7 @@ export const DocumentMentionPicker = forwardRef<
 				}
 			}
 		});
-		
+
 		return () => cancelAnimationFrame(rafId);
 	}, [highlightedIndex]);
 
