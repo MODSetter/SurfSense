@@ -166,8 +166,10 @@ class DocumentsApiService {
 	/**
 	 * Search document titles (lightweight, optimized for mention picker)
 	 * Returns only id, title, document_type - no content or metadata
+	 * @param request - The search request with query params
+	 * @param signal - Optional AbortSignal for request cancellation
 	 */
-	searchDocumentTitles = async (request: SearchDocumentTitlesRequest) => {
+	searchDocumentTitles = async (request: SearchDocumentTitlesRequest, signal?: AbortSignal) => {
 		const parsedRequest = searchDocumentTitlesRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
@@ -188,7 +190,8 @@ class DocumentsApiService {
 
 		return baseApiService.get(
 			`/api/v1/documents/search/titles?${queryParams}`,
-			searchDocumentTitlesResponse
+			searchDocumentTitlesResponse,
+			{ signal }
 		);
 	};
 
@@ -258,8 +261,10 @@ class DocumentsApiService {
 
 	/**
 	 * List all Surfsense documentation documents
+	 * @param request - The request with query params
+	 * @param signal - Optional AbortSignal for request cancellation
 	 */
-	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest) => {
+	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest, signal?: AbortSignal) => {
 		const parsedRequest = getSurfsenseDocsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
@@ -282,7 +287,7 @@ class DocumentsApiService {
 
 		const url = `/api/v1/surfsense-docs?${queryParams}`;
 
-		return baseApiService.get(url, getSurfsenseDocsResponse);
+		return baseApiService.get(url, getSurfsenseDocsResponse, { signal });
 	};
 
 	/**
