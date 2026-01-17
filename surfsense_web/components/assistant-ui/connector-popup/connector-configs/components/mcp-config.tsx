@@ -89,23 +89,14 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 			setJsonError(null);
 		}
 		
-		// Try to parse and update parent if valid
-		try {
-			const parsed = JSON.parse(value);
-			if (!Array.isArray(parsed) && parsed.command) {
-				const config: MCPServerConfig = {
-					command: parsed.command,
-					args: parsed.args || [],
-					env: parsed.env || {},
-					transport: parsed.transport || "stdio",
-				};
-				if (onConfigChange) {
-					onConfigChange({ server_config: config });
-				}
-			}
-		} catch {
-			// Ignore parse errors while typing
+		// Use shared utility for validation and parsing (with caching)
+		const result = parseMCPConfig(value);
+		
+		if (result.config && onConfigChange) {
+			// Valid config - update parent immediately
+			onConfigChange({ server_config: result.config });
 		}
+		// Ignore errors while typing - only show errors when user tests or saves
 	};
 
 	const handleTestConnection = async () => {

@@ -51,8 +51,18 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 
 	const handleConfigChange = (value: string) => {
 		setConfigJson(value);
+		
+		// Clear previous error
 		if (jsonError) {
 			setJsonError(null);
+		}
+		
+		// Validate immediately to show errors as user types (with debouncing via parseMCPConfig cache)
+		if (value.trim()) {
+			const result = parseMCPConfig(value);
+			if (result.error) {
+				setJsonError(result.error);
+			}
 		}
 	};
 
