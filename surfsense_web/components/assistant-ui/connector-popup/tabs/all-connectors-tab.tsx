@@ -122,7 +122,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnecting={isConnecting}
 									documentCount={documentCount}
 									accountCount={accountCount}
-									lastIndexedAt={mostRecentLastIndexed}
+
 									isIndexing={isIndexing}
 									onConnect={() => onConnectOAuth(connector)}
 									onManage={
@@ -176,6 +176,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnected={isConnected}
 									isConnecting={isConnecting}
 									documentCount={documentCount}
+
 									isIndexing={isIndexing}
 									onConnect={handleConnect}
 									onManage={

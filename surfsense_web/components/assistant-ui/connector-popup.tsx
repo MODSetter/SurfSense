@@ -99,15 +99,15 @@ export const ConnectorIndicator: FC = () => {
 		refreshConnectors: refreshConnectorsElectric,
 	} = useConnectorsElectric(searchSpaceId);
 
-	// Fallback to API if Electric fails or is not available
-	const connectors =
-		connectorsFromElectric.length > 0 || !connectorsError
-			? connectorsFromElectric
-			: allConnectors || [];
+	// Fallback to API if Electric is not available or fails
+	// Use Electric data if: 1) we have data, or 2) still loading without error
+	// Use API data if: Electric failed (has error) or finished loading with no data
+	const useElectricData = connectorsFromElectric.length > 0 || (connectorsLoading && !connectorsError);
+	const connectors = useElectricData ? connectorsFromElectric : allConnectors || [];
 
 	// Manual refresh function that works with both Electric and API
 	const refreshConnectors = async () => {
-		if (connectorsFromElectric.length > 0 || !connectorsError) {
+		if (useElectricData) {
 			await refreshConnectorsElectric();
 		} else {
 			// Fallback: use allConnectors from useConnectorDialog (which uses connectorsAtom)

@@ -715,6 +715,9 @@ export const useConnectorDialog = () => {
 										: `${connectorTitle} connected successfully!`;
 									toast.success(successMessage);
 
+									// Refresh connectors list before closing modal
+									await refetchAllConnectors();
+
 									// Close modal and return to main view
 									const url = new URL(window.location.href);
 									url.searchParams.delete("modal");

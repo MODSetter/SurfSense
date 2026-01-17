@@ -240,6 +240,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										connector.connector_type,
 										documentTypeCounts
 									);
+									const isMCPConnector = connector.connector_type === "MCP_CONNECTOR";
 									return (
 										<div
 											key={`connector-${connector.id}`}
@@ -271,11 +272,11 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 														<Loader2 className="size-3 animate-spin" />
 														Syncing
 													</p>
-												) : (
+												) : !isMCPConnector ? (
 													<p className="text-[10px] text-muted-foreground mt-1">
 														{formatDocumentCount(documentCount)}
 													</p>
-												)}
+												) : null}
 											</div>
 											<Button
 												variant="secondary"
