@@ -46,12 +46,17 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 
 	// Start syncing when Electric client is available
 	useEffect(() => {
-		// Wait for both searchSpaceId and Electric client to be available
-		if (!searchSpaceId || !electricClient) {
-			setLoading(!electricClient); // Still loading if waiting for Electric
-			if (!searchSpaceId) {
-				setConnectors([]);
-			}
+		// If no Electric client available, immediately mark as not loading (disabled)
+		if (!electricClient) {
+			setLoading(false);
+			setError(new Error("Electric SQL not configured"));
+			return;
+		}
+
+		// Wait for searchSpaceId to be available
+		if (!searchSpaceId) {
+			setConnectors([]);
+			setLoading(false);
 			return;
 		}
 

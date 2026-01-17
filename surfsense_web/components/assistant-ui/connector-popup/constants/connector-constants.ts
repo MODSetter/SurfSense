@@ -160,6 +160,12 @@ export const OTHER_CONNECTORS = [
 		description: "Receive meeting notes, transcripts",
 		connectorType: EnumConnectorName.CIRCLEBACK_CONNECTOR,
 	},
+	{
+		id: "mcp-connector",
+		title: "MCPs",
+		description: "Connect to MCP servers for AI tools",
+		connectorType: EnumConnectorName.MCP_CONNECTOR,
+	},
 ] as const;
 
 // Re-export IndexingConfigState from schemas for backward compatibility

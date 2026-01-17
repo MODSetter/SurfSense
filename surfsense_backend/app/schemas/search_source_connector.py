@@ -95,7 +95,7 @@ class MCPConnectorCreate(BaseModel):
     """Schema for creating an MCP connector."""
 
     name: str
-    server_config: MCPServerConfig
+    server_config: MCPServerConfig  # Single MCP server configuration
 
 
 class MCPConnectorUpdate(BaseModel):
@@ -106,7 +106,7 @@ class MCPConnectorUpdate(BaseModel):
 
 
 class MCPConnectorRead(BaseModel):
-    """Schema for reading an MCP connector with server config."""
+    """Schema for reading an MCP connector with server configs."""
 
     id: int
     name: str
@@ -123,7 +123,8 @@ class MCPConnectorRead(BaseModel):
     def from_connector(cls, connector: SearchSourceConnectorRead) -> "MCPConnectorRead":
         """Convert from base SearchSourceConnectorRead."""
         config = connector.config or {}
-        server_config = MCPServerConfig(**config.get("server_config", {}))
+        server_config_data = config.get("server_config", {})
+        server_config = MCPServerConfig(**server_config_data)
 
         return cls(
             id=connector.id,

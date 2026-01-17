@@ -4,6 +4,7 @@ This module provides a client for communicating with MCP servers via stdio trans
 It handles server lifecycle management, tool discovery, and tool execution.
 """
 
+import asyncio
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -13,6 +14,11 @@ from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
 
 logger = logging.getLogger(__name__)
+
+# Retry configuration
+MAX_RETRIES = 3
+RETRY_DELAY = 1.0  # seconds
+RETRY_BACKOFF = 2.0  # exponential backoff multiplier
 
 
 class MCPClient:
@@ -35,44 +41,86 @@ class MCPClient:
         self.session: ClientSession | None = None
 
     @asynccontextmanager
-    async def connect(self):
+    async def connect(self, max_retries: int = MAX_RETRIES):
         """Connect to the MCP server and manage its lifecycle.
+
+        Args:
+            max_retries: Maximum number of connection retry attempts
 
         Yields:
             ClientSession: Active MCP session for making requests
 
+        Raises:
+            RuntimeError: If all connection attempts fail
+
         """
-        try:
-            # Merge env vars with current environment
-            server_env = os.environ.copy()
-            server_env.update(self.env)
+        last_error = None
+        delay = RETRY_DELAY
 
-            # Create server parameters with env
-            server_params = StdioServerParameters(
-                command=self.command, args=self.args, env=server_env
-            )
+        for attempt in range(max_retries):
+            try:
+                # Merge env vars with current environment
+                server_env = os.environ.copy()
+                server_env.update(self.env)
 
-            # Spawn server process and create session
-            # Note: Cannot combine these context managers because ClientSession
-            # needs the read/write streams from stdio_client
-            async with stdio_client(server=server_params) as (read, write):  # noqa: SIM117
-                async with ClientSession(read, write) as session:
-                    # Initialize the connection
-                    await session.initialize()
-                    self.session = session
-                    logger.info(
-                        "Connected to MCP server: %s %s",
-                        self.command,
-                        " ".join(self.args),
+                # Create server parameters with env
+                server_params = StdioServerParameters(
+                    command=self.command, args=self.args, env=server_env
+                )
+
+                # Spawn server process and create session
+                # Note: Cannot combine these context managers because ClientSession
+                # needs the read/write streams from stdio_client
+                async with stdio_client(server=server_params) as (read, write):  # noqa: SIM117
+                    async with ClientSession(read, write) as session:
+                        # Initialize the connection
+                        await session.initialize()
+                        self.session = session
+                        
+                        if attempt > 0:
+                            logger.info(
+                                "Connected to MCP server on attempt %d: %s %s",
+                                attempt + 1,
+                                self.command,
+                                " ".join(self.args),
+                            )
+                        else:
+                            logger.info(
+                                "Connected to MCP server: %s %s",
+                                self.command,
+                                " ".join(self.args),
+                            )
+                        yield session
+                        return  # Success, exit retry loop
+
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    logger.warning(
+                        "MCP server connection failed (attempt %d/%d): %s. Retrying in %.1fs...",
+                        attempt + 1,
+                        max_retries,
+                        e,
+                        delay,
                     )
-                    yield session
+                    await asyncio.sleep(delay)
+                    delay *= RETRY_BACKOFF  # Exponential backoff
+                else:
+                    logger.error(
+                        "Failed to connect to MCP server after %d attempts: %s",
+                        max_retries,
+                        e,
+                        exc_info=True,
+                    )
+            finally:
+                self.session = None
 
-        except Exception as e:
-            logger.error("Failed to connect to MCP server: %s", e, exc_info=True)
-            raise
-        finally:
-            self.session = None
-            logger.info("Disconnected from MCP server: %s", self.command)
+        # All retries exhausted
+        error_msg = f"Failed to connect to MCP server '{self.command}' after {max_retries} attempts"
+        if last_error:
+            error_msg += f": {last_error}"
+        logger.error(error_msg)
+        raise RuntimeError(error_msg) from last_error
 
     async def list_tools(self) -> list[dict[str, Any]]:
         """List all tools available from the MCP server.

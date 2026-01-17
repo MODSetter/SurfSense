@@ -3,11 +3,15 @@
 import { ArrowRight, Cable, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FC } from "react";
+import { useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
+import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cn } from "@/lib/utils";
 import { OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
@@ -23,6 +27,14 @@ interface ActiveConnectorsTabProps {
 	onTabChange: (value: string) => void;
 	onManage?: (connector: SearchSourceConnector) => void;
 	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
+}
+
+/**
+ * Check if a connector type is indexable
+ */
+function isIndexableConnector(connectorType: string): boolean {
+	const nonIndexableTypes = ["MCP_CONNECTOR"];
+	return !nonIndexableTypes.includes(connectorType);
 }
 
 export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
@@ -84,7 +96,9 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 
 	// Separate OAuth and non-OAuth connectors
 	const oauthConnectors = connectors.filter((c) => oauthConnectorTypes.has(c.connector_type));
-	const nonOauthConnectors = connectors.filter((c) => !oauthConnectorTypes.has(c.connector_type));
+	const nonOauthConnectors = connectors.filter(
+		(c) => !oauthConnectorTypes.has(c.connector_type)
+	);
 
 	// Group OAuth connectors by type
 	const oauthConnectorsByType = oauthConnectors.reduce(
@@ -136,7 +150,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	});
 
 	const hasActiveConnectors =
-		filteredOAuthConnectorTypes.length > 0 || filteredNonOAuthConnectors.length > 0;
+		filteredOAuthConnectorTypes.length > 0 ||
+		filteredNonOAuthConnectors.length > 0;
 
 	return (
 		<TabsContent value="active" className="m-0">
@@ -225,7 +240,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 										connector.connector_type,
 										documentTypeCounts
 									);
-
+									const isMCPConnector = connector.connector_type === "MCP_CONNECTOR";
 									return (
 										<div
 											key={`connector-${connector.id}`}
@@ -247,19 +262,21 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												{getConnectorIcon(connector.connector_type, "size-6")}
 											</div>
 											<div className="flex-1 min-w-0">
-												<p className="text-[14px] font-semibold leading-tight truncate">
-													{connector.name}
-												</p>
+												<div className="flex items-center gap-2">
+													<p className="text-[14px] font-semibold leading-tight">
+														{connector.name}
+													</p>
+												</div>
 												{isIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
 														<Loader2 className="size-3 animate-spin" />
 														Syncing
 													</p>
-												) : (
+												) : !isMCPConnector ? (
 													<p className="text-[10px] text-muted-foreground mt-1">
 														{formatDocumentCount(documentCount)}
 													</p>
-												)}
+												) : null}
 											</div>
 											<Button
 												variant="secondary"

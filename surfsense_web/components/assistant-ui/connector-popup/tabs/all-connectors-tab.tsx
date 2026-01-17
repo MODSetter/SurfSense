@@ -89,6 +89,20 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 										)
 									: [];
 
+							const accountCount = typeConnectors.length;
+
+							// Get the most recent last_indexed_at across all accounts
+							const mostRecentLastIndexed = typeConnectors.reduce<string | undefined>(
+								(latest, c) => {
+									if (!c.last_indexed_at) return latest;
+									if (!latest) return c.last_indexed_at;
+									return new Date(c.last_indexed_at) > new Date(latest)
+										? c.last_indexed_at
+										: latest;
+								},
+								undefined
+							);
+
 							const documentCount = getDocumentCountForConnector(
 								connector.connectorType,
 								documentTypeCounts
@@ -107,7 +121,8 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnected={isConnected}
 									isConnecting={isConnecting}
 									documentCount={documentCount}
-									accountCount={typeConnectors.length}
+									accountCount={accountCount}
+
 									isIndexing={isIndexing}
 									onConnect={() => onConnectOAuth(connector)}
 									onManage={
@@ -161,6 +176,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnected={isConnected}
 									isConnecting={isConnecting}
 									documentCount={documentCount}
+
 									isIndexing={isIndexing}
 									onConnect={handleConnect}
 									onManage={

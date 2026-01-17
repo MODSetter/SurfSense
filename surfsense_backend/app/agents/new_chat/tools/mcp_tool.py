@@ -90,16 +90,22 @@ async def _create_mcp_tool_from_definition(
     input_model = _create_dynamic_input_model_from_schema(tool_name, input_schema)
 
     async def mcp_tool_call(**kwargs) -> str:
-        """Execute the MCP tool call via the client."""
+        """Execute the MCP tool call via the client with retry support."""
         logger.info(f"MCP tool '{tool_name}' called with params: {kwargs}")
 
         try:
-            # Connect to server and call tool
+            # Connect to server and call tool (connect has built-in retry logic)
             async with mcp_client.connect():
                 result = await mcp_client.call_tool(tool_name, kwargs)
                 return str(result)
+        except RuntimeError as e:
+            # Connection failures after all retries
+            error_msg = f"MCP tool '{tool_name}' connection failed after retries: {e!s}"
+            logger.error(error_msg)
+            return f"Error: {error_msg}"
         except Exception as e:
-            error_msg = f"MCP tool '{tool_name}' failed: {e!s}"
+            # Tool execution or other errors
+            error_msg = f"MCP tool '{tool_name}' execution failed: {e!s}"
             logger.exception(error_msg)
             return f"Error: {error_msg}"
 
@@ -146,17 +152,38 @@ async def load_mcp_tools(
         tools: list[StructuredTool] = []
         for connector in result.scalars():
             try:
-                # Extract server config
+                # Early validation: Extract and validate connector config
                 config = connector.config or {}
                 server_config = config.get("server_config", {})
-
-                command = server_config.get("command")
-                args = server_config.get("args", [])
-                env = server_config.get("env", {})
-
-                if not command:
+                
+                # Validate server_config exists and is a dict
+                if not server_config or not isinstance(server_config, dict):
                     logger.warning(
-                        f"MCP connector {connector.id} missing command, skipping"
+                        f"MCP connector {connector.id} (name: '{connector.name}') has invalid or missing server_config, skipping"
+                    )
+                    continue
+
+                # Validate required command field
+                command = server_config.get("command")
+                if not command or not isinstance(command, str):
+                    logger.warning(
+                        f"MCP connector {connector.id} (name: '{connector.name}') missing or invalid command field, skipping"
+                    )
+                    continue
+
+                # Validate args field (must be list if present)
+                args = server_config.get("args", [])
+                if not isinstance(args, list):
+                    logger.warning(
+                        f"MCP connector {connector.id} (name: '{connector.name}') has invalid args field (must be list), skipping"
+                    )
+                    continue
+
+                # Validate env field (must be dict if present)
+                env = server_config.get("env", {})
+                if not isinstance(env, dict):
+                    logger.warning(
+                        f"MCP connector {connector.id} (name: '{connector.name}') has invalid env field (must be dict), skipping"
                     )
                     continue
 
@@ -172,22 +199,21 @@ async def load_mcp_tools(
                         f"'{command}' (connector {connector.id})"
                     )
 
-                    # Create LangChain tools from definitions
-                    for tool_def in tool_definitions:
-                        try:
-                            tool = await _create_mcp_tool_from_definition(
-                                tool_def, mcp_client
-                            )
-                            tools.append(tool)
-                        except Exception as e:
-                            logger.exception(
-                                f"Failed to create tool '{tool_def.get('name')}' "
-                                f"from connector {connector.id}: {e!s}",
-                            )
-
+                # Create LangChain tools from definitions
+                for tool_def in tool_definitions:
+                    try:
+                        tool = await _create_mcp_tool_from_definition(
+                            tool_def, mcp_client
+                        )
+                        tools.append(tool)
+                    except Exception as e:
+                        logger.exception(
+                            f"Failed to create tool '{tool_def.get('name')}' "
+                            f"from connector {connector.id}: {e!s}"
+                        )
             except Exception as e:
                 logger.exception(
-                    f"Failed to load tools from MCP connector {connector.id}: {e!s}",
+                    f"Failed to load tools from MCP connector {connector.id}: {e!s}"
                 )
 
         logger.info(f"Loaded {len(tools)} MCP tools for search space {search_space_id}")
