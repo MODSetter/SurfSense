@@ -110,15 +110,21 @@ async def _check_and_trigger_schedules():
                     )
 
                     # Special handling for Google Drive - uses config for folder/file selection
-                    if connector.connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR:
+                    if (
+                        connector.connector_type
+                        == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
+                    ):
                         connector_config = connector.config or {}
                         selected_folders = connector_config.get("selected_folders", [])
                         selected_files = connector_config.get("selected_files", [])
-                        indexing_options = connector_config.get("indexing_options", {
-                            "max_files_per_folder": 100,
-                            "incremental_sync": True,
-                            "include_subfolders": True,
-                        })
+                        indexing_options = connector_config.get(
+                            "indexing_options",
+                            {
+                                "max_files_per_folder": 100,
+                                "incremental_sync": True,
+                                "include_subfolders": True,
+                            },
+                        )
 
                         if selected_folders or selected_files:
                             task.delay(
@@ -139,6 +145,7 @@ async def _check_and_trigger_schedules():
                                 "skipping periodic indexing (will check again at next scheduled time)"
                             )
                             from datetime import timedelta
+
                             connector.next_scheduled_at = now + timedelta(
                                 minutes=connector.indexing_frequency_minutes
                             )

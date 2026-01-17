@@ -57,15 +57,15 @@ def get_google_drive_unique_identifier(
 ) -> tuple[str, str | None]:
     """
     Get unique identifier hash for a file, with special handling for Google Drive.
-    
+
     For Google Drive files, uses file_id as the unique identifier (doesn't change on rename).
     For other files, uses filename.
-    
+
     Args:
         connector: Optional connector info dict with type and metadata
         filename: The filename (used for non-Google Drive files or as fallback)
         search_space_id: The search space ID
-    
+
     Returns:
         Tuple of (primary_hash, legacy_hash or None)
         - For Google Drive: (file_id_based_hash, filename_based_hash for migration)
@@ -74,7 +74,7 @@ def get_google_drive_unique_identifier(
     if connector and connector.get("type") == DocumentType.GOOGLE_DRIVE_FILE:
         metadata = connector.get("metadata", {})
         file_id = metadata.get("google_drive_file_id")
-        
+
         if file_id:
             # New method: use file_id as unique identifier (doesn't change on rename)
             primary_hash = generate_unique_identifier_hash(
@@ -86,7 +86,7 @@ def get_google_drive_unique_identifier(
                 DocumentType.GOOGLE_DRIVE_FILE, filename, search_space_id
             )
             return primary_hash, legacy_hash
-    
+
     # For non-Google Drive files, use filename as before
     primary_hash = generate_unique_identifier_hash(
         DocumentType.FILE, filename, search_space_id
@@ -104,7 +104,7 @@ async def handle_existing_document_update(
 ) -> tuple[bool, Document | None]:
     """
     Handle update logic for an existing document.
-    
+
     Args:
         session: Database session
         existing_document: The existing document found in database
@@ -112,7 +112,7 @@ async def handle_existing_document_update(
         connector: Optional connector info
         filename: Current filename
         primary_hash: The primary hash (file_id based for Google Drive)
-    
+
     Returns:
         Tuple of (should_skip_processing, document_to_return)
         - (True, document): Content unchanged, just return existing document
@@ -122,7 +122,7 @@ async def handle_existing_document_update(
     if existing_document.unique_identifier_hash != primary_hash:
         existing_document.unique_identifier_hash = primary_hash
         logging.info(f"Migrated document to file_id-based identifier: {filename}")
-    
+
     # Check if content has changed
     if existing_document.content_hash == content_hash:
         # Content unchanged - check if we need to update metadata (e.g., filename changed)
@@ -131,12 +131,14 @@ async def handle_existing_document_update(
             new_name = connector_metadata.get("google_drive_file_name")
             # Check both possible keys for old name (FILE_NAME is used in stored documents)
             doc_metadata = existing_document.document_metadata or {}
-            old_name = doc_metadata.get("FILE_NAME") or doc_metadata.get("google_drive_file_name")
-            
+            old_name = doc_metadata.get("FILE_NAME") or doc_metadata.get(
+                "google_drive_file_name"
+            )
+
             if new_name and old_name and old_name != new_name:
                 # File was renamed - update title and metadata, skip expensive processing
                 from sqlalchemy.orm.attributes import flag_modified
-                
+
                 existing_document.title = new_name
                 if not existing_document.document_metadata:
                     existing_document.document_metadata = {}
@@ -144,8 +146,10 @@ async def handle_existing_document_update(
                 existing_document.document_metadata["google_drive_file_name"] = new_name
                 flag_modified(existing_document, "document_metadata")
                 await session.commit()
-                logging.info(f"File renamed in Google Drive: '{old_name}' → '{new_name}' (no re-processing needed)")
-        
+                logging.info(
+                    f"File renamed in Google Drive: '{old_name}' → '{new_name}' (no re-processing needed)"
+                )
+
         logging.info(f"Document for file {filename} unchanged. Skipping.")
         return True, existing_document
     else:
@@ -163,25 +167,29 @@ async def find_existing_document_with_migration(
     """
     Find existing document, checking both new hash and legacy hash for migration,
     with fallback to content_hash for cross-source deduplication.
-    
+
     Args:
         session: Database session
         primary_hash: The primary hash (file_id based for Google Drive)
         legacy_hash: The legacy hash (filename based) for migration, or None
         content_hash: The content hash for fallback deduplication, or None
-    
+
     Returns:
         Existing document if found, None otherwise
     """
     # First check with primary hash (new method)
     existing_document = await check_document_by_unique_identifier(session, primary_hash)
-    
+
     # If not found and we have a legacy hash, check with that (migration path)
     if not existing_document and legacy_hash:
-        existing_document = await check_document_by_unique_identifier(session, legacy_hash)
+        existing_document = await check_document_by_unique_identifier(
+            session, legacy_hash
+        )
         if existing_document:
-            logging.info("Found legacy document (filename-based hash), will migrate to file_id-based hash")
-    
+            logging.info(
+                "Found legacy document (filename-based hash), will migrate to file_id-based hash"
+            )
+
     # Fallback: check by content_hash to catch duplicates from different sources
     # This prevents unique constraint violations when the same content exists
     # under a different unique_identifier (e.g., manual upload vs Google Drive)
@@ -192,7 +200,7 @@ async def find_existing_document_with_migration(
                 f"Found duplicate content from different source (content_hash match). "
                 f"Original document ID: {existing_document.id}, type: {existing_document.document_type}"
             )
-    
+
     return existing_document
 
 
@@ -342,7 +350,12 @@ async def add_received_file_document_using_unstructured(
         if existing_document:
             # Handle existing document (rename detection, content change check)
             should_skip, doc = await handle_existing_document_update(
-                session, existing_document, content_hash, connector, file_name, primary_hash
+                session,
+                existing_document,
+                content_hash,
+                connector,
+                file_name,
+                primary_hash,
             )
             if should_skip:
                 return doc
@@ -402,7 +415,7 @@ async def add_received_file_document_using_unstructured(
             doc_type = DocumentType.FILE
             if connector and connector.get("type") == DocumentType.GOOGLE_DRIVE_FILE:
                 doc_type = DocumentType.GOOGLE_DRIVE_FILE
-            
+
             document = Document(
                 search_space_id=search_space_id,
                 title=file_name,
@@ -476,7 +489,12 @@ async def add_received_file_document_using_llamacloud(
         if existing_document:
             # Handle existing document (rename detection, content change check)
             should_skip, doc = await handle_existing_document_update(
-                session, existing_document, content_hash, connector, file_name, primary_hash
+                session,
+                existing_document,
+                content_hash,
+                connector,
+                file_name,
+                primary_hash,
             )
             if should_skip:
                 return doc
@@ -536,7 +554,7 @@ async def add_received_file_document_using_llamacloud(
             doc_type = DocumentType.FILE
             if connector and connector.get("type") == DocumentType.GOOGLE_DRIVE_FILE:
                 doc_type = DocumentType.GOOGLE_DRIVE_FILE
-            
+
             document = Document(
                 search_space_id=search_space_id,
                 title=file_name,
@@ -611,7 +629,12 @@ async def add_received_file_document_using_docling(
         if existing_document:
             # Handle existing document (rename detection, content change check)
             should_skip, doc = await handle_existing_document_update(
-                session, existing_document, content_hash, connector, file_name, primary_hash
+                session,
+                existing_document,
+                content_hash,
+                connector,
+                file_name,
+                primary_hash,
             )
             if should_skip:
                 return doc
@@ -695,7 +718,7 @@ async def add_received_file_document_using_docling(
             doc_type = DocumentType.FILE
             if connector and connector.get("type") == DocumentType.GOOGLE_DRIVE_FILE:
                 doc_type = DocumentType.GOOGLE_DRIVE_FILE
-            
+
             document = Document(
                 search_space_id=search_space_id,
                 title=file_name,

@@ -38,11 +38,7 @@ export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
 						Automatically re-index at regular intervals
 					</p>
 				</div>
-				<Switch 
-					checked={enabled} 
-					onCheckedChange={onEnabledChange} 
-					disabled={disabled}
-				/>
+				<Switch checked={enabled} onCheckedChange={onEnabledChange} disabled={disabled} />
 			</div>
 
 			{/* Show disabled message when periodic sync can't be enabled */}

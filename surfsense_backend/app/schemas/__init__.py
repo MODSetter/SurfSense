@@ -90,11 +90,11 @@ __all__ = [
     "DocumentsCreate",
     # Google Drive schemas
     "DriveItem",
-    "GoogleDriveIndexingOptions",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
     "GlobalNewLLMConfigRead",
     "GoogleDriveIndexRequest",
+    "GoogleDriveIndexingOptions",
     # Base schemas
     "IDModel",
     # RBAC schemas

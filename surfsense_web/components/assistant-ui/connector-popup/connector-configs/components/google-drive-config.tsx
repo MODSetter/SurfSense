@@ -37,19 +37,42 @@ const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
 function getFileIconFromName(fileName: string, className: string = "size-3.5 shrink-0") {
 	const lowerName = fileName.toLowerCase();
 	// Spreadsheets
-	if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls") || lowerName.endsWith(".csv") || lowerName.includes("spreadsheet")) {
+	if (
+		lowerName.endsWith(".xlsx") ||
+		lowerName.endsWith(".xls") ||
+		lowerName.endsWith(".csv") ||
+		lowerName.includes("spreadsheet")
+	) {
 		return <FileSpreadsheet className={`${className} text-green-500`} />;
 	}
 	// Presentations
-	if (lowerName.endsWith(".pptx") || lowerName.endsWith(".ppt") || lowerName.includes("presentation")) {
+	if (
+		lowerName.endsWith(".pptx") ||
+		lowerName.endsWith(".ppt") ||
+		lowerName.includes("presentation")
+	) {
 		return <Presentation className={`${className} text-orange-500`} />;
 	}
 	// Documents (word, text only - not PDF)
-	if (lowerName.endsWith(".docx") || lowerName.endsWith(".doc") || lowerName.endsWith(".txt") || lowerName.includes("document") || lowerName.includes("word") || lowerName.includes("text")) {
+	if (
+		lowerName.endsWith(".docx") ||
+		lowerName.endsWith(".doc") ||
+		lowerName.endsWith(".txt") ||
+		lowerName.includes("document") ||
+		lowerName.includes("word") ||
+		lowerName.includes("text")
+	) {
 		return <FileText className={`${className} text-gray-500`} />;
 	}
 	// Images
-	if (lowerName.endsWith(".png") || lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") || lowerName.endsWith(".gif") || lowerName.endsWith(".webp") || lowerName.endsWith(".svg")) {
+	if (
+		lowerName.endsWith(".png") ||
+		lowerName.endsWith(".jpg") ||
+		lowerName.endsWith(".jpeg") ||
+		lowerName.endsWith(".gif") ||
+		lowerName.endsWith(".webp") ||
+		lowerName.endsWith(".svg")
+	) {
 		return <Image className={`${className} text-purple-500`} />;
 	}
 	// Default (including PDF)
@@ -61,7 +84,8 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 	const existingFolders =
 		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 	const existingFiles = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
-	const existingIndexingOptions = (connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
+	const existingIndexingOptions =
+		(connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
 
 	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
@@ -72,7 +96,9 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 	useEffect(() => {
 		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
-		const options = (connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
+		const options =
+			(connector.config?.indexing_options as IndexingOptions | undefined) ||
+			DEFAULT_INDEXING_OPTIONS;
 		setSelectedFolders(folders);
 		setSelectedFiles(files);
 		setIndexingOptions(options);
@@ -125,11 +151,12 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 				{totalSelected > 0 && (
 					<div className="p-2 sm:p-3 bg-muted rounded-lg text-xs sm:text-sm space-y-1 sm:space-y-2">
 						<p className="font-medium">
-							Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}:{" "}
-							{(() => {
+							Selected {totalSelected} item{totalSelected > 1 ? "s" : ""}: {(() => {
 								const parts: string[] = [];
 								if (selectedFolders.length > 0) {
-									parts.push(`${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`);
+									parts.push(
+										`${selectedFolders.length} folder${selectedFolders.length > 1 ? "s" : ""}`
+									);
 								}
 								if (selectedFiles.length > 0) {
 									parts.push(`${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`);
@@ -259,9 +286,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					<Switch
 						id="incremental-sync"
 						checked={indexingOptions.incremental_sync}
-						onCheckedChange={(checked) =>
-							handleIndexingOptionChange("incremental_sync", checked)
-						}
+						onCheckedChange={(checked) => handleIndexingOptionChange("incremental_sync", checked)}
 					/>
 				</div>
 
@@ -278,9 +303,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					<Switch
 						id="include-subfolders"
 						checked={indexingOptions.include_subfolders}
-						onCheckedChange={(checked) =>
-							handleIndexingOptionChange("include_subfolders", checked)
-						}
+						onCheckedChange={(checked) => handleIndexingOptionChange("include_subfolders", checked)}
 					/>
 				</div>
 			</div>

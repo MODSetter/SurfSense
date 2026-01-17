@@ -388,7 +388,11 @@ async def _index_full_scan(
     await task_logger.log_task_progress(
         log_entry,
         f"Starting full scan of folder: {folder_name} (include_subfolders={include_subfolders})",
-        {"stage": "full_scan", "folder_id": folder_id, "include_subfolders": include_subfolders},
+        {
+            "stage": "full_scan",
+            "folder_id": folder_id,
+            "include_subfolders": include_subfolders,
+        },
     )
 
     documents_indexed = 0
@@ -407,7 +411,10 @@ async def _index_full_scan(
             # Get files and folders in current folder
             # include_subfolders=True here so we get folder items to queue them
             files, next_token, error = await get_files_in_folder(
-                drive_client, current_folder_id, include_subfolders=True, page_token=page_token
+                drive_client,
+                current_folder_id,
+                include_subfolders=True,
+                page_token=page_token,
             )
 
             if error:
@@ -426,7 +433,9 @@ async def _index_full_scan(
                 # If this is a folder and include_subfolders is enabled, queue it for processing
                 if mime_type == "application/vnd.google-apps.folder":
                     if include_subfolders:
-                        folders_to_process.append((file["id"], file.get("name", "Unknown")))
+                        folders_to_process.append(
+                            (file["id"], file.get("name", "Unknown"))
+                        )
                         logger.debug(f"Queued subfolder: {file.get('name', 'Unknown')}")
                     continue
 
@@ -478,7 +487,7 @@ async def _index_with_delta_sync(
     include_subfolders: bool = False,
 ) -> tuple[int, int]:
     """Perform delta sync indexing using change tracking.
-    
+
     Note: include_subfolders is accepted for API consistency but delta sync
     automatically tracks changes across all folders including subfolders.
     """
@@ -554,16 +563,16 @@ async def _check_rename_only_update(
 ) -> tuple[bool, str | None]:
     """
     Check if a file only needs a rename update (no content change).
-    
+
     Uses md5Checksum comparison (preferred) or modifiedTime (fallback for Google Workspace files)
     to detect if content has changed. This optimization prevents unnecessary ETL API calls
     (Docling/LlamaCloud) for rename-only operations.
-    
+
     Args:
         session: Database session
         file: File metadata from Google Drive API
         search_space_id: ID of the search space
-    
+
     Returns:
         Tuple of (is_rename_only, message)
         - (True, message): Only filename changed, document was updated
@@ -571,69 +580,76 @@ async def _check_rename_only_update(
     """
     from sqlalchemy import select
     from sqlalchemy.orm.attributes import flag_modified
+
     from app.db import Document
-    
+
     file_id = file.get("id")
     file_name = file.get("name", "Unknown")
     incoming_md5 = file.get("md5Checksum")  # None for Google Workspace files
     incoming_modified_time = file.get("modifiedTime")
-    
+
     if not file_id:
         return False, None
-    
+
     # Try to find existing document by file_id-based hash (primary method)
     primary_hash = generate_unique_identifier_hash(
         DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
     )
     existing_document = await check_document_by_unique_identifier(session, primary_hash)
-    
+
     # If not found by primary hash, try searching by metadata (for legacy documents)
     if not existing_document:
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
                 Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
-                Document.document_metadata["google_drive_file_id"].astext == file_id
+                Document.document_metadata["google_drive_file_id"].astext == file_id,
             )
         )
         existing_document = result.scalar_one_or_none()
         if existing_document:
             logger.debug(f"Found legacy document by metadata for file_id: {file_id}")
-    
+
     if not existing_document:
         # New file, needs full processing
         return False, None
-    
+
     # Get stored checksums/timestamps from document metadata
     doc_metadata = existing_document.document_metadata or {}
     stored_md5 = doc_metadata.get("md5_checksum")
     stored_modified_time = doc_metadata.get("modified_time")
-    
+
     # Determine if content changed using md5Checksum (preferred) or modifiedTime (fallback)
     content_unchanged = False
-    
+
     if incoming_md5 and stored_md5:
         # Best case: Compare md5 checksums (only changes when content changes, not on rename)
-        content_unchanged = (incoming_md5 == stored_md5)
+        content_unchanged = incoming_md5 == stored_md5
         logger.debug(f"MD5 comparison for {file_name}: unchanged={content_unchanged}")
     elif incoming_md5 and not stored_md5:
         # Have incoming md5 but no stored md5 (legacy doc) - need to reprocess to store it
-        logger.debug(f"No stored md5 for {file_name}, will reprocess to store md5_checksum")
+        logger.debug(
+            f"No stored md5 for {file_name}, will reprocess to store md5_checksum"
+        )
         return False, None
     elif not incoming_md5:
         # Google Workspace file (no md5Checksum available) - fall back to modifiedTime
         # Note: modifiedTime is less reliable as it changes on rename too, but it's the best we have
         if incoming_modified_time and stored_modified_time:
-            content_unchanged = (incoming_modified_time == stored_modified_time)
-            logger.debug(f"ModifiedTime fallback for Google Workspace file {file_name}: unchanged={content_unchanged}")
+            content_unchanged = incoming_modified_time == stored_modified_time
+            logger.debug(
+                f"ModifiedTime fallback for Google Workspace file {file_name}: unchanged={content_unchanged}"
+            )
         else:
             # No stored modifiedTime (legacy) - reprocess to store it
             return False, None
-    
+
     if content_unchanged:
         # Content hasn't changed - check if filename changed
-        old_name = doc_metadata.get("FILE_NAME") or doc_metadata.get("google_drive_file_name")
-        
+        old_name = doc_metadata.get("FILE_NAME") or doc_metadata.get(
+            "google_drive_file_name"
+        )
+
         if old_name and old_name != file_name:
             # Rename-only update - update the document without re-processing
             existing_document.title = file_name
@@ -643,17 +659,24 @@ async def _check_rename_only_update(
             existing_document.document_metadata["google_drive_file_name"] = file_name
             # Also update modified_time for Google Workspace files (since it changed on rename)
             if incoming_modified_time:
-                existing_document.document_metadata["modified_time"] = incoming_modified_time
+                existing_document.document_metadata["modified_time"] = (
+                    incoming_modified_time
+                )
             flag_modified(existing_document, "document_metadata")
             await session.commit()
-            
-            logger.info(f"Rename-only update: '{old_name}' → '{file_name}' (skipped ETL)")
-            return True, f"File renamed: '{old_name}' → '{file_name}' (no content change)"
+
+            logger.info(
+                f"Rename-only update: '{old_name}' → '{file_name}' (skipped ETL)"
+            )
+            return (
+                True,
+                f"File renamed: '{old_name}' → '{file_name}' (no content change)",
+            )
         else:
             # Neither content nor name changed
             logger.debug(f"File unchanged: {file_name}")
             return True, "File unchanged (same content and name)"
-    
+
     # Content changed - needs full processing
     return False, None
 
@@ -688,7 +711,7 @@ async def _process_single_file(
             file=file,
             search_space_id=search_space_id,
         )
-        
+
         if is_rename_only:
             await task_logger.log_task_progress(
                 log_entry,
@@ -729,12 +752,13 @@ async def _process_single_file(
 
 async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):
     """Remove a document that was deleted in Drive.
-    
+
     Handles both new (file_id-based) and legacy (filename-based) hash schemes.
     """
     from sqlalchemy import select
+
     from app.db import Document
-    
+
     # First try with file_id-based hash (new method)
     unique_identifier_hash = generate_unique_identifier_hash(
         DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
@@ -750,7 +774,7 @@ async def _remove_document(session: AsyncSession, file_id: str, search_space_id:
             select(Document).where(
                 Document.search_space_id == search_space_id,
                 Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
-                Document.document_metadata["google_drive_file_id"].astext == file_id
+                Document.document_metadata["google_drive_file_id"].astext == file_id,
             )
         )
         existing_document = result.scalar_one_or_none()
