@@ -111,10 +111,10 @@ async def _check_and_trigger_schedules():
 
                     # Special handling for Google Drive - uses config for folder/file selection
                     if connector.connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR:
-                        config = connector.config or {}
-                        selected_folders = config.get("selected_folders", [])
-                        selected_files = config.get("selected_files", [])
-                        indexing_options = config.get("indexing_options", {
+                        connector_config = connector.config or {}
+                        selected_folders = connector_config.get("selected_folders", [])
+                        selected_files = connector_config.get("selected_files", [])
+                        indexing_options = connector_config.get("indexing_options", {
                             "max_files_per_folder": 100,
                             "incremental_sync": True,
                             "include_subfolders": True,
@@ -132,9 +132,17 @@ async def _check_and_trigger_schedules():
                                 },
                             )
                         else:
-                            logger.warning(
-                                f"Google Drive connector {connector.id} has no folders or files selected, skipping periodic indexing"
+                            # No folders/files selected - skip indexing but still update next_scheduled_at
+                            # to prevent checking every minute
+                            logger.info(
+                                f"Google Drive connector {connector.id} has no folders or files selected, "
+                                "skipping periodic indexing (will check again at next scheduled time)"
                             )
+                            from datetime import timedelta
+                            connector.next_scheduled_at = now + timedelta(
+                                minutes=connector.indexing_frequency_minutes
+                            )
+                            await session.commit()
                             continue
                     else:
                         task.delay(

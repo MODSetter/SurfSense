@@ -172,6 +172,9 @@ async def index_google_drive_files(
             if new_token and not token_error:
                 from sqlalchemy.orm.attributes import flag_modified
 
+                # Refresh connector to reload attributes that may have been expired by earlier commits
+                await session.refresh(connector)
+
                 if "folder_tokens" not in connector.config:
                     connector.config["folder_tokens"] = {}
                 connector.config["folder_tokens"][target_folder_id] = new_token

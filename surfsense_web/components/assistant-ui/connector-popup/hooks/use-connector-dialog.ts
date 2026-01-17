@@ -1038,6 +1038,24 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
+			// Prevent periodic indexing for Google Drive without folders/files selected
+			if (periodicEnabled && editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
+				const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
+					| Array<{ id: string; name: string }>
+					| undefined;
+				const selectedFiles = (connectorConfig || editingConnector.config)?.selected_files as
+					| Array<{ id: string; name: string }>
+					| undefined;
+				const hasItemsSelected =
+					(selectedFolders && selectedFolders.length > 0) ||
+					(selectedFiles && selectedFiles.length > 0);
+
+				if (!hasItemsSelected) {
+					toast.error("Select at least one folder or file to enable periodic sync");
+					return;
+				}
+			}
+
 			// Validate frequency minutes if periodic is enabled (only for indexable connectors)
 			if (periodicEnabled && editingConnector.is_indexable) {
 				const frequencyValidation = frequencyMinutesSchema.safeParse(frequencyMinutes);

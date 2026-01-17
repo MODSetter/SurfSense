@@ -1840,6 +1840,8 @@ async def run_google_drive_indexing(
 
         # Update notification on completion
         if notification:
+            # Refresh notification to reload attributes that may have been expired by earlier commits
+            await session.refresh(notification)
             await NotificationService.connector_indexing.notify_indexing_completed(
                 session=session,
                 notification=notification,
