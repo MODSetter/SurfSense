@@ -167,7 +167,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				chip.setAttribute(CHIP_DOCTYPE_ATTR, doc.document_type ?? "UNKNOWN");
 				chip.contentEditable = "false";
 				chip.className =
-					"inline-flex items-center gap-1 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary border border-primary/10 select-none";
+					"inline-flex items-center gap-1 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none";
 				chip.style.userSelect = "none";
 				chip.style.verticalAlign = "baseline";
 

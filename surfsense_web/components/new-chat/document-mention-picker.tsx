@@ -1,7 +1,6 @@
 "use client";
 
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
 import {
 	forwardRef,
 	useCallback,
@@ -79,6 +78,7 @@ export const DocumentMentionPicker = forwardRef<
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
+	const shouldScrollRef = useRef(false); // Track if scroll should happen (only for keyboard navigation)
 
 	// State for pagination
 	const [accumulatedDocuments, setAccumulatedDocuments] = useState<
@@ -262,7 +262,9 @@ export const DocumentMentionPicker = forwardRef<
 	// Show hint when search is too short
 	const showSearchHint = shouldSearch && !isSearchValid;
 
-	// Hide popup entirely when user is searching and no documents match (only after fetch completes)
+	// Hide popup when user is searching and no documents match (only after fetch completes)
+	// We return null instead of calling onDone() so that mention mode stays active
+	// This allows the popup to reappear when user deletes characters and results come back
 	const hasNoSearchResults = isSearchValid && !actualLoading && !isFetchingResults && actualDocuments.length === 0;
 
 	// Split documents into SurfSense docs and user docs for grouped rendering
@@ -295,12 +297,54 @@ export const DocumentMentionPicker = forwardRef<
 		[initialSelectedDocuments, onSelectionChange, onDone]
 	);
 
-	// Scroll highlighted item into view
+	// Scroll highlighted item into view - only for keyboard navigation, not mouse hover
 	useEffect(() => {
-		const item = itemRefs.current.get(highlightedIndex);
-		if (item) {
-			item.scrollIntoView({ block: "nearest", behavior: "smooth" });
+		// Only scroll if this was triggered by keyboard navigation
+		if (!shouldScrollRef.current) {
+			return;
 		}
+
+		// Reset the flag after checking
+		shouldScrollRef.current = false;
+
+		// Use requestAnimationFrame to ensure DOM is updated
+		const rafId = requestAnimationFrame(() => {
+			const item = itemRefs.current.get(highlightedIndex);
+			const container = scrollContainerRef.current;
+			
+			if (item && container) {
+				// Get item and container positions
+				const itemRect = item.getBoundingClientRect();
+				const containerRect = container.getBoundingClientRect();
+				
+				// Calculate if item is outside viewport (with some padding)
+				const padding = 8; // Small padding to ensure item is fully visible
+				const isAboveViewport = itemRect.top < containerRect.top + padding;
+				const isBelowViewport = itemRect.bottom > containerRect.bottom - padding;
+				
+				if (isAboveViewport || isBelowViewport) {
+					// Calculate scroll position to center the item in viewport
+					const itemOffsetTop = item.offsetTop;
+					const containerHeight = container.clientHeight;
+					const itemHeight = item.offsetHeight;
+					
+					// Center the item in the viewport
+					const targetScrollTop = itemOffsetTop - containerHeight / 2 + itemHeight / 2;
+					
+					// Ensure we don't scroll beyond bounds
+					const maxScrollTop = container.scrollHeight - containerHeight;
+					const clampedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
+					
+					// Smooth scroll to target position
+					container.scrollTo({
+						top: clampedScrollTop,
+						behavior: "smooth",
+					});
+				}
+			}
+		});
+		
+		return () => cancelAnimationFrame(rafId);
 	}, [highlightedIndex]);
 
 	// Reset highlighted index when external search changes
@@ -322,9 +366,11 @@ export const DocumentMentionPicker = forwardRef<
 				}
 			},
 			moveUp: () => {
+				shouldScrollRef.current = true; // Enable scrolling for keyboard navigation
 				setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
 			},
 			moveDown: () => {
+				shouldScrollRef.current = true; // Enable scrolling for keyboard navigation
 				setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
 			},
 		}),
@@ -339,10 +385,12 @@ export const DocumentMentionPicker = forwardRef<
 			switch (e.key) {
 				case "ArrowDown":
 					e.preventDefault();
+					shouldScrollRef.current = true; // Enable scrolling for keyboard navigation
 					setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
 					break;
 				case "ArrowUp":
 					e.preventDefault();
+					shouldScrollRef.current = true; // Enable scrolling for keyboard navigation
 					setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
 					break;
 				case "Enter":
@@ -360,7 +408,8 @@ export const DocumentMentionPicker = forwardRef<
 		[selectableDocuments, highlightedIndex, handleSelectDocument, onDone]
 	);
 
-	// Don't show popup when user is searching and no documents match
+	// Hide popup visually when searching returns no results
+	// Don't call onDone() - this keeps mention mode active so popup reappears when results come back
 	if (hasNoSearchResults) {
 		return null;
 	}
@@ -389,13 +438,8 @@ export const DocumentMentionPicker = forwardRef<
 					<div className="flex items-center justify-center py-4">
 						<div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
 					</div>
-				) : actualDocuments.length === 0 ? (
-					<div className="flex flex-col items-center justify-center py-4 text-center px-4">
-						<FileText className="h-5 w-5 text-muted-foreground mb-1" />
-						<p className="text-sm text-muted-foreground">No documents found</p>
-					</div>
-				) : (
-					<div className="py-1">
+				) : actualDocuments.length > 0 ? (
+					<div className="py-1 px-2">
 						{/* SurfSense Documentation Section */}
 						{surfsenseDocsList.length > 0 && (
 							<>
@@ -427,7 +471,7 @@ export const DocumentMentionPicker = forwardRef<
 											}}
 											disabled={isAlreadySelected}
 											className={cn(
-												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
+												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
 												isHighlighted && "bg-accent"
 											)}
@@ -475,7 +519,7 @@ export const DocumentMentionPicker = forwardRef<
 											}}
 											disabled={isAlreadySelected}
 											className={cn(
-												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
+												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
 												isHighlighted && "bg-accent"
 											)}
@@ -499,7 +543,7 @@ export const DocumentMentionPicker = forwardRef<
 							</div>
 						)}
 					</div>
-				)}
+				) : null}
 			</div>
 		</div>
 	);

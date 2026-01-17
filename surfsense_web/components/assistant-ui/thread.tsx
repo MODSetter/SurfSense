@@ -392,41 +392,30 @@ const Composer: FC = () => {
 				{showDocumentPopover &&
 					typeof document !== "undefined" &&
 					createPortal(
-						<>
-							{/* Backdrop */}
-							<button
-								type="button"
-								className="fixed inset-0 cursor-default"
-								style={{ zIndex: 9998 }}
-								onClick={() => setShowDocumentPopover(false)}
-								aria-label="Close document picker"
-							/>
-							{/* Popover positioned above input */}
-							<div
-								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover"
-								style={{
-									zIndex: 9999,
-									bottom: editorContainerRef.current
-										? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
-										: "200px",
-									left: editorContainerRef.current
-										? `${editorContainerRef.current.getBoundingClientRect().left}px`
-										: "50%",
+						<div
+							className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover"
+							style={{
+								zIndex: 9999,
+								bottom: editorContainerRef.current
+									? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+									: "200px",
+								left: editorContainerRef.current
+									? `${editorContainerRef.current.getBoundingClientRect().left}px`
+									: "50%",
+							}}
+						>
+							<DocumentMentionPicker
+								ref={documentPickerRef}
+								searchSpaceId={Number(search_space_id)}
+								onSelectionChange={handleDocumentsMention}
+								onDone={() => {
+									setShowDocumentPopover(false);
+									setMentionQuery("");
 								}}
-							>
-								<DocumentMentionPicker
-									ref={documentPickerRef}
-									searchSpaceId={Number(search_space_id)}
-									onSelectionChange={handleDocumentsMention}
-									onDone={() => {
-										setShowDocumentPopover(false);
-										setMentionQuery("");
-									}}
-									initialSelectedDocuments={mentionedDocuments}
-									externalSearch={mentionQuery}
-								/>
-							</div>
-						</>,
+								initialSelectedDocuments={mentionedDocuments}
+								externalSearch={mentionQuery}
+							/>
+						</div>,
 						document.body
 					)}
 				<ComposerAction />
