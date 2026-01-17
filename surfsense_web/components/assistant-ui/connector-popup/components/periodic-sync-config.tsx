@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC } from "react";
+import { AlertCircle } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -16,6 +17,8 @@ interface PeriodicSyncConfigProps {
 	frequencyMinutes: string;
 	onEnabledChange: (enabled: boolean) => void;
 	onFrequencyChange: (frequency: string) => void;
+	disabled?: boolean;
+	disabledMessage?: string;
 }
 
 export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
@@ -23,6 +26,8 @@ export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
 	frequencyMinutes,
 	onEnabledChange,
 	onFrequencyChange,
+	disabled = false,
+	disabledMessage,
 }) => {
 	return (
 		<div className="rounded-xl bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
@@ -33,8 +38,16 @@ export const PeriodicSyncConfig: FC<PeriodicSyncConfigProps> = ({
 						Automatically re-index at regular intervals
 					</p>
 				</div>
-				<Switch checked={enabled} onCheckedChange={onEnabledChange} />
+				<Switch checked={enabled} onCheckedChange={onEnabledChange} disabled={disabled} />
 			</div>
+
+			{/* Show disabled message when periodic sync can't be enabled */}
+			{disabled && disabledMessage && (
+				<div className="mt-3 flex items-start gap-2 text-amber-600 dark:text-amber-400">
+					<AlertCircle className="size-4 mt-0.5 shrink-0" />
+					<p className="text-xs sm:text-sm">{disabledMessage}</p>
+				</div>
+			)}
 
 			{enabled && (
 				<div className="mt-4 pt-4 border-t border-slate-400/20 space-y-3">

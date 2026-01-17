@@ -10,6 +10,25 @@ class DriveItem(BaseModel):
     name: str = Field(..., description="Item display name")
 
 
+class GoogleDriveIndexingOptions(BaseModel):
+    """Indexing options for Google Drive connector."""
+
+    max_files_per_folder: int = Field(
+        default=100,
+        ge=1,
+        le=1000,
+        description="Maximum number of files to index from each folder (1-1000)",
+    )
+    incremental_sync: bool = Field(
+        default=True,
+        description="Only sync changes since last index (faster). Disable for a full re-index.",
+    )
+    include_subfolders: bool = Field(
+        default=True,
+        description="Recursively index files in subfolders of selected folders",
+    )
+
+
 class GoogleDriveIndexRequest(BaseModel):
     """Request body for indexing Google Drive content."""
 
@@ -18,6 +37,10 @@ class GoogleDriveIndexRequest(BaseModel):
     )
     files: list[DriveItem] = Field(
         default_factory=list, description="List of specific files to index"
+    )
+    indexing_options: GoogleDriveIndexingOptions = Field(
+        default_factory=GoogleDriveIndexingOptions,
+        description="Indexing configuration options",
     )
 
     def has_items(self) -> bool:

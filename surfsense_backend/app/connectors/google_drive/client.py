@@ -47,7 +47,7 @@ class GoogleDriveClient:
     async def list_files(
         self,
         query: str = "",
-        fields: str = "nextPageToken, files(id, name, mimeType, modifiedTime, size, webViewLink, parents, owners, createdTime, description)",
+        fields: str = "nextPageToken, files(id, name, mimeType, modifiedTime, md5Checksum, size, webViewLink, parents, owners, createdTime, description)",
         page_size: int = 100,
         page_token: str | None = None,
     ) -> tuple[list[dict[str, Any]], str | None, str | None]:

@@ -157,7 +157,7 @@ async def get_file_by_id(
     try:
         file, error = await client.get_file_metadata(
             file_id,
-            fields="id, name, mimeType, parents, createdTime, modifiedTime, size, webViewLink, iconLink",
+            fields="id, name, mimeType, parents, createdTime, modifiedTime, md5Checksum, size, webViewLink, iconLink",
         )
 
         if error:
@@ -228,7 +228,7 @@ async def list_folder_contents(
         while True:
             items, next_token, error = await client.list_files(
                 query=query,
-                fields="files(id, name, mimeType, parents, createdTime, modifiedTime, size, webViewLink, iconLink)",
+                fields="files(id, name, mimeType, parents, createdTime, modifiedTime, md5Checksum, size, webViewLink, iconLink)",
                 page_size=1000,  # Max allowed by Google Drive API
                 page_token=page_token,
             )
