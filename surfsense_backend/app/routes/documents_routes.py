@@ -444,7 +444,8 @@ async def search_document_titles(
     Lightweight document title search optimized for mention picker (@mentions).
 
     Returns only id, title, and document_type - no content or metadata.
-    Results are ordered by relevance: prefix matches first, then contains matches.
+    Uses pg_trgm fuzzy search with similarity scoring for typo tolerance.
+    Results are ordered by relevance using trigram similarity scores.
 
     Args:
         search_space_id: The search space to search in. Required.
@@ -457,7 +458,7 @@ async def search_document_titles(
     Returns:
         DocumentTitleSearchResponse: Lightweight list with has_more flag (no total count).
     """
-    from sqlalchemy import case, literal
+    from sqlalchemy import desc, func, or_
 
     try:
         # Check permission for the search space
@@ -480,17 +481,29 @@ async def search_document_titles(
         if len(title.strip()) < 2:
             query = query.order_by(Document.updated_at.desc().nullslast())
         else:
-            # Apply title filter with ILIKE (uses pg_trgm index)
+            # Fuzzy search using pg_trgm similarity + ILIKE fallback
             search_term = title.strip()
-            query = query.filter(Document.title.ilike(f"%{search_term}%"))
 
-            # Order by relevance: prefix matches first, then alphabetical
-            # CASE WHEN title ILIKE 'term%' THEN 0 ELSE 1 END
-            prefix_priority = case(
-                (Document.title.ilike(f"{search_term}%"), literal(0)),
-                else_=literal(1),
+            # Similarity threshold for fuzzy matching (0.3 = ~30% trigram overlap)
+            # Lower values = more fuzzy, higher values = stricter matching
+            similarity_threshold = 0.3
+
+            # Match documents that either:
+            # 1. Have high trigram similarity (fuzzy match - handles typos)
+            # 2. Contain the exact substring (ILIKE - handles partial matches)
+            query = query.filter(
+                or_(
+                    func.similarity(Document.title, search_term) > similarity_threshold,
+                    Document.title.ilike(f"%{search_term}%"),
+                )
             )
-            query = query.order_by(prefix_priority, Document.title)
+
+            # Order by similarity score (descending) for best relevance ranking
+            # Higher similarity = better match = appears first
+            query = query.order_by(
+                desc(func.similarity(Document.title, search_term)),
+                Document.title,  # Alphabetical tiebreaker
+            )
 
         # Fetch page_size + 1 to determine has_more without COUNT query
         offset = page * page_size
