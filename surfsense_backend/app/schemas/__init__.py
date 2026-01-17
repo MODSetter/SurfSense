@@ -4,6 +4,8 @@ from .documents import (
     DocumentBase,
     DocumentRead,
     DocumentsCreate,
+    DocumentTitleRead,
+    DocumentTitleSearchResponse,
     DocumentUpdate,
     DocumentWithChunksRead,
     ExtensionDocumentContent,
@@ -85,6 +87,8 @@ __all__ = [
     # Document schemas
     "DocumentBase",
     "DocumentRead",
+    "DocumentTitleRead",
+    "DocumentTitleSearchResponse",
     "DocumentUpdate",
     "DocumentWithChunksRead",
     "DocumentsCreate",

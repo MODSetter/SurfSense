@@ -22,8 +22,11 @@ import {
 	getSurfsenseDocsRequest,
 	getSurfsenseDocsResponse,
 	type SearchDocumentsRequest,
+	type SearchDocumentTitlesRequest,
 	searchDocumentsRequest,
 	searchDocumentsResponse,
+	searchDocumentTitlesRequest,
+	searchDocumentTitlesResponse,
 	type UpdateDocumentRequest,
 	type UploadDocumentRequest,
 	updateDocumentRequest,
@@ -161,6 +164,38 @@ class DocumentsApiService {
 	};
 
 	/**
+	 * Search document titles (lightweight, optimized for mention picker)
+	 * Returns only id, title, document_type - no content or metadata
+	 * @param request - The search request with query params
+	 * @param signal - Optional AbortSignal for request cancellation
+	 */
+	searchDocumentTitles = async (request: SearchDocumentTitlesRequest, signal?: AbortSignal) => {
+		const parsedRequest = searchDocumentTitlesRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		// Transform query params to be string values
+		const transformedQueryParams = Object.fromEntries(
+			Object.entries(parsedRequest.data.queryParams)
+				.filter(([, v]) => v !== undefined)
+				.map(([k, v]) => [k, String(v)])
+		);
+
+		const queryParams = new URLSearchParams(transformedQueryParams).toString();
+
+		return baseApiService.get(
+			`/api/v1/documents/search/titles?${queryParams}`,
+			searchDocumentTitlesResponse,
+			{ signal }
+		);
+	};
+
+	/**
 	 * Get document type counts
 	 */
 	getDocumentTypeCounts = async (request: GetDocumentTypeCountsRequest) => {
@@ -226,8 +261,10 @@ class DocumentsApiService {
 
 	/**
 	 * List all Surfsense documentation documents
+	 * @param request - The request with query params
+	 * @param signal - Optional AbortSignal for request cancellation
 	 */
-	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest) => {
+	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest, signal?: AbortSignal) => {
 		const parsedRequest = getSurfsenseDocsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
@@ -250,7 +287,7 @@ class DocumentsApiService {
 
 		const url = `/api/v1/surfsense-docs?${queryParams}`;
 
-		return baseApiService.get(url, getSurfsenseDocsResponse);
+		return baseApiService.get(url, getSurfsenseDocsResponse, { signal });
 	};
 
 	/**
