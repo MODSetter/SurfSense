@@ -392,10 +392,17 @@ const Composer: FC = () => {
 				{showDocumentPopover &&
 					typeof document !== "undefined" &&
 					createPortal(
-						<div
-							className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover"
-							style={{
-								zIndex: 9999,
+						<DocumentMentionPicker
+							ref={documentPickerRef}
+							searchSpaceId={Number(search_space_id)}
+							onSelectionChange={handleDocumentsMention}
+							onDone={() => {
+								setShowDocumentPopover(false);
+								setMentionQuery("");
+							}}
+							initialSelectedDocuments={mentionedDocuments}
+							externalSearch={mentionQuery}
+							containerStyle={{
 								bottom: editorContainerRef.current
 									? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
 									: "200px",
@@ -403,19 +410,7 @@ const Composer: FC = () => {
 									? `${editorContainerRef.current.getBoundingClientRect().left}px`
 									: "50%",
 							}}
-						>
-							<DocumentMentionPicker
-								ref={documentPickerRef}
-								searchSpaceId={Number(search_space_id)}
-								onSelectionChange={handleDocumentsMention}
-								onDone={() => {
-									setShowDocumentPopover(false);
-									setMentionQuery("");
-								}}
-								initialSelectedDocuments={mentionedDocuments}
-								externalSearch={mentionQuery}
-							/>
-						</div>,
+						/>,
 						document.body
 					)}
 				<ComposerAction />

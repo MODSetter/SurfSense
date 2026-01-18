@@ -27,11 +27,13 @@ interface DocumentMentionPickerProps {
 	onDone: () => void;
 	initialSelectedDocuments?: Pick<Document, "id" | "title" | "document_type">[];
 	externalSearch?: string;
+	/** Positioning styles for the container */
+	containerStyle?: React.CSSProperties;
 }
 
 const PAGE_SIZE = 20;
 const MIN_SEARCH_LENGTH = 2;
-const DEBOUNCE_MS = 300;
+const DEBOUNCE_MS = 100;
 
 /**
  * Debounce hook - waits until user stops typing before firing
@@ -66,7 +68,7 @@ export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerRef,
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
-	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
+	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "", containerStyle },
 	ref
 ) {
 	const queryClient = useQueryClient();
@@ -426,7 +428,11 @@ export const DocumentMentionPicker = forwardRef<
 
 	return (
 		<div
-			className="flex flex-col w-[280px] sm:w-[320px] bg-popover rounded-lg"
+			className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover flex flex-col w-[280px] sm:w-[320px]"
+			style={{
+				zIndex: 9999,
+				...containerStyle,
+			}}
 			onKeyDown={handleKeyDown}
 			role="listbox"
 			tabIndex={-1}
