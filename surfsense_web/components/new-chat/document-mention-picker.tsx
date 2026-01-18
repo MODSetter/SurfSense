@@ -169,11 +169,7 @@ export const DocumentMentionPicker = forwardRef<
 	 * - placeholderData: keepPreviousData maintains UI stability during fetches
 	 * - Only triggers server-side search when isSearchValid (2+ characters)
 	 */
-	const {
-		data: titleSearchResults,
-		isLoading: isTitleSearchLoading,
-		isFetching: isTitleSearchFetching,
-	} = useQuery({
+	const { data: titleSearchResults, isLoading: isTitleSearchLoading } = useQuery({
 		queryKey: ["document-titles", titleSearchParams],
 		queryFn: ({ signal }) =>
 			documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }, signal),
@@ -187,11 +183,7 @@ export const DocumentMentionPicker = forwardRef<
 	 * - Uses AbortSignal for automatic request cancellation
 	 * - placeholderData: keepPreviousData prevents UI flicker during refetches
 	 */
-	const {
-		data: surfsenseDocs,
-		isLoading: isSurfsenseDocsLoading,
-		isFetching: isSurfsenseDocsFetching,
-	} = useQuery({
+	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading } = useQuery({
 		queryKey: ["surfsense-docs-mention", debouncedSearch, isSearchValid],
 		queryFn: ({ signal }) =>
 			documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }, signal),
@@ -289,18 +281,12 @@ export const DocumentMentionPicker = forwardRef<
 
 	// Select data source based on search length: client-filtered for single char, server results for 2+
 	const actualDocuments = isSingleCharSearch ? (clientFilteredDocs ?? []) : accumulatedDocuments;
+	// Only show loading spinner on initial load (no documents yet), not during subsequent searches
 	const actualLoading =
-		(isTitleSearchLoading || isSurfsenseDocsLoading) && currentPage === 0 && !isSingleCharSearch;
-	const isFetchingResults =
-		(isTitleSearchFetching || isSurfsenseDocsFetching) && !isSingleCharSearch;
-
-	// Determine if search yields no results (hide popup but keep mention mode active for recovery)
-	const hasNoSearchResults =
-		(isSearchValid || isSingleCharSearch) &&
-		!actualLoading &&
-		!isFetchingResults &&
-		actualDocuments.length === 0;
-
+		(isTitleSearchLoading || isSurfsenseDocsLoading) &&
+		currentPage === 0 &&
+		!isSingleCharSearch &&
+		accumulatedDocuments.length === 0;
 	// Partition documents by type for grouped UI rendering
 	const surfsenseDocsList = useMemo(
 		() => actualDocuments.filter((doc) => doc.document_type === "SURFSENSE_DOCS"),
@@ -429,8 +415,9 @@ export const DocumentMentionPicker = forwardRef<
 		[selectableDocuments, highlightedIndex, handleSelectDocument, onDone]
 	);
 
-	// Return null when no results; mention mode remains active for result recovery on backspace
-	if (hasNoSearchResults) {
+	// Hide popup when there are no documents to display (regardless of fetch state)
+	// Search continues in background; popup reappears when results arrive
+	if (!actualLoading && actualDocuments.length === 0) {
 		return null;
 	}
 
