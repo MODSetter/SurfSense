@@ -68,7 +68,14 @@ export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerRef,
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
-	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "", containerStyle },
+	{
+		searchSpaceId,
+		onSelectionChange,
+		onDone,
+		initialSelectedDocuments = [],
+		externalSearch = "",
+		containerStyle,
+	},
 	ref
 ) {
 	const queryClient = useQueryClient();
@@ -90,9 +97,11 @@ export const DocumentMentionPicker = forwardRef<
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-	// Check if search is long enough
+	// Check if search is long enough for server-side search
 	const isSearchValid = debouncedSearch.trim().length >= MIN_SEARCH_LENGTH;
 	const shouldSearch = debouncedSearch.trim().length > 0;
+	// Single character search uses client-side filtering (no API call, instant)
+	const isSingleCharSearch = debouncedSearch.trim().length === 1;
 
 	// Prefetch first page when picker mounts - results appear instantly
 	useEffect(() => {
@@ -266,18 +275,29 @@ export const DocumentMentionPicker = forwardRef<
 		[hasMore, isLoadingMore, loadNextPage]
 	);
 
-	const actualDocuments = accumulatedDocuments;
-	const actualLoading = (isTitleSearchLoading || isSurfsenseDocsLoading) && currentPage === 0;
-	const isFetchingResults = isTitleSearchFetching || isSurfsenseDocsFetching;
+	// Client-side filtered results for single character search (instant, no API call)
+	// This filters the cached/accumulated documents instead of hitting the server
+	const clientFilteredDocs = useMemo(() => {
+		if (!isSingleCharSearch) return null;
+		const searchLower = debouncedSearch.trim().toLowerCase();
+		return accumulatedDocuments.filter((doc) => doc.title.toLowerCase().includes(searchLower));
+	}, [isSingleCharSearch, debouncedSearch, accumulatedDocuments]);
 
-	// Show hint when search is too short
-	const showSearchHint = shouldSearch && !isSearchValid;
+	// Use client-side filtering for single char, server results for 2+ chars
+	const actualDocuments = isSingleCharSearch ? (clientFilteredDocs ?? []) : accumulatedDocuments;
+	const actualLoading =
+		(isTitleSearchLoading || isSurfsenseDocsLoading) && currentPage === 0 && !isSingleCharSearch;
+	const isFetchingResults =
+		(isTitleSearchFetching || isSurfsenseDocsFetching) && !isSingleCharSearch;
 
 	// Hide popup when user is searching and no documents match (only after fetch completes)
 	// We return null instead of calling onDone() so that mention mode stays active
 	// This allows the popup to reappear when user deletes characters and results come back
 	const hasNoSearchResults =
-		isSearchValid && !actualLoading && !isFetchingResults && actualDocuments.length === 0;
+		(isSearchValid || isSingleCharSearch) &&
+		!actualLoading &&
+		!isFetchingResults &&
+		actualDocuments.length === 0;
 
 	// Split documents into SurfSense docs and user docs for grouped rendering
 	const surfsenseDocsList = useMemo(
@@ -443,14 +463,7 @@ export const DocumentMentionPicker = forwardRef<
 				className="max-h-[180px] sm:max-h-[280px] overflow-y-auto"
 				onScroll={handleScroll}
 			>
-				{showSearchHint ? (
-					<div className="flex flex-col items-center justify-center py-4 text-center px-4">
-						<p className="text-sm text-muted-foreground">
-							Type {MIN_SEARCH_LENGTH - debouncedSearch.trim().length} more character
-							{MIN_SEARCH_LENGTH - debouncedSearch.trim().length > 1 ? "s" : ""} to search
-						</p>
-					</div>
-				) : actualLoading ? (
+				{actualLoading ? (
 					<div className="flex items-center justify-center py-4">
 						<div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
 					</div>
