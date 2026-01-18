@@ -12,7 +12,6 @@ Indexes added:
 3. idx_documents_search_space_updated - Composite for recent docs query (covering index)
 4. idx_surfsense_docs_title_trgm - GIN trigram on surfsense docs title
 
-This is critical for the document mention picker (@mentions) to scale to 10,000+ documents.
 """
 
 from collections.abc import Sequence

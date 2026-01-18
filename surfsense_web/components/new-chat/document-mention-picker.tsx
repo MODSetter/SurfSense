@@ -36,20 +36,19 @@ const MIN_SEARCH_LENGTH = 2;
 const DEBOUNCE_MS = 100;
 
 /**
- * Debounce hook - waits until user stops typing before firing
- * Better than throttle for search: reduces request spam and prevents race conditions
+ * Custom debounce hook that delays value updates until user input stabilizes.
+ * Preferred over throttling for search inputs as it reduces API request frequency
+ * and prevents race conditions from stale responses overtaking recent ones.
  */
 function useDebounced<T>(value: T, delay = DEBOUNCE_MS) {
 	const [debounced, setDebounced] = useState(value);
 	const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
 	useEffect(() => {
-		// Clear any existing timeout
 		if (timeoutRef.current) {
 			clearTimeout(timeoutRef.current);
 		}
 
-		// Set new timeout - only fires after user stops typing for `delay` ms
 		timeoutRef.current = setTimeout(() => {
 			setDebounced(value);
 		}, delay);
@@ -80,16 +79,15 @@ export const DocumentMentionPicker = forwardRef<
 ) {
 	const queryClient = useQueryClient();
 
-	// Use external search with debounce - waits until user stops typing
-	// Reduces request spam and prevents race conditions with stale results
+	// Debounced search value to minimize API calls and prevent race conditions
 	const search = externalSearch;
 	const debouncedSearch = useDebounced(search, DEBOUNCE_MS);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
-	const shouldScrollRef = useRef(false); // Track if scroll should happen (only for keyboard navigation)
+	const shouldScrollRef = useRef(false); // Keyboard navigation scroll flag
 
-	// State for pagination
+	// Pagination state for infinite scroll
 	const [accumulatedDocuments, setAccumulatedDocuments] = useState<
 		Pick<Document, "id" | "title" | "document_type">[]
 	>([]);
@@ -97,13 +95,18 @@ export const DocumentMentionPicker = forwardRef<
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-	// Check if search is long enough for server-side search
+	/**
+	 * Search Strategy:
+	 * - Single character (length === 1): Client-side filtering for instant results
+	 * - Two or more characters (length >= 2): Server-side search with pg_trgm index
+	 * This hybrid approach optimizes UX by providing immediate feedback for short queries
+	 * while leveraging efficient database indexing for longer, more specific searches.
+	 */
 	const isSearchValid = debouncedSearch.trim().length >= MIN_SEARCH_LENGTH;
 	const shouldSearch = debouncedSearch.trim().length > 0;
-	// Single character search uses client-side filtering (no API call, instant)
 	const isSingleCharSearch = debouncedSearch.trim().length === 1;
 
-	// Prefetch first page when picker mounts - results appear instantly
+	// Prefetch initial data on mount for instant display when picker opens
 	useEffect(() => {
 		if (!searchSpaceId) return;
 
@@ -113,14 +116,12 @@ export const DocumentMentionPicker = forwardRef<
 			page_size: PAGE_SIZE,
 		};
 
-		// Prefetch document titles (user docs)
 		queryClient.prefetchQuery({
 			queryKey: ["document-titles", prefetchParams],
 			queryFn: () => documentsApiService.searchDocumentTitles({ queryParams: prefetchParams }),
 			staleTime: 60 * 1000,
 		});
 
-		// Prefetch SurfSense docs
 		queryClient.prefetchQuery({
 			queryKey: ["surfsense-docs-mention", "", false],
 			queryFn: () =>
@@ -131,18 +132,16 @@ export const DocumentMentionPicker = forwardRef<
 		});
 	}, [searchSpaceId, queryClient]);
 
-	// Reset pagination when search or search space changes
-	// Don't clear accumulatedDocuments - let new data replace it smoothly (prevents "No documents found" flash)
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset pagination when search/space changes
+	// Reset pagination state when search query or search space changes.
+	// Documents are not cleared to maintain visual continuity during fetches.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentional reset on search/space change
 	useEffect(() => {
-		// Keep previous documents visible while new query is fetching (smooth UX)
-		// setAccumulatedDocuments([]); // Removed to prevent flash of "No documents found"
 		setCurrentPage(0);
 		setHasMore(false);
 		setHighlightedIndex(0);
 	}, [debouncedSearch, searchSpaceId]);
 
-	// Query params for lightweight title search
+	// Query parameters for lightweight title search endpoint
 	const titleSearchParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
@@ -164,9 +163,12 @@ export const DocumentMentionPicker = forwardRef<
 		return params;
 	}, [debouncedSearch, isSearchValid]);
 
-	// Use the new lightweight endpoint for document title search
-	// TanStack Query provides signal for automatic request cancellation
-	// keepPreviousData: shows old results while fetching new ones (no spinner flicker)
+	/**
+	 * TanStack Query for document title search.
+	 * - Uses AbortSignal for automatic request cancellation on query key changes
+	 * - placeholderData: keepPreviousData maintains UI stability during fetches
+	 * - Only triggers server-side search when isSearchValid (2+ characters)
+	 */
 	const {
 		data: titleSearchResults,
 		isLoading: isTitleSearchLoading,
@@ -175,14 +177,16 @@ export const DocumentMentionPicker = forwardRef<
 		queryKey: ["document-titles", titleSearchParams],
 		queryFn: ({ signal }) =>
 			documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }, signal),
-		staleTime: 60 * 1000, // 1 minute - shorter for fresher results
+		staleTime: 60 * 1000,
 		enabled: !!searchSpaceId && currentPage === 0 && (!shouldSearch || isSearchValid),
 		placeholderData: keepPreviousData,
 	});
 
-	// Use query for fetching first page of SurfSense docs
-	// TanStack Query provides signal for automatic request cancellation
-	// keepPreviousData: shows old results while fetching new ones (no spinner flicker)
+	/**
+	 * TanStack Query for SurfSense documentation.
+	 * - Uses AbortSignal for automatic request cancellation
+	 * - placeholderData: keepPreviousData prevents UI flicker during refetches
+	 */
 	const {
 		data: surfsenseDocs,
 		isLoading: isSurfsenseDocsLoading,
@@ -196,7 +200,7 @@ export const DocumentMentionPicker = forwardRef<
 		placeholderData: keepPreviousData,
 	});
 
-	// Client-side filter to verify search term is actually in the title (handles backend fuzzy false positives)
+	// Post-fetch filter to eliminate false positives from backend fuzzy matching
 	const filterBySearchTerm = useCallback(
 		(docs: Pick<Document, "id" | "title" | "document_type">[]) => {
 			if (!isSearchValid) return docs; // No filtering when not searching
@@ -206,12 +210,12 @@ export const DocumentMentionPicker = forwardRef<
 		[debouncedSearch, isSearchValid]
 	);
 
-	// Update accumulated documents when first page loads - combine both sources
+	// Combine and update document list when first page data arrives
 	useEffect(() => {
 		if (currentPage === 0) {
 			const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
 
-			// Add SurfSense docs first (they appear at top)
+			// SurfSense docs displayed first in the list
 			if (surfsenseDocs?.items) {
 				for (const doc of surfsenseDocs.items) {
 					combinedDocs.push({
@@ -222,18 +226,16 @@ export const DocumentMentionPicker = forwardRef<
 				}
 			}
 
-			// Add regular documents from lightweight endpoint
 			if (titleSearchResults?.items) {
 				combinedDocs.push(...titleSearchResults.items);
 				setHasMore(titleSearchResults.has_more);
 			}
 
-			// Apply client-side filter to remove fuzzy false positives
 			setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
 		}
 	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm]);
 
-	// Function to load next page using lightweight endpoint
+	// Load next page for infinite scroll pagination
 	const loadNextPage = useCallback(async () => {
 		if (isLoadingMore || !hasMore) return;
 
@@ -261,13 +263,12 @@ export const DocumentMentionPicker = forwardRef<
 		}
 	}, [currentPage, hasMore, isLoadingMore, debouncedSearch, searchSpaceId, isSearchValid]);
 
-	// Infinite scroll handler
+	// Trigger pagination when user scrolls near the bottom (50px threshold)
 	const handleScroll = useCallback(
 		(e: React.UIEvent<HTMLDivElement>) => {
 			const target = e.currentTarget;
 			const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
 
-			// Load more when within 50px of bottom
 			if (scrollBottom < 50 && hasMore && !isLoadingMore) {
 				loadNextPage();
 			}
@@ -275,31 +276,32 @@ export const DocumentMentionPicker = forwardRef<
 		[hasMore, isLoadingMore, loadNextPage]
 	);
 
-	// Client-side filtered results for single character search (instant, no API call)
-	// This filters the cached/accumulated documents instead of hitting the server
+	/**
+	 * Client-side filtering for single character searches.
+	 * Filters cached documents locally for instant feedback without additional API calls.
+	 * Server-side search is reserved for 2+ character queries to leverage database indexing.
+	 */
 	const clientFilteredDocs = useMemo(() => {
 		if (!isSingleCharSearch) return null;
 		const searchLower = debouncedSearch.trim().toLowerCase();
 		return accumulatedDocuments.filter((doc) => doc.title.toLowerCase().includes(searchLower));
 	}, [isSingleCharSearch, debouncedSearch, accumulatedDocuments]);
 
-	// Use client-side filtering for single char, server results for 2+ chars
+	// Select data source based on search length: client-filtered for single char, server results for 2+
 	const actualDocuments = isSingleCharSearch ? (clientFilteredDocs ?? []) : accumulatedDocuments;
 	const actualLoading =
 		(isTitleSearchLoading || isSurfsenseDocsLoading) && currentPage === 0 && !isSingleCharSearch;
 	const isFetchingResults =
 		(isTitleSearchFetching || isSurfsenseDocsFetching) && !isSingleCharSearch;
 
-	// Hide popup when user is searching and no documents match (only after fetch completes)
-	// We return null instead of calling onDone() so that mention mode stays active
-	// This allows the popup to reappear when user deletes characters and results come back
+	// Determine if search yields no results (hide popup but keep mention mode active for recovery)
 	const hasNoSearchResults =
 		(isSearchValid || isSingleCharSearch) &&
 		!actualLoading &&
 		!isFetchingResults &&
 		actualDocuments.length === 0;
 
-	// Split documents into SurfSense docs and user docs for grouped rendering
+	// Partition documents by type for grouped UI rendering
 	const surfsenseDocsList = useMemo(
 		() => actualDocuments.filter((doc) => doc.document_type === "SURFSENSE_DOCS"),
 		[actualDocuments]
@@ -309,13 +311,13 @@ export const DocumentMentionPicker = forwardRef<
 		[actualDocuments]
 	);
 
-	// Track already selected documents using unique key (document_type:id) to avoid ID collisions
+	// Track selected documents with composite key (document_type:id) to prevent cross-type ID collisions
 	const selectedKeys = useMemo(
 		() => new Set(initialSelectedDocuments.map((d) => `${d.document_type}:${d.id}`)),
 		[initialSelectedDocuments]
 	);
 
-	// Filter out already selected documents for navigation
+	// Exclude already-selected documents from keyboard navigation
 	const selectableDocuments = useMemo(
 		() => actualDocuments.filter((doc) => !selectedKeys.has(`${doc.document_type}:${doc.id}`)),
 		[actualDocuments, selectedKeys]
@@ -329,45 +331,32 @@ export const DocumentMentionPicker = forwardRef<
 		[initialSelectedDocuments, onSelectionChange, onDone]
 	);
 
-	// Scroll highlighted item into view - only for keyboard navigation, not mouse hover
+	// Auto-scroll highlighted item into view (keyboard navigation only, not mouse hover)
 	useEffect(() => {
-		// Only scroll if this was triggered by keyboard navigation
 		if (!shouldScrollRef.current) {
 			return;
 		}
-
-		// Reset the flag after checking
 		shouldScrollRef.current = false;
 
-		// Use requestAnimationFrame to ensure DOM is updated
 		const rafId = requestAnimationFrame(() => {
 			const item = itemRefs.current.get(highlightedIndex);
 			const container = scrollContainerRef.current;
 
 			if (item && container) {
-				// Get item and container positions
 				const itemRect = item.getBoundingClientRect();
 				const containerRect = container.getBoundingClientRect();
-
-				// Calculate if item is outside viewport (with some padding)
-				const padding = 8; // Small padding to ensure item is fully visible
+				const padding = 8;
 				const isAboveViewport = itemRect.top < containerRect.top + padding;
 				const isBelowViewport = itemRect.bottom > containerRect.bottom - padding;
 
 				if (isAboveViewport || isBelowViewport) {
-					// Calculate scroll position to center the item in viewport
 					const itemOffsetTop = item.offsetTop;
 					const containerHeight = container.clientHeight;
 					const itemHeight = item.offsetHeight;
-
-					// Center the item in the viewport
 					const targetScrollTop = itemOffsetTop - containerHeight / 2 + itemHeight / 2;
-
-					// Ensure we don't scroll beyond bounds
 					const maxScrollTop = container.scrollHeight - containerHeight;
 					const clampedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
 
-					// Smooth scroll to target position
 					container.scrollTo({
 						top: clampedScrollTop,
 						behavior: "smooth",
@@ -379,7 +368,7 @@ export const DocumentMentionPicker = forwardRef<
 		return () => cancelAnimationFrame(rafId);
 	}, [highlightedIndex]);
 
-	// Reset highlighted index when external search changes
+	// Reset highlight position when search query changes
 	const prevSearchRef = useRef(search);
 	if (prevSearchRef.current !== search) {
 		prevSearchRef.current = search;
@@ -388,7 +377,7 @@ export const DocumentMentionPicker = forwardRef<
 		}
 	}
 
-	// Expose methods to parent via ref
+	// Expose navigation and selection methods to parent component via ref
 	useImperativeHandle(
 		ref,
 		() => ({
@@ -398,18 +387,18 @@ export const DocumentMentionPicker = forwardRef<
 				}
 			},
 			moveUp: () => {
-				shouldScrollRef.current = true; // Enable scrolling for keyboard navigation
+				shouldScrollRef.current = true;
 				setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
 			},
 			moveDown: () => {
-				shouldScrollRef.current = true; // Enable scrolling for keyboard navigation
+				shouldScrollRef.current = true;
 				setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
 			},
 		}),
 		[selectableDocuments, highlightedIndex, handleSelectDocument]
 	);
 
-	// Handle keyboard navigation
+	// Keyboard navigation handler for arrow keys, Enter, and Escape
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (selectableDocuments.length === 0) return;
@@ -417,12 +406,12 @@ export const DocumentMentionPicker = forwardRef<
 			switch (e.key) {
 				case "ArrowDown":
 					e.preventDefault();
-					shouldScrollRef.current = true; // Enable scrolling for keyboard navigation
+					shouldScrollRef.current = true;
 					setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
 					break;
 				case "ArrowUp":
 					e.preventDefault();
-					shouldScrollRef.current = true; // Enable scrolling for keyboard navigation
+					shouldScrollRef.current = true;
 					setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
 					break;
 				case "Enter":
@@ -440,8 +429,7 @@ export const DocumentMentionPicker = forwardRef<
 		[selectableDocuments, highlightedIndex, handleSelectDocument, onDone]
 	);
 
-	// Hide popup visually when searching returns no results
-	// Don't call onDone() - this keeps mention mode active so popup reappears when results come back
+	// Return null when no results; mention mode remains active for result recovery on backspace
 	if (hasNoSearchResults) {
 		return null;
 	}
@@ -457,7 +445,7 @@ export const DocumentMentionPicker = forwardRef<
 			role="listbox"
 			tabIndex={-1}
 		>
-			{/* Document List - Shows max 5 items on mobile, 7-8 items on desktop */}
+			{/* Scrollable document list with responsive height */}
 			<div
 				ref={scrollContainerRef}
 				className="max-h-[180px] sm:max-h-[280px] overflow-y-auto"
@@ -469,7 +457,7 @@ export const DocumentMentionPicker = forwardRef<
 					</div>
 				) : actualDocuments.length > 0 ? (
 					<div className="py-1 px-2">
-						{/* SurfSense Documentation Section */}
+						{/* SurfSense Documentation */}
 						{surfsenseDocsList.length > 0 && (
 							<>
 								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
@@ -517,7 +505,7 @@ export const DocumentMentionPicker = forwardRef<
 							</>
 						)}
 
-						{/* User Documents Section */}
+						{/* User Documents */}
 						{userDocsList.length > 0 && (
 							<>
 								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
@@ -565,7 +553,7 @@ export const DocumentMentionPicker = forwardRef<
 							</>
 						)}
 
-						{/* Loading indicator for additional pages */}
+						{/* Pagination loading indicator */}
 						{isLoadingMore && (
 							<div className="flex items-center justify-center py-2">
 								<div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
