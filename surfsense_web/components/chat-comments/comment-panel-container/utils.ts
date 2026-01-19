@@ -53,4 +53,3 @@ export function transformMember(membership: Membership): MemberOption {
 		avatarUrl: membership.user_avatar_url ?? null,
 	};
 }
-

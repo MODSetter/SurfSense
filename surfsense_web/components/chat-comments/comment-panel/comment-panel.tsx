@@ -17,7 +17,7 @@ export function CommentPanel({
 	onEditComment,
 	onDeleteComment,
 	isSubmitting = false,
-	maxHeight = 400,
+	maxHeight,
 }: CommentPanelProps) {
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
 
@@ -44,13 +44,17 @@ export function CommentPanel({
 	const hasThreads = threads.length > 0;
 	const showEmptyState = !hasThreads && !isComposerOpen;
 
+	// Ensure minimum usable height for empty state + composer button
+	const minHeight = 180;
+	const effectiveMaxHeight = maxHeight ? Math.max(maxHeight, minHeight) : undefined;
+
 	return (
-		<div className="flex w-80 flex-col rounded-lg border bg-card">
+		<div
+			className="flex w-85 flex-col rounded-lg border bg-card"
+			style={effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
+		>
 			{hasThreads && (
-				<div
-					className="overflow-y-auto"
-					style={{ maxHeight }}
-				>
+				<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
 					<div className="space-y-4 p-4">
 						{threads.map((thread) => (
 							<CommentThread

@@ -2,7 +2,6 @@ import type { CommentThreadData } from "../comment-thread/types";
 import type { MemberOption } from "../member-mention-picker/types";
 
 export interface CommentPanelProps {
-	messageId: number;
 	threads: CommentThreadData[];
 	members: MemberOption[];
 	membersLoading?: boolean;

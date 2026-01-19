@@ -18,7 +18,7 @@ import { transformComment, transformMember } from "./utils";
 export function CommentPanelContainer({
 	messageId,
 	isOpen,
-	maxHeight = 400,
+	maxHeight,
 }: CommentPanelContainerProps) {
 	const { data: commentsData, isLoading: isCommentsLoading } = useComments({
 		messageId,
@@ -70,7 +70,6 @@ export function CommentPanelContainer({
 
 	return (
 		<CommentPanel
-			messageId={messageId}
 			threads={commentThreads}
 			members={members}
 			membersLoading={isMembersLoading}
@@ -84,4 +83,3 @@ export function CommentPanelContainer({
 		/>
 	);
 }
-
