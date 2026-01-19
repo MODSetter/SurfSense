@@ -96,9 +96,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 
 	// Separate OAuth and non-OAuth connectors
 	const oauthConnectors = connectors.filter((c) => oauthConnectorTypes.has(c.connector_type));
-	const nonOauthConnectors = connectors.filter(
-		(c) => !oauthConnectorTypes.has(c.connector_type)
-	);
+	const nonOauthConnectors = connectors.filter((c) => !oauthConnectorTypes.has(c.connector_type));
 
 	// Group OAuth connectors by type
 	const oauthConnectorsByType = oauthConnectors.reduce(
@@ -150,8 +148,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	});
 
 	const hasActiveConnectors =
-		filteredOAuthConnectorTypes.length > 0 ||
-		filteredNonOAuthConnectors.length > 0;
+		filteredOAuthConnectorTypes.length > 0 || filteredNonOAuthConnectors.length > 0;
 
 	return (
 		<TabsContent value="active" className="m-0">

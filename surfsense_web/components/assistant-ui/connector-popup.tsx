@@ -101,7 +101,8 @@ export const ConnectorIndicator: FC = () => {
 	// Fallback to API if Electric is not available or fails
 	// Use Electric data if: 1) we have data, or 2) still loading without error
 	// Use API data if: Electric failed (has error) or finished loading with no data
-	const useElectricData = connectorsFromElectric.length > 0 || (connectorsLoading && !connectorsError);
+	const useElectricData =
+		connectorsFromElectric.length > 0 || (connectorsLoading && !connectorsError);
 	const connectors = useElectricData ? connectorsFromElectric : allConnectors || [];
 
 	// Manual refresh function that works with both Electric and API
@@ -129,7 +130,7 @@ export const ConnectorIndicator: FC = () => {
 	const hasConnectors = connectors.length > 0;
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
 	const totalSourceCount = connectors.length + activeDocumentTypes.length;
-	
+
 	const activeConnectorsCount = connectors.length;
 
 	// Check which connectors are already connected
@@ -226,7 +227,6 @@ export const ConnectorIndicator: FC = () => {
 						isDisconnecting={isDisconnecting}
 						isIndexing={indexingConnectorIds.has(editingConnector.id)}
 						searchSpaceId={searchSpaceId?.toString()}
-
 						onStartDateChange={setStartDate}
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}

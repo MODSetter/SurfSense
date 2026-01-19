@@ -34,7 +34,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		if (connector.name) {
 			setName(connector.name);
 		}
-		
+
 		const serverConfig = connector.config?.server_config as MCPServerConfig | undefined;
 		if (serverConfig) {
 			// Convert server config to JSON string for editing (name is in separate field)
@@ -50,17 +50,12 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 
 	// Validate that this is an MCP connector (after hooks)
 	if (connector.connector_type !== EnumConnectorName.MCP_CONNECTOR) {
-		console.error(
-			"MCPConfig received non-MCP connector:",
-			connector.connector_type
-		);
+		console.error("MCPConfig received non-MCP connector:", connector.connector_type);
 		return (
 			<Alert className="border-red-500/50 bg-red-500/10">
 				<XCircle className="h-4 w-4 text-red-600" />
 				<AlertTitle>Invalid Connector Type</AlertTitle>
-				<AlertDescription>
-					This component can only be used with MCP connectors.
-				</AlertDescription>
+				<AlertDescription>This component can only be used with MCP connectors.</AlertDescription>
 			</Alert>
 		);
 	}
@@ -87,10 +82,10 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		if (jsonError) {
 			setJsonError(null);
 		}
-		
+
 		// Use shared utility for validation and parsing (with caching)
 		const result = parseMCPConfig(value);
-		
+
 		if (result.config && onConfigChange) {
 			// Valid config - update parent immediately
 			onConfigChange({ server_config: result.config });
@@ -127,7 +122,9 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 			{/* Server Name */}
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<div className="space-y-2">
-					<Label htmlFor="name" className="text-xs sm:text-sm">Server Name</Label>
+					<Label htmlFor="name" className="text-xs sm:text-sm">
+						Server Name
+					</Label>
 					<Input
 						id="name"
 						value={name}
@@ -159,11 +156,10 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							rows={16}
 							className={`font-mono text-xs ${jsonError ? "border-red-500" : ""}`}
 						/>
-						{jsonError && (
-							<p className="text-xs text-red-500">JSON Error: {jsonError}</p>
-						)}
+						{jsonError && <p className="text-xs text-red-500">JSON Error: {jsonError}</p>}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							Edit your MCP server configuration. Must include: name, command, args (optional), env (optional), transport (optional).
+							Edit your MCP server configuration. Must include: name, command, args (optional), env
+							(optional), transport (optional).
 						</p>
 					</div>
 
@@ -197,7 +193,9 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							<div className="flex-1">
 								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
 									<AlertTitle className="text-sm">
-										{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
+										{testResult.status === "success"
+											? "Connection Successful"
+											: "Connection Failed"}
 									</AlertTitle>
 									{testResult.tools.length > 0 && (
 										<Button
@@ -231,9 +229,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 									{testResult.message}
 									{showDetails && testResult.tools.length > 0 && (
 										<div className="mt-3 pt-3 border-t border-green-500/20">
-											<p className="font-semibold mb-2">
-												Available tools:
-											</p>
+											<p className="font-semibold mb-2">Available tools:</p>
 											<ul className="list-disc list-inside text-xs space-y-0.5">
 												{testResult.tools.map((tool) => (
 													<li key={tool.name}>{tool.name}</li>

@@ -82,11 +82,13 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 
 	// Filter connectors to only show those of this type
 	const typeConnectors = connectors.filter((c) => c.connector_type === connectorType);
-	
+
 	// Determine button text - default to "Add Account" unless specified
-	const buttonText = addButtonText || (connectorType === EnumConnectorName.MCP_CONNECTOR ? "Add New MCP Server" : "Add Account");
+	const buttonText =
+		addButtonText ||
+		(connectorType === EnumConnectorName.MCP_CONNECTOR ? "Add New MCP Server" : "Add Account");
 	const isMCP = connectorType === EnumConnectorName.MCP_CONNECTOR;
-	
+
 	// Helper to get display name for connector (handles MCP server name extraction)
 	const getDisplayName = (connector: SearchSourceConnector): string => {
 		if (isMCP) {
@@ -177,58 +179,58 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 				) : (
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{typeConnectors.map((connector) => {
-						const isIndexing = indexingConnectorIds.has(connector.id);
+							const isIndexing = indexingConnectorIds.has(connector.id);
 
-						return (
-							<div
-								key={connector.id}
-								className={cn(
-									"flex items-center gap-4 p-4 rounded-xl transition-all",
-									isIndexing
-										? "bg-primary/5 border-0"
-										: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
-								)}
-							>
+							return (
 								<div
+									key={connector.id}
 									className={cn(
-										"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
+										"flex items-center gap-4 p-4 rounded-xl transition-all",
 										isIndexing
-											? "bg-primary/10 border-primary/20"
-											: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+											? "bg-primary/5 border-0"
+											: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
 									)}
 								>
-									{getConnectorIcon(connector.connector_type, "size-6")}
-								</div>
-								<div className="flex-1 min-w-0">
-									<p className="text-[14px] font-semibold leading-tight truncate">
-										{getDisplayName(connector)}
-									</p>
-									{isIndexing ? (
-										<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
-											<Loader2 className="size-3 animate-spin" />
-											Syncing
+									<div
+										className={cn(
+											"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
+											isIndexing
+												? "bg-primary/10 border-primary/20"
+												: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+										)}
+									>
+										{getConnectorIcon(connector.connector_type, "size-6")}
+									</div>
+									<div className="flex-1 min-w-0">
+										<p className="text-[14px] font-semibold leading-tight truncate">
+											{getDisplayName(connector)}
 										</p>
-									) : (
-										<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
-											{isIndexableConnector(connector.connector_type)
-												? connector.last_indexed_at
-													? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
-													: "Never indexed"
-												: "Active"}
-										</p>
-									)}
+										{isIndexing ? (
+											<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
+												<Loader2 className="size-3 animate-spin" />
+												Syncing
+											</p>
+										) : (
+											<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
+												{isIndexableConnector(connector.connector_type)
+													? connector.last_indexed_at
+														? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
+														: "Never indexed"
+													: "Active"}
+											</p>
+										)}
+									</div>
+									<Button
+										variant="secondary"
+										size="sm"
+										className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+										onClick={() => onManage(connector)}
+									>
+										Manage
+									</Button>
 								</div>
-								<Button
-									variant="secondary"
-									size="sm"
-									className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
-									onClick={() => onManage(connector)}
-								>
-									Manage
-								</Button>
-							</div>
-						);
-					})}
+							);
+						})}
 					</div>
 				)}
 			</div>

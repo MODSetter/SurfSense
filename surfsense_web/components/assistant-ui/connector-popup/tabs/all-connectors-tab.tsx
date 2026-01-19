@@ -123,7 +123,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnecting={isConnecting}
 									documentCount={documentCount}
 									accountCount={accountCount}
-
 									isIndexing={isIndexing}
 									onConnect={() => onConnectOAuth(connector)}
 									onManage={
@@ -165,9 +164,13 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 
 							// For MCP connectors, count total MCP connectors instead of document count
 							const isMCP = connector.connectorType === EnumConnectorName.MCP_CONNECTOR;
-							const mcpConnectorCount = isMCP && allConnectors
-								? allConnectors.filter((c: SearchSourceConnector) => c.connector_type === EnumConnectorName.MCP_CONNECTOR).length
-								: undefined;
+							const mcpConnectorCount =
+								isMCP && allConnectors
+									? allConnectors.filter(
+											(c: SearchSourceConnector) =>
+												c.connector_type === EnumConnectorName.MCP_CONNECTOR
+										).length
+									: undefined;
 
 							const handleConnect = onConnectNonOAuth
 								? () => onConnectNonOAuth(connector.connectorType)
