@@ -1007,11 +1007,36 @@ async def setup_indexes():
                 "CREATE INDEX IF NOT EXISTS chucks_search_index ON chunks USING gin (to_tsvector('english', content))"
             )
         )
+        # pg_trgm indexes for efficient ILIKE '%term%' searches on titles
+        # Critical for document mention picker (@mentions) to scale
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_documents_title_trgm ON documents USING gin (title gin_trgm_ops)"
+            )
+        )
+        # B-tree index on search_space_id for fast filtering
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_documents_search_space_id ON documents (search_space_id)"
+            )
+        )
+        # Covering index for "recent documents" query - enables index-only scan
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_documents_search_space_updated ON documents (search_space_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_surfsense_docs_title_trgm ON surfsense_docs_documents USING gin (title gin_trgm_ops)"
+            )
+        )
 
 
 async def create_db_and_tables():
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
     await setup_indexes()
 
