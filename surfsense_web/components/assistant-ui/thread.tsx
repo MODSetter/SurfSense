@@ -26,6 +26,7 @@ import {
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { showCommentsGutterAtom } from "@/atoms/chat/current-thread.atom";
 import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
@@ -36,6 +37,7 @@ import {
 	newLLMConfigsAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import {
@@ -59,54 +61,60 @@ import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 
-/**
- * Props for the Thread component
- */
 interface ThreadProps {
 	messageThinkingSteps?: Map<string, ThinkingStep[]>;
-	/** Optional header component to render at the top of the viewport (sticky) */
 	header?: React.ReactNode;
 }
 
 export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), header }) => {
 	return (
 		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
-			<ThreadPrimitive.Root
-				className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
-				style={{
-					["--thread-max-width" as string]: "44rem",
-				}}
-			>
-				<ThreadPrimitive.Viewport
-					turnAnchor="top"
-					className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
-				>
-					{/* Optional sticky header for model selector etc. */}
-					{header && <div className="sticky top-0 z-10 mb-4">{header}</div>}
-
-					<AssistantIf condition={({ thread }) => thread.isEmpty}>
-						<ThreadWelcome />
-					</AssistantIf>
-
-					<ThreadPrimitive.Messages
-						components={{
-							UserMessage,
-							EditComposer,
-							AssistantMessage,
-						}}
-					/>
-
-					<ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
-						<ThreadScrollToBottom />
-						<AssistantIf condition={({ thread }) => !thread.isEmpty}>
-							<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
-								<Composer />
-							</div>
-						</AssistantIf>
-					</ThreadPrimitive.ViewportFooter>
-				</ThreadPrimitive.Viewport>
-			</ThreadPrimitive.Root>
+			<ThreadContent header={header} />
 		</ThinkingStepsContext.Provider>
+	);
+};
+
+const ThreadContent: FC<{ header?: React.ReactNode }> = ({ header }) => {
+	const showGutter = useAtomValue(showCommentsGutterAtom);
+
+	return (
+		<ThreadPrimitive.Root
+			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
+			style={{
+				["--thread-max-width" as string]: "44rem",
+			}}
+		>
+			<ThreadPrimitive.Viewport
+				turnAnchor="top"
+				className={cn(
+					"aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4 transition-[padding] duration-300 ease-out",
+					showGutter && "lg:pr-30"
+				)}
+			>
+				{header && <div className="sticky top-0 z-10 mb-4">{header}</div>}
+
+				<AssistantIf condition={({ thread }) => thread.isEmpty}>
+					<ThreadWelcome />
+				</AssistantIf>
+
+				<ThreadPrimitive.Messages
+					components={{
+						UserMessage,
+						EditComposer,
+						AssistantMessage,
+					}}
+				/>
+
+				<ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+					<ThreadScrollToBottom />
+					<AssistantIf condition={({ thread }) => !thread.isEmpty}>
+						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
+							<Composer />
+						</div>
+					</AssistantIf>
+				</ThreadPrimitive.ViewportFooter>
+			</ThreadPrimitive.Viewport>
+		</ThreadPrimitive.Root>
 	);
 };
 
@@ -576,17 +584,6 @@ const AssistantMessageInner: FC = () => {
 				<AssistantActionBar />
 			</div>
 		</>
-	);
-};
-
-const AssistantMessage: FC = () => {
-	return (
-		<MessagePrimitive.Root
-			className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
-			data-role="assistant"
-		>
-			<AssistantMessageInner />
-		</MessagePrimitive.Root>
 	);
 };
 

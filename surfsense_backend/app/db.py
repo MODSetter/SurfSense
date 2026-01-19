@@ -152,6 +152,11 @@ class Permission(str, Enum):
     CHATS_UPDATE = "chats:update"
     CHATS_DELETE = "chats:delete"
 
+    # Comments
+    COMMENTS_CREATE = "comments:create"
+    COMMENTS_READ = "comments:read"
+    COMMENTS_DELETE = "comments:delete"
+
     # LLM Configs
     LLM_CONFIGS_CREATE = "llm_configs:create"
     LLM_CONFIGS_READ = "llm_configs:read"
@@ -209,6 +214,10 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.CHATS_READ.value,
         Permission.CHATS_UPDATE.value,
         Permission.CHATS_DELETE.value,
+        # Comments
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
+        Permission.COMMENTS_DELETE.value,
         # LLM Configs
         Permission.LLM_CONFIGS_CREATE.value,
         Permission.LLM_CONFIGS_READ.value,
@@ -252,6 +261,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.CHATS_READ.value,
         Permission.CHATS_UPDATE.value,
         Permission.CHATS_DELETE.value,
+        # Comments (no delete)
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
         # LLM Configs (read only)
         Permission.LLM_CONFIGS_READ.value,
         Permission.LLM_CONFIGS_CREATE.value,
@@ -279,6 +291,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.DOCUMENTS_READ.value,
         # Chats (read only)
         Permission.CHATS_READ.value,
+        # Comments (no delete)
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
         # LLM Configs (read only)
         Permission.LLM_CONFIGS_READ.value,
         # Podcasts (read only)
@@ -424,6 +439,84 @@ class NewChatMessage(BaseModel, TimestampMixin):
     # Relationships
     thread = relationship("NewChatThread", back_populates="messages")
     author = relationship("User")
+    comments = relationship(
+        "ChatComment",
+        back_populates="message",
+        cascade="all, delete-orphan",
+    )
+
+
+class ChatComment(BaseModel, TimestampMixin):
+    """
+    Comment model for comments on AI chat responses.
+    Supports one level of nesting (replies to comments, but no replies to replies).
+    """
+
+    __tablename__ = "chat_comments"
+
+    message_id = Column(
+        Integer,
+        ForeignKey("new_chat_messages.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    parent_id = Column(
+        Integer,
+        ForeignKey("chat_comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    content = Column(Text, nullable=False)
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    # Relationships
+    message = relationship("NewChatMessage", back_populates="comments")
+    author = relationship("User")
+    parent = relationship(
+        "ChatComment", remote_side="ChatComment.id", backref="replies"
+    )
+    mentions = relationship(
+        "ChatCommentMention",
+        back_populates="comment",
+        cascade="all, delete-orphan",
+    )
+
+
+class ChatCommentMention(BaseModel, TimestampMixin):
+    """
+    Tracks @mentions in chat comments for notification purposes.
+    """
+
+    __tablename__ = "chat_comment_mentions"
+
+    comment_id = Column(
+        Integer,
+        ForeignKey("chat_comments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mentioned_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Relationships
+    comment = relationship("ChatComment", back_populates="mentions")
+    mentioned_user = relationship("User")
 
 
 class Document(BaseModel, TimestampMixin):

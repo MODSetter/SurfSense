@@ -5,9 +5,15 @@ import {
 	MessagePrimitive,
 	useAssistantState,
 } from "@assistant-ui/react";
+import { useAtom, useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
-import { useContext } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
+import {
+	addingCommentToMessageIdAtom,
+	commentsEnabledAtom,
+} from "@/atoms/chat/current-thread.atom";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { BranchPicker } from "@/components/assistant-ui/branch-picker";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
@@ -16,6 +22,9 @@ import {
 } from "@/components/assistant-ui/thinking-steps";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
+import { CommentTrigger } from "@/components/chat-comments/comment-trigger/comment-trigger";
+import { useComments } from "@/hooks/use-comments";
 
 export const MessageError: FC = () => {
 	return (
@@ -76,13 +85,89 @@ const AssistantMessageInner: FC = () => {
 	);
 };
 
+function parseMessageId(assistantUiMessageId: string | undefined): number | null {
+	if (!assistantUiMessageId) return null;
+	const match = assistantUiMessageId.match(/^msg-(\d+)$/);
+	return match ? Number.parseInt(match[1], 10) : null;
+}
+
 export const AssistantMessage: FC = () => {
+	const [messageHeight, setMessageHeight] = useState<number | undefined>(undefined);
+	const messageRef = useRef<HTMLDivElement>(null);
+	const messageId = useAssistantState(({ message }) => message?.id);
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const dbMessageId = parseMessageId(messageId);
+	const commentsEnabled = useAtomValue(commentsEnabledAtom);
+	const [addingCommentToMessageId, setAddingCommentToMessageId] = useAtom(
+		addingCommentToMessageIdAtom
+	);
+
+	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
+	const isMessageStreaming = isThreadRunning && isLastMessage;
+
+	const { data: commentsData } = useComments({
+		messageId: dbMessageId ?? 0,
+		enabled: !!dbMessageId,
+	});
+
+	const hasComments = (commentsData?.total_count ?? 0) > 0;
+	const isAddingComment = dbMessageId !== null && addingCommentToMessageId === dbMessageId;
+	const showCommentPanel = hasComments || isAddingComment;
+
+	const handleToggleAddComment = () => {
+		if (!dbMessageId) return;
+		setAddingCommentToMessageId(isAddingComment ? null : dbMessageId);
+	};
+
+	useEffect(() => {
+		if (!messageRef.current) return;
+		const el = messageRef.current;
+		const update = () => setMessageHeight(el.offsetHeight);
+		update();
+		const observer = new ResizeObserver(update);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, []);
+
 	return (
 		<MessagePrimitive.Root
-			className="aui-assistant-message-root fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
+			ref={messageRef}
+			className="aui-assistant-message-root group fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
 			data-role="assistant"
 		>
 			<AssistantMessageInner />
+
+			{searchSpaceId && commentsEnabled && !isMessageStreaming && (
+				<div className="absolute left-full top-0 ml-4 hidden lg:block w-72">
+					<div
+						className={`sticky top-3 ${showCommentPanel ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
+					>
+						{!hasComments && (
+							<CommentTrigger
+								commentCount={0}
+								isOpen={isAddingComment}
+								onClick={handleToggleAddComment}
+								disabled={!dbMessageId}
+							/>
+						)}
+
+						{showCommentPanel && dbMessageId && (
+							<div
+								className={
+									hasComments ? "" : "mt-2 animate-in fade-in slide-in-from-top-2 duration-200"
+								}
+							>
+								<CommentPanelContainer
+									messageId={dbMessageId}
+									isOpen={true}
+									maxHeight={messageHeight}
+								/>
+							</div>
+						)}
+					</div>
+				</div>
+			)}
 		</MessagePrimitive.Root>
 	);
 };

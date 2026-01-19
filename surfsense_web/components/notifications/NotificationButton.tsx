@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -12,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { useParams } from "next/navigation";
 
 export function NotificationButton() {
+	const [open, setOpen] = useState(false);
 	const { data: user } = useAtomValue(currentUserAtom);
 	const params = useParams();
 
@@ -25,7 +27,7 @@ export function NotificationButton() {
 	);
 
 	return (
-		<Popover>
+		<Popover open={open} onOpenChange={setOpen}>
 			<Tooltip>
 				<TooltipTrigger asChild>
 					<PopoverTrigger asChild>
@@ -54,6 +56,7 @@ export function NotificationButton() {
 					loading={loading}
 					markAsRead={markAsRead}
 					markAllAsRead={markAllAsRead}
+					onClose={() => setOpen(false)}
 				/>
 			</PopoverContent>
 		</Popover>
