@@ -267,9 +267,13 @@ class ConnectorsApiService {
 			search_space_id: String(queryParams.search_space_id),
 		}).toString();
 
-		return baseApiService.post<MCPConnectorRead>(`/api/v1/connectors/mcp?${queryString}`, undefined, {
-			body: data,
-		});
+		return baseApiService.post<MCPConnectorRead>(
+			`/api/v1/connectors/mcp?${queryString}`,
+			undefined,
+			{
+				body: data,
+			}
+		);
 	};
 
 	/**

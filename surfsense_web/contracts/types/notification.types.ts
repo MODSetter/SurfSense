@@ -5,7 +5,11 @@ import { documentTypeEnum } from "./document.types";
 /**
  * Notification type enum - matches backend notification types
  */
-export const notificationTypeEnum = z.enum(["connector_indexing", "document_processing", "new_mention"]);
+export const notificationTypeEnum = z.enum([
+	"connector_indexing",
+	"document_processing",
+	"new_mention",
+]);
 
 /**
  * Notification status enum - used in metadata
