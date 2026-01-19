@@ -224,6 +224,19 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				CREATE INDEX IF NOT EXISTS idx_documents_search_space_type ON documents(search_space_id, document_type);
 			`);
 
+			// Create the chat_comment_mentions table schema in PGlite
+			await db.exec(`
+				CREATE TABLE IF NOT EXISTS chat_comment_mentions (
+					id INTEGER PRIMARY KEY,
+					comment_id INTEGER NOT NULL,
+					mentioned_user_id TEXT NOT NULL,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				);
+				
+				CREATE INDEX IF NOT EXISTS idx_chat_comment_mentions_user_id ON chat_comment_mentions(mentioned_user_id);
+				CREATE INDEX IF NOT EXISTS idx_chat_comment_mentions_comment_id ON chat_comment_mentions(comment_id);
+			`);
+
 			const electricUrl = getElectricUrl();
 
 			// STEP 4: Create the client wrapper
