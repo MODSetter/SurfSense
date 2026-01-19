@@ -108,7 +108,10 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 											{/* Step dot - on top of line */}
 											<div className="relative z-10 mt-[7px] flex shrink-0 items-center justify-center">
 												{effectiveStatus === "in_progress" ? (
-													<span className="size-2 rounded-full bg-muted-foreground/30" />
+													<span className="relative flex size-2">
+														<span className="absolute inline-flex size-full animate-ping rounded-full bg-primary/60" />
+														<span className="relative inline-flex size-2 rounded-full bg-primary" />
+													</span>
 												) : (
 													<span className="size-2 rounded-full bg-muted-foreground/30" />
 												)}
