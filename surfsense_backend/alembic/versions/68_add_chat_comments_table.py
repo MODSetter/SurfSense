@@ -1,15 +1,15 @@
 """Add chat_comments table for comments on AI responses
 
-Revision ID: 66
-Revises: 65
+Revision ID: 68
+Revises: 67
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "66"
-down_revision: str | None = "65"
+revision: str = "68"
+down_revision: str | None = "67"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -1,7 +1,7 @@
 """Add comments permissions to existing roles
 
-Revision ID: 68
-Revises: 67
+Revision ID: 70
+Revises: 69
 Create Date: 2024-01-16
 
 """
@@ -11,8 +11,8 @@ from sqlalchemy import text
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision = "68"
-down_revision = "67"
+revision = "70"
+down_revision = "69"
 branch_labels = None
 depends_on = None
 

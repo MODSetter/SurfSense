@@ -1,15 +1,15 @@
 """Add chat_comment_mentions table for @mentions in comments
 
-Revision ID: 67
-Revises: 66
+Revision ID: 69
+Revises: 68
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "67"
-down_revision: str | None = "66"
+revision: str = "69"
+down_revision: str | None = "68"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
