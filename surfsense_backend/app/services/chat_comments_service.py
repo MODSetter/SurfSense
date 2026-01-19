@@ -301,6 +301,7 @@ async def create_comment(
     # Create notifications for mentioned users (excluding author)
     thread = message.thread
     author_name = user.display_name or user.email
+    content_preview = render_mentions(content, user_names)
     for mentioned_user_id, mention_id in mentions_map.items():
         if mentioned_user_id == user.id:
             continue  # Don't notify yourself
@@ -314,7 +315,7 @@ async def create_comment(
             thread_title=thread.title or "Untitled thread",
             author_id=str(user.id),
             author_name=author_name,
-            content_preview=content[:200],
+            content_preview=content_preview[:200],
             search_space_id=search_space_id,
         )
 
@@ -411,6 +412,7 @@ async def create_reply(
     # Create notifications for mentioned users (excluding author)
     thread = parent_comment.message.thread
     author_name = user.display_name or user.email
+    content_preview = render_mentions(content, user_names)
     for mentioned_user_id, mention_id in mentions_map.items():
         if mentioned_user_id == user.id:
             continue  # Don't notify yourself
@@ -424,7 +426,7 @@ async def create_reply(
             thread_title=thread.title or "Untitled thread",
             author_id=str(user.id),
             author_name=author_name,
-            content_preview=content[:200],
+            content_preview=content_preview[:200],
             search_space_id=search_space_id,
         )
 
@@ -526,13 +528,16 @@ async def update_comment(
             )
         )
 
-    # Add new mentions (existing ones keep their read status)
+    # Add new mentions and collect their IDs for notifications
+    new_mentions_map: dict[UUID, int] = {}
     for user_id in mentions_to_add:
         mention = ChatCommentMention(
             comment_id=comment_id,
             mentioned_user_id=user_id,
         )
         session.add(mention)
+        await session.flush()
+        new_mentions_map[user_id] = mention.id
 
     comment.content = content
 
@@ -541,6 +546,28 @@ async def update_comment(
 
     # Fetch user names for rendering mentions
     user_names = await get_user_names_for_mentions(session, valid_new_mentions)
+
+    # Create notifications for newly added mentions (excluding author)
+    if new_mentions_map:
+        thread = comment.message.thread
+        author_name = user.display_name or user.email
+        content_preview = render_mentions(content, user_names)
+        for mentioned_user_id, mention_id in new_mentions_map.items():
+            if mentioned_user_id == user.id:
+                continue  # Don't notify yourself
+            await NotificationService.mention.notify_new_mention(
+                session=session,
+                mentioned_user_id=mentioned_user_id,
+                mention_id=mention_id,
+                comment_id=comment_id,
+                message_id=comment.message_id,
+                thread_id=thread.id,
+                thread_title=thread.title or "Untitled thread",
+                author_id=str(user.id),
+                author_name=author_name,
+                content_preview=content_preview[:200],
+                search_space_id=search_space_id,
+            )
 
     author = AuthorResponse(
         id=user.id,

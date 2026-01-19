@@ -68,7 +68,7 @@ function formatTimestamp(dateString: string): string {
 	);
 }
 
-function convertRenderedToDisplay(contentRendered: string): string {
+export function convertRenderedToDisplay(contentRendered: string): string {
 	// Convert @{DisplayName} format to @DisplayName for editing
 	return contentRendered.replace(/@\{([^}]+)\}/g, "@$1");
 }
@@ -128,7 +128,7 @@ export function CommentItem({
 	};
 
 	return (
-		<div className={cn("group flex gap-3")}>
+		<div className={cn("group flex gap-3")} data-comment-id={comment.id}>
 			<Avatar className="size-8 shrink-0">
 				{comment.author?.avatarUrl && (
 					<AvatarImage src={comment.author.avatarUrl} alt={displayName} />

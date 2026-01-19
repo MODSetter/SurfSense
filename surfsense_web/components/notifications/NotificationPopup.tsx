@@ -1,12 +1,14 @@
 "use client";
 
 import { Bell, CheckCheck, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { Notification } from "@/hooks/use-notifications";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
+import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 
 interface NotificationPopupProps {
 	notifications: Notification[];
@@ -14,6 +16,7 @@ interface NotificationPopupProps {
 	loading: boolean;
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
+	onClose?: () => void;
 }
 
 export function NotificationPopup({
@@ -22,13 +25,36 @@ export function NotificationPopup({
 	loading,
 	markAsRead,
 	markAllAsRead,
+	onClose,
 }: NotificationPopupProps) {
-	const handleMarkAsRead = async (id: number) => {
-		await markAsRead(id);
-	};
+	const router = useRouter();
 
 	const handleMarkAllAsRead = async () => {
 		await markAllAsRead();
+	};
+
+	const handleNotificationClick = async (notification: Notification) => {
+		if (!notification.read) {
+			await markAsRead(notification.id);
+		}
+
+		if (notification.type === "new_mention") {
+			const metadata = notification.metadata as {
+				thread_id?: number;
+				comment_id?: number;
+			};
+			const searchSpaceId = notification.search_space_id;
+			const threadId = metadata?.thread_id;
+			const commentId = metadata?.comment_id;
+
+			if (searchSpaceId && threadId) {
+				const url = commentId
+					? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
+					: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
+				onClose?.();
+				router.push(url);
+			}
+		}
 	};
 
 	const formatTime = (dateString: string) => {
@@ -86,7 +112,7 @@ export function NotificationPopup({
 							<div key={notification.id}>
 								<button
 									type="button"
-									onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+									onClick={() => handleNotificationClick(notification)}
 									className={cn(
 										"w-full px-4 py-3 text-left hover:bg-accent transition-colors",
 										!notification.read && "bg-accent/50"
@@ -106,7 +132,7 @@ export function NotificationPopup({
 												</p>
 											</div>
 											<p className="text-[11px] text-muted-foreground break-all line-clamp-2">
-												{notification.message}
+												{convertRenderedToDisplay(notification.message)}
 											</p>
 											<div className="flex items-center justify-between mt-2">
 												<span className="text-[10px] text-muted-foreground">

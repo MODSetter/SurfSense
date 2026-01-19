@@ -8,7 +8,7 @@ import {
 } from "@assistant-ui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -366,6 +366,38 @@ export default function NewChatPage() {
 	useEffect(() => {
 		initializeThread();
 	}, [initializeThread]);
+
+	// Handle scroll to comment from URL query params (e.g., from notification click)
+	const searchParams = useSearchParams();
+	const targetCommentId = searchParams.get("commentId");
+
+	useEffect(() => {
+		if (!targetCommentId || isInitializing || messages.length === 0) return;
+
+		const tryScroll = () => {
+			const el = document.querySelector(`[data-comment-id="${targetCommentId}"]`);
+			if (el) {
+				el.scrollIntoView({ behavior: "smooth", block: "center" });
+				return true;
+			}
+			return false;
+		};
+
+		// Try immediately
+		if (tryScroll()) return;
+
+		// Retry every 200ms for up to 10 seconds
+		const intervalId = setInterval(() => {
+			if (tryScroll()) clearInterval(intervalId);
+		}, 200);
+
+		const timeoutId = setTimeout(() => clearInterval(intervalId), 10000);
+
+		return () => {
+			clearInterval(intervalId);
+			clearTimeout(timeoutId);
+		};
+	}, [targetCommentId, isInitializing, messages.length]);
 
 	// Sync current thread state to atom
 	useEffect(() => {
