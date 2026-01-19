@@ -132,14 +132,23 @@ const ThreadScrollToBottom: FC = () => {
 	);
 };
 
-const getTimeBasedGreeting = (userEmail?: string): string => {
+const getTimeBasedGreeting = (user?: { display_name?: string | null; email?: string }): string => {
 	const hour = new Date().getHours();
 
-	// Extract first name from email if available
-	const firstName = userEmail
-		? userEmail.split("@")[0].split(".")[0].charAt(0).toUpperCase() +
-			userEmail.split("@")[0].split(".")[0].slice(1)
-		: null;
+	// Extract first name: prefer display_name, fall back to email extraction
+	let firstName: string | null = null;
+
+	if (user?.display_name?.trim()) {
+		// Use display_name if available and not empty
+		// Extract first name from display_name (take first word)
+		const nameParts = user.display_name.trim().split(/\s+/);
+		firstName = nameParts[0].charAt(0).toUpperCase() + nameParts[0].slice(1).toLowerCase();
+	} else if (user?.email) {
+		// Fall back to email extraction if display_name is not available
+		firstName =
+			user.email.split("@")[0].split(".")[0].charAt(0).toUpperCase() +
+			user.email.split("@")[0].split(".")[0].slice(1);
+	}
 
 	// Array of greeting variations for each time period
 	const morningGreetings = ["Good morning", "Fresh start today", "Morning", "Hey there"];
@@ -180,7 +189,7 @@ const ThreadWelcome: FC = () => {
 	const { data: user } = useAtomValue(currentUserAtom);
 
 	// Memoize greeting so it doesn't change on re-renders (only on user change)
-	const greeting = useMemo(() => getTimeBasedGreeting(user?.email), [user?.email]);
+	const greeting = useMemo(() => getTimeBasedGreeting(user), [user]);
 
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
@@ -199,7 +208,7 @@ const ThreadWelcome: FC = () => {
 };
 
 const Composer: FC = () => {
-	// ---- State for document mentions (using atoms to persist across remounts) ----
+	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
@@ -211,16 +220,12 @@ const Composer: FC = () => {
 	const composerRuntime = useComposerRuntime();
 	const hasAutoFocusedRef = useRef(false);
 
-	// Check if thread is empty (new chat)
 	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
-
-	// Check if thread is currently running (streaming response)
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
 
-	// Auto-focus editor when on new chat page
+	// Auto-focus editor on new chat page after mount
 	useEffect(() => {
 		if (isThreadEmpty && !hasAutoFocusedRef.current && editorRef.current) {
-			// Small delay to ensure the editor is fully mounted
 			const timeoutId = setTimeout(() => {
 				editorRef.current?.focus();
 				hasAutoFocusedRef.current = true;
@@ -229,7 +234,7 @@ const Composer: FC = () => {
 		}
 	}, [isThreadEmpty]);
 
-	// Sync mentioned document IDs to atom for use in chat request
+	// Sync mentioned document IDs to atom for inclusion in chat request payload
 	useEffect(() => {
 		setMentionedDocumentIds({
 			surfsense_doc_ids: mentionedDocuments
@@ -241,7 +246,7 @@ const Composer: FC = () => {
 		});
 	}, [mentionedDocuments, setMentionedDocumentIds]);
 
-	// Handle text change from inline editor - sync with assistant-ui composer
+	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
 		(text: string) => {
 			composerRuntime.setText(text);
@@ -249,13 +254,13 @@ const Composer: FC = () => {
 		[composerRuntime]
 	);
 
-	// Handle @ mention trigger from inline editor
+	// Open document picker when @ mention is triggered
 	const handleMentionTrigger = useCallback((query: string) => {
 		setShowDocumentPopover(true);
 		setMentionQuery(query);
 	}, []);
 
-	// Handle mention close
+	// Close document picker and reset query
 	const handleMentionClose = useCallback(() => {
 		if (showDocumentPopover) {
 			setShowDocumentPopover(false);
@@ -263,7 +268,7 @@ const Composer: FC = () => {
 		}
 	}, [showDocumentPopover]);
 
-	// Handle keyboard navigation when popover is open
+	// Keyboard navigation for document picker (arrow keys, Enter, Escape)
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (showDocumentPopover) {
@@ -293,15 +298,13 @@ const Composer: FC = () => {
 		[showDocumentPopover]
 	);
 
-	// Handle submit from inline editor (Enter key)
+	// Submit message (blocked during streaming or when document picker is open)
 	const handleSubmit = useCallback(() => {
-		// Prevent sending while a response is still streaming
 		if (isThreadRunning) {
 			return;
 		}
 		if (!showDocumentPopover) {
 			composerRuntime.send();
-			// Clear the editor after sending
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
 			setMentionedDocumentIds({
@@ -317,6 +320,7 @@ const Composer: FC = () => {
 		setMentionedDocumentIds,
 	]);
 
+	// Remove document from mentions and sync IDs to atom
 	const handleDocumentRemove = useCallback(
 		(docId: number, docType?: string) => {
 			setMentionedDocuments((prev) => {
@@ -335,6 +339,7 @@ const Composer: FC = () => {
 		[setMentionedDocuments, setMentionedDocumentIds]
 	);
 
+	// Add selected documents from picker, insert chips, and sync IDs to atom
 	const handleDocumentsMention = useCallback(
 		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
 			const existingKeys = new Set(mentionedDocuments.map((d) => `${d.document_type}:${d.id}`));
@@ -372,7 +377,7 @@ const Composer: FC = () => {
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
-				{/* -------- Inline Mention Editor -------- */}
+				{/* Inline editor with @mention support */}
 				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
@@ -387,45 +392,29 @@ const Composer: FC = () => {
 					/>
 				</div>
 
-				{/* -------- Document mention popover (rendered via portal) -------- */}
+				{/* Document picker popover (portal to body for proper z-index stacking) */}
 				{showDocumentPopover &&
 					typeof document !== "undefined" &&
 					createPortal(
-						<>
-							{/* Backdrop */}
-							<button
-								type="button"
-								className="fixed inset-0 cursor-default"
-								style={{ zIndex: 9998 }}
-								onClick={() => setShowDocumentPopover(false)}
-								aria-label="Close document picker"
-							/>
-							{/* Popover positioned above input */}
-							<div
-								className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover"
-								style={{
-									zIndex: 9999,
-									bottom: editorContainerRef.current
-										? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
-										: "200px",
-									left: editorContainerRef.current
-										? `${editorContainerRef.current.getBoundingClientRect().left}px`
-										: "50%",
-								}}
-							>
-								<DocumentMentionPicker
-									ref={documentPickerRef}
-									searchSpaceId={Number(search_space_id)}
-									onSelectionChange={handleDocumentsMention}
-									onDone={() => {
-										setShowDocumentPopover(false);
-										setMentionQuery("");
-									}}
-									initialSelectedDocuments={mentionedDocuments}
-									externalSearch={mentionQuery}
-								/>
-							</div>
-						</>,
+						<DocumentMentionPicker
+							ref={documentPickerRef}
+							searchSpaceId={Number(search_space_id)}
+							onSelectionChange={handleDocumentsMention}
+							onDone={() => {
+								setShowDocumentPopover(false);
+								setMentionQuery("");
+							}}
+							initialSelectedDocuments={mentionedDocuments}
+							externalSearch={mentionQuery}
+							containerStyle={{
+								bottom: editorContainerRef.current
+									? `${window.innerHeight - editorContainerRef.current.getBoundingClientRect().top + 8}px`
+									: "200px",
+								left: editorContainerRef.current
+									? `${editorContainerRef.current.getBoundingClientRect().left}px`
+									: "50%",
+							}}
+						/>,
 						document.body
 					)}
 				<ComposerAction />

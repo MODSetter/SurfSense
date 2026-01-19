@@ -88,7 +88,7 @@
 		"description_label": "Description",
 		"description_placeholder": "What is this search space for?",
 		"create_button": "Create",
-		"creating": "Creating...",
+		"creating": "Creating",
 		"all_search_spaces": "All Search Spaces",
 		"search_spaces_count": "{count, plural, =0 {No search spaces} =1 {1 search space} other {# search spaces}}",
 		"no_search_spaces": "No search spaces yet",
@@ -658,7 +658,7 @@
 	"sidebar": {
 		"chats": "Private Chats",
 		"shared_chats": "Shared Chats",
-		"search_chats": "Search chats...",
+		"search_chats": "Search chats",
 		"no_chats_found": "No chats found",
 		"no_shared_chats": "No shared chats",
 		"view_all_shared_chats": "View all shared chats",

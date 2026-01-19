@@ -445,31 +445,13 @@ async def _index_google_gmail_messages(
     end_date: str,
 ):
     """Index Google Gmail messages with new session."""
-    from datetime import datetime
-
     from app.routes.search_source_connectors_routes import (
         run_google_gmail_indexing,
     )
 
-    # Parse dates to calculate days_back
-    max_messages = 100
-    days_back = 30  # Default
-
-    if start_date:
-        try:
-            # Parse start_date (format: YYYY-MM-DD)
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            # Calculate days back from now
-            days_back = (datetime.now() - start_dt).days
-            # Ensure at least 1 day
-            days_back = max(1, days_back)
-        except ValueError:
-            # If parsing fails, use default
-            days_back = 30
-
     async with get_celery_session_maker()() as session:
         await run_google_gmail_indexing(
-            session, connector_id, search_space_id, user_id, max_messages, days_back
+            session, connector_id, search_space_id, user_id, start_date, end_date
         )
 
 
@@ -479,7 +461,7 @@ def index_google_drive_files_task(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
+    items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
     """Celery task to index Google Drive folders and files."""
     import asyncio
@@ -504,7 +486,7 @@ async def _index_google_drive_files(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
+    items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
     """Index Google Drive folders and files with new session."""
     from app.routes.search_source_connectors_routes import (

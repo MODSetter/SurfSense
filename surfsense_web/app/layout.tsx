@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
+import { ElectricProvider } from "@/components/providers/ElectricProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -102,7 +103,9 @@ export default function RootLayout({
 								defaultTheme="light"
 							>
 								<RootProvider>
-									<ReactQueryClientProvider>{children}</ReactQueryClientProvider>
+									<ReactQueryClientProvider>
+										<ElectricProvider>{children}</ElectricProvider>
+									</ReactQueryClientProvider>
 									<Toaster />
 								</RootProvider>
 							</ThemeProvider>

@@ -1,7 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { FileText } from "lucide-react";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	forwardRef,
 	useCallback,
@@ -12,9 +11,8 @@ import {
 	useState,
 } from "react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import type { Document, GetDocumentsResponse } from "@/contracts/types/document.types";
+import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
 export interface DocumentMentionPickerRef {
@@ -29,16 +27,39 @@ interface DocumentMentionPickerProps {
 	onDone: () => void;
 	initialSelectedDocuments?: Pick<Document, "id" | "title" | "document_type">[];
 	externalSearch?: string;
+	/** Positioning styles for the container */
+	containerStyle?: React.CSSProperties;
 }
 
 const PAGE_SIZE = 20;
+const MIN_SEARCH_LENGTH = 2;
+const DEBOUNCE_MS = 100;
 
-function useDebounced<T>(value: T, delay = 300) {
+/**
+ * Custom debounce hook that delays value updates until user input stabilizes.
+ * Preferred over throttling for search inputs as it reduces API request frequency
+ * and prevents race conditions from stale responses overtaking recent ones.
+ */
+function useDebounced<T>(value: T, delay = DEBOUNCE_MS) {
 	const [debounced, setDebounced] = useState(value);
+	const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
 	useEffect(() => {
-		const t = setTimeout(() => setDebounced(value), delay);
-		return () => clearTimeout(t);
+		if (timeoutRef.current) {
+			clearTimeout(timeoutRef.current);
+		}
+
+		timeoutRef.current = setTimeout(() => {
+			setDebounced(value);
+		}, delay);
+
+		return () => {
+			if (timeoutRef.current) {
+				clearTimeout(timeoutRef.current);
+			}
+		};
 	}, [value, delay]);
+
 	return debounced;
 }
 
@@ -46,17 +67,27 @@ export const DocumentMentionPicker = forwardRef<
 	DocumentMentionPickerRef,
 	DocumentMentionPickerProps
 >(function DocumentMentionPicker(
-	{ searchSpaceId, onSelectionChange, onDone, initialSelectedDocuments = [], externalSearch = "" },
+	{
+		searchSpaceId,
+		onSelectionChange,
+		onDone,
+		initialSelectedDocuments = [],
+		externalSearch = "",
+		containerStyle,
+	},
 	ref
 ) {
-	// Use external search
+	const queryClient = useQueryClient();
+
+	// Debounced search value to minimize API calls and prevent race conditions
 	const search = externalSearch;
-	const debouncedSearch = useDebounced(search, 150);
+	const debouncedSearch = useDebounced(search, DEBOUNCE_MS);
 	const [highlightedIndex, setHighlightedIndex] = useState(0);
 	const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
 	const scrollContainerRef = useRef<HTMLDivElement>(null);
+	const shouldScrollRef = useRef(false); // Keyboard navigation scroll flag
 
-	// State for pagination
+	// Pagination state for infinite scroll
 	const [accumulatedDocuments, setAccumulatedDocuments] = useState<
 		Pick<Document, "id" | "title" | "document_type">[]
 	>([]);
@@ -64,74 +95,119 @@ export const DocumentMentionPicker = forwardRef<
 	const [hasMore, setHasMore] = useState(false);
 	const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-	// Reset pagination when search or search space changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentionally reset pagination when search/space changes
+	/**
+	 * Search Strategy:
+	 * - Single character (length === 1): Client-side filtering for instant results
+	 * - Two or more characters (length >= 2): Server-side search with pg_trgm index
+	 * This hybrid approach optimizes UX by providing immediate feedback for short queries
+	 * while leveraging efficient database indexing for longer, more specific searches.
+	 */
+	const isSearchValid = debouncedSearch.trim().length >= MIN_SEARCH_LENGTH;
+	const shouldSearch = debouncedSearch.trim().length > 0;
+	const isSingleCharSearch = debouncedSearch.trim().length === 1;
+
+	// Prefetch initial data on mount for instant display when picker opens
 	useEffect(() => {
-		setAccumulatedDocuments([]);
+		if (!searchSpaceId) return;
+
+		const prefetchParams = {
+			search_space_id: searchSpaceId,
+			page: 0,
+			page_size: PAGE_SIZE,
+		};
+
+		queryClient.prefetchQuery({
+			queryKey: ["document-titles", prefetchParams],
+			queryFn: () => documentsApiService.searchDocumentTitles({ queryParams: prefetchParams }),
+			staleTime: 60 * 1000,
+		});
+
+		queryClient.prefetchQuery({
+			queryKey: ["surfsense-docs-mention", "", false],
+			queryFn: () =>
+				documentsApiService.getSurfsenseDocs({
+					queryParams: { page: 0, page_size: PAGE_SIZE },
+				}),
+			staleTime: 3 * 60 * 1000,
+		});
+	}, [searchSpaceId, queryClient]);
+
+	// Reset pagination state when search query or search space changes.
+	// Documents are not cleared to maintain visual continuity during fetches.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentional reset on search/space change
+	useEffect(() => {
 		setCurrentPage(0);
 		setHasMore(false);
 		setHighlightedIndex(0);
 	}, [debouncedSearch, searchSpaceId]);
 
-	// Query params for initial fetch (page 0)
-	const fetchQueryParams = useMemo(
+	// Query parameters for lightweight title search endpoint
+	const titleSearchParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
 			page: 0,
 			page_size: PAGE_SIZE,
+			...(isSearchValid ? { title: debouncedSearch.trim() } : {}),
 		}),
-		[searchSpaceId]
+		[searchSpaceId, debouncedSearch, isSearchValid]
 	);
-
-	const searchQueryParams = useMemo(() => {
-		return {
-			search_space_id: searchSpaceId,
-			page: 0,
-			page_size: PAGE_SIZE,
-			title: debouncedSearch,
-		};
-	}, [debouncedSearch, searchSpaceId]);
 
 	const surfsenseDocsQueryParams = useMemo(() => {
 		const params: { page: number; page_size: number; title?: string } = {
 			page: 0,
 			page_size: PAGE_SIZE,
 		};
-		if (debouncedSearch.trim()) {
-			params.title = debouncedSearch;
+		if (isSearchValid) {
+			params.title = debouncedSearch.trim();
 		}
 		return params;
-	}, [debouncedSearch]);
+	}, [debouncedSearch, isSearchValid]);
 
-	// Use query for fetching first page of documents
-	const { data: documents, isLoading: isDocumentsLoading } = useQuery({
-		queryKey: cacheKeys.documents.withQueryParams(fetchQueryParams),
-		queryFn: () => documentsApiService.getDocuments({ queryParams: fetchQueryParams }),
-		staleTime: 3 * 60 * 1000,
-		enabled: !!searchSpaceId && !debouncedSearch.trim() && currentPage === 0,
+	/**
+	 * TanStack Query for document title search.
+	 * - Uses AbortSignal for automatic request cancellation on query key changes
+	 * - placeholderData: keepPreviousData maintains UI stability during fetches
+	 * - Only triggers server-side search when isSearchValid (2+ characters)
+	 */
+	const { data: titleSearchResults, isLoading: isTitleSearchLoading } = useQuery({
+		queryKey: ["document-titles", titleSearchParams],
+		queryFn: ({ signal }) =>
+			documentsApiService.searchDocumentTitles({ queryParams: titleSearchParams }, signal),
+		staleTime: 60 * 1000,
+		enabled: !!searchSpaceId && currentPage === 0 && (!shouldSearch || isSearchValid),
+		placeholderData: keepPreviousData,
 	});
 
-	// Searching - first page
-	const { data: searchedDocuments, isLoading: isSearchedDocumentsLoading } = useQuery({
-		queryKey: cacheKeys.documents.withQueryParams(searchQueryParams),
-		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
-		staleTime: 3 * 60 * 1000,
-		enabled: !!searchSpaceId && !!debouncedSearch.trim() && currentPage === 0,
-	});
-
-	// Use query for fetching first page of SurfSense docs
+	/**
+	 * TanStack Query for SurfSense documentation.
+	 * - Uses AbortSignal for automatic request cancellation
+	 * - placeholderData: keepPreviousData prevents UI flicker during refetches
+	 */
 	const { data: surfsenseDocs, isLoading: isSurfsenseDocsLoading } = useQuery({
-		queryKey: ["surfsense-docs-mention", debouncedSearch],
-		queryFn: () => documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }),
+		queryKey: ["surfsense-docs-mention", debouncedSearch, isSearchValid],
+		queryFn: ({ signal }) =>
+			documentsApiService.getSurfsenseDocs({ queryParams: surfsenseDocsQueryParams }, signal),
 		staleTime: 3 * 60 * 1000,
+		enabled: !shouldSearch || isSearchValid,
+		placeholderData: keepPreviousData,
 	});
 
-	// Update accumulated documents when first page loads - combine both sources
+	// Post-fetch filter to eliminate false positives from backend fuzzy matching
+	const filterBySearchTerm = useCallback(
+		(docs: Pick<Document, "id" | "title" | "document_type">[]) => {
+			if (!isSearchValid) return docs; // No filtering when not searching
+			const searchLower = debouncedSearch.trim().toLowerCase();
+			return docs.filter((doc) => doc.title.toLowerCase().includes(searchLower));
+		},
+		[debouncedSearch, isSearchValid]
+	);
+
+	// Combine and update document list when first page data arrives
 	useEffect(() => {
 		if (currentPage === 0) {
 			const combinedDocs: Pick<Document, "id" | "title" | "document_type">[] = [];
 
-			// Add SurfSense docs first (they appear at top)
+			// SurfSense docs displayed first in the list
 			if (surfsenseDocs?.items) {
 				for (const doc of surfsenseDocs.items) {
 					combinedDocs.push({
@@ -142,24 +218,16 @@ export const DocumentMentionPicker = forwardRef<
 				}
 			}
 
-			// Add regular documents
-			if (debouncedSearch.trim()) {
-				if (searchedDocuments?.items) {
-					combinedDocs.push(...searchedDocuments.items);
-					setHasMore(searchedDocuments.has_more);
-				}
-			} else {
-				if (documents?.items) {
-					combinedDocs.push(...documents.items);
-					setHasMore(documents.has_more);
-				}
+			if (titleSearchResults?.items) {
+				combinedDocs.push(...titleSearchResults.items);
+				setHasMore(titleSearchResults.has_more);
 			}
 
-			setAccumulatedDocuments(combinedDocs);
+			setAccumulatedDocuments(filterBySearchTerm(combinedDocs));
 		}
-	}, [documents, searchedDocuments, surfsenseDocs, debouncedSearch, currentPage]);
+	}, [titleSearchResults, surfsenseDocs, currentPage, filterBySearchTerm]);
 
-	// Function to load next page
+	// Load next page for infinite scroll pagination
 	const loadNextPage = useCallback(async () => {
 		if (isLoadingMore || !hasMore) return;
 
@@ -167,23 +235,15 @@ export const DocumentMentionPicker = forwardRef<
 		setIsLoadingMore(true);
 
 		try {
-			let response: GetDocumentsResponse;
-			if (debouncedSearch.trim()) {
-				const queryParams = {
-					search_space_id: searchSpaceId,
-					page: nextPage,
-					page_size: PAGE_SIZE,
-					title: debouncedSearch,
-				};
-				response = await documentsApiService.searchDocuments({ queryParams });
-			} else {
-				const queryParams = {
-					search_space_id: searchSpaceId,
-					page: nextPage,
-					page_size: PAGE_SIZE,
-				};
-				response = await documentsApiService.getDocuments({ queryParams });
-			}
+			const queryParams = {
+				search_space_id: searchSpaceId,
+				page: nextPage,
+				page_size: PAGE_SIZE,
+				...(isSearchValid ? { title: debouncedSearch.trim() } : {}),
+			};
+			const response: SearchDocumentTitlesResponse = await documentsApiService.searchDocumentTitles(
+				{ queryParams }
+			);
 
 			setAccumulatedDocuments((prev) => [...prev, ...response.items]);
 			setHasMore(response.has_more);
@@ -193,15 +253,14 @@ export const DocumentMentionPicker = forwardRef<
 		} finally {
 			setIsLoadingMore(false);
 		}
-	}, [currentPage, hasMore, isLoadingMore, debouncedSearch, searchSpaceId]);
+	}, [currentPage, hasMore, isLoadingMore, debouncedSearch, searchSpaceId, isSearchValid]);
 
-	// Infinite scroll handler
+	// Trigger pagination when user scrolls near the bottom (50px threshold)
 	const handleScroll = useCallback(
 		(e: React.UIEvent<HTMLDivElement>) => {
 			const target = e.currentTarget;
 			const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
 
-			// Load more when within 50px of bottom
 			if (scrollBottom < 50 && hasMore && !isLoadingMore) {
 				loadNextPage();
 			}
@@ -209,13 +268,26 @@ export const DocumentMentionPicker = forwardRef<
 		[hasMore, isLoadingMore, loadNextPage]
 	);
 
-	const actualDocuments = accumulatedDocuments;
-	const actualLoading =
-		((debouncedSearch.trim() ? isSearchedDocumentsLoading : isDocumentsLoading) ||
-			isSurfsenseDocsLoading) &&
-		currentPage === 0;
+	/**
+	 * Client-side filtering for single character searches.
+	 * Filters cached documents locally for instant feedback without additional API calls.
+	 * Server-side search is reserved for 2+ character queries to leverage database indexing.
+	 */
+	const clientFilteredDocs = useMemo(() => {
+		if (!isSingleCharSearch) return null;
+		const searchLower = debouncedSearch.trim().toLowerCase();
+		return accumulatedDocuments.filter((doc) => doc.title.toLowerCase().includes(searchLower));
+	}, [isSingleCharSearch, debouncedSearch, accumulatedDocuments]);
 
-	// Split documents into SurfSense docs and user docs for grouped rendering
+	// Select data source based on search length: client-filtered for single char, server results for 2+
+	const actualDocuments = isSingleCharSearch ? (clientFilteredDocs ?? []) : accumulatedDocuments;
+	// Only show loading spinner on initial load (no documents yet), not during subsequent searches
+	const actualLoading =
+		(isTitleSearchLoading || isSurfsenseDocsLoading) &&
+		currentPage === 0 &&
+		!isSingleCharSearch &&
+		accumulatedDocuments.length === 0;
+	// Partition documents by type for grouped UI rendering
 	const surfsenseDocsList = useMemo(
 		() => actualDocuments.filter((doc) => doc.document_type === "SURFSENSE_DOCS"),
 		[actualDocuments]
@@ -225,13 +297,13 @@ export const DocumentMentionPicker = forwardRef<
 		[actualDocuments]
 	);
 
-	// Track already selected documents using unique key (document_type:id) to avoid ID collisions
+	// Track selected documents with composite key (document_type:id) to prevent cross-type ID collisions
 	const selectedKeys = useMemo(
 		() => new Set(initialSelectedDocuments.map((d) => `${d.document_type}:${d.id}`)),
 		[initialSelectedDocuments]
 	);
 
-	// Filter out already selected documents for navigation
+	// Exclude already-selected documents from keyboard navigation
 	const selectableDocuments = useMemo(
 		() => actualDocuments.filter((doc) => !selectedKeys.has(`${doc.document_type}:${doc.id}`)),
 		[actualDocuments, selectedKeys]
@@ -245,15 +317,44 @@ export const DocumentMentionPicker = forwardRef<
 		[initialSelectedDocuments, onSelectionChange, onDone]
 	);
 
-	// Scroll highlighted item into view
+	// Auto-scroll highlighted item into view (keyboard navigation only, not mouse hover)
 	useEffect(() => {
-		const item = itemRefs.current.get(highlightedIndex);
-		if (item) {
-			item.scrollIntoView({ block: "nearest", behavior: "smooth" });
+		if (!shouldScrollRef.current) {
+			return;
 		}
+		shouldScrollRef.current = false;
+
+		const rafId = requestAnimationFrame(() => {
+			const item = itemRefs.current.get(highlightedIndex);
+			const container = scrollContainerRef.current;
+
+			if (item && container) {
+				const itemRect = item.getBoundingClientRect();
+				const containerRect = container.getBoundingClientRect();
+				const padding = 8;
+				const isAboveViewport = itemRect.top < containerRect.top + padding;
+				const isBelowViewport = itemRect.bottom > containerRect.bottom - padding;
+
+				if (isAboveViewport || isBelowViewport) {
+					const itemOffsetTop = item.offsetTop;
+					const containerHeight = container.clientHeight;
+					const itemHeight = item.offsetHeight;
+					const targetScrollTop = itemOffsetTop - containerHeight / 2 + itemHeight / 2;
+					const maxScrollTop = container.scrollHeight - containerHeight;
+					const clampedScrollTop = Math.max(0, Math.min(targetScrollTop, maxScrollTop));
+
+					container.scrollTo({
+						top: clampedScrollTop,
+						behavior: "smooth",
+					});
+				}
+			}
+		});
+
+		return () => cancelAnimationFrame(rafId);
 	}, [highlightedIndex]);
 
-	// Reset highlighted index when external search changes
+	// Reset highlight position when search query changes
 	const prevSearchRef = useRef(search);
 	if (prevSearchRef.current !== search) {
 		prevSearchRef.current = search;
@@ -262,7 +363,7 @@ export const DocumentMentionPicker = forwardRef<
 		}
 	}
 
-	// Expose methods to parent via ref
+	// Expose navigation and selection methods to parent component via ref
 	useImperativeHandle(
 		ref,
 		() => ({
@@ -272,16 +373,18 @@ export const DocumentMentionPicker = forwardRef<
 				}
 			},
 			moveUp: () => {
+				shouldScrollRef.current = true;
 				setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
 			},
 			moveDown: () => {
+				shouldScrollRef.current = true;
 				setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
 			},
 		}),
 		[selectableDocuments, highlightedIndex, handleSelectDocument]
 	);
 
-	// Handle keyboard navigation
+	// Keyboard navigation handler for arrow keys, Enter, and Escape
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {
 			if (selectableDocuments.length === 0) return;
@@ -289,10 +392,12 @@ export const DocumentMentionPicker = forwardRef<
 			switch (e.key) {
 				case "ArrowDown":
 					e.preventDefault();
+					shouldScrollRef.current = true;
 					setHighlightedIndex((prev) => (prev < selectableDocuments.length - 1 ? prev + 1 : 0));
 					break;
 				case "ArrowUp":
 					e.preventDefault();
+					shouldScrollRef.current = true;
 					setHighlightedIndex((prev) => (prev > 0 ? prev - 1 : selectableDocuments.length - 1));
 					break;
 				case "Enter":
@@ -310,14 +415,24 @@ export const DocumentMentionPicker = forwardRef<
 		[selectableDocuments, highlightedIndex, handleSelectDocument, onDone]
 	);
 
+	// Hide popup when there are no documents to display (regardless of fetch state)
+	// Search continues in background; popup reappears when results arrive
+	if (!actualLoading && actualDocuments.length === 0) {
+		return null;
+	}
+
 	return (
 		<div
-			className="flex flex-col w-[280px] sm:w-[320px] bg-popover rounded-lg"
+			className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover flex flex-col w-[280px] sm:w-[320px]"
+			style={{
+				zIndex: 9999,
+				...containerStyle,
+			}}
 			onKeyDown={handleKeyDown}
 			role="listbox"
 			tabIndex={-1}
 		>
-			{/* Document List - Shows max 5 items on mobile, 7-8 items on desktop */}
+			{/* Scrollable document list with responsive height */}
 			<div
 				ref={scrollContainerRef}
 				className="max-h-[180px] sm:max-h-[280px] overflow-y-auto"
@@ -327,17 +442,12 @@ export const DocumentMentionPicker = forwardRef<
 					<div className="flex items-center justify-center py-4">
 						<div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
 					</div>
-				) : actualDocuments.length === 0 ? (
-					<div className="flex flex-col items-center justify-center py-4 text-center px-4">
-						<FileText className="h-5 w-5 text-muted-foreground/50 mb-1" />
-						<p className="text-sm text-muted-foreground">No documents found</p>
-					</div>
-				) : (
-					<div className="py-1">
-						{/* SurfSense Documentation Section */}
+				) : actualDocuments.length > 0 ? (
+					<div className="py-1 px-2">
+						{/* SurfSense Documentation */}
 						{surfsenseDocsList.length > 0 && (
 							<>
-								<div className="sticky top-0 z-10 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-muted text-foreground/80 border-b border-border">
+								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
 									SurfSense Docs
 								</div>
 								{surfsenseDocsList.map((doc) => {
@@ -365,7 +475,7 @@ export const DocumentMentionPicker = forwardRef<
 											}}
 											disabled={isAlreadySelected}
 											className={cn(
-												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
+												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
 												isHighlighted && "bg-accent"
 											)}
@@ -382,10 +492,10 @@ export const DocumentMentionPicker = forwardRef<
 							</>
 						)}
 
-						{/* User Documents Section */}
+						{/* User Documents */}
 						{userDocsList.length > 0 && (
 							<>
-								<div className="sticky top-0 z-10 px-3 py-2 text-xs font-bold uppercase tracking-wider bg-muted text-foreground/80 border-b border-border">
+								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
 									Your Documents
 								</div>
 								{userDocsList.map((doc) => {
@@ -413,7 +523,7 @@ export const DocumentMentionPicker = forwardRef<
 											}}
 											disabled={isAlreadySelected}
 											className={cn(
-												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors",
+												"w-full flex items-center gap-2 px-3 py-2 text-left transition-colors rounded-md",
 												isAlreadySelected ? "opacity-50 cursor-not-allowed" : "cursor-pointer",
 												isHighlighted && "bg-accent"
 											)}
@@ -430,14 +540,14 @@ export const DocumentMentionPicker = forwardRef<
 							</>
 						)}
 
-						{/* Loading indicator for additional pages */}
+						{/* Pagination loading indicator */}
 						{isLoadingMore && (
 							<div className="flex items-center justify-center py-2">
 								<div className="animate-spin h-4 w-4 border-2 border-primary border-t-transparent rounded-full" />
 							</div>
 						)}
 					</div>
-				)}
+				) : null}
 			</div>
 		</div>
 	);

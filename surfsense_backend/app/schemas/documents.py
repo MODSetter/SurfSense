@@ -67,3 +67,20 @@ class PaginatedResponse[T](BaseModel):
     page: int
     page_size: int
     has_more: bool
+
+
+class DocumentTitleRead(BaseModel):
+    """Lightweight document response for mention picker - only essential fields."""
+
+    id: int
+    title: str
+    document_type: DocumentType
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentTitleSearchResponse(BaseModel):
+    """Response for document title search - optimized for typeahead."""
+
+    items: list[DocumentTitleRead]
+    has_more: bool

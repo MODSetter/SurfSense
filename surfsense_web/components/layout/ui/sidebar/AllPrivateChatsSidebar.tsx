@@ -34,7 +34,6 @@ import {
 	deleteThread,
 	fetchThreads,
 	searchThreads,
-	type ThreadListItem,
 	updateThread,
 } from "@/lib/chat/thread-persistence";
 import { cn } from "@/lib/utils";
@@ -410,7 +409,7 @@ export function AllPrivateChatsSidebar({
 								</div>
 							) : isSearchMode ? (
 								<div className="text-center py-8">
-									<Search className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+									<Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 									<p className="text-sm text-muted-foreground">
 										{t("no_chats_found") || "No chats found"}
 									</p>
@@ -420,7 +419,7 @@ export function AllPrivateChatsSidebar({
 								</div>
 							) : (
 								<div className="text-center py-8">
-									<Lock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
+									<Lock className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 									<p className="text-sm text-muted-foreground">
 										{showArchived
 											? t("no_archived_chats") || "No archived chats"

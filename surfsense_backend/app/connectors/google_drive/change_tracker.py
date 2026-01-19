@@ -58,7 +58,7 @@ async def get_changes(
         params = {
             "pageToken": page_token,
             "pageSize": 100,
-            "fields": "nextPageToken, newStartPageToken, changes(fileId, removed, file(id, name, mimeType, modifiedTime, size, webViewLink, parents, trashed))",
+            "fields": "nextPageToken, newStartPageToken, changes(fileId, removed, file(id, name, mimeType, modifiedTime, md5Checksum, size, webViewLink, parents, trashed))",
             "supportsAllDrives": True,
             "includeItemsFromAllDrives": True,
         }
