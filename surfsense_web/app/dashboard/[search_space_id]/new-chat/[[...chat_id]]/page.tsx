@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
@@ -251,6 +252,7 @@ export default function NewChatPage() {
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const hydratePlanState = useSetAtom(hydratePlanStateAtom);
+	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -364,6 +366,16 @@ export default function NewChatPage() {
 	useEffect(() => {
 		initializeThread();
 	}, [initializeThread]);
+
+	// Sync current thread state to atom
+	useEffect(() => {
+		setCurrentThreadState({
+			id: currentThread?.id ?? null,
+			visibility: currentThread?.visibility ?? null,
+			hasComments: currentThread?.has_comments ?? false,
+			addingCommentToMessageId: null,
+		});
+	}, [currentThread, setCurrentThreadState]);
 
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
@@ -842,10 +854,32 @@ export default function NewChatPage() {
 				// Persist assistant message (with thinking steps for restoration on refresh)
 				const finalContent = buildContentForPersistence();
 				if (contentParts.length > 0) {
-					appendMessage(currentThreadId, {
-						role: "assistant",
-						content: finalContent,
-					}).catch((err) => console.error("Failed to persist assistant message:", err));
+					try {
+						const savedMessage = await appendMessage(currentThreadId, {
+							role: "assistant",
+							content: finalContent,
+						});
+
+						// Update message ID from temporary to database ID so comments work immediately
+						const newMsgId = `msg-${savedMessage.id}`;
+						setMessages((prev) =>
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+						);
+
+						// Also update thinking steps map with new ID
+						setMessageThinkingSteps((prev) => {
+							const steps = prev.get(assistantMsgId);
+							if (steps) {
+								const newMap = new Map(prev);
+								newMap.delete(assistantMsgId);
+								newMap.set(newMsgId, steps);
+								return newMap;
+							}
+							return prev;
+						});
+					} catch (err) {
+						console.error("Failed to persist assistant message:", err);
+					}
 
 					// Track successful response
 					trackChatResponseReceived(searchSpaceId, currentThreadId);
@@ -860,10 +894,20 @@ export default function NewChatPage() {
 					);
 					if (hasContent && currentThreadId) {
 						const partialContent = buildContentForPersistence();
-						appendMessage(currentThreadId, {
-							role: "assistant",
-							content: partialContent,
-						}).catch((err) => console.error("Failed to persist partial assistant message:", err));
+						try {
+							const savedMessage = await appendMessage(currentThreadId, {
+								role: "assistant",
+								content: partialContent,
+							});
+
+							// Update message ID from temporary to database ID
+							const newMsgId = `msg-${savedMessage.id}`;
+							setMessages((prev) =>
+								prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+							);
+						} catch (err) {
+							console.error("Failed to persist partial assistant message:", err);
+						}
 					}
 					return;
 				}
