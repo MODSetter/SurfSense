@@ -1716,7 +1716,7 @@ async def run_google_drive_indexing(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
+    items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
     """Runs the Google Drive indexing task for folders and files with notifications."""
     from uuid import UUID
@@ -1730,6 +1730,7 @@ async def run_google_drive_indexing(
 
         # Parse the structured data
         items = GoogleDriveIndexRequest(**items_dict)
+        indexing_options = items.indexing_options
         total_indexed = 0
         errors = []
 
@@ -1765,7 +1766,7 @@ async def run_google_drive_indexing(
                 stage="fetching",
             )
 
-        # Index each folder
+        # Index each folder with indexing options
         for folder in items.folders:
             try:
                 indexed_count, error_message = await index_google_drive_files(
@@ -1775,8 +1776,10 @@ async def run_google_drive_indexing(
                     user_id,
                     folder_id=folder.id,
                     folder_name=folder.name,
-                    use_delta_sync=True,
+                    use_delta_sync=indexing_options.incremental_sync,
                     update_last_indexed=False,
+                    max_files=indexing_options.max_files_per_folder,
+                    include_subfolders=indexing_options.include_subfolders,
                 )
                 if error_message:
                     errors.append(f"Folder '{folder.name}': {error_message}")
@@ -1837,6 +1840,8 @@ async def run_google_drive_indexing(
 
         # Update notification on completion
         if notification:
+            # Refresh notification to reload attributes that may have been expired by earlier commits
+            await session.refresh(notification)
             await NotificationService.connector_indexing.notify_indexing_completed(
                 session=session,
                 notification=notification,

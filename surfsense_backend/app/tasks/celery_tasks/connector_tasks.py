@@ -461,7 +461,7 @@ def index_google_drive_files_task(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
+    items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
     """Celery task to index Google Drive folders and files."""
     import asyncio
@@ -486,7 +486,7 @@ async def _index_google_drive_files(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    items_dict: dict,  # Dictionary with 'folders' and 'files' lists
+    items_dict: dict,  # Dictionary with 'folders', 'files', and 'indexing_options'
 ):
     """Index Google Drive folders and files with new session."""
     from app.routes.search_source_connectors_routes import (
