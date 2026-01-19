@@ -72,4 +72,7 @@ export const cacheKeys = {
 				["connectors", "google-drive", connectorId, "folders", parentId] as const,
 		},
 	},
+	comments: {
+		byMessage: (messageId: number) => ["comments", "message", messageId] as const,
+	},
 };

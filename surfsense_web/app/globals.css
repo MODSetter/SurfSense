@@ -157,5 +157,33 @@ button {
 	cursor: pointer;
 }
 
+/* Custom scrollbar styles */
+.scrollbar-thin {
+	scrollbar-width: thin;
+	scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
+}
+
+.scrollbar-thin:hover {
+	scrollbar-color: hsl(var(--muted-foreground) / 0.4) transparent;
+}
+
+/* Webkit scrollbar styles */
+.scrollbar-thin::-webkit-scrollbar {
+	width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+	background-color: hsl(var(--muted-foreground) / 0.2);
+	border-radius: 3px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+	background-color: hsl(var(--muted-foreground) / 0.4);
+}
+
 @source '../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}';
 @source '../node_modules/streamdown/dist/*.js';

@@ -617,12 +617,83 @@ class DocumentProcessingNotificationHandler(BaseNotificationHandler):
         )
 
 
+class MentionNotificationHandler(BaseNotificationHandler):
+    """Handler for new mention notifications."""
+
+    def __init__(self):
+        super().__init__("new_mention")
+
+    async def notify_new_mention(
+        self,
+        session: AsyncSession,
+        mentioned_user_id: UUID,
+        mention_id: int,
+        comment_id: int,
+        message_id: int,
+        thread_id: int,
+        thread_title: str,
+        author_id: str,
+        author_name: str,
+        content_preview: str,
+        search_space_id: int,
+    ) -> Notification:
+        """
+        Create notification when a user is @mentioned in a comment.
+
+        Args:
+            session: Database session
+            mentioned_user_id: User who was mentioned
+            mention_id: ID of the mention record
+            comment_id: ID of the comment containing the mention
+            message_id: ID of the message being commented on
+            thread_id: ID of the chat thread
+            thread_title: Title of the chat thread
+            author_id: ID of the comment author
+            author_name: Display name of the comment author
+            content_preview: First ~100 chars of the comment
+            search_space_id: Search space ID
+
+        Returns:
+            Notification: The created notification
+        """
+        title = f"{author_name} mentioned you"
+        message = content_preview[:100] + ("..." if len(content_preview) > 100 else "")
+
+        metadata = {
+            "mention_id": mention_id,
+            "comment_id": comment_id,
+            "message_id": message_id,
+            "thread_id": thread_id,
+            "thread_title": thread_title,
+            "author_id": author_id,
+            "author_name": author_name,
+            "content_preview": content_preview[:200],
+        }
+
+        notification = Notification(
+            user_id=mentioned_user_id,
+            search_space_id=search_space_id,
+            type=self.notification_type,
+            title=title,
+            message=message,
+            notification_metadata=metadata,
+        )
+        session.add(notification)
+        await session.commit()
+        await session.refresh(notification)
+        logger.info(
+            f"Created new_mention notification {notification.id} for user {mentioned_user_id}"
+        )
+        return notification
+
+
 class NotificationService:
     """Service for creating and managing notifications that sync via Electric SQL."""
 
     # Handler instances
     connector_indexing = ConnectorIndexingNotificationHandler()
     document_processing = DocumentProcessingNotificationHandler()
+    mention = MentionNotificationHandler()
 
     @staticmethod
     async def create_notification(
