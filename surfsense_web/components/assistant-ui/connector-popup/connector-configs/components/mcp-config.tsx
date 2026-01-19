@@ -195,7 +195,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 								<XCircle className="h-4 w-4 text-red-600" />
 							)}
 							<div className="flex-1">
-								<div className="flex items-center justify-between">
+								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
 									<AlertTitle className="text-sm">
 										{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
 									</AlertTitle>
@@ -204,7 +204,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="h-6 px-2"
+											className="h-6 px-2 self-start sm:self-auto text-xs"
 											onClick={(e) => {
 												e.preventDefault();
 												e.stopPropagation();
@@ -214,12 +214,14 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 											{showDetails ? (
 												<>
 													<ChevronUp className="h-3 w-3 mr-1" />
-													Hide Details
+													<span className="hidden sm:inline">Hide Details</span>
+													<span className="sm:hidden">Hide</span>
 												</>
 											) : (
 												<>
 													<ChevronDown className="h-3 w-3 mr-1" />
-													Show Details
+													<span className="hidden sm:inline">Show Details</span>
+													<span className="sm:hidden">Show</span>
 												</>
 											)}
 										</Button>

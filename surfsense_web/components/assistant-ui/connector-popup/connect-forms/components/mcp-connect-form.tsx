@@ -176,8 +176,8 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 								<XCircle className="h-4 w-4 text-red-600" />
 							)}
 							<div className="flex-1">
-								<div className="flex items-center justify-between">
-									<AlertTitle className="text-sm">
+								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+									<AlertTitle className="text-xs sm:text-sm">
 										{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
 									</AlertTitle>
 									{testResult.tools.length > 0 && (
@@ -185,7 +185,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="h-6 px-2"
+											className="h-6 px-2 self-start sm:self-auto text-xs"
 											onClick={(e) => {
 												e.preventDefault();
 												e.stopPropagation();
@@ -195,25 +195,27 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 											{showDetails ? (
 												<>
 													<ChevronUp className="h-3 w-3 mr-1" />
-													Hide Details
+													<span className="hidden sm:inline">Hide Details</span>
+													<span className="sm:hidden">Hide</span>
 												</>
 											) : (
 												<>
 													<ChevronDown className="h-3 w-3 mr-1" />
-													Show Details
+													<span className="hidden sm:inline">Show Details</span>
+													<span className="sm:hidden">Show</span>
 												</>
 											)}
 										</Button>
 									)}
 								</div>
-								<AlertDescription className="text-xs mt-1">
+								<AlertDescription className="text-[10px] sm:text-xs mt-1">
 									{testResult.message}
 									{showDetails && testResult.tools.length > 0 && (
 										<div className="mt-3 pt-3 border-t border-green-500/20">
-											<p className="font-semibold mb-2">
+											<p className="font-semibold mb-2 text-[10px] sm:text-xs">
 												Available tools:
 											</p>
-											<ul className="list-disc list-inside text-xs space-y-0.5">
+											<ul className="list-disc list-inside text-[10px] sm:text-xs space-y-0.5">
 												{testResult.tools.map((tool) => (
 													<li key={tool.name}>{tool.name}</li>
 												))}

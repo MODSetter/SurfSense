@@ -132,21 +132,21 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 						onClick={onAddAccount}
 						disabled={isConnecting || !isEnabled}
 						className={cn(
-							"flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border-2 border-dashed text-left transition-all duration-200 shrink-0 self-center sm:self-auto sm:w-auto",
+							"flex items-center justify-center gap-1.5 h-8 px-3 rounded-md border-2 border-dashed text-xs sm:text-sm transition-all duration-200 shrink-0 w-full sm:w-auto",
 							!isEnabled
 								? "border-border/30 opacity-50 cursor-not-allowed"
-								: "border-primary/50 hover:bg-primary/5",
+								: "border-slate-400/20 dark:border-white/20 hover:bg-primary/5",
 							isConnecting && "opacity-50 cursor-not-allowed"
 						)}
 					>
-						<div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-primary/10 shrink-0">
+						<div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 shrink-0">
 							{isConnecting ? (
-								<Loader2 className="size-3 sm:size-3.5 animate-spin text-primary" />
+								<Loader2 className="size-3 animate-spin text-primary" />
 							) : (
-								<Plus className="size-3 sm:size-3.5 text-primary" />
+								<Plus className="size-3 text-primary" />
 							)}
 						</div>
-						<span className="text-[11px] sm:text-[12px] font-medium">
+						<span className="text-xs sm:text-sm font-medium">
 							{isConnecting ? "Connecting" : buttonText}
 						</span>
 					</button>
