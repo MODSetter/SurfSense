@@ -30,6 +30,7 @@ from app.schemas.chat_comments import (
     MentionListResponse,
     MentionResponse,
 )
+from app.services.notification_service import NotificationService
 from app.utils.chat_comments import parse_mentions, render_mentions
 from app.utils.rbac import check_permission, get_user_permissions
 
@@ -62,7 +63,7 @@ async def process_mentions(
     comment_id: int,
     content: str,
     search_space_id: int,
-) -> None:
+) -> dict[UUID, int]:
     """
     Parse mentions from content, validate users are members, and insert mention records.
 
@@ -71,10 +72,13 @@ async def process_mentions(
         comment_id: ID of the comment containing mentions
         content: Comment text with @[uuid] mentions
         search_space_id: ID of the search space for membership validation
+
+    Returns:
+        Dictionary mapping mentioned user UUID to their mention record ID
     """
     mentioned_uuids = parse_mentions(content)
     if not mentioned_uuids:
-        return
+        return {}
 
     # Get valid members from the mentioned UUIDs
     result = await session.execute(
@@ -85,15 +89,18 @@ async def process_mentions(
     )
     valid_member_ids = result.scalars().all()
 
-    # Insert mention records for valid members
+    # Insert mention records for valid members and collect their IDs
+    mentions_map: dict[UUID, int] = {}
     for user_id in valid_member_ids:
         mention = ChatCommentMention(
             comment_id=comment_id,
             mentioned_user_id=user_id,
         )
         session.add(mention)
+        await session.flush()
+        mentions_map[user_id] = mention.id
 
-    await session.flush()
+    return mentions_map
 
 
 async def get_comments_for_message(
@@ -282,15 +289,34 @@ async def create_comment(
     session.add(comment)
     await session.flush()
 
-    # Process mentions
-    await process_mentions(session, comment.id, content, search_space_id)
+    # Process mentions - returns map of user_id -> mention_id
+    mentions_map = await process_mentions(session, comment.id, content, search_space_id)
 
     await session.commit()
     await session.refresh(comment)
 
-    # Fetch user names for rendering mentions
-    mentioned_uuids = set(parse_mentions(content))
-    user_names = await get_user_names_for_mentions(session, mentioned_uuids)
+    # Fetch user names for rendering mentions (reuse mentions_map keys)
+    user_names = await get_user_names_for_mentions(session, set(mentions_map.keys()))
+
+    # Create notifications for mentioned users (excluding author)
+    thread = message.thread
+    author_name = user.display_name or user.email
+    for mentioned_user_id, mention_id in mentions_map.items():
+        if mentioned_user_id == user.id:
+            continue  # Don't notify yourself
+        await NotificationService.mention.notify_new_mention(
+            session=session,
+            mentioned_user_id=mentioned_user_id,
+            mention_id=mention_id,
+            comment_id=comment.id,
+            message_id=message_id,
+            thread_id=thread.id,
+            thread_title=thread.title or "Untitled thread",
+            author_id=str(user.id),
+            author_name=author_name,
+            content_preview=content[:200],
+            search_space_id=search_space_id,
+        )
 
     author = AuthorResponse(
         id=user.id,
@@ -373,15 +399,34 @@ async def create_reply(
     session.add(reply)
     await session.flush()
 
-    # Process mentions
-    await process_mentions(session, reply.id, content, search_space_id)
+    # Process mentions - returns map of user_id -> mention_id
+    mentions_map = await process_mentions(session, reply.id, content, search_space_id)
 
     await session.commit()
     await session.refresh(reply)
 
-    # Fetch user names for rendering mentions
-    mentioned_uuids = set(parse_mentions(content))
-    user_names = await get_user_names_for_mentions(session, mentioned_uuids)
+    # Fetch user names for rendering mentions (reuse mentions_map keys)
+    user_names = await get_user_names_for_mentions(session, set(mentions_map.keys()))
+
+    # Create notifications for mentioned users (excluding author)
+    thread = parent_comment.message.thread
+    author_name = user.display_name or user.email
+    for mentioned_user_id, mention_id in mentions_map.items():
+        if mentioned_user_id == user.id:
+            continue  # Don't notify yourself
+        await NotificationService.mention.notify_new_mention(
+            session=session,
+            mentioned_user_id=mentioned_user_id,
+            mention_id=mention_id,
+            comment_id=reply.id,
+            message_id=parent_comment.message_id,
+            thread_id=thread.id,
+            thread_title=thread.title or "Untitled thread",
+            author_id=str(user.id),
+            author_name=author_name,
+            content_preview=content[:200],
+            search_space_id=search_space_id,
+        )
 
     author = AuthorResponse(
         id=user.id,
