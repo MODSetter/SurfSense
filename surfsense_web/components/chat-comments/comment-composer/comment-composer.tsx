@@ -205,11 +205,11 @@ export function CommentComposer({
 	// Pre-populate insertedMentions from initialValue when members are loaded
 	useEffect(() => {
 		if (mentionsInitialized || !initialValue || members.length === 0) return;
-		
+
 		const mentionPattern = /@([^\s@]+(?:\s+[^\s@]+)*?)(?=\s|$|[.,!?;:]|@)/g;
 		const foundMentions: InsertedMention[] = [];
 		let match: RegExpExecArray | null;
-		
+
 		while ((match = mentionPattern.exec(initialValue)) !== null) {
 			const displayName = match[1];
 			const member = members.find(
@@ -222,7 +222,7 @@ export function CommentComposer({
 				}
 			}
 		}
-		
+
 		if (foundMentions.length > 0) {
 			setInsertedMentions(foundMentions);
 		}
@@ -239,7 +239,11 @@ export function CommentComposer({
 
 	return (
 		<div className="flex flex-col gap-2">
-			<Popover open={mentionState.isActive} onOpenChange={(open) => !open && closeMentionPicker()} modal={false}>
+			<Popover
+				open={mentionState.isActive}
+				onOpenChange={(open) => !open && closeMentionPicker()}
+				modal={false}
+			>
 				<PopoverAnchor asChild>
 					<Textarea
 						ref={textareaRef}

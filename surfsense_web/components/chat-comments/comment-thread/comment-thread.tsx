@@ -126,31 +126,30 @@ export function CommentThread({
 						)}
 
 						{/* Reply composer or button */}
-			
+
 						{isReplyComposerOpen ? (
 							<>
-													<div className="pt-3">
-													<CommentComposer
-								members={members}
-								membersLoading={membersLoading}
-								placeholder="Write a reply..."
-								submitLabel="Reply"
-								isSubmitting={isSubmitting}
-								onSubmit={handleReplySubmit}
-								onCancel={handleReplyCancel}
-								autoFocus
-							/>
-							</div>
+								<div className="pt-3">
+									<CommentComposer
+										members={members}
+										membersLoading={membersLoading}
+										placeholder="Write a reply..."
+										submitLabel="Reply"
+										isSubmitting={isSubmitting}
+										onSubmit={handleReplySubmit}
+										onCancel={handleReplyCancel}
+										autoFocus
+									/>
+								</div>
 							</>
-							
 						) : (
 							<Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleReply}>
 								<MessageSquare className="mr-1.5 size-3" />
 								Reply
 							</Button>
 						)}
-						</div>
 					</div>
+				</div>
 			)}
 
 			{/* Reply button when no replies yet */}

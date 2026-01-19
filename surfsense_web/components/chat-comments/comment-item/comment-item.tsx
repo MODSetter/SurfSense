@@ -116,7 +116,7 @@ export function CommentItem({
 	membersLoading = false,
 }: CommentItemProps) {
 	const [{ data: currentUser }] = useAtom(currentUserAtom);
-	
+
 	const isCurrentUser = currentUser?.id === comment.author?.id;
 	const displayName = isCurrentUser
 		? "Me"

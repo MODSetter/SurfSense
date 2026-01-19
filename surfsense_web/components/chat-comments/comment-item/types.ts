@@ -27,7 +27,12 @@ export interface CommentItemProps {
 	isReply?: boolean;
 	isEditing?: boolean;
 	isSubmitting?: boolean;
-	members?: Array<{ id: string; displayName: string | null; email: string; avatarUrl?: string | null }>;
+	members?: Array<{
+		id: string;
+		displayName: string | null;
+		email: string;
+		avatarUrl?: string | null;
+	}>;
 	membersLoading?: boolean;
 }
 
