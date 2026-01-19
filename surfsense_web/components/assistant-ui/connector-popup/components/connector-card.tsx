@@ -4,6 +4,7 @@ import { IconBrandYoutube } from "@tabler/icons-react";
 import { FileText, Loader2 } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { cn } from "@/lib/utils";
 import { useConnectorStatus } from "../hooks/use-connector-status";
@@ -18,6 +19,7 @@ interface ConnectorCardProps {
 	isConnecting?: boolean;
 	documentCount?: number;
 	accountCount?: number;
+	connectorCount?: number;
 	isIndexing?: boolean;
 	onConnect?: () => void;
 	onManage?: () => void;
@@ -46,10 +48,12 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 	isConnecting = false,
 	documentCount,
 	accountCount,
+	connectorCount,
 	isIndexing = false,
 	onConnect,
 	onManage,
 }) => {
+	const isMCP = connectorType === EnumConnectorName.MCP_CONNECTOR;
 	// Get connector status
 	const { getConnectorStatus, isConnectorEnabled, getConnectorStatusMessage, shouldShowWarnings } =
 		useConnectorStatus();
@@ -112,13 +116,21 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 					</p>
 				) : isConnected ? (
 					<p className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1.5">
-						<span>{formatDocumentCount(documentCount)}</span>
-						{accountCount !== undefined && accountCount > 0 && (
+						{isMCP && connectorCount !== undefined ? (
+							<span>
+								{connectorCount} {connectorCount === 1 ? "server" : "servers"}
+							</span>
+						) : (
 							<>
-								<span className="text-muted-foreground/50">•</span>
-								<span>
-									{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
-								</span>
+								<span>{formatDocumentCount(documentCount)}</span>
+								{accountCount !== undefined && accountCount > 0 && (
+									<>
+										<span className="text-muted-foreground/50">•</span>
+										<span>
+											{accountCount} {accountCount === 1 ? "Account" : "Accounts"}
+										</span>
+									</>
+								)}
 							</>
 						)}
 					</p>

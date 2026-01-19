@@ -22,23 +22,6 @@ interface MCPConfigProps extends ConnectorConfigProps {
 }
 
 export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
-	// Validate that this is an MCP connector
-	if (connector.connector_type !== EnumConnectorName.MCP_CONNECTOR) {
-		console.error(
-			"MCPConfig received non-MCP connector:",
-			connector.connector_type
-		);
-		return (
-			<Alert className="border-red-500/50 bg-red-500/10">
-				<XCircle className="h-4 w-4 text-red-600" />
-				<AlertTitle>Invalid Connector Type</AlertTitle>
-				<AlertDescription>
-					This component can only be used with MCP connectors.
-				</AlertDescription>
-			</Alert>
-		);
-	}
-
 	const [name, setName] = useState<string>("");
 	const [configJson, setConfigJson] = useState("");
 	const [jsonError, setJsonError] = useState<string | null>(null);
@@ -63,8 +46,24 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 			};
 			setConfigJson(JSON.stringify(configObj, null, 2));
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []); // Only run on mount to preserve user edits
+	}, []);
+
+	// Validate that this is an MCP connector (after hooks)
+	if (connector.connector_type !== EnumConnectorName.MCP_CONNECTOR) {
+		console.error(
+			"MCPConfig received non-MCP connector:",
+			connector.connector_type
+		);
+		return (
+			<Alert className="border-red-500/50 bg-red-500/10">
+				<XCircle className="h-4 w-4 text-red-600" />
+				<AlertTitle>Invalid Connector Type</AlertTitle>
+				<AlertDescription>
+					This component can only be used with MCP connectors.
+				</AlertDescription>
+			</Alert>
+		);
+	}
 
 	const handleNameChange = (value: string) => {
 		setName(value);
@@ -126,15 +125,21 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 	return (
 		<div className="space-y-6">
 			{/* Server Name */}
-			<div className="space-y-2">
-				<Label htmlFor="name">Server Name *</Label>
-				<Input
-					id="name"
-					value={name}
-					onChange={(e) => handleNameChange(e.target.value)}
-					placeholder="e.g., Filesystem Server"
-					required
-				/>
+			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
+				<div className="space-y-2">
+					<Label htmlFor="name" className="text-xs sm:text-sm">Server Name</Label>
+					<Input
+						id="name"
+						value={name}
+						onChange={(e) => handleNameChange(e.target.value)}
+						placeholder="e.g., Filesystem Server"
+						className="border-slate-400/20 focus-visible:border-slate-400/40"
+						required
+					/>
+					<p className="text-[10px] sm:text-xs text-muted-foreground">
+						A friendly name to identify this connector.
+					</p>
+				</div>
 			</div>
 
 			{/* Server Configuration */}
@@ -168,8 +173,8 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							type="button"
 							onClick={handleTestConnection}
 							disabled={isTesting}
-							variant="outline"
-							className="w-full"
+							variant="secondary"
+							className="w-full h-8 text-[13px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
 						>
 							{isTesting ? "Testing Connection..." : "Test Connection"}
 						</Button>
@@ -228,8 +233,8 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 												Available tools:
 											</p>
 											<ul className="list-disc list-inside text-xs space-y-0.5">
-												{testResult.tools.map((tool, i) => (
-													<li key={i}>{tool.name}</li>
+												{testResult.tools.map((tool) => (
+													<li key={tool.name}>{tool.name}</li>
 												))}
 											</ul>
 										</div>

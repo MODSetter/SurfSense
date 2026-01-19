@@ -22,7 +22,6 @@ import { useIndexingConnectors } from "./connector-popup/hooks/use-indexing-conn
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
-import { MCPConnectorListView } from "./connector-popup/views/mcp-connector-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
 export const ConnectorIndicator: FC = () => {
@@ -177,18 +176,16 @@ export const ConnectorIndicator: FC = () => {
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
 				) : viewingMCPList ? (
-					<div className="p-6 sm:p-12 h-full overflow-hidden">
-						<MCPConnectorListView
-							mcpConnectors={
-								(allConnectors || []).filter(
-									(c: SearchSourceConnector) => c.connector_type === "MCP_CONNECTOR"
-								) as SearchSourceConnector[]
-							}
-							onAddNew={handleAddNewMCPFromList}
-							onManageConnector={handleStartEdit}
-							onBack={handleBackFromMCPList}
-						/>
-					</div>
+					<ConnectorAccountsListView
+						connectorType="MCP_CONNECTOR"
+						connectorTitle="MCP Connectors"
+						connectors={(allConnectors || []) as SearchSourceConnector[]}
+						indexingConnectorIds={indexingConnectorIds}
+						onBack={handleBackFromMCPList}
+						onManage={handleStartEdit}
+						onAddAccount={handleAddNewMCPFromList}
+						addButtonText="Add New MCP Server"
+					/>
 				) : viewingAccountsType ? (
 					<ConnectorAccountsListView
 						connectorType={viewingAccountsType.connectorType}
