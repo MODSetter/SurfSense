@@ -56,6 +56,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			GITHUB_CONNECTOR: "github-connect-form",
 			LUMA_CONNECTOR: "luma-connect-form",
 			CIRCLEBACK_CONNECTOR: "circleback-connect-form",
+			MCP_CONNECTOR: "mcp-connect-form",
 		};
 		const formId = formIdMap[connectorType];
 		if (formId) {
@@ -98,7 +99,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 					</div>
 					<div>
 						<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-							Connect {getConnectorTypeDisplay(connectorType)}
+							Connect {connectorType === "MCP_CONNECTOR" ? "MCP Server" : getConnectorTypeDisplay(connectorType)}
 						</h2>
 						<p className="text-xs sm:text-base text-muted-foreground mt-1">
 							Enter your connection details
@@ -138,7 +139,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 							Connecting
 						</>
 					) : (
-						<>Connect {getConnectorTypeDisplay(connectorType)}</>
+						<>{connectorType === "MCP_CONNECTOR" ? "Connect" : `Connect ${getConnectorTypeDisplay(connectorType)}`}</>
 					)}
 				</Button>
 			</div>

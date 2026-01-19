@@ -2108,7 +2108,7 @@ async def create_mcp_connector(
             "You don't have permission to create connectors in this search space",
         )
 
-        # Create the connector with server config
+        # Create the connector with single server config
         db_connector = SearchSourceConnector(
             name=connector_data.name,
             connector_type=SearchSourceConnectorType.MCP_CONNECTOR,
@@ -2125,7 +2125,7 @@ async def create_mcp_connector(
         await session.refresh(db_connector)
 
         logger.info(
-            f"Created MCP connector {db_connector.id} for server '{connector_data.server_config.command}' "
+            f"Created MCP connector {db_connector.id} "
             f"for user {user.id} in search space {search_space_id}"
         )
 

@@ -22,6 +22,14 @@ interface ConnectorAccountsListViewProps {
 }
 
 /**
+ * Check if a connector type is indexable
+ */
+function isIndexableConnector(connectorType: string): boolean {
+	const nonIndexableTypes = ["MCP_CONNECTOR"];
+	return !nonIndexableTypes.includes(connectorType);
+}
+
+/**
  * Format last indexed date with contextual messages
  */
 function formatLastIndexedDate(dateString: string): string {
@@ -166,9 +174,11 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 										</p>
 									) : (
 										<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
-											{connector.last_indexed_at
-												? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
-												: "Never indexed"}
+											{isIndexableConnector(connector.connector_type)
+												? connector.last_indexed_at
+													? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
+													: "Never indexed"
+												: "Active"}
 										</p>
 									)}
 								</div>

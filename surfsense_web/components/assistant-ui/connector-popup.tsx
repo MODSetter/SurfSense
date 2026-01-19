@@ -22,6 +22,7 @@ import { useIndexingConnectors } from "./connector-popup/hooks/use-indexing-conn
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
+import { MCPConnectorListView } from "./connector-popup/views/mcp-connector-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
 export const ConnectorIndicator: FC = () => {
@@ -56,6 +57,7 @@ export const ConnectorIndicator: FC = () => {
 		frequencyMinutes,
 		allConnectors,
 		viewingAccountsType,
+		viewingMCPList,
 		setSearchQuery,
 		setStartDate,
 		setEndDate,
@@ -79,6 +81,8 @@ export const ConnectorIndicator: FC = () => {
 		handleBackFromYouTube,
 		handleViewAccountsList,
 		handleBackFromAccountsList,
+		handleBackFromMCPList,
+		handleAddNewMCPFromList,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,
@@ -95,15 +99,15 @@ export const ConnectorIndicator: FC = () => {
 		refreshConnectors: refreshConnectorsElectric,
 	} = useConnectorsElectric(searchSpaceId);
 
-	// Fallback to API if Electric fails or is not available
-	const connectors =
-		connectorsFromElectric.length > 0 || !connectorsError
-			? connectorsFromElectric
-			: allConnectors || [];
+	// Fallback to API if Electric is not available or fails
+	// Use Electric data if: 1) we have data, or 2) still loading without error
+	// Use API data if: Electric failed (has error) or finished loading with no data
+	const useElectricData = connectorsFromElectric.length > 0 || (connectorsLoading && !connectorsError);
+	const connectors = useElectricData ? connectorsFromElectric : allConnectors || [];
 
 	// Manual refresh function that works with both Electric and API
 	const refreshConnectors = async () => {
-		if (connectorsFromElectric.length > 0 || !connectorsError) {
+		if (useElectricData) {
 			await refreshConnectorsElectric();
 		} else {
 			// Fallback: use allConnectors from useConnectorDialog (which uses connectorsAtom)
@@ -126,7 +130,8 @@ export const ConnectorIndicator: FC = () => {
 	const hasConnectors = connectors.length > 0;
 	const hasSources = hasConnectors || activeDocumentTypes.length > 0;
 	const totalSourceCount = connectors.length + activeDocumentTypes.length;
-	const activeConnectorsCount = connectors.length; // Only actual connectors, not document types
+	
+	const activeConnectorsCount = connectors.length;
 
 	// Check which connectors are already connected
 	// Using Electric SQL + PGlite for real-time connector updates
@@ -171,6 +176,19 @@ export const ConnectorIndicator: FC = () => {
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
+				) : viewingMCPList ? (
+					<div className="p-6 sm:p-12 h-full overflow-hidden">
+						<MCPConnectorListView
+							mcpConnectors={
+								(allConnectors || []).filter(
+									(c: SearchSourceConnector) => c.connector_type === "MCP_CONNECTOR"
+								) as SearchSourceConnector[]
+							}
+							onAddNew={handleAddNewMCPFromList}
+							onManageConnector={handleStartEdit}
+							onBack={handleBackFromMCPList}
+						/>
+					</div>
 				) : viewingAccountsType ? (
 					<ConnectorAccountsListView
 						connectorType={viewingAccountsType.connectorType}
@@ -210,6 +228,8 @@ export const ConnectorIndicator: FC = () => {
 						isSaving={isSaving}
 						isDisconnecting={isDisconnecting}
 						isIndexing={indexingConnectorIds.has(editingConnector.id)}
+						searchSpaceId={searchSpaceId?.toString()}
+
 						onStartDateChange={setStartDate}
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
