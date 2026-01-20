@@ -175,6 +175,21 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 							id="config"
 							value={configJson}
 							onChange={(e) => handleConfigChange(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Tab") {
+									e.preventDefault();
+									const target = e.target as HTMLTextAreaElement;
+									const start = target.selectionStart;
+									const end = target.selectionEnd;
+									const indent = "  "; // 2 spaces for JSON
+									const newValue = configJson.substring(0, start) + indent + configJson.substring(end);
+									handleConfigChange(newValue);
+									// Set cursor position after the inserted tab
+									requestAnimationFrame(() => {
+										target.selectionStart = target.selectionEnd = start + indent.length;
+									});
+								}
+							}}
 							placeholder={DEFAULT_CONFIG}
 							rows={16}
 							className={`font-mono text-xs ${jsonError ? "border-red-500" : ""}`}
