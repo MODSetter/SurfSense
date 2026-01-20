@@ -6,7 +6,7 @@ import {
 	useAssistantState,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue } from "jotai";
-import { CheckIcon, CopyIcon, DownloadIcon, RefreshCwIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
 import { useContext, useEffect, useRef, useState } from "react";
 import {
@@ -23,8 +23,11 @@ import {
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
+import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import { CommentTrigger } from "@/components/chat-comments/comment-trigger/comment-trigger";
 import { useComments } from "@/hooks/use-comments";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
 
 export const MessageError: FC = () => {
 	return (
@@ -93,6 +96,7 @@ function parseMessageId(assistantUiMessageId: string | undefined): number | null
 
 export const AssistantMessage: FC = () => {
 	const [messageHeight, setMessageHeight] = useState<number | undefined>(undefined);
+	const [isSheetOpen, setIsSheetOpen] = useState(false);
 	const messageRef = useRef<HTMLDivElement>(null);
 	const messageId = useAssistantState(({ message }) => message?.id);
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
@@ -101,6 +105,11 @@ export const AssistantMessage: FC = () => {
 	const [addingCommentToMessageId, setAddingCommentToMessageId] = useAtom(
 		addingCommentToMessageIdAtom
 	);
+
+	// Screen size detection for responsive comment UI
+	// Mobile: < 768px (bottom sheet), Medium: 768px - 1024px (right sheet), Desktop: >= 1024px (inline panel)
+	const isMediumScreen = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
 
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
 	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
@@ -111,13 +120,18 @@ export const AssistantMessage: FC = () => {
 		enabled: !!dbMessageId,
 	});
 
-	const hasComments = (commentsData?.total_count ?? 0) > 0;
+	const commentCount = commentsData?.total_count ?? 0;
+	const hasComments = commentCount > 0;
 	const isAddingComment = dbMessageId !== null && addingCommentToMessageId === dbMessageId;
 	const showCommentPanel = hasComments || isAddingComment;
 
 	const handleToggleAddComment = () => {
 		if (!dbMessageId) return;
 		setAddingCommentToMessageId(isAddingComment ? null : dbMessageId);
+	};
+
+	const handleCommentTriggerClick = () => {
+		setIsSheetOpen(true);
 	};
 
 	useEffect(() => {
@@ -130,6 +144,11 @@ export const AssistantMessage: FC = () => {
 		return () => observer.disconnect();
 	}, []);
 
+	const showCommentTrigger = searchSpaceId && commentsEnabled && !isMessageStreaming && dbMessageId;
+
+	// Determine sheet side based on screen size
+	const sheetSide = isMediumScreen ? "right" : "bottom";
+
 	return (
 		<MessagePrimitive.Root
 			ref={messageRef}
@@ -138,6 +157,7 @@ export const AssistantMessage: FC = () => {
 		>
 			<AssistantMessageInner />
 
+			{/* Desktop comment panel - only on lg screens and above */}
 			{searchSpaceId && commentsEnabled && !isMessageStreaming && (
 				<div className="absolute left-full top-0 ml-4 hidden lg:block w-72">
 					<div
@@ -167,6 +187,40 @@ export const AssistantMessage: FC = () => {
 						)}
 					</div>
 				</div>
+			)}
+
+			{/* Mobile & Medium screen comment trigger - shown below lg breakpoint */}
+			{showCommentTrigger && !isDesktop && (
+				<div className="mt-2 flex justify-start">
+					<button
+						type="button"
+						onClick={handleCommentTriggerClick}
+						className={cn(
+							"flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors",
+							hasComments
+								? "border border-primary/50 bg-primary/5 text-primary hover:bg-primary/10"
+								: "text-muted-foreground hover:bg-muted hover:text-foreground"
+						)}
+					>
+						<MessageSquare className={cn("size-4", hasComments && "fill-current")} />
+						{hasComments ? (
+							<span>{commentCount} {commentCount === 1 ? "comment" : "comments"}</span>
+						) : (
+							<span>Add comment</span>
+						)}
+					</button>
+				</div>
+			)}
+
+			{/* Comment sheet - bottom for mobile, right for medium screens */}
+			{showCommentTrigger && !isDesktop && (
+				<CommentSheet
+					messageId={dbMessageId}
+					isOpen={isSheetOpen}
+					onOpenChange={setIsSheetOpen}
+					commentCount={commentCount}
+					side={sheetSide}
+				/>
 			)}
 		</MessagePrimitive.Root>
 	);

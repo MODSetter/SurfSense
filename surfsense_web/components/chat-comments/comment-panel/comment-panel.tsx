@@ -3,6 +3,7 @@
 import { MessageSquarePlus } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { CommentComposer } from "../comment-composer/comment-composer";
 import { CommentThread } from "../comment-thread/comment-thread";
 import type { CommentPanelProps } from "./types";
@@ -18,6 +19,7 @@ export function CommentPanel({
 	onDeleteComment,
 	isSubmitting = false,
 	maxHeight,
+	variant = "desktop",
 }: CommentPanelProps) {
 	const [isComposerOpen, setIsComposerOpen] = useState(false);
 
@@ -30,9 +32,14 @@ export function CommentPanel({
 		setIsComposerOpen(false);
 	};
 
+	const isMobile = variant === "mobile";
+
 	if (isLoading) {
 		return (
-			<div className="flex min-h-[120px] w-96 items-center justify-center rounded-lg border bg-card p-4">
+			<div className={cn(
+				"flex min-h-[120px] items-center justify-center p-4",
+				!isMobile && "w-96 rounded-lg border bg-card"
+			)}>
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
 					<div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 					Loading comments...
@@ -50,8 +57,11 @@ export function CommentPanel({
 
 	return (
 		<div
-			className="flex w-85 flex-col rounded-lg border bg-card"
-			style={effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
+			className={cn(
+				"flex flex-col",
+				isMobile ? "w-full" : "w-85 rounded-lg border bg-card"
+			)}
+			style={!isMobile && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
 		>
 			{hasThreads && (
 				<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
@@ -82,7 +92,11 @@ export function CommentPanel({
 				</div>
 			)}
 
-			<div className={showEmptyState ? "border-t p-3" : "p-3"}>
+			<div className={cn(
+			"p-3",
+			showEmptyState && !isMobile && "border-t",
+			isMobile && "border-t"
+		)}>
 				{isComposerOpen ? (
 					<CommentComposer
 						members={members}

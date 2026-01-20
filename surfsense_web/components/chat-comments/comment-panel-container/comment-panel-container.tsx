@@ -19,6 +19,7 @@ export function CommentPanelContainer({
 	messageId,
 	isOpen,
 	maxHeight,
+	variant = "desktop",
 }: CommentPanelContainerProps) {
 	const { data: commentsData, isLoading: isCommentsLoading } = useComments({
 		messageId,
@@ -80,6 +81,7 @@ export function CommentPanelContainer({
 			onDeleteComment={handleDeleteComment}
 			isSubmitting={isSubmitting}
 			maxHeight={maxHeight}
+			variant={variant}
 		/>
 	);
 }
