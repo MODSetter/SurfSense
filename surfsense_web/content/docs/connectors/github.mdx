@@ -3,4 +3,81 @@ title: GitHub
 description: Connect your GitHub repositories to SurfSense
 ---
 
-# Documentation in progress
+# GitHub Connector
+
+Connect your GitHub repositories to SurfSense for code search and AI-powered insights. The connector uses [gitingest](https://gitingest.com) to efficiently index entire codebases.
+
+## What Gets Indexed
+
+| Content Type | Examples |
+|--------------|----------|
+| Code Files | Python, JavaScript, TypeScript, Go, Rust, Java, etc. |
+| Documentation | README files, Markdown documents, text files |
+| Configuration | JSON, YAML, TOML, .env examples, Dockerfiles |
+
+> ⚠️ Binary files and files larger than 5MB are automatically excluded.
+
+---
+
+## Quick Start (Public Repos)
+
+1. Navigate to **Connectors** → **Add Connector** → **GitHub**
+2. Enter repository names: `owner/repo` (e.g., `facebook/react, vercel/next.js`)
+3. Click **Connect GitHub**
+
+No authentication required for public repositories.
+
+---
+
+## Private Repositories
+
+For private repos, you need a GitHub Personal Access Token (PAT).
+
+### Generate a PAT
+
+1. Go to [GitHub's token creation page](https://github.com/settings/tokens/new?description=surfsense&scopes=repo) (pre-filled with `repo` scope)
+2. Set an expiration
+3. Click **Generate token** and copy it
+
+> ⚠️ The token starts with `ghp_`. Store it securely.
+
+---
+
+## Connector Configuration
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| **Connector Name** | A friendly name to identify this connector | Yes |
+| **GitHub Personal Access Token** | Your PAT (only for private repos) | No |
+| **Repository Names** | Comma-separated list: `owner/repo1, owner/repo2` | Yes |
+
+---
+
+## Periodic Sync
+
+Enable periodic sync to automatically re-index repositories when content changes:
+
+| Frequency | Use Case |
+|-----------|----------|
+| Every 5 minutes | Active development |
+| Every 15 minutes | Frequent commits |
+| Every hour | Regular workflow |
+| Every 6 hours | Less active repos |
+| Daily | Reference repositories |
+| Weekly | Stable codebases |
+
+---
+
+## Troubleshooting
+
+**Repository not found**
+- Verify format is `owner/repo`
+- For private repos, ensure PAT has access
+
+**Authentication failed**
+- Check PAT is valid and not expired
+- Token should start with `ghp_` or `github_pat_`
+
+**Rate limit exceeded**
+- Use a PAT for higher limits (5,000/hour vs 60 unauthenticated)
+- Reduce sync frequency

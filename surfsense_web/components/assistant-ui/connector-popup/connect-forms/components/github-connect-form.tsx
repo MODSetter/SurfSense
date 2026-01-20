@@ -129,7 +129,6 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 						>
 							Get your token
 						</a>{" "}
-						.
 					</AlertDescription>
 				</div>
 			</Alert>

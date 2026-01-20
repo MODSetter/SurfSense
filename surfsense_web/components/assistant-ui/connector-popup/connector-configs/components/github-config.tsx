@@ -1,9 +1,8 @@
 "use client";
 
-import { Info, KeyRound } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,25 +12,29 @@ export interface GithubConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
+// Helper functions moved outside component to avoid useEffect dependency issues
+const stringToArray = (arr: string[] | string | undefined): string[] => {
+	if (Array.isArray(arr)) return arr;
+	if (typeof arr === "string") {
+		return arr
+			.split(",")
+			.map((item) => item.trim())
+			.filter((item) => item.length > 0);
+	}
+	return [];
+};
+
+const arrayToString = (arr: string[]): string => {
+	return arr.join(", ");
+};
+
 export const GithubConfig: FC<GithubConfigProps> = ({
 	connector,
 	onConfigChange,
 	onNameChange,
 }) => {
-	const stringToArray = (arr: string[] | string | undefined): string[] => {
-		if (Array.isArray(arr)) return arr;
-		if (typeof arr === "string") {
-			return arr
-				.split(",")
-				.map((item) => item.trim())
-				.filter((item) => item.length > 0);
-		}
-		return [];
-	};
-
-	const arrayToString = (arr: string[]): string => {
-		return arr.join(", ");
-	};
+	// Track internal changes to prevent useEffect from overwriting user input
+	const isInternalChange = useRef(false);
 
 	const [githubPat, setGithubPat] = useState<string>(
 		(connector.config?.GITHUB_PAT as string) || ""
@@ -41,8 +44,13 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	);
 	const [name, setName] = useState<string>(connector.name || "");
 
-	// Update values when connector changes
+	// Update values when connector changes externally (not from our own input)
 	useEffect(() => {
+		// Skip if this is our own internal change
+		if (isInternalChange.current) {
+			isInternalChange.current = false;
+			return;
+		}
 		const pat = (connector.config?.GITHUB_PAT as string) || "";
 		const repos = arrayToString(stringToArray(connector.config?.repo_full_names));
 		setGithubPat(pat);
@@ -51,6 +59,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	}, [connector.config, connector.name]);
 
 	const handleGithubPatChange = (value: string) => {
+		isInternalChange.current = true;
 		setGithubPat(value);
 		if (onConfigChange) {
 			onConfigChange({
@@ -61,6 +70,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	};
 
 	const handleRepoFullNamesChange = (value: string) => {
+		isInternalChange.current = true;
 		setRepoFullNames(value);
 		const repoList = stringToArray(value);
 		if (onConfigChange) {
@@ -72,6 +82,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	};
 
 	const handleNameChange = (value: string) => {
+		isInternalChange.current = true;
 		setName(value);
 		if (onNameChange) {
 			onNameChange(value);
@@ -80,26 +91,6 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 
 	return (
 		<div className="space-y-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
-				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">Personal Access Token (Optional)</AlertTitle>
-					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						A GitHub PAT is only required for private repositories. Public repos work without a
-						token. Create one from{" "}
-						<a
-							href="https://github.com/settings/tokens/new?description=surfsense&scopes=repo"
-							target="_blank"
-							rel="noopener noreferrer"
-							className="font-medium underline underline-offset-4"
-						>
-							GitHub Settings
-						</a>{" "}
-						if needed.
-					</AlertDescription>
-				</div>
-			</Alert>
-
 			{/* Connector Name */}
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<div className="space-y-2">
