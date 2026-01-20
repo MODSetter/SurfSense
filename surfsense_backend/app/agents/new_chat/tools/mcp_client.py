@@ -292,9 +292,7 @@ async def test_mcp_http_connection(
                     }
                 )
 
-            logger.info(
-                "HTTP MCP connection successful. Found %d tools.", len(tools)
-            )
+            logger.info("HTTP MCP connection successful. Found %d tools.", len(tools))
             return {
                 "status": "success",
                 "message": f"Connected successfully. Found {len(tools)} tools.",
