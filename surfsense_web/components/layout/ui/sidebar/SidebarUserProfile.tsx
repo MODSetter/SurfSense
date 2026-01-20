@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronUp, Laptop, Languages, LogOut, Moon, Settings, Sun } from "lucide-react";
+import { ChevronUp, Laptop, Languages, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
 	DropdownMenu,
@@ -195,14 +195,13 @@ export function SidebarUserProfile({
 													key={themeOption.value}
 													onClick={() => handleThemeChange(themeOption.value)}
 													className={cn(
-														"mb-1 last:mb-0",
-														!isSelected && "focus:bg-transparent hover:bg-transparent",
-														isSelected && "bg-accent focus:!bg-accent hover:!bg-accent"
+														"mb-1 last:mb-0 transition-all",
+														"hover:bg-accent/50",
+														isSelected && "bg-accent/80"
 													)}
 												>
 													<Icon className="mr-2 h-4 w-4" />
 													<span className="flex-1">{t(themeOption.value)}</span>
-													{isSelected && <Check className="ml-2 h-4 w-4" />}
 												</DropdownMenuItem>
 											);
 										})}
@@ -225,9 +224,9 @@ export function SidebarUserProfile({
 												key={language.code}
 												onClick={() => handleLanguageChange(language.code)}
 												className={cn(
-													"mb-1 last:mb-0",
-													!isSelected && "focus:bg-transparent hover:bg-transparent",
-													isSelected && "bg-accent focus:!bg-accent hover:!bg-accent"
+													"mb-1 last:mb-0 transition-all",
+													"hover:bg-accent/50",
+													isSelected && "bg-accent/80"
 												)}
 											>
 												<span className="mr-2">{language.flag}</span>
@@ -312,14 +311,13 @@ export function SidebarUserProfile({
 												key={themeOption.value}
 												onClick={() => handleThemeChange(themeOption.value)}
 												className={cn(
-													"mb-1 last:mb-0",
-													!isSelected && "focus:bg-transparent hover:bg-transparent",
-													isSelected && "bg-accent focus:!bg-accent hover:!bg-accent"
+													"mb-1 last:mb-0 transition-all",
+													"hover:bg-accent/50",
+													isSelected && "bg-accent/80"
 												)}
 											>
 												<Icon className="mr-2 h-4 w-4" />
 												<span className="flex-1">{t(themeOption.value)}</span>
-												{isSelected && <Check className="ml-2 h-4 w-4" />}
 											</DropdownMenuItem>
 										);
 									})}
@@ -342,9 +340,9 @@ export function SidebarUserProfile({
 												key={language.code}
 												onClick={() => handleLanguageChange(language.code)}
 												className={cn(
-													"mb-1 last:mb-0",
-													!isSelected && "focus:bg-transparent hover:bg-transparent",
-													isSelected && "bg-accent focus:!bg-accent hover:!bg-accent"
+													"mb-1 last:mb-0 transition-all",
+													"hover:bg-accent/50",
+													isSelected && "bg-accent/80"
 												)}
 											>
 												<span className="mr-2">{language.flag}</span>
