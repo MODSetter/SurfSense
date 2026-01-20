@@ -228,7 +228,6 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				CREATE INDEX IF NOT EXISTS idx_documents_search_space_type ON documents(search_space_id, document_type);
 			`);
 
-			// Create the chat_comment_mentions table schema in PGlite
 			await db.exec(`
 				CREATE TABLE IF NOT EXISTS chat_comment_mentions (
 					id INTEGER PRIMARY KEY,
