@@ -72,7 +72,8 @@ Edit the `.env` file and set the following variables:
 | AUTH_TYPE                  | Authentication method: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication                                                                                          |
 | GOOGLE_OAUTH_CLIENT_ID     | (Optional) Client ID from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                        |
 | GOOGLE_OAUTH_CLIENT_SECRET | (Optional) Client secret from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                    |
-| GOOGLE_DRIVE_REDIRECT_URI  | (Optional) Redirect URI for Google Drive connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/drive/connector/callback`). Required when using Google Drive connector.           |
+| ELECTRIC_DB_USER           | (Optional) PostgreSQL username for Electric-SQL connection (default: `electric`)                                                                                                          |
+| ELECTRIC_DB_PASSWORD       | (Optional) PostgreSQL password for Electric-SQL connection (default: `electric_password`)                                                                                                 |
 | EMBEDDING_MODEL            | Name of the embedding model (e.g., `sentence-transformers/all-MiniLM-L6-v2`, `openai://text-embedding-ada-002`)                                                                                                                 |
 | RERANKERS_ENABLED          | (Optional) Enable or disable document reranking for improved search results (e.g., `TRUE` or `FALSE`, default: `FALSE`)                                                                  |
 | RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`) (required if RERANKERS_ENABLED=TRUE)                                                                                        |
@@ -83,6 +84,7 @@ Edit the `.env` file and set the following variables:
 | STT_SERVICE                | Speech-to-Text API provider for Audio Files (e.g., `local/base`, `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                   |
 | STT_SERVICE_API_KEY        | (Optional if local) API key for the Speech-to-Text service                                                                                                                                                    |
 | STT_SERVICE_API_BASE       | (Optional) Custom API base URL for the Speech-to-Text service                                                                                                                      |
+| FIRECRAWL_API_KEY          | (Optional) API key for Firecrawl service for web crawling                                                                                                                                 |
 | ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats), `LLAMACLOUD` (supports 50+ formats including legacy document types), or `DOCLING` (local processing, supports PDF, Office docs, images, HTML, CSV)                                                  |
 | UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
 | LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
@@ -92,6 +94,43 @@ Edit the `.env` file and set the following variables:
 | REGISTRATION_ENABLED       | (Optional) Enable or disable new user registration (e.g., `TRUE` or `FALSE`, default: `TRUE`)                                                                                                       |
 | PAGES_LIMIT                | (Optional) Maximum pages limit per user for ETL services (default: `999999999` for unlimited in OSS version)                                                                                        |
 
+**Google Connector OAuth Configuration:**
+| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GOOGLE_CALENDAR_REDIRECT_URI | (Optional) Redirect URI for Google Calendar connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/calendar/connector/callback`)                                     |
+| GOOGLE_GMAIL_REDIRECT_URI  | (Optional) Redirect URI for Gmail connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/gmail/connector/callback`)                                                   |
+| GOOGLE_DRIVE_REDIRECT_URI  | (Optional) Redirect URI for Google Drive connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/drive/connector/callback`)                                            |
+
+**Connector OAuth Configurations (Optional):**
+
+| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AIRTABLE_CLIENT_ID         | (Optional) Airtable OAuth client ID from [Airtable Developer Hub](https://airtable.com/create/oauth)                                                                                      |
+| AIRTABLE_CLIENT_SECRET     | (Optional) Airtable OAuth client secret                                                                                                                                                   |
+| AIRTABLE_REDIRECT_URI      | (Optional) Redirect URI for Airtable connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/airtable/connector/callback`)                                                    |
+| CLICKUP_CLIENT_ID          | (Optional) ClickUp OAuth client ID                                                                                                                                                        |
+| CLICKUP_CLIENT_SECRET      | (Optional) ClickUp OAuth client secret                                                                                                                                                    |
+| CLICKUP_REDIRECT_URI       | (Optional) Redirect URI for ClickUp connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/clickup/connector/callback`)                                                      |
+| DISCORD_CLIENT_ID          | (Optional) Discord OAuth client ID                                                                                                                                                        |
+| DISCORD_CLIENT_SECRET      | (Optional) Discord OAuth client secret                                                                                                                                                    |
+| DISCORD_REDIRECT_URI       | (Optional) Redirect URI for Discord connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/discord/connector/callback`)                                                      |
+| DISCORD_BOT_TOKEN          | (Optional) Discord bot token from Developer Portal                                                                                                                                        |
+| ATLASSIAN_CLIENT_ID        | (Optional) Atlassian OAuth client ID (for Jira and Confluence)                                                                                                                            |
+| ATLASSIAN_CLIENT_SECRET    | (Optional) Atlassian OAuth client secret                                                                                                                                                  |
+| JIRA_REDIRECT_URI          | (Optional) Redirect URI for Jira connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/jira/connector/callback`)                                                            |
+| CONFLUENCE_REDIRECT_URI    | (Optional) Redirect URI for Confluence connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/confluence/connector/callback`)                                                |
+| LINEAR_CLIENT_ID           | (Optional) Linear OAuth client ID                                                                                                                                                         |
+| LINEAR_CLIENT_SECRET       | (Optional) Linear OAuth client secret                                                                                                                                                     |
+| LINEAR_REDIRECT_URI        | (Optional) Redirect URI for Linear connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/linear/connector/callback`)                                                        |
+| NOTION_CLIENT_ID           | (Optional) Notion OAuth client ID                                                                                                                                                         |
+| NOTION_CLIENT_SECRET       | (Optional) Notion OAuth client secret                                                                                                                                                     |
+| NOTION_REDIRECT_URI        | (Optional) Redirect URI for Notion connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/notion/connector/callback`)                                                        |
+| SLACK_CLIENT_ID            | (Optional) Slack OAuth client ID                                                                                                                                                          |
+| SLACK_CLIENT_SECRET        | (Optional) Slack OAuth client secret                                                                                                                                                      |
+| SLACK_REDIRECT_URI         | (Optional) Redirect URI for Slack connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/slack/connector/callback`)                                                          |
+| TEAMS_CLIENT_ID            | (Optional) Microsoft Teams OAuth client ID                                                                                                                                                |
+| TEAMS_CLIENT_SECRET        | (Optional) Microsoft Teams OAuth client secret                                                                                                                                            |
+| TEAMS_REDIRECT_URI         | (Optional) Redirect URI for Teams connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/teams/connector/callback`)                                                          |
 
 **(Optional) Backend LangSmith Observability:**
 | ENV VARIABLE | DESCRIPTION |
@@ -368,6 +407,8 @@ Edit the `.env` file and set:
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | Backend URL (e.g., `http://localhost:8000`) |
 | NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Same value as set in backend AUTH_TYPE i.e `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication  |
 | NEXT_PUBLIC_ETL_SERVICE         | Document parsing service (should match backend ETL_SERVICE): `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING` - affects supported file formats in upload interface |
+| NEXT_PUBLIC_ELECTRIC_URL        | URL for Electric-SQL service (e.g., `http://localhost:5133`) |
+| NEXT_PUBLIC_ELECTRIC_AUTH_MODE  | Electric-SQL authentication mode (default: `insecure`) |
 
 ### 2. Install Dependencies
 

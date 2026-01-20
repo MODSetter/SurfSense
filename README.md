@@ -158,7 +158,7 @@ Check out our public roadmap and contribute your ideas or feedback:
 **Linux/macOS:**
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
   -v surfsense-data:/data \
   --name surfsense \
   --restart unless-stopped \
@@ -168,7 +168,7 @@ docker run -d -p 3000:3000 -p 8000:8000 \
 **Windows (PowerShell):**
 
 ```powershell
-docker run -d -p 3000:3000 -p 8000:8000 `
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 `
   -v surfsense-data:/data `
   --name surfsense `
   --restart unless-stopped `
@@ -180,7 +180,7 @@ docker run -d -p 3000:3000 -p 8000:8000 `
 You can pass any environment variable using `-e` flags:
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
   -v surfsense-data:/data \
   -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
   -e OPENAI_API_KEY=your_openai_api_key \
@@ -201,6 +201,7 @@ After starting, access SurfSense at:
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
 - **Backend API**: [http://localhost:8000](http://localhost:8000)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Electric-SQL**: [http://localhost:5133](http://localhost:5133)
 
 **Useful Commands:**
 

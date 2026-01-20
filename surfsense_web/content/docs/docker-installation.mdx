@@ -26,7 +26,7 @@ Make sure to include the `-v surfsense-data:/data` in your Docker command. This 
 **Linux/macOS:**
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
   -v surfsense-data:/data \
   --name surfsense \
   --restart unless-stopped \
@@ -36,7 +36,7 @@ docker run -d -p 3000:3000 -p 8000:8000 \
 **Windows (PowerShell):**
 
 ```powershell
-docker run -d -p 3000:3000 -p 8000:8000 `
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 `
   -v surfsense-data:/data `
   --name surfsense `
   --restart unless-stopped `
@@ -50,7 +50,7 @@ docker run -d -p 3000:3000 -p 8000:8000 `
 You can pass any [environment variable](/docs/manual-installation#backend-environment-variables) using `-e` flags:
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
   -v surfsense-data:/data \
   -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
   -e OPENAI_API_KEY=your_openai_api_key \
@@ -93,6 +93,7 @@ After starting, access SurfSense at:
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
 - **Backend API**: [http://localhost:8000](http://localhost:8000)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Electric-SQL**: [http://localhost:5133](http://localhost:5133)
 
 ### Quick Start Environment Variables
 
@@ -195,6 +196,11 @@ Before you begin, ensure you have:
 | NEXT_PUBLIC_FASTAPI_BACKEND_URL | URL of the backend API (used by frontend during build and runtime)     | http://localhost:8000 |
 | NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Authentication method for frontend: `LOCAL` or `GOOGLE`           | LOCAL               |
 | NEXT_PUBLIC_ETL_SERVICE    | Document parsing service for frontend UI: `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING` | DOCLING |
+| ELECTRIC_PORT              | Port for Electric-SQL service                                               | 5133                |
+| POSTGRES_HOST              | PostgreSQL host for Electric connection (`db` for Docker PostgreSQL, `host.docker.internal` for local PostgreSQL) | db |
+| ELECTRIC_DB_USER           | PostgreSQL username for Electric connection                                 | electric            |
+| ELECTRIC_DB_PASSWORD       | PostgreSQL password for Electric connection                                 | electric_password   |
+| NEXT_PUBLIC_ELECTRIC_URL   | URL for Electric-SQL service (used by frontend)                             | http://localhost:5133 |
 
 **Note:** Frontend environment variables with the `NEXT_PUBLIC_` prefix are embedded into the Next.js production build at build time. Since the frontend now runs as a production build in Docker, these variables must be set in the root `.env` file (Docker-specific configuration) and will be passed as build arguments during the Docker build process.
 
@@ -209,7 +215,8 @@ Before you begin, ensure you have:
 | AUTH_TYPE                  | Authentication method: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication                                                                                          |
 | GOOGLE_OAUTH_CLIENT_ID     | (Optional) Client ID from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                        |
 | GOOGLE_OAUTH_CLIENT_SECRET | (Optional) Client secret from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                    |
-| GOOGLE_DRIVE_REDIRECT_URI  | (Optional) Redirect URI for Google Drive connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/drive/connector/callback`). Required when using Google Drive connector.           |
+| ELECTRIC_DB_USER           | (Optional) PostgreSQL username for Electric-SQL connection (default: `electric`)                                                                                                          |
+| ELECTRIC_DB_PASSWORD       | (Optional) PostgreSQL password for Electric-SQL connection (default: `electric_password`)                                                                                                 |
 | EMBEDDING_MODEL            | Name of the embedding model (e.g., `sentence-transformers/all-MiniLM-L6-v2`, `openai://text-embedding-ada-002`)                                                                                                                 |
 | RERANKERS_ENABLED          | (Optional) Enable or disable document reranking for improved search results (e.g., `TRUE` or `FALSE`, default: `FALSE`)                                                                  |
 | RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`) (required if RERANKERS_ENABLED=TRUE)                                                                                        |
@@ -229,6 +236,44 @@ Before you begin, ensure you have:
 | SCHEDULE_CHECKER_INTERVAL  | (Optional) How often to check for scheduled connector tasks. Format: `<number><unit>` where unit is `m` (minutes) or `h` (hours). Examples: `1m`, `5m`, `1h`, `2h` (default: `1m`)                  |
 | REGISTRATION_ENABLED       | (Optional) Enable or disable new user registration (e.g., `TRUE` or `FALSE`, default: `TRUE`)                                                                                                       |
 | PAGES_LIMIT                | (Optional) Maximum pages limit per user for ETL services (default: `999999999` for unlimited in OSS version)                                                                                        |
+
+**Google Connector OAuth Configuration:**
+| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GOOGLE_CALENDAR_REDIRECT_URI | (Optional) Redirect URI for Google Calendar connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/calendar/connector/callback`)                                     |
+| GOOGLE_GMAIL_REDIRECT_URI  | (Optional) Redirect URI for Gmail connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/gmail/connector/callback`)                                                   |
+| GOOGLE_DRIVE_REDIRECT_URI  | (Optional) Redirect URI for Google Drive connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/drive/connector/callback`)                                            |
+
+**Connector OAuth Configurations (Optional):**
+
+| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| AIRTABLE_CLIENT_ID         | (Optional) Airtable OAuth client ID from [Airtable Developer Hub](https://airtable.com/create/oauth)                                                                                      |
+| AIRTABLE_CLIENT_SECRET     | (Optional) Airtable OAuth client secret                                                                                                                                                   |
+| AIRTABLE_REDIRECT_URI      | (Optional) Redirect URI for Airtable connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/airtable/connector/callback`)                                                    |
+| CLICKUP_CLIENT_ID          | (Optional) ClickUp OAuth client ID                                                                                                                                                        |
+| CLICKUP_CLIENT_SECRET      | (Optional) ClickUp OAuth client secret                                                                                                                                                    |
+| CLICKUP_REDIRECT_URI       | (Optional) Redirect URI for ClickUp connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/clickup/connector/callback`)                                                      |
+| DISCORD_CLIENT_ID          | (Optional) Discord OAuth client ID                                                                                                                                                        |
+| DISCORD_CLIENT_SECRET      | (Optional) Discord OAuth client secret                                                                                                                                                    |
+| DISCORD_REDIRECT_URI       | (Optional) Redirect URI for Discord connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/discord/connector/callback`)                                                      |
+| DISCORD_BOT_TOKEN          | (Optional) Discord bot token from Developer Portal                                                                                                                                        |
+| ATLASSIAN_CLIENT_ID        | (Optional) Atlassian OAuth client ID (for Jira and Confluence)                                                                                                                            |
+| ATLASSIAN_CLIENT_SECRET    | (Optional) Atlassian OAuth client secret                                                                                                                                                  |
+| JIRA_REDIRECT_URI          | (Optional) Redirect URI for Jira connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/jira/connector/callback`)                                                            |
+| CONFLUENCE_REDIRECT_URI    | (Optional) Redirect URI for Confluence connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/confluence/connector/callback`)                                                |
+| LINEAR_CLIENT_ID           | (Optional) Linear OAuth client ID                                                                                                                                                         |
+| LINEAR_CLIENT_SECRET       | (Optional) Linear OAuth client secret                                                                                                                                                     |
+| LINEAR_REDIRECT_URI        | (Optional) Redirect URI for Linear connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/linear/connector/callback`)                                                        |
+| NOTION_CLIENT_ID           | (Optional) Notion OAuth client ID                                                                                                                                                         |
+| NOTION_CLIENT_SECRET       | (Optional) Notion OAuth client secret                                                                                                                                                     |
+| NOTION_REDIRECT_URI        | (Optional) Redirect URI for Notion connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/notion/connector/callback`)                                                        |
+| SLACK_CLIENT_ID            | (Optional) Slack OAuth client ID                                                                                                                                                          |
+| SLACK_CLIENT_SECRET        | (Optional) Slack OAuth client secret                                                                                                                                                      |
+| SLACK_REDIRECT_URI         | (Optional) Redirect URI for Slack connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/slack/connector/callback`)                                                          |
+| TEAMS_CLIENT_ID            | (Optional) Microsoft Teams OAuth client ID                                                                                                                                                |
+| TEAMS_CLIENT_SECRET        | (Optional) Microsoft Teams OAuth client secret                                                                                                                                            |
+| TEAMS_REDIRECT_URI         | (Optional) Redirect URI for Teams connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/teams/connector/callback`)                                                          |
 
 
 **Optional Backend LangSmith Observability:**
@@ -282,6 +327,8 @@ For more details, see the [Uvicorn documentation](https://www.uvicorn.org/#comma
 - `NEXT_PUBLIC_FASTAPI_BACKEND_URL` - URL of the backend service
 - `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` - Authentication method (`LOCAL` or `GOOGLE`)
 - `NEXT_PUBLIC_ETL_SERVICE` - Document parsing service (should match backend `ETL_SERVICE`)
+- `NEXT_PUBLIC_ELECTRIC_URL` - URL for Electric-SQL service (default: `http://localhost:5133`)
+- `NEXT_PUBLIC_ELECTRIC_AUTH_MODE` - Electric-SQL authentication mode (default: `insecure`)
 
 These variables are embedded into the application during the Docker build process and affect the frontend's behavior and available features.
 
@@ -312,6 +359,7 @@ These variables are embedded into the application during the Docker build proces
    - Frontend: [http://localhost:3000](http://localhost:3000)
    - Backend API: [http://localhost:8000](http://localhost:8000)
    - API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - Electric-SQL: [http://localhost:5133](http://localhost:5133)
    - pgAdmin: [http://localhost:5050](http://localhost:5050)
 
 ## Docker Services Overview
@@ -322,6 +370,7 @@ The Docker setup includes several services that work together:
 - **Frontend**: Next.js web application
 - **PostgreSQL (db)**: Database with pgvector extension
 - **Redis**: Message broker for Celery
+- **Electric-SQL**: Real-time sync service for database operations
 - **Celery Worker**: Handles background tasks (document processing, indexing, etc.)
 - **Celery Beat**: Scheduler for periodic tasks (enables scheduled connector indexing)
   - The schedule interval can be configured using the `SCHEDULE_CHECKER_INTERVAL` environment variable in your backend `.env` file
