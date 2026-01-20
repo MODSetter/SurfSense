@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Loader2, Lock, Users } from "lucide-react";
+import { Loader2, User, Users } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
@@ -25,13 +25,13 @@ const visibilityOptions: {
 	value: ChatVisibility;
 	label: string;
 	description: string;
-	icon: typeof Lock;
+	icon: typeof User;
 }[] = [
 	{
 		value: "PRIVATE",
 		label: "Private",
 		description: "Only you can access this chat",
-		icon: Lock,
+		icon: User,
 	},
 	{
 		value: "SEARCH_SPACE",
@@ -95,7 +95,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 		return null;
 	}
 
-	const CurrentIcon = currentVisibility === "PRIVATE" ? Lock : Users;
+	const CurrentIcon = currentVisibility === "PRIVATE" ? User : Users;
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
@@ -145,7 +145,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 								onClick={() => handleVisibilityChange(option.value)}
 								disabled={isUpdating}
 								className={cn(
-									"w-full flex items-start gap-2.5 px-2.5 py-2 rounded-md transition-all",
+									"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
 									"hover:bg-accent/50 cursor-pointer",
 									"focus:outline-none",
 									isSelected && "bg-accent/80"
@@ -153,13 +153,13 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							>
 								<div
 									className={cn(
-										"mt-0.5 p-1.5 rounded-md shrink-0",
+										"size-7 rounded-md shrink-0 grid place-items-center",
 										isSelected ? "bg-primary/10" : "bg-muted"
 									)}
 								>
 									<Icon
 										className={cn(
-											"size-3.5",
+											"size-4 block",
 											isSelected ? "text-primary" : "text-muted-foreground"
 										)}
 									/>
