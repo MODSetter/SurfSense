@@ -4,11 +4,31 @@ import { formatDistanceToNow } from "date-fns";
 import { AlertCircle, Bell, CheckCheck, CheckCircle2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import type { Notification } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
+
+/**
+ * Get initials from name or email for avatar fallback
+ */
+function getInitials(name: string | null | undefined, email: string | null | undefined): string {
+	if (name) {
+		return name
+			.split(" ")
+			.map((n) => n[0])
+			.join("")
+			.toUpperCase()
+			.slice(0, 2);
+	}
+	if (email) {
+		const localPart = email.split("@")[0];
+		return localPart.slice(0, 2).toUpperCase();
+	}
+	return "U";
+}
 
 interface NotificationPopupProps {
 	notifications: Notification[];
@@ -66,6 +86,28 @@ export function NotificationPopup({
 	};
 
 	const getStatusIcon = (notification: Notification) => {
+		// For mentions, show the author's avatar with initials fallback
+		if (notification.type === "new_mention") {
+			const metadata = notification.metadata as {
+				author_name?: string;
+				author_avatar_url?: string | null;
+				author_email?: string;
+			};
+			const authorName = metadata?.author_name;
+			const avatarUrl = metadata?.author_avatar_url;
+			const authorEmail = metadata?.author_email;
+
+			return (
+				<Avatar className="h-6 w-6">
+					{avatarUrl && <AvatarImage src={avatarUrl} alt={authorName || "User"} />}
+					<AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+						{getInitials(authorName, authorEmail)}
+					</AvatarFallback>
+				</Avatar>
+			);
+		}
+
+		// For other notification types, show status icons
 		const status = notification.metadata?.status as string | undefined;
 
 		switch (status) {
@@ -118,8 +160,8 @@ export function NotificationPopup({
 										!notification.read && "bg-accent/50"
 									)}
 								>
-									<div className="flex items-start gap-3 overflow-hidden">
-										<div className="flex-shrink-0 mt-0.5">{getStatusIcon(notification)}</div>
+									<div className="flex items-center gap-3 overflow-hidden">
+										<div className="flex-shrink-0">{getStatusIcon(notification)}</div>
 										<div className="flex-1 min-w-0 overflow-hidden">
 											<div className="flex items-start justify-between gap-2 mb-1">
 												<p
