@@ -156,18 +156,19 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 		}
 
 		// Build config based on transport type
-		const config: MCPServerConfig = result.data.transport === "stdio" || !result.data.transport
-			? {
-				command: (result.data as z.infer<typeof StdioConfigSchema>).command,
-				args: (result.data as z.infer<typeof StdioConfigSchema>).args,
-				env: (result.data as z.infer<typeof StdioConfigSchema>).env,
-				transport: "stdio" as const,
-			}
-			: {
-				url: (result.data as z.infer<typeof HttpConfigSchema>).url,
-				headers: (result.data as z.infer<typeof HttpConfigSchema>).headers,
-				transport: result.data.transport as "streamable-http" | "http" | "sse",
-			};
+		const config: MCPServerConfig =
+			result.data.transport === "stdio" || !result.data.transport
+				? {
+						command: (result.data as z.infer<typeof StdioConfigSchema>).command,
+						args: (result.data as z.infer<typeof StdioConfigSchema>).args,
+						env: (result.data as z.infer<typeof StdioConfigSchema>).env,
+						transport: "stdio" as const,
+					}
+				: {
+						url: (result.data as z.infer<typeof HttpConfigSchema>).url,
+						headers: (result.data as z.infer<typeof HttpConfigSchema>).headers,
+						transport: result.data.transport as "streamable-http" | "http" | "sse",
+					};
 
 		// Cache the successfully parsed config
 		configCache.set(configJson, {

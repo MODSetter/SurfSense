@@ -47,10 +47,10 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		const serverConfig = connector.config?.server_config as MCPServerConfig | undefined;
 		if (serverConfig) {
 			const transport = serverConfig.transport || "stdio";
-			
+
 			// Build config object based on transport type
 			let configObj: Record<string, unknown>;
-			
+
 			if (transport === "streamable-http" || transport === "http" || transport === "sse") {
 				// HTTP transport - use url and headers
 				configObj = {
@@ -67,7 +67,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 					transport: transport,
 				};
 			}
-			
+
 			setConfigJson(JSON.stringify(configObj, null, 2));
 		}
 	}, [isValidConnector, connector.name, connector.config?.server_config]);
@@ -188,7 +188,8 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 									const start = target.selectionStart;
 									const end = target.selectionEnd;
 									const indent = "  "; // 2 spaces for JSON
-									const newValue = configJson.substring(0, start) + indent + configJson.substring(end);
+									const newValue =
+										configJson.substring(0, start) + indent + configJson.substring(end);
 									handleConfigChange(newValue);
 									// Set cursor position after the inserted tab
 									requestAnimationFrame(() => {
@@ -201,7 +202,8 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 						/>
 						{jsonError && <p className="text-xs text-red-500">JSON Error: {jsonError}</p>}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							<strong>Local (stdio):</strong> command, args, env, transport: "stdio"<br />
+							<strong>Local (stdio):</strong> command, args, env, transport: "stdio"
+							<br />
 							<strong>Remote (HTTP):</strong> url, headers, transport: "streamable-http"
 						</p>
 					</div>

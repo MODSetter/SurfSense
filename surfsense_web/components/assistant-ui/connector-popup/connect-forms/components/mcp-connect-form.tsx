@@ -44,7 +44,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 			name: "My Remote MCP Server",
 			url: "https://your-mcp-server.com/mcp",
 			headers: {
-				"API_KEY": "your_api_key_here",
+				API_KEY: "your_api_key_here",
 			},
 			transport: "streamable-http",
 		},
@@ -137,11 +137,12 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 	return (
 		<div className="space-y-6 pb-6">
 			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 [&>svg]:top-2 sm:[&>svg]:top-3">
-			<Server className="h-4 w-4 shrink-0" />
-			<AlertDescription className="text-[10px] sm:text-xs">
-				Connect to an MCP (Model Context Protocol) server. Each MCP server is added as a separate connector.
-			</AlertDescription>
-		</Alert>
+				<Server className="h-4 w-4 shrink-0" />
+				<AlertDescription className="text-[10px] sm:text-xs">
+					Connect to an MCP (Model Context Protocol) server. Each MCP server is added as a separate
+					connector.
+				</AlertDescription>
+			</Alert>
 
 			<form id="mcp-connect-form" onSubmit={handleSubmit} className="space-y-6">
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-4 sm:p-6 space-y-4">
@@ -182,7 +183,8 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 									const start = target.selectionStart;
 									const end = target.selectionEnd;
 									const indent = "  "; // 2 spaces for JSON
-									const newValue = configJson.substring(0, start) + indent + configJson.substring(end);
+									const newValue =
+										configJson.substring(0, start) + indent + configJson.substring(end);
 									handleConfigChange(newValue);
 									// Set cursor position after the inserted tab
 									requestAnimationFrame(() => {
@@ -194,11 +196,10 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 							rows={16}
 							className={`font-mono text-xs ${jsonError ? "border-red-500" : ""}`}
 						/>
-						{jsonError && (
-							<p className="text-xs text-red-500">JSON Error: {jsonError}</p>
-						)}
+						{jsonError && <p className="text-xs text-red-500">JSON Error: {jsonError}</p>}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							Paste a single MCP server configuration. Must include: name, command, args (optional), env (optional), transport (optional).
+							Paste a single MCP server configuration. Must include: name, command, args (optional),
+							env (optional), transport (optional).
 						</p>
 					</div>
 
@@ -232,7 +233,9 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 							<div className="flex-1">
 								<div className="flex items-center justify-between">
 									<AlertTitle className="text-sm">
-										{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
+										{testResult.status === "success"
+											? "Connection Successful"
+											: "Connection Failed"}
 									</AlertTitle>
 									{testResult.tools.length > 0 && (
 										<Button
@@ -266,9 +269,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 									{testResult.message}
 									{showDetails && testResult.tools.length > 0 && (
 										<div className="mt-3 pt-3 border-t border-green-500/20">
-											<p className="font-semibold mb-2">
-												Available tools:
-											</p>
+											<p className="font-semibold mb-2">Available tools:</p>
 											<ul className="list-disc list-inside text-xs space-y-0.5">
 												{testResult.tools.map((tool, i) => (
 													<li key={i}>{tool.name}</li>
