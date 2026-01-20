@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
-import { useElectricClient } from "@/lib/electric/context";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SyncHandle } from "@/lib/electric/client";
+import { useElectricClient } from "@/lib/electric/context";
 
 interface Document {
 	id: number;

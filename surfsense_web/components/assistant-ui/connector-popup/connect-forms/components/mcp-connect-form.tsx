@@ -4,18 +4,16 @@ import { CheckCircle2, ChevronDown, ChevronUp, Server, XCircle } from "lucide-re
 import { type FC, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { MCPToolDefinition } from "@/contracts/types/mcp.types";
-import type { ConnectFormProps } from "..";
 import {
 	extractServerName,
+	type MCPConnectionTestResult,
 	parseMCPConfig,
 	testMCPConnection,
-	type MCPConnectionTestResult,
 } from "../../utils/mcp-config-validator";
+import type { ConnectFormProps } from "..";
 
 export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
@@ -46,7 +44,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 			name: "My Remote MCP Server",
 			url: "https://your-mcp-server.com/mcp",
 			headers: {
-				"API_KEY": "your_api_key_here",
+				API_KEY: "your_api_key_here",
 			},
 			transport: "streamable-http",
 		},
@@ -178,29 +176,47 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 							id="config"
 							value={configJson}
 							onChange={(e) => handleConfigChange(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Tab") {
+									e.preventDefault();
+									const target = e.target as HTMLTextAreaElement;
+									const start = target.selectionStart;
+									const end = target.selectionEnd;
+									const indent = "  "; // 2 spaces for JSON
+									const newValue =
+										configJson.substring(0, start) + indent + configJson.substring(end);
+									handleConfigChange(newValue);
+									// Set cursor position after the inserted tab
+									requestAnimationFrame(() => {
+										target.selectionStart = target.selectionEnd = start + indent.length;
+									});
+								}
+							}}
 							placeholder={DEFAULT_CONFIG}
 							rows={16}
 							className={`font-mono text-xs ${jsonError ? "border-red-500" : ""}`}
 						/>
 						{jsonError && <p className="text-xs text-red-500">JSON Error: {jsonError}</p>}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							<strong>Local (stdio):</strong> command, args, env, transport: "stdio"<br />
-							<strong>Remote (HTTP):</strong> url, headers, transport: "streamable-http"
+							Paste a single MCP server configuration. Must include: name, command, args (optional),
+							env (optional), transport (optional).
 						</p>
 					</div>
 
+					{/* Test Connection */}
 					<div className="pt-4">
 						<Button
 							type="button"
 							onClick={handleTestConnection}
 							disabled={isTesting}
-							variant="outline"
-							className="w-full"
+							variant="secondary"
+							className="w-full h-8 text-[13px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
 						>
-							{isTesting ? "Testing Connection..." : "Test Connection"}
+							{isTesting ? "Testing Connection" : "Test Connection"}
 						</Button>
 					</div>
 
+					{/* Test Result */}
 					{testResult && (
 						<Alert
 							className={
@@ -226,7 +242,7 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="h-6 px-2"
+											className="h-6 px-2 self-start sm:self-auto text-xs"
 											onClick={(e) => {
 												e.preventDefault();
 												e.stopPropagation();
@@ -236,18 +252,20 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 											{showDetails ? (
 												<>
 													<ChevronUp className="h-3 w-3 mr-1" />
-													Hide Details
+													<span className="hidden sm:inline">Hide Details</span>
+													<span className="sm:hidden">Hide</span>
 												</>
 											) : (
 												<>
 													<ChevronDown className="h-3 w-3 mr-1" />
-													Show Details
+													<span className="hidden sm:inline">Show Details</span>
+													<span className="sm:hidden">Show</span>
 												</>
 											)}
 										</Button>
 									)}
 								</div>
-								<AlertDescription className="text-xs mt-1">
+								<AlertDescription className="text-[10px] sm:text-xs mt-1">
 									{testResult.message}
 									{showDetails && testResult.tools.length > 0 && (
 										<div className="mt-3 pt-3 border-t border-green-500/20">

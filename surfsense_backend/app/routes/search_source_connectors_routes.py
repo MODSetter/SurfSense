@@ -2403,25 +2403,29 @@ async def test_mcp_server_connection(
         )
 
         transport = server_config.get("transport", "stdio")
-        
+
         # HTTP transport (streamable-http, http, sse)
         if transport in ("streamable-http", "http", "sse"):
             url = server_config.get("url")
             headers = server_config.get("headers", {})
-            
+
             if not url:
-                raise HTTPException(status_code=400, detail="Server URL is required for HTTP transport")
-            
+                raise HTTPException(
+                    status_code=400, detail="Server URL is required for HTTP transport"
+                )
+
             result = await test_mcp_http_connection(url, headers, transport)
             return result
-        
+
         # stdio transport (default)
         command = server_config.get("command")
         args = server_config.get("args", [])
         env = server_config.get("env", {})
 
         if not command:
-            raise HTTPException(status_code=400, detail="Server command is required for stdio transport")
+            raise HTTPException(
+                status_code=400, detail="Server command is required for stdio transport"
+            )
 
         # Test the connection
         result = await test_mcp_connection(command, args, env)

@@ -36,10 +36,12 @@ export function CommentPanel({
 
 	if (isLoading) {
 		return (
-			<div className={cn(
-				"flex min-h-[120px] items-center justify-center p-4",
-				!isMobile && "w-96 rounded-lg border bg-card"
-			)}>
+			<div
+				className={cn(
+					"flex min-h-[120px] items-center justify-center p-4",
+					!isMobile && "w-96 rounded-lg border bg-card"
+				)}
+			>
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
 					<div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
 					Loading comments...
@@ -57,10 +59,7 @@ export function CommentPanel({
 
 	return (
 		<div
-			className={cn(
-				"flex flex-col",
-				isMobile ? "w-full" : "w-85 rounded-lg border bg-card"
-			)}
+			className={cn("flex flex-col", isMobile ? "w-full" : "w-85 rounded-lg border bg-card")}
 			style={!isMobile && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
 		>
 			{hasThreads && (
@@ -92,11 +91,7 @@ export function CommentPanel({
 				</div>
 			)}
 
-			<div className={cn(
-			"p-3",
-			showEmptyState && !isMobile && "border-t",
-			isMobile && "border-t"
-		)}>
+			<div className={cn("p-3", showEmptyState && !isMobile && "border-t", isMobile && "border-t")}>
 				{isComposerOpen ? (
 					<CommentComposer
 						members={members}

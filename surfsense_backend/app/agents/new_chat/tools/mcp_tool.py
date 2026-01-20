@@ -160,27 +160,31 @@ async def _create_mcp_tool_from_definition_http(
         logger.info(f"MCP HTTP tool '{tool_name}' called with params: {kwargs}")
 
         try:
-            async with streamablehttp_client(url, headers=headers) as (read, write, _):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    
-                    # Call the tool
-                    response = await session.call_tool(tool_name, arguments=kwargs)
-                    
-                    # Extract content from response
-                    result = []
-                    for content in response.content:
-                        if hasattr(content, "text"):
-                            result.append(content.text)
-                        elif hasattr(content, "data"):
-                            result.append(str(content.data))
-                        else:
-                            result.append(str(content))
-                    
-                    result_str = "\n".join(result) if result else ""
-                    logger.info(f"MCP HTTP tool '{tool_name}' succeeded: {result_str[:200]}")
-                    return result_str
-                    
+            async with (
+                streamablehttp_client(url, headers=headers) as (read, write, _),
+                ClientSession(read, write) as session,
+            ):
+                await session.initialize()
+
+                # Call the tool
+                response = await session.call_tool(tool_name, arguments=kwargs)
+
+                # Extract content from response
+                result = []
+                for content in response.content:
+                    if hasattr(content, "text"):
+                        result.append(content.text)
+                    elif hasattr(content, "data"):
+                        result.append(str(content.data))
+                    else:
+                        result.append(str(content))
+
+                result_str = "\n".join(result) if result else ""
+                logger.info(
+                    f"MCP HTTP tool '{tool_name}' succeeded: {result_str[:200]}"
+                )
+                return result_str
+
         except Exception as e:
             error_msg = f"MCP HTTP tool '{tool_name}' execution failed: {e!s}"
             logger.exception(error_msg)
@@ -192,7 +196,11 @@ async def _create_mcp_tool_from_definition_http(
         description=tool_description,
         coroutine=mcp_http_tool_call,
         args_schema=input_model,
-        metadata={"mcp_input_schema": input_schema, "mcp_transport": "http", "mcp_url": url},
+        metadata={
+            "mcp_input_schema": input_schema,
+            "mcp_transport": "http",
+            "mcp_url": url,
+        },
     )
 
     logger.info(f"Created MCP tool (HTTP): '{tool_name}'")
@@ -205,17 +213,17 @@ async def _load_stdio_mcp_tools(
     server_config: dict[str, Any],
 ) -> list[StructuredTool]:
     """Load tools from a stdio-based MCP server.
-    
+
     Args:
         connector_id: Connector ID for logging
         connector_name: Connector name for logging
         server_config: Server configuration with command, args, env
-        
+
     Returns:
         List of tools from the MCP server
     """
     tools: list[StructuredTool] = []
-    
+
     # Validate required command field
     command = server_config.get("command")
     if not command or not isinstance(command, str):
@@ -262,7 +270,7 @@ async def _load_stdio_mcp_tools(
                 f"Failed to create tool '{tool_def.get('name')}' "
                 f"from connector {connector_id}: {e!s}"
             )
-    
+
     return tools
 
 
@@ -272,17 +280,17 @@ async def _load_http_mcp_tools(
     server_config: dict[str, Any],
 ) -> list[StructuredTool]:
     """Load tools from an HTTP-based MCP server.
-    
+
     Args:
         connector_id: Connector ID for logging
         connector_name: Connector name for logging
         server_config: Server configuration with url, headers
-        
+
     Returns:
         List of tools from the MCP server
     """
     tools: list[StructuredTool] = []
-    
+
     # Validate required url field
     url = server_config.get("url")
     if not url or not isinstance(url, str):
@@ -301,41 +309,49 @@ async def _load_http_mcp_tools(
 
     # Connect and discover tools via HTTP
     try:
-        async with streamablehttp_client(url, headers=headers) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                
-                # List available tools
-                response = await session.list_tools()
-                tool_definitions = []
-                for tool in response.tools:
-                    tool_definitions.append({
+        async with (
+            streamablehttp_client(url, headers=headers) as (read, write, _),
+            ClientSession(read, write) as session,
+        ):
+            await session.initialize()
+
+            # List available tools
+            response = await session.list_tools()
+            tool_definitions = []
+            for tool in response.tools:
+                tool_definitions.append(
+                    {
                         "name": tool.name,
                         "description": tool.description or "",
-                        "input_schema": tool.inputSchema if hasattr(tool, "inputSchema") else {},
-                    })
-                
-                logger.info(
-                    f"Discovered {len(tool_definitions)} tools from HTTP MCP server "
-                    f"'{url}' (connector {connector_id})"
+                        "input_schema": tool.inputSchema
+                        if hasattr(tool, "inputSchema")
+                        else {},
+                    }
                 )
+
+            logger.info(
+                f"Discovered {len(tool_definitions)} tools from HTTP MCP server "
+                f"'{url}' (connector {connector_id})"
+            )
 
         # Create LangChain tools from definitions
         for tool_def in tool_definitions:
             try:
-                tool = await _create_mcp_tool_from_definition_http(tool_def, url, headers)
+                tool = await _create_mcp_tool_from_definition_http(
+                    tool_def, url, headers
+                )
                 tools.append(tool)
             except Exception as e:
                 logger.exception(
                     f"Failed to create HTTP tool '{tool_def.get('name')}' "
                     f"from connector {connector_id}: {e!s}"
                 )
-                
+
     except Exception as e:
         logger.exception(
             f"Failed to connect to HTTP MCP server at '{url}' (connector {connector_id}): {e!s}"
         )
-    
+
     return tools
 
 
@@ -372,7 +388,7 @@ async def load_mcp_tools(
                 # Early validation: Extract and validate connector config
                 config = connector.config or {}
                 server_config = config.get("server_config", {})
-                
+
                 # Validate server_config exists and is a dict
                 if not server_config or not isinstance(server_config, dict):
                     logger.warning(
@@ -382,7 +398,7 @@ async def load_mcp_tools(
 
                 # Determine transport type
                 transport = server_config.get("transport", "stdio")
-                
+
                 if transport in ("streamable-http", "http", "sse"):
                     # HTTP-based MCP server
                     connector_tools = await _load_http_mcp_tools(
@@ -393,9 +409,9 @@ async def load_mcp_tools(
                     connector_tools = await _load_stdio_mcp_tools(
                         connector.id, connector.name, server_config
                     )
-                
+
                 tools.extend(connector_tools)
-                
+
             except Exception as e:
                 logger.exception(
                     f"Failed to load tools from MCP connector {connector.id}: {e!s}"

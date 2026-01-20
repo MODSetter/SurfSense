@@ -4,6 +4,7 @@ import {
 	ChevronDown,
 	ChevronRight,
 	File,
+	FileSpreadsheet,
 	FileText,
 	FolderClosed,
 	FolderOpen,
@@ -11,7 +12,6 @@ import {
 	Image,
 	Loader2,
 	Presentation,
-	FileSpreadsheet,
 } from "lucide-react";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";

@@ -1,6 +1,7 @@
 "use client";
 
 import type { FC } from "react";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { ConnectorCard } from "../components/connector-card";
 import { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
@@ -161,6 +162,16 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 							);
 							const isIndexing = actualConnector && indexingConnectorIds?.has(actualConnector.id);
 
+							// For MCP connectors, count total MCP connectors instead of document count
+							const isMCP = connector.connectorType === EnumConnectorName.MCP_CONNECTOR;
+							const mcpConnectorCount =
+								isMCP && allConnectors
+									? allConnectors.filter(
+											(c: SearchSourceConnector) =>
+												c.connector_type === EnumConnectorName.MCP_CONNECTOR
+										).length
+									: undefined;
+
 							const handleConnect = onConnectNonOAuth
 								? () => onConnectNonOAuth(connector.connectorType)
 								: () => {}; // Fallback - connector popup should handle all connector types
@@ -175,6 +186,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									isConnected={isConnected}
 									isConnecting={isConnecting}
 									documentCount={documentCount}
+									connectorCount={mcpConnectorCount}
 									isIndexing={isIndexing}
 									onConnect={handleConnect}
 									onManage={

@@ -204,7 +204,9 @@ export const AssistantMessage: FC = () => {
 					>
 						<MessageSquare className={cn("size-4", hasComments && "fill-current")} />
 						{hasComments ? (
-							<span>{commentCount} {commentCount === 1 ? "comment" : "comments"}</span>
+							<span>
+								{commentCount} {commentCount === 1 ? "comment" : "comments"}
+							</span>
 						) : (
 							<span>Add comment</span>
 						)}

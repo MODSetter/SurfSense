@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
 import { useAtomValue } from "jotai";
+import { useEffect, useRef, useState } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import {
-	initElectric,
 	cleanupElectric,
-	isElectricInitialized,
 	type ElectricClient,
+	initElectric,
+	isElectricInitialized,
 } from "@/lib/electric/client";
 import { ElectricContext } from "@/lib/electric/context";
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useElectricClient } from "@/lib/electric/context";
-import type { SyncHandle } from "@/lib/electric/client";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Notification } from "@/contracts/types/notification.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
+import type { SyncHandle } from "@/lib/electric/client";
+import { useElectricClient } from "@/lib/electric/context";
 
 export type { Notification } from "@/contracts/types/notification.types";
 

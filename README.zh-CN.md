@@ -165,7 +165,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 **Linux/macOS:**
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
   -v surfsense-data:/data \
   --name surfsense \
   --restart unless-stopped \
@@ -175,7 +175,7 @@ docker run -d -p 3000:3000 -p 8000:8000 \
 **Windows (PowerShell):**
 
 ```powershell
-docker run -d -p 3000:3000 -p 8000:8000 `
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 `
   -v surfsense-data:/data `
   --name surfsense `
   --restart unless-stopped `
@@ -187,7 +187,7 @@ docker run -d -p 3000:3000 -p 8000:8000 `
 您可以使用 `-e` 标志传递任何环境变量：
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
   -v surfsense-data:/data \
   -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
   -e OPENAI_API_KEY=your_openai_api_key \
@@ -208,6 +208,7 @@ docker run -d -p 3000:3000 -p 8000:8000 \
 - **前端**: [http://localhost:3000](http://localhost:3000)
 - **后端 API**: [http://localhost:8000](http://localhost:8000)
 - **API 文档**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- **Electric-SQL**: [http://localhost:5133](http://localhost:5133)
 
 **常用命令：**
 

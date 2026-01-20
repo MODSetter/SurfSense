@@ -28,21 +28,22 @@ export function Header({
 	const hasThread = isChatPage && currentThreadState.id !== null;
 	
 	// Create minimal thread object for ChatShareButton (used for API calls)
-	const threadForButton: ThreadRecord | null = hasThread
-		? {
-				id: currentThreadState.id!,
-				visibility: currentThreadState.visibility ?? "PRIVATE",
-				// These fields are not used by ChatShareButton for display, only for checks
-				created_by_id: null,
-				search_space_id: 0,
-				title: "",
-				archived: false,
-				created_at: "",
-				updated_at: "",
-			}
-		: null;
+	const threadForButton: ThreadRecord | null =
+		hasThread && currentThreadState.id !== null
+			? {
+					id: currentThreadState.id,
+					visibility: currentThreadState.visibility ?? "PRIVATE",
+					// These fields are not used by ChatShareButton for display, only for checks
+					created_by_id: null,
+					search_space_id: 0,
+					title: "",
+					archived: false,
+					created_at: "",
+					updated_at: "",
+				}
+			: null;
 
-	const handleVisibilityChange = (visibility: ChatVisibility) => {
+	const handleVisibilityChange = (_visibility: ChatVisibility) => {
 		// Visibility change is handled by ChatShareButton internally via Jotai
 		// This callback can be used for additional side effects if needed
 	};

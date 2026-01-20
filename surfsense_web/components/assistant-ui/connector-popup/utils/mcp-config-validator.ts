@@ -138,35 +138,37 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 
 			// Replace technical error messages with user-friendly ones
 			if (errorMsg.includes("expected string, received undefined")) {
-				errorMsg = "This field is required";
+				errorMsg = fieldPath ? `The '${fieldPath}' field is required` : "This field is required";
 			} else if (errorMsg.includes("Invalid input")) {
-				errorMsg = "Invalid value";
+				errorMsg = fieldPath ? `The '${fieldPath}' field has an invalid value` : "Invalid value";
+			} else if (fieldPath && !errorMsg.toLowerCase().includes(fieldPath.toLowerCase())) {
+				// If error message doesn't mention the field name, prepend it
+				errorMsg = `The '${fieldPath}' field: ${errorMsg}`;
 			}
 
-			const formattedError = fieldPath ? `${fieldPath}: ${errorMsg}` : errorMsg;
-
-			console.error("[MCP Validator] ❌ Validation error:", formattedError);
+			console.error("[MCP Validator] ❌ Validation error:", errorMsg);
 			console.error("[MCP Validator] Full Zod errors:", result.error.issues);
 
 			return {
 				config: null,
-				error: formattedError,
+				error: errorMsg,
 			};
 		}
 
 		// Build config based on transport type
-		const config: MCPServerConfig = result.data.transport === "stdio" || !result.data.transport
-			? {
-				command: (result.data as z.infer<typeof StdioConfigSchema>).command,
-				args: (result.data as z.infer<typeof StdioConfigSchema>).args,
-				env: (result.data as z.infer<typeof StdioConfigSchema>).env,
-				transport: "stdio" as const,
-			}
-			: {
-				url: (result.data as z.infer<typeof HttpConfigSchema>).url,
-				headers: (result.data as z.infer<typeof HttpConfigSchema>).headers,
-				transport: result.data.transport as "streamable-http" | "http" | "sse",
-			};
+		const config: MCPServerConfig =
+			result.data.transport === "stdio" || !result.data.transport
+				? {
+						command: (result.data as z.infer<typeof StdioConfigSchema>).command,
+						args: (result.data as z.infer<typeof StdioConfigSchema>).args,
+						env: (result.data as z.infer<typeof StdioConfigSchema>).env,
+						transport: "stdio" as const,
+					}
+				: {
+						url: (result.data as z.infer<typeof HttpConfigSchema>).url,
+						headers: (result.data as z.infer<typeof HttpConfigSchema>).headers,
+						transport: result.data.transport as "streamable-http" | "http" | "sse",
+					};
 
 		// Cache the successfully parsed config
 		configCache.set(configJson, {
