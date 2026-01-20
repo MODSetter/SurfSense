@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
 	type ChatVisibility,
 	type ThreadRecord,
@@ -99,34 +100,36 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>
-			<PopoverTrigger asChild>
-				<Button
-					variant="ghost"
-					size="sm"
-					className={cn(
-						"h-7 md:h-9 gap-1 md:gap-2 px-2 md:px-3 rounded-lg md:rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm",
-						"hover:bg-muted/80 hover:border-border/30 transition-all duration-200",
-						"text-xs md:text-sm font-medium text-foreground",
-						"focus-visible:ring-0 focus-visible:ring-offset-0",
-						className
-					)}
-				>
-					<CurrentIcon className="size-3.5 md:size-4 text-muted-foreground" />
-					<span className="hidden md:inline">
-						{currentVisibility === "PRIVATE" ? "Private" : "Shared"}
-					</span>
-				</Button>
-			</PopoverTrigger>
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<PopoverTrigger asChild>
+						<Button
+							variant="outline"
+							size="icon"
+							className={cn(
+								"h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0",
+								className
+							)}
+						>
+							<CurrentIcon className="h-4 w-4" />
+							<span className="hidden md:inline text-sm">
+								{currentVisibility === "PRIVATE" ? "Private" : "Shared"}
+							</span>
+						</Button>
+					</PopoverTrigger>
+				</TooltipTrigger>
+				<TooltipContent>Share settings</TooltipContent>
+			</Tooltip>
 
 			<PopoverContent
-				className="w-[280px] md:w-[320px] p-0 rounded-lg md:rounded-xl shadow-lg border-border/60"
+				className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60"
 				align="end"
 				sideOffset={8}
 			>
 				<div className="p-1.5 space-y-1">
 					{/* Updating overlay */}
 					{isUpdating && (
-						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
+						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
 							<div className="flex items-center gap-2 text-sm text-muted-foreground">
 								<Loader2 className="size-4 animate-spin" />
 								<span>Updating</span>
@@ -169,11 +172,6 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 										<span className={cn("text-sm font-medium", isSelected && "text-primary")}>
 											{option.label}
 										</span>
-										{isSelected && (
-											<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-												Current
-											</span>
-										)}
 									</div>
 									<p className="text-xs text-muted-foreground mt-0.5 leading-snug">
 										{option.description}

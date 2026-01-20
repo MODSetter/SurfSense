@@ -170,31 +170,27 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<Button
-					variant="ghost"
+					variant="outline"
 					size="sm"
 					role="combobox"
 					aria-expanded={open}
 					className={cn(
-						"h-7 md:h-9 gap-1 md:gap-2 px-2 md:px-3 rounded-lg md:rounded-xl border border-border/80 bg-background/50 backdrop-blur-sm",
-						"hover:bg-muted/80 hover:border-border/30 transition-all duration-200",
-						"text-xs md:text-sm font-medium text-foreground",
-						"focus-visible:ring-0 focus-visible:ring-offset-0",
+						"h-8 gap-2 px-3 text-sm border-border/60",
 						className
 					)}
 				>
 					{isLoading ? (
 						<>
-							<Loader2 className="size-3.5 md:size-4 animate-spin text-muted-foreground" />
+							<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
 							<span className="text-muted-foreground hidden md:inline">Loading...</span>
-							<span className="text-muted-foreground md:hidden">Load...</span>
 						</>
 					) : currentConfig ? (
 						<>
 							{getProviderIcon(currentConfig.provider)}
-							<span className="max-w-[80px] md:max-w-[150px] truncate">{currentConfig.name}</span>
+							<span className="max-w-[100px] md:max-w-[150px] truncate hidden md:inline">{currentConfig.name}</span>
 							<Badge
 								variant="secondary"
-								className="ml-0.5 md:ml-1 text-[9px] md:text-[10px] px-1 md:px-1.5 py-0 h-3.5 md:h-4 bg-muted/80"
+								className="ml-1 text-[10px] px-1.5 py-0 h-4 bg-muted/80"
 							>
 								{currentConfig.model_name.split("/").pop()?.slice(0, 10) ||
 									currentConfig.model_name.slice(0, 10)}
@@ -202,27 +198,26 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						</>
 					) : (
 						<>
-							<Bot className="size-3.5 md:size-4 text-muted-foreground" />
+							<Bot className="h-4 w-4 text-muted-foreground" />
 							<span className="text-muted-foreground hidden md:inline">Select Model</span>
-							<span className="text-muted-foreground md:hidden">Model</span>
 						</>
 					)}
-					<ChevronDown className="size-3 md:size-3.5 text-muted-foreground ml-1 shrink-0" />
+					<ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
 				</Button>
 			</PopoverTrigger>
 
 			<PopoverContent
-				className="w-[280px] md:w-[360px] p-0 rounded-lg md:rounded-xl shadow-lg border-border/60"
+				className="w-[280px] md:w-[360px] p-0 rounded-lg shadow-lg border-border/60"
 				align="start"
 				sideOffset={8}
 			>
 				<Command
 					shouldFilter={false}
-					className="rounded-xl relative [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
+					className="rounded-lg relative [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
 				>
 					{/* Switching overlay */}
 					{isSwitching && (
-						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-xl">
+						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
 							<div className="flex items-center gap-2 text-sm text-muted-foreground">
 								<Loader2 className="size-4 animate-spin" />
 								<span>Switching model...</span>
