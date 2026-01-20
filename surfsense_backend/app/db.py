@@ -472,6 +472,63 @@ class ChatCommentMention(BaseModel, TimestampMixin):
     mentioned_user = relationship("User")
 
 
+class MemoryCategory(str, Enum):
+    """Categories for user memories."""
+
+    PREFERENCE = "preference"  # User preferences (e.g., "prefers dark mode")
+    FACT = "fact"  # Facts about the user (e.g., "is a Python developer")
+    INSTRUCTION = "instruction"  # Standing instructions (e.g., "always respond in bullet points")
+    CONTEXT = "context"  # Contextual information (e.g., "working on project X")
+
+
+class UserMemory(BaseModel, TimestampMixin):
+    """
+    Stores facts, preferences, and context about users for personalized AI responses.
+    Similar to Claude's memory feature - enables the AI to remember user information
+    across conversations.
+    """
+
+    __tablename__ = "user_memories"
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Optional association with a search space (if memory is space-specific)
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    # The actual memory content
+    memory_text = Column(Text, nullable=False)
+    # Category for organization and filtering
+    category = Column(
+        SQLAlchemyEnum(MemoryCategory),
+        nullable=False,
+        default=MemoryCategory.FACT,
+    )
+    # Vector embedding for semantic search
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+
+    # Track when memory was last updated
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    # Relationships
+    user = relationship("User", back_populates="memories")
+    search_space = relationship("SearchSpace", back_populates="user_memories")
+
+
 class Document(BaseModel, TimestampMixin):
     __tablename__ = "documents"
 
@@ -656,6 +713,14 @@ class SearchSpace(BaseModel, TimestampMixin):
         "SearchSpaceInvite",
         back_populates="search_space",
         order_by="SearchSpaceInvite.id",
+        cascade="all, delete-orphan",
+    )
+
+    # User memories associated with this search space
+    user_memories = relationship(
+        "UserMemory",
+        back_populates="search_space",
+        order_by="UserMemory.updated_at.desc()",
         cascade="all, delete-orphan",
     )
 
@@ -967,6 +1032,14 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # User memories for personalized AI responses
+        memories = relationship(
+            "UserMemory",
+            back_populates="user",
+            order_by="UserMemory.updated_at.desc()",
+            cascade="all, delete-orphan",
+        )
+
         # Page usage tracking for ETL services
         pages_limit = Column(
             Integer,
@@ -1008,6 +1081,14 @@ else:
             "NewChatThread",
             back_populates="created_by",
             passive_deletes=True,
+        )
+
+        # User memories for personalized AI responses
+        memories = relationship(
+            "UserMemory",
+            back_populates="user",
+            order_by="UserMemory.updated_at.desc()",
+            cascade="all, delete-orphan",
         )
 
         # Page usage tracking for ETL services
