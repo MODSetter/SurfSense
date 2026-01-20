@@ -1,15 +1,24 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { AlertCircle, Bell, CheckCheck, CheckCircle2, Loader2 } from "lucide-react";
+import { AlertCircle, AtSign, Bell, Cable, CheckCheck, CheckCircle2, FileText, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import type { Notification } from "@/hooks/use-notifications";
+import type { Notification, NotificationTypeEnum } from "@/hooks/use-notifications";
 import { cn } from "@/lib/utils";
+
+/**
+ * Filter configuration for notification types
+ */
+const NOTIFICATION_FILTERS = {
+	new_mention: { label: "Mentions", icon: AtSign },
+	connector_indexing: { label: "Connectors", icon: Cable },
+	document_processing: { label: "Documents", icon: FileText },
+} as const;
 
 /**
  * Get initials from name or email for avatar fallback
@@ -37,6 +46,8 @@ interface NotificationPopupProps {
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
 	onClose?: () => void;
+	activeFilter: NotificationTypeEnum | null;
+	onFilterChange: (filter: NotificationTypeEnum | null) => void;
 }
 
 export function NotificationPopup({
@@ -46,6 +57,8 @@ export function NotificationPopup({
 	markAsRead,
 	markAllAsRead,
 	onClose,
+	activeFilter,
+	onFilterChange,
 }: NotificationPopupProps) {
 	const router = useRouter();
 
@@ -125,7 +138,7 @@ export function NotificationPopup({
 	return (
 		<div className="flex flex-col w-80 max-w-[calc(100vw-2rem)]">
 			{/* Header */}
-			<div className="flex items-center justify-between px-4 py-3 border-b">
+			<div className="flex items-center justify-between px-4 py-3">
 				<div className="flex items-center gap-2">
 					<h3 className="font-semibold text-sm">Notifications</h3>
 				</div>
@@ -134,6 +147,32 @@ export function NotificationPopup({
 						<CheckCheck className="h-3.5 w-3.5 mr-0" />
 						Mark all read
 					</Button>
+				)}
+			</div>
+
+			{/* Filter Pills */}
+			<div className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto">
+				{(Object.entries(NOTIFICATION_FILTERS) as [NotificationTypeEnum, typeof NOTIFICATION_FILTERS[keyof typeof NOTIFICATION_FILTERS]][]).map(
+					([key, { label, icon: Icon }]) => {
+						const isActive = activeFilter === key;
+						return (
+							<button
+								key={key}
+								type="button"
+								onClick={() => onFilterChange(key)}
+								className={cn(
+									"inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap",
+									"border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+									isActive
+										? "bg-primary text-primary-foreground border-primary"
+										: "bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
+								)}
+							>
+								<Icon className="h-3 w-3" />
+								{label}
+							</button>
+						);
+					}
 				)}
 			</div>
 
@@ -160,8 +199,8 @@ export function NotificationPopup({
 										!notification.read && "bg-accent/50"
 									)}
 								>
-									<div className="flex items-center gap-3 overflow-hidden">
-										<div className="flex-shrink-0">{getStatusIcon(notification)}</div>
+									<div className="flex items-start gap-3 overflow-hidden">
+										<div className="flex-shrink-0 mt-0.5">{getStatusIcon(notification)}</div>
 										<div className="flex-1 min-w-0 overflow-hidden">
 											<div className="flex items-start justify-between gap-2 mb-1">
 												<p
