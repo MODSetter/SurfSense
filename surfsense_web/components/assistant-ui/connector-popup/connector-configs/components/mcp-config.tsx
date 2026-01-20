@@ -2,14 +2,14 @@
 
 import { CheckCircle2, ChevronDown, ChevronUp, Server, XCircle } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { MCPServerConfig, MCPToolDefinition } from "@/contracts/types/mcp.types";
+import type { MCPServerConfig } from "@/contracts/types/mcp.types";
 import type { ConnectorConfigProps } from "../index";
 import {
 	parseMCPConfig,
@@ -22,36 +22,28 @@ interface MCPConfigProps extends ConnectorConfigProps {
 }
 
 export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNameChange }) => {
-	// Validate that this is an MCP connector
-	if (connector.connector_type !== EnumConnectorName.MCP_CONNECTOR) {
-		console.error(
-			"MCPConfig received non-MCP connector:",
-			connector.connector_type
-		);
-		return (
-			<Alert className="border-red-500/50 bg-red-500/10">
-				<XCircle className="h-4 w-4 text-red-600" />
-				<AlertTitle>Invalid Connector Type</AlertTitle>
-				<AlertDescription>
-					This component can only be used with MCP connectors.
-				</AlertDescription>
-			</Alert>
-		);
-	}
-
 	const [name, setName] = useState<string>("");
 	const [configJson, setConfigJson] = useState("");
 	const [jsonError, setJsonError] = useState<string | null>(null);
 	const [isTesting, setIsTesting] = useState(false);
 	const [showDetails, setShowDetails] = useState(false);
 	const [testResult, setTestResult] = useState<MCPConnectionTestResult | null>(null);
+	const initializedRef = useRef(false);
+
+	// Check if this is a valid MCP connector
+	const isValidConnector = connector.connector_type === EnumConnectorName.MCP_CONNECTOR;
 
 	// Initialize form from connector config (only on mount)
+	// We intentionally only read connector.name and connector.config on initial mount
+	// to preserve user edits during the session
 	useEffect(() => {
+		if (!isValidConnector || initializedRef.current) return;
+		initializedRef.current = true;
+
 		if (connector.name) {
 			setName(connector.name);
 		}
-		
+
 		const serverConfig = connector.config?.server_config as MCPServerConfig | undefined;
 		if (serverConfig) {
 			// Convert server config to JSON string for editing (name is in separate field)
@@ -63,17 +55,19 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 			};
 			setConfigJson(JSON.stringify(configObj, null, 2));
 		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, []); // Only run on mount to preserve user edits
+	}, [isValidConnector, connector.name, connector.config?.server_config]);
 
-	const handleNameChange = (value: string) => {
-		setName(value);
-		if (onNameChange) {
-			onNameChange(value);
-		}
-	};
+	const handleNameChange = useCallback(
+		(value: string) => {
+			setName(value);
+			if (onNameChange) {
+				onNameChange(value);
+			}
+		},
+		[onNameChange]
+	);
 
-	const parseConfig = () => {
+	const parseConfig = useCallback(() => {
 		const result = parseMCPConfig(configJson);
 		if (result.error) {
 			setJsonError(result.error);
@@ -81,25 +75,26 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 			setJsonError(null);
 		}
 		return result.config;
-	};
+	}, [configJson]);
 
-	const handleConfigChange = (value: string) => {
-		setConfigJson(value);
-		if (jsonError) {
+	const handleConfigChange = useCallback(
+		(value: string) => {
+			setConfigJson(value);
 			setJsonError(null);
-		}
-		
-		// Use shared utility for validation and parsing (with caching)
-		const result = parseMCPConfig(value);
-		
-		if (result.config && onConfigChange) {
-			// Valid config - update parent immediately
-			onConfigChange({ server_config: result.config });
-		}
-		// Ignore errors while typing - only show errors when user tests or saves
-	};
 
-	const handleTestConnection = async () => {
+			// Use shared utility for validation and parsing (with caching)
+			const result = parseMCPConfig(value);
+
+			if (result.config && onConfigChange) {
+				// Valid config - update parent immediately
+				onConfigChange({ server_config: result.config });
+			}
+			// Ignore errors while typing - only show errors when user tests or saves
+		},
+		[onConfigChange]
+	);
+
+	const handleTestConnection = useCallback(async () => {
 		const serverConfig = parseConfig();
 		if (!serverConfig) {
 			setTestResult({
@@ -121,7 +116,19 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		const result = await testMCPConnection(serverConfig);
 		setTestResult(result);
 		setIsTesting(false);
-	};
+	}, [parseConfig, jsonError, onConfigChange]);
+
+	// Validate that this is an MCP connector - must be after all hooks
+	if (!isValidConnector) {
+		console.error("MCPConfig received non-MCP connector:", connector.connector_type);
+		return (
+			<Alert className="border-red-500/50 bg-red-500/10">
+				<XCircle className="h-4 w-4 text-red-600" />
+				<AlertTitle>Invalid Connector Type</AlertTitle>
+				<AlertDescription>This component can only be used with MCP connectors.</AlertDescription>
+			</Alert>
+		);
+	}
 
 	return (
 		<div className="space-y-6">
@@ -154,11 +161,10 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							rows={16}
 							className={`font-mono text-xs ${jsonError ? "border-red-500" : ""}`}
 						/>
-						{jsonError && (
-							<p className="text-xs text-red-500">JSON Error: {jsonError}</p>
-						)}
+						{jsonError && <p className="text-xs text-red-500">JSON Error: {jsonError}</p>}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							Edit your MCP server configuration. Must include: name, command, args (optional), env (optional), transport (optional).
+							Edit your MCP server configuration. Must include: name, command, args (optional), env
+							(optional), transport (optional).
 						</p>
 					</div>
 
@@ -192,7 +198,9 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							<div className="flex-1">
 								<div className="flex items-center justify-between">
 									<AlertTitle className="text-sm">
-										{testResult.status === "success" ? "Connection Successful" : "Connection Failed"}
+										{testResult.status === "success"
+											? "Connection Successful"
+											: "Connection Failed"}
 									</AlertTitle>
 									{testResult.tools.length > 0 && (
 										<Button
@@ -224,12 +232,10 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 									{testResult.message}
 									{showDetails && testResult.tools.length > 0 && (
 										<div className="mt-3 pt-3 border-t border-green-500/20">
-											<p className="font-semibold mb-2">
-												Available tools:
-											</p>
+											<p className="font-semibold mb-2">Available tools:</p>
 											<ul className="list-disc list-inside text-xs space-y-0.5">
-												{testResult.tools.map((tool, i) => (
-													<li key={i}>{tool.name}</li>
+												{testResult.tools.map((tool) => (
+													<li key={tool.name}>{tool.name}</li>
 												))}
 											</ul>
 										</div>

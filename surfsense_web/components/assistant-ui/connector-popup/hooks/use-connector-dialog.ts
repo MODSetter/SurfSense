@@ -540,18 +540,18 @@ export const useConnectorDialog = () => {
 					data: {
 						...connectorData,
 						connector_type: connectorData.connector_type as EnumConnectorName,
-					is_active: true,
-					next_scheduled_at: connectorData.next_scheduled_at as string | null,
-				},
-				queryParams: {
-					search_space_id: searchSpaceId,
-				},
-			});
+						is_active: true,
+						next_scheduled_at: connectorData.next_scheduled_at as string | null,
+					},
+					queryParams: {
+						search_space_id: searchSpaceId,
+					},
+				});
 
-			// Refetch connectors to get the new one
-			const result = await refetchAllConnectors();
-			if (result.data) {
-				const connector = result.data.find(
+				// Refetch connectors to get the new one
+				const result = await refetchAllConnectors();
+				if (result.data) {
+					const connector = result.data.find(
 						(c: SearchSourceConnector) => c.id === newConnector.id
 					);
 					if (connector) {
@@ -644,34 +644,35 @@ export const useConnectorDialog = () => {
 									},
 								});
 
-							const successMessage = currentConnectorType === "MCP_CONNECTOR"
-								? `${connector.name} MCP server added successfully`
-								: `${connectorTitle} connected and indexing started!`;
-							toast.success(successMessage, {
-								description: periodicEnabledForIndexing
-									? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutesForIndexing)}.`
-									: "You can continue working while we sync your data.",
-							});
+								const successMessage =
+									currentConnectorType === "MCP_CONNECTOR"
+										? `${connector.name} MCP server added successfully`
+										: `${connectorTitle} connected and indexing started!`;
+								toast.success(successMessage, {
+									description: periodicEnabledForIndexing
+										? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutesForIndexing)}.`
+										: "You can continue working while we sync your data.",
+								});
 
-							const url = new URL(window.location.href);
-							url.searchParams.delete("modal");
-							url.searchParams.delete("tab");
-							url.searchParams.delete("view");
-							url.searchParams.delete("connectorType");
-							router.replace(url.pathname + url.search, { scroll: false });
+								const url = new URL(window.location.href);
+								url.searchParams.delete("modal");
+								url.searchParams.delete("tab");
+								url.searchParams.delete("view");
+								url.searchParams.delete("connectorType");
+								router.replace(url.pathname + url.search, { scroll: false });
 
-							// Clear indexing config state since we're not showing the view
-							setIndexingConfig(null);
-							setIndexingConnector(null);
-							setIndexingConnectorConfig(null);
+								// Clear indexing config state since we're not showing the view
+								setIndexingConfig(null);
+								setIndexingConnector(null);
+								setIndexingConnectorConfig(null);
 
-							// Invalidate queries to refresh data
-							queryClient.invalidateQueries({
-								queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-							});
+								// Invalidate queries to refresh data
+								queryClient.invalidateQueries({
+									queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+								});
 
-							// Refresh connectors list
-							await refetchAllConnectors();
+								// Refresh connectors list
+								await refetchAllConnectors();
 							} else {
 								// Non-indexable connector
 								// For Circleback, transition to edit view to show webhook URL
@@ -708,9 +709,10 @@ export const useConnectorDialog = () => {
 									await refetchAllConnectors();
 								} else {
 									// Other non-indexable connectors - just show success message and close
-									const successMessage = currentConnectorType === "MCP_CONNECTOR"
-										? `${connector.name} MCP server added successfully`
-										: `${connectorTitle} connected successfully!`;
+									const successMessage =
+										currentConnectorType === "MCP_CONNECTOR"
+											? `${connector.name} MCP server added successfully`
+											: `${connectorTitle} connected successfully!`;
 									toast.success(successMessage);
 
 									// Refresh connectors list before closing modal
@@ -758,7 +760,7 @@ export const useConnectorDialog = () => {
 	const handleBackFromConnect = useCallback(() => {
 		const url = new URL(window.location.href);
 		url.searchParams.set("modal", "connectors");
-		
+
 		// If we're connecting an MCP and came from list view, go back to list
 		if (connectingConnectorType === "MCP_CONNECTOR" && viewingMCPList) {
 			url.searchParams.set("view", "mcp-list");
@@ -766,7 +768,7 @@ export const useConnectorDialog = () => {
 			url.searchParams.set("tab", "all");
 			url.searchParams.delete("view");
 		}
-		
+
 		url.searchParams.delete("connectorType");
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router, connectingConnectorType, viewingMCPList]);
@@ -1252,33 +1254,33 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-			// Generate toast message based on connector type
-			const toastTitle = `${editingConnector.name} updated successfully`;
+				// Generate toast message based on connector type
+				const toastTitle = `${editingConnector.name} updated successfully`;
 
-			toast.success(toastTitle, {
-				description: periodicEnabled
-					? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
-					: indexingDescription,
-			});
+				toast.success(toastTitle, {
+					description: periodicEnabled
+						? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
+						: indexingDescription,
+				});
 
-			// Update URL - the effect will handle closing the modal and clearing state
-			const url = new URL(window.location.href);
-			url.searchParams.delete("modal");
-			url.searchParams.delete("tab");
-			url.searchParams.delete("view");
-			url.searchParams.delete("connectorId");
-			router.replace(url.pathname + url.search, { scroll: false });
+				// Update URL - the effect will handle closing the modal and clearing state
+				const url = new URL(window.location.href);
+				url.searchParams.delete("modal");
+				url.searchParams.delete("tab");
+				url.searchParams.delete("view");
+				url.searchParams.delete("connectorId");
+				router.replace(url.pathname + url.search, { scroll: false });
 
-			refreshConnectors();
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-			});
-		} catch (error) {
-			console.error("Error saving connector:", error);
-			toast.error("Failed to save connector changes");
-		} finally {
-			setIsSaving(false);
-		}
+				refreshConnectors();
+				queryClient.invalidateQueries({
+					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+				});
+			} catch (error) {
+				console.error("Error saving connector:", error);
+				toast.error("Failed to save connector changes");
+			} finally {
+				setIsSaving(false);
+			}
 		},
 		[
 			editingConnector,

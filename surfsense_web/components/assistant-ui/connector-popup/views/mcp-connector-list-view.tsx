@@ -48,12 +48,7 @@ export const MCPConnectorListView: FC<MCPConnectorListViewProps> = ({
 			{/* Header */}
 			<div className="flex items-center justify-between mb-6 shrink-0">
 				<div className="flex items-center gap-3">
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={onBack}
-						className="h-8 w-8"
-					>
+					<Button variant="ghost" size="icon" onClick={onBack} className="h-8 w-8">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							width="16"
@@ -79,11 +74,7 @@ export const MCPConnectorListView: FC<MCPConnectorListViewProps> = ({
 
 			{/* Add New Button */}
 			<div className="mb-4 shrink-0">
-				<Button
-					onClick={onAddNew}
-					className="w-full"
-					variant="outline"
-				>
+				<Button onClick={onAddNew} className="w-full" variant="outline">
 					<Plus className="h-4 w-4 mr-2" />
 					Add New MCP Server
 				</Button>
@@ -105,7 +96,7 @@ export const MCPConnectorListView: FC<MCPConnectorListViewProps> = ({
 					mcpConnectors.map((connector) => {
 						// Extract server name from config
 						const serverName = connector.config?.server_config?.name || connector.name;
-						
+
 						return (
 							<div
 								key={connector.id}
@@ -123,9 +114,7 @@ export const MCPConnectorListView: FC<MCPConnectorListViewProps> = ({
 									{getConnectorIcon("MCP_CONNECTOR", "size-6")}
 								</div>
 								<div className="flex-1 min-w-0">
-									<p className="text-[14px] font-semibold leading-tight truncate">
-										{serverName}
-									</p>
+									<p className="text-[14px] font-semibold leading-tight truncate">{serverName}</p>
 								</div>
 								<Button
 									variant="secondary"

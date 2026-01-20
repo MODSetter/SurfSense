@@ -1,14 +1,14 @@
 /**
  * MCP Configuration Validator Utility
- * 
+ *
  * Shared validation and parsing logic for MCP (Model Context Protocol) server configurations.
- * 
+ *
  * Features:
  * - Zod schema validation for runtime type safety
  * - Configuration caching to avoid repeated parsing (5-minute TTL)
  * - Standardized error messages
  * - Connection testing utilities
- * 
+ *
  * Usage:
  * ```typescript
  * // Parse and validate config
@@ -18,14 +18,14 @@
  * } else {
  *   // Show result.error to user
  * }
- * 
+ *
  * // Test connection
  * const testResult = await testMCPConnection(config);
  * if (testResult.status === "success") {
  *   console.log(`Found ${testResult.tools.length} tools`);
  * }
  * ```
- * 
+ *
  * @module mcp-config-validator
  */
 
@@ -36,7 +36,7 @@ import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 /**
  * Zod schema for MCP server configuration
  * Provides compile-time and runtime type safety
- * 
+ *
  * Exported for advanced use cases (e.g., form builders)
  */
 export const MCPServerConfigSchema = z.object({
@@ -95,11 +95,11 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 	// Check cache first
 	const cached = configCache.get(configJson);
 	if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-		console.log('[MCP Validator] ✅ Using cached config');
+		console.log("[MCP Validator] ✅ Using cached config");
 		return { config: cached.config, error: null };
 	}
 
-	console.log('[MCP Validator] 🔍 Parsing new config...');
+	console.log("[MCP Validator] 🔍 Parsing new config...");
 
 	// Clean up expired cache entries periodically
 	if (configCache.size > 100) {
@@ -111,7 +111,7 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 
 		// Validate that it's an object, not an array
 		if (Array.isArray(parsed)) {
-			console.error('[MCP Validator] ❌ Error: Config is an array, expected object');
+			console.error("[MCP Validator] ❌ Error: Config is an array, expected object");
 			return {
 				config: null,
 				error: "Please provide a single server configuration object, not an array",
@@ -125,22 +125,22 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 			// Format Zod validation errors for user-friendly display
 			const firstError = result.error.issues[0];
 			const fieldPath = firstError.path.join(".");
-			
+
 			// Clean up error message - remove technical Zod jargon
 			let errorMsg = firstError.message;
-			
+
 			// Replace technical error messages with user-friendly ones
 			if (errorMsg.includes("expected string, received undefined")) {
 				errorMsg = "This field is required";
 			} else if (errorMsg.includes("Invalid input")) {
 				errorMsg = "Invalid value";
 			}
-			
+
 			const formattedError = fieldPath ? `${fieldPath}: ${errorMsg}` : errorMsg;
-			
-			console.error('[MCP Validator] ❌ Validation error:', formattedError);
-			console.error('[MCP Validator] Full Zod errors:', result.error.issues);
-			
+
+			console.error("[MCP Validator] ❌ Validation error:", formattedError);
+			console.error("[MCP Validator] Full Zod errors:", result.error.issues);
+
 			return {
 				config: null,
 				error: formattedError,
@@ -159,8 +159,8 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 			config,
 			timestamp: Date.now(),
 		});
-		
-		console.log('[MCP Validator] ✅ Config parsed successfully:', config);
+
+		console.log("[MCP Validator] ✅ Config parsed successfully:", config);
 
 		return {
 			config,
@@ -168,7 +168,7 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 		};
 	} catch (error) {
 		const errorMsg = error instanceof Error ? error.message : "Invalid JSON";
-		console.error('[MCP Validator] ❌ JSON parse error:', errorMsg);
+		console.error("[MCP Validator] ❌ JSON parse error:", errorMsg);
 		return {
 			config: null,
 			error: errorMsg,
@@ -217,11 +217,11 @@ export const testMCPConnection = async (
 export const extractServerName = (configJson: string): string => {
 	try {
 		const parsed = JSON.parse(configJson);
-		
+
 		// Use Zod to validate and extract name field safely
 		const nameSchema = z.object({ name: z.string().optional() });
 		const result = nameSchema.safeParse(parsed);
-		
+
 		if (result.success && result.data.name) {
 			return result.data.name;
 		}
