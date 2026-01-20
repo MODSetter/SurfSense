@@ -38,12 +38,9 @@ const githubConnectorFormSchema = z.object({
 	github_pat: z
 		.string()
 		.optional()
-		.refine(
-			(pat) => !pat || pat.startsWith("ghp_") || pat.startsWith("github_pat_"),
-			{
-				message: "GitHub PAT should start with 'ghp_' or 'github_pat_'",
-			}
-		),
+		.refine((pat) => !pat || pat.startsWith("ghp_") || pat.startsWith("github_pat_"), {
+			message: "GitHub PAT should start with 'ghp_' or 'github_pat_'",
+		}),
 	repo_full_names: z.string().min(1, {
 		message: "At least one repository is required.",
 	}),
@@ -114,14 +111,15 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 					<AlertTitle className="text-xs sm:text-sm">Personal Access Token (Optional)</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
 						A GitHub PAT is only required for private repositories. Public repos work without a
-						token. {" "}
+						token.{" "}
 						<a
 							href="https://github.com/settings/tokens/new?description=surfsense&scopes=repo"
 							target="_blank"
 							rel="noopener noreferrer"
-							className="font-medium underline underline-offset-4"
+							className="font-medium underline underline-offset-4 inline-flex items-center gap-1.5"
 						>
 							Get your token
+							<ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
 						</a>{" "}
 					</AlertDescription>
 				</div>
