@@ -3,17 +3,8 @@ name: Build and Push Docker Image
 on:
   workflow_dispatch:
     inputs:
-      bump_type:
-        description: 'Version bump type (patch, minor, major)'
-        required: true
-        default: 'patch'
-        type: choice
-        options:
-        - patch
-        - minor
-        - major
       branch:
-        description: 'Branch to tag (leave empty for default branch)'
+        description: 'Branch to build from (leave empty for default branch)'
         required: false
         default: ''
 
@@ -34,55 +25,37 @@ jobs:
           ref: ${{ github.event.inputs.branch }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get latest SemVer tag and calculate next version
+      - name: Read app version and calculate next Docker build version
         id: tag_version
         run: |
-          git fetch --tags
-          LATEST_TAG=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort='v:refname' | tail -n 1)
-
-          if [ -z "$LATEST_TAG" ]; then
-            echo "No previous SemVer tag found. Starting with v0.1.0"
-            case "${{ github.event.inputs.bump_type }}" in
-              patch|minor)
-                NEXT_VERSION="v0.1.0"
-                ;;
-              major)
-                NEXT_VERSION="v1.0.0"
-                ;;
-              *)
-                echo "Invalid bump type: ${{ github.event.inputs.bump_type }}"
-                exit 1
-                ;;
-            esac
-          else
-            echo "Latest tag found: $LATEST_TAG"
-            VERSION=${LATEST_TAG#v}
-            MAJOR=$(echo $VERSION | cut -d. -f1)
-            MINOR=$(echo $VERSION | cut -d. -f2)
-            PATCH=$(echo $VERSION | cut -d. -f3)
-
-            case "${{ github.event.inputs.bump_type }}" in
-              patch)
-                PATCH=$((PATCH + 1))
-                ;;
-              minor)
-                MINOR=$((MINOR + 1))
-                PATCH=0
-                ;;
-              major)
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-                ;;
-              *)
-                echo "Invalid bump type: ${{ github.event.inputs.bump_type }}"
-                exit 1
-                ;;
-            esac
-            NEXT_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          # Read version from pyproject.toml
+          APP_VERSION=$(grep -E '^version = ' surfsense_backend/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          echo "App version from pyproject.toml: $APP_VERSION"
+          
+          if [ -z "$APP_VERSION" ]; then
+            echo "Error: Could not read version from surfsense_backend/pyproject.toml"
+            exit 1
           fi
-
-          echo "Calculated next version: $NEXT_VERSION"
+          
+          # Fetch all tags
+          git fetch --tags
+          
+          # Find the latest docker build tag for this app version (format: APP_VERSION.BUILD_NUMBER)
+          # Tags follow pattern: 0.0.11.1, 0.0.11.2, etc.
+          LATEST_BUILD_TAG=$(git tag --list "${APP_VERSION}.*" --sort='-v:refname' | head -n 1)
+          
+          if [ -z "$LATEST_BUILD_TAG" ]; then
+            echo "No previous Docker build tag found for version ${APP_VERSION}. Starting with ${APP_VERSION}.1"
+            NEXT_VERSION="${APP_VERSION}.1"
+          else
+            echo "Latest Docker build tag found: $LATEST_BUILD_TAG"
+            # Extract the build number (4th component)
+            BUILD_NUMBER=$(echo "$LATEST_BUILD_TAG" | rev | cut -d. -f1 | rev)
+            NEXT_BUILD=$((BUILD_NUMBER + 1))
+            NEXT_VERSION="${APP_VERSION}.${NEXT_BUILD}"
+          fi
+          
+          echo "Calculated next Docker version: $NEXT_VERSION"
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
 
       - name: Create and Push Tag
@@ -94,7 +67,7 @@ jobs:
           COMMIT_SHA=$(git rev-parse HEAD)
           echo "Tagging commit $COMMIT_SHA with $NEXT_TAG"
 
-          git tag -a "$NEXT_TAG" -m "Release $NEXT_TAG"
+          git tag -a "$NEXT_TAG" -m "Docker build $NEXT_TAG"
           echo "Pushing tag $NEXT_TAG to origin"
           git push origin "$NEXT_TAG"
 

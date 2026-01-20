@@ -19,6 +19,7 @@ interface ConnectorEditViewProps {
 	isSaving: boolean;
 	isDisconnecting: boolean;
 	isIndexing?: boolean;
+	searchSpaceId?: string;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
@@ -40,6 +41,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	isSaving,
 	isDisconnecting,
 	isIndexing = false,
+	searchSpaceId,
 	onStartDateChange,
 	onEndDateChange,
 	onPeriodicEnabledChange,
@@ -170,7 +172,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{isQuickIndexing || isIndexing ? (
 									<>
 										<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-										Indexing...
+										Syncing
 									</>
 								) : (
 									<>
@@ -197,6 +199,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								connector={connector}
 								onConfigChange={onConfigChange}
 								onNameChange={onNameChange}
+								searchSpaceId={searchSpaceId}
 							/>
 						)}
 
@@ -218,15 +221,36 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										/>
 									)}
 
-								{/* Periodic sync - not shown for Google Drive */}
-								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
-									<PeriodicSyncConfig
-										enabled={periodicEnabled}
-										frequencyMinutes={frequencyMinutes}
-										onEnabledChange={onPeriodicEnabledChange}
-										onFrequencyChange={onFrequencyChange}
-									/>
-								)}
+								{/* Periodic sync - shown for all indexable connectors */}
+								{(() => {
+									// Check if Google Drive has folders/files selected
+									const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+									const selectedFolders =
+										(connector.config?.selected_folders as
+											| Array<{ id: string; name: string }>
+											| undefined) || [];
+									const selectedFiles =
+										(connector.config?.selected_files as
+											| Array<{ id: string; name: string }>
+											| undefined) || [];
+									const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
+									const isDisabled = isGoogleDrive && !hasItemsSelected;
+
+									return (
+										<PeriodicSyncConfig
+											enabled={periodicEnabled}
+											frequencyMinutes={frequencyMinutes}
+											onEnabledChange={onPeriodicEnabledChange}
+											onFrequencyChange={onFrequencyChange}
+											disabled={isDisabled}
+											disabledMessage={
+												isDisabled
+													? "Select at least one folder or file above to enable periodic sync"
+													: undefined
+											}
+										/>
+									);
+								})()}
 							</>
 						)}
 
@@ -277,7 +301,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 								{isDisconnecting ? (
 									<>
 										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-										Disconnecting...
+										Disconnecting
 									</>
 								) : (
 									"Confirm Disconnect"

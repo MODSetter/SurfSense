@@ -4,14 +4,14 @@ import {
 	ChevronDown,
 	ChevronRight,
 	File,
+	FileSpreadsheet,
 	FileText,
-	Folder,
+	FolderClosed,
 	FolderOpen,
 	HardDrive,
 	Image,
 	Loader2,
 	Presentation,
-	Sheet,
 } from "lucide-react";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -53,16 +53,16 @@ interface GoogleDriveFolderTreeProps {
 // Helper to get appropriate icon for file type
 function getFileIcon(mimeType: string, className: string = "h-4 w-4") {
 	if (mimeType.includes("spreadsheet") || mimeType.includes("excel")) {
-		return <Sheet className={`${className} text-green-600`} />;
+		return <FileSpreadsheet className={`${className} text-green-500`} />;
 	}
 	if (mimeType.includes("presentation") || mimeType.includes("powerpoint")) {
-		return <Presentation className={`${className} text-orange-600`} />;
+		return <Presentation className={`${className} text-orange-500`} />;
 	}
 	if (mimeType.includes("document") || mimeType.includes("word") || mimeType.includes("text")) {
-		return <FileText className={`${className} text-blue-600`} />;
+		return <FileText className={`${className} text-gray-500`} />;
 	}
 	if (mimeType.includes("image")) {
-		return <Image className={`${className} text-purple-600`} />;
+		return <Image className={`${className} text-purple-500`} />;
 	}
 	return <File className={`${className} text-gray-500`} />;
 }
@@ -280,9 +280,9 @@ export function GoogleDriveFolderTree({
 					<div className="shrink-0">
 						{isFolder ? (
 							isExpanded ? (
-								<FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
+								<FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
 							) : (
-								<Folder className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+								<FolderClosed className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
 							)
 						) : (
 							getFileIcon(item.mimeType, "h-3 w-3 sm:h-4 sm:w-4")

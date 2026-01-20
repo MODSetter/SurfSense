@@ -102,6 +102,8 @@ async def download_and_process_file(
             connector_info["metadata"]["file_size"] = file["size"]
         if "webViewLink" in file:
             connector_info["metadata"]["web_view_link"] = file["webViewLink"]
+        if "md5Checksum" in file:
+            connector_info["metadata"]["md5_checksum"] = file["md5Checksum"]
 
         if is_google_workspace_file(mime_type):
             connector_info["metadata"]["exported_as"] = "pdf"

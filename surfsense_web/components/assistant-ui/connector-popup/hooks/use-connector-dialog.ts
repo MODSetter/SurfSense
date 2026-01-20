@@ -80,11 +80,17 @@ export const useConnectorDialog = () => {
 		connectorTitle: string;
 	} | null>(null);
 
+	// MCP list view state (for managing multiple MCP connectors)
+	const [viewingMCPList, setViewingMCPList] = useState(false);
+
 	// Track if we came from accounts list when entering edit mode
 	const [cameFromAccountsList, setCameFromAccountsList] = useState<{
 		connectorType: string;
 		connectorTitle: string;
 	} | null>(null);
+
+	// Track if we came from MCP list view when entering edit mode
+	const [cameFromMCPList, setCameFromMCPList] = useState(false);
 
 	// Helper function to get frequency label
 	const getFrequencyLabel = useCallback((minutes: string): string => {
@@ -137,6 +143,16 @@ export const useConnectorDialog = () => {
 				// Clear viewing accounts type if view is not "accounts" anymore
 				if (params.view !== "accounts" && viewingAccountsType) {
 					setViewingAccountsType(null);
+				}
+
+				// Clear MCP list view if view is not "mcp-list" anymore
+				if (params.view !== "mcp-list" && viewingMCPList) {
+					setViewingMCPList(false);
+				}
+
+				// Handle MCP list view
+				if (params.view === "mcp-list" && !viewingMCPList) {
+					setViewingMCPList(true);
 				}
 
 				// Handle connect view
@@ -203,11 +219,9 @@ export const useConnectorDialog = () => {
 							setEditingConnector(connector);
 							setConnectorConfig(connector.config);
 							setConnectorName(connector.name);
-							// Load existing periodic sync settings (disabled for Google Drive and non-indexable connectors)
+							// Load existing periodic sync settings (disabled for non-indexable connectors)
 							setPeriodicEnabled(
-								connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" || !connector.is_indexable
-									? false
-									: connector.periodic_indexing_enabled
+								!connector.is_indexable ? false : connector.periodic_indexing_enabled
 							);
 							setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
 							// Reset dates - user can set new ones for re-indexing
@@ -421,6 +435,7 @@ export const useConnectorDialog = () => {
 					connector_type: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 					config: {},
 					is_indexable: true,
+					is_active: true,
 					last_indexed_at: null,
 					periodic_indexing_enabled: false,
 					indexing_frequency_minutes: null,
@@ -491,20 +506,23 @@ export const useConnectorDialog = () => {
 
 	// Handle submitting connect form
 	const handleSubmitConnectForm = useCallback(
-		async (formData: {
-			name: string;
-			connector_type: string;
-			config: Record<string, unknown>;
-			is_indexable: boolean;
-			last_indexed_at: null;
-			periodic_indexing_enabled: boolean;
-			indexing_frequency_minutes: number | null;
-			next_scheduled_at: null;
-			startDate?: Date;
-			endDate?: Date;
-			periodicEnabled?: boolean;
-			frequencyMinutes?: string;
-		}) => {
+		async (
+			formData: {
+				name: string;
+				connector_type: string;
+				config: Record<string, unknown>;
+				is_indexable: boolean;
+				last_indexed_at: null;
+				periodic_indexing_enabled: boolean;
+				indexing_frequency_minutes: number | null;
+				next_scheduled_at: null;
+				startDate?: Date;
+				endDate?: Date;
+				periodicEnabled?: boolean;
+				frequencyMinutes?: string;
+			},
+			onIndexingStart?: (connectorId: number) => void
+		) => {
 			if (!searchSpaceId || !connectingConnectorType) return;
 
 			// Prevent multiple submissions using ref for immediate check
@@ -522,6 +540,7 @@ export const useConnectorDialog = () => {
 					data: {
 						...connectorData,
 						connector_type: connectorData.connector_type as EnumConnectorName,
+						is_active: true,
 						next_scheduled_at: connectorData.next_scheduled_at as string | null,
 					},
 					queryParams: {
@@ -603,6 +622,11 @@ export const useConnectorDialog = () => {
 									});
 								}
 
+								// Notify caller that indexing is starting (for UI syncing state)
+								if (onIndexingStart) {
+									onIndexingStart(connector.id);
+								}
+
 								// Start indexing (backend will use defaults if dates are undefined)
 								const startDateStr = startDateForIndexing
 									? format(startDateForIndexing, "yyyy-MM-dd")
@@ -620,13 +644,16 @@ export const useConnectorDialog = () => {
 									},
 								});
 
-								toast.success(`${connectorTitle} connected and indexing started!`, {
+								const successMessage =
+									currentConnectorType === "MCP_CONNECTOR"
+										? `${connector.name} added successfully`
+										: `${connectorTitle} connected and indexing started!`;
+								toast.success(successMessage, {
 									description: periodicEnabledForIndexing
 										? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutesForIndexing)}.`
 										: "You can continue working while we sync your data.",
 								});
 
-								// Close modal and return to main view
 								const url = new URL(window.location.href);
 								url.searchParams.delete("modal");
 								url.searchParams.delete("tab");
@@ -682,7 +709,14 @@ export const useConnectorDialog = () => {
 									await refetchAllConnectors();
 								} else {
 									// Other non-indexable connectors - just show success message and close
-									toast.success(`${connectorTitle} connected successfully!`);
+									const successMessage =
+										currentConnectorType === "MCP_CONNECTOR"
+											? `${connector.name} added successfully`
+											: `${connectorTitle} connected successfully!`;
+									toast.success(successMessage);
+
+									// Refresh connectors list before closing modal
+									await refetchAllConnectors();
 
 									// Close modal and return to main view
 									const url = new URL(window.location.href);
@@ -726,11 +760,18 @@ export const useConnectorDialog = () => {
 	const handleBackFromConnect = useCallback(() => {
 		const url = new URL(window.location.href);
 		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("tab", "all");
-		url.searchParams.delete("view");
+
+		// If we're connecting an MCP and came from list view, go back to list
+		if (connectingConnectorType === "MCP_CONNECTOR" && viewingMCPList) {
+			url.searchParams.set("view", "mcp-list");
+		} else {
+			url.searchParams.set("tab", "all");
+			url.searchParams.delete("view");
+		}
+
 		url.searchParams.delete("connectorType");
 		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
+	}, [router, connectingConnectorType, viewingMCPList]);
 
 	// Handle going back from YouTube view
 	const handleBackFromYouTube = useCallback(() => {
@@ -773,6 +814,38 @@ export const useConnectorDialog = () => {
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
 
+	// Handle viewing MCP list
+	const handleViewMCPList = useCallback(() => {
+		if (!searchSpaceId) return;
+
+		setViewingMCPList(true);
+
+		// Update URL to show MCP list view
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("view", "mcp-list");
+		window.history.pushState({ modal: true }, "", url.toString());
+	}, [searchSpaceId]);
+
+	// Handle going back from MCP list view
+	const handleBackFromMCPList = useCallback(() => {
+		setViewingMCPList(false);
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.delete("view");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
+	// Handle adding new MCP from list view
+	const handleAddNewMCPFromList = useCallback(() => {
+		setConnectingConnectorType("MCP_CONNECTOR");
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("view", "connect");
+		url.searchParams.set("connectorType", "MCP_CONNECTOR");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(
 		async (refreshConnectors: () => void) => {
@@ -809,20 +882,14 @@ export const useConnectorDialog = () => {
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 				// Update connector with periodic sync settings and config changes
-				// Note: Periodic sync is disabled for Google Drive connectors
 				if (periodicEnabled || indexingConnectorConfig) {
 					const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
 					await updateConnector({
 						id: indexingConfig.connectorId,
 						data: {
-							...(periodicEnabled &&
-								indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && {
-									periodic_indexing_enabled: true,
-									indexing_frequency_minutes: frequency,
-								}),
-							...(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" && {
-								periodic_indexing_enabled: false,
-								indexing_frequency_minutes: null,
+							...(periodicEnabled && {
+								periodic_indexing_enabled: true,
+								indexing_frequency_minutes: frequency,
 							}),
 							...(indexingConnectorConfig && {
 								config: indexingConnectorConfig,
@@ -839,11 +906,18 @@ export const useConnectorDialog = () => {
 					const selectedFiles = indexingConnectorConfig.selected_files as
 						| Array<{ id: string; name: string }>
 						| undefined;
+					const indexingOptions = indexingConnectorConfig.indexing_options as
+						| {
+								max_files_per_folder: number;
+								incremental_sync: boolean;
+								include_subfolders: boolean;
+						  }
+						| undefined;
 					if (
 						(selectedFolders && selectedFolders.length > 0) ||
 						(selectedFiles && selectedFiles.length > 0)
 					) {
-						// Index with folder/file selection
+						// Index with folder/file selection and indexing options
 						await indexConnector({
 							connector_id: indexingConfig.connectorId,
 							queryParams: {
@@ -852,6 +926,11 @@ export const useConnectorDialog = () => {
 							body: {
 								folders: selectedFolders || [],
 								files: selectedFiles || [],
+								indexing_options: indexingOptions || {
+									max_files_per_folder: 100,
+									incremental_sync: true,
+									include_subfolders: true,
+								},
 							},
 						});
 					} else {
@@ -891,7 +970,7 @@ export const useConnectorDialog = () => {
 				);
 
 				// Track periodic indexing started if enabled
-				if (periodicEnabled && indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR") {
+				if (periodicEnabled) {
 					trackPeriodicIndexingStarted(
 						Number(searchSpaceId),
 						indexingConfig.connectorType,
@@ -958,6 +1037,13 @@ export const useConnectorDialog = () => {
 		(connector: SearchSourceConnector) => {
 			if (!searchSpaceId) return;
 
+			// For MCP connectors from "All Connectors" tab, show the list view instead of directly editing
+			// (unless we're already in the MCP list view or on the Active tab where individual MCPs are shown)
+			if (connector.connector_type === "MCP_CONNECTOR" && !viewingMCPList && activeTab === "all") {
+				handleViewMCPList();
+				return;
+			}
+
 			// All connector types should be handled in the popup edit view
 			// Validate connector data
 			const connectorValidation = searchSourceConnector.safeParse(connector);
@@ -974,6 +1060,13 @@ export const useConnectorDialog = () => {
 				setCameFromAccountsList(null);
 			}
 
+			// Track if we came from MCP list view
+			if (viewingMCPList && connector.connector_type === "MCP_CONNECTOR") {
+				setCameFromMCPList(true);
+			} else {
+				setCameFromMCPList(false);
+			}
+
 			// Track index with date range opened event
 			if (connector.is_indexable) {
 				trackIndexWithDateRangeOpened(
@@ -985,12 +1078,8 @@ export const useConnectorDialog = () => {
 
 			setEditingConnector(connector);
 			setConnectorName(connector.name);
-			// Load existing periodic sync settings (disabled for Google Drive and non-indexable connectors)
-			setPeriodicEnabled(
-				connector.connector_type === "GOOGLE_DRIVE_CONNECTOR" || !connector.is_indexable
-					? false
-					: connector.periodic_indexing_enabled
-			);
+			// Load existing periodic sync settings (disabled for non-indexable connectors)
+			setPeriodicEnabled(!connector.is_indexable ? false : connector.periodic_indexing_enabled);
 			setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
 			// Reset dates - user can set new ones for re-indexing
 			setStartDate(undefined);
@@ -1003,13 +1092,13 @@ export const useConnectorDialog = () => {
 			url.searchParams.set("connectorId", connector.id.toString());
 			window.history.pushState({ modal: true }, "", url.toString());
 		},
-		[searchSpaceId, viewingAccountsType]
+		[searchSpaceId, viewingAccountsType, viewingMCPList, handleViewMCPList, activeTab]
 	);
 
 	// Handle saving connector changes
 	const handleSaveConnector = useCallback(
 		async (refreshConnectors: () => void) => {
-			if (!editingConnector || !searchSpaceId) return;
+			if (!editingConnector || !searchSpaceId || isSaving) return;
 
 			// Validate date range (skip for Google Drive which uses folder selection, Webcrawler which uses config, and non-indexable connectors)
 			if (
@@ -1030,6 +1119,24 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
+			// Prevent periodic indexing for Google Drive without folders/files selected
+			if (periodicEnabled && editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
+				const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
+					| Array<{ id: string; name: string }>
+					| undefined;
+				const selectedFiles = (connectorConfig || editingConnector.config)?.selected_files as
+					| Array<{ id: string; name: string }>
+					| undefined;
+				const hasItemsSelected =
+					(selectedFolders && selectedFolders.length > 0) ||
+					(selectedFiles && selectedFiles.length > 0);
+
+				if (!hasItemsSelected) {
+					toast.error("Select at least one folder or file to enable periodic sync");
+					return;
+				}
+			}
+
 			// Validate frequency minutes if periodic is enabled (only for indexable connectors)
 			if (periodicEnabled && editingConnector.is_indexable) {
 				const frequencyValidation = frequencyMinutesSchema.safeParse(frequencyMinutes);
@@ -1045,23 +1152,14 @@ export const useConnectorDialog = () => {
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
 				// Update connector with periodic sync settings, config changes, and name
-				// Note: Periodic sync is disabled for Google Drive connectors and non-indexable connectors
 				const frequency =
 					periodicEnabled && editingConnector.is_indexable ? parseInt(frequencyMinutes, 10) : null;
 				await updateConnector({
 					id: editingConnector.id,
 					data: {
 						name: connectorName || editingConnector.name,
-						periodic_indexing_enabled:
-							editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-							!editingConnector.is_indexable
-								? false
-								: periodicEnabled,
-						indexing_frequency_minutes:
-							editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
-							!editingConnector.is_indexable
-								? null
-								: frequency,
+						periodic_indexing_enabled: !editingConnector.is_indexable ? false : periodicEnabled,
+						indexing_frequency_minutes: !editingConnector.is_indexable ? null : frequency,
 						config: connectorConfig || editingConnector.config,
 					},
 				});
@@ -1079,6 +1177,13 @@ export const useConnectorDialog = () => {
 					const selectedFiles = (connectorConfig || editingConnector.config)?.selected_files as
 						| Array<{ id: string; name: string }>
 						| undefined;
+					const indexingOptions = (connectorConfig || editingConnector.config)?.indexing_options as
+						| {
+								max_files_per_folder: number;
+								incremental_sync: boolean;
+								include_subfolders: boolean;
+						  }
+						| undefined;
 					if (
 						(selectedFolders && selectedFolders.length > 0) ||
 						(selectedFiles && selectedFiles.length > 0)
@@ -1091,6 +1196,11 @@ export const useConnectorDialog = () => {
 							body: {
 								folders: selectedFolders || [],
 								files: selectedFiles || [],
+								indexing_options: indexingOptions || {
+									max_files_per_folder: 100,
+									incremental_sync: true,
+									include_subfolders: true,
+								},
 							},
 						});
 						const totalItems = (selectedFolders?.length || 0) + (selectedFiles?.length || 0);
@@ -1134,12 +1244,8 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-				// Track periodic indexing if enabled (for non-Google Drive connectors)
-				if (
-					periodicEnabled &&
-					editingConnector.is_indexable &&
-					editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
-				) {
+				// Track periodic indexing if enabled
+				if (periodicEnabled && editingConnector.is_indexable) {
 					trackPeriodicIndexingStarted(
 						Number(searchSpaceId),
 						editingConnector.connector_type,
@@ -1148,7 +1254,10 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-				toast.success(`${editingConnector.name} updated successfully`, {
+				// Generate toast message based on connector type
+				const toastTitle = `${editingConnector.name} updated successfully`;
+
+				toast.success(toastTitle, {
 					description: periodicEnabled
 						? `Periodic sync ${frequency ? `enabled every ${getFrequencyLabel(frequencyMinutes)}` : "enabled"}. ${indexingDescription}`
 						: indexingDescription,
@@ -1176,6 +1285,7 @@ export const useConnectorDialog = () => {
 		[
 			editingConnector,
 			searchSpaceId,
+			isSaving,
 			startDate,
 			endDate,
 			indexConnector,
@@ -1207,14 +1317,27 @@ export const useConnectorDialog = () => {
 					editingConnector.id
 				);
 
-				toast.success(`${editingConnector.name} disconnected successfully`);
+				toast.success(
+					editingConnector.connector_type === "MCP_CONNECTOR"
+						? `${editingConnector.name} MCP server removed successfully`
+						: `${editingConnector.name} disconnected successfully`
+				);
 
-				// Update URL - the effect will handle closing the modal and clearing state
+				// Update URL - for MCP from list view, go back to list; otherwise close modal
 				const url = new URL(window.location.href);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("view");
-				url.searchParams.delete("connectorId");
+				if (editingConnector.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
+					// Go back to MCP list view only if we came from there
+					setViewingMCPList(true);
+					url.searchParams.set("modal", "connectors");
+					url.searchParams.set("view", "mcp-list");
+					url.searchParams.delete("connectorId");
+				} else {
+					// Close modal for all other cases
+					url.searchParams.delete("modal");
+					url.searchParams.delete("tab");
+					url.searchParams.delete("view");
+					url.searchParams.delete("connectorId");
+				}
 				router.replace(url.pathname + url.search, { scroll: false });
 
 				refreshConnectors();
@@ -1266,6 +1389,21 @@ export const useConnectorDialog = () => {
 
 	// Handle going back from edit view
 	const handleBackFromEdit = useCallback(() => {
+		// If editing an MCP connector and came from MCP list, go back to MCP list view
+		if (editingConnector?.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
+			setViewingMCPList(true);
+			setCameFromMCPList(false);
+			const url = new URL(window.location.href);
+			url.searchParams.set("modal", "connectors");
+			url.searchParams.set("view", "mcp-list");
+			url.searchParams.delete("connectorId");
+			router.replace(url.pathname + url.search, { scroll: false });
+			setEditingConnector(null);
+			setConnectorName(null);
+			setConnectorConfig(null);
+			return;
+		}
+
 		// If we came from accounts list view, go back there
 		if (cameFromAccountsList && editingConnector) {
 			// Restore accounts list view
@@ -1278,10 +1416,10 @@ export const useConnectorDialog = () => {
 			url.searchParams.delete("connectorId");
 			router.replace(url.pathname + url.search, { scroll: false });
 		} else {
-			// Otherwise, go back to main connector popup
+			// Otherwise, go back to main connector popup (preserve the tab the user was on)
 			const url = new URL(window.location.href);
 			url.searchParams.set("modal", "connectors");
-			url.searchParams.set("tab", "all");
+			url.searchParams.set("tab", activeTab); // Use current tab instead of always "all"
 			url.searchParams.delete("view");
 			url.searchParams.delete("connectorId");
 			router.replace(url.pathname + url.search, { scroll: false });
@@ -1289,7 +1427,7 @@ export const useConnectorDialog = () => {
 		setEditingConnector(null);
 		setConnectorName(null);
 		setConnectorConfig(null);
-	}, [router, cameFromAccountsList, editingConnector]);
+	}, [router, cameFromAccountsList, editingConnector, cameFromMCPList, activeTab]);
 
 	// Handle dialog open/close
 	const handleOpenChange = useCallback(
@@ -1367,6 +1505,7 @@ export const useConnectorDialog = () => {
 		searchSpaceId,
 		allConnectors,
 		viewingAccountsType,
+		viewingMCPList,
 
 		// Setters
 		setSearchQuery,
@@ -1395,6 +1534,9 @@ export const useConnectorDialog = () => {
 		handleBackFromYouTube,
 		handleViewAccountsList,
 		handleBackFromAccountsList,
+		handleViewMCPList,
+		handleBackFromMCPList,
+		handleAddNewMCPFromList,
 		handleQuickIndexConnector,
 		connectorConfig,
 		setConnectorConfig,

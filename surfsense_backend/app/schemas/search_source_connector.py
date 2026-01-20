@@ -83,19 +83,34 @@ class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampMod
 
 
 class MCPServerConfig(BaseModel):
-    """Configuration for an MCP server connection (similar to Cursor's config)."""
+    """Configuration for an MCP server connection.
 
-    command: str  # e.g., "uvx", "node", "python"
+    Supports two transport types:
+    - stdio: Local process (command, args, env)
+    - streamable-http/http/sse: Remote HTTP server (url, headers)
+    """
+
+    # stdio transport fields
+    command: str | None = None  # e.g., "uvx", "node", "python"
     args: list[str] = []  # e.g., ["mcp-server-git", "--repository", "/path"]
     env: dict[str, str] = {}  # Environment variables for the server process
-    transport: str = "stdio"  # "stdio" | "sse" | "http" (stdio is most common)
+
+    # HTTP transport fields
+    url: str | None = None  # e.g., "https://mcp-server.com/mcp"
+    headers: dict[str, str] = {}  # HTTP headers for authentication
+
+    transport: str = "stdio"  # "stdio" | "streamable-http" | "http" | "sse"
+
+    def is_http_transport(self) -> bool:
+        """Check if this config uses HTTP transport."""
+        return self.transport in ("streamable-http", "http", "sse")
 
 
 class MCPConnectorCreate(BaseModel):
     """Schema for creating an MCP connector."""
 
     name: str
-    server_config: MCPServerConfig
+    server_config: MCPServerConfig  # Single MCP server configuration
 
 
 class MCPConnectorUpdate(BaseModel):
@@ -106,7 +121,7 @@ class MCPConnectorUpdate(BaseModel):
 
 
 class MCPConnectorRead(BaseModel):
-    """Schema for reading an MCP connector with server config."""
+    """Schema for reading an MCP connector with server configs."""
 
     id: int
     name: str
@@ -123,7 +138,8 @@ class MCPConnectorRead(BaseModel):
     def from_connector(cls, connector: SearchSourceConnectorRead) -> "MCPConnectorRead":
         """Convert from base SearchSourceConnectorRead."""
         config = connector.config or {}
-        server_config = MCPServerConfig(**config.get("server_config", {}))
+        server_config_data = config.get("server_config", {})
+        server_config = MCPServerConfig(**server_config_data)
 
         return cls(
             id=connector.id,

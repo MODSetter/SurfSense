@@ -1,6 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { NotificationButton } from "@/components/notifications/NotificationButton";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -29,6 +30,9 @@ export function Header({
 
 			{/* Right side - Actions */}
 			<div className="flex items-center gap-2">
+				{/* Notifications */}
+				<NotificationButton />
+
 				{/* Theme toggle */}
 				{onToggleTheme && (
 					<Tooltip>

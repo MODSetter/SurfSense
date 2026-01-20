@@ -152,6 +152,11 @@ class Permission(str, Enum):
     CHATS_UPDATE = "chats:update"
     CHATS_DELETE = "chats:delete"
 
+    # Comments
+    COMMENTS_CREATE = "comments:create"
+    COMMENTS_READ = "comments:read"
+    COMMENTS_DELETE = "comments:delete"
+
     # LLM Configs
     LLM_CONFIGS_CREATE = "llm_configs:create"
     LLM_CONFIGS_READ = "llm_configs:read"
@@ -209,6 +214,10 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.CHATS_READ.value,
         Permission.CHATS_UPDATE.value,
         Permission.CHATS_DELETE.value,
+        # Comments
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
+        Permission.COMMENTS_DELETE.value,
         # LLM Configs
         Permission.LLM_CONFIGS_CREATE.value,
         Permission.LLM_CONFIGS_READ.value,
@@ -252,6 +261,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.CHATS_READ.value,
         Permission.CHATS_UPDATE.value,
         Permission.CHATS_DELETE.value,
+        # Comments (no delete)
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
         # LLM Configs (read only)
         Permission.LLM_CONFIGS_READ.value,
         Permission.LLM_CONFIGS_CREATE.value,
@@ -279,6 +291,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.DOCUMENTS_READ.value,
         # Chats (read only)
         Permission.CHATS_READ.value,
+        # Comments (no delete)
+        Permission.COMMENTS_CREATE.value,
+        Permission.COMMENTS_READ.value,
         # LLM Configs (read only)
         Permission.LLM_CONFIGS_READ.value,
         # Podcasts (read only)
@@ -424,6 +439,84 @@ class NewChatMessage(BaseModel, TimestampMixin):
     # Relationships
     thread = relationship("NewChatThread", back_populates="messages")
     author = relationship("User")
+    comments = relationship(
+        "ChatComment",
+        back_populates="message",
+        cascade="all, delete-orphan",
+    )
+
+
+class ChatComment(BaseModel, TimestampMixin):
+    """
+    Comment model for comments on AI chat responses.
+    Supports one level of nesting (replies to comments, but no replies to replies).
+    """
+
+    __tablename__ = "chat_comments"
+
+    message_id = Column(
+        Integer,
+        ForeignKey("new_chat_messages.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    parent_id = Column(
+        Integer,
+        ForeignKey("chat_comments.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    author_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    content = Column(Text, nullable=False)
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    # Relationships
+    message = relationship("NewChatMessage", back_populates="comments")
+    author = relationship("User")
+    parent = relationship(
+        "ChatComment", remote_side="ChatComment.id", backref="replies"
+    )
+    mentions = relationship(
+        "ChatCommentMention",
+        back_populates="comment",
+        cascade="all, delete-orphan",
+    )
+
+
+class ChatCommentMention(BaseModel, TimestampMixin):
+    """
+    Tracks @mentions in chat comments for notification purposes.
+    """
+
+    __tablename__ = "chat_comment_mentions"
+
+    comment_id = Column(
+        Integer,
+        ForeignKey("chat_comments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mentioned_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Relationships
+    comment = relationship("ChatComment", back_populates="mentions")
+    mentioned_user = relationship("User")
 
 
 class Document(BaseModel, TimestampMixin):
@@ -574,6 +667,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="Log.id",
         cascade="all, delete-orphan",
     )
+    notifications = relationship(
+        "Notification",
+        back_populates="search_space",
+        order_by="Notification.created_at.desc()",
+        cascade="all, delete-orphan",
+    )
     search_source_connectors = relationship(
         "SearchSourceConnector",
         back_populates="search_space",
@@ -710,6 +809,39 @@ class Log(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
     search_space = relationship("SearchSpace", back_populates="logs")
+
+
+class Notification(BaseModel, TimestampMixin):
+    __tablename__ = "notifications"
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+    )
+    type = Column(
+        String(50), nullable=False
+    )  # 'connector_indexing', 'document_processing', etc.
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    read = Column(
+        Boolean, nullable=False, default=False, server_default=text("false"), index=True
+    )
+    notification_metadata = Column("metadata", JSONB, nullable=True, default={})
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    user = relationship("User", back_populates="notifications")
+    search_space = relationship("SearchSpace", back_populates="notifications")
 
 
 class SearchSpaceRole(BaseModel, TimestampMixin):
@@ -856,6 +988,12 @@ if config.AUTH_TYPE == "GOOGLE":
             "OAuthAccount", lazy="joined"
         )
         search_spaces = relationship("SearchSpace", back_populates="user")
+        notifications = relationship(
+            "Notification",
+            back_populates="user",
+            order_by="Notification.created_at.desc()",
+            cascade="all, delete-orphan",
+        )
 
         # RBAC relationships
         search_space_memberships = relationship(
@@ -893,6 +1031,12 @@ else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
         search_spaces = relationship("SearchSpace", back_populates="user")
+        notifications = relationship(
+            "Notification",
+            back_populates="user",
+            order_by="Notification.created_at.desc()",
+            cascade="all, delete-orphan",
+        )
 
         # RBAC relationships
         search_space_memberships = relationship(
@@ -956,11 +1100,36 @@ async def setup_indexes():
                 "CREATE INDEX IF NOT EXISTS chucks_search_index ON chunks USING gin (to_tsvector('english', content))"
             )
         )
+        # pg_trgm indexes for efficient ILIKE '%term%' searches on titles
+        # Critical for document mention picker (@mentions) to scale
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_documents_title_trgm ON documents USING gin (title gin_trgm_ops)"
+            )
+        )
+        # B-tree index on search_space_id for fast filtering
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_documents_search_space_id ON documents (search_space_id)"
+            )
+        )
+        # Covering index for "recent documents" query - enables index-only scan
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_documents_search_space_updated ON documents (search_space_id, updated_at DESC NULLS LAST) INCLUDE (id, title, document_type)"
+            )
+        )
+        await conn.execute(
+            text(
+                "CREATE INDEX IF NOT EXISTS idx_surfsense_docs_title_trgm ON surfsense_docs_documents USING gin (title gin_trgm_ops)"
+            )
+        )
 
 
 async def create_db_and_tables():
     async with engine.begin() as conn:
         await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
         await conn.run_sync(Base.metadata.create_all)
     await setup_indexes()
 

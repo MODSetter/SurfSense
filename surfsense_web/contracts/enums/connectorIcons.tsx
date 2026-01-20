@@ -64,6 +64,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Image src="/connectors/youtube.svg" alt="YouTube" {...imgProps} />;
 		case EnumConnectorName.CIRCLEBACK_CONNECTOR:
 			return <IconUsersGroup {...iconProps} />;
+		case EnumConnectorName.MCP_CONNECTOR:
+			return <Image src="/connectors/modelcontextprotocol.svg" alt="MCP" {...imgProps} />;
 		// Additional cases for non-enum connector types
 		case "YOUTUBE_CONNECTOR":
 			return <Image src="/connectors/youtube.svg" alt="YouTube" {...imgProps} />;

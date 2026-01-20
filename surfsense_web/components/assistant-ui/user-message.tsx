@@ -90,7 +90,7 @@ export const UserMessage: FC = () => {
 				</div>
 				{/* User avatar - only shown in shared chats */}
 				{author && (
-					<div className="shrink-0">
+					<div className="shrink-0 mb-1.5">
 						<UserAvatar displayName={author.displayName} avatarUrl={author.avatarUrl} />
 					</div>
 				)}

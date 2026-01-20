@@ -19,6 +19,8 @@ from app.db import (
 from app.schemas import (
     DocumentRead,
     DocumentsCreate,
+    DocumentTitleRead,
+    DocumentTitleSearchResponse,
     DocumentUpdate,
     DocumentWithChunksRead,
     PaginatedResponse,
@@ -426,6 +428,112 @@ async def search_documents(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to search documents: {e!s}"
+        ) from e
+
+
+@router.get("/documents/search/titles", response_model=DocumentTitleSearchResponse)
+async def search_document_titles(
+    search_space_id: int,
+    title: str = "",
+    page: int = 0,
+    page_size: int = 20,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Lightweight document title search optimized for mention picker (@mentions).
+
+    Returns only id, title, and document_type - no content or metadata.
+    Uses pg_trgm fuzzy search with similarity scoring for typo tolerance.
+    Results are ordered by relevance using trigram similarity scores.
+
+    Args:
+        search_space_id: The search space to search in. Required.
+        title: Search query (case-insensitive). If empty or < 2 chars, returns recent documents.
+        page: Zero-based page index. Default: 0.
+        page_size: Number of items per page. Default: 20.
+        session: Database session (injected).
+        user: Current authenticated user (injected).
+
+    Returns:
+        DocumentTitleSearchResponse: Lightweight list with has_more flag (no total count).
+    """
+    from sqlalchemy import desc, func, or_
+
+    try:
+        # Check permission for the search space
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.DOCUMENTS_READ.value,
+            "You don't have permission to read documents in this search space",
+        )
+
+        # Base query - only select lightweight fields
+        query = select(
+            Document.id,
+            Document.title,
+            Document.document_type,
+        ).filter(Document.search_space_id == search_space_id)
+
+        # If query is too short, return recent documents ordered by updated_at
+        if len(title.strip()) < 2:
+            query = query.order_by(Document.updated_at.desc().nullslast())
+        else:
+            # Fuzzy search using pg_trgm similarity + ILIKE fallback
+            search_term = title.strip()
+
+            # Similarity threshold for fuzzy matching (0.3 = ~30% trigram overlap)
+            # Lower values = more fuzzy, higher values = stricter matching
+            similarity_threshold = 0.3
+
+            # Match documents that either:
+            # 1. Have high trigram similarity (fuzzy match - handles typos)
+            # 2. Contain the exact substring (ILIKE - handles partial matches)
+            query = query.filter(
+                or_(
+                    func.similarity(Document.title, search_term) > similarity_threshold,
+                    Document.title.ilike(f"%{search_term}%"),
+                )
+            )
+
+            # Order by similarity score (descending) for best relevance ranking
+            # Higher similarity = better match = appears first
+            query = query.order_by(
+                desc(func.similarity(Document.title, search_term)),
+                Document.title,  # Alphabetical tiebreaker
+            )
+
+        # Fetch page_size + 1 to determine has_more without COUNT query
+        offset = page * page_size
+        result = await session.execute(query.offset(offset).limit(page_size + 1))
+        rows = result.all()
+
+        # Check if there are more results
+        has_more = len(rows) > page_size
+        items = rows[:page_size]  # Only return requested page_size
+
+        # Convert to response format
+        api_documents = [
+            DocumentTitleRead(
+                id=row.id,
+                title=row.title,
+                document_type=row.document_type,
+            )
+            for row in items
+        ]
+
+        return DocumentTitleSearchResponse(
+            items=api_documents,
+            has_more=has_more,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to search document titles: {e!s}"
         ) from e
 
 

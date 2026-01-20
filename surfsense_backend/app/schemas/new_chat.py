@@ -105,6 +105,7 @@ class NewChatThreadWithMessages(NewChatThreadRead):
     """Schema for reading a thread with its messages."""
 
     messages: list[NewChatMessageRead] = []
+    has_comments: bool = False
 
 
 # =============================================================================

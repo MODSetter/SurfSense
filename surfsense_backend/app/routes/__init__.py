@@ -3,6 +3,7 @@ from fastapi import APIRouter
 from .airtable_add_connector_route import (
     router as airtable_add_connector_router,
 )
+from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
 from .confluence_add_connector_route import router as confluence_add_connector_router
@@ -25,6 +26,7 @@ from .luma_add_connector_route import router as luma_add_connector_router
 from .new_chat_routes import router as new_chat_router
 from .new_llm_config_routes import router as new_llm_config_router
 from .notes_routes import router as notes_router
+from .notifications_routes import router as notifications_router
 from .notion_add_connector_route import router as notion_add_connector_router
 from .podcasts_routes import router as podcasts_router
 from .rbac_routes import router as rbac_router
@@ -42,6 +44,7 @@ router.include_router(editor_router)
 router.include_router(documents_router)
 router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
+router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
@@ -61,3 +64,4 @@ router.include_router(new_llm_config_router)  # LLM configs with prompt configur
 router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
 router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
+router.include_router(notifications_router)  # Notifications with Electric SQL sync
