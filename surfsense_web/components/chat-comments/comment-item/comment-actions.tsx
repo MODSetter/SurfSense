@@ -21,7 +21,7 @@ export function CommentActions({ canEdit, canDelete, onEdit, onDelete }: Comment
 				<Button
 					variant="ghost"
 					size="icon"
-					className="size-7 opacity-0 group-hover:opacity-100 transition-opacity"
+					className="size-7 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
 				>
 					<MoreHorizontal className="size-4" />
 				</Button>
