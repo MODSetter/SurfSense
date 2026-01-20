@@ -10,8 +10,8 @@ interface ChatSessionStatusProps {
 	currentUserId: string | null;
 	members: Array<{
 		user_id: string;
-		user_display_name: string | null;
-		user_email: string;
+		user_display_name?: string | null;
+		user_email?: string | null;
 	}>;
 	className?: string;
 }

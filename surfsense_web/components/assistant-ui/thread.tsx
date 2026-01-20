@@ -31,6 +31,7 @@ import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
 	llmPreferencesAtom,
@@ -39,6 +40,7 @@ import {
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
+import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import {
 	InlineMentionEditor,
@@ -59,6 +61,7 @@ import {
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
+import { useChatSessionState } from "@/hooks/use-chat-session-state";
 import { cn } from "@/lib/utils";
 
 interface ThreadProps {
@@ -215,13 +218,25 @@ const Composer: FC = () => {
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
-	const { search_space_id } = useParams();
+	const { search_space_id, chat_id } = useParams();
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const composerRuntime = useComposerRuntime();
 	const hasAutoFocusedRef = useRef(false);
 
 	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+
+	// Live collaboration: track AI responding state
+	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const { data: members } = useAtomValue(membersAtom);
+	const threadId = useMemo(() => {
+		if (Array.isArray(chat_id) && chat_id.length > 0) {
+			return Number.parseInt(chat_id[0], 10) || null;
+		}
+		return typeof chat_id === "string" ? Number.parseInt(chat_id, 10) || null : null;
+	}, [chat_id]);
+	const { isAiResponding, respondingToUserId } = useChatSessionState(threadId);
+	const isBlockedByOtherUser = isAiResponding && respondingToUserId !== currentUser?.id;
 
 	// Auto-focus editor on new chat page after mount
 	useEffect(() => {
@@ -298,9 +313,9 @@ const Composer: FC = () => {
 		[showDocumentPopover]
 	);
 
-	// Submit message (blocked during streaming or when document picker is open)
+	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
-		if (isThreadRunning) {
+		if (isThreadRunning || isBlockedByOtherUser) {
 			return;
 		}
 		if (!showDocumentPopover) {
@@ -315,6 +330,7 @@ const Composer: FC = () => {
 	}, [
 		showDocumentPopover,
 		isThreadRunning,
+		isBlockedByOtherUser,
 		composerRuntime,
 		setMentionedDocuments,
 		setMentionedDocumentIds,
@@ -374,7 +390,13 @@ const Composer: FC = () => {
 	);
 
 	return (
-		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
+			<ChatSessionStatus
+				isAiResponding={isAiResponding}
+				respondingToUserId={respondingToUserId}
+				currentUserId={currentUser?.id ?? null}
+				members={members ?? []}
+			/>
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
 				{/* Inline editor with @mention support */}
