@@ -5,6 +5,10 @@ import type { ChatSessionState } from "@/contracts/types/chat-session-state.type
 
 const ELECTRIC_URL = process.env.NEXT_PUBLIC_ELECTRIC_URL || "http://localhost:5133";
 
+/**
+ * Hook to get live chat session state for collaboration.
+ * Tracks which user the AI is currently responding to.
+ */
 export function useChatSessionState(threadId: number | null) {
 	const { data, isLoading, isError, error } = useShape<ChatSessionState>({
 		url: `${ELECTRIC_URL}/v1/shape`,
@@ -12,8 +16,6 @@ export function useChatSessionState(threadId: number | null) {
 			table: "chat_session_state",
 			where: `thread_id = ${threadId}`,
 		},
-		// Skip fetching if no threadId
-		...(threadId ? {} : { url: undefined as unknown as string }),
 	});
 
 	const sessionState = data?.[0] ?? null;

@@ -226,7 +226,7 @@ const Composer: FC = () => {
 	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
 
-	// Live collaboration: track AI responding state
+	// Live collaboration state
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 	const { data: members } = useAtomValue(membersAtom);
 	const threadId = useMemo(() => {
@@ -439,13 +439,17 @@ const Composer: FC = () => {
 						/>,
 						document.body
 					)}
-				<ComposerAction />
+				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
 			</ComposerPrimitive.AttachmentDropzone>
 		</ComposerPrimitive.Root>
 	);
 };
 
-const ComposerAction: FC = () => {
+interface ComposerActionProps {
+	isBlockedByOtherUser?: boolean;
+}
+
+const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
 	// Check if any attachments are still being processed (running AND progress < 100)
 	// When progress is 100, processing is done but waiting for send()
 	const hasProcessingAttachments = useAssistantState(({ composer }) =>
@@ -480,7 +484,8 @@ const ComposerAction: FC = () => {
 		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
 	}, [preferences, globalConfigs, userConfigs]);
 
-	const isSendDisabled = hasProcessingAttachments || isComposerEmpty || !hasModelConfigured;
+	const isSendDisabled =
+		hasProcessingAttachments || isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
@@ -509,13 +514,15 @@ const ComposerAction: FC = () => {
 				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 					<TooltipIconButton
 						tooltip={
-							!hasModelConfigured
-								? "Please select a model from the header to start chatting"
-								: hasProcessingAttachments
-									? "Wait for attachments to process"
-									: isComposerEmpty
-										? "Enter a message to send"
-										: "Send message"
+							isBlockedByOtherUser
+								? "Wait for AI to finish responding"
+								: !hasModelConfigured
+									? "Please select a model from the header to start chatting"
+									: hasProcessingAttachments
+										? "Wait for attachments to process"
+										: isComposerEmpty
+											? "Enter a message to send"
+											: "Send message"
 						}
 						side="bottom"
 						type="submit"
