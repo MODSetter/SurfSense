@@ -1,14 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Info } from "lucide-react";
+import { ExternalLink, Info } from "lucide-react";
+import Link from "next/link";
 import type { FC } from "react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import {
-	Accordion,
-} from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -294,13 +292,18 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 				</Form>
 			</div>
 
-			{/* Documentation Section */}
-			<Accordion
-				type="single"
-				collapsible
-				className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5"
-			>
-			</Accordion>
+			{/* Documentation Link */}
+			<div>
+				<Link
+					href="/docs/connectors/github"
+					target="_blank"
+					rel="noopener noreferrer"
+					className="text-xs sm:text-sm font-medium underline underline-offset-4 hover:text-primary transition-colors inline-flex items-center gap-1.5"
+				>
+					View GitHub Connector Documentation
+					<ExternalLink className="h-3 w-3 sm:h-4 sm:w-4" />
+				</Link>
+			</div>
 		</div>
 	);
 };
