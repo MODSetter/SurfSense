@@ -1,6 +1,6 @@
 """MCP Client Wrapper.
 
-This module provides a client for communicating with MCP servers via stdio transport.
+This module provides a client for communicating with MCP servers via stdio and HTTP transports.
 It handles server lifecycle management, tool discovery, and tool execution.
 """
 
@@ -12,6 +12,7 @@ from typing import Any
 
 from mcp import ClientSession
 from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.client.streamable_http import streamablehttp_client
 
 logger = logging.getLogger(__name__)
 
@@ -222,7 +223,7 @@ class MCPClient:
 async def test_mcp_connection(
     command: str, args: list[str], env: dict[str, str] | None = None
 ) -> dict[str, Any]:
-    """Test connection to an MCP server and fetch available tools.
+    """Test connection to an MCP server via stdio and fetch available tools.
 
     Args:
         command: Command to spawn the MCP server
@@ -244,6 +245,54 @@ async def test_mcp_connection(
                 "tools": tools,
             }
     except (RuntimeError, ConnectionError, TimeoutError, OSError) as e:
+        return {
+            "status": "error",
+            "message": f"Failed to connect: {e!s}",
+            "tools": [],
+        }
+
+
+async def test_mcp_http_connection(
+    url: str, headers: dict[str, str] | None = None, transport: str = "streamable-http"
+) -> dict[str, Any]:
+    """Test connection to an MCP server via HTTP and fetch available tools.
+
+    Args:
+        url: URL of the MCP server
+        headers: Optional HTTP headers for authentication
+        transport: Transport type ("streamable-http", "http", or "sse")
+
+    Returns:
+        Dict with connection status and available tools
+
+    """
+    try:
+        logger.info("Testing HTTP MCP connection to: %s (transport: %s)", url, transport)
+        
+        # Use streamable HTTP client for all HTTP-based transports
+        async with streamablehttp_client(url, headers=headers or {}) as (read, write, _):
+            async with ClientSession(read, write) as session:
+                await session.initialize()
+                
+                # List available tools
+                response = await session.list_tools()
+                tools = []
+                for tool in response.tools:
+                    tools.append({
+                        "name": tool.name,
+                        "description": tool.description or "",
+                        "input_schema": tool.inputSchema if hasattr(tool, "inputSchema") else {},
+                    })
+                
+                logger.info("HTTP MCP connection successful. Found %d tools.", len(tools))
+                return {
+                    "status": "success",
+                    "message": f"Connected successfully. Found {len(tools)} tools.",
+                    "tools": tools,
+                }
+                
+    except Exception as e:
+        logger.error("Failed to connect to HTTP MCP server: %s", e, exc_info=True)
         return {
             "status": "error",
             "message": f"Failed to connect: {e!s}",

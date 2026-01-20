@@ -48,6 +48,10 @@ let initPromise: Promise<ElectricClient> | null = null;
 // Cache for sync handles to prevent duplicate subscriptions (memory optimization)
 const activeSyncHandles = new Map<string, SyncHandle>();
 
+// Track pending sync operations to prevent race conditions
+// If a sync is in progress, subsequent calls will wait for it instead of starting a new one
+const pendingSyncs = new Map<string, Promise<SyncHandle>>();
+
 // Version for sync state - increment this to force fresh sync when Electric config changes
 // Set to v2 for user-specific database architecture
 const SYNC_VERSION = 2;
@@ -224,6 +228,19 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				CREATE INDEX IF NOT EXISTS idx_documents_search_space_type ON documents(search_space_id, document_type);
 			`);
 
+			// Create the chat_comment_mentions table schema in PGlite
+			await db.exec(`
+				CREATE TABLE IF NOT EXISTS chat_comment_mentions (
+					id INTEGER PRIMARY KEY,
+					comment_id INTEGER NOT NULL,
+					mentioned_user_id TEXT NOT NULL,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				);
+				
+				CREATE INDEX IF NOT EXISTS idx_chat_comment_mentions_user_id ON chat_comment_mentions(mentioned_user_id);
+				CREATE INDEX IF NOT EXISTS idx_chat_comment_mentions_comment_id ON chat_comment_mentions(comment_id);
+			`);
+
 			const electricUrl = getElectricUrl();
 
 			// STEP 4: Create the client wrapper
@@ -243,7 +260,16 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 						return existingHandle;
 					}
 
-					// Build params for the shape request
+					// Check if there's already a pending sync for this shape (prevent race condition)
+					const pendingSync = pendingSyncs.get(cacheKey);
+					if (pendingSync) {
+						console.log(`[Electric] Waiting for pending sync to complete: ${cacheKey}`);
+						return pendingSync;
+					}
+
+					// Create and track the sync promise to prevent race conditions
+					const syncPromise = (async (): Promise<SyncHandle> => {
+						// Build params for the shape request
 					// Electric SQL expects params as URL query parameters
 					const params: Record<string, string> = { table };
 
@@ -394,7 +420,55 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 								) => Promise<{ unsubscribe: () => void; isUpToDate: boolean; stream: unknown }>;
 							};
 						};
-						const shape = await pgWithElectric.electric.syncShapeToTable(shapeConfig);
+						
+						let shape: { unsubscribe: () => void; isUpToDate: boolean; stream: unknown };
+						try {
+							shape = await pgWithElectric.electric.syncShapeToTable(shapeConfig);
+						} catch (syncError) {
+							// Handle "Already syncing" error - pglite-sync might not have fully cleaned up yet
+							const errorMessage = syncError instanceof Error ? syncError.message : String(syncError);
+							if (errorMessage.includes("Already syncing")) {
+								console.warn(`[Electric] Already syncing ${table}, waiting for existing sync to settle...`);
+								
+								// Wait a short time for pglite-sync to settle
+								await new Promise(resolve => setTimeout(resolve, 100));
+								
+								// Check if an active handle now exists (another sync might have completed)
+								const existingHandle = activeSyncHandles.get(cacheKey);
+								if (existingHandle) {
+									console.log(`[Electric] Found existing handle after waiting: ${cacheKey}`);
+									return existingHandle;
+								}
+								
+								// Retry once after waiting
+								console.log(`[Electric] Retrying sync for ${table}...`);
+								try {
+									shape = await pgWithElectric.electric.syncShapeToTable(shapeConfig);
+								} catch (retryError) {
+									const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
+									if (retryMessage.includes("Already syncing")) {
+										// Still syncing - create a placeholder handle that indicates the table is being synced
+										console.warn(`[Electric] ${table} still syncing, creating placeholder handle`);
+										const placeholderHandle: SyncHandle = {
+											unsubscribe: () => {
+												console.log(`[Electric] Placeholder unsubscribe for: ${cacheKey}`);
+												activeSyncHandles.delete(cacheKey);
+											},
+											get isUpToDate() {
+												return false; // We don't know the real state
+											},
+											stream: undefined,
+											initialSyncPromise: Promise.resolve(), // Already syncing means data should be coming
+										};
+										activeSyncHandles.set(cacheKey, placeholderHandle);
+										return placeholderHandle;
+									}
+									throw retryError;
+								}
+							} else {
+								throw syncError;
+							}
+						}
 
 						if (!shape) {
 							throw new Error("syncShapeToTable returned undefined");
@@ -555,6 +629,18 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 						}
 						throw error;
 					}
+					})();
+
+					// Track the sync promise to prevent concurrent syncs for the same shape
+					pendingSyncs.set(cacheKey, syncPromise);
+
+					// Clean up the pending sync when done (whether success or failure)
+					syncPromise.finally(() => {
+						pendingSyncs.delete(cacheKey);
+						console.log(`[Electric] Pending sync removed for: ${cacheKey}`);
+					});
+
+					return syncPromise;
 				},
 			};
 
@@ -600,8 +686,9 @@ export async function cleanupElectric(): Promise<void> {
 			}
 		}
 	}
-	// Ensure cache is empty
+	// Ensure caches are empty
 	activeSyncHandles.clear();
+	pendingSyncs.clear();
 
 	try {
 		// Close the PGlite database connection

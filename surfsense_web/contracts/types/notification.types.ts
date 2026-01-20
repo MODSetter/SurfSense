@@ -5,7 +5,11 @@ import { documentTypeEnum } from "./document.types";
 /**
  * Notification type enum - matches backend notification types
  */
-export const notificationTypeEnum = z.enum(["connector_indexing", "document_processing"]);
+export const notificationTypeEnum = z.enum([
+	"connector_indexing",
+	"document_processing",
+	"new_mention",
+]);
 
 /**
  * Notification status enum - used in metadata
@@ -69,12 +73,27 @@ export const documentProcessingMetadata = baseNotificationMetadata.extend({
 });
 
 /**
+ * New mention metadata schema
+ */
+export const newMentionMetadata = z.object({
+	mention_id: z.number(),
+	comment_id: z.number(),
+	message_id: z.number(),
+	thread_id: z.number(),
+	thread_title: z.string(),
+	author_id: z.string(),
+	author_name: z.string(),
+	content_preview: z.string(),
+});
+
+/**
  * Union of all notification metadata types
  * Use this when the notification type is unknown
  */
 export const notificationMetadata = z.union([
 	connectorIndexingMetadata,
 	documentProcessingMetadata,
+	newMentionMetadata,
 	baseNotificationMetadata,
 ]);
 
@@ -107,6 +126,11 @@ export const documentProcessingNotification = notification.extend({
 	metadata: documentProcessingMetadata,
 });
 
+export const newMentionNotification = notification.extend({
+	type: z.literal("new_mention"),
+	metadata: newMentionMetadata,
+});
+
 // Inferred types
 export type NotificationTypeEnum = z.infer<typeof notificationTypeEnum>;
 export type NotificationStatusEnum = z.infer<typeof notificationStatusEnum>;
@@ -114,7 +138,9 @@ export type DocumentProcessingStageEnum = z.infer<typeof documentProcessingStage
 export type BaseNotificationMetadata = z.infer<typeof baseNotificationMetadata>;
 export type ConnectorIndexingMetadata = z.infer<typeof connectorIndexingMetadata>;
 export type DocumentProcessingMetadata = z.infer<typeof documentProcessingMetadata>;
+export type NewMentionMetadata = z.infer<typeof newMentionMetadata>;
 export type NotificationMetadata = z.infer<typeof notificationMetadata>;
 export type Notification = z.infer<typeof notification>;
 export type ConnectorIndexingNotification = z.infer<typeof connectorIndexingNotification>;
 export type DocumentProcessingNotification = z.infer<typeof documentProcessingNotification>;
+export type NewMentionNotification = z.infer<typeof newMentionNotification>;

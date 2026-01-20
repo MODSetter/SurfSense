@@ -19,13 +19,14 @@ from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
 from app.db import (
+    ChatComment,
     ChatVisibility,
     NewChatMessage,
     NewChatMessageRole,
@@ -508,7 +509,19 @@ async def get_thread_full(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
 
-        return thread
+        # Check if thread has any comments
+        comment_count = await session.scalar(
+            select(func.count())
+            .select_from(ChatComment)
+            .join(NewChatMessage, ChatComment.message_id == NewChatMessage.id)
+            .where(NewChatMessage.thread_id == thread.id)
+        )
+
+        return {
+            **thread.__dict__,
+            "messages": thread.messages,
+            "has_comments": (comment_count or 0) > 0,
+        }
 
     except HTTPException:
         raise

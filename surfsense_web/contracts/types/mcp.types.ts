@@ -1,14 +1,23 @@
 import { z } from "zod";
 
 /**
- * MCP Server Configuration Schema (similar to Cursor's config)
+ * MCP Server Configuration Schema
+ * Supports both stdio (local process) and HTTP (remote server) transports
  */
-export const mcpServerConfig = z.object({
+const stdioConfigSchema = z.object({
 	command: z.string().min(1, "Command is required"),
 	args: z.array(z.string()).default([]),
 	env: z.record(z.string(), z.string()).default({}),
-	transport: z.enum(["stdio", "sse", "http"]).default("stdio"),
+	transport: z.enum(["stdio"]).default("stdio"),
 });
+
+const httpConfigSchema = z.object({
+	url: z.string().url("URL must be a valid URL"),
+	headers: z.record(z.string(), z.string()).default({}),
+	transport: z.enum(["streamable-http", "http", "sse"]),
+});
+
+export const mcpServerConfig = z.union([stdioConfigSchema, httpConfigSchema]);
 
 /**
  * MCP Connector Schemas

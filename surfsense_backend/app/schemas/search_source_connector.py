@@ -83,12 +83,27 @@ class SearchSourceConnectorRead(SearchSourceConnectorBase, IDModel, TimestampMod
 
 
 class MCPServerConfig(BaseModel):
-    """Configuration for an MCP server connection (similar to Cursor's config)."""
+    """Configuration for an MCP server connection.
+    
+    Supports two transport types:
+    - stdio: Local process (command, args, env)
+    - streamable-http/http/sse: Remote HTTP server (url, headers)
+    """
 
-    command: str  # e.g., "uvx", "node", "python"
+    # stdio transport fields
+    command: str | None = None  # e.g., "uvx", "node", "python"
     args: list[str] = []  # e.g., ["mcp-server-git", "--repository", "/path"]
     env: dict[str, str] = {}  # Environment variables for the server process
-    transport: str = "stdio"  # "stdio" | "sse" | "http" (stdio is most common)
+    
+    # HTTP transport fields
+    url: str | None = None  # e.g., "https://mcp-server.com/mcp"
+    headers: dict[str, str] = {}  # HTTP headers for authentication
+    
+    transport: str = "stdio"  # "stdio" | "streamable-http" | "http" | "sse"
+    
+    def is_http_transport(self) -> bool:
+        """Check if this config uses HTTP transport."""
+        return self.transport in ("streamable-http", "http", "sse")
 
 
 class MCPConnectorCreate(BaseModel):

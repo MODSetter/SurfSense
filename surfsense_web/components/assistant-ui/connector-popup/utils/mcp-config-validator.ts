@@ -35,19 +35,26 @@ import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 
 /**
  * Zod schema for MCP server configuration
- * Provides compile-time and runtime type safety
+ * Supports both stdio (local process) and HTTP (remote server) transports
  *
  * Exported for advanced use cases (e.g., form builders)
  */
-export const MCPServerConfigSchema = z.object({
+const StdioConfigSchema = z.object({
 	name: z.string().optional(),
-	command: z
-		.string({ required_error: "Command field is required" })
-		.min(1, "Command cannot be empty"),
+	command: z.string().min(1, "Command cannot be empty"),
 	args: z.array(z.string()).optional().default([]),
 	env: z.record(z.string(), z.string()).optional().default({}),
-	transport: z.enum(["stdio", "sse"]).optional().default("stdio"),
+	transport: z.enum(["stdio"]).optional().default("stdio"),
 });
+
+const HttpConfigSchema = z.object({
+	name: z.string().optional(),
+	url: z.string().url("URL must be a valid URL"),
+	headers: z.record(z.string(), z.string()).optional().default({}),
+	transport: z.enum(["streamable-http", "http", "sse"]),
+});
+
+export const MCPServerConfigSchema = z.union([StdioConfigSchema, HttpConfigSchema]);
 
 /**
  * Shared MCP configuration validation result
@@ -148,12 +155,19 @@ export const parseMCPConfig = (configJson: string): MCPConfigValidationResult =>
 			};
 		}
 
-		const config: MCPServerConfig = {
-			command: result.data.command,
-			args: result.data.args,
-			env: result.data.env,
-			transport: result.data.transport,
-		};
+		// Build config based on transport type
+		const config: MCPServerConfig = result.data.transport === "stdio" || !result.data.transport
+			? {
+				command: (result.data as z.infer<typeof StdioConfigSchema>).command,
+				args: (result.data as z.infer<typeof StdioConfigSchema>).args,
+				env: (result.data as z.infer<typeof StdioConfigSchema>).env,
+				transport: "stdio" as const,
+			}
+			: {
+				url: (result.data as z.infer<typeof HttpConfigSchema>).url,
+				headers: (result.data as z.infer<typeof HttpConfigSchema>).headers,
+				transport: result.data.transport as "streamable-http" | "http" | "sse",
+			};
 
 		// Cache the successfully parsed config
 		configCache.set(configJson, {

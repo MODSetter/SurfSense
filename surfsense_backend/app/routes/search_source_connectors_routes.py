@@ -2385,22 +2385,43 @@ async def test_mcp_server_connection(
     This endpoint allows users to test their MCP server configuration
     before saving it, similar to Cursor's flow.
 
+    Supports two transport types:
+    - stdio: Local process with command, args, env
+    - streamable-http/http/sse: Remote HTTP server with url, headers
+
     Args:
-        server_config: Server configuration with command, args, env
+        server_config: Server configuration
         user: Current authenticated user
 
     Returns:
         Connection status and list of available tools
     """
     try:
-        from app.agents.new_chat.tools.mcp_client import test_mcp_connection
+        from app.agents.new_chat.tools.mcp_client import (
+            test_mcp_connection,
+            test_mcp_http_connection,
+        )
 
+        transport = server_config.get("transport", "stdio")
+        
+        # HTTP transport (streamable-http, http, sse)
+        if transport in ("streamable-http", "http", "sse"):
+            url = server_config.get("url")
+            headers = server_config.get("headers", {})
+            
+            if not url:
+                raise HTTPException(status_code=400, detail="Server URL is required for HTTP transport")
+            
+            result = await test_mcp_http_connection(url, headers, transport)
+            return result
+        
+        # stdio transport (default)
         command = server_config.get("command")
         args = server_config.get("args", [])
         env = server_config.get("env", {})
 
         if not command:
-            raise HTTPException(status_code=400, detail="Server command is required")
+            raise HTTPException(status_code=400, detail="Server command is required for stdio transport")
 
         # Test the connection
         result = await test_mcp_connection(command, args, env)
