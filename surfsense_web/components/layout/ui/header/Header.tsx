@@ -7,7 +7,6 @@ import { NotificationButton } from "@/components/notifications/NotificationButto
 
 interface HeaderProps {
 	breadcrumb?: React.ReactNode;
-	languageSwitcher?: React.ReactNode;
 	theme?: string;
 	onToggleTheme?: () => void;
 	mobileMenuTrigger?: React.ReactNode;
@@ -15,7 +14,6 @@ interface HeaderProps {
 
 export function Header({
 	breadcrumb,
-	languageSwitcher,
 	theme,
 	onToggleTheme,
 	mobileMenuTrigger,
@@ -45,8 +43,6 @@ export function Header({
 						<TooltipContent>{theme === "dark" ? "Light mode" : "Dark mode"}</TooltipContent>
 					</Tooltip>
 				)}
-
-				{languageSwitcher}
 			</div>
 		</header>
 	);

@@ -34,14 +34,12 @@ interface LayoutDataProviderProps {
 	searchSpaceId: string;
 	children: React.ReactNode;
 	breadcrumb?: React.ReactNode;
-	languageSwitcher?: React.ReactNode;
 }
 
 export function LayoutDataProvider({
 	searchSpaceId,
 	children,
 	breadcrumb,
-	languageSwitcher,
 }: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
@@ -375,7 +373,6 @@ export function LayoutDataProvider({
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}
-				languageSwitcher={languageSwitcher}
 				theme={theme}
 				onToggleTheme={handleToggleTheme}
 				isChatPage={isChatPage}

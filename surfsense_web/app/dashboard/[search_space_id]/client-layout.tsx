@@ -16,7 +16,6 @@ import {
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
-import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -200,7 +199,6 @@ export function DashboardClientLayout({
 			<LayoutDataProvider
 				searchSpaceId={searchSpaceId}
 				breadcrumb={<DashboardBreadcrumb />}
-				languageSwitcher={<LanguageSwitcher />}
 			>
 				{children}
 			</LayoutDataProvider>

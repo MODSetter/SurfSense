@@ -265,8 +265,8 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 											onSelect={() => handleSelectConfig(config)}
 											className={cn(
 												"mx-2 rounded-lg mb-1 cursor-pointer",
-												"aria-selected:bg-accent/50",
-												isSelected && "bg-accent/80"
+												!isSelected && "data-[selected=true]:bg-transparent hover:bg-transparent",
+												isSelected && "bg-accent/80 data-[selected=true]:!bg-accent/80 hover:!bg-accent/80"
 											)}
 										>
 											<div className="flex items-center justify-between w-full gap-2">
@@ -327,8 +327,8 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 											onSelect={() => handleSelectConfig(config)}
 											className={cn(
 												"mx-2 rounded-lg mb-1 cursor-pointer",
-												"aria-selected:bg-accent/50",
-												isSelected && "bg-accent/80"
+												!isSelected && "data-[selected=true]:bg-transparent hover:bg-transparent",
+												isSelected && "bg-accent/80 data-[selected=true]:!bg-accent/80 hover:!bg-accent/80"
 											)}
 										>
 											<div className="flex items-center justify-between w-full gap-2">

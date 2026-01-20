@@ -35,7 +35,6 @@ interface LayoutShellProps {
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
 	breadcrumb?: React.ReactNode;
-	languageSwitcher?: React.ReactNode;
 	theme?: string;
 	onToggleTheme?: () => void;
 	defaultCollapsed?: boolean;
@@ -69,7 +68,6 @@ export function LayoutShell({
 	onLogout,
 	pageUsage,
 	breadcrumb,
-	languageSwitcher,
 	theme,
 	onToggleTheme,
 	defaultCollapsed = false,
@@ -88,7 +86,6 @@ export function LayoutShell({
 				<div className={cn("flex h-screen w-full flex-col bg-background", className)}>
 					<Header
 						breadcrumb={breadcrumb}
-						languageSwitcher={languageSwitcher}
 						theme={theme}
 						onToggleTheme={onToggleTheme}
 						mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
@@ -172,7 +169,6 @@ export function LayoutShell({
 					<main className="flex-1 flex flex-col min-w-0">
 						<Header
 							breadcrumb={breadcrumb}
-							languageSwitcher={languageSwitcher}
 							theme={theme}
 							onToggleTheme={onToggleTheme}
 						/>
