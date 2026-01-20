@@ -1063,8 +1063,6 @@ export default function NewChatPage() {
 					header={
 						<ChatHeader
 							searchSpaceId={searchSpaceId}
-							thread={currentThread}
-							onThreadVisibilityChange={handleVisibilityChange}
 						/>
 					}
 				/>

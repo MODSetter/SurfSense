@@ -5,18 +5,14 @@ import type {
 	GlobalNewLLMConfig,
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
-import type { ChatVisibility, ThreadRecord } from "@/lib/chat/thread-persistence";
-import { ChatShareButton } from "./chat-share-button";
 import { ModelConfigSidebar } from "./model-config-sidebar";
 import { ModelSelector } from "./model-selector";
 
 interface ChatHeaderProps {
 	searchSpaceId: number;
-	thread?: ThreadRecord | null;
-	onThreadVisibilityChange?: (visibility: ChatVisibility) => void;
 }
 
-export function ChatHeader({ searchSpaceId, thread, onThreadVisibilityChange }: ChatHeaderProps) {
+export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [selectedConfig, setSelectedConfig] = useState<
 		NewLLMConfigPublic | GlobalNewLLMConfig | null
@@ -52,7 +48,6 @@ export function ChatHeader({ searchSpaceId, thread, onThreadVisibilityChange }: 
 	return (
 		<div className="flex items-center gap-2">
 			<ModelSelector onEdit={handleEditConfig} onAddNew={handleAddNew} />
-			<ChatShareButton thread={thread ?? null} onVisibilityChange={onThreadVisibilityChange} />
 			<ModelConfigSidebar
 				open={sidebarOpen}
 				onOpenChange={handleSidebarClose}
