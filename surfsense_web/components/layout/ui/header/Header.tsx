@@ -1,11 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useParams, usePathname } from "next/navigation";
-import { NotificationButton } from "@/components/notifications/NotificationButton";
+import { useAtomValue } from "jotai";
+import { usePathname } from "next/navigation";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
-import { getThreadFull } from "@/lib/chat/thread-persistence";
-import type { ChatVisibility } from "@/lib/chat/thread-persistence";
+import { NotificationButton } from "@/components/notifications/NotificationButton";
+import type { ChatVisibility, ThreadRecord } from "@/lib/chat/thread-persistence";
 
 interface HeaderProps {
 	breadcrumb?: React.ReactNode;
@@ -16,26 +16,34 @@ export function Header({
 	breadcrumb,
 	mobileMenuTrigger,
 }: HeaderProps) {
-	const params = useParams();
 	const pathname = usePathname();
 	
 	// Check if we're on a chat page
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
 	
-	// Get chat_id from URL params
-	const chatId = params?.chat_id
-		? Number(Array.isArray(params.chat_id) ? params.chat_id[0] : params.chat_id)
+	// Use Jotai atom for thread state (synced from chat page)
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	
+	// Show button only when we have a thread id (thread exists and is synced to Jotai)
+	const hasThread = isChatPage && currentThreadState.id !== null;
+	
+	// Create minimal thread object for ChatShareButton (used for API calls)
+	const threadForButton: ThreadRecord | null = hasThread
+		? {
+				id: currentThreadState.id!,
+				visibility: currentThreadState.visibility ?? "PRIVATE",
+				// These fields are not used by ChatShareButton for display, only for checks
+				created_by_id: null,
+				search_space_id: 0,
+				title: "",
+				archived: false,
+				created_at: "",
+				updated_at: "",
+			}
 		: null;
 
-	// Fetch current thread if on chat page and chat_id exists
-	const { data: currentThread } = useQuery({
-		queryKey: ["thread", chatId],
-		queryFn: () => getThreadFull(chatId!),
-		enabled: isChatPage && chatId !== null && chatId > 0,
-	});
-
 	const handleVisibilityChange = (visibility: ChatVisibility) => {
-		// Visibility change is handled by ChatShareButton internally
+		// Visibility change is handled by ChatShareButton internally via Jotai
 		// This callback can be used for additional side effects if needed
 	};
 
@@ -52,9 +60,9 @@ export function Header({
 				{/* Notifications */}
 				<NotificationButton />
 				{/* Share button - only show on chat pages when thread exists */}
-				{isChatPage && currentThread && (
+				{hasThread && (
 					<ChatShareButton
-						thread={currentThread}
+						thread={threadForButton}
 						onVisibilityChange={handleVisibilityChange}
 					/>
 				)}

@@ -1,9 +1,11 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Loader2, Lock, Users } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -44,7 +46,12 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 	const [open, setOpen] = useState(false);
 	const [isUpdating, setIsUpdating] = useState(false);
 
-	const currentVisibility = thread?.visibility ?? "PRIVATE";
+	// Use Jotai atom for visibility (single source of truth)
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	const setThreadVisibility = useSetAtom(setThreadVisibilityAtom);
+
+	// Use Jotai visibility if available (synced from chat page), otherwise fall back to thread prop
+	const currentVisibility = currentThreadState.visibility ?? thread?.visibility ?? "PRIVATE";
 	const isOwnThread = thread?.created_by_id !== null; // If we have the thread, we can modify it
 
 	const handleVisibilityChange = useCallback(
@@ -55,10 +62,13 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 			}
 
 			setIsUpdating(true);
+			// Update Jotai atom immediately for instant UI feedback
+			setThreadVisibility(newVisibility);
+
 			try {
 				await updateThreadVisibility(thread.id, newVisibility);
 
-				// Refetch all thread queries to update sidebar immediately
+				// Refetch threads list to update sidebar
 				await queryClient.refetchQueries({
 					predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "threads",
 				});
@@ -70,12 +80,14 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				setOpen(false);
 			} catch (error) {
 				console.error("Failed to update visibility:", error);
+				// Revert Jotai state on error
+				setThreadVisibility(thread.visibility ?? "PRIVATE");
 				toast.error("Failed to update sharing settings");
 			} finally {
 				setIsUpdating(false);
 			}
 		},
-		[thread, currentVisibility, onVisibilityChange, queryClient]
+		[thread, currentVisibility, onVisibilityChange, queryClient, setThreadVisibility]
 	);
 
 	// Don't show if no thread (new chat that hasn't been created yet)
