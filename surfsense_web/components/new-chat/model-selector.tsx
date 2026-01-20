@@ -202,7 +202,10 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 							<span className="text-muted-foreground hidden md:inline">Select Model</span>
 						</>
 					)}
-					<ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0" />
+					<ChevronDown className={cn(
+						"h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0 transition-transform duration-200",
+						open && "rotate-180"
+					)} />
 				</Button>
 			</PopoverTrigger>
 
@@ -225,7 +228,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						</div>
 					)}
 
-					<div className="flex items-center gap-1 md:gap-2 border-b border-border/30 px-2 md:px-3 py-1.5 md:py-2">
+					<div className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1.5 md:py-2">
 						<CommandInput
 							placeholder="Search models"
 							value={searchQuery}
@@ -238,7 +241,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 					<CommandList className="max-h-[300px] md:max-h-[400px] overflow-y-auto">
 						<CommandEmpty className="py-8 text-center">
 							<div className="flex flex-col items-center gap-2">
-								<Bot className="size-8 text-muted-foreground/40" />
+								<Bot className="size-8 text-muted-foreground" />
 								<p className="text-sm text-muted-foreground">No models found</p>
 								<p className="text-xs text-muted-foreground/60">Try a different search term</p>
 							</div>

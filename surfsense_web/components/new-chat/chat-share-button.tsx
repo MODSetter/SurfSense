@@ -125,6 +125,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60"
 				align="end"
 				sideOffset={8}
+				onCloseAutoFocus={(e) => e.preventDefault()}
 			>
 				<div className="p-1.5 space-y-1">
 					{/* Updating overlay */}

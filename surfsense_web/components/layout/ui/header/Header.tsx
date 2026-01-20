@@ -57,7 +57,7 @@ export function Header({
 			</div>
 
 			{/* Right side - Actions */}
-			<div className="flex items-center gap-2">
+			<div className="flex items-center gap-4">
 				{/* Notifications */}
 				<NotificationButton />
 				{/* Share button - only show on chat pages when thread exists */}
