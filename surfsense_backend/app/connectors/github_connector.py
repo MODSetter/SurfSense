@@ -1,296 +1,295 @@
-import base64
-import logging
-from typing import Any
+"""
+GitHub connector using gitingest for efficient repository digestion.
 
-from github3 import exceptions as github_exceptions, login as github_login
-from github3.exceptions import ForbiddenError, NotFoundError
-from github3.repos.contents import Contents
+This connector replaces the previous file-by-file approach with a single
+digest generation per repository, dramatically reducing LLM API calls.
+"""
+
+import logging
+from dataclasses import dataclass
+
+from gitingest import ingest_async
 
 logger = logging.getLogger(__name__)
 
-# List of common code file extensions to target
-CODE_EXTENSIONS = {
-    ".py",
-    ".js",
-    ".jsx",
-    ".ts",
-    ".tsx",
-    ".java",
-    ".c",
-    ".cpp",
-    ".h",
-    ".hpp",
-    ".cs",
-    ".go",
-    ".rb",
-    ".php",
-    ".swift",
-    ".kt",
-    ".scala",
-    ".rs",
-    ".m",
-    ".sh",
-    ".bash",
-    ".ps1",
-    ".lua",
-    ".pl",
-    ".pm",
-    ".r",
-    ".dart",
-    ".sql",
-}
+# Maximum file size in bytes (5MB)
+MAX_FILE_SIZE = 5 * 1024 * 1024
 
-# List of common documentation/text file extensions
-DOC_EXTENSIONS = {
-    ".md",
-    ".txt",
-    ".rst",
-    ".adoc",
-    ".html",
-    ".htm",
-    ".xml",
-    ".json",
-    ".yaml",
-    ".yml",
-    ".toml",
-}
+# Default patterns to exclude (recommended approach for comprehensive analysis)
+# Using only exclude_patterns ensures we don't miss any relevant file types
+DEFAULT_EXCLUDE_PATTERNS = [
+    # Dependencies
+    "node_modules/*",
+    "vendor/*",
+    "bower_components/*",
+    ".pnpm/*",
+    # Build artifacts / Caches
+    "build/*",
+    "dist/*",
+    "target/*",
+    "out/*",
+    "__pycache__/*",
+    "*.pyc",
+    ".cache/*",
+    ".next/*",
+    ".nuxt/*",
+    # Virtual environments
+    "venv/*",
+    ".venv/*",
+    "env/*",
+    ".env/*",
+    # IDE/Editor config
+    ".vscode/*",
+    ".idea/*",
+    ".project",
+    ".settings/*",
+    "*.swp",
+    "*.swo",
+    # Version control
+    ".git/*",
+    ".svn/*",
+    ".hg/*",
+    # Temporary / Logs
+    "tmp/*",
+    "temp/*",
+    "logs/*",
+    "*.log",
+    # Lock files (usually not needed for understanding code)
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "uv.lock",
+    "Gemfile.lock",
+    "poetry.lock",
+    "Cargo.lock",
+    "composer.lock",
+    # Binary/media files
+    "*.png",
+    "*.jpg",
+    "*.jpeg",
+    "*.gif",
+    "*.ico",
+    "*.svg",
+    "*.webp",
+    "*.bmp",
+    "*.tiff",
+    "*.woff",
+    "*.woff2",
+    "*.ttf",
+    "*.eot",
+    "*.otf",
+    "*.mp3",
+    "*.mp4",
+    "*.wav",
+    "*.ogg",
+    "*.webm",
+    "*.avi",
+    "*.mov",
+    "*.pdf",
+    "*.doc",
+    "*.docx",
+    "*.xls",
+    "*.xlsx",
+    "*.ppt",
+    "*.pptx",
+    "*.zip",
+    "*.tar",
+    "*.tar.gz",
+    "*.tgz",
+    "*.rar",
+    "*.7z",
+    "*.exe",
+    "*.dll",
+    "*.so",
+    "*.dylib",
+    "*.bin",
+    "*.obj",
+    "*.o",
+    "*.a",
+    "*.lib",
+    # Minified files
+    "*.min.js",
+    "*.min.css",
+    # Source maps
+    "*.map",
+    # Database files
+    "*.db",
+    "*.sqlite",
+    "*.sqlite3",
+    # Coverage reports
+    "coverage/*",
+    ".coverage",
+    "htmlcov/*",
+    ".nyc_output/*",
+    # Test snapshots (can be large)
+    "__snapshots__/*",
+]
 
-# Maximum file size in bytes (e.g., 1MB)
-MAX_FILE_SIZE = 1 * 1024 * 1024
+
+@dataclass
+class RepositoryDigest:
+    """Represents a digested repository from gitingest."""
+
+    repo_full_name: str
+    summary: str
+    tree: str
+    content: str
+    branch: str | None = None
+
+    @property
+    def full_digest(self) -> str:
+        """Returns the complete digest with tree and content."""
+        return f"# Repository: {self.repo_full_name}\n\n## File Structure\n\n{self.tree}\n\n## File Contents\n\n{self.content}"
+
+    @property
+    def estimated_tokens(self) -> int:
+        """Rough estimate of tokens (1 token ≈ 4 characters)."""
+        return len(self.full_digest) // 4
 
 
 class GitHubConnector:
-    """Connector for interacting with the GitHub API."""
+    """
+    Connector for ingesting GitHub repositories using gitingest.
 
-    # Directories to skip during file traversal
-    SKIPPED_DIRS = {
-        # Version control
-        ".git",
-        # Dependencies
-        "node_modules",
-        "vendor",
-        # Build artifacts / Caches
-        "build",
-        "dist",
-        "target",
-        "__pycache__",
-        # Virtual environments
-        "venv",
-        ".venv",
-        "env",
-        # IDE/Editor config
-        ".vscode",
-        ".idea",
-        ".project",
-        ".settings",
-        # Temporary / Logs
-        "tmp",
-        "logs",
-        # Add other project-specific irrelevant directories if needed
-    }
+    This connector efficiently processes entire repositories into a single
+    digest, reducing the number of API calls and LLM invocations compared
+    to file-by-file processing.
+    """
 
-    def __init__(self, token: str):
+    def __init__(self, token: str | None = None):
         """
         Initializes the GitHub connector.
 
         Args:
-            token: GitHub Personal Access Token (PAT).
+            token: Optional GitHub Personal Access Token (PAT).
+                   Only required for private repositories.
+                   Public repositories can be ingested without a token.
         """
-        if not token:
-            raise ValueError("GitHub token cannot be empty.")
-        try:
-            self.gh = github_login(token=token)
-            # Try a simple authenticated call to check token validity
-            self.gh.me()
-            logger.info("Successfully authenticated with GitHub API.")
-        except (github_exceptions.AuthenticationFailed, ForbiddenError) as e:
-            logger.error(f"GitHub authentication failed: {e}")
-            raise ValueError("Invalid GitHub token or insufficient permissions.") from e
-        except Exception as e:
-            logger.error(f"Failed to initialize GitHub client: {e}")
-            raise e
+        self.token = token if token and token.strip() else None
+        if self.token:
+            logger.info("GitHub connector initialized with authentication token.")
+        else:
+            logger.info("GitHub connector initialized without token (public repos only).")
 
-    def get_user_repositories(self) -> list[dict[str, Any]]:
-        """Fetches repositories accessible by the authenticated user."""
-        repos_data = []
-        try:
-            # type='owner' fetches repos owned by the user
-            # type='member' fetches repos the user is a collaborator on (including orgs)
-            # type='all' fetches both
-            for repo in self.gh.repositories(type="all", sort="updated"):
-                repos_data.append(
-                    {
-                        "id": repo.id,
-                        "name": repo.name,
-                        "full_name": repo.full_name,
-                        "private": repo.private,
-                        "url": repo.html_url,
-                        "description": repo.description or "",
-                        "last_updated": repo.updated_at if repo.updated_at else None,
-                    }
-                )
-            logger.info(f"Fetched {len(repos_data)} repositories.")
-            return repos_data
-        except Exception as e:
-            logger.error(f"Failed to fetch GitHub repositories: {e}")
-            return []  # Return empty list on error
-
-    def get_repository_files(
-        self, repo_full_name: str, path: str = ""
-    ) -> list[dict[str, Any]]:
+    async def ingest_repository(
+        self,
+        repo_full_name: str,
+        branch: str | None = None,
+        include_patterns: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+        max_file_size: int = MAX_FILE_SIZE,
+    ) -> RepositoryDigest | None:
         """
-        Recursively fetches details of relevant files (code, docs) within a repository path.
+        Ingest an entire repository and return a digest.
 
         Args:
             repo_full_name: The full name of the repository (e.g., 'owner/repo').
-            path: The starting path within the repository (default is root).
+            branch: Optional specific branch or tag to ingest.
+            include_patterns: Optional list of glob patterns for files to include.
+                             If None, includes all files (recommended).
+            exclude_patterns: Optional list of glob patterns for files to exclude.
+                             If None, uses DEFAULT_EXCLUDE_PATTERNS.
+            max_file_size: Maximum file size in bytes to include (default 5MB).
 
         Returns:
-            A list of dictionaries, each containing file details (path, sha, url, size).
-            Returns an empty list if the repository or path is not found or on error.
+            RepositoryDigest containing the summary, tree structure, and content,
+            or None if ingestion fails.
         """
-        files_list = []
+        repo_url = f"https://github.com/{repo_full_name}"
+
+        # Use only exclude_patterns by default (recommended for comprehensive analysis)
+        # This ensures we don't miss any relevant file types
+        exclude_pats = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDE_PATTERNS
+
+        logger.info(f"Starting gitingest for repository: {repo_full_name}")
+
         try:
-            owner, repo_name = repo_full_name.split("/")
-            repo = self.gh.repository(owner, repo_name)
-            if not repo:
-                logger.warning(f"Repository '{repo_full_name}' not found.")
-                return []
-            contents = repo.directory_contents(
-                directory_path=path
-            )  # Use directory_contents for clarity
+            # Build kwargs dynamically
+            ingest_kwargs = {
+                "max_file_size": max_file_size,
+                "exclude_patterns": exclude_pats,
+                "include_gitignored": False,
+                "include_submodules": False,
+            }
 
-            # contents returns a list of tuples (name, content_obj)
-            for _item_name, content_item in contents:
-                if not isinstance(content_item, Contents):
-                    continue
+            # Only add token if provided (required only for private repos)
+            if self.token:
+                ingest_kwargs["token"] = self.token
 
-                if content_item.type == "dir":
-                    # Check if the directory name is in the skipped list
-                    if content_item.name in self.SKIPPED_DIRS:
-                        logger.debug(f"Skipping directory: {content_item.path}")
-                        continue  # Skip recursion for this directory
+            # Only add branch if specified
+            if branch:
+                ingest_kwargs["branch"] = branch
 
-                    # Recursively fetch contents of subdirectory
-                    files_list.extend(
-                        self.get_repository_files(
-                            repo_full_name, path=content_item.path
-                        )
-                    )
-                elif content_item.type == "file":
-                    # Check if the file extension is relevant and size is within limits
-                    file_extension = (
-                        "." + content_item.name.split(".")[-1].lower()
-                        if "." in content_item.name
-                        else ""
-                    )
-                    is_code = file_extension in CODE_EXTENSIONS
-                    is_doc = file_extension in DOC_EXTENSIONS
+            # Only add include_patterns if explicitly provided
+            if include_patterns is not None:
+                ingest_kwargs["include_patterns"] = include_patterns
 
-                    if (is_code or is_doc) and content_item.size <= MAX_FILE_SIZE:
-                        files_list.append(
-                            {
-                                "path": content_item.path,
-                                "sha": content_item.sha,
-                                "url": content_item.html_url,
-                                "size": content_item.size,
-                                "type": "code" if is_code else "doc",
-                            }
-                        )
-                    elif content_item.size > MAX_FILE_SIZE:
-                        logger.debug(
-                            f"Skipping large file: {content_item.path} ({content_item.size} bytes)"
-                        )
-                    else:
-                        logger.debug(
-                            f"Skipping irrelevant file type: {content_item.path}"
-                        )
+            summary, tree, content = await ingest_async(repo_url, **ingest_kwargs)
 
-        except (NotFoundError, ForbiddenError) as e:
-            logger.warning(f"Cannot access path '{path}' in '{repo_full_name}': {e}")
-        except Exception as e:
-            logger.error(
-                f"Failed to get files for {repo_full_name} at path '{path}': {e}"
+            if not content or not content.strip():
+                logger.warning(
+                    f"No content retrieved from repository: {repo_full_name}"
+                )
+                return None
+
+            digest = RepositoryDigest(
+                repo_full_name=repo_full_name,
+                summary=summary,
+                tree=tree,
+                content=content,
+                branch=branch,
             )
-            # Return what we have collected so far in case of partial failure
 
-        return files_list
+            logger.info(
+                f"Successfully ingested {repo_full_name}: "
+                f"~{digest.estimated_tokens} estimated tokens"
+            )
+            return digest
 
-    def get_file_content(self, repo_full_name: str, file_path: str) -> str | None:
+        except Exception as e:
+            logger.error(f"Failed to ingest repository {repo_full_name}: {e}")
+            return None
+
+    async def ingest_repositories(
+        self,
+        repo_full_names: list[str],
+        branch: str | None = None,
+        include_patterns: list[str] | None = None,
+        exclude_patterns: list[str] | None = None,
+        max_file_size: int = MAX_FILE_SIZE,
+    ) -> list[RepositoryDigest]:
         """
-        Fetches the decoded content of a specific file.
+        Ingest multiple repositories and return their digests.
 
         Args:
-            repo_full_name: The full name of the repository (e.g., 'owner/repo').
-            file_path: The path to the file within the repository.
+            repo_full_names: List of repository full names (e.g., ['owner/repo1', 'owner/repo2']).
+            branch: Optional specific branch or tag to ingest (applied to all repos).
+            include_patterns: Optional list of glob patterns for files to include.
+            exclude_patterns: Optional list of glob patterns for files to exclude.
+            max_file_size: Maximum file size in bytes to include.
 
         Returns:
-            The decoded file content as a string, or None if fetching fails or file is too large.
+            List of RepositoryDigest objects for successfully ingested repositories.
         """
-        try:
-            owner, repo_name = repo_full_name.split("/")
-            repo = self.gh.repository(owner, repo_name)
-            if not repo:
-                logger.warning(
-                    f"Repository '{repo_full_name}' not found when fetching file '{file_path}'."
-                )
-                return None
+        digests = []
 
-            content_item = repo.file_contents(
-                path=file_path
-            )  # Use file_contents for clarity
+        for repo_full_name in repo_full_names:
+            if not repo_full_name or not isinstance(repo_full_name, str):
+                logger.warning(f"Skipping invalid repository entry: {repo_full_name}")
+                continue
 
-            if (
-                not content_item
-                or not isinstance(content_item, Contents)
-                or content_item.type != "file"
-            ):
-                logger.warning(
-                    f"File '{file_path}' not found or is not a file in '{repo_full_name}'."
-                )
-                return None
-
-            if content_item.size > MAX_FILE_SIZE:
-                logger.warning(
-                    f"File '{file_path}' in '{repo_full_name}' exceeds max size ({content_item.size} > {MAX_FILE_SIZE}). Skipping content fetch."
-                )
-                return None
-
-            # Content is base64 encoded
-            if content_item.content:
-                try:
-                    decoded_content = base64.b64decode(content_item.content).decode(
-                        "utf-8"
-                    )
-                    return decoded_content
-                except UnicodeDecodeError:
-                    logger.warning(
-                        f"Could not decode file '{file_path}' in '{repo_full_name}' as UTF-8. Trying with 'latin-1'."
-                    )
-                    try:
-                        # Try a fallback encoding
-                        decoded_content = base64.b64decode(content_item.content).decode(
-                            "latin-1"
-                        )
-                        return decoded_content
-                    except Exception as decode_err:
-                        logger.error(
-                            f"Failed to decode file '{file_path}' with fallback encoding: {decode_err}"
-                        )
-                        return None  # Give up if fallback fails
-            else:
-                logger.warning(
-                    f"No content returned for file '{file_path}' in '{repo_full_name}'. It might be empty."
-                )
-                return ""  # Return empty string for empty files
-
-        except (NotFoundError, ForbiddenError) as e:
-            logger.warning(
-                f"Cannot access file '{file_path}' in '{repo_full_name}': {e}"
+            digest = await self.ingest_repository(
+                repo_full_name=repo_full_name,
+                branch=branch,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns,
+                max_file_size=max_file_size,
             )
-            return None
-        except Exception as e:
-            logger.error(
-                f"Failed to get content for file '{file_path}' in '{repo_full_name}': {e}"
-            )
-            return None
+
+            if digest:
+                digests.append(digest)
+
+        logger.info(
+            f"Ingested {len(digests)} out of {len(repo_full_names)} repositories."
+        )
+        return digests

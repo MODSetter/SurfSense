@@ -34,7 +34,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import { DateRangeSelector } from "../../components/date-range-selector";
 import { getConnectorBenefits } from "../connector-benefits";
 import type { ConnectFormProps } from "../index";
 
@@ -44,12 +43,13 @@ const githubConnectorFormSchema = z.object({
 	}),
 	github_pat: z
 		.string()
-		.min(20, {
-			message: "GitHub Personal Access Token seems too short.",
-		})
-		.refine((pat) => pat.startsWith("ghp_") || pat.startsWith("github_pat_"), {
-			message: "GitHub PAT should start with 'ghp_' or 'github_pat_'",
-		}),
+		.optional()
+		.refine(
+			(pat) => !pat || pat.startsWith("ghp_") || pat.startsWith("github_pat_"),
+			{
+				message: "GitHub PAT should start with 'ghp_' or 'github_pat_'",
+			}
+		),
 	repo_full_names: z.string().min(1, {
 		message: "At least one repository is required.",
 	}),
@@ -59,8 +59,6 @@ type GithubConnectorFormValues = z.infer<typeof githubConnectorFormSchema>;
 
 export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);
-	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
-	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
 	const form = useForm<GithubConnectorFormValues>({
@@ -94,7 +92,7 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 				name: values.name,
 				connector_type: EnumConnectorName.GITHUB_CONNECTOR,
 				config: {
-					GITHUB_PAT: values.github_pat,
+					GITHUB_PAT: values.github_pat || null, // Optional - only for private repos
 					repo_full_names: repoList,
 				},
 				is_indexable: true,
@@ -102,8 +100,9 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 				periodic_indexing_enabled: periodicEnabled,
 				indexing_frequency_minutes: periodicEnabled ? parseInt(frequencyMinutes, 10) : null,
 				next_scheduled_at: null,
-				startDate,
-				endDate,
+				// GitHub indexes full repo snapshots - no date range needed
+				startDate: undefined,
+				endDate: undefined,
 				periodicEnabled,
 				frequencyMinutes,
 			});
@@ -117,10 +116,10 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
 				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
 				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">Personal Access Token Required</AlertTitle>
+					<AlertTitle className="text-xs sm:text-sm">Personal Access Token (Optional)</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						You'll need a GitHub Personal Access Token to use this connector. You can create one
-						from{" "}
+						A GitHub PAT is only required for private repositories. Public repos work without a
+						token. Create one from{" "}
 						<a
 							href="https://github.com/settings/tokens"
 							target="_blank"
@@ -128,7 +127,8 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 							className="font-medium underline underline-offset-4"
 						>
 							GitHub Settings
-						</a>
+						</a>{" "}
+						if needed.
 					</AlertDescription>
 				</div>
 			</Alert>
@@ -167,7 +167,10 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 							name="github_pat"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="text-xs sm:text-sm">GitHub Personal Access Token</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">
+										GitHub Personal Access Token{" "}
+										<span className="text-muted-foreground font-normal">(optional)</span>
+									</FormLabel>
 									<FormControl>
 										<Input
 											type="password"
@@ -178,8 +181,8 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Your GitHub PAT will be encrypted and stored securely. It typically starts with
-										"ghp_" or "github_pat_".
+										Only required for private repositories. Leave empty if indexing public repos
+										only.
 									</FormDescription>
 									<FormMessage />
 								</FormItem>
@@ -225,15 +228,9 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 
 						{/* Indexing Configuration */}
 						<div className="space-y-4 pt-4 border-t border-slate-400/20">
-							<h3 className="text-sm sm:text-base font-medium">Indexing Configuration</h3>
+							<h3 className="text-sm sm:text-base font-medium">Sync Configuration</h3>
 
-							{/* Date Range Selector */}
-							<DateRangeSelector
-								startDate={startDate}
-								endDate={endDate}
-								onStartDateChange={setStartDate}
-								onEndDateChange={setEndDate}
-							/>
+							{/* Note: No date range for GitHub - it indexes full repo snapshots */}
 
 							{/* Periodic Sync Config */}
 							<div className="rounded-xl bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6">
