@@ -1,8 +1,9 @@
 "use client";
 
-import { KeyRound } from "lucide-react";
+import { Info, KeyRound } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,6 +80,26 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 
 	return (
 		<div className="space-y-6">
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
+				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
+				<div className="-ml-1">
+					<AlertTitle className="text-xs sm:text-sm">Personal Access Token (Optional)</AlertTitle>
+					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
+						A GitHub PAT is only required for private repositories. Public repos work without a
+						token. Create one from{" "}
+						<a
+							href="https://github.com/settings/tokens/new?description=surfsense&scopes=repo"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="font-medium underline underline-offset-4"
+						>
+							GitHub Settings
+						</a>{" "}
+						if needed.
+					</AlertDescription>
+				</div>
+			</Alert>
+
 			{/* Connector Name */}
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<div className="space-y-2">
@@ -105,7 +126,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 					<div className="space-y-2">
 						<Label className="flex items-center gap-2 text-xs sm:text-sm">
 							<KeyRound className="h-4 w-4" />
-							GitHub Personal Access Token
+							GitHub Personal Access Token (optional)
 						</Label>
 						<Input
 							type="password"

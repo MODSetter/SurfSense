@@ -1,129 +1,20 @@
 """
-GitHub connector using gitingest for efficient repository digestion.
+GitHub connector using gitingest CLI for efficient repository digestion.
 
-This connector replaces the previous file-by-file approach with a single
-digest generation per repository, dramatically reducing LLM API calls.
+This connector uses subprocess to call gitingest CLI, completely isolating
+it from any Python event loop/async complexity that can cause hangs in Celery.
 """
 
 import logging
+import os
+import subprocess
+import tempfile
 from dataclasses import dataclass
-
-from gitingest import ingest_async
 
 logger = logging.getLogger(__name__)
 
 # Maximum file size in bytes (5MB)
 MAX_FILE_SIZE = 5 * 1024 * 1024
-
-# Default patterns to exclude (recommended approach for comprehensive analysis)
-# Using only exclude_patterns ensures we don't miss any relevant file types
-DEFAULT_EXCLUDE_PATTERNS = [
-    # Dependencies
-    "node_modules/*",
-    "vendor/*",
-    "bower_components/*",
-    ".pnpm/*",
-    # Build artifacts / Caches
-    "build/*",
-    "dist/*",
-    "target/*",
-    "out/*",
-    "__pycache__/*",
-    "*.pyc",
-    ".cache/*",
-    ".next/*",
-    ".nuxt/*",
-    # Virtual environments
-    "venv/*",
-    ".venv/*",
-    "env/*",
-    ".env/*",
-    # IDE/Editor config
-    ".vscode/*",
-    ".idea/*",
-    ".project",
-    ".settings/*",
-    "*.swp",
-    "*.swo",
-    # Version control
-    ".git/*",
-    ".svn/*",
-    ".hg/*",
-    # Temporary / Logs
-    "tmp/*",
-    "temp/*",
-    "logs/*",
-    "*.log",
-    # Lock files (usually not needed for understanding code)
-    "package-lock.json",
-    "pnpm-lock.yaml",
-    "yarn.lock",
-    "uv.lock",
-    "Gemfile.lock",
-    "poetry.lock",
-    "Cargo.lock",
-    "composer.lock",
-    # Binary/media files
-    "*.png",
-    "*.jpg",
-    "*.jpeg",
-    "*.gif",
-    "*.ico",
-    "*.svg",
-    "*.webp",
-    "*.bmp",
-    "*.tiff",
-    "*.woff",
-    "*.woff2",
-    "*.ttf",
-    "*.eot",
-    "*.otf",
-    "*.mp3",
-    "*.mp4",
-    "*.wav",
-    "*.ogg",
-    "*.webm",
-    "*.avi",
-    "*.mov",
-    "*.pdf",
-    "*.doc",
-    "*.docx",
-    "*.xls",
-    "*.xlsx",
-    "*.ppt",
-    "*.pptx",
-    "*.zip",
-    "*.tar",
-    "*.tar.gz",
-    "*.tgz",
-    "*.rar",
-    "*.7z",
-    "*.exe",
-    "*.dll",
-    "*.so",
-    "*.dylib",
-    "*.bin",
-    "*.obj",
-    "*.o",
-    "*.a",
-    "*.lib",
-    # Minified files
-    "*.min.js",
-    "*.min.css",
-    # Source maps
-    "*.map",
-    # Database files
-    "*.db",
-    "*.sqlite",
-    "*.sqlite3",
-    # Coverage reports
-    "coverage/*",
-    ".coverage",
-    "htmlcov/*",
-    ".nyc_output/*",
-    # Test snapshots (can be large)
-    "__snapshots__/*",
-]
 
 
 @dataclass
@@ -149,21 +40,19 @@ class RepositoryDigest:
 
 class GitHubConnector:
     """
-    Connector for ingesting GitHub repositories using gitingest.
+    Connector for ingesting GitHub repositories using gitingest CLI.
 
-    This connector efficiently processes entire repositories into a single
-    digest, reducing the number of API calls and LLM invocations compared
-    to file-by-file processing.
+    Uses subprocess to run gitingest, which avoids all async/event loop
+    issues that can occur when mixing gitingest with Celery workers.
     """
 
     def __init__(self, token: str | None = None):
         """
-        Initializes the GitHub connector.
+        Initialize the GitHub connector.
 
         Args:
             token: Optional GitHub Personal Access Token (PAT).
                    Only required for private repositories.
-                   Public repositories can be ingested without a token.
         """
         self.token = token if token and token.strip() else None
         if self.token:
@@ -171,72 +60,104 @@ class GitHubConnector:
         else:
             logger.info("GitHub connector initialized without token (public repos only).")
 
-    async def ingest_repository(
+    def ingest_repository(
         self,
         repo_full_name: str,
         branch: str | None = None,
-        include_patterns: list[str] | None = None,
-        exclude_patterns: list[str] | None = None,
         max_file_size: int = MAX_FILE_SIZE,
     ) -> RepositoryDigest | None:
         """
-        Ingest an entire repository and return a digest.
+        Ingest a repository using gitingest CLI via subprocess.
+
+        This approach completely isolates gitingest from Python's event loop,
+        avoiding any async/Celery conflicts.
 
         Args:
             repo_full_name: The full name of the repository (e.g., 'owner/repo').
             branch: Optional specific branch or tag to ingest.
-            include_patterns: Optional list of glob patterns for files to include.
-                             If None, includes all files (recommended).
-            exclude_patterns: Optional list of glob patterns for files to exclude.
-                             If None, uses DEFAULT_EXCLUDE_PATTERNS.
-            max_file_size: Maximum file size in bytes to include (default 5MB).
+            max_file_size: Maximum file size in bytes to include.
 
         Returns:
-            RepositoryDigest containing the summary, tree structure, and content,
-            or None if ingestion fails.
+            RepositoryDigest or None if ingestion fails.
         """
         repo_url = f"https://github.com/{repo_full_name}"
 
-        # Use only exclude_patterns by default (recommended for comprehensive analysis)
-        # This ensures we don't miss any relevant file types
-        exclude_pats = exclude_patterns if exclude_patterns is not None else DEFAULT_EXCLUDE_PATTERNS
-
-        logger.info(f"Starting gitingest for repository: {repo_full_name}")
+        logger.info(f"Starting gitingest CLI for repository: {repo_full_name}")
 
         try:
-            # Build kwargs dynamically
-            ingest_kwargs = {
-                "max_file_size": max_file_size,
-                "exclude_patterns": exclude_pats,
-                "include_gitignored": False,
-                "include_submodules": False,
-            }
+            # Create a temporary file for output
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".txt", delete=False
+            ) as tmp_file:
+                output_path = tmp_file.name
 
-            # Only add token if provided (required only for private repos)
-            if self.token:
-                ingest_kwargs["token"] = self.token
+            # Build the gitingest CLI command
+            cmd = [
+                "gitingest",
+                repo_url,
+                "--output", output_path,
+                "--max-size", str(max_file_size),
+                # Common exclude patterns
+                "-e", "node_modules/*",
+                "-e", "vendor/*",
+                "-e", ".git/*",
+                "-e", "__pycache__/*",
+                "-e", "dist/*",
+                "-e", "build/*",
+                "-e", "*.lock",
+                "-e", "package-lock.json",
+            ]
 
-            # Only add branch if specified
+            # Add branch if specified
             if branch:
-                ingest_kwargs["branch"] = branch
+                cmd.extend(["--branch", branch])
 
-            # Only add include_patterns if explicitly provided
-            if include_patterns is not None:
-                ingest_kwargs["include_patterns"] = include_patterns
+            # Set up environment with token if provided
+            env = os.environ.copy()
+            if self.token:
+                env["GITHUB_TOKEN"] = self.token
 
-            summary, tree, content = await ingest_async(repo_url, **ingest_kwargs)
+            logger.info(f"Running gitingest CLI: {' '.join(cmd[:5])}...")
 
-            if not content or not content.strip():
-                logger.warning(
-                    f"No content retrieved from repository: {repo_full_name}"
-                )
+            # Run gitingest as subprocess with timeout
+            result = subprocess.run(
+                cmd,
+                env=env,
+                capture_output=True,
+                text=True,
+                timeout=900,  # 5 minute timeout
+            )
+
+            if result.returncode != 0:
+                logger.error(f"gitingest failed: {result.stderr}")
+                # Clean up temp file
+                if os.path.exists(output_path):
+                    os.unlink(output_path)
                 return None
 
+            # Read the output file
+            if not os.path.exists(output_path):
+                logger.error("gitingest did not create output file")
+                return None
+
+            with open(output_path, encoding="utf-8") as f:
+                full_content = f.read()
+
+            # Clean up temp file
+            os.unlink(output_path)
+
+            if not full_content or not full_content.strip():
+                logger.warning(f"No content retrieved from repository: {repo_full_name}")
+                return None
+
+            # Parse the gitingest output
+            # The output format is: summary + tree + content
+            # We'll extract what we can
             digest = RepositoryDigest(
                 repo_full_name=repo_full_name,
-                summary=summary,
-                tree=tree,
-                content=content,
+                summary=f"Repository: {repo_full_name}",
+                tree="",  # gitingest CLI combines everything into one file
+                content=full_content,
                 branch=branch,
             )
 
@@ -246,50 +167,70 @@ class GitHubConnector:
             )
             return digest
 
+        except subprocess.TimeoutExpired:
+            logger.error(f"gitingest timed out for repository: {repo_full_name}")
+            return None
+        except FileNotFoundError:
+            logger.error(
+                "gitingest CLI not found. Falling back to Python library."
+            )
+            # Fall back to Python library
+            return self._ingest_with_python_library(repo_full_name, branch, max_file_size)
         except Exception as e:
             logger.error(f"Failed to ingest repository {repo_full_name}: {e}")
             return None
 
-    async def ingest_repositories(
+    def _ingest_with_python_library(
         self,
-        repo_full_names: list[str],
+        repo_full_name: str,
         branch: str | None = None,
-        include_patterns: list[str] | None = None,
-        exclude_patterns: list[str] | None = None,
         max_file_size: int = MAX_FILE_SIZE,
-    ) -> list[RepositoryDigest]:
+    ) -> RepositoryDigest | None:
         """
-        Ingest multiple repositories and return their digests.
-
-        Args:
-            repo_full_names: List of repository full names (e.g., ['owner/repo1', 'owner/repo2']).
-            branch: Optional specific branch or tag to ingest (applied to all repos).
-            include_patterns: Optional list of glob patterns for files to include.
-            exclude_patterns: Optional list of glob patterns for files to exclude.
-            max_file_size: Maximum file size in bytes to include.
-
-        Returns:
-            List of RepositoryDigest objects for successfully ingested repositories.
+        Fallback: Ingest using the Python library directly.
         """
-        digests = []
+        from gitingest import ingest
 
-        for repo_full_name in repo_full_names:
-            if not repo_full_name or not isinstance(repo_full_name, str):
-                logger.warning(f"Skipping invalid repository entry: {repo_full_name}")
-                continue
+        repo_url = f"https://github.com/{repo_full_name}"
 
-            digest = await self.ingest_repository(
+        logger.info(f"Using Python gitingest library for: {repo_full_name}")
+
+        try:
+            kwargs = {
+                "max_file_size": max_file_size,
+                "exclude_patterns": [
+                    "node_modules/*",
+                    "vendor/*",
+                    ".git/*",
+                    "__pycache__/*",
+                    "dist/*",
+                    "build/*",
+                    "*.lock",
+                    "package-lock.json",
+                ],
+                "include_gitignored": False,
+                "include_submodules": False,
+            }
+
+            if self.token:
+                kwargs["token"] = self.token
+            if branch:
+                kwargs["branch"] = branch
+
+            summary, tree, content = ingest(repo_url, **kwargs)
+
+            if not content or not content.strip():
+                logger.warning(f"No content from {repo_full_name}")
+                return None
+
+            return RepositoryDigest(
                 repo_full_name=repo_full_name,
+                summary=summary,
+                tree=tree,
+                content=content,
                 branch=branch,
-                include_patterns=include_patterns,
-                exclude_patterns=exclude_patterns,
-                max_file_size=max_file_size,
             )
 
-            if digest:
-                digests.append(digest)
-
-        logger.info(
-            f"Ingested {len(digests)} out of {len(repo_full_names)} repositories."
-        )
-        return digests
+        except Exception as e:
+            logger.error(f"Python library failed for {repo_full_name}: {e}")
+            return None

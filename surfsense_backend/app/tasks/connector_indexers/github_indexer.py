@@ -173,8 +173,13 @@ async def index_github_repos(
             logger.info(f"Ingesting repository: {repo_full_name}")
 
             try:
-                # Ingest the entire repository
-                digest = await github_client.ingest_repository(repo_full_name)
+                # Run gitingest via subprocess (isolated from event loop)
+                # Using to_thread to not block the async database operations
+                import asyncio
+
+                digest = await asyncio.to_thread(
+                    github_client.ingest_repository, repo_full_name
+                )
 
                 if not digest:
                     logger.warning(
