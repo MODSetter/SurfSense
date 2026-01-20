@@ -475,10 +475,11 @@ class ChatCommentMention(BaseModel, TimestampMixin):
 class MemoryCategory(str, Enum):
     """Categories for user memories."""
 
-    PREFERENCE = "preference"  # User preferences (e.g., "prefers dark mode")
-    FACT = "fact"  # Facts about the user (e.g., "is a Python developer")
-    INSTRUCTION = "instruction"  # Standing instructions (e.g., "always respond in bullet points")
-    CONTEXT = "context"  # Contextual information (e.g., "working on project X")
+    # Using lowercase keys to match PostgreSQL enum values
+    preference = "preference"  # User preferences (e.g., "prefers dark mode")
+    fact = "fact"  # Facts about the user (e.g., "is a Python developer")
+    instruction = "instruction"  # Standing instructions (e.g., "always respond in bullet points")
+    context = "context"  # Contextual information (e.g., "working on project X")
 
 
 class UserMemory(BaseModel, TimestampMixin):
@@ -510,7 +511,7 @@ class UserMemory(BaseModel, TimestampMixin):
     category = Column(
         SQLAlchemyEnum(MemoryCategory),
         nullable=False,
-        default=MemoryCategory.FACT,
+        default=MemoryCategory.fact,
     )
     # Vector embedding for semantic search
     embedding = Column(Vector(config.embedding_model_instance.dimension))

@@ -158,46 +158,79 @@ def create_save_memory_tool(
         Returns:
             A dictionary with the save status and memory details
         """
-        # Validate category
+        # Log at the very start
+        logger.info(f">>> SAVE_MEMORY TOOL CALLED: content='{content}', category='{category}'")
+        print(f">>> SAVE_MEMORY TOOL CALLED: content='{content}', category='{category}'")
+        
+        # Normalize and validate category (LLMs may send uppercase)
+        category = category.lower() if category else "fact"
         valid_categories = ["preference", "fact", "instruction", "context"]
         if category not in valid_categories:
             category = "fact"
 
         try:
+            logger.info(f"save_memory called: user_id={user_id}, search_space_id={search_space_id}, content={content[:50]}...")
+            
             # Convert user_id to UUID
             uuid_user_id = _to_uuid(user_id)
+            logger.info(f"UUID conversion successful: {uuid_user_id}")
 
             # Check if we've hit the memory limit
             memory_count = await get_user_memory_count(
                 db_session, user_id, search_space_id
             )
+            logger.info(f"Current memory count: {memory_count}")
+            
             if memory_count >= MAX_MEMORIES_PER_USER:
                 # Delete oldest memory to make room
                 await delete_oldest_memory(db_session, user_id, search_space_id)
 
             # Generate embedding for the memory
+            logger.info("Generating embedding...")
             embedding = config.embedding_model_instance.embed(content)
+            logger.info(f"Embedding generated, type: {type(embedding)}, len: {len(embedding) if hasattr(embedding, '__len__') else 'N/A'}")
 
-            # Map string category to enum
-            category_enum = MemoryCategory(category)
+            # Convert numpy array to list of Python floats for PostgreSQL
+            import numpy as np
+            if isinstance(embedding, np.ndarray):
+                embedding_list = embedding.tolist()
+            else:
+                embedding_list = list(embedding)
 
-            # Create new memory
-            new_memory = UserMemory(
-                user_id=uuid_user_id,
-                search_space_id=search_space_id,
-                memory_text=content,
-                category=category_enum,
-                embedding=embedding,
-                updated_at=datetime.now(UTC),
+            # Create new memory using ORM with proper enum handling
+            # Use the enum's value attribute directly
+            from sqlalchemy import text as sql_text
+            
+            now = datetime.now(UTC)
+            
+            # Use raw SQL with proper parameter binding for asyncpg
+            insert_sql = sql_text("""
+                INSERT INTO user_memories (user_id, search_space_id, memory_text, category, embedding, updated_at, created_at)
+                VALUES (:user_id, :search_space_id, :memory_text, CAST(:category AS memorycategory), :embedding, :updated_at, :created_at)
+                RETURNING id
+            """)
+            
+            result = await db_session.execute(
+                insert_sql,
+                {
+                    "user_id": uuid_user_id,
+                    "search_space_id": search_space_id,
+                    "memory_text": content,
+                    "category": category,  # Already lowercase string
+                    "embedding": str(embedding_list),  # Convert to string format for pgvector
+                    "updated_at": now,
+                    "created_at": now,
+                }
             )
-
-            db_session.add(new_memory)
+            new_memory_id = result.scalar_one()
+            
+            logger.info("Committing...")
             await db_session.commit()
-            await db_session.refresh(new_memory)
+            logger.info(f"Memory saved successfully with id: {new_memory_id}")
 
             return {
                 "status": "saved",
-                "memory_id": new_memory.id,
+                "memory_id": new_memory_id,
                 "memory_text": content,
                 "category": category,
                 "message": f"I'll remember: {content}",
@@ -205,6 +238,8 @@ def create_save_memory_tool(
 
         except Exception as e:
             logger.exception(f"Failed to save memory for user {user_id}: {e}")
+            # Rollback the session to clear any failed transaction state
+            await db_session.rollback()
             return {
                 "status": "error",
                 "error": str(e),
@@ -260,10 +295,15 @@ def create_recall_memory_tool(
             A dictionary containing relevant memories and formatted context
         """
         top_k = min(max(top_k, 1), 20)  # Clamp between 1 and 20
+        
+        # Log at the very start
+        logger.info(f">>> RECALL_MEMORY TOOL CALLED: query='{query}', category='{category}', top_k={top_k}")
+        print(f">>> RECALL_MEMORY TOOL CALLED: query='{query}', category='{category}', top_k={top_k}")
 
         try:
             # Convert user_id to UUID
             uuid_user_id = _to_uuid(user_id)
+            logger.info(f"Recall memory for user: {uuid_user_id}, search_space: {search_space_id}")
 
             if query:
                 # Semantic search using embeddings
@@ -307,6 +347,8 @@ def create_recall_memory_tool(
 
             result = await db_session.execute(stmt)
             memories = result.scalars().all()
+            
+            logger.info(f"Found {len(memories)} memories")
 
             # Format memories for response
             memory_list = [
@@ -318,8 +360,12 @@ def create_recall_memory_tool(
                 }
                 for m in memories
             ]
+            
+            logger.info(f"Formatted memory list: {memory_list}")
 
             formatted_context = format_memories_for_context(memory_list)
+            
+            logger.info(f"Returning {len(memory_list)} memories")
 
             return {
                 "status": "success",
@@ -329,6 +375,8 @@ def create_recall_memory_tool(
             }
 
         except Exception as e:
+            logger.exception(f"Failed to recall memories for user {user_id}: {e}")
+            await db_session.rollback()
             return {
                 "status": "error",
                 "error": str(e),
