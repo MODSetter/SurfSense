@@ -688,6 +688,10 @@
 		"collapse_sidebar": "Collapse sidebar",
 		"user_settings": "User settings",
 		"language": "Language",
+		"theme": "Theme",
+		"light": "Light",
+		"dark": "Dark",
+		"system": "System",
 		"logout": "Logout"
 	},
 	"errors": {

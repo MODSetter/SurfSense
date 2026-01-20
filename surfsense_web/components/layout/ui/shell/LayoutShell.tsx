@@ -36,7 +36,7 @@ interface LayoutShellProps {
 	pageUsage?: PageUsage;
 	breadcrumb?: React.ReactNode;
 	theme?: string;
-	onToggleTheme?: () => void;
+	setTheme?: (theme: "light" | "dark" | "system") => void;
 	defaultCollapsed?: boolean;
 	isChatPage?: boolean;
 	children: React.ReactNode;
@@ -69,7 +69,7 @@ export function LayoutShell({
 	pageUsage,
 	breadcrumb,
 	theme,
-	onToggleTheme,
+	setTheme,
 	defaultCollapsed = false,
 	isChatPage = false,
 	children,
@@ -86,8 +86,6 @@ export function LayoutShell({
 				<div className={cn("flex h-screen w-full flex-col bg-background", className)}>
 					<Header
 						breadcrumb={breadcrumb}
-						theme={theme}
-						onToggleTheme={onToggleTheme}
 						mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
 					/>
 
@@ -117,6 +115,8 @@ export function LayoutShell({
 						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
+						theme={theme}
+						setTheme={setTheme}
 					/>
 
 					<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
@@ -163,14 +163,14 @@ export function LayoutShell({
 						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
+						theme={theme}
+						setTheme={setTheme}
 						className="hidden md:flex border-r shrink-0"
 					/>
 
 					<main className="flex-1 flex flex-col min-w-0">
 						<Header
 							breadcrumb={breadcrumb}
-							theme={theme}
-							onToggleTheme={onToggleTheme}
 						/>
 
 						<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>

@@ -232,7 +232,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 
 					<div className="flex items-center gap-1 md:gap-2 border-b border-border/30 px-2 md:px-3 py-1.5 md:py-2">
 						<CommandInput
-							placeholder="Search models..."
+							placeholder="Search models"
 							value={searchQuery}
 							onValueChange={setSearchQuery}
 							className="h-7 md:h-8 text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"

@@ -1,21 +1,14 @@
 "use client";
 
-import { Moon, Sun } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NotificationButton } from "@/components/notifications/NotificationButton";
 
 interface HeaderProps {
 	breadcrumb?: React.ReactNode;
-	theme?: string;
-	onToggleTheme?: () => void;
 	mobileMenuTrigger?: React.ReactNode;
 }
 
 export function Header({
 	breadcrumb,
-	theme,
-	onToggleTheme,
 	mobileMenuTrigger,
 }: HeaderProps) {
 	return (
@@ -30,19 +23,6 @@ export function Header({
 			<div className="flex items-center gap-2">
 				{/* Notifications */}
 				<NotificationButton />
-
-				{/* Theme toggle */}
-				{onToggleTheme && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button variant="outline" size="icon" onClick={onToggleTheme} className="h-8 w-8">
-								{theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-								<span className="sr-only">Toggle theme</span>
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>{theme === "dark" ? "Light mode" : "Dark mode"}</TooltipContent>
-					</Tooltip>
-				)}
 			</div>
 		</header>
 	);

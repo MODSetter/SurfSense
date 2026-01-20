@@ -673,6 +673,10 @@
 		"collapse_sidebar": "收起侧边栏",
 		"user_settings": "用户设置",
 		"language": "语言",
+		"theme": "主题",
+		"light": "浅色",
+		"dark": "深色",
+		"system": "系统",
 		"logout": "退出登录"
 	},
 	"errors": {

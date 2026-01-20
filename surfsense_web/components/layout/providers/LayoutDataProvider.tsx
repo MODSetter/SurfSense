@@ -300,9 +300,6 @@ export function LayoutDataProvider({
 		}
 	}, [router]);
 
-	const handleToggleTheme = useCallback(() => {
-		setTheme(theme === "dark" ? "light" : "dark");
-	}, [theme, setTheme]);
 
 	const handleViewAllSharedChats = useCallback(() => {
 		setIsAllSharedChatsSidebarOpen(true);
@@ -374,7 +371,7 @@ export function LayoutDataProvider({
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}
 				theme={theme}
-				onToggleTheme={handleToggleTheme}
+				setTheme={setTheme}
 				isChatPage={isChatPage}
 			>
 				{children}

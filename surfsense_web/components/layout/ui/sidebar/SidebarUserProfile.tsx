@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, Languages, LogOut, Settings } from "lucide-react";
+import { Check, ChevronUp, Laptop, Languages, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
 	DropdownMenu,
@@ -25,11 +25,20 @@ const LANGUAGES = [
 	{ code: "zh" as const, name: "简体中文", flag: "🇨🇳" },
 ];
 
+// Supported themes configuration
+const THEMES = [
+	{ value: "light" as const, name: "Light", icon: Sun },
+	{ value: "dark" as const, name: "Dark", icon: Moon },
+	{ value: "system" as const, name: "System", icon: Laptop },
+];
+
 interface SidebarUserProfileProps {
 	user: User;
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	isCollapsed?: boolean;
+	theme?: string;
+	setTheme?: (theme: "light" | "dark" | "system") => void;
 }
 
 /**
@@ -110,6 +119,8 @@ export function SidebarUserProfile({
 	onUserSettings,
 	onLogout,
 	isCollapsed = false,
+	theme,
+	setTheme,
 }: SidebarUserProfileProps) {
 	const t = useTranslations("sidebar");
 	const { locale, setLocale } = useLocaleContext();
@@ -119,6 +130,10 @@ export function SidebarUserProfile({
 
 	const handleLanguageChange = (newLocale: "en" | "zh") => {
 		setLocale(newLocale);
+	};
+
+	const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
+		setTheme?.(newTheme);
 	};
 
 	// Collapsed view - just show avatar with dropdown
@@ -163,6 +178,38 @@ export function SidebarUserProfile({
 							<Settings className="mr-2 h-4 w-4" />
 							{t("user_settings")}
 						</DropdownMenuItem>
+
+						{setTheme && (
+							<DropdownMenuSub>
+								<DropdownMenuSubTrigger>
+									<Sun className="mr-2 h-4 w-4" />
+									{t("theme")}
+								</DropdownMenuSubTrigger>
+								<DropdownMenuPortal>
+									<DropdownMenuSubContent className="gap-1">
+										{THEMES.map((themeOption) => {
+											const Icon = themeOption.icon;
+											const isSelected = theme === themeOption.value;
+											return (
+												<DropdownMenuItem
+													key={themeOption.value}
+													onClick={() => handleThemeChange(themeOption.value)}
+													className={cn(
+														"mb-1 last:mb-0",
+														!isSelected && "focus:bg-transparent hover:bg-transparent",
+														isSelected && "bg-accent focus:!bg-accent hover:!bg-accent"
+													)}
+												>
+													<Icon className="mr-2 h-4 w-4" />
+													<span className="flex-1">{t(themeOption.value)}</span>
+													{isSelected && <Check className="ml-2 h-4 w-4" />}
+												</DropdownMenuItem>
+											);
+										})}
+									</DropdownMenuSubContent>
+								</DropdownMenuPortal>
+							</DropdownMenuSub>
+						)}
 
 						<DropdownMenuSub>
 							<DropdownMenuSubTrigger>
@@ -248,6 +295,38 @@ export function SidebarUserProfile({
 						<Settings className="mr-2 h-4 w-4" />
 						{t("user_settings")}
 					</DropdownMenuItem>
+
+					{setTheme && (
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger>
+								<Sun className="mr-2 h-4 w-4" />
+								{t("theme")}
+							</DropdownMenuSubTrigger>
+							<DropdownMenuPortal>
+								<DropdownMenuSubContent className="gap-1">
+									{THEMES.map((themeOption) => {
+										const Icon = themeOption.icon;
+										const isSelected = theme === themeOption.value;
+										return (
+											<DropdownMenuItem
+												key={themeOption.value}
+												onClick={() => handleThemeChange(themeOption.value)}
+												className={cn(
+													"mb-1 last:mb-0",
+													!isSelected && "focus:bg-transparent hover:bg-transparent",
+													isSelected && "bg-accent focus:!bg-accent hover:!bg-accent"
+												)}
+											>
+												<Icon className="mr-2 h-4 w-4" />
+												<span className="flex-1">{t(themeOption.value)}</span>
+												{isSelected && <Check className="ml-2 h-4 w-4" />}
+											</DropdownMenuItem>
+										);
+									})}
+								</DropdownMenuSubContent>
+							</DropdownMenuPortal>
+						</DropdownMenuSub>
+					)}
 
 					<DropdownMenuSub>
 						<DropdownMenuSubTrigger>
