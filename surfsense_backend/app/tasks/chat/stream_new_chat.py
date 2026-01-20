@@ -11,6 +11,7 @@ Supports loading LLM configurations from:
 
 import json
 from collections.abc import AsyncGenerator
+from uuid import UUID
 
 from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,6 +28,10 @@ from app.agents.new_chat.llm_config import (
 )
 from app.db import Document, SurfsenseDocsDocument
 from app.schemas.new_chat import ChatAttachment
+from app.services.chat_session_state_service import (
+    clear_ai_responding,
+    set_ai_responding,
+)
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 
@@ -149,6 +154,7 @@ async def stream_new_chat(
     search_space_id: int,
     chat_id: int,
     session: AsyncSession,
+    user_id: UUID,
     llm_config_id: int = -1,
     attachments: list[ChatAttachment] | None = None,
     mentioned_document_ids: list[int] | None = None,
@@ -166,8 +172,8 @@ async def stream_new_chat(
         search_space_id: The search space ID
         chat_id: The chat ID (used as LangGraph thread_id for memory)
         session: The database session
+        user_id: The ID of the user sending the message
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
-        messages: Optional chat history from frontend (list of ChatMessage)
         attachments: Optional attachments with extracted content
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
         mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
@@ -181,6 +187,8 @@ async def stream_new_chat(
     current_text_id: str | None = None
 
     try:
+        # Mark AI as responding to this user for live collaboration
+        await set_ai_responding(session, chat_id, user_id)
         # Load LLM config - supports both YAML (negative IDs) and database (positive IDs)
         agent_config: AgentConfig | None = None
 
@@ -1144,3 +1152,7 @@ async def stream_new_chat(
         yield streaming_service.format_finish_step()
         yield streaming_service.format_finish()
         yield streaming_service.format_done()
+
+    finally:
+        # Clear AI responding state for live collaboration
+        await clear_ai_responding(session, chat_id)
