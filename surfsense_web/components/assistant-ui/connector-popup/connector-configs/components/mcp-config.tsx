@@ -46,13 +46,28 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 
 		const serverConfig = connector.config?.server_config as MCPServerConfig | undefined;
 		if (serverConfig) {
-			// Convert server config to JSON string for editing (name is in separate field)
-			const configObj = {
-				command: serverConfig.command || "",
-				args: serverConfig.args || [],
-				env: serverConfig.env || {},
-				transport: serverConfig.transport || "stdio",
-			};
+			const transport = serverConfig.transport || "stdio";
+			
+			// Build config object based on transport type
+			let configObj: Record<string, unknown>;
+			
+			if (transport === "streamable-http" || transport === "http" || transport === "sse") {
+				// HTTP transport - use url and headers
+				configObj = {
+					url: (serverConfig as any).url || "",
+					headers: (serverConfig as any).headers || {},
+					transport: transport,
+				};
+			} else {
+				// stdio transport (default) - use command, args, env
+				configObj = {
+					command: (serverConfig as any).command || "",
+					args: (serverConfig as any).args || [],
+					env: (serverConfig as any).env || {},
+					transport: transport,
+				};
+			}
+			
 			setConfigJson(JSON.stringify(configObj, null, 2));
 		}
 	}, [isValidConnector, connector.name, connector.config?.server_config]);
@@ -163,8 +178,8 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 						/>
 						{jsonError && <p className="text-xs text-red-500">JSON Error: {jsonError}</p>}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							Edit your MCP server configuration. Must include: name, command, args (optional), env
-							(optional), transport (optional).
+							<strong>Local (stdio):</strong> command, args, env, transport: "stdio"<br />
+							<strong>Remote (HTTP):</strong> url, headers, transport: "streamable-http"
 						</p>
 					</div>
 

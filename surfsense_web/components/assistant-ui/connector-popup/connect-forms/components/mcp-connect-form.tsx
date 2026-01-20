@@ -25,7 +25,8 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 	const [showDetails, setShowDetails] = useState(false);
 	const [testResult, setTestResult] = useState<MCPConnectionTestResult | null>(null);
 
-	const DEFAULT_CONFIG = JSON.stringify(
+	// Default config for stdio transport (local process)
+	const DEFAULT_STDIO_CONFIG = JSON.stringify(
 		{
 			name: "My MCP Server",
 			command: "npx",
@@ -38,6 +39,22 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 		null,
 		2
 	);
+
+	// Default config for HTTP transport (remote server)
+	const DEFAULT_HTTP_CONFIG = JSON.stringify(
+		{
+			name: "My Remote MCP Server",
+			url: "https://your-mcp-server.com/mcp",
+			headers: {
+				"API_KEY": "your_api_key_here",
+			},
+			transport: "streamable-http",
+		},
+		null,
+		2
+	);
+
+	const DEFAULT_CONFIG = DEFAULT_STDIO_CONFIG;
 
 	const parseConfig = () => {
 		const result = parseMCPConfig(configJson);
@@ -132,7 +149,31 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 			<form id="mcp-connect-form" onSubmit={handleSubmit} className="space-y-6">
 				<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-4 sm:p-6 space-y-4">
 					<div className="space-y-2">
-						<Label htmlFor="config">MCP Server Configuration (JSON)</Label>
+						<div className="flex items-center justify-between flex-wrap gap-2">
+							<Label htmlFor="config">MCP Server Configuration (JSON)</Label>
+							{!configJson && (
+								<div className="flex gap-1">
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+										onClick={() => handleConfigChange(DEFAULT_STDIO_CONFIG)}
+									>
+										Local Example
+									</Button>
+									<Button
+										type="button"
+										variant="ghost"
+										size="sm"
+										className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
+										onClick={() => handleConfigChange(DEFAULT_HTTP_CONFIG)}
+									>
+										Remote Example
+									</Button>
+								</div>
+							)}
+						</div>
 						<Textarea
 							id="config"
 							value={configJson}
@@ -143,8 +184,8 @@ export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting })
 						/>
 						{jsonError && <p className="text-xs text-red-500">JSON Error: {jsonError}</p>}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							Paste a single MCP server configuration. Must include: name, command, args (optional),
-							env (optional), transport (optional).
+							<strong>Local (stdio):</strong> command, args, env, transport: "stdio"<br />
+							<strong>Remote (HTTP):</strong> url, headers, transport: "streamable-http"
 						</p>
 					</div>
 
