@@ -13,8 +13,8 @@
  */
 
 import { PGlite } from "@electric-sql/pglite";
-import { electricSync } from "@electric-sql/pglite-sync";
 import { live } from "@electric-sql/pglite/live";
+import { electricSync } from "@electric-sql/pglite-sync";
 
 // Types
 export interface ElectricClient {
@@ -270,365 +270,375 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 					// Create and track the sync promise to prevent race conditions
 					const syncPromise = (async (): Promise<SyncHandle> => {
 						// Build params for the shape request
-					// Electric SQL expects params as URL query parameters
-					const params: Record<string, string> = { table };
+						// Electric SQL expects params as URL query parameters
+						const params: Record<string, string> = { table };
 
-					// Validate and fix WHERE clause to ensure string literals are properly quoted
-					let validatedWhere = where;
-					if (where) {
-						// Check if where uses positional parameters
-						if (where.includes("$1")) {
-							// Extract the value from the where clause if it's embedded
-							// For now, we'll use the where clause as-is and let Electric handle it
-							params.where = where;
-							validatedWhere = where;
-						} else {
-							// Validate that string literals are properly quoted
-							// Count single quotes - should be even (pairs) for properly quoted strings
-							const singleQuoteCount = (where.match(/'/g) || []).length;
-
-							if (singleQuoteCount % 2 !== 0) {
-								// Odd number of quotes means unterminated string literal
-								console.warn("Where clause has unmatched quotes, fixing:", where);
-								// Add closing quote at the end
-								validatedWhere = `${where}'`;
-								params.where = validatedWhere;
-							} else {
-								// Use the where clause directly (already formatted)
+						// Validate and fix WHERE clause to ensure string literals are properly quoted
+						let validatedWhere = where;
+						if (where) {
+							// Check if where uses positional parameters
+							if (where.includes("$1")) {
+								// Extract the value from the where clause if it's embedded
+								// For now, we'll use the where clause as-is and let Electric handle it
 								params.where = where;
 								validatedWhere = where;
+							} else {
+								// Validate that string literals are properly quoted
+								// Count single quotes - should be even (pairs) for properly quoted strings
+								const singleQuoteCount = (where.match(/'/g) || []).length;
+
+								if (singleQuoteCount % 2 !== 0) {
+									// Odd number of quotes means unterminated string literal
+									console.warn("Where clause has unmatched quotes, fixing:", where);
+									// Add closing quote at the end
+									validatedWhere = `${where}'`;
+									params.where = validatedWhere;
+								} else {
+									// Use the where clause directly (already formatted)
+									params.where = where;
+									validatedWhere = where;
+								}
 							}
 						}
-					}
 
-					if (columns) params.columns = columns.join(",");
+						if (columns) params.columns = columns.join(",");
 
-					console.log("[Electric] Syncing shape with params:", params);
-					console.log("[Electric] Electric URL:", `${electricUrl}/v1/shape`);
-					console.log("[Electric] Where clause:", where, "Validated:", validatedWhere);
+						console.log("[Electric] Syncing shape with params:", params);
+						console.log("[Electric] Electric URL:", `${electricUrl}/v1/shape`);
+						console.log("[Electric] Where clause:", where, "Validated:", validatedWhere);
 
-					try {
-						// Debug: Test Electric SQL connection directly first
-						// Use validatedWhere to ensure proper URL encoding
-						const testUrl = `${electricUrl}/v1/shape?table=${table}&offset=-1${validatedWhere ? `&where=${encodeURIComponent(validatedWhere)}` : ""}`;
-						console.log("[Electric] Testing Electric SQL directly:", testUrl);
 						try {
-							const testResponse = await fetch(testUrl);
-							const testHeaders = {
-								handle: testResponse.headers.get("electric-handle"),
-								offset: testResponse.headers.get("electric-offset"),
-								upToDate: testResponse.headers.get("electric-up-to-date"),
-							};
-							console.log("[Electric] Direct Electric SQL response headers:", testHeaders);
-							const testData = await testResponse.json();
-							console.log(
-								"[Electric] Direct Electric SQL data count:",
-								Array.isArray(testData) ? testData.length : "not array",
-								testData
-							);
-						} catch (testErr) {
-							console.error("[Electric] Direct Electric SQL test failed:", testErr);
-						}
-
-						// Use PGlite's electric sync plugin to sync the shape
-						// According to Electric SQL docs, the shape config uses params for table, where, columns
-						// Note: mapColumns is OPTIONAL per pglite-sync types.ts
-
-						// Create a promise that resolves when initial sync is complete
-						// Using recommended approach: check isUpToDate immediately, watch stream, shorter timeout
-						// IMPORTANT: We don't unsubscribe from the stream - it must stay active for real-time updates
-						let syncResolved = false;
-						// Initialize with no-op functions to satisfy TypeScript
-						let resolveInitialSync: () => void = () => {};
-						let rejectInitialSync: (error: Error) => void = () => {};
-
-						const initialSyncPromise = new Promise<void>((resolve, reject) => {
-							resolveInitialSync = () => {
-								if (!syncResolved) {
-									syncResolved = true;
-									// DON'T unsubscribe from stream - it needs to stay active for real-time updates
-									resolve();
-								}
-							};
-							rejectInitialSync = (error: Error) => {
-								if (!syncResolved) {
-									syncResolved = true;
-									// DON'T unsubscribe from stream even on error - let Electric handle it
-									reject(error);
-								}
-							};
-
-							// Shorter timeout (5 seconds) as fallback
-							setTimeout(() => {
-								if (!syncResolved) {
-									console.warn(
-										`[Electric] ⚠️ Sync timeout for ${table} - checking isUpToDate one more time...`
-									);
-									// Check isUpToDate one more time before resolving
-									// This will be checked after shape is created
-									setTimeout(() => {
-										if (!syncResolved) {
-											console.warn(
-												`[Electric] ⚠️ Sync timeout for ${table} - resolving anyway after 5s`
-											);
-											resolveInitialSync();
-										}
-									}, 100);
-								}
-							}, 5000);
-						});
-
-						// Include userId in shapeKey for user-specific sync state
-						const shapeConfig = {
-							shape: {
-								url: `${electricUrl}/v1/shape`,
-								params: {
-									table,
-									...(validatedWhere ? { where: validatedWhere } : {}),
-									...(columns ? { columns: columns.join(",") } : {}),
-								},
-							},
-							table,
-							primaryKey,
-							shapeKey: `${userId}_v${SYNC_VERSION}_${table}_${where?.replace(/[^a-zA-Z0-9]/g, "_") || "all"}`, // User-specific versioned key
-							onInitialSync: () => {
+							// Debug: Test Electric SQL connection directly first
+							// Use validatedWhere to ensure proper URL encoding
+							const testUrl = `${electricUrl}/v1/shape?table=${table}&offset=-1${validatedWhere ? `&where=${encodeURIComponent(validatedWhere)}` : ""}`;
+							console.log("[Electric] Testing Electric SQL directly:", testUrl);
+							try {
+								const testResponse = await fetch(testUrl);
+								const testHeaders = {
+									handle: testResponse.headers.get("electric-handle"),
+									offset: testResponse.headers.get("electric-offset"),
+									upToDate: testResponse.headers.get("electric-up-to-date"),
+								};
+								console.log("[Electric] Direct Electric SQL response headers:", testHeaders);
+								const testData = await testResponse.json();
 								console.log(
-									`[Electric] ✅ Initial sync complete for ${table} - data should now be in PGlite`
+									"[Electric] Direct Electric SQL data count:",
+									Array.isArray(testData) ? testData.length : "not array",
+									testData
+								);
+							} catch (testErr) {
+								console.error("[Electric] Direct Electric SQL test failed:", testErr);
+							}
+
+							// Use PGlite's electric sync plugin to sync the shape
+							// According to Electric SQL docs, the shape config uses params for table, where, columns
+							// Note: mapColumns is OPTIONAL per pglite-sync types.ts
+
+							// Create a promise that resolves when initial sync is complete
+							// Using recommended approach: check isUpToDate immediately, watch stream, shorter timeout
+							// IMPORTANT: We don't unsubscribe from the stream - it must stay active for real-time updates
+							let syncResolved = false;
+							// Initialize with no-op functions to satisfy TypeScript
+							let resolveInitialSync: () => void = () => {};
+							let rejectInitialSync: (error: Error) => void = () => {};
+
+							const initialSyncPromise = new Promise<void>((resolve, reject) => {
+								resolveInitialSync = () => {
+									if (!syncResolved) {
+										syncResolved = true;
+										// DON'T unsubscribe from stream - it needs to stay active for real-time updates
+										resolve();
+									}
+								};
+								rejectInitialSync = (error: Error) => {
+									if (!syncResolved) {
+										syncResolved = true;
+										// DON'T unsubscribe from stream even on error - let Electric handle it
+										reject(error);
+									}
+								};
+
+								// Shorter timeout (5 seconds) as fallback
+								setTimeout(() => {
+									if (!syncResolved) {
+										console.warn(
+											`[Electric] ⚠️ Sync timeout for ${table} - checking isUpToDate one more time...`
+										);
+										// Check isUpToDate one more time before resolving
+										// This will be checked after shape is created
+										setTimeout(() => {
+											if (!syncResolved) {
+												console.warn(
+													`[Electric] ⚠️ Sync timeout for ${table} - resolving anyway after 5s`
+												);
+												resolveInitialSync();
+											}
+										}, 100);
+									}
+								}, 5000);
+							});
+
+							// Include userId in shapeKey for user-specific sync state
+							const shapeConfig = {
+								shape: {
+									url: `${electricUrl}/v1/shape`,
+									params: {
+										table,
+										...(validatedWhere ? { where: validatedWhere } : {}),
+										...(columns ? { columns: columns.join(",") } : {}),
+									},
+								},
+								table,
+								primaryKey,
+								shapeKey: `${userId}_v${SYNC_VERSION}_${table}_${where?.replace(/[^a-zA-Z0-9]/g, "_") || "all"}`, // User-specific versioned key
+								onInitialSync: () => {
+									console.log(
+										`[Electric] ✅ Initial sync complete for ${table} - data should now be in PGlite`
+									);
+									resolveInitialSync();
+								},
+								onError: (error: Error) => {
+									console.error(`[Electric] ❌ Shape sync error for ${table}:`, error);
+									console.error(
+										"[Electric] Error details:",
+										JSON.stringify(error, Object.getOwnPropertyNames(error))
+									);
+									rejectInitialSync(error);
+								},
+							};
+
+							console.log(
+								"[Electric] syncShapeToTable config:",
+								JSON.stringify(shapeConfig, null, 2)
+							);
+
+							// Type assertion to PGlite with electric extension
+							const pgWithElectric = db as PGlite & {
+								electric: {
+									syncShapeToTable: (
+										config: typeof shapeConfig
+									) => Promise<{ unsubscribe: () => void; isUpToDate: boolean; stream: unknown }>;
+								};
+							};
+
+							let shape: { unsubscribe: () => void; isUpToDate: boolean; stream: unknown };
+							try {
+								shape = await pgWithElectric.electric.syncShapeToTable(shapeConfig);
+							} catch (syncError) {
+								// Handle "Already syncing" error - pglite-sync might not have fully cleaned up yet
+								const errorMessage =
+									syncError instanceof Error ? syncError.message : String(syncError);
+								if (errorMessage.includes("Already syncing")) {
+									console.warn(
+										`[Electric] Already syncing ${table}, waiting for existing sync to settle...`
+									);
+
+									// Wait a short time for pglite-sync to settle
+									await new Promise((resolve) => setTimeout(resolve, 100));
+
+									// Check if an active handle now exists (another sync might have completed)
+									const existingHandle = activeSyncHandles.get(cacheKey);
+									if (existingHandle) {
+										console.log(`[Electric] Found existing handle after waiting: ${cacheKey}`);
+										return existingHandle;
+									}
+
+									// Retry once after waiting
+									console.log(`[Electric] Retrying sync for ${table}...`);
+									try {
+										shape = await pgWithElectric.electric.syncShapeToTable(shapeConfig);
+									} catch (retryError) {
+										const retryMessage =
+											retryError instanceof Error ? retryError.message : String(retryError);
+										if (retryMessage.includes("Already syncing")) {
+											// Still syncing - create a placeholder handle that indicates the table is being synced
+											console.warn(
+												`[Electric] ${table} still syncing, creating placeholder handle`
+											);
+											const placeholderHandle: SyncHandle = {
+												unsubscribe: () => {
+													console.log(`[Electric] Placeholder unsubscribe for: ${cacheKey}`);
+													activeSyncHandles.delete(cacheKey);
+												},
+												get isUpToDate() {
+													return false; // We don't know the real state
+												},
+												stream: undefined,
+												initialSyncPromise: Promise.resolve(), // Already syncing means data should be coming
+											};
+											activeSyncHandles.set(cacheKey, placeholderHandle);
+											return placeholderHandle;
+										}
+										throw retryError;
+									}
+								} else {
+									throw syncError;
+								}
+							}
+
+							if (!shape) {
+								throw new Error("syncShapeToTable returned undefined");
+							}
+
+							// Log the actual shape result structure
+							console.log("[Electric] Shape sync result (initial):", {
+								hasUnsubscribe: typeof shape?.unsubscribe === "function",
+								isUpToDate: shape?.isUpToDate,
+								hasStream: !!shape?.stream,
+								streamType: typeof shape?.stream,
+							});
+
+							// Recommended Approach Step 1: Check isUpToDate immediately
+							if (shape.isUpToDate) {
+								console.log(
+									`[Electric] ✅ Sync already up-to-date for ${table} (resuming from previous state)`
 								);
 								resolveInitialSync();
-							},
-							onError: (error: Error) => {
-								console.error(`[Electric] ❌ Shape sync error for ${table}:`, error);
-								console.error(
-									"[Electric] Error details:",
-									JSON.stringify(error, Object.getOwnPropertyNames(error))
-								);
-								rejectInitialSync(error);
-							},
-						};
-
-						console.log(
-							"[Electric] syncShapeToTable config:",
-							JSON.stringify(shapeConfig, null, 2)
-						);
-
-						// Type assertion to PGlite with electric extension
-						const pgWithElectric = db as PGlite & {
-							electric: {
-								syncShapeToTable: (
-									config: typeof shapeConfig
-								) => Promise<{ unsubscribe: () => void; isUpToDate: boolean; stream: unknown }>;
-							};
-						};
-						
-						let shape: { unsubscribe: () => void; isUpToDate: boolean; stream: unknown };
-						try {
-							shape = await pgWithElectric.electric.syncShapeToTable(shapeConfig);
-						} catch (syncError) {
-							// Handle "Already syncing" error - pglite-sync might not have fully cleaned up yet
-							const errorMessage = syncError instanceof Error ? syncError.message : String(syncError);
-							if (errorMessage.includes("Already syncing")) {
-								console.warn(`[Electric] Already syncing ${table}, waiting for existing sync to settle...`);
-								
-								// Wait a short time for pglite-sync to settle
-								await new Promise(resolve => setTimeout(resolve, 100));
-								
-								// Check if an active handle now exists (another sync might have completed)
-								const existingHandle = activeSyncHandles.get(cacheKey);
-								if (existingHandle) {
-									console.log(`[Electric] Found existing handle after waiting: ${cacheKey}`);
-									return existingHandle;
-								}
-								
-								// Retry once after waiting
-								console.log(`[Electric] Retrying sync for ${table}...`);
-								try {
-									shape = await pgWithElectric.electric.syncShapeToTable(shapeConfig);
-								} catch (retryError) {
-									const retryMessage = retryError instanceof Error ? retryError.message : String(retryError);
-									if (retryMessage.includes("Already syncing")) {
-										// Still syncing - create a placeholder handle that indicates the table is being synced
-										console.warn(`[Electric] ${table} still syncing, creating placeholder handle`);
-										const placeholderHandle: SyncHandle = {
-											unsubscribe: () => {
-												console.log(`[Electric] Placeholder unsubscribe for: ${cacheKey}`);
-												activeSyncHandles.delete(cacheKey);
-											},
-											get isUpToDate() {
-												return false; // We don't know the real state
-											},
-											stream: undefined,
-											initialSyncPromise: Promise.resolve(), // Already syncing means data should be coming
-										};
-										activeSyncHandles.set(cacheKey, placeholderHandle);
-										return placeholderHandle;
-									}
-									throw retryError;
-								}
 							} else {
-								throw syncError;
-							}
-						}
-
-						if (!shape) {
-							throw new Error("syncShapeToTable returned undefined");
-						}
-
-						// Log the actual shape result structure
-						console.log("[Electric] Shape sync result (initial):", {
-							hasUnsubscribe: typeof shape?.unsubscribe === "function",
-							isUpToDate: shape?.isUpToDate,
-							hasStream: !!shape?.stream,
-							streamType: typeof shape?.stream,
-						});
-
-						// Recommended Approach Step 1: Check isUpToDate immediately
-						if (shape.isUpToDate) {
-							console.log(
-								`[Electric] ✅ Sync already up-to-date for ${table} (resuming from previous state)`
-							);
-							resolveInitialSync();
-						} else {
-							// Recommended Approach Step 2: Subscribe to stream and watch for "up-to-date" message
-							if (shape?.stream) {
-								const stream = shape.stream as any;
-								console.log("[Electric] Shape stream details:", {
-									shapeHandle: stream?.shapeHandle,
-									lastOffset: stream?.lastOffset,
-									isUpToDate: stream?.isUpToDate,
-									error: stream?.error,
-									hasSubscribe: typeof stream?.subscribe === "function",
-									hasUnsubscribe: typeof stream?.unsubscribe === "function",
-								});
-
-								// Subscribe to the stream to watch for "up-to-date" control message
-								// NOTE: We keep this subscription active - don't unsubscribe!
-								// The stream is what Electric SQL uses for real-time updates
-								if (typeof stream?.subscribe === "function") {
-									console.log(
-										"[Electric] Subscribing to shape stream to watch for up-to-date message..."
-									);
-									// Subscribe but don't store unsubscribe - we want it to stay active
-									stream.subscribe((messages: unknown[]) => {
-										// Continue receiving updates even after sync is resolved
-										if (!syncResolved) {
-											console.log(
-												"[Electric] 🔵 Shape stream received messages:",
-												messages?.length || 0
-											);
-										}
-
-										// Check if any message indicates sync is complete
-										if (messages && messages.length > 0) {
-											for (const message of messages) {
-												const msg = message as any;
-												// Check for "up-to-date" control message
-												if (
-													msg?.headers?.control === "up-to-date" ||
-													msg?.headers?.electric_up_to_date === "true" ||
-													(typeof msg === "object" && "up-to-date" in msg)
-												) {
-													if (!syncResolved) {
-														console.log(`[Electric] ✅ Received up-to-date message for ${table}`);
-														resolveInitialSync();
-													}
-													// Continue listening for real-time updates - don't return!
-												}
-											}
-											if (!syncResolved && messages.length > 0) {
-												console.log(
-													"[Electric] First message:",
-													JSON.stringify(messages[0], null, 2)
-												);
-											}
-										}
-
-										// Also check stream's isUpToDate property after receiving messages
-										if (!syncResolved && stream?.isUpToDate) {
-											console.log(`[Electric] ✅ Stream isUpToDate is true for ${table}`);
-											resolveInitialSync();
-										}
+								// Recommended Approach Step 2: Subscribe to stream and watch for "up-to-date" message
+								if (shape?.stream) {
+									const stream = shape.stream as any;
+									console.log("[Electric] Shape stream details:", {
+										shapeHandle: stream?.shapeHandle,
+										lastOffset: stream?.lastOffset,
+										isUpToDate: stream?.isUpToDate,
+										error: stream?.error,
+										hasSubscribe: typeof stream?.subscribe === "function",
+										hasUnsubscribe: typeof stream?.unsubscribe === "function",
 									});
 
-									// Also check stream's isUpToDate property immediately
-									if (stream?.isUpToDate) {
-										console.log(`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`);
-										resolveInitialSync();
+									// Subscribe to the stream to watch for "up-to-date" control message
+									// NOTE: We keep this subscription active - don't unsubscribe!
+									// The stream is what Electric SQL uses for real-time updates
+									if (typeof stream?.subscribe === "function") {
+										console.log(
+											"[Electric] Subscribing to shape stream to watch for up-to-date message..."
+										);
+										// Subscribe but don't store unsubscribe - we want it to stay active
+										stream.subscribe((messages: unknown[]) => {
+											// Continue receiving updates even after sync is resolved
+											if (!syncResolved) {
+												console.log(
+													"[Electric] 🔵 Shape stream received messages:",
+													messages?.length || 0
+												);
+											}
+
+											// Check if any message indicates sync is complete
+											if (messages && messages.length > 0) {
+												for (const message of messages) {
+													const msg = message as any;
+													// Check for "up-to-date" control message
+													if (
+														msg?.headers?.control === "up-to-date" ||
+														msg?.headers?.electric_up_to_date === "true" ||
+														(typeof msg === "object" && "up-to-date" in msg)
+													) {
+														if (!syncResolved) {
+															console.log(`[Electric] ✅ Received up-to-date message for ${table}`);
+															resolveInitialSync();
+														}
+														// Continue listening for real-time updates - don't return!
+													}
+												}
+												if (!syncResolved && messages.length > 0) {
+													console.log(
+														"[Electric] First message:",
+														JSON.stringify(messages[0], null, 2)
+													);
+												}
+											}
+
+											// Also check stream's isUpToDate property after receiving messages
+											if (!syncResolved && stream?.isUpToDate) {
+												console.log(`[Electric] ✅ Stream isUpToDate is true for ${table}`);
+												resolveInitialSync();
+											}
+										});
+
+										// Also check stream's isUpToDate property immediately
+										if (stream?.isUpToDate) {
+											console.log(
+												`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`
+											);
+											resolveInitialSync();
+										}
 									}
+
+									// Also poll isUpToDate periodically as a backup (every 200ms)
+									const pollInterval = setInterval(() => {
+										if (syncResolved) {
+											clearInterval(pollInterval);
+											return;
+										}
+
+										if (shape.isUpToDate || stream?.isUpToDate) {
+											console.log(
+												`[Electric] ✅ Sync completed (detected via polling) for ${table}`
+											);
+											clearInterval(pollInterval);
+											resolveInitialSync();
+										}
+									}, 200);
+
+									// Clean up polling when promise resolves
+									initialSyncPromise.finally(() => {
+										clearInterval(pollInterval);
+									});
+								} else {
+									console.warn(
+										`[Electric] ⚠️ No stream available for ${table}, relying on callback and timeout`
+									);
 								}
-
-								// Also poll isUpToDate periodically as a backup (every 200ms)
-								const pollInterval = setInterval(() => {
-									if (syncResolved) {
-										clearInterval(pollInterval);
-										return;
-									}
-
-									if (shape.isUpToDate || stream?.isUpToDate) {
-										console.log(`[Electric] ✅ Sync completed (detected via polling) for ${table}`);
-										clearInterval(pollInterval);
-										resolveInitialSync();
-									}
-								}, 200);
-
-								// Clean up polling when promise resolves
-								initialSyncPromise.finally(() => {
-									clearInterval(pollInterval);
-								});
-							} else {
-								console.warn(
-									`[Electric] ⚠️ No stream available for ${table}, relying on callback and timeout`
-								);
 							}
-						}
 
-						// Create the sync handle with proper cleanup
-						const syncHandle: SyncHandle = {
-							unsubscribe: () => {
-								console.log(`[Electric] Unsubscribing from: ${cacheKey}`);
-								// Remove from cache first
-								activeSyncHandles.delete(cacheKey);
-								// Then unsubscribe from the shape
-								if (shape && typeof shape.unsubscribe === "function") {
-									shape.unsubscribe();
-								}
-							},
-							// Use getter to always return current state
-							get isUpToDate() {
-								return shape?.isUpToDate ?? false;
-							},
-							stream: shape?.stream,
-							initialSyncPromise, // Expose promise so callers can wait for sync
-						};
+							// Create the sync handle with proper cleanup
+							const syncHandle: SyncHandle = {
+								unsubscribe: () => {
+									console.log(`[Electric] Unsubscribing from: ${cacheKey}`);
+									// Remove from cache first
+									activeSyncHandles.delete(cacheKey);
+									// Then unsubscribe from the shape
+									if (shape && typeof shape.unsubscribe === "function") {
+										shape.unsubscribe();
+									}
+								},
+								// Use getter to always return current state
+								get isUpToDate() {
+									return shape?.isUpToDate ?? false;
+								},
+								stream: shape?.stream,
+								initialSyncPromise, // Expose promise so callers can wait for sync
+							};
 
-						// Cache the sync handle for reuse (memory optimization)
-						activeSyncHandles.set(cacheKey, syncHandle);
-						console.log(
-							`[Electric] Cached sync handle for: ${cacheKey} (total cached: ${activeSyncHandles.size})`
-						);
-
-						return syncHandle;
-					} catch (error) {
-						console.error("[Electric] Failed to sync shape:", error);
-						// Check if Electric SQL server is reachable
-						try {
-							const response = await fetch(`${electricUrl}/v1/shape?table=${table}&offset=-1`, {
-								method: "GET",
-							});
+							// Cache the sync handle for reuse (memory optimization)
+							activeSyncHandles.set(cacheKey, syncHandle);
 							console.log(
-								"[Electric] Electric SQL server response:",
-								response.status,
-								response.statusText
+								`[Electric] Cached sync handle for: ${cacheKey} (total cached: ${activeSyncHandles.size})`
 							);
-							if (!response.ok) {
-								console.error("[Electric] Electric SQL server error:", await response.text());
+
+							return syncHandle;
+						} catch (error) {
+							console.error("[Electric] Failed to sync shape:", error);
+							// Check if Electric SQL server is reachable
+							try {
+								const response = await fetch(`${electricUrl}/v1/shape?table=${table}&offset=-1`, {
+									method: "GET",
+								});
+								console.log(
+									"[Electric] Electric SQL server response:",
+									response.status,
+									response.statusText
+								);
+								if (!response.ok) {
+									console.error("[Electric] Electric SQL server error:", await response.text());
+								}
+							} catch (fetchError) {
+								console.error("[Electric] Cannot reach Electric SQL server:", fetchError);
+								console.error("[Electric] Make sure Electric SQL is running at:", electricUrl);
 							}
-						} catch (fetchError) {
-							console.error("[Electric] Cannot reach Electric SQL server:", fetchError);
-							console.error("[Electric] Make sure Electric SQL is running at:", electricUrl);
+							throw error;
 						}
-						throw error;
-					}
 					})();
 
 					// Track the sync promise to prevent concurrent syncs for the same shape

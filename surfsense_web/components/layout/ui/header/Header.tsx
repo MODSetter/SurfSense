@@ -1,9 +1,9 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import { NotificationButton } from "@/components/notifications/NotificationButton";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { NotificationButton } from "@/components/notifications/NotificationButton";
 
 interface HeaderProps {
 	breadcrumb?: React.ReactNode;

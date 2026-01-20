@@ -7,13 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EnumConnectorName } from "@/contracts/enums/connector";
-import type { ConnectFormProps } from "..";
 import {
 	extractServerName,
+	type MCPConnectionTestResult,
 	parseMCPConfig,
 	testMCPConnection,
-	type MCPConnectionTestResult,
 } from "../../utils/mcp-config-validator";
+import type { ConnectFormProps } from "..";
 
 export const MCPConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }) => {
 	const isSubmittingRef = useRef(false);

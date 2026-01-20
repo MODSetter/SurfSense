@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { useElectricClient } from "@/lib/electric/context";
-import type { SyncHandle } from "@/lib/electric/client";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import type { SyncHandle } from "@/lib/electric/client";
+import { useElectricClient } from "@/lib/electric/context";
 
 /**
  * Hook for managing connectors with Electric SQL real-time sync

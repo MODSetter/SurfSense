@@ -77,7 +77,7 @@ class MCPClient:
                         # Initialize the connection
                         await session.initialize()
                         self.session = session
-                        
+
                         if attempt > 0:
                             logger.info(
                                 "Connected to MCP server on attempt %d: %s %s",
@@ -267,30 +267,40 @@ async def test_mcp_http_connection(
 
     """
     try:
-        logger.info("Testing HTTP MCP connection to: %s (transport: %s)", url, transport)
-        
+        logger.info(
+            "Testing HTTP MCP connection to: %s (transport: %s)", url, transport
+        )
+
         # Use streamable HTTP client for all HTTP-based transports
-        async with streamablehttp_client(url, headers=headers or {}) as (read, write, _):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                
-                # List available tools
-                response = await session.list_tools()
-                tools = []
-                for tool in response.tools:
-                    tools.append({
+        async with (
+            streamablehttp_client(url, headers=headers or {}) as (read, write, _),
+            ClientSession(read, write) as session,
+        ):
+            await session.initialize()
+
+            # List available tools
+            response = await session.list_tools()
+            tools = []
+            for tool in response.tools:
+                tools.append(
+                    {
                         "name": tool.name,
                         "description": tool.description or "",
-                        "input_schema": tool.inputSchema if hasattr(tool, "inputSchema") else {},
-                    })
-                
-                logger.info("HTTP MCP connection successful. Found %d tools.", len(tools))
-                return {
-                    "status": "success",
-                    "message": f"Connected successfully. Found {len(tools)} tools.",
-                    "tools": tools,
-                }
-                
+                        "input_schema": tool.inputSchema
+                        if hasattr(tool, "inputSchema")
+                        else {},
+                    }
+                )
+
+            logger.info(
+                "HTTP MCP connection successful. Found %d tools.", len(tools)
+            )
+            return {
+                "status": "success",
+                "message": f"Connected successfully. Found {len(tools)} tools.",
+                "tools": tools,
+            }
+
     except Exception as e:
         logger.error("Failed to connect to HTTP MCP server: %s", e, exc_info=True)
         return {

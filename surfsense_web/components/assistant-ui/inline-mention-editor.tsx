@@ -11,8 +11,8 @@ import {
 	useState,
 } from "react";
 import ReactDOMServer from "react-dom/server";
-import type { Document } from "@/contracts/types/document.types";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import type { Document } from "@/contracts/types/document.types";
 import { cn } from "@/lib/utils";
 
 export interface MentionedDocument {

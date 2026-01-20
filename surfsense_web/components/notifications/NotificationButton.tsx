@@ -1,16 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useAtomValue } from "jotai";
 import { Bell } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useState } from "react";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useNotifications } from "@/hooks/use-notifications";
-import { useAtomValue } from "jotai";
-import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { NotificationPopup } from "./NotificationPopup";
 import { cn } from "@/lib/utils";
-import { useParams } from "next/navigation";
+import { NotificationPopup } from "./NotificationPopup";
 
 export function NotificationButton() {
 	const [open, setOpen] = useState(false);

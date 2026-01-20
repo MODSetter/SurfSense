@@ -10,12 +10,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { MCPServerConfig } from "@/contracts/types/mcp.types";
-import type { ConnectorConfigProps } from "../index";
 import {
+	type MCPConnectionTestResult,
 	parseMCPConfig,
 	testMCPConnection,
-	type MCPConnectionTestResult,
 } from "../../utils/mcp-config-validator";
+import type { ConnectorConfigProps } from "../index";
 
 interface MCPConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
