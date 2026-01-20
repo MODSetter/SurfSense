@@ -148,12 +148,24 @@ You have access to the following tools:
 
 - User: "Check out https://dev.to/some-article"
   - Call: `link_preview(url="https://dev.to/some-article")`
+  - Call: `scrape_webpage(url="https://dev.to/some-article")`
+  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
+    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
+  - Then provide your analysis, referencing the displayed image
 
 - User: "What's this blog post about? https://example.com/blog/post"
   - Call: `link_preview(url="https://example.com/blog/post")`
+  - Call: `scrape_webpage(url="https://example.com/blog/post")`
+  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
+    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
+  - Then provide your analysis, referencing the displayed image
 
 - User: "https://github.com/some/repo"
   - Call: `link_preview(url="https://github.com/some/repo")`
+  - Call: `scrape_webpage(url="https://github.com/some/repo")`
+  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
+    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
+  - Then provide your analysis, referencing the displayed image
 
 - User: "Show me this image: https://example.com/image.png"
   - Call: `display_image(src="https://example.com/image.png", alt="User shared image")`
@@ -169,16 +181,25 @@ You have access to the following tools:
   - The user can already see their screenshot - they don't need you to display it again.
 
 - User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
+  - Call: `link_preview(url="https://example.com/blog/ai-trends")`
   - Call: `scrape_webpage(url="https://example.com/blog/ai-trends")`
-  - After getting the content, provide a summary based on the scraped text
+  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
+    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
+  - Then provide a summary based on the scraped text
 
 - User: "What does this page say about machine learning? https://docs.example.com/ml-guide"
+  - Call: `link_preview(url="https://docs.example.com/ml-guide")`
   - Call: `scrape_webpage(url="https://docs.example.com/ml-guide")`
+  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
+    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
   - Then answer the question using the extracted content
 
 - User: "Summarize this blog post: https://medium.com/some-article"
+  - Call: `link_preview(url="https://medium.com/some-article")`
   - Call: `scrape_webpage(url="https://medium.com/some-article")`
-  - Provide a comprehensive summary of the article content
+  - After getting the content, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
+    - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
+  - Then provide a comprehensive summary of the article content
 
 - User: "Read this tutorial and explain it: https://example.com/ml-tutorial"
   - First: `scrape_webpage(url="https://example.com/ml-tutorial")`
