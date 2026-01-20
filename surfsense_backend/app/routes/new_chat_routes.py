@@ -67,16 +67,15 @@ async def check_thread_access(
 
     Access is granted if:
     - User is the creator of the thread
-    - Thread visibility is SEARCH_SPACE (any member can access)
+    - Thread visibility is SEARCH_SPACE (any member can access) - for read/update operations only
     - Thread is a legacy thread (created_by_id is NULL) - only if user is search space owner
 
     Args:
         session: Database session
         thread: The thread to check access for
         user: The user requesting access
-        require_ownership: If True, only the creator can access (for edit/delete operations)
-                          For SEARCH_SPACE threads, any member with permission can access
-                          Legacy threads (NULL creator) are accessible by search space owner
+        require_ownership: If True, ONLY the creator can perform this action (e.g., changing visibility).
+                          This is checked FIRST, before visibility rules.
 
     Returns:
         True if access is granted
@@ -87,11 +86,18 @@ async def check_thread_access(
     is_owner = thread.created_by_id == user.id
     is_legacy = thread.created_by_id is None
 
-    # Shared threads (SEARCH_SPACE) are accessible by any member
-    # This check comes first so shared threads are always accessible
+    # If ownership is required (e.g., changing visibility), ONLY the creator can do it
+    # This check comes first to ensure ownership-required operations are always creator-only
+    if require_ownership:
+        if not is_owner:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the creator of this chat can perform this action",
+            )
+        return True
+
+    # Shared threads (SEARCH_SPACE) are accessible by any member for read/update operations
     if thread.visibility == ChatVisibility.SEARCH_SPACE:
-        # For ownership-required operations on shared threads, any member can proceed
-        # (permission check is done at route level)
         return True
 
     # For legacy threads (created before visibility feature),
@@ -111,15 +117,6 @@ async def check_thread_access(
             status_code=403,
             detail="You don't have access to this chat",
         )
-
-    # If ownership is required, only the creator can access
-    if require_ownership:
-        if not is_owner:
-            raise HTTPException(
-                status_code=403,
-                detail="Only the creator of this chat can perform this action",
-            )
-        return True
 
     # For read access: owner can access their own private threads
     if is_owner:

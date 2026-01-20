@@ -767,20 +767,18 @@ function RolesTab({
 										className={cn(
 											"h-10 w-10 rounded-lg flex items-center justify-center",
 											role.name === "Owner" && "bg-amber-500/20",
-											role.name === "Admin" && "bg-red-500/20",
 											role.name === "Editor" && "bg-blue-500/20",
 											role.name === "Viewer" && "bg-gray-500/20",
-											!["Owner", "Admin", "Editor", "Viewer"].includes(role.name) && "bg-primary/20"
+											!["Owner", "Editor", "Viewer"].includes(role.name) && "bg-primary/20"
 										)}
 									>
 										<ShieldCheck
 											className={cn(
 												"h-5 w-5",
 												role.name === "Owner" && "text-amber-600",
-												role.name === "Admin" && "text-red-600",
 												role.name === "Editor" && "text-blue-600",
 												role.name === "Viewer" && "text-gray-600",
-												!["Owner", "Admin", "Editor", "Viewer"].includes(role.name) &&
+												!["Owner", "Editor", "Viewer"].includes(role.name) &&
 													"text-primary"
 											)}
 										/>
@@ -1310,6 +1308,49 @@ function CreateInviteDialog({
 
 // ============ Create Role Dialog ============
 
+// Preset permission sets for quick role creation
+// Editor: can create/read/update content, but cannot manage roles, remove members, or change settings
+// Viewer: read-only access with ability to create comments
+const PRESET_PERMISSIONS = {
+	editor: [
+		"documents:create",
+		"documents:read",
+		"documents:update",
+		"chats:create",
+		"chats:read",
+		"chats:update",
+		"comments:create",
+		"comments:read",
+		"llm_configs:create",
+		"llm_configs:read",
+		"llm_configs:update",
+		"podcasts:create",
+		"podcasts:read",
+		"podcasts:update",
+		"connectors:create",
+		"connectors:read",
+		"connectors:update",
+		"logs:read",
+		"members:invite",
+		"members:view",
+		"roles:read",
+		"settings:view",
+	],
+	viewer: [
+		"documents:read",
+		"chats:read",
+		"comments:create",
+		"comments:read",
+		"llm_configs:read",
+		"podcasts:read",
+		"connectors:read",
+		"logs:read",
+		"members:view",
+		"roles:read",
+		"settings:view",
+	],
+};
+
 function CreateRoleDialog({
 	groupedPermissions,
 	onCreateRole,
@@ -1369,6 +1410,11 @@ function CreateRoleDialog({
 		}
 	};
 
+	const applyPreset = (preset: "editor" | "viewer") => {
+		setSelectedPermissions(PRESET_PERMISSIONS[preset]);
+		toast.success(`Applied ${preset === "editor" ? "Editor" : "Viewer"} preset permissions`);
+	};
+
 	return (
 		<Dialog open={open} onOpenChange={setOpen}>
 			<DialogTrigger asChild>
@@ -1416,7 +1462,34 @@ function CreateRoleDialog({
 						/>
 					</div>
 					<div className="space-y-2">
-						<Label>Permissions ({selectedPermissions.length} selected)</Label>
+						<div className="flex items-center justify-between">
+							<Label>Permissions ({selectedPermissions.length} selected)</Label>
+							<div className="flex gap-2">
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="h-7 text-xs gap-1"
+									onClick={() => applyPreset("editor")}
+								>
+									<ShieldCheck className="h-3 w-3 text-blue-600" />
+									Editor Preset
+								</Button>
+								<Button
+									type="button"
+									variant="outline"
+									size="sm"
+									className="h-7 text-xs gap-1"
+									onClick={() => applyPreset("viewer")}
+								>
+									<ShieldCheck className="h-3 w-3 text-gray-600" />
+									Viewer Preset
+								</Button>
+							</div>
+						</div>
+						<p className="text-xs text-muted-foreground">
+							Use presets to quickly apply Editor (create/read/update) or Viewer (read-only) permissions
+						</p>
 						<ScrollArea className="h-64 rounded-lg border p-4">
 							<div className="space-y-4">
 								{Object.entries(groupedPermissions).map(([category, perms]) => {
@@ -1427,10 +1500,8 @@ function CreateRoleDialog({
 
 									return (
 										<div key={category} className="space-y-2">
-											<button
-												type="button"
+											<label
 												className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded w-full text-left"
-												onClick={() => toggleCategory(category)}
 											>
 												<Checkbox
 													checked={allSelected}
@@ -1439,21 +1510,19 @@ function CreateRoleDialog({
 												<span className="text-sm font-medium capitalize">
 													{category} ({categorySelected}/{perms.length})
 												</span>
-											</button>
+											</label>
 											<div className="grid grid-cols-2 gap-2 ml-6">
 												{perms.map((perm) => (
-													<button
-														type="button"
+													<label
 														key={perm.value}
 														className="flex items-center gap-2 cursor-pointer text-left"
-														onClick={() => togglePermission(perm.value)}
 													>
 														<Checkbox
 															checked={selectedPermissions.includes(perm.value)}
 															onCheckedChange={() => togglePermission(perm.value)}
 														/>
 														<span className="text-xs">{perm.value.split(":")[1]}</span>
-													</button>
+													</label>
 												))}
 											</div>
 										</div>

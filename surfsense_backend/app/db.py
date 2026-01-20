@@ -201,89 +201,42 @@ class Permission(str, Enum):
 
 
 # Predefined role permission sets for convenience
+# Note: Only Owner, Editor, and Viewer roles are supported.
+# Owner has full access (*), Editor can do everything except delete, Viewer has read-only access.
 DEFAULT_ROLE_PERMISSIONS = {
     "Owner": [Permission.FULL_ACCESS.value],
-    "Admin": [
-        # Documents
-        Permission.DOCUMENTS_CREATE.value,
-        Permission.DOCUMENTS_READ.value,
-        Permission.DOCUMENTS_UPDATE.value,
-        Permission.DOCUMENTS_DELETE.value,
-        # Chats
-        Permission.CHATS_CREATE.value,
-        Permission.CHATS_READ.value,
-        Permission.CHATS_UPDATE.value,
-        Permission.CHATS_DELETE.value,
-        # Comments
-        Permission.COMMENTS_CREATE.value,
-        Permission.COMMENTS_READ.value,
-        Permission.COMMENTS_DELETE.value,
-        # LLM Configs
-        Permission.LLM_CONFIGS_CREATE.value,
-        Permission.LLM_CONFIGS_READ.value,
-        Permission.LLM_CONFIGS_UPDATE.value,
-        Permission.LLM_CONFIGS_DELETE.value,
-        # Podcasts
-        Permission.PODCASTS_CREATE.value,
-        Permission.PODCASTS_READ.value,
-        Permission.PODCASTS_UPDATE.value,
-        Permission.PODCASTS_DELETE.value,
-        # Connectors
-        Permission.CONNECTORS_CREATE.value,
-        Permission.CONNECTORS_READ.value,
-        Permission.CONNECTORS_UPDATE.value,
-        Permission.CONNECTORS_DELETE.value,
-        # Logs
-        Permission.LOGS_READ.value,
-        Permission.LOGS_DELETE.value,
-        # Members
-        Permission.MEMBERS_INVITE.value,
-        Permission.MEMBERS_VIEW.value,
-        Permission.MEMBERS_REMOVE.value,
-        Permission.MEMBERS_MANAGE_ROLES.value,
-        # Roles
-        Permission.ROLES_CREATE.value,
-        Permission.ROLES_READ.value,
-        Permission.ROLES_UPDATE.value,
-        Permission.ROLES_DELETE.value,
-        # Settings (no delete)
-        Permission.SETTINGS_VIEW.value,
-        Permission.SETTINGS_UPDATE.value,
-    ],
     "Editor": [
-        # Documents
+        # Documents (no delete)
         Permission.DOCUMENTS_CREATE.value,
         Permission.DOCUMENTS_READ.value,
         Permission.DOCUMENTS_UPDATE.value,
-        Permission.DOCUMENTS_DELETE.value,
-        # Chats
+        # Chats (no delete)
         Permission.CHATS_CREATE.value,
         Permission.CHATS_READ.value,
         Permission.CHATS_UPDATE.value,
-        Permission.CHATS_DELETE.value,
         # Comments (no delete)
         Permission.COMMENTS_CREATE.value,
         Permission.COMMENTS_READ.value,
-        # LLM Configs (read only)
-        Permission.LLM_CONFIGS_READ.value,
+        # LLM Configs (no delete)
         Permission.LLM_CONFIGS_CREATE.value,
+        Permission.LLM_CONFIGS_READ.value,
         Permission.LLM_CONFIGS_UPDATE.value,
-        # Podcasts
+        # Podcasts (no delete)
         Permission.PODCASTS_CREATE.value,
         Permission.PODCASTS_READ.value,
         Permission.PODCASTS_UPDATE.value,
-        Permission.PODCASTS_DELETE.value,
-        # Connectors (full access for editors)
+        # Connectors (no delete)
         Permission.CONNECTORS_CREATE.value,
         Permission.CONNECTORS_READ.value,
         Permission.CONNECTORS_UPDATE.value,
-        # Logs
+        # Logs (read only)
         Permission.LOGS_READ.value,
-        # Members (view only)
+        # Members (can invite and view only, cannot manage roles or remove)
+        Permission.MEMBERS_INVITE.value,
         Permission.MEMBERS_VIEW.value,
-        # Roles (read only)
+        # Roles (read only - cannot create, update, or delete)
         Permission.ROLES_READ.value,
-        # Settings (view only)
+        # Settings (view only, no update or delete)
         Permission.SETTINGS_VIEW.value,
     ],
     "Viewer": [
@@ -291,7 +244,7 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.DOCUMENTS_READ.value,
         # Chats (read only)
         Permission.CHATS_READ.value,
-        # Comments (no delete)
+        # Comments (can create and read, but not delete)
         Permission.COMMENTS_CREATE.value,
         Permission.COMMENTS_READ.value,
         # LLM Configs (read only)
@@ -865,7 +818,7 @@ class SearchSpaceRole(BaseModel, TimestampMixin):
     permissions = Column(ARRAY(String), nullable=False, default=[])
     # Whether this role is assigned to new members by default when they join via invite
     is_default = Column(Boolean, nullable=False, default=False)
-    # System roles (Owner, Admin, Editor, Viewer) cannot be deleted
+    # System roles (Owner, Editor, Viewer) cannot be deleted
     is_system_role = Column(Boolean, nullable=False, default=False)
 
     search_space_id = Column(
@@ -1221,6 +1174,11 @@ def get_default_roles_config() -> list[dict]:
     Get the configuration for default system roles.
     These roles are created automatically when a search space is created.
 
+    Only 3 roles are supported:
+    - Owner: Full access to everything (assigned to search space creator)
+    - Editor: Can create/update content but cannot delete, manage roles, or change settings
+    - Viewer: Read-only access to resources (can add comments)
+
     Returns:
         List of role configurations with name, description, permissions, and flags
     """
@@ -1233,15 +1191,8 @@ def get_default_roles_config() -> list[dict]:
             "is_system_role": True,
         },
         {
-            "name": "Admin",
-            "description": "Can manage most resources except deleting the search space",
-            "permissions": DEFAULT_ROLE_PERMISSIONS["Admin"],
-            "is_default": False,
-            "is_system_role": True,
-        },
-        {
             "name": "Editor",
-            "description": "Can create and edit documents, chats, and podcasts",
+            "description": "Can create and update content (no delete, role management, or settings access)",
             "permissions": DEFAULT_ROLE_PERMISSIONS["Editor"],
             "is_default": True,  # Default role for new members via invite
             "is_system_role": True,
