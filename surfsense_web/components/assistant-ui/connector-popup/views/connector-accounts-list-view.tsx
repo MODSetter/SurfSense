@@ -1,9 +1,10 @@
 "use client";
 
 import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } from "date-fns";
-import { ArrowLeft, Loader2, Plus } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Server } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ interface ConnectorAccountsListViewProps {
 	onManage: (connector: SearchSourceConnector) => void;
 	onAddAccount: () => void;
 	isConnecting?: boolean;
+	addButtonText?: string;
 }
 
 /**
@@ -70,6 +72,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 	onManage,
 	onAddAccount,
 	isConnecting = false,
+	addButtonText,
 }) => {
 	// Get connector status
 	const { isConnectorEnabled, getConnectorStatusMessage } = useConnectorStatus();
@@ -79,6 +82,22 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 
 	// Filter connectors to only show those of this type
 	const typeConnectors = connectors.filter((c) => c.connector_type === connectorType);
+
+	// Determine button text - default to "Add Account" unless specified
+	const buttonText =
+		addButtonText ||
+		(connectorType === EnumConnectorName.MCP_CONNECTOR ? "Add New MCP Server" : "Add Account");
+	const isMCP = connectorType === EnumConnectorName.MCP_CONNECTOR;
+
+	// Helper to get display name for connector (handles MCP server name extraction)
+	const getDisplayName = (connector: SearchSourceConnector): string => {
+		if (isMCP) {
+			// For MCP, extract server name from config if available
+			const serverName = connector.config?.server_config?.name || connector.name;
+			return serverName;
+		}
+		return getConnectorDisplayName(connector.name);
+	};
 
 	return (
 		<div className="flex flex-col h-full">
@@ -115,22 +134,22 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 						onClick={onAddAccount}
 						disabled={isConnecting || !isEnabled}
 						className={cn(
-							"flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 sm:py-2 rounded-lg border-2 border-dashed text-left transition-all duration-200 shrink-0 self-center sm:self-auto sm:w-auto",
+							"flex items-center justify-center gap-1.5 h-8 px-3 rounded-md border-2 border-dashed text-xs sm:text-sm transition-all duration-200 shrink-0 w-full sm:w-auto",
 							!isEnabled
 								? "border-border/30 opacity-50 cursor-not-allowed"
-								: "border-primary/50 hover:bg-primary/5",
+								: "border-slate-400/20 dark:border-white/20 hover:bg-primary/5",
 							isConnecting && "opacity-50 cursor-not-allowed"
 						)}
 					>
-						<div className="flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-md bg-primary/10 shrink-0">
+						<div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 shrink-0">
 							{isConnecting ? (
-								<Loader2 className="size-3 sm:size-3.5 animate-spin text-primary" />
+								<Loader2 className="size-3 animate-spin text-primary" />
 							) : (
-								<Plus className="size-3 sm:size-3.5 text-primary" />
+								<Plus className="size-3 text-primary" />
 							)}
 						</div>
-						<span className="text-[11px] sm:text-[12px] font-medium">
-							{isConnecting ? "Connecting" : "Add Account"}
+						<span className="text-xs sm:text-sm font-medium">
+							{isConnecting ? "Connecting" : buttonText}
 						</span>
 					</button>
 				</div>
@@ -139,61 +158,81 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 			{/* Content */}
 			<div className="flex-1 overflow-y-auto px-6 sm:px-12 pt-0 sm:pt-6 pb-6 sm:pb-8">
 				{/* Connected Accounts Grid */}
-				<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-					{typeConnectors.map((connector) => {
-						const isIndexing = indexingConnectorIds.has(connector.id);
+				{typeConnectors.length === 0 ? (
+					<div className="flex flex-col items-center justify-center py-12 text-center">
+						<div className="h-16 w-16 rounded-full bg-slate-400/5 dark:bg-white/5 flex items-center justify-center mb-4">
+							{isMCP ? (
+								<Server className="h-8 w-8 text-muted-foreground" />
+							) : (
+								getConnectorIcon(connectorType, "size-8")
+							)}
+						</div>
+						<h3 className="text-sm font-medium mb-1">
+							{isMCP ? "No MCP Servers" : `No ${connectorTitle} Accounts`}
+						</h3>
+						<p className="text-xs text-muted-foreground max-w-[280px]">
+							{isMCP
+								? "Get started by adding your first Model Context Protocol server"
+								: `Get started by connecting your first ${connectorTitle} account`}
+						</p>
+					</div>
+				) : (
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						{typeConnectors.map((connector) => {
+							const isIndexing = indexingConnectorIds.has(connector.id);
 
-						return (
-							<div
-								key={connector.id}
-								className={cn(
-									"flex items-center gap-4 p-4 rounded-xl transition-all",
-									isIndexing
-										? "bg-primary/5 border-0"
-										: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
-								)}
-							>
+							return (
 								<div
+									key={connector.id}
 									className={cn(
-										"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
+										"flex items-center gap-4 p-4 rounded-xl transition-all",
 										isIndexing
-											? "bg-primary/10 border-primary/20"
-											: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+											? "bg-primary/5 border-0"
+											: "bg-slate-400/5 dark:bg-white/5 hover:bg-slate-400/10 dark:hover:bg-white/10 border border-border"
 									)}
 								>
-									{getConnectorIcon(connector.connector_type, "size-6")}
-								</div>
-								<div className="flex-1 min-w-0">
-									<p className="text-[14px] font-semibold leading-tight truncate">
-										{getConnectorDisplayName(connector.name)}
-									</p>
-									{isIndexing ? (
-										<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
-											<Loader2 className="size-3 animate-spin" />
-											Syncing
+									<div
+										className={cn(
+											"flex h-12 w-12 items-center justify-center rounded-lg border shrink-0",
+											isIndexing
+												? "bg-primary/10 border-primary/20"
+												: "bg-slate-400/5 dark:bg-white/5 border-slate-400/5 dark:border-white/5"
+										)}
+									>
+										{getConnectorIcon(connector.connector_type, "size-6")}
+									</div>
+									<div className="flex-1 min-w-0">
+										<p className="text-[14px] font-semibold leading-tight truncate">
+											{getDisplayName(connector)}
 										</p>
-									) : (
-										<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
-											{isIndexableConnector(connector.connector_type)
-												? connector.last_indexed_at
-													? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
-													: "Never indexed"
-												: "Active"}
-										</p>
-									)}
+										{isIndexing ? (
+											<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
+												<Loader2 className="size-3 animate-spin" />
+												Syncing
+											</p>
+										) : (
+											<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
+												{isIndexableConnector(connector.connector_type)
+													? connector.last_indexed_at
+														? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
+														: "Never indexed"
+													: "Active"}
+											</p>
+										)}
+									</div>
+									<Button
+										variant="secondary"
+										size="sm"
+										className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
+										onClick={() => onManage(connector)}
+									>
+										Manage
+									</Button>
 								</div>
-								<Button
-									variant="secondary"
-									size="sm"
-									className="h-8 text-[11px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80 shrink-0"
-									onClick={() => onManage(connector)}
-								>
-									Manage
-								</Button>
-							</div>
-						);
-					})}
-				</div>
+							);
+						})}
+					</div>
+				)}
 			</div>
 		</div>
 	);

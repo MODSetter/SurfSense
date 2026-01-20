@@ -47,10 +47,10 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 		const serverConfig = connector.config?.server_config as MCPServerConfig | undefined;
 		if (serverConfig) {
 			const transport = serverConfig.transport || "stdio";
-			
+
 			// Build config object based on transport type
 			let configObj: Record<string, unknown>;
-			
+
 			if (transport === "streamable-http" || transport === "http" || transport === "sse") {
 				// HTTP transport - use url and headers
 				configObj = {
@@ -67,7 +67,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 					transport: transport,
 				};
 			}
-			
+
 			setConfigJson(JSON.stringify(configObj, null, 2));
 		}
 	}, [isValidConnector, connector.name, connector.config?.server_config]);
@@ -148,15 +148,23 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 	return (
 		<div className="space-y-6">
 			{/* Server Name */}
-			<div className="space-y-2">
-				<Label htmlFor="name">Server Name *</Label>
-				<Input
-					id="name"
-					value={name}
-					onChange={(e) => handleNameChange(e.target.value)}
-					placeholder="e.g., Filesystem Server"
-					required
-				/>
+			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
+				<div className="space-y-2">
+					<Label htmlFor="name" className="text-xs sm:text-sm">
+						Server Name
+					</Label>
+					<Input
+						id="name"
+						value={name}
+						onChange={(e) => handleNameChange(e.target.value)}
+						placeholder="e.g., Filesystem Server"
+						className="border-slate-400/20 focus-visible:border-slate-400/40"
+						required
+					/>
+					<p className="text-[10px] sm:text-xs text-muted-foreground">
+						A friendly name to identify this connector.
+					</p>
+				</div>
 			</div>
 
 			{/* Server Configuration */}
@@ -173,12 +181,29 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							id="config"
 							value={configJson}
 							onChange={(e) => handleConfigChange(e.target.value)}
+							onKeyDown={(e) => {
+								if (e.key === "Tab") {
+									e.preventDefault();
+									const target = e.target as HTMLTextAreaElement;
+									const start = target.selectionStart;
+									const end = target.selectionEnd;
+									const indent = "  "; // 2 spaces for JSON
+									const newValue =
+										configJson.substring(0, start) + indent + configJson.substring(end);
+									handleConfigChange(newValue);
+									// Set cursor position after the inserted tab
+									requestAnimationFrame(() => {
+										target.selectionStart = target.selectionEnd = start + indent.length;
+									});
+								}
+							}}
 							rows={16}
 							className={`font-mono text-xs ${jsonError ? "border-red-500" : ""}`}
 						/>
 						{jsonError && <p className="text-xs text-red-500">JSON Error: {jsonError}</p>}
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							<strong>Local (stdio):</strong> command, args, env, transport: "stdio"<br />
+							<strong>Local (stdio):</strong> command, args, env, transport: "stdio"
+							<br />
 							<strong>Remote (HTTP):</strong> url, headers, transport: "streamable-http"
 						</p>
 					</div>
@@ -189,10 +214,10 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 							type="button"
 							onClick={handleTestConnection}
 							disabled={isTesting}
-							variant="outline"
-							className="w-full"
+							variant="secondary"
+							className="w-full h-8 text-[13px] px-3 rounded-lg font-medium bg-white text-slate-700 hover:bg-slate-50 border-0 shadow-xs dark:bg-secondary dark:text-secondary-foreground dark:hover:bg-secondary/80"
 						>
-							{isTesting ? "Testing Connection..." : "Test Connection"}
+							{isTesting ? "Testing Connection" : "Test Connection"}
 						</Button>
 					</div>
 
@@ -211,7 +236,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 								<XCircle className="h-4 w-4 text-red-600" />
 							)}
 							<div className="flex-1">
-								<div className="flex items-center justify-between">
+								<div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
 									<AlertTitle className="text-sm">
 										{testResult.status === "success"
 											? "Connection Successful"
@@ -222,7 +247,7 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 											type="button"
 											variant="ghost"
 											size="sm"
-											className="h-6 px-2"
+											className="h-6 px-2 self-start sm:self-auto text-xs"
 											onClick={(e) => {
 												e.preventDefault();
 												e.stopPropagation();
@@ -232,12 +257,14 @@ export const MCPConfig: FC<MCPConfigProps> = ({ connector, onConfigChange, onNam
 											{showDetails ? (
 												<>
 													<ChevronUp className="h-3 w-3 mr-1" />
-													Hide Details
+													<span className="hidden sm:inline">Hide Details</span>
+													<span className="sm:hidden">Hide</span>
 												</>
 											) : (
 												<>
 													<ChevronDown className="h-3 w-3 mr-1" />
-													Show Details
+													<span className="hidden sm:inline">Show Details</span>
+													<span className="sm:hidden">Show</span>
 												</>
 											)}
 										</Button>

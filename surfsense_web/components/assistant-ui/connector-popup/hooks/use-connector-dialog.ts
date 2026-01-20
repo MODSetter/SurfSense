@@ -646,7 +646,7 @@ export const useConnectorDialog = () => {
 
 								const successMessage =
 									currentConnectorType === "MCP_CONNECTOR"
-										? `${connector.name} MCP server added successfully`
+										? `${connector.name} added successfully`
 										: `${connectorTitle} connected and indexing started!`;
 								toast.success(successMessage, {
 									description: periodicEnabledForIndexing
@@ -711,7 +711,7 @@ export const useConnectorDialog = () => {
 									// Other non-indexable connectors - just show success message and close
 									const successMessage =
 										currentConnectorType === "MCP_CONNECTOR"
-											? `${connector.name} MCP server added successfully`
+											? `${connector.name} added successfully`
 											: `${connectorTitle} connected successfully!`;
 									toast.success(successMessage);
 
