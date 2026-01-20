@@ -90,13 +90,18 @@ export function CommentPanel({
 			{!hasThreads && currentUser && (
 				<div className="flex items-center gap-3 px-4 pt-4 pb-1">
 					<Avatar className="size-10">
-						<AvatarImage src={currentUser.avatar_url ?? undefined} alt={currentUser.display_name ?? currentUser.email} />
+						<AvatarImage
+							src={currentUser.avatar_url ?? undefined}
+							alt={currentUser.display_name ?? currentUser.email}
+						/>
 						<AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
 							{getInitials(currentUser.display_name, currentUser.email)}
 						</AvatarFallback>
 					</Avatar>
 					<div className="flex flex-col">
-						<span className="text-sm font-medium">{currentUser.display_name ?? currentUser.email}</span>
+						<span className="text-sm font-medium">
+							{currentUser.display_name ?? currentUser.email}
+						</span>
 					</div>
 				</div>
 			)}

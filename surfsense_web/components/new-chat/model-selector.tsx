@@ -174,10 +174,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 					size="sm"
 					role="combobox"
 					aria-expanded={open}
-					className={cn(
-						"h-8 gap-2 px-3 text-sm border-border/60",
-						className
-					)}
+					className={cn("h-8 gap-2 px-3 text-sm border-border/60", className)}
 				>
 					{isLoading ? (
 						<>
@@ -187,11 +184,10 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 					) : currentConfig ? (
 						<>
 							{getProviderIcon(currentConfig.provider)}
-							<span className="max-w-[100px] md:max-w-[150px] truncate hidden md:inline">{currentConfig.name}</span>
-							<Badge
-								variant="secondary"
-								className="ml-1 text-[10px] px-1.5 py-0 h-4 bg-muted/80"
-							>
+							<span className="max-w-[100px] md:max-w-[150px] truncate hidden md:inline">
+								{currentConfig.name}
+							</span>
+							<Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4 bg-muted/80">
 								{currentConfig.model_name.split("/").pop()?.slice(0, 10) ||
 									currentConfig.model_name.slice(0, 10)}
 							</Badge>
@@ -202,10 +198,12 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 							<span className="text-muted-foreground hidden md:inline">Select Model</span>
 						</>
 					)}
-					<ChevronDown className={cn(
-						"h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0 transition-transform duration-200",
-						open && "rotate-180"
-					)} />
+					<ChevronDown
+						className={cn(
+							"h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0 transition-transform duration-200",
+							open && "rotate-180"
+						)}
+					/>
 				</Button>
 			</PopoverTrigger>
 

@@ -28,7 +28,10 @@ export function NotificationButton() {
 			const stored = localStorage.getItem(NOTIFICATION_FILTER_STORAGE_KEY);
 			if (stored) {
 				const parsed = JSON.parse(stored);
-				if (parsed === null || ["new_mention", "connector_indexing", "document_processing"].includes(parsed)) {
+				if (
+					parsed === null ||
+					["new_mention", "connector_indexing", "document_processing"].includes(parsed)
+				) {
 					setActiveFilter(parsed);
 				}
 			}

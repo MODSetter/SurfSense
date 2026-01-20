@@ -196,10 +196,7 @@ export function DashboardClientLayout({
 	return (
 		<DocumentUploadDialogProvider>
 			<OnboardingTour />
-			<LayoutDataProvider
-				searchSpaceId={searchSpaceId}
-				breadcrumb={<DashboardBreadcrumb />}
-			>
+			<LayoutDataProvider searchSpaceId={searchSpaceId} breadcrumb={<DashboardBreadcrumb />}>
 				{children}
 			</LayoutDataProvider>
 		</DocumentUploadDialogProvider>

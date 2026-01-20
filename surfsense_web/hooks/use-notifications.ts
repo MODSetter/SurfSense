@@ -132,7 +132,12 @@ export function useNotifications(
 			}
 
 			try {
-				console.log("[useNotifications] Updating query for searchSpace:", searchSpaceId, "typeFilter:", typeFilter);
+				console.log(
+					"[useNotifications] Updating query for searchSpace:",
+					searchSpaceId,
+					"typeFilter:",
+					typeFilter
+				);
 
 				// Build query with optional type filter
 				const baseQuery = `SELECT * FROM notifications 
@@ -221,7 +226,10 @@ export function useNotifications(
 					 AND read = false`;
 
 				// Fetch initial count
-				const result = await electricClient.db.query<{ count: number }>(countQuery, [userId, searchSpaceId]);
+				const result = await electricClient.db.query<{ count: number }>(countQuery, [
+					userId,
+					searchSpaceId,
+				]);
 
 				if (mounted && result.rows?.[0]) {
 					setTotalUnreadCount(Number(result.rows[0].count) || 0);

@@ -1,7 +1,16 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { AlertCircle, AtSign, Bell, Cable, CheckCheck, CheckCircle2, FileText, Loader2 } from "lucide-react";
+import {
+	AlertCircle,
+	AtSign,
+	Bell,
+	Cable,
+	CheckCheck,
+	CheckCircle2,
+	FileText,
+	Loader2,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -152,28 +161,31 @@ export function NotificationPopup({
 
 			{/* Filter Pills */}
 			<div className="flex items-center gap-1.5 px-4 py-2 overflow-x-auto">
-				{(Object.entries(NOTIFICATION_FILTERS) as [NotificationTypeEnum, typeof NOTIFICATION_FILTERS[keyof typeof NOTIFICATION_FILTERS]][]).map(
-					([key, { label, icon: Icon }]) => {
-						const isActive = activeFilter === key;
-						return (
-							<button
-								key={key}
-								type="button"
-								onClick={() => onFilterChange(key)}
-								className={cn(
-									"inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap",
-									"border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
-									isActive
-										? "bg-primary text-primary-foreground border-primary"
-										: "bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
-								)}
-							>
-								<Icon className="h-3 w-3" />
-								{label}
-							</button>
-						);
-					}
-				)}
+				{(
+					Object.entries(NOTIFICATION_FILTERS) as [
+						NotificationTypeEnum,
+						(typeof NOTIFICATION_FILTERS)[keyof typeof NOTIFICATION_FILTERS],
+					][]
+				).map(([key, { label, icon: Icon }]) => {
+					const isActive = activeFilter === key;
+					return (
+						<button
+							key={key}
+							type="button"
+							onClick={() => onFilterChange(key)}
+							className={cn(
+								"inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors whitespace-nowrap",
+								"border focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
+								isActive
+									? "bg-primary text-primary-foreground border-primary"
+									: "bg-transparent text-muted-foreground border-border hover:bg-accent hover:text-accent-foreground"
+							)}
+						>
+							<Icon className="h-3 w-3" />
+							{label}
+						</button>
+					);
+				})}
 			</div>
 
 			{/* Notifications List */}

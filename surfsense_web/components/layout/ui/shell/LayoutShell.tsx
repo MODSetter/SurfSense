@@ -169,9 +169,7 @@ export function LayoutShell({
 					/>
 
 					<main className="flex-1 flex flex-col min-w-0">
-						<Header
-							breadcrumb={breadcrumb}
-						/>
+						<Header breadcrumb={breadcrumb} />
 
 						<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 							{children}

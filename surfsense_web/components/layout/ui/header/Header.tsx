@@ -12,21 +12,18 @@ interface HeaderProps {
 	mobileMenuTrigger?: React.ReactNode;
 }
 
-export function Header({
-	breadcrumb,
-	mobileMenuTrigger,
-}: HeaderProps) {
+export function Header({ breadcrumb, mobileMenuTrigger }: HeaderProps) {
 	const pathname = usePathname();
-	
+
 	// Check if we're on a chat page
 	const isChatPage = pathname?.includes("/new-chat") ?? false;
-	
+
 	// Use Jotai atom for thread state (synced from chat page)
 	const currentThreadState = useAtomValue(currentThreadAtom);
-	
+
 	// Show button only when we have a thread id (thread exists and is synced to Jotai)
 	const hasThread = isChatPage && currentThreadState.id !== null;
-	
+
 	// Create minimal thread object for ChatShareButton (used for API calls)
 	const threadForButton: ThreadRecord | null =
 		hasThread && currentThreadState.id !== null
@@ -62,10 +59,7 @@ export function Header({
 				<NotificationButton />
 				{/* Share button - only show on chat pages when thread exists */}
 				{hasThread && (
-					<ChatShareButton
-						thread={threadForButton}
-						onVisibilityChange={handleVisibilityChange}
-					/>
+					<ChatShareButton thread={threadForButton} onVisibilityChange={handleVisibilityChange} />
 				)}
 			</div>
 		</header>

@@ -778,8 +778,7 @@ function RolesTab({
 												role.name === "Owner" && "text-amber-600",
 												role.name === "Editor" && "text-blue-600",
 												role.name === "Viewer" && "text-gray-600",
-												!["Owner", "Editor", "Viewer"].includes(role.name) &&
-													"text-primary"
+												!["Owner", "Editor", "Viewer"].includes(role.name) && "text-primary"
 											)}
 										/>
 									</div>
@@ -1488,7 +1487,8 @@ function CreateRoleDialog({
 							</div>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Use presets to quickly apply Editor (create/read/update) or Viewer (read-only) permissions
+							Use presets to quickly apply Editor (create/read/update) or Viewer (read-only)
+							permissions
 						</p>
 						<ScrollArea className="h-64 rounded-lg border p-4">
 							<div className="space-y-4">
@@ -1500,9 +1500,7 @@ function CreateRoleDialog({
 
 									return (
 										<div key={category} className="space-y-2">
-											<label
-												className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded w-full text-left"
-											>
+											<label className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded w-full text-left">
 												<Checkbox
 													checked={allSelected}
 													onCheckedChange={() => toggleCategory(category)}

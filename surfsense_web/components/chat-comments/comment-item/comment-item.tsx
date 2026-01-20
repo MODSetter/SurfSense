@@ -113,7 +113,8 @@ export function CommentItem({
 	members = [],
 	membersLoading = false,
 }: CommentItemProps) {
-	const displayName = comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
+	const displayName =
+		comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
 	const email = comment.author?.email || "";
 
 	const handleEditSubmit = (content: string) => {

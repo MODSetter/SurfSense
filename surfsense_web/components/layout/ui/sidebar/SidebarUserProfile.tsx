@@ -331,27 +331,27 @@ export function SidebarUserProfile({
 							<Languages className="mr-2 h-4 w-4" />
 							{t("language")}
 						</DropdownMenuSubTrigger>
-							<DropdownMenuPortal>
-								<DropdownMenuSubContent className="gap-1">
-									{LANGUAGES.map((language) => {
-										const isSelected = locale === language.code;
-										return (
-											<DropdownMenuItem
-												key={language.code}
-												onClick={() => handleLanguageChange(language.code)}
-												className={cn(
-													"mb-1 last:mb-0 transition-all",
-													"hover:bg-accent/50",
-													isSelected && "bg-accent/80"
-												)}
-											>
-												<span className="mr-2">{language.flag}</span>
-												<span className="flex-1">{language.name}</span>
-											</DropdownMenuItem>
-										);
-									})}
-								</DropdownMenuSubContent>
-							</DropdownMenuPortal>
+						<DropdownMenuPortal>
+							<DropdownMenuSubContent className="gap-1">
+								{LANGUAGES.map((language) => {
+									const isSelected = locale === language.code;
+									return (
+										<DropdownMenuItem
+											key={language.code}
+											onClick={() => handleLanguageChange(language.code)}
+											className={cn(
+												"mb-1 last:mb-0 transition-all",
+												"hover:bg-accent/50",
+												isSelected && "bg-accent/80"
+											)}
+										>
+											<span className="mr-2">{language.flag}</span>
+											<span className="flex-1">{language.name}</span>
+										</DropdownMenuItem>
+									);
+								})}
+							</DropdownMenuSubContent>
+						</DropdownMenuPortal>
 					</DropdownMenuSub>
 
 					<DropdownMenuSeparator />

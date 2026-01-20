@@ -300,7 +300,6 @@ export function LayoutDataProvider({
 		}
 	}, [router]);
 
-
 	const handleViewAllSharedChats = useCallback(() => {
 		setIsAllSharedChatsSidebarOpen(true);
 	}, []);
