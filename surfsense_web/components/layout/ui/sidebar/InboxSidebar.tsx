@@ -32,7 +32,9 @@ import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { InboxItem } from "@/hooks/use-inbox";
+import type { ConnectorIndexingMetadata } from "@/contracts/types/inbox.types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -84,6 +86,7 @@ export function InboxSidebar({
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeTab, setActiveTab] = useState<InboxTab>("mentions");
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
+	const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
 	const [mounted, setMounted] = useState(false);
 	// Dropdown state for filter menu
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
@@ -114,6 +117,13 @@ export function InboxSidebar({
 		};
 	}, [open]);
 
+	// Reset connector filter when switching away from status tab
+	useEffect(() => {
+		if (activeTab !== "status") {
+			setSelectedConnector(null);
+		}
+	}, [activeTab]);
+
 	// Split items by type
 	const mentionItems = useMemo(
 		() => inboxItems.filter((item) => item.type === "new_mention"),
@@ -128,16 +138,46 @@ export function InboxSidebar({
 		[inboxItems]
 	);
 
+	// Get unique connectors from status items for filtering
+	const uniqueConnectors = useMemo(() => {
+		const connectorMap = new Map<string, { type: string; name: string }>();
+
+		statusItems
+			.filter((item) => item.type === "connector_indexing")
+			.forEach((item) => {
+				const metadata = item.metadata as ConnectorIndexingMetadata;
+				if (metadata?.connector_type && !connectorMap.has(metadata.connector_type)) {
+					connectorMap.set(metadata.connector_type, {
+						type: metadata.connector_type,
+						name: metadata.connector_name || metadata.connector_type,
+					});
+				}
+			});
+
+		return Array.from(connectorMap.values());
+	}, [statusItems]);
+
 	// Get items for current tab
 	const currentTabItems = activeTab === "mentions" ? mentionItems : statusItems;
 
-	// Filter items based on filter type and search query
+	// Filter items based on filter type, connector filter, and search query
 	const filteredItems = useMemo(() => {
 		let items = currentTabItems;
 
-		// Apply filter
+		// Apply read/unread filter
 		if (activeFilter === "unread") {
 			items = items.filter((item) => !item.read);
+		}
+
+		// Apply connector filter (only for status tab)
+		if (activeTab === "status" && selectedConnector) {
+			items = items.filter((item) => {
+				if (item.type === "connector_indexing") {
+					const metadata = item.metadata as ConnectorIndexingMetadata;
+					return metadata?.connector_type === selectedConnector;
+				}
+				return false; // Hide document_processing when a specific connector is selected
+			});
 		}
 
 		// Apply search query
@@ -151,7 +191,7 @@ export function InboxSidebar({
 		}
 
 		return items;
-	}, [currentTabItems, activeFilter, searchQuery]);
+	}, [currentTabItems, activeFilter, activeTab, selectedConnector, searchQuery]);
 
 	// Count unread items per tab
 	const unreadMentionsCount = useMemo(() => {
@@ -440,6 +480,44 @@ export function InboxSidebar({
 								</TabsTrigger>
 							</TabsList>
 						</Tabs>
+
+						{/* Connector filter chips - only show in status tab when there are connectors */}
+						{activeTab === "status" && uniqueConnectors.length > 0 && (
+							<div className="shrink-0 py-2 border-b relative">
+								{/* Left shadow indicator */}
+								<div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
+								{/* Right shadow indicator */}
+								<div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
+								<div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden px-4">
+									<Button
+										variant={selectedConnector === null ? "default" : "ghost"}
+										size="sm"
+										className="h-7 px-2.5 text-xs shrink-0"
+										onClick={() => setSelectedConnector(null)}
+									>
+										{t("all") || "All"}
+									</Button>
+									{uniqueConnectors.map((connector) => (
+										<Tooltip key={connector.type}>
+											<TooltipTrigger asChild>
+												<Button
+													variant={selectedConnector === connector.type ? "default" : "ghost"}
+													size="sm"
+													className="h-7 px-2.5 text-xs shrink-0 gap-1.5"
+													onClick={() => setSelectedConnector(connector.type)}
+												>
+													{getConnectorIcon(connector.type, "h-3.5 w-3.5")}
+													<span className="truncate max-w-20">{connector.name}</span>
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent className="z-80">
+												{connector.name}
+											</TooltipContent>
+										</Tooltip>
+									))}
+								</div>
+							</div>
+						)}
 
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{loading ? (
