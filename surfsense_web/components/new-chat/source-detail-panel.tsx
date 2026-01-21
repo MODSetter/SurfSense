@@ -489,8 +489,8 @@ export function SourceDetailPanel({
 														>
 															{idx + 1}
 															{isCited && (
-																<span className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full border-2 border-background">
-																	<Sparkles className="h-2 w-2 text-primary-foreground absolute top-0.5 left-0.5" />
+																<span className="absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 bg-primary rounded-full border-2 border-background shadow-sm">
+																	<Sparkles className="h-2.5 w-2.5 text-primary-foreground" />
 																</span>
 															)}
 														</motion.button>

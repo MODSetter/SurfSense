@@ -24,11 +24,6 @@
 			"enabled": true,
 			"status": "warning",
 			"statusMessage": "Some requests may be blocked if not using Firecrawl."
-		},
-		"GITHUB_CONNECTOR": {
-			"enabled": false,
-			"status": "maintenance",
-			"statusMessage": "Rework in progress."
 		}
 	},
 	"globalSettings": {

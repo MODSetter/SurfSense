@@ -1946,6 +1946,25 @@ wheels = [
 ]
 
 [[package]]
+name = "gitingest"
+version = "0.3.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "httpx" },
+    { name = "loguru" },
+    { name = "pathspec" },
+    { name = "pydantic" },
+    { name = "python-dotenv" },
+    { name = "starlette" },
+    { name = "tiktoken" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/d6/fe/a915f0c32a3d7920206a677f73c185b3eadf4ec151fb05aedd52e64713f7/gitingest-0.3.1.tar.gz", hash = "sha256:4587cab873d4e08bdb16d612bb153c23e0ce59771a1d57a438239c5e39f05ebf", size = 70681, upload-time = "2025-07-31T13:56:19.845Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/00/15/f200ab2e73287e67d1dce6fbacf421552ae9fbafdc5f0cc8dd0d2fe4fc47/gitingest-0.3.1-py3-none-any.whl", hash = "sha256:8143a5e6a7140ede9f680e13d3931ac07c82ac9bd8bab9ad1fba017c8c1e8666", size = 68343, upload-time = "2025-07-31T13:56:17.729Z" },
+]
+
+[[package]]
 name = "google-api-core"
 version = "2.25.1"
 source = { registry = "https://pypi.org/simple" }
@@ -4461,6 +4480,15 @@ wheels = [
 ]
 
 [[package]]
+name = "pathspec"
+version = "1.0.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/4c/b2/bb8e495d5262bfec41ab5cb18f522f1012933347fb5d9e62452d446baca2/pathspec-1.0.3.tar.gz", hash = "sha256:bac5cf97ae2c2876e2d25ebb15078eb04d76e4b98921ee31c6f85ade8b59444d", size = 130841, upload-time = "2026-01-09T15:46:46.009Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/32/2b/121e912bd60eebd623f873fd090de0e84f322972ab25a7f9044c056804ed/pathspec-1.0.3-py3-none-any.whl", hash = "sha256:e80767021c1cc524aa3fb14bedda9c34406591343cc42797b386ce7b9354fb6c", size = 55021, upload-time = "2026-01-09T15:46:44.652Z" },
+]
+
+[[package]]
 name = "pdf2image"
 version = "1.17.0"
 source = { registry = "https://pypi.org/simple" }
@@ -6484,6 +6512,7 @@ dependencies = [
     { name = "firecrawl-py" },
     { name = "flower" },
     { name = "github3-py" },
+    { name = "gitingest" },
     { name = "google-api-python-client" },
     { name = "google-auth-oauthlib" },
     { name = "kokoro" },
@@ -6549,6 +6578,7 @@ requires-dist = [
     { name = "firecrawl-py", specifier = ">=4.9.0" },
     { name = "flower", specifier = ">=2.0.1" },
     { name = "github3-py", specifier = "==4.0.1" },
+    { name = "gitingest", specifier = ">=0.3.1" },
     { name = "google-api-python-client", specifier = ">=2.156.0" },
     { name = "google-auth-oauthlib", specifier = ">=1.2.1" },
     { name = "kokoro", specifier = ">=0.9.4" },

@@ -206,9 +206,10 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{/* Date range selector and periodic sync - only shown for indexable connectors */}
 						{connector.is_indexable && (
 							<>
-								{/* Date range selector - not shown for Google Drive (uses folder selection) or Webcrawler (uses config) */}
+								{/* Date range selector - not shown for Google Drive, Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
-									connector.connector_type !== "WEBCRAWLER_CONNECTOR" && (
+									connector.connector_type !== "WEBCRAWLER_CONNECTOR" &&
+									connector.connector_type !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
 											startDate={startDate}
 											endDate={endDate}
