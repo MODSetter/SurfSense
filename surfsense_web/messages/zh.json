@@ -677,7 +677,18 @@
 		"light": "浅色",
 		"dark": "深色",
 		"system": "系统",
-		"logout": "退出登录"
+		"logout": "退出登录",
+		"inbox": "收件箱",
+		"search_inbox": "搜索收件箱...",
+		"mark_all_read": "全部标记为已读",
+		"mark_as_read": "标记为已读",
+		"mentions": "提及",
+		"status": "状态",
+		"no_results_found": "未找到结果",
+		"no_mentions": "没有提及",
+		"no_mentions_hint": "您会在这里看到他人的提及",
+		"no_status_updates": "没有状态更新",
+		"no_status_updates_hint": "文档和连接器更新将显示在这里"
 	},
 	"errors": {
 		"something_went_wrong": "出错了",

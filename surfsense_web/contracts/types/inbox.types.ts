@@ -3,18 +3,18 @@ import { searchSourceConnectorTypeEnum } from "./connector.types";
 import { documentTypeEnum } from "./document.types";
 
 /**
- * Notification type enum - matches backend notification types
+ * Inbox item type enum - matches backend notification types
  */
-export const notificationTypeEnum = z.enum([
+export const inboxItemTypeEnum = z.enum([
 	"connector_indexing",
 	"document_processing",
 	"new_mention",
 ]);
 
 /**
- * Notification status enum - used in metadata
+ * Inbox item status enum - used in metadata
  */
-export const notificationStatusEnum = z.enum(["in_progress", "completed", "failed"]);
+export const inboxItemStatusEnum = z.enum(["in_progress", "completed", "failed"]);
 
 /**
  * Document processing stage enum
@@ -30,11 +30,11 @@ export const documentProcessingStageEnum = z.enum([
 ]);
 
 /**
- * Base metadata schema shared across notification types
+ * Base metadata schema shared across inbox item types
  */
-export const baseNotificationMetadata = z.object({
+export const baseInboxItemMetadata = z.object({
 	operation_id: z.string().optional(),
-	status: notificationStatusEnum.optional(),
+	status: inboxItemStatusEnum.optional(),
 	started_at: z.string().optional(),
 	completed_at: z.string().optional(),
 });
@@ -42,7 +42,7 @@ export const baseNotificationMetadata = z.object({
 /**
  * Connector indexing metadata schema
  */
-export const connectorIndexingMetadata = baseNotificationMetadata.extend({
+export const connectorIndexingMetadata = baseInboxItemMetadata.extend({
 	connector_id: z.number(),
 	connector_name: z.string(),
 	connector_type: searchSourceConnectorTypeEnum,
@@ -62,7 +62,7 @@ export const connectorIndexingMetadata = baseNotificationMetadata.extend({
 /**
  * Document processing metadata schema
  */
-export const documentProcessingMetadata = baseNotificationMetadata.extend({
+export const documentProcessingMetadata = baseInboxItemMetadata.extend({
 	document_type: documentTypeEnum,
 	document_name: z.string(),
 	processing_stage: documentProcessingStageEnum,
@@ -89,24 +89,24 @@ export const newMentionMetadata = z.object({
 });
 
 /**
- * Union of all notification metadata types
- * Use this when the notification type is unknown
+ * Union of all inbox item metadata types
+ * Use this when the inbox item type is unknown
  */
-export const notificationMetadata = z.union([
+export const inboxItemMetadata = z.union([
 	connectorIndexingMetadata,
 	documentProcessingMetadata,
 	newMentionMetadata,
-	baseNotificationMetadata,
+	baseInboxItemMetadata,
 ]);
 
 /**
- * Main notification schema
+ * Main inbox item schema
  */
-export const notification = z.object({
+export const inboxItem = z.object({
 	id: z.number(),
 	user_id: z.string(),
 	search_space_id: z.number().nullable(),
-	type: notificationTypeEnum,
+	type: inboxItemTypeEnum,
 	title: z.string(),
 	message: z.string(),
 	read: z.boolean(),
@@ -116,33 +116,34 @@ export const notification = z.object({
 });
 
 /**
- * Typed notification schemas for specific notification types
+ * Typed inbox item schemas for specific types
  */
-export const connectorIndexingNotification = notification.extend({
+export const connectorIndexingInboxItem = inboxItem.extend({
 	type: z.literal("connector_indexing"),
 	metadata: connectorIndexingMetadata,
 });
 
-export const documentProcessingNotification = notification.extend({
+export const documentProcessingInboxItem = inboxItem.extend({
 	type: z.literal("document_processing"),
 	metadata: documentProcessingMetadata,
 });
 
-export const newMentionNotification = notification.extend({
+export const newMentionInboxItem = inboxItem.extend({
 	type: z.literal("new_mention"),
 	metadata: newMentionMetadata,
 });
 
 // Inferred types
-export type NotificationTypeEnum = z.infer<typeof notificationTypeEnum>;
-export type NotificationStatusEnum = z.infer<typeof notificationStatusEnum>;
+export type InboxItemTypeEnum = z.infer<typeof inboxItemTypeEnum>;
+export type InboxItemStatusEnum = z.infer<typeof inboxItemStatusEnum>;
 export type DocumentProcessingStageEnum = z.infer<typeof documentProcessingStageEnum>;
-export type BaseNotificationMetadata = z.infer<typeof baseNotificationMetadata>;
+export type BaseInboxItemMetadata = z.infer<typeof baseInboxItemMetadata>;
 export type ConnectorIndexingMetadata = z.infer<typeof connectorIndexingMetadata>;
 export type DocumentProcessingMetadata = z.infer<typeof documentProcessingMetadata>;
 export type NewMentionMetadata = z.infer<typeof newMentionMetadata>;
-export type NotificationMetadata = z.infer<typeof notificationMetadata>;
-export type Notification = z.infer<typeof notification>;
-export type ConnectorIndexingNotification = z.infer<typeof connectorIndexingNotification>;
-export type DocumentProcessingNotification = z.infer<typeof documentProcessingNotification>;
-export type NewMentionNotification = z.infer<typeof newMentionNotification>;
+export type InboxItemMetadata = z.infer<typeof inboxItemMetadata>;
+export type InboxItem = z.infer<typeof inboxItem>;
+export type ConnectorIndexingInboxItem = z.infer<typeof connectorIndexingInboxItem>;
+export type DocumentProcessingInboxItem = z.infer<typeof documentProcessingInboxItem>;
+export type NewMentionInboxItem = z.infer<typeof newMentionInboxItem>;
+

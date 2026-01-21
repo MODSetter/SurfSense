@@ -1,38 +1,38 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Notification, NotificationTypeEnum } from "@/contracts/types/notification.types";
+import type { InboxItem, InboxItemTypeEnum } from "@/contracts/types/inbox.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
 
-export type { Notification, NotificationTypeEnum } from "@/contracts/types/notification.types";
+export type { InboxItem, InboxItemTypeEnum } from "@/contracts/types/inbox.types";
 
 /**
- * Hook for managing notifications with Electric SQL real-time sync
+ * Hook for managing inbox items with Electric SQL real-time sync
  *
  * Uses the Electric client from context (provided by ElectricProvider)
  * instead of initializing its own - prevents race conditions and memory leaks
  *
  * Architecture:
- * - User-level sync: Syncs ALL notifications for a user (runs once per user)
- * - Search-space-level query: Filters notifications by searchSpaceId (updates on search space change)
+ * - User-level sync: Syncs ALL inbox items for a user (runs once per user)
+ * - Search-space-level query: Filters inbox items by searchSpaceId (updates on search space change)
  *
  * This separation ensures smooth transitions when switching search spaces (no flash).
  *
- * @param userId - The user ID to fetch notifications for
- * @param searchSpaceId - The search space ID to filter notifications (null shows global notifications only)
- * @param typeFilter - Optional notification type to filter by (null shows all types)
+ * @param userId - The user ID to fetch inbox items for
+ * @param searchSpaceId - The search space ID to filter inbox items (null shows global items only)
+ * @param typeFilter - Optional inbox item type to filter by (null shows all types)
  */
-export function useNotifications(
+export function useInbox(
 	userId: string | null,
 	searchSpaceId: number | null,
-	typeFilter: NotificationTypeEnum | null = null
+	typeFilter: InboxItemTypeEnum | null = null
 ) {
 	// Get Electric client from context - ElectricProvider handles initialization
 	const electricClient = useElectricClient();
 
-	const [notifications, setNotifications] = useState<Notification[]>([]);
+	const [inboxItems, setInboxItems] = useState<InboxItem[]>([]);
 	const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
@@ -43,34 +43,37 @@ export function useNotifications(
 	// Track user-level sync key to prevent duplicate sync subscriptions
 	const userSyncKeyRef = useRef<string | null>(null);
 
-	// EFFECT 1: User-level sync - runs once per user, syncs ALL notifications
+	// EFFECT 1: User-level sync - runs once per user, syncs ALL inbox items
 	useEffect(() => {
 		if (!userId || !electricClient) {
 			setLoading(!electricClient);
 			return;
 		}
 
-		const userSyncKey = `notifications_${userId}`;
+		const userSyncKey = `inbox_${userId}`;
 		if (userSyncKeyRef.current === userSyncKey) {
 			// Already syncing for this user
 			return;
 		}
 
+		// Capture electricClient to satisfy TypeScript in async function
+		const client = electricClient;
 		let mounted = true;
 		userSyncKeyRef.current = userSyncKey;
 
 		async function startUserSync() {
 			try {
-				console.log("[useNotifications] Starting user-level sync for:", userId);
+				console.log("[useInbox] Starting user-level sync for:", userId);
 
-				// Sync ALL notifications for this user (cached via syncShape caching)
-				const handle = await electricClient.syncShape({
+				// Sync ALL inbox items for this user (cached via syncShape caching)
+				// Note: Backend table is still named "notifications"
+				const handle = await client.syncShape({
 					table: "notifications",
 					where: `user_id = '${userId}'`,
 					primaryKey: ["id"],
 				});
 
-				console.log("[useNotifications] User sync started:", {
+				console.log("[useInbox] User sync started:", {
 					isUpToDate: handle.isUpToDate,
 				});
 
@@ -82,7 +85,7 @@ export function useNotifications(
 							new Promise((resolve) => setTimeout(resolve, 2000)),
 						]);
 					} catch (syncErr) {
-						console.error("[useNotifications] Initial sync failed:", syncErr);
+						console.error("[useInbox] Initial sync failed:", syncErr);
 					}
 				}
 
@@ -96,8 +99,8 @@ export function useNotifications(
 				setError(null);
 			} catch (err) {
 				if (!mounted) return;
-				console.error("[useNotifications] Failed to start user sync:", err);
-				setError(err instanceof Error ? err : new Error("Failed to sync notifications"));
+				console.error("[useInbox] Failed to start user sync:", err);
+				setError(err instanceof Error ? err : new Error("Failed to sync inbox"));
 				setLoading(false);
 			}
 		}
@@ -122,10 +125,12 @@ export function useNotifications(
 			return;
 		}
 
+		// Capture electricClient to satisfy TypeScript in async function
+		const client = electricClient;
 		let mounted = true;
 
 		async function updateQuery() {
-			// Clean up previous live query (but DON'T clear notifications - keep showing old until new arrive)
+			// Clean up previous live query (but DON'T clear inbox items - keep showing old until new arrive)
 			if (liveQueryRef.current) {
 				liveQueryRef.current.unsubscribe();
 				liveQueryRef.current = null;
@@ -133,13 +138,14 @@ export function useNotifications(
 
 			try {
 				console.log(
-					"[useNotifications] Updating query for searchSpace:",
+					"[useInbox] Updating query for searchSpace:",
 					searchSpaceId,
 					"typeFilter:",
 					typeFilter
 				);
 
 				// Build query with optional type filter
+				// Note: Backend table is still named "notifications"
 				const baseQuery = `SELECT * FROM notifications 
 					 WHERE user_id = $1 
 					 AND (search_space_id = $2 OR search_space_id IS NULL)`;
@@ -148,16 +154,15 @@ export function useNotifications(
 				const fullQuery = baseQuery + typeClause + orderClause;
 				const params = typeFilter ? [userId, searchSpaceId, typeFilter] : [userId, searchSpaceId];
 
-				// Fetch notifications for current search space immediately
-				const result = await electricClient.db.query<Notification>(fullQuery, params);
+				// Fetch inbox items for current search space immediately
+				const result = await client.db.query<InboxItem>(fullQuery, params);
 
 				if (mounted) {
-					setNotifications(result.rows || []);
+					setInboxItems(result.rows || []);
 				}
 
 				// Set up live query for real-time updates
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const db = electricClient.db as any;
+				const db = client.db as any;
 
 				if (db.live?.query && typeof db.live.query === "function") {
 					const liveQuery = await db.live.query(fullQuery, params);
@@ -169,16 +174,16 @@ export function useNotifications(
 
 					// Set initial results from live query
 					if (liveQuery.initialResults?.rows) {
-						setNotifications(liveQuery.initialResults.rows);
+						setInboxItems(liveQuery.initialResults.rows);
 					} else if (liveQuery.rows) {
-						setNotifications(liveQuery.rows);
+						setInboxItems(liveQuery.rows);
 					}
 
 					// Subscribe to changes
 					if (typeof liveQuery.subscribe === "function") {
-						liveQuery.subscribe((result: { rows: Notification[] }) => {
+						liveQuery.subscribe((result: { rows: InboxItem[] }) => {
 							if (mounted && result.rows) {
-								setNotifications(result.rows);
+								setInboxItems(result.rows);
 							}
 						});
 					}
@@ -188,7 +193,7 @@ export function useNotifications(
 					}
 				}
 			} catch (err) {
-				console.error("[useNotifications] Failed to update query:", err);
+				console.error("[useInbox] Failed to update query:", err);
 			}
 		}
 
@@ -210,6 +215,8 @@ export function useNotifications(
 			return;
 		}
 
+		// Capture electricClient to satisfy TypeScript in async function
+		const client = electricClient;
 		let mounted = true;
 
 		async function updateUnreadCount() {
@@ -220,13 +227,14 @@ export function useNotifications(
 			}
 
 			try {
+				// Note: Backend table is still named "notifications"
 				const countQuery = `SELECT COUNT(*) as count FROM notifications 
 					 WHERE user_id = $1 
 					 AND (search_space_id = $2 OR search_space_id IS NULL)
 					 AND read = false`;
 
 				// Fetch initial count
-				const result = await electricClient.db.query<{ count: number }>(countQuery, [
+				const result = await client.db.query<{ count: number }>(countQuery, [
 					userId,
 					searchSpaceId,
 				]);
@@ -236,8 +244,7 @@ export function useNotifications(
 				}
 
 				// Set up live query for real-time updates
-				// eslint-disable-next-line @typescript-eslint/no-explicit-any
-				const db = electricClient.db as any;
+				const db = client.db as any;
 
 				if (db.live?.query && typeof db.live.query === "function") {
 					const liveQuery = await db.live.query(countQuery, [userId, searchSpaceId]);
@@ -268,7 +275,7 @@ export function useNotifications(
 					}
 				}
 			} catch (err) {
-				console.error("[useNotifications] Failed to update unread count:", err);
+				console.error("[useInbox] Failed to update unread count:", err);
 			}
 		}
 
@@ -283,29 +290,31 @@ export function useNotifications(
 		};
 	}, [userId, searchSpaceId, electricClient]);
 
-	// Mark notification as read via backend API
-	const markAsRead = useCallback(async (notificationId: number) => {
+	// Mark inbox item as read via backend API
+	const markAsRead = useCallback(async (itemId: number) => {
 		try {
+			// Note: Backend API endpoint is still /notifications/
 			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/${notificationId}/read`,
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/${itemId}/read`,
 				{ method: "PATCH" }
 			);
 
 			if (!response.ok) {
 				const error = await response.json().catch(() => ({ detail: "Failed to mark as read" }));
-				throw new Error(error.detail || "Failed to mark notification as read");
+				throw new Error(error.detail || "Failed to mark inbox item as read");
 			}
 
 			return true;
 		} catch (err) {
-			console.error("Failed to mark notification as read:", err);
+			console.error("Failed to mark inbox item as read:", err);
 			return false;
 		}
 	}, []);
 
-	// Mark all notifications as read via backend API
+	// Mark all inbox items as read via backend API
 	const markAllAsRead = useCallback(async () => {
 		try {
+			// Note: Backend API endpoint is still /notifications/
 			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/read-all`,
 				{ method: "PATCH" }
@@ -313,22 +322,48 @@ export function useNotifications(
 
 			if (!response.ok) {
 				const error = await response.json().catch(() => ({ detail: "Failed to mark all as read" }));
-				throw new Error(error.detail || "Failed to mark all notifications as read");
+				throw new Error(error.detail || "Failed to mark all inbox items as read");
 			}
 
 			return true;
 		} catch (err) {
-			console.error("Failed to mark all notifications as read:", err);
+			console.error("Failed to mark all inbox items as read:", err);
+			return false;
+		}
+	}, []);
+
+	// Archive/unarchive an inbox item via backend API
+	const archiveItem = useCallback(async (itemId: number, archived: boolean) => {
+		try {
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/${itemId}/archive`,
+				{
+					method: "PATCH",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ archived }),
+				}
+			);
+
+			if (!response.ok) {
+				const error = await response.json().catch(() => ({ detail: "Failed to update archive status" }));
+				throw new Error(error.detail || "Failed to update inbox item archive status");
+			}
+
+			return true;
+		} catch (err) {
+			console.error("Failed to update inbox item archive status:", err);
 			return false;
 		}
 	}, []);
 
 	return {
-		notifications,
+		inboxItems,
 		unreadCount: totalUnreadCount,
 		markAsRead,
 		markAllAsRead,
+		archiveItem,
 		loading,
 		error,
 	};
 }
+
