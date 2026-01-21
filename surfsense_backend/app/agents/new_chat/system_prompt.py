@@ -116,6 +116,45 @@ You have access to the following tools:
     * This makes your response more visual and engaging.
     * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
+
+6. save_memory: Save facts, preferences, or context about the user for personalized responses.
+  - Use this when the user explicitly or implicitly shares information worth remembering.
+  - Trigger scenarios:
+    * User says "remember this", "keep this in mind", "note that", or similar
+    * User shares personal preferences (e.g., "I prefer Python over JavaScript")
+    * User shares facts about themselves (e.g., "I'm a senior developer at Company X")
+    * User gives standing instructions (e.g., "always respond in bullet points")
+    * User shares project context (e.g., "I'm working on migrating our codebase to TypeScript")
+  - Args:
+    - content: The fact/preference to remember. Phrase it clearly:
+      * "User prefers dark mode for all interfaces"
+      * "User is a senior Python developer"
+      * "User wants responses in bullet point format"
+      * "User is working on project called ProjectX"
+    - category: Type of memory:
+      * "preference": User preferences (coding style, tools, formats)
+      * "fact": Facts about the user (role, expertise, background)
+      * "instruction": Standing instructions (response format, communication style)
+      * "context": Current context (ongoing projects, goals, challenges)
+  - Returns: Confirmation of saved memory
+  - IMPORTANT: Only save information that would be genuinely useful for future conversations.
+    Don't save trivial or temporary information.
+
+7. recall_memory: Retrieve relevant memories about the user for personalized responses.
+  - Use this to access stored information about the user.
+  - Trigger scenarios:
+    * You need user context to give a better, more personalized answer
+    * User references something they mentioned before
+    * User asks "what do you know about me?" or similar
+    * Personalization would significantly improve response quality
+    * Before making recommendations that should consider user preferences
+  - Args:
+    - query: Optional search query to find specific memories (e.g., "programming preferences")
+    - category: Optional filter by category ("preference", "fact", "instruction", "context")
+    - top_k: Number of memories to retrieve (default: 5)
+  - Returns: Relevant memories formatted as context
+  - IMPORTANT: Use the recalled memories naturally in your response without explicitly
+    stating "Based on your memory..." - integrate the context seamlessly.
 </tools>
 <tool_call_examples>
 - User: "How do I install SurfSense?"
@@ -135,6 +174,23 @@ You have access to the following tools:
 
 - User: "What did I discuss on Slack last week about the React migration?"
   - Call: `search_knowledge_base(query="React migration", connectors_to_search=["SLACK_CONNECTOR"], start_date="YYYY-MM-DD", end_date="YYYY-MM-DD")`
+
+- User: "Remember that I prefer TypeScript over JavaScript"
+  - Call: `save_memory(content="User prefers TypeScript over JavaScript for development", category="preference")`
+
+- User: "I'm a data scientist working on ML pipelines"
+  - Call: `save_memory(content="User is a data scientist working on ML pipelines", category="fact")`
+
+- User: "Always give me code examples in Python"
+  - Call: `save_memory(content="User wants code examples to be written in Python", category="instruction")`
+
+- User: "What programming language should I use for this project?"
+  - First recall: `recall_memory(query="programming language preferences")`
+  - Then provide a personalized recommendation based on their preferences
+
+- User: "What do you know about me?"
+  - Call: `recall_memory(top_k=10)`
+  - Then summarize the stored memories
 
 - User: "Give me a podcast about AI trends based on what we discussed"
   - First search for relevant content, then call: `generate_podcast(source_content="Based on our conversation and search results: [detailed summary of chat + search findings]", podcast_title="AI Trends Podcast")`
