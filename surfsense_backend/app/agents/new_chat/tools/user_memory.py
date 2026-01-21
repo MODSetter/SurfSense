@@ -158,10 +158,6 @@ def create_save_memory_tool(
         Returns:
             A dictionary with the save status and memory details
         """
-        # Log at the very start
-        logger.info(f">>> SAVE_MEMORY TOOL CALLED: content='{content}', category='{category}'")
-        print(f">>> SAVE_MEMORY TOOL CALLED: content='{content}', category='{category}'")
-        
         # Normalize and validate category (LLMs may send uppercase)
         category = category.lower() if category else "fact"
         valid_categories = ["preference", "fact", "instruction", "context"]
@@ -169,26 +165,19 @@ def create_save_memory_tool(
             category = "fact"
 
         try:
-            logger.info(f"save_memory called: user_id={user_id}, search_space_id={search_space_id}, content={content[:50]}...")
-            
             # Convert user_id to UUID
             uuid_user_id = _to_uuid(user_id)
-            logger.info(f"UUID conversion successful: {uuid_user_id}")
 
             # Check if we've hit the memory limit
             memory_count = await get_user_memory_count(
                 db_session, user_id, search_space_id
             )
-            logger.info(f"Current memory count: {memory_count}")
-            
             if memory_count >= MAX_MEMORIES_PER_USER:
                 # Delete oldest memory to make room
                 await delete_oldest_memory(db_session, user_id, search_space_id)
 
             # Generate embedding for the memory
-            logger.info("Generating embedding...")
             embedding = config.embedding_model_instance.embed(content)
-            logger.info(f"Embedding generated, type: {type(embedding)}, len: {len(embedding) if hasattr(embedding, '__len__') else 'N/A'}")
 
             # Convert numpy array to list of Python floats for PostgreSQL
             import numpy as np
@@ -223,10 +212,7 @@ def create_save_memory_tool(
                 }
             )
             new_memory_id = result.scalar_one()
-            
-            logger.info("Committing...")
             await db_session.commit()
-            logger.info(f"Memory saved successfully with id: {new_memory_id}")
 
             return {
                 "status": "saved",
@@ -295,15 +281,10 @@ def create_recall_memory_tool(
             A dictionary containing relevant memories and formatted context
         """
         top_k = min(max(top_k, 1), 20)  # Clamp between 1 and 20
-        
-        # Log at the very start
-        logger.info(f">>> RECALL_MEMORY TOOL CALLED: query='{query}', category='{category}', top_k={top_k}")
-        print(f">>> RECALL_MEMORY TOOL CALLED: query='{query}', category='{category}', top_k={top_k}")
 
         try:
             # Convert user_id to UUID
             uuid_user_id = _to_uuid(user_id)
-            logger.info(f"Recall memory for user: {uuid_user_id}, search_space: {search_space_id}")
 
             if query:
                 # Semantic search using embeddings
@@ -347,8 +328,6 @@ def create_recall_memory_tool(
 
             result = await db_session.execute(stmt)
             memories = result.scalars().all()
-            
-            logger.info(f"Found {len(memories)} memories")
 
             # Format memories for response
             memory_list = [
@@ -360,12 +339,8 @@ def create_recall_memory_tool(
                 }
                 for m in memories
             ]
-            
-            logger.info(f"Formatted memory list: {memory_list}")
 
             formatted_context = format_memories_for_context(memory_list)
-            
-            logger.info(f"Returning {len(memory_list)} memories")
 
             return {
                 "status": "success",
