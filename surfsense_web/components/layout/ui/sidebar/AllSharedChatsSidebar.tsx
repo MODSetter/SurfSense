@@ -238,20 +238,9 @@ export function AllSharedChatsSidebar({
 						aria-label={t("shared_chats") || "Shared Chats"}
 					>
 						<div className="shrink-0 p-4 pb-2 space-y-3">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-2">
-									<Users className="h-5 w-5 text-primary" />
-									<h2 className="text-lg font-semibold">{t("shared_chats") || "Shared Chats"}</h2>
-								</div>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 rounded-full"
-									onClick={() => onOpenChange(false)}
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">Close</span>
-								</Button>
+							<div className="flex items-center gap-2">
+								<Users className="h-5 w-5 text-primary" />
+								<h2 className="text-lg font-semibold">{t("shared_chats") || "Shared Chats"}</h2>
 							</div>
 
 							<div className="relative">

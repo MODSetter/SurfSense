@@ -238,20 +238,9 @@ export function AllPrivateChatsSidebar({
 						aria-label={t("chats") || "Private Chats"}
 					>
 						<div className="shrink-0 p-4 pb-2 space-y-3">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-2">
-									<User className="h-5 w-5 text-primary" />
-									<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
-								</div>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 rounded-full"
-									onClick={() => onOpenChange(false)}
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">Close</span>
-								</Button>
+							<div className="flex items-center gap-2">
+								<User className="h-5 w-5 text-primary" />
+								<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
 							</div>
 
 							<div className="relative">

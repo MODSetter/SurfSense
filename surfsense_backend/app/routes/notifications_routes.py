@@ -30,6 +30,19 @@ class MarkAllReadResponse(BaseModel):
     updated_count: int
 
 
+class ArchiveRequest(BaseModel):
+    """Request body for archive/unarchive operations."""
+
+    archived: bool
+
+
+class ArchiveResponse(BaseModel):
+    """Response for archive operations."""
+
+    success: bool
+    message: str
+
+
 @router.patch("/{notification_id}/read", response_model=MarkReadResponse)
 async def mark_notification_as_read(
     notification_id: int,
@@ -99,4 +112,42 @@ async def mark_all_notifications_as_read(
         success=True,
         message=f"Marked {updated_count} notification(s) as read",
         updated_count=updated_count,
+    )
+
+
+@router.patch("/{notification_id}/archive", response_model=ArchiveResponse)
+async def archive_notification(
+    notification_id: int,
+    request: ArchiveRequest,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> ArchiveResponse:
+    """
+    Archive or unarchive a notification.
+
+    Electric SQL will automatically sync this change to all connected clients.
+    """
+    # Verify the notification belongs to the user
+    result = await session.execute(
+        select(Notification).where(
+            Notification.id == notification_id,
+            Notification.user_id == user.id,
+        )
+    )
+    notification = result.scalar_one_or_none()
+
+    if not notification:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notification not found",
+        )
+
+    # Update the notification
+    notification.archived = request.archived
+    await session.commit()
+
+    action = "archived" if request.archived else "unarchived"
+    return ArchiveResponse(
+        success=True,
+        message=f"Notification {action}",
     )

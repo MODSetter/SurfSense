@@ -784,6 +784,9 @@ class Notification(BaseModel, TimestampMixin):
     read = Column(
         Boolean, nullable=False, default=False, server_default=text("false"), index=True
     )
+    archived = Column(
+        Boolean, nullable=False, default=False, server_default=text("false"), index=True
+    )
     notification_metadata = Column("metadata", JSONB, nullable=True, default={})
     updated_at = Column(
         TIMESTAMP(timezone=True),

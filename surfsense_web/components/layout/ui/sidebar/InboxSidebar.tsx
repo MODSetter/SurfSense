@@ -143,15 +143,16 @@ export function InboxSidebar({
 		let items = currentTabItems;
 
 		// Apply filter
+		// Note: Use `item.archived === true` to handle undefined/null as false
 		if (activeFilter === "all") {
 			// "Unread & read" shows all non-archived items
-			items = items.filter((item) => !(item as InboxItem & { archived?: boolean }).archived);
+			items = items.filter((item) => item.archived !== true);
 		} else if (activeFilter === "unread") {
 			// "Unread" shows only unread non-archived items
-			items = items.filter((item) => !item.read && !(item as InboxItem & { archived?: boolean }).archived);
+			items = items.filter((item) => !item.read && item.archived !== true);
 		} else if (activeFilter === "archived") {
-			// "Archived" shows only archived items
-			items = items.filter((item) => (item as InboxItem & { archived?: boolean }).archived);
+			// "Archived" shows only archived items (must be explicitly true)
+			items = items.filter((item) => item.archived === true);
 		}
 
 		// Apply search query
@@ -340,7 +341,7 @@ export function InboxSidebar({
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
 						transition={{ type: "spring", damping: 25, stiffness: 300 }}
-						className="fixed inset-y-0 left-0 z-70 w-96 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
+						className="fixed inset-y-0 left-0 z-70 w-90 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"
 						aria-label={t("inbox") || "Inbox"}
@@ -500,7 +501,7 @@ export function InboxSidebar({
 										const isMarkingAsRead = markingAsReadId === item.id;
 										const isArchiving = archivingItemId === item.id;
 										const isBusy = isMarkingAsRead || isArchiving;
-										const isArchived = (item as InboxItem & { archived?: boolean }).archived;
+										const isArchived = item.archived === true;
 
 										return (
 											<div
@@ -533,6 +534,47 @@ export function InboxSidebar({
 																<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
 																	{convertRenderedToDisplay(item.message)}
 																</p>
+																{/* Mobile action buttons - shown below description on mobile only */}
+																<div className="inline-flex items-center gap-0.5 mt-2 md:hidden bg-primary/20 rounded-md px-1 py-0.5">
+																	{!item.read && (
+																		<Button
+																			variant="ghost"
+																			size="icon"
+																			className="h-6 w-6"
+																			onClick={(e) => {
+																				e.stopPropagation();
+																				handleMarkAsRead(item.id);
+																			}}
+																			disabled={isBusy}
+																		>
+																			{isMarkingAsRead ? (
+																				<Loader2 className="h-3.5 w-3.5 animate-spin" />
+																			) : (
+																				<CheckCheck className="h-3.5 w-3.5" />
+																			)}
+																			<span className="sr-only">{t("mark_as_read") || "Mark as read"}</span>
+																		</Button>
+																	)}
+																	<Button
+																		variant="ghost"
+																		size="icon"
+																		className="h-6 w-6"
+																		onClick={(e) => {
+																			e.stopPropagation();
+																			handleToggleArchive(item.id, isArchived);
+																		}}
+																		disabled={isArchiving}
+																	>
+																		{isArchiving ? (
+																			<Loader2 className="h-3.5 w-3.5 animate-spin" />
+																		) : isArchived ? (
+																			<RotateCcw className="h-3.5 w-3.5" />
+																		) : (
+																			<Archive className="h-3.5 w-3.5" />
+																		)}
+																		<span className="sr-only">{isArchived ? (t("unarchive") || "Restore") : (t("archive") || "Archive")}</span>
+																	</Button>
+																</div>
 															</div>
 														</button>
 													</TooltipTrigger>
@@ -544,8 +586,8 @@ export function InboxSidebar({
 													</TooltipContent>
 												</Tooltip>
 
-												{/* Time/dot and 3-dot button container - swap on hover */}
-												<div className="relative flex items-center shrink-0 w-12 justify-end">
+												{/* Time/dot and 3-dot button container - swap on hover (desktop only) */}
+												<div className="relative hidden md:flex items-center shrink-0 w-12 justify-end">
 													{/* Time and unread dot - visible by default, hidden on hover or when dropdown is open */}
 													<div
 														className={cn(
@@ -605,7 +647,7 @@ export function InboxSidebar({
 															</>
 														)}
 														<DropdownMenuItem
-															onClick={() => handleToggleArchive(item.id, !!isArchived)}
+															onClick={() => handleToggleArchive(item.id, isArchived)}
 															disabled={isArchiving}
 														>
 															{isArchived ? (
@@ -622,6 +664,16 @@ export function InboxSidebar({
 														</DropdownMenuItem>
 													</DropdownMenuContent>
 												</DropdownMenu>
+												</div>
+
+												{/* Mobile time and unread dot - always visible on mobile */}
+												<div className="flex md:hidden items-center gap-1.5 shrink-0">
+													<span className="text-[10px] text-muted-foreground">
+														{formatTime(item.created_at)}
+													</span>
+													{!item.read && (
+														<span className="h-2 w-2 rounded-full bg-blue-500" />
+													)}
 												</div>
 											</div>
 										);
