@@ -67,63 +67,42 @@ NEW_VIEWER_PERMISSIONS = [
 def upgrade():
     connection = op.get_bind()
 
-    # Step 1: For each search space, get the Editor role ID and Admin role ID
-    search_spaces = connection.execute(
-        sa.text("SELECT id FROM searchspaces")
-    ).fetchall()
+    # Step 1: Move all memberships from Admin roles to corresponding Editor roles (BULK)
+    # Uses a subquery to match Admin->Editor within the same search space
+    connection.execute(
+        sa.text("""
+            UPDATE search_space_memberships m
+            SET role_id = e.id
+            FROM search_space_roles a
+            JOIN search_space_roles e ON a.search_space_id = e.search_space_id
+            WHERE m.role_id = a.id
+            AND a.name = 'Admin'
+            AND e.name = 'Editor'
+        """)
+    )
 
-    for (ss_id,) in search_spaces:
-        # Get Admin and Editor role IDs for this search space
-        admin_role = connection.execute(
-            sa.text("""
-                SELECT id FROM search_space_roles 
-                WHERE search_space_id = :ss_id AND name = 'Admin'
-            """),
-            {"ss_id": ss_id},
-        ).fetchone()
+    # Step 2: Move all invites from Admin roles to corresponding Editor roles (BULK)
+    connection.execute(
+        sa.text("""
+            UPDATE search_space_invites i
+            SET role_id = e.id
+            FROM search_space_roles a
+            JOIN search_space_roles e ON a.search_space_id = e.search_space_id
+            WHERE i.role_id = a.id
+            AND a.name = 'Admin'
+            AND e.name = 'Editor'
+        """)
+    )
 
-        editor_role = connection.execute(
-            sa.text("""
-                SELECT id FROM search_space_roles 
-                WHERE search_space_id = :ss_id AND name = 'Editor'
-            """),
-            {"ss_id": ss_id},
-        ).fetchone()
+    # Step 3: Delete all Admin roles (BULK)
+    connection.execute(
+        sa.text("""
+            DELETE FROM search_space_roles 
+            WHERE name = 'Admin' AND is_system_role = TRUE
+        """)
+    )
 
-        if admin_role and editor_role:
-            admin_role_id = admin_role[0]
-            editor_role_id = editor_role[0]
-
-            # Step 2: Move all memberships from Admin to Editor
-            connection.execute(
-                sa.text("""
-                    UPDATE search_space_memberships 
-                    SET role_id = :editor_role_id 
-                    WHERE role_id = :admin_role_id
-                """),
-                {"editor_role_id": editor_role_id, "admin_role_id": admin_role_id},
-            )
-
-            # Step 3: Move all invites from Admin to Editor
-            connection.execute(
-                sa.text("""
-                    UPDATE search_space_invites 
-                    SET role_id = :editor_role_id 
-                    WHERE role_id = :admin_role_id
-                """),
-                {"editor_role_id": editor_role_id, "admin_role_id": admin_role_id},
-            )
-
-            # Step 4: Delete the Admin role
-            connection.execute(
-                sa.text("""
-                    DELETE FROM search_space_roles 
-                    WHERE id = :admin_role_id
-                """),
-                {"admin_role_id": admin_role_id},
-            )
-
-    # Step 5: Update Editor permissions for all search spaces
+    # Step 4: Update Editor permissions for all search spaces (BULK)
     editor_perms_literal = (
         "ARRAY[" + ",".join(f"'{p}'" for p in NEW_EDITOR_PERMISSIONS) + "]::TEXT[]"
     )
@@ -136,7 +115,7 @@ def upgrade():
         """)
     )
 
-    # Step 6: Update Viewer permissions for all search spaces
+    # Step 5: Update Viewer permissions for all search spaces (BULK)
     viewer_perms_literal = (
         "ARRAY[" + ",".join(f"'{p}'" for p in NEW_VIEWER_PERMISSIONS) + "]::TEXT[]"
     )

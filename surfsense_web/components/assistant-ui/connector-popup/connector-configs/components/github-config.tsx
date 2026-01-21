@@ -2,7 +2,7 @@
 
 import { KeyRound } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,25 +12,29 @@ export interface GithubConfigProps extends ConnectorConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
+// Helper functions moved outside component to avoid useEffect dependency issues
+const stringToArray = (arr: string[] | string | undefined): string[] => {
+	if (Array.isArray(arr)) return arr;
+	if (typeof arr === "string") {
+		return arr
+			.split(",")
+			.map((item) => item.trim())
+			.filter((item) => item.length > 0);
+	}
+	return [];
+};
+
+const arrayToString = (arr: string[]): string => {
+	return arr.join(", ");
+};
+
 export const GithubConfig: FC<GithubConfigProps> = ({
 	connector,
 	onConfigChange,
 	onNameChange,
 }) => {
-	const stringToArray = (arr: string[] | string | undefined): string[] => {
-		if (Array.isArray(arr)) return arr;
-		if (typeof arr === "string") {
-			return arr
-				.split(",")
-				.map((item) => item.trim())
-				.filter((item) => item.length > 0);
-		}
-		return [];
-	};
-
-	const arrayToString = (arr: string[]): string => {
-		return arr.join(", ");
-	};
+	// Track internal changes to prevent useEffect from overwriting user input
+	const isInternalChange = useRef(false);
 
 	const [githubPat, setGithubPat] = useState<string>(
 		(connector.config?.GITHUB_PAT as string) || ""
@@ -40,8 +44,13 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	);
 	const [name, setName] = useState<string>(connector.name || "");
 
-	// Update values when connector changes
+	// Update values when connector changes externally (not from our own input)
 	useEffect(() => {
+		// Skip if this is our own internal change
+		if (isInternalChange.current) {
+			isInternalChange.current = false;
+			return;
+		}
 		const pat = (connector.config?.GITHUB_PAT as string) || "";
 		const repos = arrayToString(stringToArray(connector.config?.repo_full_names));
 		setGithubPat(pat);
@@ -50,6 +59,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	}, [connector.config, connector.name]);
 
 	const handleGithubPatChange = (value: string) => {
+		isInternalChange.current = true;
 		setGithubPat(value);
 		if (onConfigChange) {
 			onConfigChange({
@@ -60,6 +70,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	};
 
 	const handleRepoFullNamesChange = (value: string) => {
+		isInternalChange.current = true;
 		setRepoFullNames(value);
 		const repoList = stringToArray(value);
 		if (onConfigChange) {
@@ -71,6 +82,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 	};
 
 	const handleNameChange = (value: string) => {
+		isInternalChange.current = true;
 		setName(value);
 		if (onNameChange) {
 			onNameChange(value);
@@ -105,7 +117,7 @@ export const GithubConfig: FC<GithubConfigProps> = ({
 					<div className="space-y-2">
 						<Label className="flex items-center gap-2 text-xs sm:text-sm">
 							<KeyRound className="h-4 w-4" />
-							GitHub Personal Access Token
+							GitHub Personal Access Token (optional)
 						</Label>
 						<Input
 							type="password"
