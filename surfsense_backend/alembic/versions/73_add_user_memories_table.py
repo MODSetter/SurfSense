@@ -12,7 +12,6 @@ about users across conversations.
 from collections.abc import Sequence
 
 from alembic import op
-
 from app.config import config
 
 # revision identifiers, used by Alembic.
