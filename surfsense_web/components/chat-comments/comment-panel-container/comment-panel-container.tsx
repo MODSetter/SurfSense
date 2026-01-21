@@ -10,7 +10,7 @@ import {
 } from "@/atoms/chat-comments/comments-mutation.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { useComments } from "@/hooks/use-comments";
+import { useCommentsLive } from "@/hooks/use-comments-live";
 import { CommentPanel } from "../comment-panel/comment-panel";
 import type { CommentPanelContainerProps } from "./types";
 import { transformComment, transformMember } from "./utils";
@@ -21,10 +21,10 @@ export function CommentPanelContainer({
 	maxHeight,
 	variant = "desktop",
 }: CommentPanelContainerProps) {
-	const { data: commentsData, isLoading: isCommentsLoading } = useComments({
-		messageId,
-		enabled: isOpen,
-	});
+	// Live sync for real-time comment updates
+	const { comments: liveComments, isLoading: isCommentsLoading } = useCommentsLive(
+		isOpen ? messageId : null
+	);
 
 	const [{ data: membersData, isLoading: isMembersLoading }] = useAtom(membersAtom);
 	const [{ data: currentUser }] = useAtom(currentUserAtom);
@@ -35,9 +35,8 @@ export function CommentPanelContainer({
 	const [{ mutate: deleteComment, isPending: isDeleting }] = useAtom(deleteCommentMutationAtom);
 
 	const commentThreads = useMemo(() => {
-		if (!commentsData?.comments) return [];
-		return commentsData.comments.map(transformComment);
-	}, [commentsData]);
+		return liveComments.map(transformComment);
+	}, [liveComments]);
 
 	const members = useMemo(() => {
 		if (!membersData) return [];

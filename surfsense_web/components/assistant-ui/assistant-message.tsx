@@ -25,7 +25,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import { CommentTrigger } from "@/components/chat-comments/comment-trigger/comment-trigger";
-import { useComments } from "@/hooks/use-comments";
+import { useCommentsLive } from "@/hooks/use-comments-live";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -115,12 +115,8 @@ export const AssistantMessage: FC = () => {
 	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
 	const isMessageStreaming = isThreadRunning && isLastMessage;
 
-	const { data: commentsData } = useComments({
-		messageId: dbMessageId ?? 0,
-		enabled: !!dbMessageId,
-	});
-
-	const commentCount = commentsData?.total_count ?? 0;
+	// Live sync for real-time comment count
+	const { commentCount } = useCommentsLive(dbMessageId);
 	const hasComments = commentCount > 0;
 	const isAddingComment = dbMessageId !== null && addingCommentToMessageId === dbMessageId;
 	const showCommentPanel = hasComments || isAddingComment;
