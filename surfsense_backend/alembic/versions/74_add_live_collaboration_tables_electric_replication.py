@@ -1,9 +1,14 @@
-"""Add new_chat_messages and chat_comments to Electric SQL publication
+"""Add live collaboration tables to Electric SQL publication
 
 Revision ID: 74
 Revises: 73
 
-Enables real-time sync for chat messages and comments via Electric SQL.
+Enables real-time sync for live collaboration features:
+- new_chat_messages: Live message sync between users
+- chat_comments: Live comment updates
+
+Note: User/member info is fetched via API (membersAtom) for client-side joins,
+not via Electric SQL, to keep where clauses optimized and reduce complexity.
 """
 
 from collections.abc import Sequence
@@ -17,7 +22,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Add new_chat_messages and chat_comments to Electric SQL replication."""
+    """Add live collaboration tables to Electric SQL replication."""
     # Set REPLICA IDENTITY FULL for Electric SQL sync
     op.execute("ALTER TABLE new_chat_messages REPLICA IDENTITY FULL;")
     op.execute("ALTER TABLE chat_comments REPLICA IDENTITY FULL;")
@@ -58,7 +63,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove new_chat_messages and chat_comments from Electric SQL replication."""
+    """Remove live collaboration tables from Electric SQL replication."""
     op.execute(
         """
         DO $$
