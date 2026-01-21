@@ -33,6 +33,7 @@ import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
+import { useChatMessagesLive } from "@/hooks/use-chat-messages-live";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
 import {
@@ -257,6 +258,9 @@ export default function NewChatPage() {
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 
+	// Live sync for other users' messages (shared chats)
+	const { messages: liveMessages } = useChatMessagesLive(threadId);
+
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
 
@@ -408,6 +412,45 @@ export default function NewChatPage() {
 			addingCommentToMessageId: null,
 		});
 	}, [currentThread, setCurrentThreadState]);
+
+	// Live sync: Merge messages from other users (shared chats)
+	useEffect(() => {
+		if (!liveMessages.length || !currentUser?.id || isRunning) return;
+
+		// Get IDs of messages we already have locally
+		const localMessageIds = new Set(
+			messages
+				.map((m) => {
+					// Extract numeric ID from "msg-{id}" format
+					const match = m.id?.match(/^msg-(\d+)$/);
+					return match ? Number.parseInt(match[1], 10) : null;
+				})
+				.filter((id): id is number => id !== null)
+		);
+
+		// Find live messages from OTHER users that we don't have locally
+		const newOtherUserMessages = liveMessages.filter((liveMsg) => {
+			// Skip if we already have this message
+			if (localMessageIds.has(liveMsg.id)) return false;
+			// Skip if this is our own message (we added it optimistically)
+			if (liveMsg.author_id === currentUser.id) return false;
+			return true;
+		});
+
+		if (newOtherUserMessages.length > 0) {
+			// Convert and add new messages from other users
+			const converted = newOtherUserMessages.map(convertToThreadMessage);
+			setMessages((prev) => {
+				// Merge and sort by ID to maintain order
+				const merged = [...prev, ...converted];
+				return merged.sort((a, b) => {
+					const aId = Number.parseInt((a.id ?? "").replace(/^msg-/, ""), 10) || 0;
+					const bId = Number.parseInt((b.id ?? "").replace(/^msg-/, ""), 10) || 0;
+					return aId - bId;
+				});
+			});
+		}
+	}, [liveMessages, currentUser?.id, messages, isRunning]);
 
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
