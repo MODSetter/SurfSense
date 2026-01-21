@@ -11,7 +11,6 @@ import {
 	History,
 	Inbox,
 	ListFilter,
-	Loader2,
 	MoreHorizontal,
 	RotateCcw,
 	Search,
@@ -34,6 +33,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/hooks/use-inbox";
@@ -168,16 +168,24 @@ export function InboxSidebar({
 		return items;
 	}, [currentTabItems, activeFilter, searchQuery]);
 
-	// Count unread items per tab
-	const unreadMentionsCount = useMemo(
-		() => mentionItems.filter((item) => !item.read).length,
-		[mentionItems]
-	);
+	// Count unread items per tab (filter-aware)
+	const unreadMentionsCount = useMemo(() => {
+		if (activeFilter === "archived") {
+			// In archived view, show unread archived items
+			return mentionItems.filter((item) => !item.read && item.archived === true).length;
+		}
+		// For "all" and "unread" filters, show unread non-archived items
+		return mentionItems.filter((item) => !item.read && item.archived !== true).length;
+	}, [mentionItems, activeFilter]);
 
-	const unreadStatusCount = useMemo(
-		() => statusItems.filter((item) => !item.read).length,
-		[statusItems]
-	);
+	const unreadStatusCount = useMemo(() => {
+		if (activeFilter === "archived") {
+			// In archived view, show unread archived items
+			return statusItems.filter((item) => !item.read && item.archived === true).length;
+		}
+		// For "all" and "unread" filters, show unread non-archived items
+		return statusItems.filter((item) => !item.read && item.archived !== true).length;
+	}, [statusItems, activeFilter]);
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
@@ -283,7 +291,7 @@ export function InboxSidebar({
 			case "in_progress":
 				return (
 					<div className="h-8 w-8 flex items-center justify-center rounded-full bg-muted">
-						<Loader2 className="h-4 w-4 text-foreground animate-spin" />
+						<Spinner size="sm" className="text-foreground" />
 					</div>
 				);
 			case "completed":
@@ -363,7 +371,7 @@ export function InboxSidebar({
 												size="icon"
 												className="h-8 w-8 rounded-full"
 											>
-												<ListFilter className="h-4 w-4" />
+												<ListFilter className="h-4 w-4 text-muted-foreground" />
 												<span className="sr-only">{t("filter") || "Filter"}</span>
 											</Button>
 										</DropdownMenuTrigger>
@@ -413,7 +421,7 @@ export function InboxSidebar({
 												size="icon"
 												className="h-8 w-8 rounded-full"
 											>
-												<MoreHorizontal className="h-4 w-4" />
+												<MoreHorizontal className="h-4 w-4 text-muted-foreground" />
 												<span className="sr-only">{t("more_options") || "More options"}</span>
 											</Button>
 										</DropdownMenuTrigger>
@@ -466,11 +474,12 @@ export function InboxSidebar({
 									<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
 										<AtSign className="h-4 w-4" />
 										<span>{t("mentions") || "Mentions"}</span>
-										{unreadMentionsCount > 0 && (
-											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
-												{unreadMentionsCount}
-											</span>
-										)}
+										<span className={cn(
+											"inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium",
+											unreadMentionsCount === 0 && "invisible"
+										)}>
+											{unreadMentionsCount || 0}
+										</span>
 									</span>
 								</TabsTrigger>
 								<TabsTrigger
@@ -480,11 +489,12 @@ export function InboxSidebar({
 									<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
 										<History className="h-4 w-4" />
 										<span>{t("status") || "Status"}</span>
-										{unreadStatusCount > 0 && (
-											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-primary text-xs font-medium">
-												{unreadStatusCount}
-											</span>
-										)}
+										<span className={cn(
+											"inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium",
+											unreadStatusCount === 0 && "invisible"
+										)}>
+											{unreadStatusCount || 0}
+										</span>
 									</span>
 								</TabsTrigger>
 							</TabsList>
@@ -493,7 +503,7 @@ export function InboxSidebar({
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{loading ? (
 								<div className="flex items-center justify-center py-8">
-									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+									<Spinner size="md" className="text-muted-foreground" />
 								</div>
 							) : filteredItems.length > 0 ? (
 								<div className="space-y-2">
@@ -507,7 +517,7 @@ export function InboxSidebar({
 											<div
 												key={item.id}
 												className={cn(
-													"group flex items-center gap-3 rounded-lg px-3 py-5 text-sm",
+													"group flex items-center gap-3 rounded-lg px-3 py-2 text-sm h-[72px] overflow-hidden",
 													"hover:bg-accent hover:text-accent-foreground",
 													"transition-colors cursor-pointer",
 													isBusy && "opacity-50 pointer-events-none"
@@ -547,11 +557,7 @@ export function InboxSidebar({
 																			}}
 																			disabled={isBusy}
 																		>
-																			{isMarkingAsRead ? (
-																				<Loader2 className="h-3.5 w-3.5 animate-spin" />
-																			) : (
-																				<CheckCheck className="h-3.5 w-3.5" />
-																			)}
+																			<CheckCheck className="h-3.5 w-3.5" />
 																			<span className="sr-only">{t("mark_as_read") || "Mark as read"}</span>
 																		</Button>
 																	)}
@@ -566,7 +572,7 @@ export function InboxSidebar({
 																		disabled={isArchiving}
 																	>
 																		{isArchiving ? (
-																			<Loader2 className="h-3.5 w-3.5 animate-spin" />
+																			<Spinner size="xs" />
 																		) : isArchived ? (
 																			<RotateCcw className="h-3.5 w-3.5" />
 																		) : (
@@ -623,10 +629,10 @@ export function InboxSidebar({
 																)}
 																disabled={isBusy}
 															>
-															{isBusy ? (
-																<Loader2 className="h-3.5 w-3.5 animate-spin" />
+															{isArchiving ? (
+																<Spinner size="xs" />
 															) : (
-																<MoreHorizontal className="h-3.5 w-3.5" />
+																<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 															)}
 															<span className="sr-only">
 																{t("more_options") || "More options"}

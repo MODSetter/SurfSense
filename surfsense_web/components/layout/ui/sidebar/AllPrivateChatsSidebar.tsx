@@ -280,7 +280,7 @@ export function AllPrivateChatsSidebar({
 										<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
 											<MessageCircleMore className="h-4 w-4" />
 											<span>Active</span>
-											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-primary text-xs font-medium">{activeCount}</span>
+											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">{activeCount}</span>
 										</span>
 									</TabsTrigger>
 									<TabsTrigger
@@ -290,7 +290,7 @@ export function AllPrivateChatsSidebar({
 										<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
 											<ArchiveIcon className="h-4 w-4" />
 											<span>Archived</span>
-											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-primary text-xs font-medium">{archivedCount}</span>
+											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">{archivedCount}</span>
 										</span>
 									</TabsTrigger>
 								</TabsList>
@@ -363,7 +363,7 @@ export function AllPrivateChatsSidebar({
 															{isDeleting ? (
 																<Loader2 className="h-3.5 w-3.5 animate-spin" />
 															) : (
-																<MoreHorizontal className="h-3.5 w-3.5" />
+																<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 															)}
 															<span className="sr-only">{t("more_options") || "More options"}</span>
 														</Button>
