@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { Inbox, LogOut, Logs, SquareLibrary, Trash2 } from "lucide-react";
+import { Inbox, LogOut, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -87,7 +87,7 @@ export function LayoutDataProvider({
 
 	// Inbox hook
 	const userId = user?.id ? String(user.id) : null;
-	const { inboxItems, unreadCount, loading: inboxLoading, markAsRead, markAllAsRead, archiveItem } = useInbox(
+	const { inboxItems, unreadCount, loading: inboxLoading, markAsRead, markAllAsRead } = useInbox(
 		userId,
 		Number(searchSpaceId) || null,
 		null
@@ -551,7 +551,6 @@ export function LayoutDataProvider({
 				loading={inboxLoading}
 				markAsRead={markAsRead}
 				markAllAsRead={markAllAsRead}
-				archiveItem={archiveItem}
 			/>
 
 			{/* Create Search Space Dialog */}

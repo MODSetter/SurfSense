@@ -110,7 +110,6 @@ export const inboxItem = z.object({
 	title: z.string(),
 	message: z.string(),
 	read: z.boolean(),
-	archived: z.boolean().default(false),
 	metadata: z.record(z.string(), z.unknown()),
 	created_at: z.string(),
 	updated_at: z.string().nullable(),

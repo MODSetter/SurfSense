@@ -2,7 +2,6 @@
 
 import {
 	AlertCircle,
-	Archive,
 	AtSign,
 	BellDot,
 	Check,
@@ -12,7 +11,6 @@ import {
 	Inbox,
 	ListFilter,
 	MoreHorizontal,
-	RotateCcw,
 	Search,
 	X,
 } from "lucide-react";
@@ -29,7 +27,6 @@ import {
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -59,7 +56,7 @@ function getInitials(name: string | null | undefined, email: string | null | und
 }
 
 type InboxTab = "mentions" | "status";
-type InboxFilter = "all" | "unread" | "archived";
+type InboxFilter = "all" | "unread";
 
 interface InboxSidebarProps {
 	open: boolean;
@@ -69,7 +66,6 @@ interface InboxSidebarProps {
 	loading: boolean;
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
-	archiveItem: (id: number, archived: boolean) => Promise<boolean>;
 	onCloseMobileSidebar?: () => void;
 }
 
@@ -81,7 +77,6 @@ export function InboxSidebar({
 	loading,
 	markAsRead,
 	markAllAsRead,
-	archiveItem,
 	onCloseMobileSidebar,
 }: InboxSidebarProps) {
 	const t = useTranslations("sidebar");
@@ -91,10 +86,9 @@ export function InboxSidebar({
 	const [activeTab, setActiveTab] = useState<InboxTab>("mentions");
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
 	const [mounted, setMounted] = useState(false);
-	// Unified dropdown state: "filter" | "options" | number (item id) | null
-	const [openDropdown, setOpenDropdown] = useState<"filter" | "options" | number | null>(null);
+	// Dropdown state for filter and options menus
+	const [openDropdown, setOpenDropdown] = useState<"filter" | "options" | null>(null);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
-	const [archivingItemId, setArchivingItemId] = useState<number | null>(null);
 
 	useEffect(() => {
 		setMounted(true);
@@ -143,16 +137,8 @@ export function InboxSidebar({
 		let items = currentTabItems;
 
 		// Apply filter
-		// Note: Use `item.archived === true` to handle undefined/null as false
-		if (activeFilter === "all") {
-			// "Unread & read" shows all non-archived items
-			items = items.filter((item) => item.archived !== true);
-		} else if (activeFilter === "unread") {
-			// "Unread" shows only unread non-archived items
-			items = items.filter((item) => !item.read && item.archived !== true);
-		} else if (activeFilter === "archived") {
-			// "Archived" shows only archived items (must be explicitly true)
-			items = items.filter((item) => item.archived === true);
+		if (activeFilter === "unread") {
+			items = items.filter((item) => !item.read);
 		}
 
 		// Apply search query
@@ -168,24 +154,14 @@ export function InboxSidebar({
 		return items;
 	}, [currentTabItems, activeFilter, searchQuery]);
 
-	// Count unread items per tab (filter-aware)
+	// Count unread items per tab
 	const unreadMentionsCount = useMemo(() => {
-		if (activeFilter === "archived") {
-			// In archived view, show unread archived items
-			return mentionItems.filter((item) => !item.read && item.archived === true).length;
-		}
-		// For "all" and "unread" filters, show unread non-archived items
-		return mentionItems.filter((item) => !item.read && item.archived !== true).length;
-	}, [mentionItems, activeFilter]);
+		return mentionItems.filter((item) => !item.read).length;
+	}, [mentionItems]);
 
 	const unreadStatusCount = useMemo(() => {
-		if (activeFilter === "archived") {
-			// In archived view, show unread archived items
-			return statusItems.filter((item) => !item.read && item.archived === true).length;
-		}
-		// For "all" and "unread" filters, show unread non-archived items
-		return statusItems.filter((item) => !item.read && item.archived !== true).length;
-	}, [statusItems, activeFilter]);
+		return statusItems.filter((item) => !item.read).length;
+	}, [statusItems]);
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
@@ -217,27 +193,9 @@ export function InboxSidebar({
 		[markAsRead, router, onOpenChange, onCloseMobileSidebar]
 	);
 
-	const handleMarkAsRead = useCallback(
-		async (itemId: number) => {
-			setMarkingAsReadId(itemId);
-			await markAsRead(itemId);
-			setMarkingAsReadId(null);
-		},
-		[markAsRead]
-	);
-
 	const handleMarkAllAsRead = useCallback(async () => {
 		await markAllAsRead();
 	}, [markAllAsRead]);
-
-	const handleToggleArchive = useCallback(
-		async (itemId: number, currentlyArchived: boolean) => {
-			setArchivingItemId(itemId);
-			await archiveItem(itemId, !currentlyArchived);
-			setArchivingItemId(null);
-		},
-		[archiveItem]
-	);
 
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
@@ -385,7 +343,7 @@ export function InboxSidebar({
 											>
 												<span className="flex items-center gap-2">
 													<Inbox className="h-4 w-4" />
-													<span>{t("unread_and_read") || "Unread & read"}</span>
+													<span>{t("all") || "All"}</span>
 												</span>
 												{activeFilter === "all" && <Check className="h-4 w-4" />}
 											</DropdownMenuItem>
@@ -398,16 +356,6 @@ export function InboxSidebar({
 													<span>{t("unread") || "Unread"}</span>
 												</span>
 												{activeFilter === "unread" && <Check className="h-4 w-4" />}
-											</DropdownMenuItem>
-											<DropdownMenuItem
-												onClick={() => setActiveFilter("archived")}
-												className="flex items-center justify-between"
-											>
-												<span className="flex items-center gap-2">
-													<Archive className="h-4 w-4" />
-													<span>{t("archived") || "Archived"}</span>
-												</span>
-												{activeFilter === "archived" && <Check className="h-4 w-4" />}
 											</DropdownMenuItem>
 										</DropdownMenuContent>
 									</DropdownMenu>
@@ -509,18 +457,15 @@ export function InboxSidebar({
 								<div className="space-y-2">
 									{filteredItems.map((item) => {
 										const isMarkingAsRead = markingAsReadId === item.id;
-										const isArchiving = archivingItemId === item.id;
-										const isBusy = isMarkingAsRead || isArchiving;
-										const isArchived = item.archived === true;
 
 										return (
 											<div
 												key={item.id}
 												className={cn(
-													"group flex items-center gap-3 rounded-lg px-3 py-2 text-sm h-[72px] overflow-hidden",
+													"group flex items-center gap-3 rounded-lg px-3 py-3 text-sm min-h-[72px] overflow-hidden",
 													"hover:bg-accent hover:text-accent-foreground",
 													"transition-colors cursor-pointer",
-													isBusy && "opacity-50 pointer-events-none"
+													isMarkingAsRead && "opacity-50 pointer-events-none"
 												)}
 											>
 												<Tooltip>
@@ -528,8 +473,8 @@ export function InboxSidebar({
 														<button
 															type="button"
 															onClick={() => handleItemClick(item)}
-															disabled={isBusy}
-															className="flex items-start gap-3 flex-1 min-w-0 text-left overflow-hidden self-start"
+															disabled={isMarkingAsRead}
+															className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
 														>
 															<div className="shrink-0">{getStatusIcon(item)}</div>
 															<div className="flex-1 min-w-0 overflow-hidden">
@@ -544,43 +489,6 @@ export function InboxSidebar({
 																<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
 																	{convertRenderedToDisplay(item.message)}
 																</p>
-																{/* Mobile action buttons - shown below description on mobile only */}
-																<div className="inline-flex items-center gap-0.5 mt-2 md:hidden bg-primary/20 rounded-md px-1 py-0.5">
-																	{!item.read && (
-																		<Button
-																			variant="ghost"
-																			size="icon"
-																			className="h-6 w-6"
-																			onClick={(e) => {
-																				e.stopPropagation();
-																				handleMarkAsRead(item.id);
-																			}}
-																			disabled={isBusy}
-																		>
-																			<CheckCheck className="h-3.5 w-3.5" />
-																			<span className="sr-only">{t("mark_as_read") || "Mark as read"}</span>
-																		</Button>
-																	)}
-																	<Button
-																		variant="ghost"
-																		size="icon"
-																		className="h-6 w-6"
-																		onClick={(e) => {
-																			e.stopPropagation();
-																			handleToggleArchive(item.id, isArchived);
-																		}}
-																		disabled={isArchiving}
-																	>
-																		{isArchiving ? (
-																			<Spinner size="xs" />
-																		) : isArchived ? (
-																			<RotateCcw className="h-3.5 w-3.5" />
-																		) : (
-																			<Archive className="h-3.5 w-3.5" />
-																		)}
-																		<span className="sr-only">{isArchived ? (t("unarchive") || "Restore") : (t("archive") || "Archive")}</span>
-																	</Button>
-																</div>
 															</div>
 														</button>
 													</TooltipTrigger>
@@ -592,93 +500,13 @@ export function InboxSidebar({
 													</TooltipContent>
 												</Tooltip>
 
-												{/* Time/dot and 3-dot button container - swap on hover (desktop only) */}
-												<div className="relative hidden md:flex items-center shrink-0 w-12 justify-end">
-													{/* Time and unread dot - visible by default, hidden on hover or when dropdown is open */}
-													<div
-														className={cn(
-															"flex items-center gap-1.5 transition-opacity duration-150",
-															"group-hover:opacity-0 group-hover:pointer-events-none",
-															openDropdown === item.id && "opacity-0 pointer-events-none"
-														)}
-													>
-														<span className="text-[10px] text-muted-foreground">
-															{formatTime(item.created_at)}
-														</span>
-														{!item.read && (
-															<span className="h-2 w-2 rounded-full bg-blue-500" />
-														)}
-													</div>
-
-													{/* 3-dot menu - hidden by default, visible on hover or when dropdown is open */}
-													<DropdownMenu
-														open={openDropdown === item.id}
-														onOpenChange={(isOpen) =>
-															setOpenDropdown(isOpen ? item.id : null)
-														}
-													>
-														<DropdownMenuTrigger asChild>
-															<Button
-																variant="ghost"
-																size="icon"
-																className={cn(
-																	"h-6 w-6 absolute right-0 transition-opacity duration-150",
-																	"opacity-0 pointer-events-none",
-																	"group-hover:opacity-100 group-hover:pointer-events-auto",
-																	openDropdown === item.id && "!opacity-100 !pointer-events-auto"
-																)}
-																disabled={isBusy}
-															>
-															{isArchiving ? (
-																<Spinner size="xs" />
-															) : (
-																<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-															)}
-															<span className="sr-only">
-																{t("more_options") || "More options"}
-															</span>
-														</Button>
-													</DropdownMenuTrigger>
-													<DropdownMenuContent align="end" className="w-40 z-80">
-														{!item.read && (
-															<>
-																<DropdownMenuItem
-																	onClick={() => handleMarkAsRead(item.id)}
-																	disabled={isBusy}
-																>
-																	<CheckCheck className="mr-2 h-4 w-4" />
-																	<span>{t("mark_as_read") || "Mark as read"}</span>
-																</DropdownMenuItem>
-																<DropdownMenuSeparator />
-															</>
-														)}
-														<DropdownMenuItem
-															onClick={() => handleToggleArchive(item.id, isArchived)}
-															disabled={isArchiving}
-														>
-															{isArchived ? (
-																<>
-																	<RotateCcw className="mr-2 h-4 w-4" />
-																	<span>{t("unarchive") || "Restore"}</span>
-																</>
-															) : (
-																<>
-																	<Archive className="mr-2 h-4 w-4" />
-																	<span>{t("archive") || "Archive"}</span>
-																</>
-															)}
-														</DropdownMenuItem>
-													</DropdownMenuContent>
-												</DropdownMenu>
-												</div>
-
-												{/* Mobile time and unread dot - always visible on mobile */}
-												<div className="flex md:hidden items-center gap-1.5 shrink-0">
+												{/* Time and unread dot - fixed width to prevent content shift */}
+												<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">
 													<span className="text-[10px] text-muted-foreground">
 														{formatTime(item.created_at)}
 													</span>
 													{!item.read && (
-														<span className="h-2 w-2 rounded-full bg-blue-500" />
+														<span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
 													)}
 												</div>
 											</div>

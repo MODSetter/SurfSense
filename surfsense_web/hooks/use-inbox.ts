@@ -332,36 +332,11 @@ export function useInbox(
 		}
 	}, []);
 
-	// Archive/unarchive an inbox item via backend API
-	const archiveItem = useCallback(async (itemId: number, archived: boolean) => {
-		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/${itemId}/archive`,
-				{
-					method: "PATCH",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ archived }),
-				}
-			);
-
-			if (!response.ok) {
-				const error = await response.json().catch(() => ({ detail: "Failed to update archive status" }));
-				throw new Error(error.detail || "Failed to update inbox item archive status");
-			}
-
-			return true;
-		} catch (err) {
-			console.error("Failed to update inbox item archive status:", err);
-			return false;
-		}
-	}, []);
-
 	return {
 		inboxItems,
 		unreadCount: totalUnreadCount,
 		markAsRead,
 		markAllAsRead,
-		archiveItem,
 		loading,
 		error,
 	};

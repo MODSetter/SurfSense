@@ -55,7 +55,8 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 // Version for sync state - increment this to force fresh sync when Electric config changes
 // v2: user-specific database architecture
 // v3: added archived column to notifications
-const SYNC_VERSION = 3;
+// v4: removed archived column from notifications
+const SYNC_VERSION = 4;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";
@@ -182,7 +183,6 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 					title TEXT NOT NULL,
 					message TEXT NOT NULL,
 					read BOOLEAN NOT NULL DEFAULT FALSE,
-					archived BOOLEAN NOT NULL DEFAULT FALSE,
 					metadata JSONB DEFAULT '{}',
 					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 					updated_at TIMESTAMPTZ
@@ -190,7 +190,6 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				
 				CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
 				CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
-				CREATE INDEX IF NOT EXISTS idx_notifications_archived ON notifications(archived);
 			`);
 
 			// Create the search_source_connectors table schema in PGlite
