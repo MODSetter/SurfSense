@@ -28,6 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
@@ -277,32 +278,34 @@ export function AllSharedChatsSidebar({
 						</div>
 
 						{!isSearchMode && (
-							<div className="shrink-0 flex border-b mx-4">
-								<button
-									type="button"
-									onClick={() => setShowArchived(false)}
-									className={cn(
-										"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
-										!showArchived
-											? "border-b-2 border-primary text-primary"
-											: "text-muted-foreground hover:text-foreground"
-									)}
-								>
-									Active ({activeCount})
-								</button>
-								<button
-									type="button"
-									onClick={() => setShowArchived(true)}
-									className={cn(
-										"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
-										showArchived
-											? "border-b-2 border-primary text-primary"
-											: "text-muted-foreground hover:text-foreground"
-									)}
-								>
-									Archived ({archivedCount})
-								</button>
-							</div>
+							<Tabs
+								value={showArchived ? "archived" : "active"}
+								onValueChange={(value) => setShowArchived(value === "archived")}
+								className="shrink-0 mx-4"
+							>
+								<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
+									<TabsTrigger
+										value="active"
+										className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+									>
+										<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+											<MessageCircleMore className="h-4 w-4" />
+											<span>Active</span>
+											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-primary text-xs font-medium">{activeCount}</span>
+										</span>
+									</TabsTrigger>
+									<TabsTrigger
+										value="archived"
+										className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+									>
+										<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+											<ArchiveIcon className="h-4 w-4" />
+											<span>Archived</span>
+											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-primary text-xs font-medium">{archivedCount}</span>
+										</span>
+									</TabsTrigger>
+								</TabsList>
+							</Tabs>
 						)}
 
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
