@@ -712,9 +712,9 @@ function MembersTab({
 
 function RolesTab({
 	roles,
-	groupedPermissions,
+	groupedPermissions: _groupedPermissions,
 	loading,
-	onUpdateRole,
+	onUpdateRole: _onUpdateRole,
 	onDeleteRole,
 	canUpdate,
 	canDelete,
@@ -1500,7 +1500,11 @@ function CreateRoleDialog({
 
 									return (
 										<div key={category} className="space-y-2">
-											<label className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded w-full text-left">
+											<button
+												type="button"
+												className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded w-full text-left"
+												onClick={() => toggleCategory(category)}
+											>
 												<Checkbox
 													checked={allSelected}
 													onCheckedChange={() => toggleCategory(category)}
@@ -1508,19 +1512,21 @@ function CreateRoleDialog({
 												<span className="text-sm font-medium capitalize">
 													{category} ({categorySelected}/{perms.length})
 												</span>
-											</label>
+											</button>
 											<div className="grid grid-cols-2 gap-2 ml-6">
 												{perms.map((perm) => (
-													<label
+													<button
+														type="button"
 														key={perm.value}
 														className="flex items-center gap-2 cursor-pointer text-left"
+														onClick={() => togglePermission(perm.value)}
 													>
 														<Checkbox
 															checked={selectedPermissions.includes(perm.value)}
 															onCheckedChange={() => togglePermission(perm.value)}
 														/>
 														<span className="text-xs">{perm.value.split(":")[1]}</span>
-													</label>
+													</button>
 												))}
 											</div>
 										</div>
