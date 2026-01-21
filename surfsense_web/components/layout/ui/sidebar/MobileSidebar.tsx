@@ -33,6 +33,8 @@ interface MobileSidebarProps {
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
+	theme?: string;
+	setTheme?: (theme: "light" | "dark" | "system") => void;
 }
 
 export function MobileSidebarTrigger({ onClick }: { onClick: () => void }) {
@@ -70,6 +72,8 @@ export function MobileSidebar({
 	onUserSettings,
 	onLogout,
 	pageUsage,
+	theme,
+	setTheme,
 }: MobileSidebarProps) {
 	const handleSearchSpaceSelect = (id: number) => {
 		onSearchSpaceSelect(id);
@@ -145,6 +149,8 @@ export function MobileSidebar({
 						onUserSettings={onUserSettings}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
+						theme={theme}
+						setTheme={setTheme}
 						className="w-full border-none"
 					/>
 				</div>

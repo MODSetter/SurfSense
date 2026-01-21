@@ -1060,13 +1060,7 @@ export default function NewChatPage() {
 			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 				<Thread
 					messageThinkingSteps={messageThinkingSteps}
-					header={
-						<ChatHeader
-							searchSpaceId={searchSpaceId}
-							thread={currentThread}
-							onThreadVisibilityChange={handleVisibilityChange}
-						/>
-					}
+					header={<ChatHeader searchSpaceId={searchSpaceId} />}
 				/>
 			</div>
 		</AssistantRuntimeProvider>

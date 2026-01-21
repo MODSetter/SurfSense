@@ -128,23 +128,21 @@ export function CommentThread({
 						{/* Reply composer or button */}
 
 						{isReplyComposerOpen ? (
-							<>
-								<div className="pt-3">
-									<CommentComposer
-										members={members}
-										membersLoading={membersLoading}
-										placeholder="Write a reply..."
-										submitLabel="Reply"
-										isSubmitting={isSubmitting}
-										onSubmit={handleReplySubmit}
-										onCancel={handleReplyCancel}
-										autoFocus
-									/>
-								</div>
-							</>
+							<div className="pt-3">
+								<CommentComposer
+									members={members}
+									membersLoading={membersLoading}
+									placeholder="Reply or @mention"
+									submitLabel="Reply"
+									isSubmitting={isSubmitting}
+									onSubmit={handleReplySubmit}
+									onCancel={handleReplyCancel}
+									autoFocus
+								/>
+							</div>
 						) : (
 							<Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleReply}>
-								<MessageSquare className="mr-1.5 size-3" />
+								<MessageSquare className="mr-1 size-3" />
 								Reply
 							</Button>
 						)}
@@ -156,7 +154,7 @@ export function CommentThread({
 			{!hasReplies && !isReplyComposerOpen && (
 				<div className="ml-7 mt-1">
 					<Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleReply}>
-						<MessageSquare className="mr-1.5 size-3" />
+						<MessageSquare className="mr-1 size-3" />
 						Reply
 					</Button>
 				</div>

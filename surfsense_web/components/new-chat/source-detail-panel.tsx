@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import {
 	BookOpen,
 	ChevronDown,
-	ChevronUp,
 	ExternalLink,
 	FileText,
 	Hash,
@@ -387,7 +386,7 @@ export function SourceDetailPanel({
 										<div className="absolute inset-0 rounded-full bg-primary/20 blur-xl" />
 										<Loader2 className="h-12 w-12 animate-spin text-primary relative" />
 									</div>
-									<p className="text-sm text-muted-foreground font-medium">Loading document...</p>
+									<p className="text-sm text-muted-foreground font-medium">Loading document</p>
 								</motion.div>
 							</div>
 						)}
