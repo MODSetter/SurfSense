@@ -2,7 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Loader2, User, Users } from "lucide-react";
+import { User, Users } from "lucide-react";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
@@ -45,7 +45,6 @@ const visibilityOptions: {
 export function ChatShareButton({ thread, onVisibilityChange, className }: ChatShareButtonProps) {
 	const queryClient = useQueryClient();
 	const [open, setOpen] = useState(false);
-	const [isUpdating, setIsUpdating] = useState(false);
 
 	// Use Jotai atom for visibility (single source of truth)
 	const currentThreadState = useAtomValue(currentThreadAtom);
@@ -62,7 +61,6 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				return;
 			}
 
-			setIsUpdating(true);
 			// Update Jotai atom immediately for instant UI feedback
 			setThreadVisibility(newVisibility);
 
@@ -84,8 +82,6 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				// Revert Jotai state on error
 				setThreadVisibility(thread.visibility ?? "PRIVATE");
 				toast.error("Failed to update sharing settings");
-			} finally {
-				setIsUpdating(false);
 			}
 		},
 		[thread, currentVisibility, onVisibilityChange, queryClient, setThreadVisibility]
@@ -128,16 +124,6 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				onCloseAutoFocus={(e) => e.preventDefault()}
 			>
 				<div className="p-1.5 space-y-1">
-					{/* Updating overlay */}
-					{isUpdating && (
-						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-							<div className="flex items-center gap-2 text-sm text-muted-foreground">
-								<Loader2 className="size-4 animate-spin" />
-								<span>Updating</span>
-							</div>
-						</div>
-					)}
-
 					{visibilityOptions.map((option) => {
 						const isSelected = currentVisibility === option.value;
 						const Icon = option.icon;
@@ -147,7 +133,6 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 								type="button"
 								key={option.value}
 								onClick={() => handleVisibilityChange(option.value)}
-								disabled={isUpdating}
 								className={cn(
 									"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
 									"hover:bg-accent/50 cursor-pointer",
