@@ -98,7 +98,9 @@ def format_memories_for_context(memories: list[dict[str, Any]]) -> str:
         category = memory.get("category", "unknown")
         text = memory.get("memory_text", "")
         updated = memory.get("updated_at", "")
-        parts.append(f"  <memory category='{category}' updated='{updated}'>{text}</memory>")
+        parts.append(
+            f"  <memory category='{category}' updated='{updated}'>{text}</memory>"
+        )
     parts.append("</user_memories>")
 
     return "\n".join(parts)
@@ -187,7 +189,7 @@ def create_save_memory_tool(
                 category=MemoryCategory(category),  # Convert string to enum
                 embedding=embedding,  # Pass embedding directly (list or numpy array)
             )
-            
+
             db_session.add(new_memory)
             await db_session.commit()
             await db_session.refresh(new_memory)
@@ -279,7 +281,12 @@ def create_recall_memory_tool(
                 )
 
                 # Add category filter if specified
-                if category and category in ["preference", "fact", "instruction", "context"]:
+                if category and category in [
+                    "preference",
+                    "fact",
+                    "instruction",
+                    "context",
+                ]:
                     stmt = stmt.where(UserMemory.category == MemoryCategory(category))
 
                 # Order by vector similarity
@@ -299,7 +306,12 @@ def create_recall_memory_tool(
                 )
 
                 # Add category filter if specified
-                if category and category in ["preference", "fact", "instruction", "context"]:
+                if category and category in [
+                    "preference",
+                    "fact",
+                    "instruction",
+                    "context",
+                ]:
                     stmt = stmt.where(UserMemory.category == MemoryCategory(category))
 
                 stmt = stmt.order_by(UserMemory.updated_at.desc()).limit(top_k)

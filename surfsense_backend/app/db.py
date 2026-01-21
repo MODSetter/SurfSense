@@ -478,7 +478,9 @@ class MemoryCategory(str, Enum):
     # Using lowercase keys to match PostgreSQL enum values
     preference = "preference"  # User preferences (e.g., "prefers dark mode")
     fact = "fact"  # Facts about the user (e.g., "is a Python developer")
-    instruction = "instruction"  # Standing instructions (e.g., "always respond in bullet points")
+    instruction = (
+        "instruction"  # Standing instructions (e.g., "always respond in bullet points")
+    )
     context = "context"  # Contextual information (e.g., "working on project X")
 
 
