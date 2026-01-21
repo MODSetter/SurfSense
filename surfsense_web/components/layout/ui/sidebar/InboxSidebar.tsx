@@ -22,6 +22,13 @@ import { convertRenderedToDisplay } from "@/components/chat-comments/comment-ite
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
+import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
@@ -34,6 +41,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { InboxItem } from "@/hooks/use-inbox";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import type { ConnectorIndexingMetadata } from "@/contracts/types/inbox.types";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +62,40 @@ function getInitials(name: string | null | undefined, email: string | null | und
 		return localPart.slice(0, 2).toUpperCase();
 	}
 	return "U";
+}
+
+/**
+ * Get display name for connector type
+ */
+function getConnectorTypeDisplayName(connectorType: string): string {
+	const displayNames: Record<string, string> = {
+		GITHUB_CONNECTOR: "GitHub",
+		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
+		GOOGLE_GMAIL_CONNECTOR: "Gmail",
+		GOOGLE_DRIVE_CONNECTOR: "Google Drive",
+		LINEAR_CONNECTOR: "Linear",
+		NOTION_CONNECTOR: "Notion",
+		SLACK_CONNECTOR: "Slack",
+		TEAMS_CONNECTOR: "Microsoft Teams",
+		DISCORD_CONNECTOR: "Discord",
+		JIRA_CONNECTOR: "Jira",
+		CONFLUENCE_CONNECTOR: "Confluence",
+		BOOKSTACK_CONNECTOR: "BookStack",
+		CLICKUP_CONNECTOR: "ClickUp",
+		AIRTABLE_CONNECTOR: "Airtable",
+		LUMA_CONNECTOR: "Luma",
+		ELASTICSEARCH_CONNECTOR: "Elasticsearch",
+		WEBCRAWLER_CONNECTOR: "Web Crawler",
+		YOUTUBE_CONNECTOR: "YouTube",
+		CIRCLEBACK_CONNECTOR: "Circleback",
+		MCP_CONNECTOR: "MCP",
+		TAVILY_API: "Tavily",
+		SEARXNG_API: "SearXNG",
+		LINKUP_API: "Linkup",
+		BAIDU_SEARCH_API: "Baidu",
+	};
+
+	return displayNames[connectorType] || connectorType.replace(/_/g, " ").replace(/CONNECTOR|API/gi, "").trim();
 }
 
 type InboxTab = "mentions" | "status";
@@ -82,14 +124,17 @@ export function InboxSidebar({
 }: InboxSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const isMobile = !useMediaQuery("(min-width: 640px)");
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeTab, setActiveTab] = useState<InboxTab>("mentions");
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
 	const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
 	const [mounted, setMounted] = useState(false);
-	// Dropdown state for filter menu
+	// Dropdown state for filter menu (desktop only)
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
+	// Drawer state for filter menu (mobile only)
+	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 
 	useEffect(() => {
@@ -138,23 +183,23 @@ export function InboxSidebar({
 		[inboxItems]
 	);
 
-	// Get unique connectors from status items for filtering
-	const uniqueConnectors = useMemo(() => {
-		const connectorMap = new Map<string, { type: string; name: string }>();
+	// Get unique connector types from status items for filtering
+	const uniqueConnectorTypes = useMemo(() => {
+		const connectorTypes = new Set<string>();
 
 		statusItems
 			.filter((item) => item.type === "connector_indexing")
 			.forEach((item) => {
 				const metadata = item.metadata as ConnectorIndexingMetadata;
-				if (metadata?.connector_type && !connectorMap.has(metadata.connector_type)) {
-					connectorMap.set(metadata.connector_type, {
-						type: metadata.connector_type,
-						name: metadata.connector_name || metadata.connector_type,
-					});
+				if (metadata?.connector_type) {
+					connectorTypes.add(metadata.connector_type);
 				}
 			});
 
-		return Array.from(connectorMap.values());
+		return Array.from(connectorTypes).map((type) => ({
+			type,
+			displayName: getConnectorTypeDisplayName(type),
+		}));
 	}, [statusItems]);
 
 	// Get items for current tab
@@ -358,53 +403,205 @@ export function InboxSidebar({
 									<h2 className="text-lg font-semibold">{t("inbox") || "Inbox"}</h2>
 								</div>
 								<div className="flex items-center gap-1">
-									<DropdownMenu
-										open={openDropdown === "filter"}
-										onOpenChange={(isOpen) => setOpenDropdown(isOpen ? "filter" : null)}
-									>
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<DropdownMenuTrigger asChild>
+									{/* Mobile: Button that opens bottom drawer */}
+									{isMobile ? (
+										<>
+											<Tooltip>
+												<TooltipTrigger asChild>
 													<Button
 														variant="ghost"
 														size="icon"
 														className="h-8 w-8 rounded-full"
+														onClick={() => setFilterDrawerOpen(true)}
 													>
 														<ListFilter className="h-4 w-4 text-muted-foreground" />
 														<span className="sr-only">{t("filter") || "Filter"}</span>
 													</Button>
-												</DropdownMenuTrigger>
-											</TooltipTrigger>
-											<TooltipContent className="z-80">
-												{t("filter") || "Filter"}
-											</TooltipContent>
-										</Tooltip>
-										<DropdownMenuContent align="end" className="w-44 z-80">
-											<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
-												{t("filter") || "Filter"}
-											</DropdownMenuLabel>
-											<DropdownMenuItem
-												onClick={() => setActiveFilter("all")}
-												className="flex items-center justify-between"
-											>
-												<span className="flex items-center gap-2">
-													<Inbox className="h-4 w-4" />
-													<span>{t("all") || "All"}</span>
-												</span>
-												{activeFilter === "all" && <Check className="h-4 w-4" />}
-											</DropdownMenuItem>
-											<DropdownMenuItem
-												onClick={() => setActiveFilter("unread")}
-												className="flex items-center justify-between"
-											>
-												<span className="flex items-center gap-2">
-													<BellDot className="h-4 w-4" />
-													<span>{t("unread") || "Unread"}</span>
-												</span>
-												{activeFilter === "unread" && <Check className="h-4 w-4" />}
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
+												</TooltipTrigger>
+												<TooltipContent className="z-80">
+													{t("filter") || "Filter"}
+												</TooltipContent>
+											</Tooltip>
+											<Drawer open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen} shouldScaleBackground={false}>
+												<DrawerContent
+													className="max-h-[70vh] z-80"
+													overlayClassName="z-80"
+												>
+													<DrawerHandle />
+													<DrawerHeader className="px-4 pb-3 pt-2">
+														<DrawerTitle className="flex items-center gap-2 text-base font-semibold">
+															<ListFilter className="size-5" />
+															{t("filter") || "Filter"}
+														</DrawerTitle>
+													</DrawerHeader>
+													<div className="flex-1 overflow-y-auto p-4 space-y-4">
+														{/* Filter section */}
+														<div className="space-y-2">
+															<p className="text-xs text-muted-foreground/80 font-medium px-1">
+																{t("filter") || "Filter"}
+															</p>
+															<div className="space-y-1">
+																<button
+																	type="button"
+																	onClick={() => {
+																		setActiveFilter("all");
+																		setFilterDrawerOpen(false);
+																	}}
+																	className={cn(
+																		"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																		activeFilter === "all" ? "bg-primary/10 text-primary" : "hover:bg-muted"
+																	)}
+																>
+																	<span className="flex items-center gap-2">
+																		<Inbox className="h-4 w-4" />
+																		<span>{t("all") || "All"}</span>
+																	</span>
+																	{activeFilter === "all" && <Check className="h-4 w-4" />}
+																</button>
+																<button
+																	type="button"
+																	onClick={() => {
+																		setActiveFilter("unread");
+																		setFilterDrawerOpen(false);
+																	}}
+																	className={cn(
+																		"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																		activeFilter === "unread" ? "bg-primary/10 text-primary" : "hover:bg-muted"
+																	)}
+																>
+																	<span className="flex items-center gap-2">
+																		<BellDot className="h-4 w-4" />
+																		<span>{t("unread") || "Unread"}</span>
+																	</span>
+																	{activeFilter === "unread" && <Check className="h-4 w-4" />}
+																</button>
+															</div>
+														</div>
+														{/* Connectors section - only for status tab */}
+														{activeTab === "status" && uniqueConnectorTypes.length > 0 && (
+															<div className="space-y-2">
+																<p className="text-xs text-muted-foreground/80 font-medium px-1">
+																	{t("connectors") || "Connectors"}
+																</p>
+																<div className="space-y-1">
+																	<button
+																		type="button"
+																		onClick={() => {
+																			setSelectedConnector(null);
+																			setFilterDrawerOpen(false);
+																		}}
+																		className={cn(
+																			"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																			selectedConnector === null ? "bg-primary/10 text-primary" : "hover:bg-muted"
+																		)}
+																	>
+																		<span>{t("all_connectors") || "All connectors"}</span>
+																		{selectedConnector === null && <Check className="h-4 w-4" />}
+																	</button>
+																	{uniqueConnectorTypes.map((connector) => (
+																		<button
+																			key={connector.type}
+																			type="button"
+																			onClick={() => {
+																				setSelectedConnector(connector.type);
+																				setFilterDrawerOpen(false);
+																			}}
+																			className={cn(
+																				"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																				selectedConnector === connector.type ? "bg-primary/10 text-primary" : "hover:bg-muted"
+																			)}
+																		>
+																			<span className="flex items-center gap-2">
+																				{getConnectorIcon(connector.type, "h-4 w-4")}
+																				<span>{connector.displayName}</span>
+																			</span>
+																			{selectedConnector === connector.type && <Check className="h-4 w-4" />}
+																		</button>
+																	))}
+																</div>
+															</div>
+														)}
+													</div>
+												</DrawerContent>
+											</Drawer>
+										</>
+									) : (
+										/* Desktop: Dropdown menu */
+										<DropdownMenu
+											open={openDropdown === "filter"}
+											onOpenChange={(isOpen) => setOpenDropdown(isOpen ? "filter" : null)}
+										>
+											<Tooltip>
+												<TooltipTrigger asChild>
+													<DropdownMenuTrigger asChild>
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-8 w-8 rounded-full"
+														>
+															<ListFilter className="h-4 w-4 text-muted-foreground" />
+															<span className="sr-only">{t("filter") || "Filter"}</span>
+														</Button>
+													</DropdownMenuTrigger>
+												</TooltipTrigger>
+												<TooltipContent className="z-80">
+													{t("filter") || "Filter"}
+												</TooltipContent>
+											</Tooltip>
+											<DropdownMenuContent align="end" className={cn("z-80", activeTab === "status" ? "w-52" : "w-44")}>
+												<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
+													{t("filter") || "Filter"}
+												</DropdownMenuLabel>
+												<DropdownMenuItem
+													onClick={() => setActiveFilter("all")}
+													className="flex items-center justify-between"
+												>
+													<span className="flex items-center gap-2">
+														<Inbox className="h-4 w-4" />
+														<span>{t("all") || "All"}</span>
+													</span>
+													{activeFilter === "all" && <Check className="h-4 w-4" />}
+												</DropdownMenuItem>
+												<DropdownMenuItem
+													onClick={() => setActiveFilter("unread")}
+													className="flex items-center justify-between"
+												>
+													<span className="flex items-center gap-2">
+														<BellDot className="h-4 w-4" />
+														<span>{t("unread") || "Unread"}</span>
+													</span>
+													{activeFilter === "unread" && <Check className="h-4 w-4" />}
+												</DropdownMenuItem>
+												{activeTab === "status" && uniqueConnectorTypes.length > 0 && (
+													<>
+														<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
+															{t("connectors") || "Connectors"}
+														</DropdownMenuLabel>
+														<DropdownMenuItem
+															onClick={() => setSelectedConnector(null)}
+															className="flex items-center justify-between"
+														>
+															<span>{t("all_connectors") || "All connectors"}</span>
+															{selectedConnector === null && <Check className="h-4 w-4" />}
+														</DropdownMenuItem>
+														{uniqueConnectorTypes.map((connector) => (
+															<DropdownMenuItem
+																key={connector.type}
+																onClick={() => setSelectedConnector(connector.type)}
+																className="flex items-center justify-between"
+															>
+																<span className="flex items-center gap-2">
+																	{getConnectorIcon(connector.type, "h-4 w-4")}
+																	<span>{connector.displayName}</span>
+																</span>
+																{selectedConnector === connector.type && <Check className="h-4 w-4" />}
+															</DropdownMenuItem>
+														))}
+													</>
+												)}
+											</DropdownMenuContent>
+										</DropdownMenu>
+									)}
 									<Tooltip>
 										<TooltipTrigger asChild>
 											<Button
@@ -480,44 +677,6 @@ export function InboxSidebar({
 								</TabsTrigger>
 							</TabsList>
 						</Tabs>
-
-						{/* Connector filter chips - only show in status tab when there are connectors */}
-						{activeTab === "status" && uniqueConnectors.length > 0 && (
-							<div className="shrink-0 py-2 border-b relative">
-								{/* Left shadow indicator */}
-								<div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-background to-transparent pointer-events-none z-10" />
-								{/* Right shadow indicator */}
-								<div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-background to-transparent pointer-events-none z-10" />
-								<div className="flex items-center gap-1.5 overflow-x-auto [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden px-4">
-									<Button
-										variant={selectedConnector === null ? "default" : "ghost"}
-										size="sm"
-										className="h-7 px-2.5 text-xs shrink-0"
-										onClick={() => setSelectedConnector(null)}
-									>
-										{t("all") || "All"}
-									</Button>
-									{uniqueConnectors.map((connector) => (
-										<Tooltip key={connector.type}>
-											<TooltipTrigger asChild>
-												<Button
-													variant={selectedConnector === connector.type ? "default" : "ghost"}
-													size="sm"
-													className="h-7 px-2.5 text-xs shrink-0 gap-1.5"
-													onClick={() => setSelectedConnector(connector.type)}
-												>
-													{getConnectorIcon(connector.type, "h-3.5 w-3.5")}
-													<span className="truncate max-w-20">{connector.name}</span>
-												</Button>
-											</TooltipTrigger>
-											<TooltipContent className="z-80">
-												{connector.name}
-											</TooltipContent>
-										</Tooltip>
-									))}
-								</div>
-							</div>
-						)}
 
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{loading ? (
