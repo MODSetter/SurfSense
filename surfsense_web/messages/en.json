@@ -705,9 +705,8 @@
 		"no_status_updates": "No status updates",
 		"no_status_updates_hint": "Document and connector updates will appear here",
 		"filter": "Filter",
-		"unread_and_read": "Unread & read",
-		"unread": "Unread",
-		"archived": "Archived"
+		"all": "All",
+		"unread": "Unread"
 	},
 	"errors": {
 		"something_went_wrong": "Something went wrong",

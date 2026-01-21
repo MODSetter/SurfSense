@@ -10,7 +10,6 @@ import {
 	History,
 	Inbox,
 	ListFilter,
-	MoreHorizontal,
 	Search,
 	X,
 } from "lucide-react";
@@ -86,8 +85,8 @@ export function InboxSidebar({
 	const [activeTab, setActiveTab] = useState<InboxTab>("mentions");
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
 	const [mounted, setMounted] = useState(false);
-	// Dropdown state for filter and options menus
-	const [openDropdown, setOpenDropdown] = useState<"filter" | "options" | null>(null);
+	// Dropdown state for filter menu
+	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 
 	useEffect(() => {
@@ -323,16 +322,23 @@ export function InboxSidebar({
 										open={openDropdown === "filter"}
 										onOpenChange={(isOpen) => setOpenDropdown(isOpen ? "filter" : null)}
 									>
-										<DropdownMenuTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 rounded-full"
-											>
-												<ListFilter className="h-4 w-4 text-muted-foreground" />
-												<span className="sr-only">{t("filter") || "Filter"}</span>
-											</Button>
-										</DropdownMenuTrigger>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<DropdownMenuTrigger asChild>
+													<Button
+														variant="ghost"
+														size="icon"
+														className="h-8 w-8 rounded-full"
+													>
+														<ListFilter className="h-4 w-4 text-muted-foreground" />
+														<span className="sr-only">{t("filter") || "Filter"}</span>
+													</Button>
+												</DropdownMenuTrigger>
+											</TooltipTrigger>
+											<TooltipContent className="z-80">
+												{t("filter") || "Filter"}
+											</TooltipContent>
+										</Tooltip>
 										<DropdownMenuContent align="end" className="w-44 z-80">
 											<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
 												{t("filter") || "Filter"}
@@ -359,30 +365,23 @@ export function InboxSidebar({
 											</DropdownMenuItem>
 										</DropdownMenuContent>
 									</DropdownMenu>
-									<DropdownMenu
-										open={openDropdown === "options"}
-										onOpenChange={(isOpen) => setOpenDropdown(isOpen ? "options" : null)}
-									>
-										<DropdownMenuTrigger asChild>
+									<Tooltip>
+										<TooltipTrigger asChild>
 											<Button
 												variant="ghost"
 												size="icon"
 												className="h-8 w-8 rounded-full"
-											>
-												<MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-												<span className="sr-only">{t("more_options") || "More options"}</span>
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end" className="w-40 z-80">
-											<DropdownMenuItem
 												onClick={handleMarkAllAsRead}
 												disabled={unreadCount === 0}
 											>
-												<CheckCheck className="mr-2 h-4 w-4" />
-												<span>{t("mark_all_read") || "Mark all as read"}</span>
-											</DropdownMenuItem>
-										</DropdownMenuContent>
-									</DropdownMenu>
+												<CheckCheck className="h-4 w-4 text-muted-foreground" />
+												<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent className="z-80">
+											{t("mark_all_read") || "Mark all as read"}
+										</TooltipContent>
+									</Tooltip>
 								</div>
 							</div>
 
@@ -422,11 +421,8 @@ export function InboxSidebar({
 									<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
 										<AtSign className="h-4 w-4" />
 										<span>{t("mentions") || "Mentions"}</span>
-										<span className={cn(
-											"inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium",
-											unreadMentionsCount === 0 && "invisible"
-										)}>
-											{unreadMentionsCount || 0}
+										<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+											{unreadMentionsCount}
 										</span>
 									</span>
 								</TabsTrigger>
@@ -437,11 +433,8 @@ export function InboxSidebar({
 									<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
 										<History className="h-4 w-4" />
 										<span>{t("status") || "Status"}</span>
-										<span className={cn(
-											"inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium",
-											unreadStatusCount === 0 && "invisible"
-										)}>
-											{unreadStatusCount || 0}
+										<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+											{unreadStatusCount}
 										</span>
 									</span>
 								</TabsTrigger>
@@ -462,7 +455,7 @@ export function InboxSidebar({
 											<div
 												key={item.id}
 												className={cn(
-													"group flex items-center gap-3 rounded-lg px-3 py-3 text-sm min-h-[72px] overflow-hidden",
+													"group flex items-center gap-3 rounded-lg px-3 py-3 text-sm h-[80px] overflow-hidden",
 													"hover:bg-accent hover:text-accent-foreground",
 													"transition-colors cursor-pointer",
 													isMarkingAsRead && "opacity-50 pointer-events-none"
