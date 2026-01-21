@@ -166,6 +166,13 @@ export const OTHER_CONNECTORS = [
 		description: "Connect to MCP servers for AI tools",
 		connectorType: EnumConnectorName.MCP_CONNECTOR,
 	},
+	{
+		id: "obsidian-connector",
+		title: "Obsidian",
+		description: "Index your Obsidian vault (self-hosted only)",
+		connectorType: EnumConnectorName.OBSIDIAN_CONNECTOR,
+		selfHostedOnly: true,
+	},
 ] as const;
 
 // Re-export IndexingConfigState from schemas for backward compatibility

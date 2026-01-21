@@ -868,6 +868,25 @@ async def index_connector_content(
             )
             response_message = "Web page indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.OBSIDIAN_CONNECTOR:
+            from app.config import config as app_config
+            from app.tasks.celery_tasks.connector_tasks import index_obsidian_vault_task
+
+            # Obsidian connector only available in self-hosted mode
+            if not app_config.is_self_hosted():
+                raise HTTPException(
+                    status_code=400,
+                    detail="Obsidian connector is only available in self-hosted mode",
+                )
+
+            logger.info(
+                f"Triggering Obsidian vault indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            index_obsidian_vault_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "Obsidian vault indexing started in the background."
+
         else:
             raise HTTPException(
                 status_code=400,
@@ -2069,6 +2088,60 @@ async def run_bookstack_indexing(
         start_date=start_date,
         end_date=end_date,
         indexing_function=index_bookstack_pages,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
+
+
+# Add new helper functions for Obsidian indexing
+async def run_obsidian_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Wrapper to run Obsidian indexing with its own database session."""
+    logger.info(
+        f"Background task started: Indexing Obsidian connector {connector_id} into space {search_space_id} from {start_date} to {end_date}"
+    )
+    async with async_session_maker() as session:
+        await run_obsidian_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+    logger.info(
+        f"Background task finished: Indexing Obsidian connector {connector_id}"
+    )
+
+
+async def run_obsidian_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Background task to run Obsidian vault indexing.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Obsidian connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    from app.tasks.connector_indexers import index_obsidian_vault
+
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_obsidian_vault,
         update_timestamp_func=_update_connector_timestamp_by_id,
     )
 

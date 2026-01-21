@@ -61,6 +61,21 @@ class Config:
                 "FFmpeg is not installed on the system. Please install it to use the Surfsense Podcaster."
             )
 
+    # Deployment Mode (self-hosted or cloud)
+    # self-hosted: Full access to local file system connectors (Obsidian, etc.)
+    # cloud: Only cloud-based connectors available
+    DEPLOYMENT_MODE = os.getenv("SURFSENSE_DEPLOYMENT_MODE", "self-hosted")
+
+    @classmethod
+    def is_self_hosted(cls) -> bool:
+        """Check if running in self-hosted mode."""
+        return cls.DEPLOYMENT_MODE == "self-hosted"
+
+    @classmethod
+    def is_cloud(cls) -> bool:
+        """Check if running in cloud mode."""
+        return cls.DEPLOYMENT_MODE == "cloud"
+
     # Database
     DATABASE_URL = os.getenv("DATABASE_URL")
 
