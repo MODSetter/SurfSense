@@ -68,7 +68,9 @@ const categoryColors: Record<string, string> = {
 function CategoryBadge({ category }: { category: string }) {
 	const colorClass = categoryColors[category] || "bg-gray-500/10 text-gray-600 dark:text-gray-400";
 	return (
-		<span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}>
+		<span
+			className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${colorClass}`}
+		>
 			{category}
 		</span>
 	);
@@ -113,9 +115,7 @@ export const SaveMemoryToolUI = makeAssistantToolUI<SaveMemoryArgs, SaveMemoryRe
 					</div>
 					<div className="flex-1">
 						<span className="text-sm text-destructive">Failed to save memory</span>
-						{result?.error && (
-							<p className="mt-1 text-xs text-destructive/70">{result.error}</p>
-						)}
+						{result?.error && <p className="mt-1 text-xs text-destructive/70">{result.error}</p>}
 					</div>
 				</div>
 			);
@@ -202,9 +202,7 @@ export const RecallMemoryToolUI = makeAssistantToolUI<RecallMemoryArgs, RecallMe
 					</div>
 					<div className="flex-1">
 						<span className="text-sm text-destructive">Failed to recall memories</span>
-						{result?.error && (
-							<p className="mt-1 text-xs text-destructive/70">{result.error}</p>
-						)}
+						{result?.error && <p className="mt-1 text-xs text-destructive/70">{result.error}</p>}
 					</div>
 				</div>
 			);
@@ -241,15 +239,11 @@ export const RecallMemoryToolUI = makeAssistantToolUI<RecallMemoryArgs, RecallMe
 								className="flex items-start gap-2 rounded-md bg-muted/50 px-3 py-2"
 							>
 								<CategoryBadge category={memory.category} />
-								<span className="text-sm text-muted-foreground flex-1">
-									{memory.memory_text}
-								</span>
+								<span className="text-sm text-muted-foreground flex-1">{memory.memory_text}</span>
 							</div>
 						))}
 						{memories.length > 5 && (
-							<p className="text-xs text-muted-foreground">
-								...and {memories.length - 5} more
-							</p>
+							<p className="text-xs text-muted-foreground">...and {memories.length - 5} more</p>
 						)}
 					</div>
 				</div>
@@ -263,9 +257,7 @@ export const RecallMemoryToolUI = makeAssistantToolUI<RecallMemoryArgs, RecallMe
 					<div className="flex size-8 items-center justify-center rounded-full bg-muted">
 						<SearchIcon className="size-4 text-muted-foreground" />
 					</div>
-					<span className="text-sm text-muted-foreground">
-						Searching memories for "{query}"
-					</span>
+					<span className="text-sm text-muted-foreground">Searching memories for "{query}"</span>
 				</div>
 			);
 		}
