@@ -1,5 +1,18 @@
 import { z } from "zod";
 
+/**
+ * Raw comment
+ */
+export const rawComment = z.object({
+	id: z.number(),
+	message_id: z.number(),
+	parent_id: z.number().nullable(),
+	author_id: z.string().nullable(),
+	content: z.string(),
+	created_at: z.string(),
+	updated_at: z.string(),
+});
+
 export const author = z.object({
 	id: z.string().uuid(),
 	display_name: z.string().nullable(),
@@ -122,6 +135,7 @@ export const getMentionsResponse = z.object({
 	total_count: z.number(),
 });
 
+export type RawComment = z.infer<typeof rawComment>;
 export type Author = z.infer<typeof author>;
 export type CommentReply = z.infer<typeof commentReply>;
 export type Comment = z.infer<typeof comment>;
