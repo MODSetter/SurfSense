@@ -28,6 +28,7 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"CIRCLEBACK_CONNECTOR",
 	"MCP_CONNECTOR",
 	"OBSIDIAN_CONNECTOR",
+	"COMPOSIO_CONNECTOR",
 ]);
 
 export const searchSourceConnector = z.object({

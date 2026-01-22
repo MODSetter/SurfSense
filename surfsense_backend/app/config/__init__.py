@@ -142,6 +142,12 @@ class Config:
     CLICKUP_CLIENT_SECRET = os.getenv("CLICKUP_CLIENT_SECRET")
     CLICKUP_REDIRECT_URI = os.getenv("CLICKUP_REDIRECT_URI")
 
+    # Composio Configuration (for managed OAuth integrations)
+    # Get your API key from https://app.composio.dev
+    COMPOSIO_API_KEY = os.getenv("COMPOSIO_API_KEY")
+    COMPOSIO_ENABLED = os.getenv("COMPOSIO_ENABLED", "FALSE").upper() == "TRUE"
+    COMPOSIO_REDIRECT_URI = os.getenv("COMPOSIO_REDIRECT_URI")
+
     # LLM instances are now managed per-user through the LLMConfig system
     # Legacy environment variables removed in favor of user-specific configurations
 

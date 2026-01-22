@@ -55,6 +55,7 @@ class DocumentType(str, Enum):
     CIRCLEBACK = "CIRCLEBACK"
     OBSIDIAN_CONNECTOR = "OBSIDIAN_CONNECTOR"
     NOTE = "NOTE"
+    COMPOSIO_CONNECTOR = "COMPOSIO_CONNECTOR"  # Generic Composio integration
 
 
 class SearchSourceConnectorType(str, Enum):
@@ -83,6 +84,7 @@ class SearchSourceConnectorType(str, Enum):
     CIRCLEBACK_CONNECTOR = "CIRCLEBACK_CONNECTOR"
     OBSIDIAN_CONNECTOR = "OBSIDIAN_CONNECTOR"  # Self-hosted only - Local Obsidian vault indexing
     MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
+    COMPOSIO_CONNECTOR = "COMPOSIO_CONNECTOR"  # Generic Composio integration (Google, Slack, etc.)
 
 
 class LiteLLMProvider(str, Enum):

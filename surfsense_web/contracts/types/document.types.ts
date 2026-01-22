@@ -25,6 +25,7 @@ export const documentTypeEnum = z.enum([
 	"CIRCLEBACK",
 	"SURFSENSE_DOCS",
 	"NOTE",
+	"COMPOSIO_CONNECTOR",
 ]);
 
 export const document = z.object({

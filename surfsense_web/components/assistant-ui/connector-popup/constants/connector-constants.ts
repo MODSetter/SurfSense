@@ -175,5 +175,56 @@ export const OTHER_CONNECTORS = [
 	},
 ] as const;
 
+// Composio Connector (Single entry that opens toolkit selector)
+export const COMPOSIO_CONNECTORS = [
+	{
+		id: "composio-connector",
+		title: "Composio",
+		description: "Connect 100+ apps via Composio (Google, Slack, Notion, etc.)",
+		connectorType: EnumConnectorName.COMPOSIO_CONNECTOR,
+		// No authEndpoint - handled via toolkit selector view
+	},
+] as const;
+
+// Composio Toolkits (available integrations via Composio)
+export const COMPOSIO_TOOLKITS = [
+	{
+		id: "googledrive",
+		name: "Google Drive",
+		description: "Search your Drive files",
+		isIndexable: true,
+	},
+	{
+		id: "gmail",
+		name: "Gmail",
+		description: "Search through your emails",
+		isIndexable: true,
+	},
+	{
+		id: "googlecalendar",
+		name: "Google Calendar",
+		description: "Search through your events",
+		isIndexable: true,
+	},
+	{
+		id: "slack",
+		name: "Slack",
+		description: "Search Slack messages",
+		isIndexable: false,
+	},
+	{
+		id: "notion",
+		name: "Notion",
+		description: "Search Notion pages",
+		isIndexable: false,
+	},
+	{
+		id: "github",
+		name: "GitHub",
+		description: "Search repositories",
+		isIndexable: false,
+	},
+] as const;
+
 // Re-export IndexingConfigState from schemas for backward compatibility
 export type { IndexingConfigState } from "./connector-popup.schemas";
