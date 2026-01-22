@@ -55,10 +55,15 @@ export function useChatMessagesLive(threadId: number | null) {
 		// Transform raw messages to MessageRecord with author info
 		return [...messagesData].map((msg): MessageRecord => {
 			const author = msg.author_id ? memberMap.get(msg.author_id) : null;
+
+			const role = (typeof msg.role === "string" ? msg.role.toLowerCase() : msg.role) as
+				| "user"
+				| "assistant"
+				| "system";
 			return {
 				id: msg.id,
 				thread_id: msg.thread_id,
-				role: msg.role,
+				role,
 				content: msg.content,
 				created_at: msg.created_at,
 				author_id: msg.author_id,

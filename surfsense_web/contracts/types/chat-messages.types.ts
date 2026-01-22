@@ -6,7 +6,7 @@ import { z } from "zod";
 export const rawMessage = z.object({
 	id: z.number(),
 	thread_id: z.number(),
-	role: z.enum(["user", "assistant", "system"]),
+	role: z.string(),
 	content: z.unknown(),
 	author_id: z.string().nullable(),
 	created_at: z.string(),
