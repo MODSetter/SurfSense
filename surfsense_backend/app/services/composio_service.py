@@ -111,7 +111,7 @@ class ComposioService:
                 config_toolkit = getattr(auth_config, "toolkit", None)
                 if config_toolkit is None:
                     continue
-                
+
                 # Extract toolkit name/slug from the object
                 toolkit_name = None
                 if isinstance(config_toolkit, str):
@@ -122,18 +122,22 @@ class ComposioService:
                     toolkit_name = config_toolkit.name
                 elif hasattr(config_toolkit, "id"):
                     toolkit_name = config_toolkit.id
-                
+
                 # Compare case-insensitively
                 if toolkit_name and toolkit_name.lower() == toolkit_id.lower():
-                    logger.info(f"Found auth config {auth_config.id} for toolkit {toolkit_id}")
+                    logger.info(
+                        f"Found auth config {auth_config.id} for toolkit {toolkit_id}"
+                    )
                     return auth_config.id
-            
+
             # Log available auth configs for debugging
-            logger.warning(f"No auth config found for toolkit '{toolkit_id}'. Available auth configs:")
+            logger.warning(
+                f"No auth config found for toolkit '{toolkit_id}'. Available auth configs:"
+            )
             for auth_config in auth_configs.items:
                 config_toolkit = getattr(auth_config, "toolkit", None)
                 logger.warning(f"  - {auth_config.id}: toolkit={config_toolkit}")
-            
+
             return None
         except Exception as e:
             logger.error(f"Failed to list auth configs: {e!s}")
@@ -162,7 +166,7 @@ class ComposioService:
         try:
             # First, get the auth_config_id for this toolkit
             auth_config_id = self._get_auth_config_for_toolkit(toolkit_id)
-            
+
             if not auth_config_id:
                 raise ValueError(
                     f"No auth config found for toolkit '{toolkit_id}'. "
@@ -214,7 +218,9 @@ class ComposioService:
                 "user_id": getattr(account, "user_id", None),
             }
         except Exception as e:
-            logger.error(f"Failed to get connected account {connected_account_id}: {e!s}")
+            logger.error(
+                f"Failed to get connected account {connected_account_id}: {e!s}"
+            )
             return None
 
     async def list_all_connections(self) -> list[dict[str, Any]]:
@@ -226,15 +232,17 @@ class ComposioService:
         """
         try:
             accounts_response = self.client.connected_accounts.list()
-            
+
             if hasattr(accounts_response, "items"):
                 accounts = accounts_response.items
             elif hasattr(accounts_response, "__iter__"):
                 accounts = accounts_response
             else:
-                logger.warning(f"Unexpected accounts response type: {type(accounts_response)}")
+                logger.warning(
+                    f"Unexpected accounts response type: {type(accounts_response)}"
+                )
                 return []
-            
+
             result = []
             for acc in accounts:
                 toolkit_raw = getattr(acc, "toolkit", None)
@@ -248,14 +256,16 @@ class ComposioService:
                         toolkit_info = toolkit_raw.name
                     else:
                         toolkit_info = str(toolkit_raw)
-                
-                result.append({
-                    "id": acc.id,
-                    "status": getattr(acc, "status", None),
-                    "toolkit": toolkit_info,
-                    "user_id": getattr(acc, "user_id", None),
-                })
-            
+
+                result.append(
+                    {
+                        "id": acc.id,
+                        "status": getattr(acc, "status", None),
+                        "toolkit": toolkit_info,
+                        "user_id": getattr(acc, "user_id", None),
+                    }
+                )
+
             return result
         except Exception as e:
             logger.error(f"Failed to list all connections: {e!s}")
@@ -273,16 +283,18 @@ class ComposioService:
         """
         try:
             accounts_response = self.client.connected_accounts.list(user_id=user_id)
-            
+
             # Handle paginated response (may have .items attribute) or direct list
             if hasattr(accounts_response, "items"):
                 accounts = accounts_response.items
             elif hasattr(accounts_response, "__iter__"):
                 accounts = accounts_response
             else:
-                logger.warning(f"Unexpected accounts response type: {type(accounts_response)}")
+                logger.warning(
+                    f"Unexpected accounts response type: {type(accounts_response)}"
+                )
                 return []
-            
+
             result = []
             for acc in accounts:
                 # Extract toolkit info - might be string or object
@@ -297,13 +309,15 @@ class ComposioService:
                         toolkit_info = toolkit_raw.name
                     else:
                         toolkit_info = toolkit_raw
-                
-                result.append({
-                    "id": acc.id,
-                    "status": getattr(acc, "status", None),
-                    "toolkit": toolkit_info,
-                })
-            
+
+                result.append(
+                    {
+                        "id": acc.id,
+                        "status": getattr(acc, "status", None),
+                        "toolkit": toolkit_info,
+                    }
+                )
+
             logger.info(f"Found {len(result)} connections for user {user_id}: {result}")
             return result
         except Exception as e:
@@ -324,10 +338,14 @@ class ComposioService:
         """
         try:
             self.client.connected_accounts.delete(connected_account_id)
-            logger.info(f"Successfully deleted Composio connected account: {connected_account_id}")
+            logger.info(
+                f"Successfully deleted Composio connected account: {connected_account_id}"
+            )
             return True
         except Exception as e:
-            logger.error(f"Failed to delete Composio connected account {connected_account_id}: {e!s}")
+            logger.error(
+                f"Failed to delete Composio connected account {connected_account_id}: {e!s}"
+            )
             return False
 
     async def execute_tool(
@@ -398,10 +416,14 @@ class ComposioService:
             }
             if folder_id:
                 # List contents of a specific folder (exclude shortcuts - we don't have access to them)
-                params["q"] = f"'{folder_id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.shortcut'"
+                params["q"] = (
+                    f"'{folder_id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.shortcut'"
+                )
             else:
                 # List root-level items only (My Drive root), exclude shortcuts
-                params["q"] = "'root' in parents and trashed = false and mimeType != 'application/vnd.google-apps.shortcut'"
+                params["q"] = (
+                    "'root' in parents and trashed = false and mimeType != 'application/vnd.google-apps.shortcut'"
+                )
             if page_token:
                 params["page_token"] = page_token
 
@@ -416,17 +438,21 @@ class ComposioService:
                 return [], None, result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            
+
             # Handle nested response structure from Composio
             files = []
             next_token = None
             if isinstance(data, dict):
                 # Try direct access first, then nested
                 files = data.get("files", []) or data.get("data", {}).get("files", [])
-                next_token = data.get("nextPageToken") or data.get("next_page_token") or data.get("data", {}).get("nextPageToken")
+                next_token = (
+                    data.get("nextPageToken")
+                    or data.get("next_page_token")
+                    or data.get("data", {}).get("nextPageToken")
+                )
             elif isinstance(data, list):
                 files = data
-            
+
             return files, next_token, None
 
         except Exception as e:
@@ -459,13 +485,13 @@ class ComposioService:
                 return None, result.get("error", "Unknown error")
 
             data = result.get("data")
-            
+
             # Composio GOOGLEDRIVE_DOWNLOAD_FILE returns a dict with file info
             # The actual content is in "downloaded_file_content" field
             if isinstance(data, dict):
                 # Try known Composio response fields in order of preference
                 content = None
-                
+
                 # Primary field from GOOGLEDRIVE_DOWNLOAD_FILE
                 if "downloaded_file_content" in data:
                     content = data["downloaded_file_content"]
@@ -474,19 +500,24 @@ class ComposioService:
                         # Try to extract actual content from nested dict
                         # Note: Composio nests downloaded_file_content inside another downloaded_file_content
                         actual_content = (
-                            content.get("downloaded_file_content") or
-                            content.get("content") or 
-                            content.get("data") or 
-                            content.get("file_content") or
-                            content.get("body") or
-                            content.get("text")
+                            content.get("downloaded_file_content")
+                            or content.get("content")
+                            or content.get("data")
+                            or content.get("file_content")
+                            or content.get("body")
+                            or content.get("text")
                         )
                         if actual_content is not None:
                             content = actual_content
                         else:
                             # Log structure for debugging
-                            logger.warning(f"downloaded_file_content is dict with keys: {list(content.keys())}")
-                            return None, f"Cannot extract content from downloaded_file_content. Keys: {list(content.keys())}"
+                            logger.warning(
+                                f"downloaded_file_content is dict with keys: {list(content.keys())}"
+                            )
+                            return (
+                                None,
+                                f"Cannot extract content from downloaded_file_content. Keys: {list(content.keys())}",
+                            )
                 # Fallback fields for compatibility
                 elif "content" in data:
                     content = data["content"]
@@ -494,16 +525,20 @@ class ComposioService:
                     content = data["file_content"]
                 elif "data" in data:
                     content = data["data"]
-                
+
                 if content is None:
                     # Log available keys for debugging
                     logger.warning(f"Composio response dict keys: {list(data.keys())}")
-                    return None, f"No file content found in Composio response. Available keys: {list(data.keys())}"
-                
+                    return (
+                        None,
+                        f"No file content found in Composio response. Available keys: {list(data.keys())}",
+                    )
+
                 # Convert content to bytes
                 if isinstance(content, str):
                     # Check if it's base64 encoded
                     import base64
+
                     try:
                         # Try to decode as base64 first
                         content = base64.b64decode(content)
@@ -514,11 +549,19 @@ class ComposioService:
                     pass  # Already bytes
                 elif isinstance(content, dict):
                     # Still a dict after all extraction attempts - log structure
-                    logger.warning(f"Content still dict after extraction: {list(content.keys())}")
-                    return None, f"Unexpected nested content structure: {list(content.keys())}"
+                    logger.warning(
+                        f"Content still dict after extraction: {list(content.keys())}"
+                    )
+                    return (
+                        None,
+                        f"Unexpected nested content structure: {list(content.keys())}",
+                    )
                 else:
-                    return None, f"Unexpected content type in Composio response: {type(content).__name__}"
-                    
+                    return (
+                        None,
+                        f"Unexpected content type in Composio response: {type(content).__name__}",
+                    )
+
                 return content, None
             elif isinstance(data, str):
                 return data.encode("utf-8"), None
@@ -527,7 +570,10 @@ class ComposioService:
             elif data is None:
                 return None, "No data returned from Composio"
             else:
-                return None, f"Unexpected data type from Composio: {type(data).__name__}"
+                return (
+                    None,
+                    f"Unexpected data type from Composio: {type(data).__name__}",
+                )
 
         except Exception as e:
             logger.error(f"Failed to get Drive file content: {e!s}")
@@ -576,17 +622,21 @@ class ComposioService:
                 return [], None, result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            
+
             # Try different possible response structures
             messages = []
             next_token = None
             result_size_estimate = None
             if isinstance(data, dict):
-                messages = data.get("messages", []) or data.get("data", {}).get("messages", []) or data.get("emails", [])
+                messages = (
+                    data.get("messages", [])
+                    or data.get("data", {}).get("messages", [])
+                    or data.get("emails", [])
+                )
                 # Check for pagination token in various possible locations
                 next_token = (
-                    data.get("nextPageToken") 
-                    or data.get("next_page_token") 
+                    data.get("nextPageToken")
+                    or data.get("next_page_token")
                     or data.get("data", {}).get("nextPageToken")
                     or data.get("data", {}).get("next_page_token")
                 )
@@ -599,7 +649,7 @@ class ComposioService:
                 )
             elif isinstance(data, list):
                 messages = data
-            
+
             return messages, next_token, result_size_estimate, None
 
         except Exception as e:
@@ -683,14 +733,18 @@ class ComposioService:
                 return [], result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            
+
             # Try different possible response structures
             events = []
             if isinstance(data, dict):
-                events = data.get("items", []) or data.get("data", {}).get("items", []) or data.get("events", [])
+                events = (
+                    data.get("items", [])
+                    or data.get("data", {}).get("items", [])
+                    or data.get("events", [])
+                )
             elif isinstance(data, list):
                 events = data
-                
+
             return events, None
 
         except Exception as e:

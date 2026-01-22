@@ -11,7 +11,6 @@ Endpoints:
 - GET /connectors/{connector_id}/composio-drive/folders - List folders/files for Composio Google Drive
 """
 
-import asyncio
 import logging
 from uuid import UUID
 
@@ -89,7 +88,9 @@ async def list_composio_toolkits(user: User = Depends(current_active_user)):
 @router.get("/auth/composio/connector/add")
 async def initiate_composio_auth(
     space_id: int,
-    toolkit_id: str = Query(..., description="Composio toolkit ID (e.g., 'googledrive', 'gmail')"),
+    toolkit_id: str = Query(
+        ..., description="Composio toolkit ID (e.g., 'googledrive', 'gmail')"
+    ),
     user: User = Depends(current_active_user),
 ):
     """
@@ -239,13 +240,15 @@ async def composio_callback(
         # Initialize Composio service
         service = ComposioService()
         entity_id = f"surfsense_{user_id}"
-        
+
         # Use camelCase param if provided (Composio's format), fallback to snake_case
         final_connected_account_id = connectedAccountId or connected_account_id
-        
+
         # DEBUG: Log all query parameters received
-        logger.info(f"DEBUG: Callback received - connectedAccountId: {connectedAccountId}, connected_account_id: {connected_account_id}, using: {final_connected_account_id}")
-        
+        logger.info(
+            f"DEBUG: Callback received - connectedAccountId: {connectedAccountId}, connected_account_id: {connected_account_id}, using: {final_connected_account_id}"
+        )
+
         # If we still don't have a connected_account_id, warn but continue
         # (the connector will be created but indexing won't work until updated)
         if not final_connected_account_id:
@@ -254,7 +257,9 @@ async def composio_callback(
                 "The connector will be created but indexing may not work."
             )
         else:
-            logger.info(f"Successfully got connected_account_id: {final_connected_account_id}")
+            logger.info(
+                f"Successfully got connected_account_id: {final_connected_account_id}"
+            )
 
         # Build connector config
         connector_config = {
@@ -287,10 +292,17 @@ async def composio_callback(
 
         if existing_connector:
             # Delete the old Composio connected account before updating
-            old_connected_account_id = existing_connector.config.get("composio_connected_account_id")
-            if old_connected_account_id and old_connected_account_id != final_connected_account_id:
+            old_connected_account_id = existing_connector.config.get(
+                "composio_connected_account_id"
+            )
+            if (
+                old_connected_account_id
+                and old_connected_account_id != final_connected_account_id
+            ):
                 try:
-                    deleted = await service.delete_connected_account(old_connected_account_id)
+                    deleted = await service.delete_connected_account(
+                        old_connected_account_id
+                    )
                     if deleted:
                         logger.info(
                             f"Deleted old Composio connected account {old_connected_account_id} "
@@ -422,7 +434,9 @@ async def list_composio_drive_folders(
             )
 
         # Get Composio connected account ID from config
-        composio_connected_account_id = connector.config.get("composio_connected_account_id")
+        composio_connected_account_id = connector.config.get(
+            "composio_connected_account_id"
+        )
         if not composio_connected_account_id:
             raise HTTPException(
                 status_code=400,
@@ -451,27 +465,37 @@ async def list_composio_drive_folders(
         items = []
         for file_info in files:
             file_id = file_info.get("id", "") or file_info.get("fileId", "")
-            file_name = file_info.get("name", "") or file_info.get("fileName", "") or "Untitled"
+            file_name = (
+                file_info.get("name", "") or file_info.get("fileName", "") or "Untitled"
+            )
             mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
-            
+
             if not file_id:
                 continue
 
             is_folder = mime_type == "application/vnd.google-apps.folder"
-            
-            items.append({
-                "id": file_id,
-                "name": file_name,
-                "mimeType": mime_type,
-                "isFolder": is_folder,
-                "parents": file_info.get("parents", []),
-                "size": file_info.get("size"),
-                "iconLink": file_info.get("iconLink"),
-            })
+
+            items.append(
+                {
+                    "id": file_id,
+                    "name": file_name,
+                    "mimeType": mime_type,
+                    "isFolder": is_folder,
+                    "parents": file_info.get("parents", []),
+                    "size": file_info.get("size"),
+                    "iconLink": file_info.get("iconLink"),
+                }
+            )
 
         # Sort: folders first, then files, both alphabetically
-        folders = sorted([item for item in items if item["isFolder"]], key=lambda x: x["name"].lower())
-        files_list = sorted([item for item in items if not item["isFolder"]], key=lambda x: x["name"].lower())
+        folders = sorted(
+            [item for item in items if item["isFolder"]],
+            key=lambda x: x["name"].lower(),
+        )
+        files_list = sorted(
+            [item for item in items if not item["isFolder"]],
+            key=lambda x: x["name"].lower(),
+        )
         items = folders + files_list
 
         folder_count = len(folders)

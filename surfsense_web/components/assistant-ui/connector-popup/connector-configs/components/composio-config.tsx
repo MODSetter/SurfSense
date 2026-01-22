@@ -211,7 +211,9 @@ export const ComposioConfig: FC<ComposioConfigProps> = ({ connector, onConfigCha
 											);
 										}
 										if (selectedFiles.length > 0) {
-											parts.push(`${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`);
+											parts.push(
+												`${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`
+											);
 										}
 										return parts.length > 0 ? `(${parts.join(" ")})` : "";
 									})()}
@@ -338,7 +340,9 @@ export const ComposioConfig: FC<ComposioConfigProps> = ({ connector, onConfigCha
 							<Switch
 								id="include-subfolders"
 								checked={indexingOptions.include_subfolders}
-								onCheckedChange={(checked) => handleIndexingOptionChange("include_subfolders", checked)}
+								onCheckedChange={(checked) =>
+									handleIndexingOptionChange("include_subfolders", checked)
+								}
 							/>
 						</div>
 					</div>

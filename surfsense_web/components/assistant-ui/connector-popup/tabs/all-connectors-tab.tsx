@@ -4,7 +4,12 @@ import type { FC } from "react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { ConnectorCard } from "../components/connector-card";
-import { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS, COMPOSIO_CONNECTORS } from "../constants/connector-constants";
+import {
+	CRAWLERS,
+	OAUTH_CONNECTORS,
+	OTHER_CONNECTORS,
+	COMPOSIO_CONNECTORS,
+} from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 /**
@@ -28,7 +33,9 @@ interface AllConnectorsTabProps {
 	allConnectors: SearchSourceConnector[] | undefined;
 	documentTypeCounts?: Record<string, number>;
 	indexingConnectorIds?: Set<number>;
-	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[number] | (typeof COMPOSIO_CONNECTORS)[number]) => void;
+	onConnectOAuth: (
+		connector: (typeof OAUTH_CONNECTORS)[number] | (typeof COMPOSIO_CONNECTORS)[number]
+	) => void;
 	onConnectNonOAuth?: (connectorType: string) => void;
 	onCreateWebcrawler?: () => void;
 	onCreateYouTubeCrawler?: () => void;
@@ -82,7 +89,9 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 			{filteredComposio.length > 0 && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">Managed OAuth (Composio)</h3>
+						<h3 className="text-sm font-semibold text-muted-foreground">
+							Managed OAuth (Composio)
+						</h3>
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{filteredComposio.map((connector) => {
@@ -98,7 +107,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									: [];
 
 							const accountCount = typeConnectors.length;
-
 
 							const documentCount = getDocumentCountForConnector(
 								connector.connectorType,
@@ -153,7 +161,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									: [];
 
 							const accountCount = typeConnectors.length;
-
 
 							const documentCount = getDocumentCountForConnector(
 								connector.connectorType,

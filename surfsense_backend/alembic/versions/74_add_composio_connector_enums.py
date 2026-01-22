@@ -82,14 +82,14 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Downgrade schema - remove Composio connector types from connector and document enums.
-    
+
     Note: PostgreSQL does not support removing enum values directly.
     To properly downgrade, you would need to:
     1. Delete any rows using the Composio connector type values
     2. Create new enums without the Composio connector types
     3. Alter the columns to use the new enums
     4. Drop the old enums
-    
+
     This is left as a no-op since removing enum values is complex
     and typically not needed in practice.
     """

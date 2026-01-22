@@ -37,7 +37,6 @@ from app.db import (
     async_session_maker,
     get_async_session,
 )
-from app.services.composio_service import ComposioService
 from app.schemas import (
     GoogleDriveIndexRequest,
     MCPConnectorCreate,
@@ -48,6 +47,7 @@ from app.schemas import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
+from app.services.composio_service import ComposioService
 from app.services.notification_service import NotificationService
 from app.tasks.connector_indexers import (
     index_airtable_records,
@@ -537,11 +537,15 @@ async def delete_search_source_connector(
             SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
         ]
         if db_connector.connector_type in composio_connector_types:
-            composio_connected_account_id = db_connector.config.get("composio_connected_account_id")
+            composio_connected_account_id = db_connector.config.get(
+                "composio_connected_account_id"
+            )
             if composio_connected_account_id and ComposioService.is_enabled():
                 try:
                     service = ComposioService()
-                    deleted = await service.delete_connected_account(composio_connected_account_id)
+                    deleted = await service.delete_connected_account(
+                        composio_connected_account_id
+                    )
                     if deleted:
                         logger.info(
                             f"Successfully deleted Composio connected account {composio_connected_account_id} "
@@ -897,7 +901,10 @@ async def index_connector_content(
             )
             response_message = "Web page indexing started in the background."
 
-        elif connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+        ):
             from app.tasks.celery_tasks.connector_tasks import (
                 index_composio_connector_task,
             )
@@ -907,8 +914,12 @@ async def index_connector_content(
             if drive_items and drive_items.has_items():
                 # Update connector config with the selected folders/files
                 config = connector.config or {}
-                config["selected_folders"] = [{"id": f.id, "name": f.name} for f in drive_items.folders]
-                config["selected_files"] = [{"id": f.id, "name": f.name} for f in drive_items.files]
+                config["selected_folders"] = [
+                    {"id": f.id, "name": f.name} for f in drive_items.folders
+                ]
+                config["selected_files"] = [
+                    {"id": f.id, "name": f.name} for f in drive_items.files
+                ]
                 if drive_items.indexing_options:
                     config["indexing_options"] = {
                         "max_files_per_folder": drive_items.indexing_options.max_files_per_folder,
@@ -917,6 +928,7 @@ async def index_connector_content(
                     }
                 connector.config = config
                 from sqlalchemy.orm.attributes import flag_modified
+
                 flag_modified(connector, "config")
                 await session.commit()
                 await session.refresh(connector)
@@ -934,7 +946,9 @@ async def index_connector_content(
             index_composio_connector_task.delay(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
-            response_message = "Composio Google Drive indexing started in the background."
+            response_message = (
+                "Composio Google Drive indexing started in the background."
+            )
 
         elif connector.connector_type in [
             SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
@@ -995,7 +1009,9 @@ async def _update_connector_timestamp_by_id(session: AsyncSession, connector_id:
         connector = result.scalars().first()
 
         if connector:
-            connector.last_indexed_at = datetime.now(UTC)  # Use UTC for timezone consistency
+            connector.last_indexed_at = datetime.now(
+                UTC
+            )  # Use UTC for timezone consistency
             await session.commit()
             logger.info(f"Updated last_indexed_at for connector {connector_id}")
     except Exception as e:
@@ -1150,7 +1166,9 @@ async def _run_indexing_with_notifications(
                     indexed_count=documents_processed,
                     error_message=error_or_warning,  # Show errors even if some documents were indexed
                 )
-                await session.commit()  # Commit to ensure Electric SQL syncs the notification update
+                await (
+                    session.commit()
+                )  # Commit to ensure Electric SQL syncs the notification update
         elif documents_processed > 0:
             # Update notification to storing stage
             if notification:
@@ -1174,7 +1192,9 @@ async def _run_indexing_with_notifications(
                     indexed_count=documents_processed,
                     error_message=error_or_warning,  # Show errors even if some documents were indexed
                 )
-                await session.commit()  # Commit to ensure Electric SQL syncs the notification update
+                await (
+                    session.commit()
+                )  # Commit to ensure Electric SQL syncs the notification update
         else:
             # No new documents processed - check if this is an error or just no changes
             if error_or_warning:
@@ -1189,7 +1209,9 @@ async def _run_indexing_with_notifications(
                         indexed_count=0,
                         error_message=error_or_warning,
                     )
-                    await session.commit()  # Commit to ensure Electric SQL syncs the notification update
+                    await (
+                        session.commit()
+                    )  # Commit to ensure Electric SQL syncs the notification update
             else:
                 # Success - just no new documents to index (all skipped/unchanged)
                 logger.info(
@@ -1208,7 +1230,9 @@ async def _run_indexing_with_notifications(
                         indexed_count=0,
                         error_message=None,  # No error - sync succeeded
                     )
-                    await session.commit()  # Commit to ensure Electric SQL syncs the notification update
+                    await (
+                        session.commit()
+                    )  # Commit to ensure Electric SQL syncs the notification update
     except Exception as e:
         logger.error(f"Error in indexing task: {e!s}", exc_info=True)
 

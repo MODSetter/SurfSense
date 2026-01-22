@@ -26,7 +26,11 @@ import {
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
-import { COMPOSIO_CONNECTORS, OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	OAUTH_CONNECTORS,
+	OTHER_CONNECTORS,
+} from "../constants/connector-constants";
 import {
 	dateRangeSchema,
 	frequencyMinutesSchema,
@@ -82,7 +86,6 @@ export const useConnectorDialog = () => {
 
 	// MCP list view state (for managing multiple MCP connectors)
 	const [viewingMCPList, setViewingMCPList] = useState(false);
-
 
 	// Track if we came from accounts list when entering edit mode
 	const [cameFromAccountsList, setCameFromAccountsList] = useState<{
@@ -164,16 +167,14 @@ export const useConnectorDialog = () => {
 				// Handle accounts view
 				if (params.view === "accounts" && params.connectorType) {
 					// Update state if not set, or if connectorType has changed
-					const needsUpdate = !viewingAccountsType || 
-						viewingAccountsType.connectorType !== params.connectorType;
-					
+					const needsUpdate =
+						!viewingAccountsType || viewingAccountsType.connectorType !== params.connectorType;
+
 					if (needsUpdate) {
 						// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
-						const oauthConnector = OAUTH_CONNECTORS.find(
-							(c) => c.connectorType === params.connectorType
-						) || COMPOSIO_CONNECTORS.find(
-							(c) => c.connectorType === params.connectorType
-						);
+						const oauthConnector =
+							OAUTH_CONNECTORS.find((c) => c.connectorType === params.connectorType) ||
+							COMPOSIO_CONNECTORS.find((c) => c.connectorType === params.connectorType);
 						if (oauthConnector) {
 							setViewingAccountsType({
 								connectorType: oauthConnector.connectorType,
@@ -395,11 +396,8 @@ export const useConnectorDialog = () => {
 				// Check if authEndpoint already has query parameters
 				const separator = connector.authEndpoint.includes("?") ? "&" : "?";
 				const url = `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}${separator}space_id=${searchSpaceId}`;
-				
-				const response = await authenticatedFetch(
-					url,
-					{ method: "GET" }
-				);
+
+				const response = await authenticatedFetch(url, { method: "GET" });
 
 				if (!response.ok) {
 					throw new Error(`Failed to initiate ${connector.title} OAuth`);
