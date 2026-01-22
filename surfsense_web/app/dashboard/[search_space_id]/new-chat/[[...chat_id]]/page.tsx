@@ -50,7 +50,8 @@ import {
 	type MessageRecord,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
-import { useChatSessionState } from "@/hooks/use-chat-session-state";
+import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
+import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
 import {
 	trackChatCreated,
@@ -260,8 +261,11 @@ export default function NewChatPage() {
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 
-	// Live collaboration: sync messages from other users via Electric SQL
-	const { isAiResponding, respondingToUserId } = useChatSessionState(threadId);
+	// Live collaboration: sync session state and messages via Electric SQL
+	useChatSessionStateSync(threadId);
+	const sessionState = useAtomValue(chatSessionStateAtom);
+	const isAiResponding = sessionState?.isAiResponding ?? false;
+	const respondingToUserId = sessionState?.respondingToUserId ?? null;
 	const { data: membersData } = useAtomValue(membersAtom);
 
 	const handleElectricMessagesUpdate = useCallback(

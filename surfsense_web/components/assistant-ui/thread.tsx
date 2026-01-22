@@ -61,7 +61,7 @@ import {
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
-import { useChatSessionState } from "@/hooks/use-chat-session-state";
+import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
 import { cn } from "@/lib/utils";
 
@@ -236,7 +236,9 @@ const Composer: FC = () => {
 		}
 		return typeof chat_id === "string" ? Number.parseInt(chat_id, 10) || null : null;
 	}, [chat_id]);
-	const { isAiResponding, respondingToUserId } = useChatSessionState(threadId);
+	const sessionState = useAtomValue(chatSessionStateAtom);
+	const isAiResponding = sessionState?.isAiResponding ?? false;
+	const respondingToUserId = sessionState?.respondingToUserId ?? null;
 	const isBlockedByOtherUser = isAiResponding && respondingToUserId !== currentUser?.id;
 
 	// Sync comments for the entire thread via Electric SQL (one subscription per thread)
