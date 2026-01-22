@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { InboxItem, InboxItemTypeEnum } from "@/contracts/types/inbox.types";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import type { SyncHandle } from "@/lib/electric/client";
@@ -10,6 +10,15 @@ export type { InboxItem, InboxItemTypeEnum } from "@/contracts/types/inbox.types
 
 const PAGE_SIZE = 50;
 const SYNC_WINDOW_DAYS = 14;
+
+/**
+ * Check if an item is older than the sync window
+ */
+function isOlderThanSyncWindow(createdAt: string): boolean {
+	const cutoffDate = new Date();
+	cutoffDate.setDate(cutoffDate.getDate() - SYNC_WINDOW_DAYS);
+	return new Date(createdAt) < cutoffDate;
+}
 
 /**
  * Deduplicate by ID and sort by created_at descending.
@@ -84,15 +93,19 @@ export function useInbox(
 	const [hasMore, setHasMore] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
 
+	// Split unread count tracking for accurate counts with 14-day sync window
+	// olderUnreadCount = unread items OLDER than sync window (from server, static until reconciliation)
+	// recentUnreadCount = unread items within sync window (from live query, real-time)
+	const [olderUnreadCount, setOlderUnreadCount] = useState(0);
+	const [recentUnreadCount, setRecentUnreadCount] = useState(0);
+
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
 	const userSyncKeyRef = useRef<string | null>(null);
+	const unreadCountLiveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
 
-	// Calculate unread count from inboxItems (includes both recent and older when loaded)
-	// This ensures the count is always in sync with what's displayed
-	const totalUnreadCount = useMemo(() => {
-		return inboxItems.filter((item) => !item.read).length;
-	}, [inboxItems]);
+	// Total unread = older (static from server) + recent (live from Electric)
+	const totalUnreadCount = olderUnreadCount + recentUnreadCount;
 
 	// EFFECT 1: Electric SQL sync for real-time updates
 	useEffect(() => {
@@ -167,6 +180,9 @@ export function useInbox(
 	useEffect(() => {
 		setHasMore(true);
 		setInboxItems([]);
+		// Reset count states - will be refetched by the unread count effect
+		setOlderUnreadCount(0);
+		setRecentUnreadCount(0);
 	}, [userId, searchSpaceId, typeFilter]);
 
 	// EFFECT 2: Live query for real-time updates + auto-fetch from API if empty
@@ -283,6 +299,97 @@ export function useInbox(
 		};
 	}, [userId, searchSpaceId, typeFilter, electricClient]);
 
+	// EFFECT 3: Dedicated unread count sync with split tracking
+	// - Fetches server count on mount (accurate total)
+	// - Sets up live query for recent count (real-time updates)
+	// - Handles items older than sync window separately
+	useEffect(() => {
+		if (!userId || !electricClient) return;
+
+		const client = electricClient;
+		let mounted = true;
+
+		async function setupUnreadCountSync() {
+			// Cleanup previous live query
+			if (unreadCountLiveQueryRef.current) {
+				unreadCountLiveQueryRef.current.unsubscribe();
+				unreadCountLiveQueryRef.current = null;
+			}
+
+			try {
+				// STEP 1: Fetch server counts (total and recent) - guaranteed accurate
+				console.log("[useInbox] Fetching unread count from server");
+				const serverCounts = await notificationsApiService.getUnreadCount(
+					searchSpaceId ?? undefined
+				);
+
+				if (mounted) {
+					// Calculate older count = total - recent
+					const olderCount = serverCounts.total_unread - serverCounts.recent_unread;
+					setOlderUnreadCount(olderCount);
+					setRecentUnreadCount(serverCounts.recent_unread);
+					console.log(
+						`[useInbox] Server counts: total=${serverCounts.total_unread}, recent=${serverCounts.recent_unread}, older=${olderCount}`
+					);
+				}
+
+				// STEP 2: Set up PGLite live query for RECENT unread count only
+				// This provides real-time updates for notifications within sync window
+				const db = client.db as any;
+				const cutoff = getSyncCutoffDate();
+
+				// Count query - NO LIMIT, counts all unread in synced window
+				const countQuery = `
+					SELECT COUNT(*) as count FROM notifications 
+					WHERE user_id = $1 
+					AND (search_space_id = $2 OR search_space_id IS NULL)
+					AND created_at > '${cutoff}'
+					AND read = false
+					${typeFilter ? "AND type = $3" : ""}
+				`;
+				const params = typeFilter ? [userId, searchSpaceId, typeFilter] : [userId, searchSpaceId];
+
+				if (db.live?.query) {
+					const liveQuery = await db.live.query(countQuery, params);
+
+					if (!mounted) {
+						liveQuery.unsubscribe?.();
+						return;
+					}
+
+					if (liveQuery.subscribe) {
+						liveQuery.subscribe((result: { rows: Array<{ count: number | string }> }) => {
+							if (mounted && result.rows?.[0]) {
+								const liveCount = Number(result.rows[0].count) || 0;
+								// Update recent count from live query
+								// This fires in real-time when Electric syncs new/updated notifications
+								setRecentUnreadCount(liveCount);
+							}
+						});
+					}
+
+					if (liveQuery.unsubscribe) {
+						unreadCountLiveQueryRef.current = liveQuery;
+					}
+				}
+			} catch (err) {
+				console.error("[useInbox] Unread count sync error:", err);
+				// On error, counts will remain at 0 or previous values
+				// The items-based count will be the fallback
+			}
+		}
+
+		setupUnreadCountSync();
+
+		return () => {
+			mounted = false;
+			if (unreadCountLiveQueryRef.current) {
+				unreadCountLiveQueryRef.current.unsubscribe();
+				unreadCountLiveQueryRef.current = null;
+			}
+		};
+	}, [userId, searchSpaceId, typeFilter, electricClient]);
+
 	// loadMore - Pure cursor-based pagination, no race conditions
 	// Cursor is computed from current state, not stored in refs
 	const loadMore = useCallback(async () => {
@@ -325,39 +432,60 @@ export function useInbox(
 	}, [userId, searchSpaceId, typeFilter, loadingMore, hasMore, inboxItems]);
 
 	// Mark inbox item as read with optimistic update
-	const markAsRead = useCallback(async (itemId: number) => {
-		// Optimistic update: mark as read immediately for instant UI feedback
-		setInboxItems((prev) =>
-			prev.map((item) => (item.id === itemId ? { ...item, read: true } : item))
-		);
+	// Handles both recent items (live query updates count) and older items (manual count decrement)
+	const markAsRead = useCallback(
+		async (itemId: number) => {
+			// Find the item to check if it's older than sync window
+			const item = inboxItems.find((i) => i.id === itemId);
+			const isOlderItem = item && !item.read && isOlderThanSyncWindow(item.created_at);
 
-		try {
-			// Use the API service with proper Zod validation
-			const result = await notificationsApiService.markAsRead({ notificationId: itemId });
+			// Optimistic update: mark as read immediately for instant UI feedback
+			setInboxItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, read: true } : i)));
 
-			if (!result.success) {
-				// Rollback on error
-				setInboxItems((prev) =>
-					prev.map((item) => (item.id === itemId ? { ...item, read: false } : item))
-				);
+			// If older item, manually decrement older count
+			// (live query won't see items outside sync window)
+			if (isOlderItem) {
+				setOlderUnreadCount((prev) => Math.max(0, prev - 1));
 			}
-			// If successful, Electric SQL will sync the change and live query will update
-			// This ensures eventual consistency even if optimistic update was wrong
-			return result.success;
-		} catch (err) {
-			console.error("Failed to mark as read:", err);
-			// Rollback on error
-			setInboxItems((prev) =>
-				prev.map((item) => (item.id === itemId ? { ...item, read: false } : item))
-			);
-			return false;
-		}
-	}, []);
+
+			try {
+				// Use the API service with proper Zod validation
+				const result = await notificationsApiService.markAsRead({ notificationId: itemId });
+
+				if (!result.success) {
+					// Rollback on error
+					setInboxItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, read: false } : i)));
+					if (isOlderItem) {
+						setOlderUnreadCount((prev) => prev + 1);
+					}
+				}
+				// If successful, Electric SQL will sync the change and live query will update
+				// This ensures eventual consistency even if optimistic update was wrong
+				return result.success;
+			} catch (err) {
+				console.error("Failed to mark as read:", err);
+				// Rollback on error
+				setInboxItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, read: false } : i)));
+				if (isOlderItem) {
+					setOlderUnreadCount((prev) => prev + 1);
+				}
+				return false;
+			}
+		},
+		[inboxItems]
+	);
 
 	// Mark all inbox items as read with optimistic update
+	// Resets both older and recent counts to 0
 	const markAllAsRead = useCallback(async () => {
+		// Store previous counts for potential rollback
+		const prevOlderCount = olderUnreadCount;
+		const prevRecentCount = recentUnreadCount;
+
 		// Optimistic update: mark all as read immediately for instant UI feedback
 		setInboxItems((prev) => prev.map((item) => ({ ...item, read: true })));
+		setOlderUnreadCount(0);
+		setRecentUnreadCount(0);
 
 		try {
 			// Use the API service with proper Zod validation
@@ -365,16 +493,20 @@ export function useInbox(
 
 			if (!result.success) {
 				console.error("Failed to mark all as read");
-				// On error, let Electric SQL sync correct the state
+				// Rollback counts on error
+				setOlderUnreadCount(prevOlderCount);
+				setRecentUnreadCount(prevRecentCount);
 			}
 			// Electric SQL will sync and live query will ensure consistency
 			return result.success;
 		} catch (err) {
 			console.error("Failed to mark all as read:", err);
-			// On error, let Electric SQL sync correct the state
+			// Rollback counts on error
+			setOlderUnreadCount(prevOlderCount);
+			setRecentUnreadCount(prevRecentCount);
 			return false;
 		}
-	}, []);
+	}, [olderUnreadCount, recentUnreadCount]);
 
 	return {
 		inboxItems,

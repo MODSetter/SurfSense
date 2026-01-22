@@ -5,7 +5,7 @@ Electric SQL automatically syncs the changes to all connected clients for recent
 For older items (beyond the sync window), use the list endpoint.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -16,6 +16,9 @@ from app.db import Notification, User, get_async_session
 from app.users import current_active_user
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
+
+# Must match frontend SYNC_WINDOW_DAYS in use-inbox.ts
+SYNC_WINDOW_DAYS = 14
 
 
 class NotificationResponse(BaseModel):
@@ -60,11 +63,68 @@ class MarkAllReadResponse(BaseModel):
     updated_count: int
 
 
+class UnreadCountResponse(BaseModel):
+    """Response for unread count with split between recent and older items."""
+
+    total_unread: int
+    recent_unread: int  # Within SYNC_WINDOW_DAYS
+
+
+@router.get("/unread-count", response_model=UnreadCountResponse)
+async def get_unread_count(
+    search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> UnreadCountResponse:
+    """
+    Get the total unread notification count for the current user.
+
+    Returns both:
+    - total_unread: All unread notifications (for accurate badge count)
+    - recent_unread: Unread notifications within the sync window (last 14 days)
+
+    This allows the frontend to calculate:
+    - older_unread = total_unread - recent_unread (static until reconciliation)
+    - Display count = older_unread + live_recent_count (from Electric SQL)
+    """
+    # Calculate cutoff date for sync window
+    cutoff_date = datetime.now(UTC) - timedelta(days=SYNC_WINDOW_DAYS)
+
+    # Base filter for user's unread notifications
+    base_filter = [
+        Notification.user_id == user.id,
+        Notification.read == False,  # noqa: E712
+    ]
+
+    # Add search space filter if provided (include null for global notifications)
+    if search_space_id is not None:
+        base_filter.append(
+            (Notification.search_space_id == search_space_id)
+            | (Notification.search_space_id.is_(None))
+        )
+
+    # Total unread count (all time)
+    total_query = select(func.count(Notification.id)).where(*base_filter)
+    total_result = await session.execute(total_query)
+    total_unread = total_result.scalar() or 0
+
+    # Recent unread count (within sync window)
+    recent_query = select(func.count(Notification.id)).where(
+        *base_filter,
+        Notification.created_at > cutoff_date,
+    )
+    recent_result = await session.execute(recent_query)
+    recent_unread = recent_result.scalar() or 0
+
+    return UnreadCountResponse(
+        total_unread=total_unread,
+        recent_unread=recent_unread,
+    )
+
+
 @router.get("", response_model=NotificationListResponse)
 async def list_notifications(
-    search_space_id: int | None = Query(
-        None, description="Filter by search space ID"
-    ),
+    search_space_id: int | None = Query(None, description="Filter by search space ID"),
     type_filter: str | None = Query(
         None, alias="type", description="Filter by notification type"
     ),
