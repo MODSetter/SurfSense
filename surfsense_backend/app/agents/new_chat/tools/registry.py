@@ -50,6 +50,7 @@ from .mcp_tool import load_mcp_tools
 from .podcast import create_generate_podcast_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
+from .user_memory import create_recall_memory_tool, create_save_memory_tool
 
 # =============================================================================
 # Tool Definition
@@ -136,6 +137,31 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             db_session=deps["db_session"],
         ),
         requires=["db_session"],
+    ),
+    # =========================================================================
+    # USER MEMORY TOOLS - Claude-like memory feature
+    # =========================================================================
+    # Save memory tool - stores facts/preferences about the user
+    ToolDefinition(
+        name="save_memory",
+        description="Save facts, preferences, or context about the user for personalized responses",
+        factory=lambda deps: create_save_memory_tool(
+            user_id=deps["user_id"],
+            search_space_id=deps["search_space_id"],
+            db_session=deps["db_session"],
+        ),
+        requires=["user_id", "search_space_id", "db_session"],
+    ),
+    # Recall memory tool - retrieves relevant user memories
+    ToolDefinition(
+        name="recall_memory",
+        description="Recall user memories for personalized and contextual responses",
+        factory=lambda deps: create_recall_memory_tool(
+            user_id=deps["user_id"],
+            search_space_id=deps["search_space_id"],
+            db_session=deps["db_session"],
+        ),
+        requires=["user_id", "search_space_id", "db_session"],
     ),
     # =========================================================================
     # ADD YOUR CUSTOM TOOLS BELOW

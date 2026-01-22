@@ -634,6 +634,8 @@ class MentionNotificationHandler(BaseNotificationHandler):
         thread_title: str,
         author_id: str,
         author_name: str,
+        author_avatar_url: str | None,
+        author_email: str,
         content_preview: str,
         search_space_id: int,
     ) -> Notification:
@@ -650,6 +652,8 @@ class MentionNotificationHandler(BaseNotificationHandler):
             thread_title: Title of the chat thread
             author_id: ID of the comment author
             author_name: Display name of the comment author
+            author_avatar_url: Avatar URL of the comment author
+            author_email: Email of the comment author (for fallback initials)
             content_preview: First ~100 chars of the comment
             search_space_id: Search space ID
 
@@ -667,6 +671,8 @@ class MentionNotificationHandler(BaseNotificationHandler):
             "thread_title": thread_title,
             "author_id": author_id,
             "author_name": author_name,
+            "author_avatar_url": author_avatar_url,
+            "author_email": author_email,
             "content_preview": content_preview[:200],
         }
 

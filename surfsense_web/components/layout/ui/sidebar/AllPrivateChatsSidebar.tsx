@@ -5,12 +5,12 @@ import { format } from "date-fns";
 import {
 	ArchiveIcon,
 	Loader2,
-	Lock,
 	MessageCircleMore,
 	MoreHorizontal,
 	RotateCcwIcon,
 	Search,
 	Trash2,
+	User,
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -239,7 +239,7 @@ export function AllPrivateChatsSidebar({
 						<div className="shrink-0 p-4 pb-2 space-y-3">
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2">
-									<Lock className="h-5 w-5 text-primary" />
+									<User className="h-5 w-5 text-primary" />
 									<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
 								</div>
 								<Button
@@ -419,7 +419,7 @@ export function AllPrivateChatsSidebar({
 								</div>
 							) : (
 								<div className="text-center py-8">
-									<Lock className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+									<User className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 									<p className="text-sm text-muted-foreground">
 										{showArchived
 											? t("no_archived_chats") || "No archived chats"

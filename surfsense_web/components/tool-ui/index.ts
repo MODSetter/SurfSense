@@ -77,4 +77,17 @@ export {
 	ScrapeWebpageResultSchema,
 	ScrapeWebpageToolUI,
 } from "./scrape-webpage";
+export {
+	type MemoryItem,
+	type RecallMemoryArgs,
+	RecallMemoryArgsSchema,
+	type RecallMemoryResult,
+	RecallMemoryResultSchema,
+	RecallMemoryToolUI,
+	type SaveMemoryArgs,
+	SaveMemoryArgsSchema,
+	type SaveMemoryResult,
+	SaveMemoryResultSchema,
+	SaveMemoryToolUI,
+} from "./user-memory";
 export { type WriteTodosData, WriteTodosSchema, WriteTodosToolUI } from "./write-todos";

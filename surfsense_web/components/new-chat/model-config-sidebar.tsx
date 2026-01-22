@@ -4,6 +4,7 @@ import { useAtomValue } from "jotai";
 import { AlertCircle, Bot, ChevronRight, Globe, User, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
 	createNewLLMConfigMutationAtom,
@@ -38,6 +39,12 @@ export function ModelConfigSidebar({
 	mode,
 }: ModelConfigSidebarProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
+	const [mounted, setMounted] = useState(false);
+
+	// Handle SSR - only render portal on client
+	useEffect(() => {
+		setMounted(true);
+	}, []);
 
 	// Mutations - use mutateAsync from the atom value
 	const { mutateAsync: createConfig } = useAtomValue(createNewLLMConfigMutationAtom);
@@ -147,7 +154,9 @@ export function ModelConfigSidebar({
 		}
 	}, [config, isGlobal, searchSpaceId, updatePreferences, onOpenChange]);
 
-	return (
+	if (!mounted) return null;
+
+	const sidebarContent = (
 		<AnimatePresence>
 			{open && (
 				<>
@@ -157,7 +166,7 @@ export function ModelConfigSidebar({
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
 						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-40 bg-black/20 backdrop-blur-sm"
+						className="fixed inset-0 z-[24] bg-black/20 backdrop-blur-sm"
 						onClick={() => onOpenChange(false)}
 					/>
 
@@ -172,7 +181,7 @@ export function ModelConfigSidebar({
 							stiffness: 300,
 						}}
 						className={cn(
-							"fixed right-0 top-0 z-50 h-full w-full sm:w-[480px] lg:w-[540px]",
+							"fixed right-0 top-0 z-[25] h-full w-full sm:w-[480px] lg:w-[540px]",
 							"bg-background border-l border-border/50 shadow-2xl",
 							"flex flex-col"
 						)}
@@ -245,16 +254,16 @@ export function ModelConfigSidebar({
 										<div className="space-y-4">
 											<div className="grid gap-4 sm:grid-cols-2">
 												<div className="space-y-1.5">
-													<label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 														Configuration Name
-													</label>
+													</div>
 													<p className="text-sm font-medium">{config.name}</p>
 												</div>
 												{config.description && (
 													<div className="space-y-1.5">
-														<label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+														<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 															Description
-														</label>
+														</div>
 														<p className="text-sm text-muted-foreground">{config.description}</p>
 													</div>
 												)}
@@ -264,15 +273,15 @@ export function ModelConfigSidebar({
 
 											<div className="grid gap-4 sm:grid-cols-2">
 												<div className="space-y-1.5">
-													<label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 														Provider
-													</label>
+													</div>
 													<p className="text-sm font-medium">{config.provider}</p>
 												</div>
 												<div className="space-y-1.5">
-													<label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 														Model
-													</label>
+													</div>
 													<p className="text-sm font-medium font-mono">{config.model_name}</p>
 												</div>
 											</div>
@@ -281,9 +290,9 @@ export function ModelConfigSidebar({
 
 											<div className="grid gap-4 sm:grid-cols-2">
 												<div className="space-y-2">
-													<label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 														Citations
-													</label>
+													</div>
 													<Badge
 														variant={config.citations_enabled ? "default" : "secondary"}
 														className="w-fit"
@@ -297,9 +306,9 @@ export function ModelConfigSidebar({
 												<>
 													<div className="h-px bg-border/50" />
 													<div className="space-y-1.5">
-														<label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+														<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
 															System Instructions
-														</label>
+														</div>
 														<div className="p-3 rounded-lg bg-muted/50 border border-border/50">
 															<p className="text-xs font-mono text-muted-foreground whitespace-pre-wrap line-clamp-10">
 																{config.system_instructions}
@@ -367,4 +376,6 @@ export function ModelConfigSidebar({
 			)}
 		</AnimatePresence>
 	);
+
+	return typeof document !== "undefined" ? createPortal(sidebarContent, document.body) : null;
 }

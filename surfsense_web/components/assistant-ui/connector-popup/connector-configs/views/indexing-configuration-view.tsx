@@ -151,9 +151,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 						{/* Date range selector and periodic sync - only shown for indexable connectors */}
 						{connector?.is_indexable && (
 							<>
-								{/* Date range selector - not shown for Google Drive (uses folder selection) or Webcrawler (uses config) */}
+								{/* Date range selector - not shown for Google Drive, Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
-									config.connectorType !== "WEBCRAWLER_CONNECTOR" && (
+									config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
+									config.connectorType !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
 											startDate={startDate}
 											endDate={endDate}

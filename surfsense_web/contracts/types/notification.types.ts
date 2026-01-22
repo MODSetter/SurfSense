@@ -83,6 +83,8 @@ export const newMentionMetadata = z.object({
 	thread_title: z.string(),
 	author_id: z.string(),
 	author_name: z.string(),
+	author_avatar_url: z.string().nullable().optional(),
+	author_email: z.string().optional(),
 	content_preview: z.string(),
 });
 

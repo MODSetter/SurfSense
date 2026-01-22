@@ -20,7 +20,7 @@ export function CommentSheet({
 			<SheetContent
 				side={side}
 				className={cn(
-					"flex flex-col p-0",
+					"flex flex-col gap-0 overflow-hidden p-0",
 					isBottomSheet ? "h-[85vh] max-h-[85vh] rounded-t-xl" : "h-full w-full max-w-md"
 				)}
 			>
@@ -41,7 +41,7 @@ export function CommentSheet({
 						)}
 					</SheetTitle>
 				</SheetHeader>
-				<div className="min-h-0 flex-1 overflow-y-auto">
+				<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
 					<CommentPanelContainer messageId={messageId} isOpen={true} variant="mobile" />
 				</div>
 			</SheetContent>

@@ -76,10 +76,7 @@ export function DashboardBreadcrumb() {
 		const segments = path.split("/").filter(Boolean);
 		const breadcrumbs: BreadcrumbItemInterface[] = [];
 
-		// Always start with Dashboard
-		breadcrumbs.push({ label: t("dashboard"), href: "/dashboard" });
-
-		// Handle search space
+		// Handle search space (start directly with search space, skip "Dashboard")
 		if (segments[0] === "dashboard" && segments[1]) {
 			// Use the actual search space name if available, otherwise fall back to the ID
 			const searchSpaceLabel = searchSpace?.name || `${t("search_space")} ${segments[1]}`;

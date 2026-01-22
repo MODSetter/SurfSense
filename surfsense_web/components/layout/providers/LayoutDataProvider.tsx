@@ -34,14 +34,12 @@ interface LayoutDataProviderProps {
 	searchSpaceId: string;
 	children: React.ReactNode;
 	breadcrumb?: React.ReactNode;
-	languageSwitcher?: React.ReactNode;
 }
 
 export function LayoutDataProvider({
 	searchSpaceId,
 	children,
 	breadcrumb,
-	languageSwitcher,
 }: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
@@ -302,10 +300,6 @@ export function LayoutDataProvider({
 		}
 	}, [router]);
 
-	const handleToggleTheme = useCallback(() => {
-		setTheme(theme === "dark" ? "light" : "dark");
-	}, [theme, setTheme]);
-
 	const handleViewAllSharedChats = useCallback(() => {
 		setIsAllSharedChatsSidebarOpen(true);
 	}, []);
@@ -375,9 +369,8 @@ export function LayoutDataProvider({
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}
-				languageSwitcher={languageSwitcher}
 				theme={theme}
-				onToggleTheme={handleToggleTheme}
+				setTheme={setTheme}
 				isChatPage={isChatPage}
 			>
 				{children}
