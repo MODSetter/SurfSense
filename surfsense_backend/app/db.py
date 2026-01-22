@@ -54,6 +54,7 @@ class DocumentType(str, Enum):
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
     CIRCLEBACK = "CIRCLEBACK"
     NOTE = "NOTE"
+    COMPOSIO_CONNECTOR = "COMPOSIO_CONNECTOR"  # Generic Composio integration
 
 
 class SearchSourceConnectorType(str, Enum):
@@ -81,6 +82,7 @@ class SearchSourceConnectorType(str, Enum):
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
     CIRCLEBACK_CONNECTOR = "CIRCLEBACK_CONNECTOR"
     MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
+    COMPOSIO_CONNECTOR = "COMPOSIO_CONNECTOR"  # Generic Composio integration (Google, Slack, etc.)
 
 
 class LiteLLMProvider(str, Enum):

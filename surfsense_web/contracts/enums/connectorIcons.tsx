@@ -66,6 +66,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconUsersGroup {...iconProps} />;
 		case EnumConnectorName.MCP_CONNECTOR:
 			return <Image src="/connectors/modelcontextprotocol.svg" alt="MCP" {...imgProps} />;
+		case EnumConnectorName.COMPOSIO_CONNECTOR:
+			return <Image src="/connectors/composio.svg" alt="Composio" {...imgProps} />;
 		// Additional cases for non-enum connector types
 		case "YOUTUBE_CONNECTOR":
 			return <Image src="/connectors/youtube.svg" alt="YouTube" {...imgProps} />;
@@ -85,6 +87,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <File {...iconProps} />;
 		case "GOOGLE_DRIVE_FILE":
 			return <File {...iconProps} />;
+		case "COMPOSIO_CONNECTOR":
+			return <Image src="/connectors/composio.svg" alt="Composio" {...imgProps} />;
 		case "NOTE":
 			return <FileText {...iconProps} />;
 		case "EXTENSION":
