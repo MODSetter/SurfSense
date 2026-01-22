@@ -16,7 +16,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -107,6 +107,9 @@ interface InboxSidebarProps {
 	inboxItems: InboxItem[];
 	unreadCount: number;
 	loading: boolean;
+	loadingMore?: boolean;
+	hasMore?: boolean;
+	loadMore?: () => void;
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
 	onCloseMobileSidebar?: () => void;
@@ -118,6 +121,9 @@ export function InboxSidebar({
 	inboxItems,
 	unreadCount,
 	loading,
+	loadingMore = false,
+	hasMore = false,
+	loadMore,
 	markAsRead,
 	markAllAsRead,
 	onCloseMobileSidebar,
@@ -136,6 +142,9 @@ export function InboxSidebar({
 	// Drawer state for filter menu (mobile only)
 	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
+	
+	// Prefetch trigger ref - placed on item near the end
+	const prefetchTriggerRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		setMounted(true);
@@ -237,6 +246,32 @@ export function InboxSidebar({
 
 		return items;
 	}, [currentTabItems, activeFilter, activeTab, selectedConnector, searchQuery]);
+
+	// Intersection Observer for infinite scroll with prefetching
+	// Only active when not searching (search results are client-side filtered)
+	useEffect(() => {
+		if (!loadMore || !hasMore || loadingMore || !open || searchQuery.trim()) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				// When trigger element is visible, load more
+				if (entries[0]?.isIntersecting) {
+					loadMore();
+				}
+			},
+			{
+				root: null, // viewport
+				rootMargin: "100px", // Start loading 100px before visible
+				threshold: 0,
+			}
+		);
+
+		if (prefetchTriggerRef.current) {
+			observer.observe(prefetchTriggerRef.current);
+		}
+
+		return () => observer.disconnect();
+	}, [loadMore, hasMore, loadingMore, open, searchQuery, filteredItems.length]);
 
 	// Count unread items per tab
 	const unreadMentionsCount = useMemo(() => {
@@ -685,12 +720,15 @@ export function InboxSidebar({
 								</div>
 							) : filteredItems.length > 0 ? (
 								<div className="space-y-2">
-									{filteredItems.map((item) => {
+									{filteredItems.map((item, index) => {
 										const isMarkingAsRead = markingAsReadId === item.id;
+										// Place prefetch trigger on 5th item from end (only if not searching)
+										const isPrefetchTrigger = !searchQuery && hasMore && index === filteredItems.length - 5;
 
 										return (
 											<div
 												key={item.id}
+												ref={isPrefetchTrigger ? prefetchTriggerRef : undefined}
 												className={cn(
 													"group flex items-center gap-3 rounded-lg px-3 py-3 text-sm h-[80px] overflow-hidden",
 													"hover:bg-accent hover:text-accent-foreground",
@@ -742,6 +780,10 @@ export function InboxSidebar({
 											</div>
 										);
 									})}
+									{/* Fallback trigger at the very end if less than 5 items and not searching */}
+									{!searchQuery && filteredItems.length < 5 && hasMore && (
+										<div ref={prefetchTriggerRef} className="h-1" />
+									)}
 								</div>
 							) : searchQuery ? (
 								<div className="text-center py-8">

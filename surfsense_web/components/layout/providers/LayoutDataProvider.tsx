@@ -87,7 +87,16 @@ export function LayoutDataProvider({
 
 	// Inbox hook
 	const userId = user?.id ? String(user.id) : null;
-	const { inboxItems, unreadCount, loading: inboxLoading, markAsRead, markAllAsRead } = useInbox(
+	const { 
+		inboxItems, 
+		unreadCount, 
+		loading: inboxLoading, 
+		loadingMore: inboxLoadingMore,
+		hasMore: inboxHasMore,
+		loadMore: inboxLoadMore,
+		markAsRead, 
+		markAllAsRead 
+	} = useInbox(
 		userId,
 		Number(searchSpaceId) || null,
 		null
@@ -549,6 +558,9 @@ export function LayoutDataProvider({
 				inboxItems={inboxItems}
 				unreadCount={unreadCount}
 				loading={inboxLoading}
+				loadingMore={inboxLoadingMore}
+				hasMore={inboxHasMore}
+				loadMore={inboxLoadMore}
 				markAsRead={markAsRead}
 				markAllAsRead={markAllAsRead}
 			/>
