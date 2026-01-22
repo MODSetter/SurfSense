@@ -90,6 +90,7 @@ const ThreadContent: FC<{ header?: React.ReactNode }> = ({ header }) => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
+				autoScroll
 				className={cn(
 					"aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4 transition-[padding] duration-300 ease-out",
 					showGutter && "lg:pr-30"
