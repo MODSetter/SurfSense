@@ -24,6 +24,7 @@ import {
 	// extractWriteTodosFromContent,
 	hydratePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
+import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
@@ -50,6 +51,8 @@ import {
 	type MessageRecord,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
+import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
+import { useMessagesElectric } from "@/hooks/use-messages-electric";
 import {
 	trackChatCreated,
 	trackChatError,
@@ -257,6 +260,44 @@ export default function NewChatPage() {
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
+
+	// Live collaboration: sync session state and messages via Electric SQL
+	useChatSessionStateSync(threadId);
+	const { data: membersData } = useAtomValue(membersAtom);
+
+	const handleElectricMessagesUpdate = useCallback(
+		(electricMessages: { id: number; thread_id: number; role: string; content: unknown; author_id: string | null; created_at: string }[]) => {
+			if (isRunning) {
+				return;
+			}
+
+			setMessages((prev) => {
+				if (electricMessages.length < prev.length) {
+					return prev;
+				}
+
+				return electricMessages.map((msg) => {
+					const member = msg.author_id
+						? membersData?.find((m) => m.user_id === msg.author_id)
+						: null;
+
+					return convertToThreadMessage({
+						id: msg.id,
+						thread_id: msg.thread_id,
+						role: msg.role.toLowerCase() as "user" | "assistant" | "system",
+						content: msg.content,
+						author_id: msg.author_id,
+						created_at: msg.created_at,
+						author_display_name: member?.user_display_name ?? null,
+						author_avatar_url: member?.user_avatar_url ?? null,
+					});
+				});
+			});
+		},
+		[isRunning, membersData]
+	);
+
+	useMessagesElectric(threadId, handleElectricMessagesUpdate);
 
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
@@ -587,8 +628,6 @@ export default function NewChatPage() {
 				content: persistContent,
 			})
 				.then(() => {
-					// For new threads, the backend updates the title from the first user message
-					// Invalidate threads query so sidebar shows the updated title in real-time
 					if (isNewThread) {
 						queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
 					}

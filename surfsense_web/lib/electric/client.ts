@@ -229,7 +229,6 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				CREATE INDEX IF NOT EXISTS idx_documents_search_space_type ON documents(search_space_id, document_type);
 			`);
 
-			// Create the chat_comment_mentions table schema in PGlite
 			await db.exec(`
 				CREATE TABLE IF NOT EXISTS chat_comment_mentions (
 					id INTEGER PRIMARY KEY,
@@ -240,6 +239,39 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				
 				CREATE INDEX IF NOT EXISTS idx_chat_comment_mentions_user_id ON chat_comment_mentions(mentioned_user_id);
 				CREATE INDEX IF NOT EXISTS idx_chat_comment_mentions_comment_id ON chat_comment_mentions(comment_id);
+			`);
+
+			// Create chat_comments table for live comment sync
+			await db.exec(`
+				CREATE TABLE IF NOT EXISTS chat_comments (
+					id INTEGER PRIMARY KEY,
+					message_id INTEGER NOT NULL,
+					thread_id INTEGER NOT NULL,
+					parent_id INTEGER,
+					author_id TEXT,
+					content TEXT NOT NULL,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+					updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				);
+				
+				CREATE INDEX IF NOT EXISTS idx_chat_comments_thread_id ON chat_comments(thread_id);
+				CREATE INDEX IF NOT EXISTS idx_chat_comments_message_id ON chat_comments(message_id);
+				CREATE INDEX IF NOT EXISTS idx_chat_comments_parent_id ON chat_comments(parent_id);
+			`);
+
+			// Create new_chat_messages table for live message sync
+			await db.exec(`
+				CREATE TABLE IF NOT EXISTS new_chat_messages (
+					id INTEGER PRIMARY KEY,
+					thread_id INTEGER NOT NULL,
+					role TEXT NOT NULL,
+					content JSONB NOT NULL,
+					author_id TEXT,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				);
+				
+				CREATE INDEX IF NOT EXISTS idx_new_chat_messages_thread_id ON new_chat_messages(thread_id);
+				CREATE INDEX IF NOT EXISTS idx_new_chat_messages_created_at ON new_chat_messages(created_at);
 			`);
 
 			const electricUrl = getElectricUrl();

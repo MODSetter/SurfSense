@@ -415,6 +415,13 @@ class ChatComment(BaseModel, TimestampMixin):
         nullable=False,
         index=True,
     )
+    # Denormalized thread_id for efficient Electric SQL subscriptions (one per thread)
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     parent_id = Column(
         Integer,
         ForeignKey("chat_comments.id", ondelete="CASCADE"),
@@ -438,6 +445,7 @@ class ChatComment(BaseModel, TimestampMixin):
 
     # Relationships
     message = relationship("NewChatMessage", back_populates="comments")
+    thread = relationship("NewChatThread")
     author = relationship("User")
     parent = relationship(
         "ChatComment", remote_side="ChatComment.id", backref="replies"
@@ -472,6 +480,38 @@ class ChatCommentMention(BaseModel, TimestampMixin):
     # Relationships
     comment = relationship("ChatComment", back_populates="mentions")
     mentioned_user = relationship("User")
+
+
+class ChatSessionState(BaseModel):
+    """
+    Tracks real-time session state for shared chat collaboration.
+    One record per thread, synced via Electric SQL.
+    """
+
+    __tablename__ = "chat_session_state"
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    ai_responding_to_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    thread = relationship("NewChatThread")
+    ai_responding_to_user = relationship("User")
 
 
 class MemoryCategory(str, Enum):
