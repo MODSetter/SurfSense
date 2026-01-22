@@ -1,6 +1,6 @@
 "use client";
 
-import { MessageSquare } from "lucide-react";
+import { MessageSquarePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CommentTriggerProps } from "./types";
@@ -25,7 +25,7 @@ export function CommentTrigger({ commentCount, isOpen, onClick, disabled }: Comm
 			)}
 			onClick={onClick}
 		>
-			<MessageSquare className={cn("size-5", (hasComments || isOpen) && "fill-current")} />
+			<MessageSquarePlus className={cn("size-5", (hasComments || isOpen) && "fill-current")} />
 			{hasComments && (
 				<span className="absolute -top-1 -right-1 flex size-5 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
 					{commentCount > 9 ? "9+" : commentCount}

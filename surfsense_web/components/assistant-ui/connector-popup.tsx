@@ -21,6 +21,7 @@ import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog
 import { useIndexingConnectors } from "./connector-popup/hooks/use-indexing-connectors";
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
+import { ComposioToolkitView } from "./connector-popup/views/composio-toolkit-view";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
@@ -87,6 +88,12 @@ export const ConnectorIndicator: FC = () => {
 		setConnectorConfig,
 		setIndexingConnectorConfig,
 		setConnectorName,
+		// Composio
+		viewingComposio,
+		connectingComposioToolkit,
+		handleOpenComposio,
+		handleBackFromComposio,
+		handleConnectComposioToolkit,
 	} = useConnectorDialog();
 
 	// Fetch connectors using Electric SQL + PGlite for real-time updates
@@ -176,6 +183,20 @@ export const ConnectorIndicator: FC = () => {
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
+				) : viewingComposio && searchSpaceId ? (
+					<ComposioToolkitView
+						searchSpaceId={searchSpaceId}
+						connectedToolkits={
+							(connectors || [])
+								.filter((c: SearchSourceConnector) => c.connector_type === "COMPOSIO_CONNECTOR")
+								.map((c: SearchSourceConnector) => c.config?.toolkit_id as string)
+								.filter(Boolean)
+						}
+						onBack={handleBackFromComposio}
+						onConnectToolkit={handleConnectComposioToolkit}
+						isConnecting={connectingComposioToolkit !== null}
+						connectingToolkitId={connectingComposioToolkit}
+					/>
 				) : viewingMCPList ? (
 					<ConnectorAccountsListView
 						connectorType="MCP_CONNECTOR"
@@ -312,6 +333,7 @@ export const ConnectorIndicator: FC = () => {
 											onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
 											onManage={handleStartEdit}
 											onViewAccountsList={handleViewAccountsList}
+											onOpenComposio={handleOpenComposio}
 										/>
 									</TabsContent>
 

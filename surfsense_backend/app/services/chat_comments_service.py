@@ -316,6 +316,8 @@ async def create_comment(
             thread_title=thread.title or "Untitled thread",
             author_id=str(user.id),
             author_name=author_name,
+            author_avatar_url=user.avatar_url,
+            author_email=user.email,
             content_preview=content_preview[:200],
             search_space_id=search_space_id,
         )
@@ -428,6 +430,8 @@ async def create_reply(
             thread_title=thread.title or "Untitled thread",
             author_id=str(user.id),
             author_name=author_name,
+            author_avatar_url=user.avatar_url,
+            author_email=user.email,
             content_preview=content_preview[:200],
             search_space_id=search_space_id,
         )
@@ -567,6 +571,8 @@ async def update_comment(
                 thread_title=thread.title or "Untitled thread",
                 author_id=str(user.id),
                 author_name=author_name,
+                author_avatar_url=user.avatar_url,
+                author_email=user.email,
                 content_preview=content_preview[:200],
                 search_space_id=search_space_id,
             )

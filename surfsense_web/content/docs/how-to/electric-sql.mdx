@@ -5,11 +5,11 @@ description: Setting up Electric SQL for real-time data synchronization in SurfS
 
 # Electric SQL
 
-[Electric SQL](https://electric-sql.com/) enables real-time data synchronization in SurfSense, providing instant updates for notifications, document indexing status, and connector sync progress without manual refresh. The frontend uses [PGlite](https://pglite.dev/) (a lightweight PostgreSQL in the browser) to maintain a local database that syncs with the backend via Electric SQL.
+[Electric SQL](https://electric-sql.com/) enables real-time data synchronization in SurfSense, providing instant updates for inbox items, document indexing status, and connector sync progress without manual refresh. The frontend uses [PGlite](https://pglite.dev/) (a lightweight PostgreSQL in the browser) to maintain a local database that syncs with the backend via Electric SQL.
 
 ## What Does Electric SQL Do?
 
-When you index documents or receive notifications, Electric SQL pushes updates to your browser in real-time. The data flows like this:
+When you index documents or receive inbox updates, Electric SQL pushes updates to your browser in real-time. The data flows like this:
 
 1. Backend writes data to PostgreSQL
 2. Electric SQL detects changes and streams them to the frontend
@@ -18,7 +18,7 @@ When you index documents or receive notifications, Electric SQL pushes updates t
 
 This means:
 
-- **Notifications appear instantly** - No need to refresh the page
+- **Inbox updates appear instantly** - No need to refresh the page
 - **Document indexing progress updates live** - Watch your documents get processed
 - **Connector status syncs automatically** - See when connectors finish syncing
 - **Offline support** - PGlite caches data locally, so previously loaded data remains accessible

@@ -154,7 +154,7 @@ async def stream_new_chat(
     search_space_id: int,
     chat_id: int,
     session: AsyncSession,
-    user_id: UUID,
+    user_id: str | None = None,
     llm_config_id: int = -1,
     attachments: list[ChatAttachment] | None = None,
     mentioned_document_ids: list[int] | None = None,
@@ -172,7 +172,7 @@ async def stream_new_chat(
         search_space_id: The search space ID
         chat_id: The chat ID (used as LangGraph thread_id for memory)
         session: The database session
-        user_id: The ID of the user sending the message
+        user_id: The current user's UUID string (for memory tools and session state)
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
         attachments: Optional attachments with extracted content
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
@@ -188,7 +188,8 @@ async def stream_new_chat(
 
     try:
         # Mark AI as responding to this user for live collaboration
-        await set_ai_responding(session, chat_id, user_id)
+        if user_id:
+            await set_ai_responding(session, chat_id, UUID(user_id))
         # Load LLM config - supports both YAML (negative IDs) and database (positive IDs)
         agent_config: AgentConfig | None = None
 
@@ -251,6 +252,7 @@ async def stream_new_chat(
             db_session=session,
             connector_service=connector_service,
             checkpointer=checkpointer,
+            user_id=user_id,  # Pass user ID for memory tools
             agent_config=agent_config,  # Pass prompt configuration
             firecrawl_api_key=firecrawl_api_key,  # Pass Firecrawl API key if configured
         )

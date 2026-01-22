@@ -44,7 +44,6 @@ function findMentionTrigger(
 		return { isActive: false, query: "", startIndex: 0 };
 	}
 
-	const fullMatch = mentionMatch[0];
 	const query = mentionMatch[1];
 	const atIndex = cursorPos - query.length - 1;
 
@@ -80,7 +79,7 @@ function findMentionTrigger(
 export function CommentComposer({
 	members,
 	membersLoading = false,
-	placeholder = "Write a comment...",
+	placeholder = "Comment or @mention",
 	submitLabel = "Send",
 	isSubmitting = false,
 	onSubmit,
@@ -145,6 +144,13 @@ export function CommentComposer({
 		const cursorPos = e.target.selectionStart;
 		setDisplayContent(value);
 
+		// Auto-resize textarea on content change
+		requestAnimationFrame(() => {
+			const textarea = e.target;
+			textarea.style.height = "auto";
+			textarea.style.height = `${textarea.scrollHeight}px`;
+		});
+
 		const triggerResult = findMentionTrigger(value, cursorPos, insertedMentions);
 
 		if (triggerResult.isActive) {
@@ -208,9 +214,9 @@ export function CommentComposer({
 
 		const mentionPattern = /@([^\s@]+(?:\s+[^\s@]+)*?)(?=\s|$|[.,!?;:]|@)/g;
 		const foundMentions: InsertedMention[] = [];
-		let match: RegExpExecArray | null;
+		const matches = initialValue.matchAll(mentionPattern);
 
-		while ((match = mentionPattern.exec(initialValue)) !== null) {
+		for (const match of matches) {
 			const displayName = match[1];
 			const member = members.find(
 				(m) => m.displayName === displayName || m.email.split("@")[0] === displayName
@@ -237,6 +243,19 @@ export function CommentComposer({
 
 	const canSubmit = displayContent.trim().length > 0 && !isSubmitting;
 
+	// Auto-resize textarea
+	const adjustTextareaHeight = useCallback(() => {
+		const textarea = textareaRef.current;
+		if (textarea) {
+			textarea.style.height = "auto";
+			textarea.style.height = `${textarea.scrollHeight}px`;
+		}
+	}, []);
+
+	useEffect(() => {
+		adjustTextareaHeight();
+	}, [adjustTextareaHeight]);
+
 	return (
 		<div className="flex flex-col gap-2">
 			<Popover
@@ -251,7 +270,8 @@ export function CommentComposer({
 						onChange={handleInputChange}
 						onKeyDown={handleKeyDown}
 						placeholder={placeholder}
-						className="min-h-[80px] resize-none"
+						className="min-h-[40px] max-h-[200px] resize-none overflow-y-auto scrollbar-thin"
+						rows={1}
 						disabled={isSubmitting}
 					/>
 				</PopoverAnchor>

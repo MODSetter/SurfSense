@@ -3,29 +3,38 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import {
+	Bot,
 	Calendar,
 	Check,
 	Clock,
 	Copy,
 	Crown,
 	Edit2,
+	FileText,
 	Hash,
 	Link2,
 	LinkIcon,
 	Loader2,
+	Logs,
+	type LucideIcon,
+	MessageCircle,
+	MessageSquare,
+	Mic,
 	MoreHorizontal,
+	Plug,
 	Plus,
 	RefreshCw,
 	Search,
+	Settings,
 	Shield,
 	ShieldCheck,
 	Trash2,
-	User,
 	UserMinus,
 	UserPlus,
 	Users,
 } from "lucide-react";
 import { motion } from "motion/react";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -512,6 +521,25 @@ export default function TeamManagementPage() {
 
 // ============ Members Tab ============
 
+// Helper function to get avatar initials
+function getAvatarInitials(member: Membership): string {
+	// Try display name first
+	if (member.user_display_name) {
+		const parts = member.user_display_name.trim().split(/\s+/);
+		if (parts.length >= 2) {
+			return (parts[0][0] + parts[1][0]).toUpperCase();
+		}
+		return member.user_display_name.slice(0, 2).toUpperCase();
+	}
+	// Try email
+	if (member.user_email) {
+		const emailName = member.user_email.split("@")[0];
+		return emailName.slice(0, 2).toUpperCase();
+	}
+	// Fallback
+	return "U";
+}
+
 function MembersTab({
 	members,
 	roles,
@@ -560,7 +588,7 @@ function MembersTab({
 				<div className="relative flex-1 max-w-sm">
 					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 					<Input
-						placeholder="Search members..."
+						placeholder="Search members"
 						value={searchQuery}
 						onChange={(e) => setSearchQuery(e.target.value)}
 						className="pl-9"
@@ -573,10 +601,30 @@ function MembersTab({
 				<Table>
 					<TableHeader>
 						<TableRow className="bg-muted/50">
-							<TableHead className="w-auto md:w-[300px] px-2 md:px-4">Member</TableHead>
-							<TableHead className="px-2 md:px-4">Role</TableHead>
-							<TableHead className="hidden md:table-cell">Joined</TableHead>
-							<TableHead className="text-right">Actions</TableHead>
+							<TableHead className="w-auto md:w-[300px] px-2 md:px-4">
+								<div className="flex items-center gap-2">
+									<Users className="h-4 w-4" />
+									Member
+								</div>
+							</TableHead>
+							<TableHead className="px-2 md:px-4">
+								<div className="flex items-center gap-2">
+									<Shield className="h-4 w-4" />
+									Role
+								</div>
+							</TableHead>
+							<TableHead className="hidden md:table-cell">
+								<div className="flex items-center gap-2">
+									<Calendar className="h-4 w-4" />
+									Joined
+								</div>
+							</TableHead>
+							<TableHead className="text-right">
+								<div className="flex items-center justify-end gap-2">
+									<Settings className="h-4 w-4" />
+									Actions
+								</div>
+							</TableHead>
 						</TableRow>
 					</TableHeader>
 					<TableBody>
@@ -601,19 +649,36 @@ function MembersTab({
 									<TableCell className="py-2 px-2 md:py-4 md:px-4 align-middle">
 										<div className="flex items-center gap-1.5 md:gap-3">
 											<div className="relative">
-												<div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center ring-2 ring-background">
-													<User className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-												</div>
+												{member.user_avatar_url ? (
+													<Image
+														src={member.user_avatar_url}
+														alt={member.user_display_name || member.user_email || "User"}
+														width={40}
+														height={40}
+														className="h-8 w-8 md:h-10 md:w-10 rounded-full object-cover"
+													/>
+												) : (
+													<div className="h-8 w-8 md:h-10 md:w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
+														<span className="text-xs md:text-sm font-medium text-primary">
+															{getAvatarInitials(member)}
+														</span>
+													</div>
+												)}
 												{member.is_owner && (
-													<div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center ring-2 ring-background">
+													<div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center">
 														<Crown className="h-3 w-3 text-white" />
 													</div>
 												)}
 											</div>
 											<div className="min-w-0">
 												<p className="font-medium text-xs md:text-sm truncate">
-													{member.user_email || "Unknown"}
+													{member.user_display_name || member.user_email || "Unknown"}
 												</p>
+												{member.user_display_name && member.user_email && (
+													<p className="text-[10px] md:text-xs text-muted-foreground truncate">
+														{member.user_email}
+													</p>
+												)}
 												{member.is_owner && (
 													<Badge
 														variant="outline"
@@ -640,29 +705,21 @@ function MembersTab({
 													<SelectItem value="none">No role</SelectItem>
 													{roles.map((role) => (
 														<SelectItem key={role.id} value={role.id.toString()}>
-															<div className="flex items-center gap-2">
-																<Shield className="h-3 w-3" />
-																{role.name}
-															</div>
+															{role.name}
 														</SelectItem>
 													))}
 												</SelectContent>
 											</Select>
 										) : (
-											<Badge
-												variant="secondary"
-												className="gap-1 text-[10px] md:text-xs py-0 md:py-0.5"
-											>
-												<Shield className="h-2.5 w-2.5 md:h-3 md:w-3" />
+											<Badge variant="secondary" className="text-[10px] md:text-xs py-0 md:py-0.5">
 												{member.role?.name || "No role"}
 											</Badge>
 										)}
 									</TableCell>
 									<TableCell className="hidden md:table-cell">
-										<div className="flex items-center gap-2 text-sm text-muted-foreground">
-											<Calendar className="h-4 w-4" />
+										<span className="text-sm text-muted-foreground">
 											{new Date(member.joined_at).toLocaleDateString()}
-										</div>
+										</span>
 									</TableCell>
 									<TableCell className="text-right py-2 px-2 md:py-4 md:px-4 align-middle">
 										{canRemove && !member.is_owner && (
@@ -708,13 +765,137 @@ function MembersTab({
 	);
 }
 
+// ============ Role Permissions Display ============
+
+const CATEGORY_CONFIG: Record<string, { label: string; icon: LucideIcon; order: number }> = {
+	documents: { label: "Documents", icon: FileText, order: 1 },
+	chats: { label: "Chats", icon: MessageSquare, order: 2 },
+	comments: { label: "Comments", icon: MessageCircle, order: 3 },
+	llm_configs: { label: "LLM Configs", icon: Bot, order: 4 },
+	podcasts: { label: "Podcasts", icon: Mic, order: 5 },
+	connectors: { label: "Connectors", icon: Plug, order: 6 },
+	logs: { label: "Logs", icon: Logs, order: 7 },
+	members: { label: "Members", icon: Users, order: 8 },
+	roles: { label: "Roles", icon: Shield, order: 9 },
+	settings: { label: "Settings", icon: Settings, order: 10 },
+};
+
+const ACTION_LABELS: Record<string, string> = {
+	create: "Create",
+	read: "Read",
+	update: "Update",
+	delete: "Delete",
+	invite: "Invite",
+	view: "View",
+	remove: "Remove",
+	manage_roles: "Manage Roles",
+};
+
+function RolePermissionsDisplay({ permissions }: { permissions: string[] }) {
+	if (permissions.includes("*")) {
+		return (
+			<div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+				<div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0">
+					<Crown className="h-5 w-5 text-white" />
+				</div>
+				<div className="flex-1 min-w-0">
+					<p className="text-sm font-semibold">Full Access</p>
+					<p className="text-xs text-muted-foreground">All permissions granted</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Group permissions by category
+	const grouped: Record<string, string[]> = {};
+	for (const perm of permissions) {
+		const [category, action] = perm.split(":");
+		if (!grouped[category]) grouped[category] = [];
+		grouped[category].push(action);
+	}
+
+	// Sort categories by predefined order
+	const sortedCategories = Object.keys(grouped).sort((a, b) => {
+		const orderA = CATEGORY_CONFIG[a]?.order ?? 99;
+		const orderB = CATEGORY_CONFIG[b]?.order ?? 99;
+		return orderA - orderB;
+	});
+
+	const categoryCount = sortedCategories.length;
+
+	return (
+		<Dialog>
+			<DialogTrigger asChild>
+				<button
+					type="button"
+					className="w-full flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer text-left"
+				>
+					<div className="flex items-center gap-3">
+						<div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+							<ShieldCheck className="h-5 w-5 text-primary" />
+						</div>
+						<div>
+							<p className="text-sm font-semibold">{permissions.length} Permissions</p>
+							<p className="text-xs text-muted-foreground">
+								Across {categoryCount} {categoryCount === 1 ? "category" : "categories"}
+							</p>
+						</div>
+					</div>
+					<div className="text-xs text-muted-foreground">View details</div>
+				</button>
+			</DialogTrigger>
+			<DialogContent className="w-[92vw] max-w-md p-0 gap-0">
+				<DialogHeader className="p-4 md:p-5 border-b">
+					<DialogTitle className="flex items-center gap-2 text-base">
+						<ShieldCheck className="h-4 w-4 text-primary" />
+						Role Permissions
+					</DialogTitle>
+					<DialogDescription className="text-xs">
+						{permissions.length} permissions across {categoryCount} categories
+					</DialogDescription>
+				</DialogHeader>
+				<ScrollArea className="max-h-[55vh]">
+					<div className="divide-y divide-border/50">
+						{sortedCategories.map((category) => {
+							const actions = grouped[category];
+							const config = CATEGORY_CONFIG[category] || { label: category, icon: FileText };
+							const IconComponent = config.icon;
+							return (
+								<div
+									key={category}
+									className="flex items-center justify-between gap-3 px-4 md:px-5 py-2.5"
+								>
+									<div className="flex items-center gap-2 shrink-0">
+										<IconComponent className="h-3.5 w-3.5 text-muted-foreground" />
+										<span className="text-sm text-muted-foreground">{config.label}</span>
+									</div>
+									<div className="flex flex-wrap justify-end gap-1">
+										{actions.map((action) => (
+											<span
+												key={action}
+												className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-medium"
+											>
+												{ACTION_LABELS[action] || action.replace(/_/g, " ")}
+											</span>
+										))}
+									</div>
+								</div>
+							);
+						})}
+					</div>
+				</ScrollArea>
+			</DialogContent>
+		</Dialog>
+	);
+}
+
 // ============ Roles Tab ============
 
 function RolesTab({
 	roles,
-	groupedPermissions,
+	groupedPermissions: _groupedPermissions,
 	loading,
-	onUpdateRole,
+	onUpdateRole: _onUpdateRole,
 	onDeleteRole,
 	canUpdate,
 	canDelete,
@@ -778,8 +959,7 @@ function RolesTab({
 												role.name === "Owner" && "text-amber-600",
 												role.name === "Editor" && "text-blue-600",
 												role.name === "Viewer" && "text-gray-600",
-												!["Owner", "Editor", "Viewer"].includes(role.name) &&
-													"text-primary"
+												!["Owner", "Editor", "Viewer"].includes(role.name) && "text-primary"
 											)}
 										/>
 									</div>
@@ -853,32 +1033,7 @@ function RolesTab({
 							)}
 						</CardHeader>
 						<CardContent>
-							<div className="space-y-2">
-								<Label className="text-xs text-muted-foreground uppercase tracking-wide">
-									Permissions ({role.permissions.includes("*") ? "All" : role.permissions.length})
-								</Label>
-								<div className="flex flex-wrap gap-1">
-									{role.permissions.includes("*") ? (
-										<Badge
-											variant="default"
-											className="bg-gradient-to-r from-amber-500 to-orange-500"
-										>
-											Full Access
-										</Badge>
-									) : (
-										role.permissions.slice(0, 5).map((perm) => (
-											<Badge key={perm} variant="secondary" className="text-xs">
-												{perm.replace(":", " ")}
-											</Badge>
-										))
-									)}
-									{!role.permissions.includes("*") && role.permissions.length > 5 && (
-										<Badge variant="outline" className="text-xs">
-											+{role.permissions.length - 5} more
-										</Badge>
-									)}
-								</div>
-							</div>
+							<RolePermissionsDisplay permissions={role.permissions} />
 						</CardContent>
 					</Card>
 				</motion.div>
@@ -1488,7 +1643,8 @@ function CreateRoleDialog({
 							</div>
 						</div>
 						<p className="text-xs text-muted-foreground">
-							Use presets to quickly apply Editor (create/read/update) or Viewer (read-only) permissions
+							Use presets to quickly apply Editor (create/read/update) or Viewer (read-only)
+							permissions
 						</p>
 						<ScrollArea className="h-64 rounded-lg border p-4">
 							<div className="space-y-4">
@@ -1500,8 +1656,10 @@ function CreateRoleDialog({
 
 									return (
 										<div key={category} className="space-y-2">
-											<label
+											<button
+												type="button"
 												className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded w-full text-left"
+												onClick={() => toggleCategory(category)}
 											>
 												<Checkbox
 													checked={allSelected}
@@ -1510,19 +1668,21 @@ function CreateRoleDialog({
 												<span className="text-sm font-medium capitalize">
 													{category} ({categorySelected}/{perms.length})
 												</span>
-											</label>
+											</button>
 											<div className="grid grid-cols-2 gap-2 ml-6">
 												{perms.map((perm) => (
-													<label
+													<button
+														type="button"
 														key={perm.value}
 														className="flex items-center gap-2 cursor-pointer text-left"
+														onClick={() => togglePermission(perm.value)}
 													>
 														<Checkbox
 															checked={selectedPermissions.includes(perm.value)}
 															onCheckedChange={() => togglePermission(perm.value)}
 														/>
 														<span className="text-xs">{perm.value.split(":")[1]}</span>
-													</label>
+													</button>
 												))}
 											</div>
 										</div>

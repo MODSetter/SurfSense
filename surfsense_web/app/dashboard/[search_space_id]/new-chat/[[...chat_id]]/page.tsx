@@ -33,6 +33,7 @@ import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
+import { SaveMemoryToolUI, RecallMemoryToolUI } from "@/components/tool-ui/user-memory";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
@@ -408,7 +409,7 @@ export default function NewChatPage() {
 		initializeThread();
 	}, [initializeThread]);
 
-	// Handle scroll to comment from URL query params (e.g., from notification click)
+	// Handle scroll to comment from URL query params (e.g., from inbox item click)
 	const searchParams = useSearchParams();
 	const targetCommentId = searchParams.get("commentId");
 
@@ -1095,17 +1096,13 @@ export default function NewChatPage() {
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
+			<SaveMemoryToolUI />
+			<RecallMemoryToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
 				<Thread
 					messageThinkingSteps={messageThinkingSteps}
-					header={
-						<ChatHeader
-							searchSpaceId={searchSpaceId}
-							thread={currentThread}
-							onThreadVisibilityChange={handleVisibilityChange}
-						/>
-					}
+					header={<ChatHeader searchSpaceId={searchSpaceId} />}
 				/>
 			</div>
 		</AssistantRuntimeProvider>

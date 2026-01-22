@@ -1,7 +1,7 @@
 """Add chat_session_state table for live collaboration
 
-Revision ID: 73
-Revises: 72
+Revision ID: 75
+Revises: 74
 
 Creates chat_session_state table to track AI responding state per thread.
 Enables real-time sync via Electric SQL for shared chat collaboration.
@@ -11,8 +11,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "73"
-down_revision: str | None = "72"
+revision: str = "75"
+down_revision: str | None = "74"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

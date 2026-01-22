@@ -1,7 +1,7 @@
 """Add live collaboration tables to Electric SQL publication
 
-Revision ID: 74
-Revises: 73
+Revision ID: 76
+Revises: 75
 
 Enables real-time sync for live collaboration features:
 - new_chat_messages: Live message sync between users
@@ -15,8 +15,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "74"
-down_revision: str | None = "73"
+revision: str = "76"
+down_revision: str | None = "75"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

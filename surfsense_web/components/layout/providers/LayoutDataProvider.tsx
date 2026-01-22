@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { LogOut, Logs, SquareLibrary, Trash2 } from "lucide-react";
+import { Inbox, LogOut, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -19,6 +19,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { deleteThread, fetchThreads } from "@/lib/chat/thread-persistence";
 import { cleanupElectric } from "@/lib/electric/client";
@@ -29,19 +30,18 @@ import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { LayoutShell } from "../ui/shell";
 import { AllPrivateChatsSidebar } from "../ui/sidebar/AllPrivateChatsSidebar";
 import { AllSharedChatsSidebar } from "../ui/sidebar/AllSharedChatsSidebar";
+import { InboxSidebar } from "../ui/sidebar/InboxSidebar";
 
 interface LayoutDataProviderProps {
 	searchSpaceId: string;
 	children: React.ReactNode;
 	breadcrumb?: React.ReactNode;
-	languageSwitcher?: React.ReactNode;
 }
 
 export function LayoutDataProvider({
 	searchSpaceId,
 	children,
 	breadcrumb,
-	languageSwitcher,
 }: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
@@ -61,8 +61,8 @@ export function LayoutDataProvider({
 		? Number(Array.isArray(params.chat_id) ? params.chat_id[0] : params.chat_id)
 		: null;
 
-	// Fetch current search space
-	const { data: searchSpace } = useQuery({
+	// Fetch current search space (for caching purposes)
+	useQuery({
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: Number(searchSpaceId) }),
 		enabled: !!searchSpaceId,
@@ -79,8 +79,24 @@ export function LayoutDataProvider({
 	const [isAllSharedChatsSidebarOpen, setIsAllSharedChatsSidebarOpen] = useState(false);
 	const [isAllPrivateChatsSidebarOpen, setIsAllPrivateChatsSidebarOpen] = useState(false);
 
+	// Inbox sidebar state
+	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
+
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
+
+	// Inbox hook
+	const userId = user?.id ? String(user.id) : null;
+	const {
+		inboxItems,
+		unreadCount,
+		loading: inboxLoading,
+		loadingMore: inboxLoadingMore,
+		hasMore: inboxHasMore,
+		loadMore: inboxLoadMore,
+		markAsRead,
+		markAllAsRead,
+	} = useInbox(userId, Number(searchSpaceId) || null, null);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -151,14 +167,21 @@ export function LayoutDataProvider({
 				icon: SquareLibrary,
 				isActive: pathname?.includes("/documents"),
 			},
+			// {
+			// 	title: "Logs",
+			// 	url: `/dashboard/${searchSpaceId}/logs`,
+			// 	icon: Logs,
+			// 	isActive: pathname?.includes("/logs"),
+			// },
 			{
-				title: "Logs",
-				url: `/dashboard/${searchSpaceId}/logs`,
-				icon: Logs,
-				isActive: pathname?.includes("/logs"),
+				title: "Inbox",
+				url: "#inbox", // Special URL to indicate this is handled differently
+				icon: Inbox,
+				isActive: isInboxSidebarOpen,
+				badge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
 			},
 		],
-		[searchSpaceId, pathname]
+		[searchSpaceId, pathname, isInboxSidebarOpen, unreadCount]
 	);
 
 	// Handlers
@@ -250,6 +273,11 @@ export function LayoutDataProvider({
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
+			// Handle inbox specially - open sidebar instead of navigating
+			if (item.url === "#inbox") {
+				setIsInboxSidebarOpen(true);
+				return;
+			}
 			router.push(item.url);
 		},
 		[router]
@@ -301,10 +329,6 @@ export function LayoutDataProvider({
 			router.push("/");
 		}
 	}, [router]);
-
-	const handleToggleTheme = useCallback(() => {
-		setTheme(theme === "dark" ? "light" : "dark");
-	}, [theme, setTheme]);
 
 	const handleViewAllSharedChats = useCallback(() => {
 		setIsAllSharedChatsSidebarOpen(true);
@@ -375,9 +399,8 @@ export function LayoutDataProvider({
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
 				breadcrumb={breadcrumb}
-				languageSwitcher={languageSwitcher}
 				theme={theme}
-				onToggleTheme={handleToggleTheme}
+				setTheme={setTheme}
 				isChatPage={isChatPage}
 			>
 				{children}
@@ -522,6 +545,20 @@ export function LayoutDataProvider({
 				open={isAllPrivateChatsSidebarOpen}
 				onOpenChange={setIsAllPrivateChatsSidebarOpen}
 				searchSpaceId={searchSpaceId}
+			/>
+
+			{/* Inbox Sidebar */}
+			<InboxSidebar
+				open={isInboxSidebarOpen}
+				onOpenChange={setIsInboxSidebarOpen}
+				inboxItems={inboxItems}
+				unreadCount={unreadCount}
+				loading={inboxLoading}
+				loadingMore={inboxLoadingMore}
+				hasMore={inboxHasMore}
+				loadMore={inboxLoadMore}
+				markAsRead={markAsRead}
+				markAllAsRead={markAllAsRead}
 			/>
 
 			{/* Create Search Space Dialog */}

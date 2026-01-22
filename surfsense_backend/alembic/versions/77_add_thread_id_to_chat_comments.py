@@ -3,16 +3,16 @@
 This denormalization allows a single Electric SQL subscription per thread
 instead of one per message, significantly reducing connection overhead.
 
-Revision ID: 75
-Revises: 74
+Revision ID: 77
+Revises: 76
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "75"
-down_revision: str | None = "74"
+revision: str = "77"
+down_revision: str | None = "76"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
