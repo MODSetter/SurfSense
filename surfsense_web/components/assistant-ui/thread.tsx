@@ -62,6 +62,7 @@ import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
 import { useChatSessionState } from "@/hooks/use-chat-session-state";
+import { useCommentsElectric } from "@/hooks/use-comments-electric";
 import { cn } from "@/lib/utils";
 
 interface ThreadProps {
@@ -237,6 +238,9 @@ const Composer: FC = () => {
 	}, [chat_id]);
 	const { isAiResponding, respondingToUserId } = useChatSessionState(threadId);
 	const isBlockedByOtherUser = isAiResponding && respondingToUserId !== currentUser?.id;
+
+	// Sync comments for the entire thread via Electric SQL (one subscription per thread)
+	useCommentsElectric(threadId);
 
 	// Auto-focus editor on new chat page after mount
 	useEffect(() => {
