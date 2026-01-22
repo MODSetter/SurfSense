@@ -83,12 +83,8 @@ class NotificationsApiService {
 	 * Mark all notifications as read
 	 */
 	markAllAsRead = async (): Promise<MarkAllNotificationsReadResponse> => {
-		return baseApiService.patch(
-			"/api/v1/notifications/read-all",
-			markAllNotificationsReadResponse
-		);
+		return baseApiService.patch("/api/v1/notifications/read-all", markAllNotificationsReadResponse);
 	};
 }
 
 export const notificationsApiService = new NotificationsApiService();
-
