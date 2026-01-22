@@ -1140,7 +1140,7 @@ async def _run_indexing_with_notifications(
                 f"Indexing completed successfully: {documents_processed} documents processed"
             )
 
-            # Update notification on success
+            # Update notification on success (or partial success with errors)
             if notification:
                 # Refresh notification to ensure it's not stale after timestamp update commit
                 await session.refresh(notification)
@@ -1148,7 +1148,7 @@ async def _run_indexing_with_notifications(
                     session=session,
                     notification=notification,
                     indexed_count=documents_processed,
-                    error_message=None,
+                    error_message=error_or_warning,  # Show errors even if some documents were indexed
                 )
                 await session.commit()  # Commit to ensure Electric SQL syncs the notification update
         elif documents_processed > 0:
@@ -1172,7 +1172,7 @@ async def _run_indexing_with_notifications(
                     session=session,
                     notification=notification,
                     indexed_count=documents_processed,
-                    error_message=None,
+                    error_message=error_or_warning,  # Show errors even if some documents were indexed
                 )
                 await session.commit()  # Commit to ensure Electric SQL syncs the notification update
         else:

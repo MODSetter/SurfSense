@@ -458,11 +458,76 @@ class ComposioService:
             if not result.get("success"):
                 return None, result.get("error", "Unknown error")
 
-            content = result.get("data")
-            if isinstance(content, str):
-                content = content.encode("utf-8")
-
-            return content, None
+            data = result.get("data")
+            
+            # Composio GOOGLEDRIVE_DOWNLOAD_FILE returns a dict with file info
+            # The actual content is in "downloaded_file_content" field
+            if isinstance(data, dict):
+                # Try known Composio response fields in order of preference
+                content = None
+                
+                # Primary field from GOOGLEDRIVE_DOWNLOAD_FILE
+                if "downloaded_file_content" in data:
+                    content = data["downloaded_file_content"]
+                    # downloaded_file_content might itself be a dict with the actual content inside
+                    if isinstance(content, dict):
+                        # Try to extract actual content from nested dict
+                        # Note: Composio nests downloaded_file_content inside another downloaded_file_content
+                        actual_content = (
+                            content.get("downloaded_file_content") or
+                            content.get("content") or 
+                            content.get("data") or 
+                            content.get("file_content") or
+                            content.get("body") or
+                            content.get("text")
+                        )
+                        if actual_content is not None:
+                            content = actual_content
+                        else:
+                            # Log structure for debugging
+                            logger.warning(f"downloaded_file_content is dict with keys: {list(content.keys())}")
+                            return None, f"Cannot extract content from downloaded_file_content. Keys: {list(content.keys())}"
+                # Fallback fields for compatibility
+                elif "content" in data:
+                    content = data["content"]
+                elif "file_content" in data:
+                    content = data["file_content"]
+                elif "data" in data:
+                    content = data["data"]
+                
+                if content is None:
+                    # Log available keys for debugging
+                    logger.warning(f"Composio response dict keys: {list(data.keys())}")
+                    return None, f"No file content found in Composio response. Available keys: {list(data.keys())}"
+                
+                # Convert content to bytes
+                if isinstance(content, str):
+                    # Check if it's base64 encoded
+                    import base64
+                    try:
+                        # Try to decode as base64 first
+                        content = base64.b64decode(content)
+                    except Exception:
+                        # If not base64, encode as UTF-8
+                        content = content.encode("utf-8")
+                elif isinstance(content, bytes):
+                    pass  # Already bytes
+                elif isinstance(content, dict):
+                    # Still a dict after all extraction attempts - log structure
+                    logger.warning(f"Content still dict after extraction: {list(content.keys())}")
+                    return None, f"Unexpected nested content structure: {list(content.keys())}"
+                else:
+                    return None, f"Unexpected content type in Composio response: {type(content).__name__}"
+                    
+                return content, None
+            elif isinstance(data, str):
+                return data.encode("utf-8"), None
+            elif isinstance(data, bytes):
+                return data, None
+            elif data is None:
+                return None, "No data returned from Composio"
+            else:
+                return None, f"Unexpected data type from Composio: {type(data).__name__}"
 
         except Exception as e:
             logger.error(f"Failed to get Drive file content: {e!s}")
