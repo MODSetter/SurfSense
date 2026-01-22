@@ -24,6 +24,7 @@ import {
 	// extractWriteTodosFromContent,
 	hydratePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
+import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
@@ -49,6 +50,8 @@ import {
 	type MessageRecord,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
+import { useChatSessionState } from "@/hooks/use-chat-session-state";
+import { useMessagesElectric } from "@/hooks/use-messages-electric";
 import {
 	trackChatCreated,
 	trackChatError,
@@ -256,6 +259,59 @@ export default function NewChatPage() {
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
+
+	// Live collaboration: sync messages from other users via Electric SQL
+	const { isAiResponding, respondingToUserId } = useChatSessionState(threadId);
+	const { data: membersData } = useAtomValue(membersAtom);
+
+	const handleElectricMessagesUpdate = useCallback(
+		(electricMessages: { id: number; thread_id: number; role: string; content: unknown; author_id: string | null; created_at: string }[]) => {
+			// Skip sync while AI is responding to us or during local streaming
+			if ((isAiResponding && respondingToUserId === currentUser?.id) || isRunning) {
+				return;
+			}
+
+			setMessages((prev) => {
+				const existingIds = new Set(
+					prev.map((m) => {
+						const match = String(m.id).match(/^msg-(\d+)$/);
+						return match ? Number.parseInt(match[1], 10) : null;
+					}).filter((id): id is number => id !== null)
+				);
+
+				const newConverted: ReturnType<typeof convertToThreadMessage>[] = [];
+				for (const msg of electricMessages) {
+					if (existingIds.has(msg.id)) continue;
+
+					const member = msg.author_id
+						? membersData?.find((m) => m.user_id === msg.author_id)
+						: null;
+
+					newConverted.push(
+						convertToThreadMessage({
+							id: msg.id,
+							thread_id: msg.thread_id,
+							role: msg.role.toLowerCase() as "user" | "assistant" | "system",
+							content: msg.content,
+							author_id: msg.author_id,
+							created_at: msg.created_at,
+							author_display_name: member?.user_display_name ?? null,
+							author_avatar_url: member?.user_avatar_url ?? null,
+						})
+					);
+				}
+
+				if (newConverted.length === 0) {
+					return prev;
+				}
+
+				return [...prev, ...newConverted];
+			});
+		},
+		[isAiResponding, respondingToUserId, currentUser?.id, isRunning, membersData]
+	);
+
+	useMessagesElectric(threadId, handleElectricMessagesUpdate);
 
 	// Create the attachment adapter for file processing
 	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
