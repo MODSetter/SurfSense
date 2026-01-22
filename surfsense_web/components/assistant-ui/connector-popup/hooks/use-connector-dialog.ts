@@ -1130,8 +1130,12 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
-			// Prevent periodic indexing for Google Drive without folders/files selected
-			if (periodicEnabled && editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
+			// Prevent periodic indexing for Google Drive (regular or Composio) without folders/files selected
+			if (
+				periodicEnabled &&
+				(editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR")
+			) {
 				const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
 					| Array<{ id: string; name: string }>
 					| undefined;

@@ -8,6 +8,7 @@ Endpoints:
 - GET /composio/toolkits - List available Composio toolkits
 - GET /auth/composio/connector/add - Initiate OAuth for a specific toolkit
 - GET /auth/composio/connector/callback - Handle OAuth callback
+- GET /connectors/{connector_id}/composio-drive/folders - List folders/files for Composio Google Drive
 """
 
 import asyncio
@@ -368,4 +369,125 @@ async def composio_callback(
         logger.error(f"Unexpected error in Composio callback: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Composio OAuth: {e!s}"
+        ) from e
+
+
+@router.get("/connectors/{connector_id}/composio-drive/folders")
+async def list_composio_drive_folders(
+    connector_id: int,
+    parent_id: str | None = None,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    List folders AND files in user's Google Drive via Composio with hierarchical support.
+
+    This is called at index time from the manage connector page to display
+    the complete file system (folders and files). Only folders are selectable.
+
+    Args:
+        connector_id: ID of the Composio Google Drive connector
+        parent_id: Optional parent folder ID to list contents (None for root)
+
+    Returns:
+        JSON with list of items: {
+            "items": [
+                {"id": str, "name": str, "mimeType": str, "isFolder": bool, ...},
+                ...
+            ]
+        }
+    """
+    if not ComposioService.is_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Composio integration is not enabled.",
+        )
+
+    try:
+        # Get connector and verify ownership
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Composio Google Drive connector not found or access denied",
+            )
+
+        # Get Composio connected account ID from config
+        composio_connected_account_id = connector.config.get("composio_connected_account_id")
+        if not composio_connected_account_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Composio connected account not found. Please reconnect the connector.",
+            )
+
+        # Initialize Composio service and fetch files
+        service = ComposioService()
+        entity_id = f"surfsense_{user.id}"
+
+        # Fetch files/folders from Composio Google Drive
+        files, next_token, error = await service.get_drive_files(
+            connected_account_id=composio_connected_account_id,
+            entity_id=entity_id,
+            folder_id=parent_id,
+            page_size=100,
+        )
+
+        if error:
+            logger.error(f"Failed to list Composio Drive files: {error}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to list folder contents: {error}"
+            )
+
+        # Transform files to match the expected format with isFolder field
+        items = []
+        for file_info in files:
+            file_id = file_info.get("id", "") or file_info.get("fileId", "")
+            file_name = file_info.get("name", "") or file_info.get("fileName", "") or "Untitled"
+            mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
+            
+            if not file_id:
+                continue
+
+            is_folder = mime_type == "application/vnd.google-apps.folder"
+            
+            items.append({
+                "id": file_id,
+                "name": file_name,
+                "mimeType": mime_type,
+                "isFolder": is_folder,
+                "parents": file_info.get("parents", []),
+                "size": file_info.get("size"),
+                "iconLink": file_info.get("iconLink"),
+            })
+
+        # Sort: folders first, then files, both alphabetically
+        folders = sorted([item for item in items if item["isFolder"]], key=lambda x: x["name"].lower())
+        files_list = sorted([item for item in items if not item["isFolder"]], key=lambda x: x["name"].lower())
+        items = folders + files_list
+
+        folder_count = len(folders)
+        file_count = len(files_list)
+
+        logger.info(
+            f"✅ Listed {len(items)} total items ({folder_count} folders, {file_count} files) for Composio connector {connector_id}"
+            + (f" in folder {parent_id}" if parent_id else " in ROOT")
+        )
+
+        return {"items": items}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing Composio Drive contents: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list Drive contents: {e!s}"
         ) from e

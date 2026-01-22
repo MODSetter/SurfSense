@@ -397,7 +397,11 @@ class ComposioService:
                 "page_size": min(page_size, 100),
             }
             if folder_id:
-                params["folder_id"] = folder_id
+                # List contents of a specific folder (exclude shortcuts - we don't have access to them)
+                params["q"] = f"'{folder_id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.shortcut'"
+            else:
+                # List root-level items only (My Drive root), exclude shortcuts
+                params["q"] = "'root' in parents and trashed = false and mimeType != 'application/vnd.google-apps.shortcut'"
             if page_token:
                 params["page_token"] = page_token
 

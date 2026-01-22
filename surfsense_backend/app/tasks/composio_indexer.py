@@ -252,37 +252,123 @@ async def _index_composio_google_drive(
     update_last_indexed: bool = True,
     max_items: int = 1000,
 ) -> tuple[int, str]:
-    """Index Google Drive files via Composio."""
+    """Index Google Drive files via Composio.
+    
+    Supports folder/file selection via connector config:
+    - selected_folders: List of {id, name} for folders to index
+    - selected_files: List of {id, name} for individual files to index
+    - indexing_options: {max_files_per_folder, incremental_sync, include_subfolders}
+    """
     try:
         composio_connector = ComposioConnector(session, connector_id)
+        connector_config = await composio_connector.get_config()
+
+        # Get folder/file selection configuration
+        selected_folders = connector_config.get("selected_folders", [])
+        selected_files = connector_config.get("selected_files", [])
+        indexing_options = connector_config.get("indexing_options", {})
+        
+        max_files_per_folder = indexing_options.get("max_files_per_folder", 100)
+        include_subfolders = indexing_options.get("include_subfolders", True)
 
         await task_logger.log_task_progress(
             log_entry,
             f"Fetching Google Drive files via Composio for connector {connector_id}",
-            {"stage": "fetching_files"},
+            {"stage": "fetching_files", "selected_folders": len(selected_folders), "selected_files": len(selected_files)},
         )
 
-        # Fetch files
         all_files = []
-        page_token = None
 
-        while len(all_files) < max_items:
-            files, next_token, error = await composio_connector.list_drive_files(
-                page_token=page_token,
-                page_size=min(100, max_items - len(all_files)),
-            )
+        # If specific folders/files are selected, fetch from those
+        if selected_folders or selected_files:
+            # Fetch files from selected folders
+            for folder in selected_folders:
+                folder_id = folder.get("id")
+                folder_name = folder.get("name", "Unknown")
+                
+                if not folder_id:
+                    continue
+                
+                # Handle special case for "root" folder
+                actual_folder_id = None if folder_id == "root" else folder_id
+                
+                logger.info(f"Fetching files from folder: {folder_name} ({folder_id})")
+                
+                # Fetch files from this folder
+                folder_files = []
+                page_token = None
+                
+                while len(folder_files) < max_files_per_folder:
+                    files, next_token, error = await composio_connector.list_drive_files(
+                        folder_id=actual_folder_id,
+                        page_token=page_token,
+                        page_size=min(100, max_files_per_folder - len(folder_files)),
+                    )
 
-            if error:
-                await task_logger.log_task_failure(
-                    log_entry, f"Failed to fetch Drive files: {error}", {}
+                    if error:
+                        logger.warning(f"Failed to fetch files from folder {folder_name}: {error}")
+                        break
+
+                    # Process files
+                    for file_info in files:
+                        mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
+                        
+                        # If it's a folder and include_subfolders is enabled, recursively fetch
+                        if mime_type == "application/vnd.google-apps.folder":
+                            if include_subfolders:
+                                # Add subfolder files recursively
+                                subfolder_files = await _fetch_folder_files_recursively(
+                                    composio_connector,
+                                    file_info.get("id"),
+                                    max_files=max_files_per_folder,
+                                    current_count=len(folder_files),
+                                )
+                                folder_files.extend(subfolder_files)
+                        else:
+                            folder_files.append(file_info)
+
+                    if not next_token:
+                        break
+                    page_token = next_token
+                
+                all_files.extend(folder_files[:max_files_per_folder])
+                logger.info(f"Found {len(folder_files)} files in folder {folder_name}")
+
+            # Add specifically selected files
+            for selected_file in selected_files:
+                file_id = selected_file.get("id")
+                file_name = selected_file.get("name", "Unknown")
+                
+                if not file_id:
+                    continue
+                
+                # Add file info (we'll fetch content later during indexing)
+                all_files.append({
+                    "id": file_id,
+                    "name": file_name,
+                    "mimeType": "",  # Will be determined later
+                })
+        else:
+            # No selection specified - fetch all files (original behavior)
+            page_token = None
+
+            while len(all_files) < max_items:
+                files, next_token, error = await composio_connector.list_drive_files(
+                    page_token=page_token,
+                    page_size=min(100, max_items - len(all_files)),
                 )
-                return 0, f"Failed to fetch Drive files: {error}"
 
-            all_files.extend(files)
+                if error:
+                    await task_logger.log_task_failure(
+                        log_entry, f"Failed to fetch Drive files: {error}", {}
+                    )
+                    return 0, f"Failed to fetch Drive files: {error}"
 
-            if not next_token:
-                break
-            page_token = next_token
+                all_files.extend(files)
+
+                if not next_token:
+                    break
+                page_token = next_token
 
         if not all_files:
             success_msg = "No Google Drive files found"
@@ -477,6 +563,81 @@ async def _index_composio_google_drive(
     except Exception as e:
         logger.error(f"Failed to index Google Drive via Composio: {e!s}", exc_info=True)
         return 0, f"Failed to index Google Drive via Composio: {e!s}"
+
+
+async def _fetch_folder_files_recursively(
+    composio_connector: ComposioConnector,
+    folder_id: str,
+    max_files: int = 100,
+    current_count: int = 0,
+    depth: int = 0,
+    max_depth: int = 10,
+) -> list[dict[str, Any]]:
+    """
+    Recursively fetch files from a Google Drive folder via Composio.
+    
+    Args:
+        composio_connector: The Composio connector instance
+        folder_id: Google Drive folder ID
+        max_files: Maximum number of files to fetch
+        current_count: Current number of files already fetched
+        depth: Current recursion depth
+        max_depth: Maximum recursion depth to prevent infinite loops
+    
+    Returns:
+        List of file info dictionaries
+    """
+    if depth >= max_depth:
+        logger.warning(f"Max recursion depth reached for folder {folder_id}")
+        return []
+    
+    if current_count >= max_files:
+        return []
+    
+    all_files = []
+    page_token = None
+    
+    try:
+        while len(all_files) + current_count < max_files:
+            files, next_token, error = await composio_connector.list_drive_files(
+                folder_id=folder_id,
+                page_token=page_token,
+                page_size=min(100, max_files - len(all_files) - current_count),
+            )
+            
+            if error:
+                logger.warning(f"Error fetching files from subfolder {folder_id}: {error}")
+                break
+            
+            for file_info in files:
+                mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
+                
+                if mime_type == "application/vnd.google-apps.folder":
+                    # Recursively fetch from subfolders
+                    subfolder_files = await _fetch_folder_files_recursively(
+                        composio_connector,
+                        file_info.get("id"),
+                        max_files=max_files,
+                        current_count=current_count + len(all_files),
+                        depth=depth + 1,
+                        max_depth=max_depth,
+                    )
+                    all_files.extend(subfolder_files)
+                else:
+                    all_files.append(file_info)
+                
+                if len(all_files) + current_count >= max_files:
+                    break
+            
+            if not next_token:
+                break
+            page_token = next_token
+        
+        return all_files[:max_files - current_count]
+    
+    except Exception as e:
+        logger.error(f"Error in recursive folder fetch: {e!s}")
+        return all_files
 
 
 async def _process_gmail_message_batch(

@@ -224,8 +224,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 								{/* Periodic sync - shown for all indexable connectors */}
 								{(() => {
-									// Check if Google Drive has folders/files selected
+									// Check if Google Drive (regular or Composio) has folders/files selected
 									const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+									const isComposioGoogleDrive =
+										connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
+									const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
 									const selectedFolders =
 										(connector.config?.selected_folders as
 											| Array<{ id: string; name: string }>
@@ -235,7 +238,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 											| Array<{ id: string; name: string }>
 											| undefined) || [];
 									const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
-									const isDisabled = isGoogleDrive && !hasItemsSelected;
+									const isDisabled = requiresFolderSelection && !hasItemsSelected;
 
 									return (
 										<PeriodicSyncConfig

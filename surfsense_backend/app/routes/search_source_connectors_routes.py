@@ -897,8 +897,46 @@ async def index_connector_content(
             )
             response_message = "Web page indexing started in the background."
 
+        elif connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_composio_connector_task,
+            )
+
+            # For Composio Google Drive, if drive_items is provided, update connector config
+            # This allows the UI to pass folder/file selection like the regular Google Drive connector
+            if drive_items and drive_items.has_items():
+                # Update connector config with the selected folders/files
+                config = connector.config or {}
+                config["selected_folders"] = [{"id": f.id, "name": f.name} for f in drive_items.folders]
+                config["selected_files"] = [{"id": f.id, "name": f.name} for f in drive_items.files]
+                if drive_items.indexing_options:
+                    config["indexing_options"] = {
+                        "max_files_per_folder": drive_items.indexing_options.max_files_per_folder,
+                        "incremental_sync": drive_items.indexing_options.incremental_sync,
+                        "include_subfolders": drive_items.indexing_options.include_subfolders,
+                    }
+                connector.config = config
+                from sqlalchemy.orm.attributes import flag_modified
+                flag_modified(connector, "config")
+                await session.commit()
+                await session.refresh(connector)
+
+                logger.info(
+                    f"Triggering Composio Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
+                )
+            else:
+                logger.info(
+                    f"Triggering Composio Google Drive indexing for connector {connector_id} into search space {search_space_id} "
+                    f"using existing config (from {indexing_from} to {indexing_to})"
+                )
+
+            index_composio_connector_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = "Composio Google Drive indexing started in the background."
+
         elif connector.connector_type in [
-            SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
             SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
             SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
         ]:
