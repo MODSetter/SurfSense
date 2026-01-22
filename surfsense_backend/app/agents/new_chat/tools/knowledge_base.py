@@ -607,6 +607,7 @@ def create_search_knowledge_base_tool(
         - WEBCRAWLER_CONNECTOR: "Webpages indexed by SurfSense" (personally selected websites)
         - BOOKSTACK_CONNECTOR: "BookStack pages" (personal documentation)
         - CIRCLEBACK: "Circleback meeting notes, transcripts, and action items" (personal meeting records)
+        - OBSIDIAN_CONNECTOR: "Obsidian vault notes and markdown files" (personal notes and knowledge management)
 
         NOTE: `WEBCRAWLER_CONNECTOR` is mapped internally to the canonical document type `CRAWLED_URL`.
 
