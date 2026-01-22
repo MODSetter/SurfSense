@@ -50,7 +50,6 @@ import {
 	type MessageRecord,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
-import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
 import {
@@ -263,56 +262,38 @@ export default function NewChatPage() {
 
 	// Live collaboration: sync session state and messages via Electric SQL
 	useChatSessionStateSync(threadId);
-	const sessionState = useAtomValue(chatSessionStateAtom);
-	const isAiResponding = sessionState?.isAiResponding ?? false;
-	const respondingToUserId = sessionState?.respondingToUserId ?? null;
 	const { data: membersData } = useAtomValue(membersAtom);
 
 	const handleElectricMessagesUpdate = useCallback(
 		(electricMessages: { id: number; thread_id: number; role: string; content: unknown; author_id: string | null; created_at: string }[]) => {
-			// Skip sync while AI is responding to us or during local streaming
-			if ((isAiResponding && respondingToUserId === currentUser?.id) || isRunning) {
+			if (isRunning) {
 				return;
 			}
 
 			setMessages((prev) => {
-				const existingIds = new Set(
-					prev.map((m) => {
-						const match = String(m.id).match(/^msg-(\d+)$/);
-						return match ? Number.parseInt(match[1], 10) : null;
-					}).filter((id): id is number => id !== null)
-				);
+				if (electricMessages.length < prev.length) {
+					return prev;
+				}
 
-				const newConverted: ReturnType<typeof convertToThreadMessage>[] = [];
-				for (const msg of electricMessages) {
-					if (existingIds.has(msg.id)) continue;
-
+				return electricMessages.map((msg) => {
 					const member = msg.author_id
 						? membersData?.find((m) => m.user_id === msg.author_id)
 						: null;
 
-					newConverted.push(
-						convertToThreadMessage({
-							id: msg.id,
-							thread_id: msg.thread_id,
-							role: msg.role.toLowerCase() as "user" | "assistant" | "system",
-							content: msg.content,
-							author_id: msg.author_id,
-							created_at: msg.created_at,
-							author_display_name: member?.user_display_name ?? null,
-							author_avatar_url: member?.user_avatar_url ?? null,
-						})
-					);
-				}
-
-				if (newConverted.length === 0) {
-					return prev;
-				}
-
-				return [...prev, ...newConverted];
+					return convertToThreadMessage({
+						id: msg.id,
+						thread_id: msg.thread_id,
+						role: msg.role.toLowerCase() as "user" | "assistant" | "system",
+						content: msg.content,
+						author_id: msg.author_id,
+						created_at: msg.created_at,
+						author_display_name: member?.user_display_name ?? null,
+						author_avatar_url: member?.user_avatar_url ?? null,
+					});
+				});
 			});
 		},
-		[isAiResponding, respondingToUserId, currentUser?.id, isRunning, membersData]
+		[isRunning, membersData]
 	);
 
 	useMessagesElectric(threadId, handleElectricMessagesUpdate);
@@ -646,8 +627,6 @@ export default function NewChatPage() {
 				content: persistContent,
 			})
 				.then(() => {
-					// For new threads, the backend updates the title from the first user message
-					// Invalidate threads query so sidebar shows the updated title in real-time
 					if (isNewThread) {
 						queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
 					}
