@@ -5,6 +5,7 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { BaiduSearchApiConfig } from "./components/baidu-search-api-config";
 import { BookStackConfig } from "./components/bookstack-config";
 import { CirclebackConfig } from "./components/circleback-config";
+import { ComposioConfig } from "./components/composio-config";
 import { ClickUpConfig } from "./components/clickup-config";
 import { ConfluenceConfig } from "./components/confluence-config";
 import { DiscordConfig } from "./components/discord-config";
@@ -73,6 +74,8 @@ export function getConnectorConfigComponent(
 			return CirclebackConfig;
 		case "MCP_CONNECTOR":
 			return MCPConfig;
+		case "COMPOSIO_CONNECTOR":
+			return ComposioConfig;
 		// OAuth connectors (Gmail, Calendar, Airtable, Notion) and others don't need special config UI
 		default:
 			return null;

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+  <rect width="24" height="24" rx="6" fill="url(#composio-gradient)"/>
+  <path d="M12 6L17 9V15L12 18L7 15V9L12 6Z" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+  <path d="M12 6V12M12 12L17 9M12 12L7 9M12 12V18" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="12" cy="12" r="2" fill="white"/>
+  <defs>
+    <linearGradient id="composio-gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#8B5CF6"/>
+      <stop offset="1" stop-color="#A855F7"/>
+    </linearGradient>
+  </defs>
+</svg>

@@ -6,6 +6,7 @@ from .airtable_add_connector_route import (
 from .chat_comments_routes import router as chat_comments_router
 from .circleback_webhook_route import router as circleback_webhook_router
 from .clickup_add_connector_route import router as clickup_add_connector_router
+from .composio_routes import router as composio_router
 from .confluence_add_connector_route import router as confluence_add_connector_router
 from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
@@ -65,3 +66,4 @@ router.include_router(logs_router)
 router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
 router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
 router.include_router(notifications_router)  # Notifications with Electric SQL sync
+router.include_router(composio_router)  # Composio OAuth and toolkit management

@@ -759,3 +759,45 @@ async def _index_bookstack_pages(
         await run_bookstack_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )
+
+
+@celery_app.task(name="index_composio_connector", bind=True)
+def index_composio_connector_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index Composio connector content (Google Drive, Gmail, Calendar via Composio)."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_composio_connector(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_composio_connector(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index Composio connector content with new session."""
+    # Import from tasks folder (not connector_indexers) to avoid circular import
+    from app.tasks.composio_indexer import index_composio_connector
+
+    async with get_celery_session_maker()() as session:
+        await index_composio_connector(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )

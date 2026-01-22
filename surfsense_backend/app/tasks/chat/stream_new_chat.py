@@ -149,6 +149,7 @@ async def stream_new_chat(
     search_space_id: int,
     chat_id: int,
     session: AsyncSession,
+    user_id: str | None = None,
     llm_config_id: int = -1,
     attachments: list[ChatAttachment] | None = None,
     mentioned_document_ids: list[int] | None = None,
@@ -166,6 +167,7 @@ async def stream_new_chat(
         search_space_id: The search space ID
         chat_id: The chat ID (used as LangGraph thread_id for memory)
         session: The database session
+        user_id: The current user's UUID string (for memory tools)
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
         messages: Optional chat history from frontend (list of ChatMessage)
         attachments: Optional attachments with extracted content
@@ -243,6 +245,7 @@ async def stream_new_chat(
             db_session=session,
             connector_service=connector_service,
             checkpointer=checkpointer,
+            user_id=user_id,  # Pass user ID for memory tools
             agent_config=agent_config,  # Pass prompt configuration
             firecrawl_api_key=firecrawl_api_key,  # Pass Firecrawl API key if configured
         )
