@@ -87,20 +87,16 @@ export function LayoutDataProvider({
 
 	// Inbox hook
 	const userId = user?.id ? String(user.id) : null;
-	const { 
-		inboxItems, 
-		unreadCount, 
-		loading: inboxLoading, 
+	const {
+		inboxItems,
+		unreadCount,
+		loading: inboxLoading,
 		loadingMore: inboxLoadingMore,
 		hasMore: inboxHasMore,
 		loadMore: inboxLoadMore,
-		markAsRead, 
-		markAllAsRead 
-	} = useInbox(
-		userId,
-		Number(searchSpaceId) || null,
-		null
-	);
+		markAsRead,
+		markAllAsRead,
+	} = useInbox(userId, Number(searchSpaceId) || null, null);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);

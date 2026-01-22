@@ -711,12 +711,9 @@ function MembersTab({
 												</SelectContent>
 											</Select>
 										) : (
-										<Badge
-											variant="secondary"
-											className="text-[10px] md:text-xs py-0 md:py-0.5"
-										>
-											{member.role?.name || "No role"}
-										</Badge>
+											<Badge variant="secondary" className="text-[10px] md:text-xs py-0 md:py-0.5">
+												{member.role?.name || "No role"}
+											</Badge>
 										)}
 									</TableCell>
 									<TableCell className="hidden md:table-cell">

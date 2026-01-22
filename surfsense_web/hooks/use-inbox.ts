@@ -190,9 +190,7 @@ export function useInbox(
 					ORDER BY created_at DESC
 					LIMIT ${PAGE_SIZE}`;
 
-				const params = typeFilter
-					? [userId, searchSpaceId, typeFilter]
-					: [userId, searchSpaceId];
+				const params = typeFilter ? [userId, searchSpaceId, typeFilter] : [userId, searchSpaceId];
 
 				const db = client.db as any;
 
@@ -310,10 +308,7 @@ export function useInbox(
 					AND read = false
 					AND created_at > '${cutoff}'`;
 
-				const result = await client.db.query<{ count: number }>(query, [
-					userId,
-					searchSpaceId,
-				]);
+				const result = await client.db.query<{ count: number }>(query, [userId, searchSpaceId]);
 				if (mounted && result.rows?.[0]) {
 					setTotalUnreadCount(Number(result.rows[0].count) || 0);
 				}
