@@ -184,6 +184,22 @@ export const markAllNotificationsReadResponse = z.object({
 	updated_count: z.number(),
 });
 
+/**
+ * Request schema for getting unread count
+ */
+export const getUnreadCountRequest = z.object({
+	search_space_id: z.number().optional(),
+});
+
+/**
+ * Response schema for unread count
+ * Returns both total and recent counts for split tracking
+ */
+export const getUnreadCountResponse = z.object({
+	total_unread: z.number(),
+	recent_unread: z.number(), // Within SYNC_WINDOW_DAYS (14 days)
+});
+
 // =============================================================================
 // Type Guards for Metadata
 // =============================================================================
@@ -261,3 +277,5 @@ export type GetNotificationsResponse = z.infer<typeof getNotificationsResponse>;
 export type MarkNotificationReadRequest = z.infer<typeof markNotificationReadRequest>;
 export type MarkNotificationReadResponse = z.infer<typeof markNotificationReadResponse>;
 export type MarkAllNotificationsReadResponse = z.infer<typeof markAllNotificationsReadResponse>;
+export type GetUnreadCountRequest = z.infer<typeof getUnreadCountRequest>;
+export type GetUnreadCountResponse = z.infer<typeof getUnreadCountResponse>;

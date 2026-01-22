@@ -1,11 +1,13 @@
 import {
 	type GetNotificationsRequest,
 	type GetNotificationsResponse,
+	type GetUnreadCountResponse,
 	type MarkAllNotificationsReadResponse,
 	type MarkNotificationReadRequest,
 	type MarkNotificationReadResponse,
 	getNotificationsRequest,
 	getNotificationsResponse,
+	getUnreadCountResponse,
 	markAllNotificationsReadResponse,
 	markNotificationReadRequest,
 	markNotificationReadResponse,
@@ -84,6 +86,24 @@ class NotificationsApiService {
 	 */
 	markAllAsRead = async (): Promise<MarkAllNotificationsReadResponse> => {
 		return baseApiService.patch("/api/v1/notifications/read-all", markAllNotificationsReadResponse);
+	};
+
+	/**
+	 * Get unread notification count with split between total and recent
+	 * - total_unread: All unread notifications
+	 * - recent_unread: Unread within sync window (last 14 days)
+	 */
+	getUnreadCount = async (searchSpaceId?: number): Promise<GetUnreadCountResponse> => {
+		const params = new URLSearchParams();
+		if (searchSpaceId !== undefined) {
+			params.append("search_space_id", String(searchSpaceId));
+		}
+		const queryString = params.toString();
+
+		return baseApiService.get(
+			`/api/v1/notifications/unread-count${queryString ? `?${queryString}` : ""}`,
+			getUnreadCountResponse
+		);
 	};
 }
 
