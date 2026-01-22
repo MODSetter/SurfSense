@@ -9,6 +9,7 @@ import {
 	CheckCircle2,
 	History,
 	Inbox,
+	LayoutGrid,
 	ListFilter,
 	Search,
 	X,
@@ -95,7 +96,13 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 		BAIDU_SEARCH_API: "Baidu",
 	};
 
-	return displayNames[connectorType] || connectorType.replace(/_/g, " ").replace(/CONNECTOR|API/gi, "").trim();
+	return (
+		displayNames[connectorType] ||
+		connectorType
+			.replace(/_/g, " ")
+			.replace(/CONNECTOR|API/gi, "")
+			.trim()
+	);
 }
 
 type InboxTab = "mentions" | "status";
@@ -142,7 +149,7 @@ export function InboxSidebar({
 	// Drawer state for filter menu (mobile only)
 	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
-	
+
 	// Prefetch trigger ref - placed on item near the end
 	const prefetchTriggerRef = useRef<HTMLDivElement>(null);
 
@@ -239,8 +246,7 @@ export function InboxSidebar({
 			const query = searchQuery.toLowerCase();
 			items = items.filter(
 				(item) =>
-					item.title.toLowerCase().includes(query) ||
-					item.message.toLowerCase().includes(query)
+					item.title.toLowerCase().includes(query) || item.message.toLowerCase().includes(query)
 			);
 		}
 
@@ -453,15 +459,14 @@ export function InboxSidebar({
 														<span className="sr-only">{t("filter") || "Filter"}</span>
 													</Button>
 												</TooltipTrigger>
-												<TooltipContent className="z-80">
-													{t("filter") || "Filter"}
-												</TooltipContent>
+												<TooltipContent className="z-80">{t("filter") || "Filter"}</TooltipContent>
 											</Tooltip>
-											<Drawer open={filterDrawerOpen} onOpenChange={setFilterDrawerOpen} shouldScaleBackground={false}>
-												<DrawerContent
-													className="max-h-[70vh] z-80"
-													overlayClassName="z-80"
-												>
+											<Drawer
+												open={filterDrawerOpen}
+												onOpenChange={setFilterDrawerOpen}
+												shouldScaleBackground={false}
+											>
+												<DrawerContent className="max-h-[70vh] z-80" overlayClassName="z-80">
 													<DrawerHandle />
 													<DrawerHeader className="px-4 pb-3 pt-2">
 														<DrawerTitle className="flex items-center gap-2 text-base font-semibold">
@@ -484,7 +489,9 @@ export function InboxSidebar({
 																	}}
 																	className={cn(
 																		"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																		activeFilter === "all" ? "bg-primary/10 text-primary" : "hover:bg-muted"
+																		activeFilter === "all"
+																			? "bg-primary/10 text-primary"
+																			: "hover:bg-muted"
 																	)}
 																>
 																	<span className="flex items-center gap-2">
@@ -501,7 +508,9 @@ export function InboxSidebar({
 																	}}
 																	className={cn(
 																		"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																		activeFilter === "unread" ? "bg-primary/10 text-primary" : "hover:bg-muted"
+																		activeFilter === "unread"
+																			? "bg-primary/10 text-primary"
+																			: "hover:bg-muted"
 																	)}
 																>
 																	<span className="flex items-center gap-2">
@@ -527,10 +536,15 @@ export function InboxSidebar({
 																		}}
 																		className={cn(
 																			"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																			selectedConnector === null ? "bg-primary/10 text-primary" : "hover:bg-muted"
+																			selectedConnector === null
+																				? "bg-primary/10 text-primary"
+																				: "hover:bg-muted"
 																		)}
 																	>
-																		<span>{t("all_connectors") || "All connectors"}</span>
+																		<span className="flex items-center gap-2">
+																			<LayoutGrid className="h-4 w-4" />
+																			<span>{t("all_connectors") || "All connectors"}</span>
+																		</span>
 																		{selectedConnector === null && <Check className="h-4 w-4" />}
 																	</button>
 																	{uniqueConnectorTypes.map((connector) => (
@@ -543,14 +557,18 @@ export function InboxSidebar({
 																			}}
 																			className={cn(
 																				"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																				selectedConnector === connector.type ? "bg-primary/10 text-primary" : "hover:bg-muted"
+																				selectedConnector === connector.type
+																					? "bg-primary/10 text-primary"
+																					: "hover:bg-muted"
 																			)}
 																		>
 																			<span className="flex items-center gap-2">
 																				{getConnectorIcon(connector.type, "h-4 w-4")}
 																				<span>{connector.displayName}</span>
 																			</span>
-																			{selectedConnector === connector.type && <Check className="h-4 w-4" />}
+																			{selectedConnector === connector.type && (
+																				<Check className="h-4 w-4" />
+																			)}
 																		</button>
 																	))}
 																</div>
@@ -569,21 +587,18 @@ export function InboxSidebar({
 											<Tooltip>
 												<TooltipTrigger asChild>
 													<DropdownMenuTrigger asChild>
-														<Button
-															variant="ghost"
-															size="icon"
-															className="h-8 w-8 rounded-full"
-														>
+														<Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
 															<ListFilter className="h-4 w-4 text-muted-foreground" />
 															<span className="sr-only">{t("filter") || "Filter"}</span>
 														</Button>
 													</DropdownMenuTrigger>
 												</TooltipTrigger>
-												<TooltipContent className="z-80">
-													{t("filter") || "Filter"}
-												</TooltipContent>
+												<TooltipContent className="z-80">{t("filter") || "Filter"}</TooltipContent>
 											</Tooltip>
-											<DropdownMenuContent align="end" className={cn("z-80", activeTab === "status" ? "w-52" : "w-44")}>
+											<DropdownMenuContent
+												align="end"
+												className={cn("z-80", activeTab === "status" ? "w-52" : "w-44")}
+											>
 												<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
 													{t("filter") || "Filter"}
 												</DropdownMenuLabel>
@@ -616,7 +631,10 @@ export function InboxSidebar({
 															onClick={() => setSelectedConnector(null)}
 															className="flex items-center justify-between"
 														>
-															<span>{t("all_connectors") || "All connectors"}</span>
+															<span className="flex items-center gap-2">
+																<LayoutGrid className="h-4 w-4" />
+																<span>{t("all_connectors") || "All connectors"}</span>
+															</span>
 															{selectedConnector === null && <Check className="h-4 w-4" />}
 														</DropdownMenuItem>
 														{uniqueConnectorTypes.map((connector) => (
@@ -629,7 +647,9 @@ export function InboxSidebar({
 																	{getConnectorIcon(connector.type, "h-4 w-4")}
 																	<span>{connector.displayName}</span>
 																</span>
-																{selectedConnector === connector.type && <Check className="h-4 w-4" />}
+																{selectedConnector === connector.type && (
+																	<Check className="h-4 w-4" />
+																)}
 															</DropdownMenuItem>
 														))}
 													</>
@@ -723,7 +743,8 @@ export function InboxSidebar({
 									{filteredItems.map((item, index) => {
 										const isMarkingAsRead = markingAsReadId === item.id;
 										// Place prefetch trigger on 5th item from end (only if not searching)
-										const isPrefetchTrigger = !searchQuery && hasMore && index === filteredItems.length - 5;
+										const isPrefetchTrigger =
+											!searchQuery && hasMore && index === filteredItems.length - 5;
 
 										return (
 											<div
@@ -802,9 +823,7 @@ export function InboxSidebar({
 									) : (
 										<History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 									)}
-									<p className="text-sm text-muted-foreground">
-										{getEmptyStateMessage().title}
-									</p>
+									<p className="text-sm text-muted-foreground">{getEmptyStateMessage().title}</p>
 									<p className="text-xs text-muted-foreground/70 mt-1">
 										{getEmptyStateMessage().hint}
 									</p>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { InboxItem, InboxItemTypeEnum } from "@/contracts/types/inbox.types";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import type { SyncHandle } from "@/lib/electric/client";
@@ -79,7 +79,6 @@ export function useInbox(
 	const electricClient = useElectricClient();
 
 	const [inboxItems, setInboxItems] = useState<InboxItem[]>([]);
-	const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 	const [loading, setLoading] = useState(true);
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [hasMore, setHasMore] = useState(true);
@@ -87,8 +86,13 @@ export function useInbox(
 
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
-	const unreadCountLiveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
 	const userSyncKeyRef = useRef<string | null>(null);
+
+	// Calculate unread count from inboxItems (includes both recent and older when loaded)
+	// This ensures the count is always in sync with what's displayed
+	const totalUnreadCount = useMemo(() => {
+		return inboxItems.filter((item) => !item.read).length;
+	}, [inboxItems]);
 
 	// EFFECT 1: Electric SQL sync for real-time updates
 	useEffect(() => {
@@ -287,69 +291,6 @@ export function useInbox(
 		};
 	}, [userId, searchSpaceId, typeFilter, electricClient]);
 
-	// EFFECT 3: Unread count with live updates
-	useEffect(() => {
-		if (!userId || !electricClient) return;
-
-		const client = electricClient;
-		let mounted = true;
-
-		async function updateUnreadCount() {
-			if (unreadCountLiveQueryRef.current) {
-				unreadCountLiveQueryRef.current.unsubscribe();
-				unreadCountLiveQueryRef.current = null;
-			}
-
-			try {
-				const cutoff = getSyncCutoffDate();
-				const query = `SELECT COUNT(*) as count FROM notifications 
-					WHERE user_id = $1 
-					AND (search_space_id = $2 OR search_space_id IS NULL)
-					AND read = false
-					AND created_at > '${cutoff}'`;
-
-				const result = await client.db.query<{ count: number }>(query, [userId, searchSpaceId]);
-				if (mounted && result.rows?.[0]) {
-					setTotalUnreadCount(Number(result.rows[0].count) || 0);
-				}
-
-				const db = client.db as any;
-				if (db.live?.query) {
-					const liveQuery = await db.live.query(query, [userId, searchSpaceId]);
-
-					if (!mounted) {
-						liveQuery.unsubscribe?.();
-						return;
-					}
-
-					if (liveQuery.subscribe) {
-						liveQuery.subscribe((result: { rows: { count: number }[] }) => {
-							if (mounted && result.rows?.[0]) {
-								setTotalUnreadCount(Number(result.rows[0].count) || 0);
-							}
-						});
-					}
-
-					if (liveQuery.unsubscribe) {
-						unreadCountLiveQueryRef.current = liveQuery;
-					}
-				}
-			} catch (err) {
-				console.error("[useInbox] Unread count error:", err);
-			}
-		}
-
-		updateUnreadCount();
-
-		return () => {
-			mounted = false;
-			if (unreadCountLiveQueryRef.current) {
-				unreadCountLiveQueryRef.current.unsubscribe();
-				unreadCountLiveQueryRef.current = null;
-			}
-		};
-	}, [userId, searchSpaceId, electricClient]);
-
 	// loadMore - Pure cursor-based pagination, no race conditions
 	// Cursor is computed from current state, not stored in refs
 	const loadMore = useCallback(async () => {
@@ -408,30 +349,58 @@ export function useInbox(
 		}
 	}, [userId, searchSpaceId, typeFilter, loadingMore, hasMore, inboxItems]);
 
-	// Mark inbox item as read
+	// Mark inbox item as read with optimistic update
 	const markAsRead = useCallback(async (itemId: number) => {
+		// Optimistic update: mark as read immediately for instant UI feedback
+		setInboxItems((prev) =>
+			prev.map((item) => (item.id === itemId ? { ...item, read: true } : item))
+		);
+
 		try {
 			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/${itemId}/read`,
 				{ method: "PATCH" }
 			);
+
+			if (!response.ok) {
+				// Rollback on error
+				setInboxItems((prev) =>
+					prev.map((item) => (item.id === itemId ? { ...item, read: false } : item))
+				);
+			}
+			// If successful, Electric SQL will sync the change and live query will update
+			// This ensures eventual consistency even if optimistic update was wrong
 			return response.ok;
 		} catch (err) {
 			console.error("Failed to mark as read:", err);
+			// Rollback on error
+			setInboxItems((prev) =>
+				prev.map((item) => (item.id === itemId ? { ...item, read: false } : item))
+			);
 			return false;
 		}
 	}, []);
 
-	// Mark all inbox items as read
+	// Mark all inbox items as read with optimistic update
 	const markAllAsRead = useCallback(async () => {
+		// Optimistic update: mark all as read immediately for instant UI feedback
+		setInboxItems((prev) => prev.map((item) => ({ ...item, read: true })));
+
 		try {
 			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/read-all`,
 				{ method: "PATCH" }
 			);
+
+			if (!response.ok) {
+				console.error("Failed to mark all as read");
+				// On error, let Electric SQL sync correct the state
+			}
+			// Electric SQL will sync and live query will ensure consistency
 			return response.ok;
 		} catch (err) {
 			console.error("Failed to mark all as read:", err);
+			// On error, let Electric SQL sync correct the state
 			return false;
 		}
 	}, []);
