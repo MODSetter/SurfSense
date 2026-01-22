@@ -957,7 +957,7 @@ async def _update_connector_timestamp_by_id(session: AsyncSession, connector_id:
         connector = result.scalars().first()
 
         if connector:
-            connector.last_indexed_at = datetime.now()
+            connector.last_indexed_at = datetime.now(UTC)  # Use UTC for timezone consistency
             await session.commit()
             logger.info(f"Updated last_indexed_at for connector {connector_id}")
     except Exception as e:
@@ -1097,18 +1097,22 @@ async def _run_indexing_with_notifications(
                 )
 
             await update_timestamp_func(session, connector_id)
+            await session.commit()  # Commit timestamp update
             logger.info(
                 f"Indexing completed successfully: {documents_processed} documents processed"
             )
 
             # Update notification on success
             if notification:
+                # Refresh notification to ensure it's not stale after timestamp update commit
+                await session.refresh(notification)
                 await NotificationService.connector_indexing.notify_indexing_completed(
                     session=session,
                     notification=notification,
                     indexed_count=documents_processed,
                     error_message=None,
                 )
+                await session.commit()  # Commit to ensure Electric SQL syncs the notification update
         elif documents_processed > 0:
             # Update notification to storing stage
             if notification:
@@ -1124,24 +1128,30 @@ async def _run_indexing_with_notifications(
                 f"Indexing completed successfully: {documents_processed} documents processed"
             )
             if notification:
+                # Refresh notification to ensure it's not stale after indexing function commits
+                await session.refresh(notification)
                 await NotificationService.connector_indexing.notify_indexing_completed(
                     session=session,
                     notification=notification,
                     indexed_count=documents_processed,
                     error_message=None,
                 )
+                await session.commit()  # Commit to ensure Electric SQL syncs the notification update
         else:
             # No new documents processed - check if this is an error or just no changes
             if error_or_warning:
                 # Actual failure
                 logger.error(f"Indexing failed: {error_or_warning}")
                 if notification:
+                    # Refresh notification to ensure it's not stale after indexing function commits
+                    await session.refresh(notification)
                     await NotificationService.connector_indexing.notify_indexing_completed(
                         session=session,
                         notification=notification,
                         indexed_count=0,
                         error_message=error_or_warning,
                     )
+                    await session.commit()  # Commit to ensure Electric SQL syncs the notification update
             else:
                 # Success - just no new documents to index (all skipped/unchanged)
                 logger.info(
@@ -1150,13 +1160,17 @@ async def _run_indexing_with_notifications(
                 # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
                 if update_timestamp_func:
                     await update_timestamp_func(session, connector_id)
+                    await session.commit()  # Commit timestamp update
                 if notification:
+                    # Refresh notification to ensure it's not stale after timestamp update commit
+                    await session.refresh(notification)
                     await NotificationService.connector_indexing.notify_indexing_completed(
                         session=session,
                         notification=notification,
                         indexed_count=0,
                         error_message=None,  # No error - sync succeeded
                     )
+                    await session.commit()  # Commit to ensure Electric SQL syncs the notification update
     except Exception as e:
         logger.error(f"Error in indexing task: {e!s}", exc_info=True)
 

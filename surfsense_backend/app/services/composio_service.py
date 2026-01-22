@@ -256,7 +256,6 @@ class ComposioService:
                     "user_id": getattr(acc, "user_id", None),
                 })
             
-            logger.info(f"DEBUG: Found {len(result)} TOTAL connections in Composio")
             return result
         except Exception as e:
             logger.error(f"Failed to list all connections: {e!s}")
@@ -273,7 +272,6 @@ class ComposioService:
             List of connected account details.
         """
         try:
-            logger.info(f"DEBUG: Calling connected_accounts.list(user_id='{user_id}')")
             accounts_response = self.client.connected_accounts.list(user_id=user_id)
             
             # Handle paginated response (may have .items attribute) or direct list
@@ -358,7 +356,6 @@ class ComposioService:
             # - connected_account_id: for authentication
             # - user_id: user identifier (SDK uses user_id, not entity_id)
             # - dangerously_skip_version_check: skip version check for manual execution
-            logger.info(f"DEBUG: Executing tool {tool_name} with params: {params}")
             result = self.client.tools.execute(
                 slug=tool_name,
                 connected_account_id=connected_account_id,
@@ -366,8 +363,6 @@ class ComposioService:
                 arguments=params or {},
                 dangerously_skip_version_check=True,
             )
-            logger.info(f"DEBUG: Tool {tool_name} raw result type: {type(result)}")
-            logger.info(f"DEBUG: Tool {tool_name} raw result: {result}")
             return {"success": True, "data": result}
         except Exception as e:
             logger.error(f"Failed to execute tool {tool_name}: {e!s}")
@@ -417,7 +412,6 @@ class ComposioService:
                 return [], None, result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            logger.info(f"DEBUG: Drive data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
             
             # Handle nested response structure from Composio
             files = []
@@ -429,7 +423,6 @@ class ComposioService:
             elif isinstance(data, list):
                 files = data
             
-            logger.info(f"DEBUG: Extracted {len(files)} drive files")
             return files, next_token, None
 
         except Exception as e:
@@ -478,25 +471,30 @@ class ComposioService:
         connected_account_id: str,
         entity_id: str,
         query: str = "",
-        max_results: int = 100,
-    ) -> tuple[list[dict[str, Any]], str | None]:
+        max_results: int = 50,
+        page_token: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None, int | None, str | None]:
         """
-        List Gmail messages via Composio.
+        List Gmail messages via Composio with pagination support.
 
         Args:
             connected_account_id: Composio connected account ID.
             entity_id: The entity/user ID that owns the connected account.
             query: Gmail search query.
-            max_results: Maximum number of messages to return.
+            max_results: Maximum number of messages to return per page (default: 50 to avoid payload size issues).
+            page_token: Optional pagination token for next page.
 
         Returns:
-            Tuple of (messages list, error message).
+            Tuple of (messages list, next_page_token, result_size_estimate, error message).
         """
         try:
-            # Composio uses snake_case for parameters, max is 500
-            params = {"max_results": min(max_results, 500)}
+            # Use smaller batch size to avoid 413 payload too large errors
+            # Composio uses snake_case for parameters
+            params = {"max_results": min(max_results, 50)}  # Reduced from 500 to 50
             if query:
                 params["query"] = query  # Composio uses 'query' not 'q'
+            if page_token:
+                params["page_token"] = page_token
 
             result = await self.execute_tool(
                 connected_account_id=connected_account_id,
@@ -506,25 +504,38 @@ class ComposioService:
             )
 
             if not result.get("success"):
-                return [], result.get("error", "Unknown error")
+                return [], None, result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            logger.info(f"DEBUG: Gmail data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
-            logger.info(f"DEBUG: Gmail full data: {data}")
             
             # Try different possible response structures
             messages = []
+            next_token = None
+            result_size_estimate = None
             if isinstance(data, dict):
                 messages = data.get("messages", []) or data.get("data", {}).get("messages", []) or data.get("emails", [])
+                # Check for pagination token in various possible locations
+                next_token = (
+                    data.get("nextPageToken") 
+                    or data.get("next_page_token") 
+                    or data.get("data", {}).get("nextPageToken")
+                    or data.get("data", {}).get("next_page_token")
+                )
+                # Extract resultSizeEstimate if available (Gmail API provides this)
+                result_size_estimate = (
+                    data.get("resultSizeEstimate")
+                    or data.get("result_size_estimate")
+                    or data.get("data", {}).get("resultSizeEstimate")
+                    or data.get("data", {}).get("result_size_estimate")
+                )
             elif isinstance(data, list):
                 messages = data
             
-            logger.info(f"DEBUG: Extracted {len(messages)} messages")
-            return messages, None
+            return messages, next_token, result_size_estimate, None
 
         except Exception as e:
             logger.error(f"Failed to list Gmail messages: {e!s}")
-            return [], str(e)
+            return [], None, str(e)
 
     async def get_gmail_message_detail(
         self, connected_account_id: str, entity_id: str, message_id: str
@@ -603,8 +614,6 @@ class ComposioService:
                 return [], result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            logger.info(f"DEBUG: Calendar data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
-            logger.info(f"DEBUG: Calendar full data: {data}")
             
             # Try different possible response structures
             events = []
@@ -613,7 +622,6 @@ class ComposioService:
             elif isinstance(data, list):
                 events = data
                 
-            logger.info(f"DEBUG: Extracted {len(events)} calendar events")
             return events, None
 
         except Exception as e:

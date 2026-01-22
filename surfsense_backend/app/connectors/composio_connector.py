@@ -151,21 +151,23 @@ class ComposioConnector:
     async def list_gmail_messages(
         self,
         query: str = "",
-        max_results: int = 100,
-    ) -> tuple[list[dict[str, Any]], str | None]:
+        max_results: int = 50,
+        page_token: str | None = None,
+    ) -> tuple[list[dict[str, Any]], str | None, int | None, str | None]:
         """
-        List Gmail messages via Composio.
+        List Gmail messages via Composio with pagination support.
 
         Args:
             query: Gmail search query.
-            max_results: Maximum number of messages.
+            max_results: Maximum number of messages per page (default: 50).
+            page_token: Optional pagination token for next page.
 
         Returns:
-            Tuple of (messages list, error message).
+            Tuple of (messages list, next_page_token, result_size_estimate, error message).
         """
         connected_account_id = await self.get_connected_account_id()
         if not connected_account_id:
-            return [], "No connected account ID found"
+            return [], None, None, "No connected account ID found"
 
         entity_id = await self.get_entity_id()
         service = await self._get_service()
@@ -174,6 +176,7 @@ class ComposioConnector:
             entity_id=entity_id,
             query=query,
             max_results=max_results,
+            page_token=page_token,
         )
 
     async def get_gmail_message_detail(
