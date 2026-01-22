@@ -37,6 +37,7 @@ from app.db import (
     async_session_maker,
     get_async_session,
 )
+from app.services.composio_service import ComposioService
 from app.schemas import (
     GoogleDriveIndexRequest,
     MCPConnectorCreate,
@@ -529,6 +530,34 @@ async def delete_search_source_connector(
                     f"Failed to delete periodic schedule for connector {connector_id}"
                 )
 
+        # For Composio connectors, also delete the connected account in Composio
+        composio_connector_types = [
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+        ]
+        if db_connector.connector_type in composio_connector_types:
+            composio_connected_account_id = db_connector.config.get("composio_connected_account_id")
+            if composio_connected_account_id and ComposioService.is_enabled():
+                try:
+                    service = ComposioService()
+                    deleted = await service.delete_connected_account(composio_connected_account_id)
+                    if deleted:
+                        logger.info(
+                            f"Successfully deleted Composio connected account {composio_connected_account_id} "
+                            f"for connector {connector_id}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Failed to delete Composio connected account {composio_connected_account_id} "
+                            f"for connector {connector_id}"
+                        )
+                except Exception as composio_error:
+                    # Log but don't fail the deletion - Composio account may already be deleted
+                    logger.warning(
+                        f"Error deleting Composio connected account {composio_connected_account_id}: {composio_error!s}"
+                    )
+
         await session.delete(db_connector)
         await session.commit()
         return {"message": "Search source connector deleted successfully"}
@@ -868,7 +897,11 @@ async def index_connector_content(
             )
             response_message = "Web page indexing started in the background."
 
-        elif connector.connector_type == SearchSourceConnectorType.COMPOSIO_CONNECTOR:
+        elif connector.connector_type in [
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+        ]:
             from app.tasks.celery_tasks.connector_tasks import (
                 index_composio_connector_task,
             )
@@ -2082,6 +2115,59 @@ async def run_bookstack_indexing(
         start_date=start_date,
         end_date=end_date,
         indexing_function=index_bookstack_pages,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
+
+
+async def run_composio_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Create a new session and run the Composio indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    async with async_session_maker() as session:
+        await run_composio_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+
+async def run_composio_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Run Composio connector indexing with real-time notifications.
+
+    This wraps the Composio indexer with the notification system so that
+    Electric SQL can sync indexing progress to the frontend in real-time.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Composio connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    from app.tasks.composio_indexer import index_composio_connector
+
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_composio_connector,
         update_timestamp_func=_update_connector_timestamp_by_id,
     )
 

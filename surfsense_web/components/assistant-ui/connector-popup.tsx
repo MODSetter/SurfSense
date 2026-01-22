@@ -188,8 +188,18 @@ export const ConnectorIndicator: FC = () => {
 						searchSpaceId={searchSpaceId}
 						connectedToolkits={
 							(connectors || [])
-								.filter((c: SearchSourceConnector) => c.connector_type === "COMPOSIO_CONNECTOR")
-								.map((c: SearchSourceConnector) => c.config?.toolkit_id as string)
+								.filter((c: SearchSourceConnector) => 
+									c.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
+									c.connector_type === "COMPOSIO_GMAIL_CONNECTOR" ||
+									c.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
+								)
+								.map((c: SearchSourceConnector) => {
+									// Map connector type back to toolkit_id
+									if (c.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR") return "googledrive";
+									if (c.connector_type === "COMPOSIO_GMAIL_CONNECTOR") return "gmail";
+									if (c.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR") return "googlecalendar";
+									return c.config?.toolkit_id as string;
+								})
 								.filter(Boolean)
 						}
 						onBack={handleBackFromComposio}

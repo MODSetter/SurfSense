@@ -74,7 +74,9 @@ export function getConnectorConfigComponent(
 			return CirclebackConfig;
 		case "MCP_CONNECTOR":
 			return MCPConfig;
-		case "COMPOSIO_CONNECTOR":
+		case "COMPOSIO_GOOGLE_DRIVE_CONNECTOR":
+		case "COMPOSIO_GMAIL_CONNECTOR":
+		case "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR":
 			return ComposioConfig;
 		// OAuth connectors (Gmail, Calendar, Airtable, Notion) and others don't need special config UI
 		default:

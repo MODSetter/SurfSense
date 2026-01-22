@@ -39,6 +39,20 @@ COMPOSIO_TOOLKIT_NAMES = {
 # Toolkits that support indexing (Phase 1: Google services only)
 INDEXABLE_TOOLKITS = {"googledrive", "gmail", "googlecalendar"}
 
+# Mapping of toolkit IDs to connector types
+TOOLKIT_TO_CONNECTOR_TYPE = {
+    "googledrive": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+    "gmail": "COMPOSIO_GMAIL_CONNECTOR",
+    "googlecalendar": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+}
+
+# Mapping of toolkit IDs to document types
+TOOLKIT_TO_DOCUMENT_TYPE = {
+    "googledrive": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+    "gmail": "COMPOSIO_GMAIL_CONNECTOR",
+    "googlecalendar": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+}
+
 
 class ComposioService:
     """Service for interacting with Composio API."""
@@ -297,6 +311,26 @@ class ComposioService:
         except Exception as e:
             logger.error(f"Failed to list connections for user {user_id}: {e!s}")
             return []
+
+    async def delete_connected_account(self, connected_account_id: str) -> bool:
+        """
+        Delete a connected account from Composio.
+
+        This permanently removes the connected account and revokes access tokens.
+
+        Args:
+            connected_account_id: The Composio connected account ID to delete.
+
+        Returns:
+            True if deletion was successful, False otherwise.
+        """
+        try:
+            self.client.connected_accounts.delete(connected_account_id)
+            logger.info(f"Successfully deleted Composio connected account: {connected_account_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to delete Composio connected account {connected_account_id}: {e!s}")
+            return False
 
     async def execute_tool(
         self,

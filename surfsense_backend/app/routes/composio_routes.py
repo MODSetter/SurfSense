@@ -19,6 +19,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from app.config import config
 from app.db import (
@@ -30,14 +31,16 @@ from app.db import (
 from app.services.composio_service import (
     COMPOSIO_TOOLKIT_NAMES,
     INDEXABLE_TOOLKITS,
+    TOOLKIT_TO_CONNECTOR_TYPE,
     ComposioService,
 )
 from app.users import current_active_user
-from app.utils.connector_naming import (
-    check_duplicate_connector,
-    generate_unique_connector_name,
-)
+from app.utils.connector_naming import generate_unique_connector_name
 from app.utils.oauth_security import OAuthStateManager
+
+# Note: We no longer use check_duplicate_connector for Composio connectors because
+# Composio generates a new connected_account_id each time, even for the same Google account.
+# Instead, we check for existing connectors by type/space/user and update them.
 
 logger = logging.getLogger(__name__)
 
@@ -260,30 +263,65 @@ async def composio_callback(
             "is_indexable": toolkit_id in INDEXABLE_TOOLKITS,
         }
 
-        # Check for duplicate connector
-        # For Composio, we use toolkit_id + connected_account_id as unique identifier
-        identifier = final_connected_account_id or f"{toolkit_id}_{user_id}"
-
-        is_duplicate = await check_duplicate_connector(
-            session,
-            SearchSourceConnectorType.COMPOSIO_CONNECTOR,
-            space_id,
-            user_id,
-            identifier,
-        )
-        if is_duplicate:
-            logger.warning(
-                f"Duplicate Composio connector detected for user {user_id} with toolkit {toolkit_id}"
+        # Get the specific connector type for this toolkit
+        connector_type_str = TOOLKIT_TO_CONNECTOR_TYPE.get(toolkit_id)
+        if not connector_type_str:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown toolkit: {toolkit_id}. Available: {list(TOOLKIT_TO_CONNECTOR_TYPE.keys())}",
             )
+        connector_type = SearchSourceConnectorType(connector_type_str)
+
+        # Check for existing connector of the same type for this user/space
+        # When reconnecting, Composio gives a new connected_account_id, so we need to
+        # check by connector_type, user_id, and search_space_id instead of connected_account_id
+        existing_connector_result = await session.execute(
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.connector_type == connector_type,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.user_id == user_id,
+            )
+        )
+        existing_connector = existing_connector_result.scalars().first()
+
+        if existing_connector:
+            # Delete the old Composio connected account before updating
+            old_connected_account_id = existing_connector.config.get("composio_connected_account_id")
+            if old_connected_account_id and old_connected_account_id != final_connected_account_id:
+                try:
+                    deleted = await service.delete_connected_account(old_connected_account_id)
+                    if deleted:
+                        logger.info(
+                            f"Deleted old Composio connected account {old_connected_account_id} "
+                            f"before updating connector {existing_connector.id}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Failed to delete old Composio connected account {old_connected_account_id}"
+                        )
+                except Exception as delete_error:
+                    # Log but don't fail - the old account may already be deleted
+                    logger.warning(
+                        f"Error deleting old Composio connected account {old_connected_account_id}: {delete_error!s}"
+                    )
+
+            # Update existing connector with new connected_account_id
+            logger.info(
+                f"Updating existing Composio connector {existing_connector.id} with new connected_account_id {final_connected_account_id}"
+            )
+            existing_connector.config = connector_config
+            await session.commit()
+            await session.refresh(existing_connector)
+
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=composio-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=composio-connector&connectorId={existing_connector.id}"
             )
 
         try:
             # Generate a unique, user-friendly connector name
             connector_name = await generate_unique_connector_name(
                 session,
-                SearchSourceConnectorType.COMPOSIO_CONNECTOR,
+                connector_type,
                 space_id,
                 user_id,
                 f"{toolkit_name} (Composio)",
@@ -291,7 +329,7 @@ async def composio_callback(
 
             db_connector = SearchSourceConnector(
                 name=connector_name,
-                connector_type=SearchSourceConnectorType.COMPOSIO_CONNECTOR,
+                connector_type=connector_type,
                 config=connector_config,
                 search_space_id=space_id,
                 user_id=user_id,

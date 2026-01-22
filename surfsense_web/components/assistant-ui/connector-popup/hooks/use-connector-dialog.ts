@@ -26,7 +26,7 @@ import {
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
-import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
+import { COMPOSIO_CONNECTORS, OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
 import {
 	dateRangeSchema,
 	frequencyMinutesSchema,
@@ -176,15 +176,24 @@ export const useConnectorDialog = () => {
 				}
 
 				// Handle accounts view
-				if (params.view === "accounts" && params.connectorType && !viewingAccountsType) {
-					const oauthConnector = OAUTH_CONNECTORS.find(
-						(c) => c.connectorType === params.connectorType
-					);
-					if (oauthConnector) {
-						setViewingAccountsType({
-							connectorType: oauthConnector.connectorType,
-							connectorTitle: oauthConnector.title,
-						});
+				if (params.view === "accounts" && params.connectorType) {
+					// Update state if not set, or if connectorType has changed
+					const needsUpdate = !viewingAccountsType || 
+						viewingAccountsType.connectorType !== params.connectorType;
+					
+					if (needsUpdate) {
+						// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
+						const oauthConnector = OAUTH_CONNECTORS.find(
+							(c) => c.connectorType === params.connectorType
+						) || COMPOSIO_CONNECTORS.find(
+							(c) => c.connectorType === params.connectorType
+						);
+						if (oauthConnector) {
+							setViewingAccountsType({
+								connectorType: oauthConnector.connectorType,
+								connectorTitle: oauthConnector.title,
+							});
+						}
 					}
 				}
 
@@ -293,6 +302,8 @@ export const useConnectorDialog = () => {
 		indexingConfig,
 		connectingConnectorType,
 		viewingAccountsType,
+		viewingMCPList,
+		viewingComposio,
 	]);
 
 	// Detect OAuth success / Failure and transition to config view
@@ -389,15 +400,19 @@ export const useConnectorDialog = () => {
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(
-		async (connector: (typeof OAUTH_CONNECTORS)[number]) => {
+		async (connector: (typeof OAUTH_CONNECTORS)[number] | (typeof COMPOSIO_CONNECTORS)[number]) => {
 			if (!searchSpaceId || !connector.authEndpoint) return;
 
 			// Set connecting state immediately to disable button and show spinner
 			setConnectingId(connector.id);
 
 			try {
+				// Check if authEndpoint already has query parameters
+				const separator = connector.authEndpoint.includes("?") ? "&" : "?";
+				const url = `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}${separator}space_id=${searchSpaceId}`;
+				
 				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}?space_id=${searchSpaceId}`,
+					url,
 					{ method: "GET" }
 				);
 
@@ -799,23 +814,19 @@ export const useConnectorDialog = () => {
 
 	// Handle viewing accounts list for OAuth connector type
 	const handleViewAccountsList = useCallback(
-		(connectorType: string, connectorTitle: string) => {
+		(connectorType: string, _connectorTitle?: string) => {
 			if (!searchSpaceId) return;
 
-			setViewingAccountsType({
-				connectorType,
-				connectorTitle,
-			});
-
 			// Update URL to show accounts view, preserving current tab
+			// The useEffect will handle setting viewingAccountsType based on URL params
 			const url = new URL(window.location.href);
 			url.searchParams.set("modal", "connectors");
 			url.searchParams.set("view", "accounts");
 			url.searchParams.set("connectorType", connectorType);
 			// Keep the current tab in URL so we can go back to it
-			window.history.pushState({ modal: true }, "", url.toString());
+			router.replace(url.pathname + url.search, { scroll: false });
 		},
-		[searchSpaceId]
+		[searchSpaceId, router]
 	);
 
 	// Handle going back from accounts list view
@@ -839,8 +850,8 @@ export const useConnectorDialog = () => {
 		const url = new URL(window.location.href);
 		url.searchParams.set("modal", "connectors");
 		url.searchParams.set("view", "mcp-list");
-		window.history.pushState({ modal: true }, "", url.toString());
-	}, [searchSpaceId]);
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [searchSpaceId, router]);
 
 	// Handle going back from MCP list view
 	const handleBackFromMCPList = useCallback(() => {
@@ -871,8 +882,8 @@ export const useConnectorDialog = () => {
 		const url = new URL(window.location.href);
 		url.searchParams.set("modal", "connectors");
 		url.searchParams.set("view", "composio");
-		window.history.pushState({ modal: true }, "", url.toString());
-	}, [searchSpaceId]);
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [searchSpaceId, router]);
 
 	// Handle going back from Composio view
 	const handleBackFromComposio = useCallback(() => {
@@ -1423,7 +1434,7 @@ export const useConnectorDialog = () => {
 				setIsDisconnecting(false);
 			}
 		},
-		[editingConnector, searchSpaceId, deleteConnector, router]
+		[editingConnector, searchSpaceId, deleteConnector, router, cameFromMCPList]
 	);
 
 	// Handle quick index (index without date picker, uses backend defaults)
@@ -1579,6 +1590,7 @@ export const useConnectorDialog = () => {
 		viewingAccountsType,
 		viewingMCPList,
 		viewingComposio,
+		connectingComposioToolkit,
 
 		// Setters
 		setSearchQuery,
@@ -1616,8 +1628,6 @@ export const useConnectorDialog = () => {
 		setIndexingConnectorConfig,
 
 		// Composio
-		viewingComposio,
-		connectingComposioToolkit,
 		handleOpenComposio,
 		handleBackFromComposio,
 		handleConnectComposioToolkit,

@@ -23,7 +23,7 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
-from app.services.composio_service import INDEXABLE_TOOLKITS
+from app.services.composio_service import INDEXABLE_TOOLKITS, TOOLKIT_TO_DOCUMENT_TYPE
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
@@ -58,15 +58,13 @@ async def check_document_by_unique_identifier(
 
 
 async def get_connector_by_id(
-    session: AsyncSession, connector_id: int, connector_type: SearchSourceConnectorType
+    session: AsyncSession, connector_id: int, connector_type: SearchSourceConnectorType | None
 ) -> SearchSourceConnector | None:
-    """Get a connector by ID and type from the database."""
-    result = await session.execute(
-        select(SearchSourceConnector).filter(
-            SearchSourceConnector.id == connector_id,
-            SearchSourceConnector.connector_type == connector_type,
-        )
-    )
+    """Get a connector by ID and optionally by type from the database."""
+    query = select(SearchSourceConnector).filter(SearchSourceConnector.id == connector_id)
+    if connector_type is not None:
+        query = query.filter(SearchSourceConnector.connector_type == connector_type)
+    result = await session.execute(query)
     return result.scalars().first()
 
 
@@ -129,10 +127,23 @@ async def index_composio_connector(
     )
 
     try:
-        # Get connector by id
+        # Get connector by id - accept any Composio connector type
+        # We'll check the actual type after loading
         connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.COMPOSIO_CONNECTOR
+            session, connector_id, None  # Don't filter by type, we'll validate after
         )
+        
+        # Validate it's a Composio connector
+        if connector and connector.connector_type not in [
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+        ]:
+            error_msg = f"Connector {connector_id} is not a Composio connector"
+            await task_logger.log_task_failure(
+                log_entry, error_msg, {"error_type": "InvalidConnectorType"}
+            )
+            return 0, error_msg
 
         if not connector:
             error_msg = f"Composio connector with ID {connector_id} not found"
@@ -276,7 +287,7 @@ async def _index_composio_google_drive(
             await task_logger.log_task_success(
                 log_entry, success_msg, {"files_count": 0}
             )
-            return 0, success_msg
+            return 0, None  # Return None (not error) when no items found - this is success with 0 items
 
         logger.info(f"Found {len(all_files)} Google Drive files to index via Composio")
 
@@ -299,8 +310,9 @@ async def _index_composio_google_drive(
                     continue
 
                 # Generate unique identifier hash
+                document_type = DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"])
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.COMPOSIO_CONNECTOR, f"drive_{file_id}", search_space_id
+                    document_type, f"drive_{file_id}", search_space_id
                 )
 
                 # Check if document exists
@@ -394,7 +406,7 @@ async def _index_composio_google_drive(
                 document = Document(
                     search_space_id=search_space_id,
                     title=f"Drive: {file_name}",
-                    document_type=DocumentType.COMPOSIO_CONNECTOR,
+                    document_type=DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"]),
                     document_metadata={
                         "file_id": file_id,
                         "file_name": file_name,
@@ -489,7 +501,7 @@ async def _index_composio_gmail(
             await task_logger.log_task_success(
                 log_entry, success_msg, {"messages_count": 0}
             )
-            return 0, success_msg
+            return 0, None  # Return None (not error) when no items found - this is success with 0 items
 
         logger.info(f"Found {len(messages)} Gmail messages to index via Composio")
 
@@ -530,8 +542,9 @@ async def _index_composio_gmail(
                 markdown_content = composio_connector.format_gmail_message_to_markdown(message)
 
                 # Generate unique identifier
+                document_type = DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["gmail"])
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.COMPOSIO_CONNECTOR, f"gmail_{message_id}", search_space_id
+                    document_type, f"gmail_{message_id}", search_space_id
                 )
 
                 content_hash = generate_content_hash(markdown_content, search_space_id)
@@ -612,7 +625,7 @@ async def _index_composio_gmail(
                 document = Document(
                     search_space_id=search_space_id,
                     title=f"Gmail: {subject}",
-                    document_type=DocumentType.COMPOSIO_CONNECTOR,
+                    document_type=DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["gmail"]),
                     document_metadata={
                         "message_id": message_id,
                         "subject": subject,
@@ -717,7 +730,7 @@ async def _index_composio_google_calendar(
             await task_logger.log_task_success(
                 log_entry, success_msg, {"events_count": 0}
             )
-            return 0, success_msg
+            return 0, None  # Return None (not error) when no items found - this is success with 0 items
 
         logger.info(f"Found {len(events)} Google Calendar events to index via Composio")
 
@@ -738,8 +751,9 @@ async def _index_composio_google_calendar(
                 markdown_content = composio_connector.format_calendar_event_to_markdown(event)
 
                 # Generate unique identifier
+                document_type = DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googlecalendar"])
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.COMPOSIO_CONNECTOR, f"calendar_{event_id}", search_space_id
+                    document_type, f"calendar_{event_id}", search_space_id
                 )
 
                 content_hash = generate_content_hash(markdown_content, search_space_id)
@@ -828,7 +842,7 @@ async def _index_composio_google_calendar(
                 document = Document(
                     search_space_id=search_space_id,
                     title=f"Calendar: {summary}",
-                    document_type=DocumentType.COMPOSIO_CONNECTOR,
+                    document_type=DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googlecalendar"]),
                     document_metadata={
                         "event_id": event_id,
                         "summary": summary,

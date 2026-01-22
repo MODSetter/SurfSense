@@ -793,11 +793,13 @@ async def _index_composio_connector(
     start_date: str,
     end_date: str,
 ):
-    """Index Composio connector content with new session."""
-    # Import from tasks folder (not connector_indexers) to avoid circular import
-    from app.tasks.composio_indexer import index_composio_connector
+    """Index Composio connector content with new session and real-time notifications."""
+    # Import from routes to use the notification-wrapped version
+    from app.routes.search_source_connectors_routes import (
+        run_composio_indexing,
+    )
 
     async with get_celery_session_maker()() as session:
-        await index_composio_connector(
+        await run_composio_indexing(
             session, connector_id, search_space_id, user_id, start_date, end_date
         )

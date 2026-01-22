@@ -27,7 +27,9 @@ export const searchSourceConnectorTypeEnum = z.enum([
 	"BOOKSTACK_CONNECTOR",
 	"CIRCLEBACK_CONNECTOR",
 	"MCP_CONNECTOR",
-	"COMPOSIO_CONNECTOR",
+	"COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+	"COMPOSIO_GMAIL_CONNECTOR",
+	"COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
 ]);
 
 export const searchSourceConnector = z.object({
@@ -149,6 +151,13 @@ export const googleDriveIndexBody = z.object({
 			name: z.string(),
 		})
 	),
+	indexing_options: z
+		.object({
+			max_files_per_folder: z.number().int().min(1).max(1000),
+			incremental_sync: z.boolean(),
+			include_subfolders: z.boolean(),
+		})
+		.optional(),
 });
 
 /**
