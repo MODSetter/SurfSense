@@ -8,31 +8,74 @@ import { useElectricClient } from "@/lib/electric/context";
 
 export type { InboxItem, InboxItemTypeEnum } from "@/contracts/types/inbox.types";
 
-const PAGE_SIZE = 50; // Items per batch
+const PAGE_SIZE = 50;
+const SYNC_WINDOW_DAYS = 14;
 
 /**
- * Hook for managing inbox items with Electric SQL real-time sync
+ * Deduplicate by ID and sort by created_at descending.
+ * This is the SINGLE source of truth for deduplication - prevents race conditions.
+ */
+function deduplicateAndSort(items: InboxItem[]): InboxItem[] {
+	const seen = new Map<number, InboxItem>();
+	for (const item of items) {
+		if (!seen.has(item.id)) {
+			seen.set(item.id, item);
+		}
+	}
+	return Array.from(seen.values()).sort(
+		(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+	);
+}
+
+/**
+ * Calculate the cutoff date for sync window
+ */
+function getSyncCutoffDate(): string {
+	const cutoff = new Date();
+	cutoff.setDate(cutoff.getDate() - SYNC_WINDOW_DAYS);
+	return cutoff.toISOString();
+}
+
+/**
+ * Convert a date value to ISO string format
+ */
+function toISOString(date: string | Date | null | undefined): string | null {
+	if (!date) return null;
+	if (date instanceof Date) return date.toISOString();
+	if (typeof date === "string") {
+		if (date.includes("T")) return date;
+		try {
+			return new Date(date).toISOString();
+		} catch {
+			return date;
+		}
+	}
+	return null;
+}
+
+/**
+ * Hook for managing inbox items with Electric SQL real-time sync + API fallback
  *
- * Uses the Electric client from context (provided by ElectricProvider)
- * instead of initializing its own - prevents race conditions and memory leaks
+ * Architecture (Simplified & Race-Condition Free):
+ * - Electric SQL: Syncs recent items (within SYNC_WINDOW_DAYS) for real-time updates
+ * - Live Query: Provides reactive first page from PGLite
+ * - API: Handles all pagination (more reliable than mixing with Electric)
  *
- * Architecture:
- * - User-level sync: Syncs ALL inbox items for a user (runs once per user)
- * - Search-space-level query: Filters inbox items by searchSpaceId (updates on search space change)
- * - Pagination: Loads items in batches for better performance with large datasets
- *
- * This separation ensures smooth transitions when switching search spaces (no flash).
+ * Key Design Decisions:
+ * 1. No mutable refs for cursor - cursor computed from current state
+ * 2. Single deduplicateAndSort function - prevents inconsistencies
+ * 3. Filter-based preservation in live query - prevents data loss
+ * 4. Auto-fetch from API when Electric returns 0 items
  *
  * @param userId - The user ID to fetch inbox items for
- * @param searchSpaceId - The search space ID to filter inbox items (null shows global items only)
- * @param typeFilter - Optional inbox item type to filter by (null shows all types)
+ * @param searchSpaceId - The search space ID to filter inbox items
+ * @param typeFilter - Optional inbox item type to filter by
  */
 export function useInbox(
 	userId: string | null,
 	searchSpaceId: number | null,
 	typeFilter: InboxItemTypeEnum | null = null
 ) {
-	// Get Electric client from context - ElectricProvider handles initialization
 	const electricClient = useElectricClient();
 
 	const [inboxItems, setInboxItems] = useState<InboxItem[]>([]);
@@ -41,58 +84,51 @@ export function useInbox(
 	const [loadingMore, setLoadingMore] = useState(false);
 	const [hasMore, setHasMore] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
+
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
 	const unreadCountLiveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
-	const offsetRef = useRef(0);
-
-	// Track user-level sync key to prevent duplicate sync subscriptions
 	const userSyncKeyRef = useRef<string | null>(null);
 
-	// EFFECT 1: User-level sync - runs once per user, syncs ALL inbox items
+	// EFFECT 1: Electric SQL sync for real-time updates
 	useEffect(() => {
 		if (!userId || !electricClient) {
 			setLoading(!electricClient);
 			return;
 		}
 
-		const userSyncKey = `inbox_${userId}`;
-		if (userSyncKeyRef.current === userSyncKey) {
-			// Already syncing for this user
-			return;
-		}
-
-		// Capture electricClient to satisfy TypeScript in async function
 		const client = electricClient;
 		let mounted = true;
-		userSyncKeyRef.current = userSyncKey;
 
-		async function startUserSync() {
+		async function startSync() {
 			try {
-				console.log("[useInbox] Starting user-level sync for:", userId);
+				const cutoffDate = getSyncCutoffDate();
+				const userSyncKey = `inbox_${userId}_${cutoffDate}`;
 
-				// Sync ALL inbox items for this user (cached via syncShape caching)
-				// Note: Backend table is still named "notifications"
+				// Skip if already syncing with this key
+				if (userSyncKeyRef.current === userSyncKey) return;
+
+				// Clean up previous sync
+				if (syncHandleRef.current) {
+					syncHandleRef.current.unsubscribe();
+					syncHandleRef.current = null;
+				}
+
+				console.log("[useInbox] Starting sync for:", userId);
+				userSyncKeyRef.current = userSyncKey;
+
 				const handle = await client.syncShape({
 					table: "notifications",
-					where: `user_id = '${userId}'`,
+					where: `user_id = '${userId}' AND created_at > '${cutoffDate}'`,
 					primaryKey: ["id"],
-				});
-
-				console.log("[useInbox] User sync started:", {
-					isUpToDate: handle.isUpToDate,
 				});
 
 				// Wait for initial sync with timeout
 				if (!handle.isUpToDate && handle.initialSyncPromise) {
-					try {
-						await Promise.race([
-							handle.initialSyncPromise,
-							new Promise((resolve) => setTimeout(resolve, 2000)),
-						]);
-					} catch (syncErr) {
-						console.error("[useInbox] Initial sync failed:", syncErr);
-					}
+					await Promise.race([
+						handle.initialSyncPromise,
+						new Promise((resolve) => setTimeout(resolve, 3000)),
+					]);
 				}
 
 				if (!mounted) {
@@ -105,18 +141,17 @@ export function useInbox(
 				setError(null);
 			} catch (err) {
 				if (!mounted) return;
-				console.error("[useInbox] Failed to start user sync:", err);
-				setError(err instanceof Error ? err : new Error("Failed to sync inbox"));
+				console.error("[useInbox] Sync failed:", err);
+				setError(err instanceof Error ? err : new Error("Sync failed"));
 				setLoading(false);
 			}
 		}
 
-		startUserSync();
+		startSync();
 
 		return () => {
 			mounted = false;
 			userSyncKeyRef.current = null;
-
 			if (syncHandleRef.current) {
 				syncHandleRef.current.unsubscribe();
 				syncHandleRef.current = null;
@@ -124,117 +159,126 @@ export function useInbox(
 		};
 	}, [userId, electricClient]);
 
-	// Reset pagination when filters change
+	// Reset when filters change
 	useEffect(() => {
-		offsetRef.current = 0;
 		setHasMore(true);
 		setInboxItems([]);
 	}, [userId, searchSpaceId, typeFilter]);
 
-	// EFFECT 2: Search-space-level query - updates when searchSpaceId or typeFilter changes
-	// This runs independently of sync, allowing smooth transitions between search spaces
+	// EFFECT 2: Live query for real-time updates + auto-fetch from API if empty
 	useEffect(() => {
-		if (!userId || !electricClient) {
-			return;
-		}
+		if (!userId || !electricClient) return;
 
-		// Capture electricClient to satisfy TypeScript in async function
 		const client = electricClient;
 		let mounted = true;
 
-		async function updateQuery() {
-			// Clean up previous live query (but DON'T clear inbox items - keep showing old until new arrive)
+		async function setupLiveQuery() {
+			// Clean up previous live query
 			if (liveQueryRef.current) {
 				liveQueryRef.current.unsubscribe();
 				liveQueryRef.current = null;
 			}
 
 			try {
-				console.log(
-					"[useInbox] Updating query for searchSpace:",
-					searchSpaceId,
-					"typeFilter:",
-					typeFilter
-				);
+				const cutoff = getSyncCutoffDate();
 
-				// Build query with optional type filter and LIMIT for pagination
-				// Note: Backend table is still named "notifications"
-				const baseQuery = `SELECT * FROM notifications 
-					 WHERE user_id = $1 
-					 AND (search_space_id = $2 OR search_space_id IS NULL)`;
-				const typeClause = typeFilter ? ` AND type = $3` : "";
-				const orderClause = ` ORDER BY created_at DESC`;
-				const limitClause = ` LIMIT ${PAGE_SIZE}`;
-				const fullQuery = baseQuery + typeClause + orderClause + limitClause;
-				const params = typeFilter ? [userId, searchSpaceId, typeFilter] : [userId, searchSpaceId];
+				const query = `SELECT * FROM notifications 
+					WHERE user_id = $1 
+					AND (search_space_id = $2 OR search_space_id IS NULL)
+					AND created_at > '${cutoff}'
+					${typeFilter ? "AND type = $3" : ""}
+					ORDER BY created_at DESC
+					LIMIT ${PAGE_SIZE}`;
 
-				// Fetch inbox items for current search space immediately
-				const result = await client.db.query<InboxItem>(fullQuery, params);
+				const params = typeFilter
+					? [userId, searchSpaceId, typeFilter]
+					: [userId, searchSpaceId];
 
-				if (mounted) {
-					const items = result.rows || [];
-					setInboxItems(items);
-					setHasMore(items.length === PAGE_SIZE);
-					offsetRef.current = items.length;
-				}
-
-				// Set up live query for real-time updates (first page only)
 				const db = client.db as any;
 
-				if (db.live?.query && typeof db.live.query === "function") {
-					const liveQuery = await db.live.query(fullQuery, params);
+				// Initial fetch from PGLite
+				const result = await client.db.query<InboxItem>(query, params);
+
+				if (mounted && result.rows) {
+					const items = deduplicateAndSort(result.rows);
+					setInboxItems(items);
+
+					// AUTO-FETCH: If Electric returned 0 items, check API for older items
+					// This handles the edge case where user has no recent notifications
+					// but has older ones outside the sync window
+					if (items.length === 0) {
+						console.log(
+							"[useInbox] Electric returned 0 items, checking API for older notifications"
+						);
+						try {
+							const apiParams = new URLSearchParams();
+							if (searchSpaceId !== null) {
+								apiParams.append("search_space_id", String(searchSpaceId));
+							}
+							if (typeFilter) {
+								apiParams.append("type", typeFilter);
+							}
+							apiParams.append("limit", String(PAGE_SIZE));
+
+							const response = await authenticatedFetch(
+								`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications?${apiParams.toString()}`
+							);
+
+							if (response.ok && mounted) {
+								const data = await response.json();
+								const apiItems: InboxItem[] = data.items.map((item: any) => ({
+									...item,
+									metadata: item.metadata || {},
+								}));
+
+								if (apiItems.length > 0) {
+									setInboxItems(apiItems);
+								}
+								setHasMore(data.has_more ?? apiItems.length === PAGE_SIZE);
+							}
+						} catch (err) {
+							console.error("[useInbox] API fallback failed:", err);
+						}
+					}
+				}
+
+				// Set up live query for real-time updates
+				if (db.live?.query) {
+					const liveQuery = await db.live.query(query, params);
 
 					if (!mounted) {
 						liveQuery.unsubscribe?.();
 						return;
 					}
 
-					// Set initial results from live query
-					if (liveQuery.initialResults?.rows) {
-						const items = liveQuery.initialResults.rows;
-						setInboxItems(items);
-						setHasMore(items.length === PAGE_SIZE);
-						offsetRef.current = items.length;
-					} else if (liveQuery.rows) {
-						const items = liveQuery.rows;
-						setInboxItems(items);
-						setHasMore(items.length === PAGE_SIZE);
-						offsetRef.current = items.length;
-					}
-
-					// Subscribe to changes
-					if (typeof liveQuery.subscribe === "function") {
+					if (liveQuery.subscribe) {
 						liveQuery.subscribe((result: { rows: InboxItem[] }) => {
 							if (mounted && result.rows) {
-								// Only update first page from live query
-								// Keep any additionally loaded items
-								setInboxItems(prev => {
-									if (prev.length <= PAGE_SIZE) {
-										const items = result.rows;
-										setHasMore(items.length === PAGE_SIZE);
-										offsetRef.current = items.length;
-										return items;
-									}
-									// Merge: new first page + existing extra items
-									const newFirstPage = result.rows;
-									const existingExtra = prev.slice(PAGE_SIZE);
-									offsetRef.current = newFirstPage.length + existingExtra.length;
-									return [...newFirstPage, ...existingExtra];
+								setInboxItems((prev) => {
+									const liveItems = result.rows;
+									const liveItemIds = new Set(liveItems.map((item) => item.id));
+
+									// FIXED: Keep ALL items not in live result (not just slice)
+									// This prevents data loss when new notifications push items
+									// out of the LIMIT window
+									const itemsToKeep = prev.filter((item) => !liveItemIds.has(item.id));
+
+									return deduplicateAndSort([...liveItems, ...itemsToKeep]);
 								});
 							}
 						});
 					}
 
-					if (typeof liveQuery.unsubscribe === "function") {
+					if (liveQuery.unsubscribe) {
 						liveQueryRef.current = liveQuery;
 					}
 				}
 			} catch (err) {
-				console.error("[useInbox] Failed to update query:", err);
+				console.error("[useInbox] Live query error:", err);
 			}
 		}
 
-		updateQuery();
+		setupLiveQuery();
 
 		return () => {
 			mounted = false;
@@ -245,61 +289,45 @@ export function useInbox(
 		};
 	}, [userId, searchSpaceId, typeFilter, electricClient]);
 
-	// EFFECT 3: Total unread count - independent of type filter
-	// This ensures the badge count stays consistent regardless of active filter
+	// EFFECT 3: Unread count with live updates
 	useEffect(() => {
-		if (!userId || !electricClient) {
-			return;
-		}
+		if (!userId || !electricClient) return;
 
-		// Capture electricClient to satisfy TypeScript in async function
 		const client = electricClient;
 		let mounted = true;
 
 		async function updateUnreadCount() {
-			// Clean up previous live query
 			if (unreadCountLiveQueryRef.current) {
 				unreadCountLiveQueryRef.current.unsubscribe();
 				unreadCountLiveQueryRef.current = null;
 			}
 
 			try {
-				// Note: Backend table is still named "notifications"
-				const countQuery = `SELECT COUNT(*) as count FROM notifications 
-					 WHERE user_id = $1 
-					 AND (search_space_id = $2 OR search_space_id IS NULL)
-					 AND read = false`;
+				const cutoff = getSyncCutoffDate();
+				const query = `SELECT COUNT(*) as count FROM notifications 
+					WHERE user_id = $1 
+					AND (search_space_id = $2 OR search_space_id IS NULL)
+					AND read = false
+					AND created_at > '${cutoff}'`;
 
-				// Fetch initial count
-				const result = await client.db.query<{ count: number }>(countQuery, [
+				const result = await client.db.query<{ count: number }>(query, [
 					userId,
 					searchSpaceId,
 				]);
-
 				if (mounted && result.rows?.[0]) {
 					setTotalUnreadCount(Number(result.rows[0].count) || 0);
 				}
 
-				// Set up live query for real-time updates
 				const db = client.db as any;
-
-				if (db.live?.query && typeof db.live.query === "function") {
-					const liveQuery = await db.live.query(countQuery, [userId, searchSpaceId]);
+				if (db.live?.query) {
+					const liveQuery = await db.live.query(query, [userId, searchSpaceId]);
 
 					if (!mounted) {
 						liveQuery.unsubscribe?.();
 						return;
 					}
 
-					// Set initial results from live query
-					if (liveQuery.initialResults?.rows?.[0]) {
-						setTotalUnreadCount(Number(liveQuery.initialResults.rows[0].count) || 0);
-					} else if (liveQuery.rows?.[0]) {
-						setTotalUnreadCount(Number(liveQuery.rows[0].count) || 0);
-					}
-
-					// Subscribe to changes
-					if (typeof liveQuery.subscribe === "function") {
+					if (liveQuery.subscribe) {
 						liveQuery.subscribe((result: { rows: { count: number }[] }) => {
 							if (mounted && result.rows?.[0]) {
 								setTotalUnreadCount(Number(result.rows[0].count) || 0);
@@ -307,12 +335,12 @@ export function useInbox(
 						});
 					}
 
-					if (typeof liveQuery.unsubscribe === "function") {
+					if (liveQuery.unsubscribe) {
 						unreadCountLiveQueryRef.current = liveQuery;
 					}
 				}
 			} catch (err) {
-				console.error("[useInbox] Failed to update unread count:", err);
+				console.error("[useInbox] Unread count error:", err);
 			}
 		}
 
@@ -327,76 +355,88 @@ export function useInbox(
 		};
 	}, [userId, searchSpaceId, electricClient]);
 
-	// Load more items (for infinite scroll)
+	// loadMore - Pure cursor-based pagination, no race conditions
+	// Cursor is computed from current state, not stored in refs
 	const loadMore = useCallback(async () => {
-		if (!userId || !electricClient || loadingMore || !hasMore) {
-			return;
-		}
+		// Removed inboxItems.length === 0 check to allow loading older items
+		// when Electric returns 0 items
+		if (!userId || loadingMore || !hasMore) return;
 
 		setLoadingMore(true);
-		const client = electricClient;
 
 		try {
-			const baseQuery = `SELECT * FROM notifications 
-				 WHERE user_id = $1 
-				 AND (search_space_id = $2 OR search_space_id IS NULL)`;
-			const typeClause = typeFilter ? ` AND type = $3` : "";
-			const orderClause = ` ORDER BY created_at DESC`;
-			const limitOffsetClause = ` LIMIT ${PAGE_SIZE} OFFSET ${offsetRef.current}`;
-			const fullQuery = baseQuery + typeClause + orderClause + limitOffsetClause;
-			const params = typeFilter ? [userId, searchSpaceId, typeFilter] : [userId, searchSpaceId];
+			// Cursor is computed from current state - no stale refs possible
+			const oldestItem = inboxItems.length > 0 ? inboxItems[inboxItems.length - 1] : null;
+			const beforeDate = oldestItem ? toISOString(oldestItem.created_at) : null;
 
-			const result = await client.db.query<InboxItem>(fullQuery, params);
-			const newItems = result.rows || [];
+			const params = new URLSearchParams();
+			if (searchSpaceId !== null) {
+				params.append("search_space_id", String(searchSpaceId));
+			}
+			if (typeFilter) {
+				params.append("type", typeFilter);
+			}
+			// Only add before_date if we have a cursor
+			// Without before_date, API returns newest items first
+			if (beforeDate) {
+				params.append("before_date", beforeDate);
+			}
+			params.append("limit", String(PAGE_SIZE));
 
-			setInboxItems(prev => [...prev, ...newItems]);
-			setHasMore(newItems.length === PAGE_SIZE);
-			offsetRef.current += newItems.length;
+			console.log("[useInbox] Loading more, before:", beforeDate ?? "none (initial)");
+
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications?${params.toString()}`
+			);
+
+			if (!response.ok) {
+				throw new Error("Failed to fetch notifications");
+			}
+
+			const data = await response.json();
+			const apiItems: InboxItem[] = data.items.map((item: any) => ({
+				...item,
+				metadata: item.metadata || {},
+			}));
+
+			if (apiItems.length > 0) {
+				// Functional update ensures we always merge with latest state
+				setInboxItems((prev) => deduplicateAndSort([...prev, ...apiItems]));
+			}
+
+			// Use API's has_more flag if available, otherwise check count
+			setHasMore(data.has_more ?? apiItems.length === PAGE_SIZE);
 		} catch (err) {
-			console.error("[useInbox] Failed to load more:", err);
+			console.error("[useInbox] Load more failed:", err);
 		} finally {
 			setLoadingMore(false);
 		}
-	}, [userId, searchSpaceId, typeFilter, electricClient, loadingMore, hasMore]);
+	}, [userId, searchSpaceId, typeFilter, loadingMore, hasMore, inboxItems]);
 
-	// Mark inbox item as read via backend API
+	// Mark inbox item as read
 	const markAsRead = useCallback(async (itemId: number) => {
 		try {
-			// Note: Backend API endpoint is still /notifications/
 			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/${itemId}/read`,
 				{ method: "PATCH" }
 			);
-
-			if (!response.ok) {
-				const error = await response.json().catch(() => ({ detail: "Failed to mark as read" }));
-				throw new Error(error.detail || "Failed to mark inbox item as read");
-			}
-
-			return true;
+			return response.ok;
 		} catch (err) {
-			console.error("Failed to mark inbox item as read:", err);
+			console.error("Failed to mark as read:", err);
 			return false;
 		}
 	}, []);
 
-	// Mark all inbox items as read via backend API
+	// Mark all inbox items as read
 	const markAllAsRead = useCallback(async () => {
 		try {
-			// Note: Backend API endpoint is still /notifications/
 			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/read-all`,
 				{ method: "PATCH" }
 			);
-
-			if (!response.ok) {
-				const error = await response.json().catch(() => ({ detail: "Failed to mark all as read" }));
-				throw new Error(error.detail || "Failed to mark all inbox items as read");
-			}
-
-			return true;
+			return response.ok;
 		} catch (err) {
-			console.error("Failed to mark all inbox items as read:", err);
+			console.error("Failed to mark all as read:", err);
 			return false;
 		}
 	}, []);
@@ -410,7 +450,7 @@ export function useInbox(
 		loadingMore,
 		hasMore,
 		loadMore,
+		isUsingApiFallback: true, // Always use API for pagination
 		error,
 	};
 }
-
