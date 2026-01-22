@@ -43,7 +43,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { InboxItem } from "@/hooks/use-inbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import type { ConnectorIndexingMetadata } from "@/contracts/types/inbox.types";
+import {
+	type ConnectorIndexingMetadata,
+	type NewMentionMetadata,
+	isConnectorIndexingMetadata,
+	isNewMentionMetadata,
+} from "@/contracts/types/inbox.types";
 import { cn } from "@/lib/utils";
 
 /**
@@ -206,9 +211,9 @@ export function InboxSidebar({
 		statusItems
 			.filter((item) => item.type === "connector_indexing")
 			.forEach((item) => {
-				const metadata = item.metadata as ConnectorIndexingMetadata;
-				if (metadata?.connector_type) {
-					connectorTypes.add(metadata.connector_type);
+				// Use type guard for safe metadata access
+				if (isConnectorIndexingMetadata(item.metadata)) {
+					connectorTypes.add(item.metadata.connector_type);
 				}
 			});
 
@@ -234,8 +239,11 @@ export function InboxSidebar({
 		if (activeTab === "status" && selectedConnector) {
 			items = items.filter((item) => {
 				if (item.type === "connector_indexing") {
-					const metadata = item.metadata as ConnectorIndexingMetadata;
-					return metadata?.connector_type === selectedConnector;
+					// Use type guard for safe metadata access
+					if (isConnectorIndexingMetadata(item.metadata)) {
+						return item.metadata.connector_type === selectedConnector;
+					}
+					return false;
 				}
 				return false; // Hide document_processing when a specific connector is selected
 			});
@@ -297,21 +305,20 @@ export function InboxSidebar({
 			}
 
 			if (item.type === "new_mention") {
-				const metadata = item.metadata as {
-					thread_id?: number;
-					comment_id?: number;
-				};
-				const searchSpaceId = item.search_space_id;
-				const threadId = metadata?.thread_id;
-				const commentId = metadata?.comment_id;
+				// Use type guard for safe metadata access
+				if (isNewMentionMetadata(item.metadata)) {
+					const searchSpaceId = item.search_space_id;
+					const threadId = item.metadata.thread_id;
+					const commentId = item.metadata.comment_id;
 
-				if (searchSpaceId && threadId) {
-					const url = commentId
-						? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
-						: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
-					onOpenChange(false);
-					onCloseMobileSidebar?.();
-					router.push(url);
+					if (searchSpaceId && threadId) {
+						const url = commentId
+							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
+							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
+						onOpenChange(false);
+						onCloseMobileSidebar?.();
+						router.push(url);
+					}
 				}
 			}
 		},
@@ -348,27 +355,35 @@ export function InboxSidebar({
 	const getStatusIcon = (item: InboxItem) => {
 		// For mentions, show the author's avatar with initials fallback
 		if (item.type === "new_mention") {
-			const metadata = item.metadata as {
-				author_name?: string;
-				author_avatar_url?: string | null;
-				author_email?: string;
-			};
-			const authorName = metadata?.author_name;
-			const avatarUrl = metadata?.author_avatar_url;
-			const authorEmail = metadata?.author_email;
+			// Use type guard for safe metadata access
+			if (isNewMentionMetadata(item.metadata)) {
+				const authorName = item.metadata.author_name;
+				const avatarUrl = item.metadata.author_avatar_url;
+				const authorEmail = item.metadata.author_email;
 
+				return (
+					<Avatar className="h-8 w-8">
+						{avatarUrl && <AvatarImage src={avatarUrl} alt={authorName || "User"} />}
+						<AvatarFallback className="text-[10px] bg-primary/10 text-primary">
+							{getInitials(authorName, authorEmail)}
+						</AvatarFallback>
+					</Avatar>
+				);
+			}
+			// Fallback for invalid metadata
 			return (
 				<Avatar className="h-8 w-8">
-					{avatarUrl && <AvatarImage src={avatarUrl} alt={authorName || "User"} />}
 					<AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-						{getInitials(authorName, authorEmail)}
+						{getInitials(null, null)}
 					</AvatarFallback>
 				</Avatar>
 			);
 		}
 
 		// For status items (connector/document), show status icons
-		const status = item.metadata?.status as string | undefined;
+		// Safely access status from metadata
+		const metadata = item.metadata as Record<string, unknown>;
+		const status = typeof metadata?.status === "string" ? metadata.status : undefined;
 
 		switch (status) {
 			case "in_progress":

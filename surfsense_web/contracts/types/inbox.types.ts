@@ -133,7 +133,115 @@ export const newMentionInboxItem = inboxItem.extend({
 	metadata: newMentionMetadata,
 });
 
+// =============================================================================
+// API Request/Response Schemas
+// =============================================================================
+
+/**
+ * Request schema for getting notifications
+ */
+export const getNotificationsRequest = z.object({
+	queryParams: z.object({
+		search_space_id: z.number().optional(),
+		type: inboxItemTypeEnum.optional(),
+		before_date: z.string().optional(),
+		limit: z.number().min(1).max(100).optional(),
+		offset: z.number().min(0).optional(),
+	}),
+});
+
+/**
+ * Response schema for listing notifications
+ */
+export const getNotificationsResponse = z.object({
+	items: z.array(inboxItem),
+	total: z.number(),
+	has_more: z.boolean(),
+	next_offset: z.number().nullable(),
+});
+
+/**
+ * Request schema for marking a single notification as read
+ */
+export const markNotificationReadRequest = z.object({
+	notificationId: z.number(),
+});
+
+/**
+ * Response schema for mark as read operations
+ */
+export const markNotificationReadResponse = z.object({
+	success: z.boolean(),
+	message: z.string(),
+});
+
+/**
+ * Response schema for mark all as read operation
+ */
+export const markAllNotificationsReadResponse = z.object({
+	success: z.boolean(),
+	message: z.string(),
+	updated_count: z.number(),
+});
+
+// =============================================================================
+// Type Guards for Metadata
+// =============================================================================
+
+/**
+ * Type guard for ConnectorIndexingMetadata
+ */
+export function isConnectorIndexingMetadata(
+	metadata: unknown
+): metadata is ConnectorIndexingMetadata {
+	return connectorIndexingMetadata.safeParse(metadata).success;
+}
+
+/**
+ * Type guard for DocumentProcessingMetadata
+ */
+export function isDocumentProcessingMetadata(
+	metadata: unknown
+): metadata is DocumentProcessingMetadata {
+	return documentProcessingMetadata.safeParse(metadata).success;
+}
+
+/**
+ * Type guard for NewMentionMetadata
+ */
+export function isNewMentionMetadata(metadata: unknown): metadata is NewMentionMetadata {
+	return newMentionMetadata.safeParse(metadata).success;
+}
+
+/**
+ * Safe metadata parser - returns typed metadata or null
+ */
+export function parseInboxItemMetadata(
+	type: InboxItemTypeEnum,
+	metadata: unknown
+): ConnectorIndexingMetadata | DocumentProcessingMetadata | NewMentionMetadata | null {
+	switch (type) {
+		case "connector_indexing": {
+			const result = connectorIndexingMetadata.safeParse(metadata);
+			return result.success ? result.data : null;
+		}
+		case "document_processing": {
+			const result = documentProcessingMetadata.safeParse(metadata);
+			return result.success ? result.data : null;
+		}
+		case "new_mention": {
+			const result = newMentionMetadata.safeParse(metadata);
+			return result.success ? result.data : null;
+		}
+		default:
+			return null;
+	}
+}
+
+// =============================================================================
 // Inferred types
+// =============================================================================
+
 export type InboxItemTypeEnum = z.infer<typeof inboxItemTypeEnum>;
 export type InboxItemStatusEnum = z.infer<typeof inboxItemStatusEnum>;
 export type DocumentProcessingStageEnum = z.infer<typeof documentProcessingStageEnum>;
@@ -146,3 +254,10 @@ export type InboxItem = z.infer<typeof inboxItem>;
 export type ConnectorIndexingInboxItem = z.infer<typeof connectorIndexingInboxItem>;
 export type DocumentProcessingInboxItem = z.infer<typeof documentProcessingInboxItem>;
 export type NewMentionInboxItem = z.infer<typeof newMentionInboxItem>;
+
+// API Request/Response types
+export type GetNotificationsRequest = z.infer<typeof getNotificationsRequest>;
+export type GetNotificationsResponse = z.infer<typeof getNotificationsResponse>;
+export type MarkNotificationReadRequest = z.infer<typeof markNotificationReadRequest>;
+export type MarkNotificationReadResponse = z.infer<typeof markNotificationReadResponse>;
+export type MarkAllNotificationsReadResponse = z.infer<typeof markAllNotificationsReadResponse>;

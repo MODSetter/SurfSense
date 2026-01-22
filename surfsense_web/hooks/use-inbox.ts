@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { InboxItem, InboxItemTypeEnum } from "@/contracts/types/inbox.types";
-import { authenticatedFetch } from "@/lib/auth-utils";
+import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
 
@@ -198,7 +198,7 @@ export function useInbox(
 
 				const db = client.db as any;
 
-				// Initial fetch from PGLite
+				// Initial fetch from PGLite - no validation needed, schema is enforced by Electric SQL sync
 				const result = await client.db.query<InboxItem>(query, params);
 
 				if (mounted && result.rows) {
@@ -213,30 +213,20 @@ export function useInbox(
 							"[useInbox] Electric returned 0 items, checking API for older notifications"
 						);
 						try {
-							const apiParams = new URLSearchParams();
-							if (searchSpaceId !== null) {
-								apiParams.append("search_space_id", String(searchSpaceId));
-							}
-							if (typeFilter) {
-								apiParams.append("type", typeFilter);
-							}
-							apiParams.append("limit", String(PAGE_SIZE));
+							// Use the API service with proper Zod validation for API responses
+							const data = await notificationsApiService.getNotifications({
+								queryParams: {
+									search_space_id: searchSpaceId ?? undefined,
+									type: typeFilter ?? undefined,
+									limit: PAGE_SIZE,
+								},
+							});
 
-							const response = await authenticatedFetch(
-								`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications?${apiParams.toString()}`
-							);
-
-							if (response.ok && mounted) {
-								const data = await response.json();
-								const apiItems: InboxItem[] = data.items.map((item: any) => ({
-									...item,
-									metadata: item.metadata || {},
-								}));
-
-								if (apiItems.length > 0) {
-									setInboxItems(apiItems);
+							if (mounted) {
+								if (data.items.length > 0) {
+									setInboxItems(data.items);
 								}
-								setHasMore(data.has_more ?? apiItems.length === PAGE_SIZE);
+								setHasMore(data.has_more);
 							}
 						} catch (err) {
 							console.error("[useInbox] API fallback failed:", err);
@@ -254,10 +244,12 @@ export function useInbox(
 					}
 
 					if (liveQuery.subscribe) {
+						// Live query data comes from PGlite - no validation needed
 						liveQuery.subscribe((result: { rows: InboxItem[] }) => {
 							if (mounted && result.rows) {
+								const liveItems = result.rows;
+
 								setInboxItems((prev) => {
-									const liveItems = result.rows;
 									const liveItemIds = new Set(liveItems.map((item) => item.id));
 
 									// FIXED: Keep ALL items not in live result (not just slice)
@@ -305,43 +297,26 @@ export function useInbox(
 			const oldestItem = inboxItems.length > 0 ? inboxItems[inboxItems.length - 1] : null;
 			const beforeDate = oldestItem ? toISOString(oldestItem.created_at) : null;
 
-			const params = new URLSearchParams();
-			if (searchSpaceId !== null) {
-				params.append("search_space_id", String(searchSpaceId));
-			}
-			if (typeFilter) {
-				params.append("type", typeFilter);
-			}
-			// Only add before_date if we have a cursor
-			// Without before_date, API returns newest items first
-			if (beforeDate) {
-				params.append("before_date", beforeDate);
-			}
-			params.append("limit", String(PAGE_SIZE));
-
 			console.log("[useInbox] Loading more, before:", beforeDate ?? "none (initial)");
 
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications?${params.toString()}`
-			);
+			// Use the API service with proper Zod validation
+			const data = await notificationsApiService.getNotifications({
+				queryParams: {
+					search_space_id: searchSpaceId ?? undefined,
+					type: typeFilter ?? undefined,
+					before_date: beforeDate ?? undefined,
+					limit: PAGE_SIZE,
+				},
+			});
 
-			if (!response.ok) {
-				throw new Error("Failed to fetch notifications");
-			}
-
-			const data = await response.json();
-			const apiItems: InboxItem[] = data.items.map((item: any) => ({
-				...item,
-				metadata: item.metadata || {},
-			}));
-
-			if (apiItems.length > 0) {
+			if (data.items.length > 0) {
 				// Functional update ensures we always merge with latest state
-				setInboxItems((prev) => deduplicateAndSort([...prev, ...apiItems]));
+				// Items are already validated by the API service
+				setInboxItems((prev) => deduplicateAndSort([...prev, ...data.items]));
 			}
 
-			// Use API's has_more flag if available, otherwise check count
-			setHasMore(data.has_more ?? apiItems.length === PAGE_SIZE);
+			// Use API's has_more flag
+			setHasMore(data.has_more);
 		} catch (err) {
 			console.error("[useInbox] Load more failed:", err);
 		} finally {
@@ -357,12 +332,10 @@ export function useInbox(
 		);
 
 		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/${itemId}/read`,
-				{ method: "PATCH" }
-			);
+			// Use the API service with proper Zod validation
+			const result = await notificationsApiService.markAsRead({ notificationId: itemId });
 
-			if (!response.ok) {
+			if (!result.success) {
 				// Rollback on error
 				setInboxItems((prev) =>
 					prev.map((item) => (item.id === itemId ? { ...item, read: false } : item))
@@ -370,7 +343,7 @@ export function useInbox(
 			}
 			// If successful, Electric SQL will sync the change and live query will update
 			// This ensures eventual consistency even if optimistic update was wrong
-			return response.ok;
+			return result.success;
 		} catch (err) {
 			console.error("Failed to mark as read:", err);
 			// Rollback on error
@@ -387,17 +360,15 @@ export function useInbox(
 		setInboxItems((prev) => prev.map((item) => ({ ...item, read: true })));
 
 		try {
-			const response = await authenticatedFetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/notifications/read-all`,
-				{ method: "PATCH" }
-			);
+			// Use the API service with proper Zod validation
+			const result = await notificationsApiService.markAllAsRead();
 
-			if (!response.ok) {
+			if (!result.success) {
 				console.error("Failed to mark all as read");
 				// On error, let Electric SQL sync correct the state
 			}
 			// Electric SQL will sync and live query will ensure consistency
-			return response.ok;
+			return result.success;
 		} catch (err) {
 			console.error("Failed to mark all as read:", err);
 			// On error, let Electric SQL sync correct the state
