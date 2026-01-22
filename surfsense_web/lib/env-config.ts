@@ -21,8 +21,21 @@ export const BACKEND_URL = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http:
 // Placeholder: __NEXT_PUBLIC_ETL_SERVICE__
 export const ETL_SERVICE = process.env.NEXT_PUBLIC_ETL_SERVICE || "DOCLING";
 
+// Deployment Mode: "self-hosted" or "cloud"
+// Matches backend's SURFSENSE_DEPLOYMENT_MODE - defaults to "self-hosted"
+// self-hosted: Full access to local file system connectors (Obsidian, etc.)
+// cloud: Only cloud-based connectors available
+// Placeholder: __NEXT_PUBLIC_DEPLOYMENT_MODE__
+export const DEPLOYMENT_MODE = process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted";
+
 // Helper to check if local auth is enabled
 export const isLocalAuth = () => AUTH_TYPE === "LOCAL";
 
 // Helper to check if Google auth is enabled
 export const isGoogleAuth = () => AUTH_TYPE === "GOOGLE";
+
+// Helper to check if running in self-hosted mode
+export const isSelfHosted = () => DEPLOYMENT_MODE === "self-hosted";
+
+// Helper to check if running in cloud mode
+export const isCloud = () => DEPLOYMENT_MODE === "cloud";
