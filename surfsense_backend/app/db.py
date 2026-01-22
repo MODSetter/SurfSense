@@ -413,6 +413,13 @@ class ChatComment(BaseModel, TimestampMixin):
         nullable=False,
         index=True,
     )
+    # Denormalized thread_id for efficient Electric SQL subscriptions (one per thread)
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     parent_id = Column(
         Integer,
         ForeignKey("chat_comments.id", ondelete="CASCADE"),
@@ -436,6 +443,7 @@ class ChatComment(BaseModel, TimestampMixin):
 
     # Relationships
     message = relationship("NewChatMessage", back_populates="comments")
+    thread = relationship("NewChatThread")
     author = relationship("User")
     parent = relationship(
         "ChatComment", remote_side="ChatComment.id", backref="replies"
