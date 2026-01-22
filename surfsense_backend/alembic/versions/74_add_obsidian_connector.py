@@ -1,7 +1,7 @@
 """Add Obsidian connector enums
 
 Revision ID: 74_add_obsidian_connector
-Revises: 73_add_user_memories_table
+Revises: 73
 Create Date: 2026-01-21
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "74_add_obsidian_connector"
-down_revision: str | None = "73_add_user_memories_table"
+down_revision: str | None = "73"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

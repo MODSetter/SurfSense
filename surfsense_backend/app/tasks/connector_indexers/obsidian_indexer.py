@@ -7,7 +7,7 @@ This connector is only available in self-hosted mode.
 
 import os
 import re
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
@@ -266,17 +266,40 @@ async def index_obsidian_vault(
             {"stage": "files_discovered", "file_count": len(files)},
         )
 
-        # Filter by date if provided
-        if start_date:
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=UTC)
-            files = [f for f in files if f["modified_at"] >= start_dt]
+        # Filter by date if provided (handle "undefined" string from frontend)
+        # Also handle inverted dates (start > end) by skipping filtering
+        start_dt = None
+        end_dt = None
 
-        if end_date:
+        if start_date and start_date != "undefined":
+            start_dt = datetime.strptime(start_date, "%Y-%m-%d").replace(tzinfo=UTC)
+
+        if end_date and end_date != "undefined":
+            # Make end_date inclusive (end of day)
             end_dt = datetime.strptime(end_date, "%Y-%m-%d").replace(tzinfo=UTC)
-            files = [f for f in files if f["modified_at"] <= end_dt]
+            end_dt = end_dt.replace(hour=23, minute=59, second=59)
+
+        # Only apply date filtering if dates are valid and in correct order
+        if start_dt and end_dt and start_dt > end_dt:
+            logger.warning(
+                f"start_date ({start_date}) is after end_date ({end_date}), skipping date filter"
+            )
+        else:
+            if start_dt:
+                files = [f for f in files if f["modified_at"] >= start_dt]
+                logger.info(
+                    f"After start_date filter ({start_date}): {len(files)} files"
+                )
+            if end_dt:
+                files = [f for f in files if f["modified_at"] <= end_dt]
+                logger.info(f"After end_date filter ({end_date}): {len(files)} files")
+
+        logger.info(f"Processing {len(files)} files after date filtering")
 
         # Get LLM for summarization
-        long_context_llm = await get_user_long_context_llm(session, user_id)
+        long_context_llm = await get_user_long_context_llm(
+            session, user_id, search_space_id
+        )
 
         indexed_count = 0
         skipped_count = 0
@@ -312,9 +335,9 @@ async def index_obsidian_vault(
                     # Also extract tags from frontmatter
                     fm_tags = frontmatter.get("tags", [])
                     if isinstance(fm_tags, list):
-                        tags = list(set(tags + fm_tags))
+                        tags = list({*tags, *fm_tags})
                     elif isinstance(fm_tags, str):
-                        tags = list(set(tags + [fm_tags]))
+                        tags = list({*tags, fm_tags})
 
                 # Generate unique identifier using vault name and relative path
                 unique_identifier = f"{vault_name}:{relative_path}"
@@ -330,7 +353,7 @@ async def index_obsidian_vault(
                 )
 
                 # Generate content hash
-                content_hash = generate_content_hash(content)
+                content_hash = generate_content_hash(content, search_space_id)
 
                 # Build metadata
                 document_metadata = {
@@ -372,11 +395,19 @@ async def index_obsidian_vault(
 
                     # Generate new summary if content changed
                     if long_context_llm:
-                        new_summary = await generate_document_summary(
-                            content=document_string,
-                            llm=long_context_llm,
+                        new_summary, _ = await generate_document_summary(
+                            document_string,
+                            long_context_llm,
+                            document_metadata,
                         )
-                        existing_document.summary = new_summary
+                        # Store summary in metadata
+                        document_metadata["summary"] = new_summary
+
+                    # Add URL and connector_id to metadata
+                    document_metadata["url"] = (
+                        f"obsidian://{vault_name}/{relative_path}"
+                    )
+                    document_metadata["connector_id"] = connector_id
 
                     existing_document.content = document_string
                     existing_document.content_hash = content_hash
@@ -387,14 +418,10 @@ async def index_obsidian_vault(
                     embedding = config.embedding_model_instance.embed(document_string)
                     existing_document.embedding = embedding
 
-                    # Update chunks
-                    await create_document_chunks(
-                        session=session,
-                        document=existing_document,
-                        content=document_string,
-                        chunker=config.chunker_instance,
-                        embedding_model=config.embedding_model_instance,
-                    )
+                    # Update chunks - delete old and create new
+                    existing_document.chunks.clear()
+                    new_chunks = await create_document_chunks(document_string)
+                    existing_document.chunks = new_chunks
 
                     indexed_count += 1
 
@@ -403,42 +430,42 @@ async def index_obsidian_vault(
                     logger.info(f"Indexing new note: {title}")
 
                     # Generate summary
-                    summary = ""
+                    summary_content = ""
                     if long_context_llm:
-                        summary = await generate_document_summary(
-                            content=document_string,
-                            llm=long_context_llm,
+                        summary_content, _ = await generate_document_summary(
+                            document_string,
+                            long_context_llm,
+                            document_metadata,
                         )
 
                     # Generate embedding
                     embedding = config.embedding_model_instance.embed(document_string)
 
+                    # Add URL and summary to metadata
+                    document_metadata["url"] = (
+                        f"obsidian://{vault_name}/{relative_path}"
+                    )
+                    document_metadata["summary"] = summary_content
+                    document_metadata["connector_id"] = connector_id
+
+                    # Create chunks
+                    chunks = await create_document_chunks(document_string)
+
                     # Create document
                     new_document = Document(
                         search_space_id=search_space_id,
                         title=title,
-                        url=f"obsidian://{vault_name}/{relative_path}",
                         document_type=DocumentType.OBSIDIAN_CONNECTOR,
                         content=document_string,
                         content_hash=content_hash,
                         unique_identifier_hash=unique_identifier_hash,
                         document_metadata=document_metadata,
-                        summary=summary,
                         embedding=embedding,
-                        connector_id=connector_id,
+                        chunks=chunks,
+                        updated_at=get_current_timestamp(),
                     )
 
                     session.add(new_document)
-                    await session.flush()
-
-                    # Create chunks
-                    await create_document_chunks(
-                        session=session,
-                        document=new_document,
-                        content=document_string,
-                        chunker=config.chunker_instance,
-                        embedding_model=config.embedding_model_instance,
-                    )
 
                     indexed_count += 1
 

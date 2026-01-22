@@ -362,8 +362,8 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitti
 										File System Access Required
 									</AlertTitle>
 									<AlertDescription className="text-[9px] sm:text-[10px]">
-										The SurfSense backend must have read access to your Obsidian vault directory. For
-										Docker deployments, mount your vault as a volume.
+										The SurfSense backend must have read access to your Obsidian vault directory.
+										For Docker deployments, mount your vault as a volume.
 									</AlertDescription>
 								</Alert>
 
@@ -373,18 +373,34 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitti
 											Step 1: Locate your vault
 										</h4>
 										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Open Obsidian and go to Settings → About</li>
-											<li>Look for "Vault path" to find the location</li>
-											<li>Or right-click any note and select "Reveal in Finder/Explorer"</li>
+											<li>
+												<strong>macOS/Linux:</strong> Right-click any note in Obsidian → "Reveal in
+												Finder" to see the vault folder
+											</li>
+											<li>
+												<strong>Windows:</strong> Right-click any note → "Show in system explorer"
+											</li>
+											<li>
+												<strong>Or:</strong> Click the vault switcher (bottom-left icon) → "Open
+												folder" next to your vault name
+											</li>
 										</ol>
 									</div>
 
 									<div>
 										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
-											Step 2: Mount vault for Docker
+											Step 2: Enter the path
 										</h4>
 										<p className="text-[10px] sm:text-xs text-muted-foreground mb-2">
-											If running SurfSense in Docker, add a volume mount:
+											<strong>Running locally (no Docker):</strong> Use the direct path to your
+											vault:
+										</p>
+										<pre className="bg-slate-800 text-slate-200 p-2 rounded text-[9px] sm:text-[10px] overflow-x-auto mb-2">
+											{`/Users/yourname/Documents/MyObsidianVault`}
+										</pre>
+										<p className="text-[10px] sm:text-xs text-muted-foreground mb-2">
+											<strong>Running in Docker:</strong> Mount your vault as a volume in
+											docker-compose.yml:
 										</p>
 										<pre className="bg-slate-800 text-slate-200 p-2 rounded text-[9px] sm:text-[10px] overflow-x-auto">
 											{`volumes:
