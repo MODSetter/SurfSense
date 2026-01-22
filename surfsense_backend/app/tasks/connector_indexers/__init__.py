@@ -26,6 +26,7 @@ Available indexers:
 # Calendar and scheduling
 from .airtable_indexer import index_airtable_records
 from .bookstack_indexer import index_bookstack_pages
+
 # Note: composio_indexer is imported directly in connector_tasks.py to avoid circular imports
 from .clickup_indexer import index_clickup_tasks
 from .confluence_indexer import index_confluence_pages

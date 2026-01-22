@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.db import SearchSourceConnector
-from app.services.composio_service import ComposioService, INDEXABLE_TOOLKITS
+from app.services.composio_service import INDEXABLE_TOOLKITS, ComposioService
 
 logger = logging.getLogger(__name__)
 

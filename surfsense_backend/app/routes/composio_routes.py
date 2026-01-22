@@ -10,7 +10,6 @@ Endpoints:
 - GET /auth/composio/connector/callback - Handle OAuth callback
 """
 
-import asyncio
 import logging
 from uuid import UUID
 
