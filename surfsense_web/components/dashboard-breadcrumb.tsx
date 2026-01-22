@@ -76,9 +76,6 @@ export function DashboardBreadcrumb() {
 		const segments = path.split("/").filter(Boolean);
 		const breadcrumbs: BreadcrumbItemInterface[] = [];
 
-		// Always start with Dashboard
-		breadcrumbs.push({ label: t("dashboard"), href: "/dashboard" });
-
 		// Handle search space
 		if (segments[0] === "dashboard" && segments[1]) {
 			// Use the actual search space name if available, otherwise fall back to the ID
@@ -182,7 +179,7 @@ export function DashboardBreadcrumb() {
 
 	const breadcrumbs = generateBreadcrumbs(pathname);
 
-	if (breadcrumbs.length <= 1) {
+	if (breadcrumbs.length === 0) {
 		return null; // Don't show breadcrumbs for root dashboard
 	}
 

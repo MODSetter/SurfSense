@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { LogOut, Logs, SquareLibrary, Trash2 } from "lucide-react";
+import { LogOut, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -150,12 +150,6 @@ export function LayoutDataProvider({
 				url: `/dashboard/${searchSpaceId}/documents`,
 				icon: SquareLibrary,
 				isActive: pathname?.includes("/documents"),
-			},
-			{
-				title: "Logs",
-				url: `/dashboard/${searchSpaceId}/logs`,
-				icon: Logs,
-				isActive: pathname?.includes("/logs"),
 			},
 		],
 		[searchSpaceId, pathname]

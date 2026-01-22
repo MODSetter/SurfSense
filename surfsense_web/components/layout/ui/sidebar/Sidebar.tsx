@@ -95,6 +95,11 @@ export function Sidebar({
 				</div>
 			)}
 
+			{/* Platform navigation */}
+			{navItems.length > 0 && (
+				<NavSection items={navItems} onItemClick={onNavItemClick} isCollapsed={isCollapsed} />
+			)}
+
 			{/* New chat button */}
 			<div className="p-2">
 				{isCollapsed ? (
@@ -114,11 +119,6 @@ export function Sidebar({
 					</Button>
 				)}
 			</div>
-
-			{/* Platform navigation */}
-			{navItems.length > 0 && (
-				<NavSection items={navItems} onItemClick={onNavItemClick} isCollapsed={isCollapsed} />
-			)}
 
 			{/* Scrollable content */}
 			<ScrollArea className="flex-1">
