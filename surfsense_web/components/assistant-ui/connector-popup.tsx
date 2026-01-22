@@ -21,7 +21,6 @@ import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog
 import { useIndexingConnectors } from "./connector-popup/hooks/use-indexing-connectors";
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
-import { ComposioToolkitView } from "./connector-popup/views/composio-toolkit-view";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
@@ -88,12 +87,6 @@ export const ConnectorIndicator: FC = () => {
 		setConnectorConfig,
 		setIndexingConnectorConfig,
 		setConnectorName,
-		// Composio
-		viewingComposio,
-		connectingComposioToolkit,
-		handleOpenComposio,
-		handleBackFromComposio,
-		handleConnectComposioToolkit,
 	} = useConnectorDialog();
 
 	// Fetch connectors using Electric SQL + PGlite for real-time updates
@@ -142,7 +135,7 @@ export const ConnectorIndicator: FC = () => {
 
 	// Check which connectors are already connected
 	// Using Electric SQL + PGlite for real-time connector updates
-	const connectedTypes = new Set(
+	const connectedTypes = new Set<string>(
 		(connectors || []).map((c: SearchSourceConnector) => c.connector_type)
 	);
 
@@ -183,30 +176,6 @@ export const ConnectorIndicator: FC = () => {
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
-				) : viewingComposio && searchSpaceId ? (
-					<ComposioToolkitView
-						searchSpaceId={searchSpaceId}
-						connectedToolkits={
-							(connectors || [])
-								.filter((c: SearchSourceConnector) => 
-									c.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" ||
-									c.connector_type === "COMPOSIO_GMAIL_CONNECTOR" ||
-									c.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
-								)
-								.map((c: SearchSourceConnector) => {
-									// Map connector type back to toolkit_id
-									if (c.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR") return "googledrive";
-									if (c.connector_type === "COMPOSIO_GMAIL_CONNECTOR") return "gmail";
-									if (c.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR") return "googlecalendar";
-									return c.config?.toolkit_id as string;
-								})
-								.filter(Boolean)
-						}
-						onBack={handleBackFromComposio}
-						onConnectToolkit={handleConnectComposioToolkit}
-						isConnecting={connectingComposioToolkit !== null}
-						connectingToolkitId={connectingComposioToolkit}
-					/>
 				) : viewingMCPList ? (
 					<ConnectorAccountsListView
 						connectorType="MCP_CONNECTOR"
@@ -343,7 +312,6 @@ export const ConnectorIndicator: FC = () => {
 											onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
 											onManage={handleStartEdit}
 											onViewAccountsList={handleViewAccountsList}
-											onOpenComposio={handleOpenComposio}
 										/>
 									</TabsContent>
 

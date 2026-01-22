@@ -82,7 +82,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 			{filteredComposio.length > 0 && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">Managed OAuth</h3>
+						<h3 className="text-sm font-semibold text-muted-foreground">Managed OAuth (Composio)</h3>
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{filteredComposio.map((connector) => {
