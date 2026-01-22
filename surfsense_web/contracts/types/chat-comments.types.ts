@@ -6,6 +6,7 @@ import { z } from "zod";
 export const rawComment = z.object({
 	id: z.number(),
 	message_id: z.number(),
+	thread_id: z.number(), // Denormalized for efficient Electric subscriptions
 	parent_id: z.number().nullable(),
 	author_id: z.string().nullable(),
 	content: z.string(),
