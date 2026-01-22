@@ -258,6 +258,21 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				CREATE INDEX IF NOT EXISTS idx_chat_comments_parent_id ON chat_comments(parent_id);
 			`);
 
+			// Create new_chat_messages table for live message sync
+			await db.exec(`
+				CREATE TABLE IF NOT EXISTS new_chat_messages (
+					id INTEGER PRIMARY KEY,
+					thread_id INTEGER NOT NULL,
+					role TEXT NOT NULL,
+					content JSONB NOT NULL,
+					author_id TEXT,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+				);
+				
+				CREATE INDEX IF NOT EXISTS idx_new_chat_messages_thread_id ON new_chat_messages(thread_id);
+				CREATE INDEX IF NOT EXISTS idx_new_chat_messages_created_at ON new_chat_messages(created_at);
+			`);
+
 			const electricUrl = getElectricUrl();
 
 			// STEP 4: Create the client wrapper
