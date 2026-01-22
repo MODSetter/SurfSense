@@ -5,6 +5,7 @@ import { useAtomValue } from "jotai";
 import {
 	Bot,
 	Check,
+	ChevronDown,
 	ChevronsUpDown,
 	Key,
 	Loader2,
@@ -19,6 +20,7 @@ import { z } from "zod";
 import { defaultSystemInstructionsAtom } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
 	Command,
 	CommandEmpty,
@@ -101,6 +103,8 @@ export function LLMConfigForm({
 		defaultSystemInstructionsAtom
 	);
 	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
+	const [advancedOpen, setAdvancedOpen] = useState(false);
+	const [systemInstructionsOpen, setSystemInstructionsOpen] = useState(false);
 
 	const form = useForm<FormValues>({
 		resolver: zodResolver(formSchema),
@@ -154,73 +158,6 @@ export function LLMConfigForm({
 	return (
 		<Form {...form}>
 			<form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
-				{/* System Instructions & Citations Section */}
-				<div className="space-y-4">
-					<div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
-						<MessageSquareQuote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-						System Instructions
-					</div>
-
-					{/* System Instructions */}
-					<FormField
-						control={form.control}
-						name="system_instructions"
-						render={({ field }) => (
-							<FormItem>
-								<div className="flex items-center justify-between">
-									<FormLabel className="text-xs sm:text-sm">Instructions for the AI</FormLabel>
-									{defaultInstructions && (
-										<Button
-											type="button"
-											variant="ghost"
-											size="sm"
-											onClick={() =>
-												field.onChange(defaultInstructions.default_system_instructions)
-											}
-											className="h-7 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground"
-										>
-											Reset to Default
-										</Button>
-									)}
-								</div>
-								<FormControl>
-									<Textarea
-										placeholder="Enter system instructions for the AI..."
-										rows={6}
-										className="font-mono text-[11px] sm:text-xs resize-none"
-										{...field}
-									/>
-								</FormControl>
-								<FormDescription className="text-[10px] sm:text-xs">
-									Use {"{resolved_today}"} to include today's date dynamically
-								</FormDescription>
-								<FormMessage />
-							</FormItem>
-						)}
-					/>
-
-					{/* Citations Toggle */}
-					<FormField
-						control={form.control}
-						name="citations_enabled"
-						render={({ field }) => (
-							<FormItem className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
-								<div className="space-y-0.5">
-									<FormLabel className="text-xs sm:text-sm font-medium">Enable Citations</FormLabel>
-									<FormDescription className="text-[10px] sm:text-xs">
-										Include [citation:id] references to source documents
-									</FormDescription>
-								</div>
-								<FormControl>
-									<Switch checked={field.value} onCheckedChange={field.onChange} />
-								</FormControl>
-							</FormItem>
-						)}
-					/>
-				</div>
-
-				<Separator />
-
 				{/* Model Configuration Section */}
 				<div className="space-y-4">
 					<div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
@@ -509,30 +446,124 @@ export function LLMConfigForm({
 				{showAdvanced && (
 					<>
 						<Separator />
-						<div className="space-y-4">
-							<div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
-								<Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-								Advanced Parameters
-							</div>
-
-							<FormField
-								control={form.control}
-								name="litellm_params"
-								render={({ field }) => (
-									<FormItem>
-										<FormControl>
-											<InferenceParamsEditor
-												params={field.value || {}}
-												setParams={field.onChange}
-											/>
-										</FormControl>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						</div>
+						<Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+							<CollapsibleTrigger asChild>
+								<button
+									type="button"
+									className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+								>
+									<div className="flex items-center gap-2">
+										<Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+										Advanced Parameters
+									</div>
+									<ChevronDown
+										className={cn(
+											"h-4 w-4 transition-transform duration-200",
+											advancedOpen && "rotate-180"
+										)}
+									/>
+								</button>
+							</CollapsibleTrigger>
+							<CollapsibleContent className="space-y-4 pt-2">
+								<FormField
+									control={form.control}
+									name="litellm_params"
+									render={({ field }) => (
+										<FormItem>
+											<FormControl>
+												<InferenceParamsEditor
+													params={field.value || {}}
+													setParams={field.onChange}
+												/>
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</CollapsibleContent>
+						</Collapsible>
 					</>
 				)}
+
+				{/* System Instructions & Citations Section */}
+				<Separator />
+				<Collapsible open={systemInstructionsOpen} onOpenChange={setSystemInstructionsOpen}>
+					<CollapsibleTrigger asChild>
+						<button
+							type="button"
+							className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+						>
+							<div className="flex items-center gap-2">
+								<MessageSquareQuote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+								System Instructions
+							</div>
+							<ChevronDown
+								className={cn(
+									"h-4 w-4 transition-transform duration-200",
+									systemInstructionsOpen && "rotate-180"
+								)}
+							/>
+						</button>
+					</CollapsibleTrigger>
+					<CollapsibleContent className="space-y-4 pt-2">
+						{/* System Instructions */}
+						<FormField
+							control={form.control}
+							name="system_instructions"
+							render={({ field }) => (
+								<FormItem>
+									<div className="flex items-center justify-between">
+										<FormLabel className="text-xs sm:text-sm">Instructions for the AI</FormLabel>
+										{defaultInstructions && (
+											<Button
+												type="button"
+												variant="ghost"
+												size="sm"
+												onClick={() =>
+													field.onChange(defaultInstructions.default_system_instructions)
+												}
+												className="h-7 text-[10px] sm:text-xs text-muted-foreground hover:text-foreground"
+											>
+												Reset to Default
+											</Button>
+										)}
+									</div>
+									<FormControl>
+										<Textarea
+											placeholder="Enter system instructions for the AI..."
+											rows={6}
+											className="font-mono text-[11px] sm:text-xs resize-none"
+											{...field}
+										/>
+									</FormControl>
+									<FormDescription className="text-[10px] sm:text-xs">
+										Use {"{resolved_today}"} to include today's date dynamically
+									</FormDescription>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						{/* Citations Toggle */}
+						<FormField
+							control={form.control}
+							name="citations_enabled"
+							render={({ field }) => (
+								<FormItem className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
+									<div className="space-y-0.5">
+										<FormLabel className="text-xs sm:text-sm font-medium">Enable Citations</FormLabel>
+										<FormDescription className="text-[10px] sm:text-xs">
+											Include [citation:id] references to source documents
+										</FormDescription>
+									</div>
+									<FormControl>
+										<Switch checked={field.value} onCheckedChange={field.onChange} />
+									</FormControl>
+								</FormItem>
+							)}
+						/>
+					</CollapsibleContent>
+				</Collapsible>
 
 				{/* Action Buttons */}
 				<div
