@@ -368,7 +368,7 @@ export default function NewChatPage() {
 		initializeThread();
 	}, [initializeThread]);
 
-	// Handle scroll to comment from URL query params (e.g., from notification click)
+	// Handle scroll to comment from URL query params (e.g., from inbox item click)
 	const searchParams = useSearchParams();
 	const targetCommentId = searchParams.get("commentId");
 

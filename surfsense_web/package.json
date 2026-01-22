@@ -105,6 +105,7 @@
 		"tailwind-merge": "^3.3.1",
 		"tailwindcss-animate": "^1.0.7",
 		"unist-util-visit": "^5.0.0",
+		"vaul": "^1.1.2",
 		"zod": "^4.2.1",
 		"zustand": "^5.0.9"
 	},

@@ -4,7 +4,6 @@ import { useAtomValue } from "jotai";
 import { usePathname } from "next/navigation";
 import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { ChatShareButton } from "@/components/new-chat/chat-share-button";
-import { NotificationButton } from "@/components/notifications/NotificationButton";
 import type { ChatVisibility, ThreadRecord } from "@/lib/chat/thread-persistence";
 
 interface HeaderProps {
@@ -55,8 +54,6 @@ export function Header({ breadcrumb, mobileMenuTrigger }: HeaderProps) {
 
 			{/* Right side - Actions */}
 			<div className="flex items-center gap-4">
-				{/* Notifications */}
-				<NotificationButton />
 				{/* Share button - only show on chat pages when thread exists */}
 				{hasThread && (
 					<ChatShareButton thread={threadForButton} onVisibilityChange={handleVisibilityChange} />

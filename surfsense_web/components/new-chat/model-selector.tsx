@@ -72,7 +72,6 @@ interface ModelSelectorProps {
 export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProps) {
 	const [open, setOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
-	const [isSwitching, setIsSwitching] = useState(false);
 
 	// Fetch configs
 	const { data: userConfigs, isLoading: userConfigsLoading } = useAtomValue(newLLMConfigsAtom);
@@ -137,7 +136,6 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 				return;
 			}
 
-			setIsSwitching(true);
 			try {
 				await updatePreferences({
 					search_space_id: Number(searchSpaceId),
@@ -150,8 +148,6 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 			} catch (error) {
 				console.error("Failed to switch model:", error);
 				toast.error("Failed to switch model");
-			} finally {
-				setIsSwitching(false);
 			}
 		},
 		[currentConfig, searchSpaceId, updatePreferences]
@@ -216,23 +212,12 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 					shouldFilter={false}
 					className="rounded-lg relative [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
 				>
-					{/* Switching overlay */}
-					{isSwitching && (
-						<div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm rounded-lg">
-							<div className="flex items-center gap-2 text-sm text-muted-foreground">
-								<Loader2 className="size-4 animate-spin" />
-								<span>Switching model...</span>
-							</div>
-						</div>
-					)}
-
 					<div className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1.5 md:py-2">
 						<CommandInput
 							placeholder="Search models"
 							value={searchQuery}
 							onValueChange={setSearchQuery}
 							className="h-7 md:h-8 text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
-							disabled={isSwitching}
 						/>
 					</div>
 

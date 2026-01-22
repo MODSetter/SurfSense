@@ -39,11 +39,11 @@ export function ChatListItem({ name, isActive, onClick, onDelete }: ChatListItem
 			</button>
 
 			{/* Actions dropdown */}
-			<div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/item:opacity-100 transition-opacity">
+			<div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-100 md:opacity-0 md:group-hover/item:opacity-100 transition-opacity">
 				<DropdownMenu>
 					<DropdownMenuTrigger asChild>
 						<Button variant="ghost" size="icon" className="h-6 w-6">
-							<MoreHorizontal className="h-3.5 w-3.5" />
+							<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 							<span className="sr-only">{t("more_options")}</span>
 						</Button>
 					</DropdownMenuTrigger>

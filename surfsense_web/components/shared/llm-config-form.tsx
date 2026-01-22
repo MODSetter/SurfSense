@@ -551,7 +551,9 @@ export function LLMConfigForm({
 							render={({ field }) => (
 								<FormItem className="flex items-center justify-between rounded-lg border p-3 bg-muted/30">
 									<div className="space-y-0.5">
-										<FormLabel className="text-xs sm:text-sm font-medium">Enable Citations</FormLabel>
+										<FormLabel className="text-xs sm:text-sm font-medium">
+											Enable Citations
+										</FormLabel>
 										<FormDescription className="text-[10px] sm:text-xs">
 											Include [citation:id] references to source documents
 										</FormDescription>
