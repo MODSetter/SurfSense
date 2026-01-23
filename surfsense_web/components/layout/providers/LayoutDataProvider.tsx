@@ -167,12 +167,6 @@ export function LayoutDataProvider({
 				icon: SquareLibrary,
 				isActive: pathname?.includes("/documents"),
 			},
-			// {
-			// 	title: "Logs",
-			// 	url: `/dashboard/${searchSpaceId}/logs`,
-			// 	icon: Logs,
-			// 	isActive: pathname?.includes("/logs"),
-			// },
 			{
 				title: "Inbox",
 				url: "#inbox", // Special URL to indicate this is handled differently

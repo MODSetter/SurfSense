@@ -179,7 +179,7 @@ export function DashboardBreadcrumb() {
 
 	const breadcrumbs = generateBreadcrumbs(pathname);
 
-	if (breadcrumbs.length <= 1) {
+	if (breadcrumbs.length === 0) {
 		return null; // Don't show breadcrumbs for root dashboard
 	}
 
