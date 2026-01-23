@@ -35,7 +35,10 @@ from app.services.composio_service import (
     ComposioService,
 )
 from app.users import current_active_user
-from app.utils.connector_naming import generate_unique_connector_name
+from app.utils.connector_naming import (
+    count_connectors_of_type,
+    get_base_name_for_type,
+)
 from app.utils.oauth_security import OAuthStateManager
 
 # Note: We no longer use check_duplicate_connector for Composio connectors because
@@ -343,17 +346,19 @@ async def composio_callback(
             )
 
         try:
-            # Generate a unique, user-friendly connector name
-            # Pass just toolkit_name (without "(Composio)") to avoid redundancy
-            base_name = await generate_unique_connector_name(
-                session,
-                connector_type,
-                space_id,
-                user_id,
-                toolkit_name,
+            # Count existing connectors of this type to determine the number
+            count = await count_connectors_of_type(
+                session, connector_type, space_id, user_id
             )
-            # Append "(Composio)" suffix for identification
-            connector_name = f"{base_name} (Composio)"
+            
+            # Generate base name (e.g., "Gmail", "Google Drive")
+            base_name = get_base_name_for_type(connector_type)
+            
+            # Format: "Gmail (Composio) 1", "Gmail (Composio) 2", etc.
+            if count == 0:
+                connector_name = f"{base_name} (Composio) 1"
+            else:
+                connector_name = f"{base_name} (Composio) {count + 1}"
 
             db_connector = SearchSourceConnector(
                 name=connector_name,
