@@ -18,7 +18,7 @@
 
 将任何 LLM 连接到您的内部知识源，并与团队成员实时聊天。NotebookLM、Perplexity 和 Glean 的开源替代方案。
 
-SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch 等，未来还会支持更多。
+SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch、Obsidian 等，未来还会支持更多。
 
 <div align="center">
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -121,6 +121,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Luma
 - Circleback
 - Elasticsearch
+- Obsidian
 - 更多即将推出......
 
 ## 📄 **支持的文件扩展名**
