@@ -65,25 +65,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Support for multiple TTS providers (OpenAI, Azure, Google Vertex AI)
 
 ### 🤖 **Deep Agent Architecture**
-
-#### Built-in Agent Tools
-| Tool | Description |
-|------|-------------|
-| **search_knowledge_base** | Search your personal knowledge base with semantic + full-text hybrid search, date filtering, and connector-specific queries |
-| **generate_podcast** | Generate audio podcasts from chat conversations or knowledge base content |
-| **link_preview** | Fetch rich Open Graph metadata for URLs to display preview cards |
-| **display_image** | Display images in chat with metadata and source attribution |
-| **scrape_webpage** | Extract full content from webpages for analysis and summarization (supports Firecrawl or local Chromium/Trafilatura) |
-
-#### Extensible Tools Registry
-Contributors can easily add new tools via the registry pattern:
-1. Create a tool factory function in `surfsense_backend/app/agents/new_chat/tools/`
-2. Register it in the `BUILTIN_TOOLS` list in `registry.py`
-
-#### Configurable System Prompts
-- Custom system instructions via LLM configuration
-- Toggle citations on/off per configuration
-- Supports 100+ LLMs via LiteLLM integration
+- Powered by [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) - agents that can plan, use subagents, and leverage file systems for complex tasks.
 
 ### 📊 **Advanced RAG Techniques**
 - Supports 100+ LLM's
