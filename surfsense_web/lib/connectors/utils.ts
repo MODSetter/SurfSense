@@ -21,6 +21,7 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		ELASTICSEARCH_CONNECTOR: "Elasticsearch",
 		WEBCRAWLER_CONNECTOR: "Web Pages",
 		CIRCLEBACK_CONNECTOR: "Circleback",
+		OBSIDIAN_CONNECTOR: "Obsidian",
 	};
 	return typeMap[type] || type;
 };
