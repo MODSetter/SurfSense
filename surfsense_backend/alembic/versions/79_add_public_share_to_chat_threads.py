@@ -40,8 +40,20 @@ def upgrade() -> None:
         ),
     )
 
+    # Add unique partial index on public_share_token (only non-null values)
+    op.execute(
+        """
+        CREATE UNIQUE INDEX ix_new_chat_threads_public_share_token
+        ON new_chat_threads(public_share_token)
+        WHERE public_share_token IS NOT NULL
+        """
+    )
+
 
 def downgrade() -> None:
     """Remove public sharing columns from new_chat_threads."""
+    op.drop_index(
+        "ix_new_chat_threads_public_share_token", table_name="new_chat_threads"
+    )
     op.drop_column("new_chat_threads", "public_share_enabled")
     op.drop_column("new_chat_threads", "public_share_token")
