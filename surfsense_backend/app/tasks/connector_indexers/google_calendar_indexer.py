@@ -4,6 +4,8 @@ Google Calendar connector indexer.
 
 from datetime import datetime, timedelta
 
+import pytz
+from dateutil.parser import isoparse
 from google.oauth2.credentials import Credentials
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -205,6 +207,23 @@ async def index_google_calendar_events(
             # Use provided dates (including future dates)
             start_date_str = start_date
             end_date_str = end_date
+            
+            # If start_date and end_date are the same, adjust end_date to be one day later
+            # to ensure valid date range (start_date must be strictly before end_date)
+            if start_date_str == end_date_str:
+                # Parse the date and add one day to ensure valid range
+                dt = isoparse(end_date_str)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=pytz.UTC)
+                else:
+                    dt = dt.astimezone(pytz.UTC)
+                # Add one day to end_date to make it strictly after start_date
+                dt_end = dt + timedelta(days=1)
+                end_date_str = dt_end.strftime("%Y-%m-%d")
+                logger.info(
+                    f"Adjusted end_date from {end_date} to {end_date_str} "
+                    f"to ensure valid date range (start_date must be strictly before end_date)"
+                )
 
         await task_logger.log_task_progress(
             log_entry,

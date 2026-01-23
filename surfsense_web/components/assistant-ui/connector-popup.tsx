@@ -259,7 +259,13 @@ export const ConnectorIndicator: FC = () => {
 							editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
 								? () => {
 										startIndexing(editingConnector.id);
-										handleQuickIndexConnector(editingConnector.id, editingConnector.connector_type, stopIndexing);
+										handleQuickIndexConnector(
+											editingConnector.id,
+											editingConnector.connector_type,
+											stopIndexing,
+											startDate,
+											endDate
+										);
 									}
 								: undefined
 						}

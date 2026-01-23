@@ -644,20 +644,30 @@ async def index_connector_content(
 
         # Handle different connector types
         response_message = ""
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        # Use UTC for consistency with last_indexed_at storage
+        today_str = datetime.now(UTC).strftime("%Y-%m-%d")
 
         # Determine the actual date range to use
         if start_date is None:
             # Use last_indexed_at or default to 365 days ago
             if connector.last_indexed_at:
-                today = datetime.now().date()
-                if connector.last_indexed_at.date() == today:
+                # Convert last_indexed_at to timezone-naive for comparison (like calculate_date_range does)
+                last_indexed_naive = (
+                    connector.last_indexed_at.replace(tzinfo=None)
+                    if connector.last_indexed_at.tzinfo
+                    else connector.last_indexed_at
+                )
+                # Use UTC for "today" to match how last_indexed_at is stored
+                today_utc = datetime.now(UTC).replace(tzinfo=None).date()
+                last_indexed_date = last_indexed_naive.date()
+                
+                if last_indexed_date == today_utc:
                     # If last indexed today, go back 1 day to ensure we don't miss anything
-                    indexing_from = (today - timedelta(days=1)).strftime("%Y-%m-%d")
+                    indexing_from = (today_utc - timedelta(days=1)).strftime("%Y-%m-%d")
                 else:
-                    indexing_from = connector.last_indexed_at.strftime("%Y-%m-%d")
+                    indexing_from = last_indexed_naive.strftime("%Y-%m-%d")
             else:
-                indexing_from = (datetime.now() - timedelta(days=365)).strftime(
+                indexing_from = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=365)).strftime(
                     "%Y-%m-%d"
                 )
         else:
@@ -666,6 +676,7 @@ async def index_connector_content(
         # For calendar connectors, default to today but allow future dates if explicitly provided
         if connector.connector_type in [
             SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
             SearchSourceConnectorType.LUMA_CONNECTOR,
         ]:
             # Default to today if no end_date provided (users can manually select future dates)
@@ -977,6 +988,9 @@ async def index_connector_content(
                 index_composio_connector_task,
             )
 
+            # For Composio Gmail and Calendar, use the same date calculation logic as normal connectors
+            # This ensures consistent behavior and uses last_indexed_at to reduce API calls
+            # (includes special case: if indexed today, go back 1 day to avoid missing data)
             logger.info(
                 f"Triggering Composio connector indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )

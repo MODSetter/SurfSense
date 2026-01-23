@@ -1400,9 +1400,15 @@ export const useConnectorDialog = () => {
 		[editingConnector, searchSpaceId, deleteConnector, router, cameFromMCPList]
 	);
 
-	// Handle quick index (index without date picker, uses backend defaults)
+	// Handle quick index (index with selected date range, or backend defaults if none selected)
 	const handleQuickIndexConnector = useCallback(
-		async (connectorId: number, connectorType?: string, stopIndexing?: (id: number) => void) => {
+		async (
+			connectorId: number,
+			connectorType?: string,
+			stopIndexing?: (id: number) => void,
+			startDate?: Date,
+			endDate?: Date
+		) => {
 			if (!searchSpaceId) return;
 
 			// Track quick index clicked event
@@ -1411,10 +1417,16 @@ export const useConnectorDialog = () => {
 			}
 
 			try {
+				// Format dates if provided, otherwise pass undefined (backend will use defaults)
+				const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
+				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
+
 				await indexConnector({
 					connector_id: connectorId,
 					queryParams: {
 						search_space_id: searchSpaceId,
+						start_date: startDateStr,
+						end_date: endDateStr,
 					},
 				});
 				toast.success("Indexing started", {

@@ -272,8 +272,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										Re-indexing runs in the background
 									</p>
 									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-										You can continue using SurfSense while we sync your data. Check the Active tab
-										to see progress.
+										You can continue using SurfSense while we sync your data. Check inbox for updates.
 									</p>
 								</div>
 							</div>

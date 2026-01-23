@@ -116,6 +116,13 @@ async def index_luma_events(
 
         luma_client = LumaConnector(api_key=api_key)
 
+        # Handle 'undefined' string from frontend (treat as None)
+        # This prevents "time data 'undefined' does not match format" errors
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
+
         # Calculate date range
         # For calendar connectors, allow future dates to index upcoming events
         if start_date is None or end_date is None:

@@ -285,6 +285,13 @@ class GoogleGmailConnector:
         try:
             from datetime import datetime, timedelta
 
+            # Normalize date values - handle "undefined" strings from frontend
+            # This prevents "time data 'undefined' does not match format" errors
+            if start_date == "undefined" or start_date == "":
+                start_date = None
+            if end_date == "undefined" or end_date == "":
+                end_date = None
+
             # Build date query
             query_parts = []
 
