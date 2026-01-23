@@ -29,7 +29,19 @@ def upgrade() -> None:
         sa.Column("public_share_token", sa.String(64), nullable=True),
     )
 
+    # Add public_share_enabled column
+    op.add_column(
+        "new_chat_threads",
+        sa.Column(
+            "public_share_enabled",
+            sa.Boolean(),
+            nullable=False,
+            server_default="false",
+        ),
+    )
+
 
 def downgrade() -> None:
     """Remove public sharing columns from new_chat_threads."""
+    op.drop_column("new_chat_threads", "public_share_enabled")
     op.drop_column("new_chat_threads", "public_share_token")
