@@ -726,7 +726,10 @@ class MentionNotificationHandler(BaseNotificationHandler):
         except Exception as e:
             # Handle race condition - if duplicate key error, try to fetch existing
             await session.rollback()
-            if "duplicate key" in str(e).lower() or "unique constraint" in str(e).lower():
+            if (
+                "duplicate key" in str(e).lower()
+                or "unique constraint" in str(e).lower()
+            ):
                 logger.warning(
                     f"Duplicate notification detected for mention {mention_id}, fetching existing"
                 )

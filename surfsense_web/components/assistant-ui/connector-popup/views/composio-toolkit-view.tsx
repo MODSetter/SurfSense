@@ -5,12 +5,12 @@ import {
 	Calendar,
 	Check,
 	ExternalLink,
+	FileText,
 	Github,
+	HardDrive,
 	Loader2,
 	Mail,
-	HardDrive,
 	MessageSquare,
-	FileText,
 	Zap,
 } from "lucide-react";
 import Image from "next/image";
@@ -82,17 +82,65 @@ const getToolkitIcon = (toolkitId: string, className?: string) => {
 
 	switch (toolkitId) {
 		case "googledrive":
-			return <Image src="/connectors/google-drive.svg" alt="Google Drive" width={20} height={20} className={iconClass} />;
+			return (
+				<Image
+					src="/connectors/google-drive.svg"
+					alt="Google Drive"
+					width={20}
+					height={20}
+					className={iconClass}
+				/>
+			);
 		case "gmail":
-			return <Image src="/connectors/google-gmail.svg" alt="Gmail" width={20} height={20} className={iconClass} />;
+			return (
+				<Image
+					src="/connectors/google-gmail.svg"
+					alt="Gmail"
+					width={20}
+					height={20}
+					className={iconClass}
+				/>
+			);
 		case "googlecalendar":
-			return <Image src="/connectors/google-calendar.svg" alt="Google Calendar" width={20} height={20} className={iconClass} />;
+			return (
+				<Image
+					src="/connectors/google-calendar.svg"
+					alt="Google Calendar"
+					width={20}
+					height={20}
+					className={iconClass}
+				/>
+			);
 		case "slack":
-			return <Image src="/connectors/slack.svg" alt="Slack" width={20} height={20} className={iconClass} />;
+			return (
+				<Image
+					src="/connectors/slack.svg"
+					alt="Slack"
+					width={20}
+					height={20}
+					className={iconClass}
+				/>
+			);
 		case "notion":
-			return <Image src="/connectors/notion.svg" alt="Notion" width={20} height={20} className={iconClass} />;
+			return (
+				<Image
+					src="/connectors/notion.svg"
+					alt="Notion"
+					width={20}
+					height={20}
+					className={iconClass}
+				/>
+			);
 		case "github":
-			return <Image src="/connectors/github.svg" alt="GitHub" width={20} height={20} className={iconClass} />;
+			return (
+				<Image
+					src="/connectors/github.svg"
+					alt="GitHub"
+					width={20}
+					height={20}
+					className={iconClass}
+				/>
+			);
 		default:
 			return <Zap className={iconClass} />;
 	}
@@ -139,9 +187,7 @@ export const ComposioToolkitView: FC<ComposioToolkitViewProps> = ({
 							/>
 						</div>
 						<div className="flex-1 min-w-0">
-							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">
-								Composio
-							</h2>
+							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight">Composio</h2>
 							<p className="text-xs sm:text-sm text-muted-foreground mt-1">
 								Connect 100+ apps with managed OAuth - no verification needed
 							</p>
@@ -165,12 +211,16 @@ export const ComposioToolkitView: FC<ComposioToolkitViewProps> = ({
 				<section className="mb-8">
 					<div className="flex items-center gap-2 mb-4">
 						<h3 className="text-sm font-semibold text-foreground">Google Services</h3>
-						<Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+						<Badge
+							variant="secondary"
+							className="text-[10px] px-1.5 py-0 h-5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+						>
 							Indexable
 						</Badge>
 					</div>
 					<p className="text-xs text-muted-foreground mb-4">
-						Connect Google services via Composio&apos;s verified OAuth app. Your data will be indexed and searchable.
+						Connect Google services via Composio&apos;s verified OAuth app. Your data will be
+						indexed and searchable.
 					</p>
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
 						{indexableToolkits.map((toolkit) => {
@@ -201,16 +251,17 @@ export const ComposioToolkitView: FC<ComposioToolkitViewProps> = ({
 											{getToolkitIcon(toolkit.id, "size-5")}
 										</div>
 										{isConnected && (
-											<Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
+											<Badge
+												variant="secondary"
+												className="text-[10px] px-1.5 py-0 h-5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
+											>
 												<Check className="size-3 mr-0.5" />
 												Connected
 											</Badge>
 										)}
 									</div>
 									<h4 className="text-sm font-medium mb-1">{toolkit.name}</h4>
-									<p className="text-xs text-muted-foreground mb-4 flex-1">
-										{toolkit.description}
-									</p>
+									<p className="text-xs text-muted-foreground mb-4 flex-1">{toolkit.description}</p>
 									<Button
 										size="sm"
 										variant={isConnected ? "secondary" : "default"}
@@ -242,12 +293,16 @@ export const ComposioToolkitView: FC<ComposioToolkitViewProps> = ({
 				<section>
 					<div className="flex items-center gap-2 mb-4">
 						<h3 className="text-sm font-semibold text-foreground">More Integrations</h3>
-						<Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+						<Badge
+							variant="secondary"
+							className="text-[10px] px-1.5 py-0 h-5 bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+						>
 							Coming Soon
 						</Badge>
 					</div>
 					<p className="text-xs text-muted-foreground mb-4">
-						Connect these services for future indexing support. Currently available for connection only.
+						Connect these services for future indexing support. Currently available for connection
+						only.
 					</p>
 					<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 opacity-60">
 						{nonIndexableToolkits.map((toolkit) => (
@@ -264,9 +319,7 @@ export const ComposioToolkitView: FC<ComposioToolkitViewProps> = ({
 									</Badge>
 								</div>
 								<h4 className="text-sm font-medium mb-1">{toolkit.name}</h4>
-								<p className="text-xs text-muted-foreground mb-4 flex-1">
-									{toolkit.description}
-								</p>
+								<p className="text-xs text-muted-foreground mb-4 flex-1">{toolkit.description}</p>
 								<Button
 									size="sm"
 									variant="outline"
@@ -289,8 +342,9 @@ export const ComposioToolkitView: FC<ComposioToolkitViewProps> = ({
 						<div>
 							<h4 className="text-sm font-medium mb-1">Why use Composio?</h4>
 							<p className="text-xs text-muted-foreground leading-relaxed">
-								Composio provides pre-verified OAuth apps, so you don&apos;t need to wait for Google app verification.
-								Your data is securely processed through Composio&apos;s managed authentication.
+								Composio provides pre-verified OAuth apps, so you don&apos;t need to wait for Google
+								app verification. Your data is securely processed through Composio&apos;s managed
+								authentication.
 							</p>
 						</div>
 					</div>

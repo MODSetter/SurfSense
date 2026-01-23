@@ -1,7 +1,7 @@
 "use client";
 
-import type { FC } from "react";
 import { Loader2 } from "lucide-react";
+import type { FC } from "react";
 import { cn } from "@/lib/utils";
 
 interface ChatSessionStatusProps {
@@ -32,7 +32,8 @@ export const ChatSessionStatus: FC<ChatSessionStatusProps> = ({
 	}
 
 	const respondingUser = members.find((m) => m.user_id === respondingToUserId);
-	const displayName = respondingUser?.user_display_name || respondingUser?.user_email || "another user";
+	const displayName =
+		respondingUser?.user_display_name || respondingUser?.user_email || "another user";
 
 	return (
 		<div

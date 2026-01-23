@@ -33,7 +33,9 @@ import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
-import { SaveMemoryToolUI, RecallMemoryToolUI } from "@/components/tool-ui/user-memory";
+import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
+import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
+import { useMessagesElectric } from "@/hooks/use-messages-electric";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
@@ -51,8 +53,6 @@ import {
 	type MessageRecord,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
-import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
-import { useMessagesElectric } from "@/hooks/use-messages-electric";
 import {
 	trackChatCreated,
 	trackChatError,
@@ -266,7 +266,16 @@ export default function NewChatPage() {
 	const { data: membersData } = useAtomValue(membersAtom);
 
 	const handleElectricMessagesUpdate = useCallback(
-		(electricMessages: { id: number; thread_id: number; role: string; content: unknown; author_id: string | null; created_at: string }[]) => {
+		(
+			electricMessages: {
+				id: number;
+				thread_id: number;
+				role: string;
+				content: unknown;
+				author_id: string | null;
+				created_at: string;
+			}[]
+		) => {
 			if (isRunning) {
 				return;
 			}

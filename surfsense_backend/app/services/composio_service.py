@@ -97,7 +97,7 @@ class ComposioService:
                 config_toolkit = getattr(auth_config, "toolkit", None)
                 if config_toolkit is None:
                     continue
-                
+
                 # Extract toolkit name/slug from the object
                 toolkit_name = None
                 if isinstance(config_toolkit, str):
@@ -108,18 +108,22 @@ class ComposioService:
                     toolkit_name = config_toolkit.name
                 elif hasattr(config_toolkit, "id"):
                     toolkit_name = config_toolkit.id
-                
+
                 # Compare case-insensitively
                 if toolkit_name and toolkit_name.lower() == toolkit_id.lower():
-                    logger.info(f"Found auth config {auth_config.id} for toolkit {toolkit_id}")
+                    logger.info(
+                        f"Found auth config {auth_config.id} for toolkit {toolkit_id}"
+                    )
                     return auth_config.id
-            
+
             # Log available auth configs for debugging
-            logger.warning(f"No auth config found for toolkit '{toolkit_id}'. Available auth configs:")
+            logger.warning(
+                f"No auth config found for toolkit '{toolkit_id}'. Available auth configs:"
+            )
             for auth_config in auth_configs.items:
                 config_toolkit = getattr(auth_config, "toolkit", None)
                 logger.warning(f"  - {auth_config.id}: toolkit={config_toolkit}")
-            
+
             return None
         except Exception as e:
             logger.error(f"Failed to list auth configs: {e!s}")
@@ -148,7 +152,7 @@ class ComposioService:
         try:
             # First, get the auth_config_id for this toolkit
             auth_config_id = self._get_auth_config_for_toolkit(toolkit_id)
-            
+
             if not auth_config_id:
                 raise ValueError(
                     f"No auth config found for toolkit '{toolkit_id}'. "
@@ -200,7 +204,9 @@ class ComposioService:
                 "user_id": getattr(account, "user_id", None),
             }
         except Exception as e:
-            logger.error(f"Failed to get connected account {connected_account_id}: {e!s}")
+            logger.error(
+                f"Failed to get connected account {connected_account_id}: {e!s}"
+            )
             return None
 
     async def list_all_connections(self) -> list[dict[str, Any]]:
@@ -212,15 +218,17 @@ class ComposioService:
         """
         try:
             accounts_response = self.client.connected_accounts.list()
-            
+
             if hasattr(accounts_response, "items"):
                 accounts = accounts_response.items
             elif hasattr(accounts_response, "__iter__"):
                 accounts = accounts_response
             else:
-                logger.warning(f"Unexpected accounts response type: {type(accounts_response)}")
+                logger.warning(
+                    f"Unexpected accounts response type: {type(accounts_response)}"
+                )
                 return []
-            
+
             result = []
             for acc in accounts:
                 toolkit_raw = getattr(acc, "toolkit", None)
@@ -234,14 +242,16 @@ class ComposioService:
                         toolkit_info = toolkit_raw.name
                     else:
                         toolkit_info = str(toolkit_raw)
-                
-                result.append({
-                    "id": acc.id,
-                    "status": getattr(acc, "status", None),
-                    "toolkit": toolkit_info,
-                    "user_id": getattr(acc, "user_id", None),
-                })
-            
+
+                result.append(
+                    {
+                        "id": acc.id,
+                        "status": getattr(acc, "status", None),
+                        "toolkit": toolkit_info,
+                        "user_id": getattr(acc, "user_id", None),
+                    }
+                )
+
             logger.info(f"DEBUG: Found {len(result)} TOTAL connections in Composio")
             return result
         except Exception as e:
@@ -261,16 +271,18 @@ class ComposioService:
         try:
             logger.info(f"DEBUG: Calling connected_accounts.list(user_id='{user_id}')")
             accounts_response = self.client.connected_accounts.list(user_id=user_id)
-            
+
             # Handle paginated response (may have .items attribute) or direct list
             if hasattr(accounts_response, "items"):
                 accounts = accounts_response.items
             elif hasattr(accounts_response, "__iter__"):
                 accounts = accounts_response
             else:
-                logger.warning(f"Unexpected accounts response type: {type(accounts_response)}")
+                logger.warning(
+                    f"Unexpected accounts response type: {type(accounts_response)}"
+                )
                 return []
-            
+
             result = []
             for acc in accounts:
                 # Extract toolkit info - might be string or object
@@ -285,13 +297,15 @@ class ComposioService:
                         toolkit_info = toolkit_raw.name
                     else:
                         toolkit_info = toolkit_raw
-                
-                result.append({
-                    "id": acc.id,
-                    "status": getattr(acc, "status", None),
-                    "toolkit": toolkit_info,
-                })
-            
+
+                result.append(
+                    {
+                        "id": acc.id,
+                        "status": getattr(acc, "status", None),
+                        "toolkit": toolkit_info,
+                    }
+                )
+
             logger.info(f"Found {len(result)} connections for user {user_id}: {result}")
             return result
         except Exception as e:
@@ -383,18 +397,24 @@ class ComposioService:
                 return [], None, result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            logger.info(f"DEBUG: Drive data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
-            
+            logger.info(
+                f"DEBUG: Drive data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}"
+            )
+
             # Handle nested response structure from Composio
             files = []
             next_token = None
             if isinstance(data, dict):
                 # Try direct access first, then nested
                 files = data.get("files", []) or data.get("data", {}).get("files", [])
-                next_token = data.get("nextPageToken") or data.get("next_page_token") or data.get("data", {}).get("nextPageToken")
+                next_token = (
+                    data.get("nextPageToken")
+                    or data.get("next_page_token")
+                    or data.get("data", {}).get("nextPageToken")
+                )
             elif isinstance(data, list):
                 files = data
-            
+
             logger.info(f"DEBUG: Extracted {len(files)} drive files")
             return files, next_token, None
 
@@ -475,16 +495,22 @@ class ComposioService:
                 return [], result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            logger.info(f"DEBUG: Gmail data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
+            logger.info(
+                f"DEBUG: Gmail data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}"
+            )
             logger.info(f"DEBUG: Gmail full data: {data}")
-            
+
             # Try different possible response structures
             messages = []
             if isinstance(data, dict):
-                messages = data.get("messages", []) or data.get("data", {}).get("messages", []) or data.get("emails", [])
+                messages = (
+                    data.get("messages", [])
+                    or data.get("data", {}).get("messages", [])
+                    or data.get("emails", [])
+                )
             elif isinstance(data, list):
                 messages = data
-            
+
             logger.info(f"DEBUG: Extracted {len(messages)} messages")
             return messages, None
 
@@ -569,16 +595,22 @@ class ComposioService:
                 return [], result.get("error", "Unknown error")
 
             data = result.get("data", {})
-            logger.info(f"DEBUG: Calendar data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}")
+            logger.info(
+                f"DEBUG: Calendar data type: {type(data)}, keys: {data.keys() if isinstance(data, dict) else 'N/A'}"
+            )
             logger.info(f"DEBUG: Calendar full data: {data}")
-            
+
             # Try different possible response structures
             events = []
             if isinstance(data, dict):
-                events = data.get("items", []) or data.get("data", {}).get("items", []) or data.get("events", [])
+                events = (
+                    data.get("items", [])
+                    or data.get("data", {}).get("items", [])
+                    or data.get("events", [])
+                )
             elif isinstance(data, list):
                 events = data
-                
+
             logger.info(f"DEBUG: Extracted {len(events)} calendar events")
             return events, None
 

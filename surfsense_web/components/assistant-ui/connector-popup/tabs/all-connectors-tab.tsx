@@ -3,9 +3,14 @@
 import type { FC } from "react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import { ConnectorCard } from "../components/connector-card";
 import { ComposioConnectorCard } from "../components/composio-connector-card";
-import { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS, COMPOSIO_CONNECTORS } from "../constants/connector-constants";
+import { ConnectorCard } from "../components/connector-card";
+import {
+	COMPOSIO_CONNECTORS,
+	CRAWLERS,
+	OAUTH_CONNECTORS,
+	OTHER_CONNECTORS,
+} from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 /**

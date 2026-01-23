@@ -82,7 +82,9 @@ class SearchSourceConnectorType(str, Enum):
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
     CIRCLEBACK_CONNECTOR = "CIRCLEBACK_CONNECTOR"
     MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
-    COMPOSIO_CONNECTOR = "COMPOSIO_CONNECTOR"  # Generic Composio integration (Google, Slack, etc.)
+    COMPOSIO_CONNECTOR = (
+        "COMPOSIO_CONNECTOR"  # Generic Composio integration (Google, Slack, etc.)
+    )
 
 
 class LiteLLMProvider(str, Enum):

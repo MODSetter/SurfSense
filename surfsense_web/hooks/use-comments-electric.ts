@@ -5,11 +5,7 @@ import { useAtomValue } from "jotai";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import type {
-	Comment,
-	CommentReply,
-	Author,
-} from "@/contracts/types/chat-comments.types";
+import type { Author, Comment, CommentReply } from "@/contracts/types/chat-comments.types";
 import type { Membership } from "@/contracts/types/members.types";
 import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
@@ -123,7 +119,10 @@ function transformComments(
 	isOwner: boolean
 ): Map<number, Comment[]> {
 	// Group comments by message_id
-	const byMessage = new Map<number, { topLevel: RawCommentRow[]; replies: Map<number, RawCommentRow[]> }>();
+	const byMessage = new Map<
+		number,
+		{ topLevel: RawCommentRow[]; replies: Map<number, RawCommentRow[]> }
+	>();
 
 	for (const raw of rawComments) {
 		if (!byMessage.has(raw.message_id)) {
@@ -176,10 +175,10 @@ function transformComments(
 
 /**
  * Hook for syncing comments with Electric SQL real-time sync.
- * 
+ *
  * Syncs ALL comments for a thread in ONE subscription, then updates
  * React Query cache for each message. This avoids N subscriptions for N messages.
- * 
+ *
  * @param threadId - The thread ID to sync comments for
  */
 export function useCommentsElectric(threadId: number | null) {
@@ -247,12 +246,21 @@ export function useCommentsElectric(threadId: number | null) {
 		let mounted = true;
 		syncKeyRef.current = syncKey;
 
-			async function startSync() {
+		async function startSync() {
 			try {
 				const handle = await client.syncShape({
 					table: "chat_comments",
 					where: `thread_id = ${threadId}`,
-					columns: ["id", "message_id", "thread_id", "parent_id", "author_id", "content", "created_at", "updated_at"],
+					columns: [
+						"id",
+						"message_id",
+						"thread_id",
+						"parent_id",
+						"author_id",
+						"content",
+						"created_at",
+						"updated_at",
+					],
 					primaryKey: ["id"],
 				});
 
@@ -283,7 +291,9 @@ export function useCommentsElectric(threadId: number | null) {
 				// Subscribe to the sync stream for real-time updates from Electric SQL
 				// This ensures we catch updates even if PGlite live query misses them
 				if (handle.stream) {
-					const stream = handle.stream as { subscribe?: (callback: (messages: unknown[]) => void) => void };
+					const stream = handle.stream as {
+						subscribe?: (callback: (messages: unknown[]) => void) => void;
+					};
 					if (typeof stream.subscribe === "function") {
 						stream.subscribe((messages: unknown[]) => {
 							if (!mounted) return;

@@ -128,7 +128,9 @@ async def index_github_repos(
         if github_pat:
             logger.info("Using GitHub PAT for authentication (private repos supported)")
         else:
-            logger.info("No GitHub PAT provided - only public repositories can be indexed")
+            logger.info(
+                "No GitHub PAT provided - only public repositories can be indexed"
+            )
 
         # 3. Initialize GitHub connector with gitingest backend
         await task_logger.log_task_progress(
@@ -308,9 +310,7 @@ async def _process_repository_digest(
     if existing_document:
         # Document exists - check if content has changed
         if existing_document.content_hash == content_hash:
-            logger.info(
-                f"Repository {repo_full_name} unchanged. Skipping."
-            )
+            logger.info(f"Repository {repo_full_name} unchanged. Skipping.")
             return 0
         else:
             logger.info(
@@ -341,7 +341,7 @@ async def _process_repository_digest(
             summary_content = (
                 f"# Repository: {repo_full_name}\n\n"
                 f"## File Structure\n\n{digest.tree}\n\n"
-                f"## File Contents (truncated)\n\n{digest.content[:MAX_DIGEST_CHARS - len(digest.tree) - 200]}..."
+                f"## File Contents (truncated)\n\n{digest.content[: MAX_DIGEST_CHARS - len(digest.tree) - 200]}..."
             )
 
         summary_text, summary_embedding = await generate_document_summary(
@@ -362,9 +362,7 @@ async def _process_repository_digest(
         # This preserves file-level granularity in search
         chunks_data = await create_document_chunks(digest.content)
     except Exception as chunk_err:
-        logger.error(
-            f"Failed to chunk repository {repo_full_name}: {chunk_err}"
-        )
+        logger.error(f"Failed to chunk repository {repo_full_name}: {chunk_err}")
         # Fall back to a simpler chunking approach
         chunks_data = await _simple_chunk_content(digest.content)
 

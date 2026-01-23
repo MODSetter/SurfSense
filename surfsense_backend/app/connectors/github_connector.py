@@ -58,7 +58,9 @@ class GitHubConnector:
         if self.token:
             logger.info("GitHub connector initialized with authentication token.")
         else:
-            logger.info("GitHub connector initialized without token (public repos only).")
+            logger.info(
+                "GitHub connector initialized without token (public repos only)."
+            )
 
     def ingest_repository(
         self,
@@ -95,17 +97,27 @@ class GitHubConnector:
             cmd = [
                 "gitingest",
                 repo_url,
-                "--output", output_path,
-                "--max-size", str(max_file_size),
+                "--output",
+                output_path,
+                "--max-size",
+                str(max_file_size),
                 # Common exclude patterns
-                "-e", "node_modules/*",
-                "-e", "vendor/*",
-                "-e", ".git/*",
-                "-e", "__pycache__/*",
-                "-e", "dist/*",
-                "-e", "build/*",
-                "-e", "*.lock",
-                "-e", "package-lock.json",
+                "-e",
+                "node_modules/*",
+                "-e",
+                "vendor/*",
+                "-e",
+                ".git/*",
+                "-e",
+                "__pycache__/*",
+                "-e",
+                "dist/*",
+                "-e",
+                "build/*",
+                "-e",
+                "*.lock",
+                "-e",
+                "package-lock.json",
             ]
 
             # Add branch if specified
@@ -147,7 +159,9 @@ class GitHubConnector:
             os.unlink(output_path)
 
             if not full_content or not full_content.strip():
-                logger.warning(f"No content retrieved from repository: {repo_full_name}")
+                logger.warning(
+                    f"No content retrieved from repository: {repo_full_name}"
+                )
                 return None
 
             # Parse the gitingest output
@@ -171,11 +185,11 @@ class GitHubConnector:
             logger.error(f"gitingest timed out for repository: {repo_full_name}")
             return None
         except FileNotFoundError:
-            logger.error(
-                "gitingest CLI not found. Falling back to Python library."
-            )
+            logger.error("gitingest CLI not found. Falling back to Python library.")
             # Fall back to Python library
-            return self._ingest_with_python_library(repo_full_name, branch, max_file_size)
+            return self._ingest_with_python_library(
+                repo_full_name, branch, max_file_size
+            )
         except Exception as e:
             logger.error(f"Failed to ingest repository {repo_full_name}: {e}")
             return None

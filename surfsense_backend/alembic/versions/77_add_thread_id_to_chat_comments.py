@@ -64,5 +64,7 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Remove thread_id column from chat_comments."""
     op.execute("DROP INDEX IF EXISTS idx_chat_comments_thread_id")
-    op.execute("ALTER TABLE chat_comments DROP CONSTRAINT IF EXISTS fk_chat_comments_thread_id")
+    op.execute(
+        "ALTER TABLE chat_comments DROP CONSTRAINT IF EXISTS fk_chat_comments_thread_id"
+    )
     op.execute("ALTER TABLE chat_comments DROP COLUMN IF EXISTS thread_id")

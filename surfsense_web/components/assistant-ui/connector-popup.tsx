@@ -186,12 +186,10 @@ export const ConnectorIndicator: FC = () => {
 				) : viewingComposio && searchSpaceId ? (
 					<ComposioToolkitView
 						searchSpaceId={searchSpaceId}
-						connectedToolkits={
-							(connectors || [])
-								.filter((c: SearchSourceConnector) => c.connector_type === "COMPOSIO_CONNECTOR")
-								.map((c: SearchSourceConnector) => c.config?.toolkit_id as string)
-								.filter(Boolean)
-						}
+						connectedToolkits={(connectors || [])
+							.filter((c: SearchSourceConnector) => c.connector_type === "COMPOSIO_CONNECTOR")
+							.map((c: SearchSourceConnector) => c.config?.toolkit_id as string)
+							.filter(Boolean)}
 						onBack={handleBackFromComposio}
 						onConnectToolkit={handleConnectComposioToolkit}
 						isConnecting={connectingComposioToolkit !== null}
