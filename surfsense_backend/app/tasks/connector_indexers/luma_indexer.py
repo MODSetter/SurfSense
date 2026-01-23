@@ -179,10 +179,9 @@ async def index_luma_events(
             )
 
             if error:
-                logger.error(f"Failed to get Luma events: {error}")
-
                 # Don't treat "No events found" as an error that should stop indexing
                 if "No events found" in error or "no events" in error.lower():
+                    logger.info(f"No Luma events found: {error}")
                     logger.info(
                         "No events found is not a critical error, continuing with update"
                     )
@@ -202,6 +201,7 @@ async def index_luma_events(
                     )
                     return 0, None
                 else:
+                    logger.error(f"Failed to get Luma events: {error}")
                     await task_logger.log_task_failure(
                         log_entry,
                         f"Failed to get Luma events: {error}",

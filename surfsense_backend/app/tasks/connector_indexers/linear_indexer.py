@@ -145,10 +145,9 @@ async def index_linear_issues(
             )
 
             if error:
-                logger.error(f"Failed to get Linear issues: {error}")
-
                 # Don't treat "No issues found" as an error that should stop indexing
                 if "No issues found" in error:
+                    logger.info(f"No Linear issues found: {error}")
                     logger.info(
                         "No issues found is not a critical error, continuing with update"
                     )
@@ -162,6 +161,7 @@ async def index_linear_issues(
                         )
                     return 0, None
                 else:
+                    logger.error(f"Failed to get Linear issues: {error}")
                     return 0, f"Failed to get Linear issues: {error}"
 
             logger.info(f"Retrieved {len(issues)} issues from Linear API")

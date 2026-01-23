@@ -243,10 +243,9 @@ async def index_google_calendar_events(
             )
 
             if error:
-                logger.error(f"Failed to get Google Calendar events: {error}")
-
                 # Don't treat "No events found" as an error that should stop indexing
                 if "No events found" in error:
+                    logger.info(f"No Google Calendar events found: {error}")
                     logger.info(
                         "No events found is not a critical error, continuing with update"
                     )
@@ -266,6 +265,7 @@ async def index_google_calendar_events(
                     )
                     return 0, None
                 else:
+                    logger.error(f"Failed to get Google Calendar events: {error}")
                     # Check if this is an authentication error that requires re-authentication
                     error_message = error
                     error_type = "APIError"
