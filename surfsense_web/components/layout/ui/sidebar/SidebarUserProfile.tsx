@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, Laptop, Languages, LogOut, Moon, Settings, Sun } from "lucide-react";
+import { ChevronUp, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
 	DropdownMenu,

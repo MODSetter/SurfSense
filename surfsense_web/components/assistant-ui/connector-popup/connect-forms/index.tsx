@@ -7,6 +7,7 @@ import { GithubConnectForm } from "./components/github-connect-form";
 import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
 import { LumaConnectForm } from "./components/luma-connect-form";
 import { MCPConnectForm } from "./components/mcp-connect-form";
+import { ObsidianConnectForm } from "./components/obsidian-connect-form";
 import { SearxngConnectForm } from "./components/searxng-connect-form";
 import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
 
@@ -58,6 +59,8 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 			return CirclebackConnectForm;
 		case "MCP_CONNECTOR":
 			return MCPConnectForm;
+		case "OBSIDIAN_CONNECTOR":
+			return ObsidianConnectForm;
 		// Add other connector types here as needed
 		default:
 			return null;

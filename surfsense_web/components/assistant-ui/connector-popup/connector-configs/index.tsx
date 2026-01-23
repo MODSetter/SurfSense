@@ -5,8 +5,8 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { BaiduSearchApiConfig } from "./components/baidu-search-api-config";
 import { BookStackConfig } from "./components/bookstack-config";
 import { CirclebackConfig } from "./components/circleback-config";
-import { ComposioConfig } from "./components/composio-config";
 import { ClickUpConfig } from "./components/clickup-config";
+import { ComposioConfig } from "./components/composio-config";
 import { ConfluenceConfig } from "./components/confluence-config";
 import { DiscordConfig } from "./components/discord-config";
 import { ElasticsearchConfig } from "./components/elasticsearch-config";
@@ -16,6 +16,7 @@ import { JiraConfig } from "./components/jira-config";
 import { LinkupApiConfig } from "./components/linkup-api-config";
 import { LumaConfig } from "./components/luma-config";
 import { MCPConfig } from "./components/mcp-config";
+import { ObsidianConfig } from "./components/obsidian-config";
 import { SearxngConfig } from "./components/searxng-config";
 import { SlackConfig } from "./components/slack-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
@@ -74,6 +75,8 @@ export function getConnectorConfigComponent(
 			return CirclebackConfig;
 		case "MCP_CONNECTOR":
 			return MCPConfig;
+		case "OBSIDIAN_CONNECTOR":
+			return ObsidianConfig;
 		case "COMPOSIO_GOOGLE_DRIVE_CONNECTOR":
 		case "COMPOSIO_GMAIL_CONNECTOR":
 		case "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR":

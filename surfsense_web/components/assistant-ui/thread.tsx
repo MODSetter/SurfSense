@@ -26,11 +26,13 @@ import {
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { showCommentsGutterAtom } from "@/atoms/chat/current-thread.atom";
 import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
 	llmPreferencesAtom,
@@ -39,6 +41,7 @@ import {
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
+import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import {
 	InlineMentionEditor,
@@ -59,6 +62,7 @@ import {
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
 import type { Document } from "@/contracts/types/document.types";
+import { useCommentsElectric } from "@/hooks/use-comments-electric";
 import { cn } from "@/lib/utils";
 
 interface ThreadProps {
@@ -86,6 +90,7 @@ const ThreadContent: FC<{ header?: React.ReactNode }> = ({ header }) => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
+				autoScroll
 				className={cn(
 					"aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4 transition-[padding] duration-300 ease-out",
 					showGutter && "lg:pr-30"
@@ -215,13 +220,30 @@ const Composer: FC = () => {
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
-	const { search_space_id } = useParams();
+	const { search_space_id, chat_id } = useParams();
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const composerRuntime = useComposerRuntime();
 	const hasAutoFocusedRef = useRef(false);
 
 	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+
+	// Live collaboration state
+	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const { data: members } = useAtomValue(membersAtom);
+	const threadId = useMemo(() => {
+		if (Array.isArray(chat_id) && chat_id.length > 0) {
+			return Number.parseInt(chat_id[0], 10) || null;
+		}
+		return typeof chat_id === "string" ? Number.parseInt(chat_id, 10) || null : null;
+	}, [chat_id]);
+	const sessionState = useAtomValue(chatSessionStateAtom);
+	const isAiResponding = sessionState?.isAiResponding ?? false;
+	const respondingToUserId = sessionState?.respondingToUserId ?? null;
+	const isBlockedByOtherUser = isAiResponding && respondingToUserId !== currentUser?.id;
+
+	// Sync comments for the entire thread via Electric SQL (one subscription per thread)
+	useCommentsElectric(threadId);
 
 	// Auto-focus editor on new chat page after mount
 	useEffect(() => {
@@ -298,9 +320,9 @@ const Composer: FC = () => {
 		[showDocumentPopover]
 	);
 
-	// Submit message (blocked during streaming or when document picker is open)
+	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
-		if (isThreadRunning) {
+		if (isThreadRunning || isBlockedByOtherUser) {
 			return;
 		}
 		if (!showDocumentPopover) {
@@ -315,6 +337,7 @@ const Composer: FC = () => {
 	}, [
 		showDocumentPopover,
 		isThreadRunning,
+		isBlockedByOtherUser,
 		composerRuntime,
 		setMentionedDocuments,
 		setMentionedDocumentIds,
@@ -374,7 +397,13 @@ const Composer: FC = () => {
 	);
 
 	return (
-		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
+			<ChatSessionStatus
+				isAiResponding={isAiResponding}
+				respondingToUserId={respondingToUserId}
+				currentUserId={currentUser?.id ?? null}
+				members={members ?? []}
+			/>
 			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
 				<ComposerAttachments />
 				{/* Inline editor with @mention support */}
@@ -417,13 +446,17 @@ const Composer: FC = () => {
 						/>,
 						document.body
 					)}
-				<ComposerAction />
+				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
 			</ComposerPrimitive.AttachmentDropzone>
 		</ComposerPrimitive.Root>
 	);
 };
 
-const ComposerAction: FC = () => {
+interface ComposerActionProps {
+	isBlockedByOtherUser?: boolean;
+}
+
+const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
 	// Check if any attachments are still being processed (running AND progress < 100)
 	// When progress is 100, processing is done but waiting for send()
 	const hasProcessingAttachments = useAssistantState(({ composer }) =>
@@ -458,7 +491,8 @@ const ComposerAction: FC = () => {
 		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
 	}, [preferences, globalConfigs, userConfigs]);
 
-	const isSendDisabled = hasProcessingAttachments || isComposerEmpty || !hasModelConfigured;
+	const isSendDisabled =
+		hasProcessingAttachments || isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
@@ -487,13 +521,15 @@ const ComposerAction: FC = () => {
 				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 					<TooltipIconButton
 						tooltip={
-							!hasModelConfigured
-								? "Please select a model from the header to start chatting"
-								: hasProcessingAttachments
-									? "Wait for attachments to process"
-									: isComposerEmpty
-										? "Enter a message to send"
-										: "Send message"
+							isBlockedByOtherUser
+								? "Wait for AI to finish responding"
+								: !hasModelConfigured
+									? "Please select a model from the header to start chatting"
+									: hasProcessingAttachments
+										? "Wait for attachments to process"
+										: isComposerEmpty
+											? "Enter a message to send"
+											: "Send message"
 						}
 						side="bottom"
 						type="submit"

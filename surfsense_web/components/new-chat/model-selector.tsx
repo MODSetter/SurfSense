@@ -123,6 +123,11 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 		);
 	}, [userConfigs, searchQuery]);
 
+	// Total model count for conditional search display
+	const totalModels = useMemo(() => {
+		return (globalConfigs?.length ?? 0) + (userConfigs?.length ?? 0);
+	}, [globalConfigs, userConfigs]);
+
 	const handleSelectConfig = useCallback(
 		async (config: NewLLMConfigPublic | GlobalNewLLMConfig) => {
 			// If already selected, just close
@@ -212,14 +217,16 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 					shouldFilter={false}
 					className="rounded-lg relative [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
 				>
-					<div className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1.5 md:py-2">
-						<CommandInput
-							placeholder="Search models"
-							value={searchQuery}
-							onValueChange={setSearchQuery}
-							className="h-7 md:h-8 text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
-						/>
-					</div>
+					{totalModels > 3 && (
+						<div className="flex items-center gap-1 md:gap-2 px-2 md:px-3 py-1.5 md:py-2">
+							<CommandInput
+								placeholder="Search models"
+								value={searchQuery}
+								onValueChange={setSearchQuery}
+								className="h-7 md:h-8 text-xs md:text-sm border-0 bg-transparent focus:ring-0 placeholder:text-muted-foreground/60"
+							/>
+						</div>
+					)}
 
 					<CommandList className="max-h-[300px] md:max-h-[400px] overflow-y-auto">
 						<CommandEmpty className="py-8 text-center">
@@ -245,7 +252,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 											value={`global-${config.id}`}
 											onSelect={() => handleSelectConfig(config)}
 											className={cn(
-												"mx-2 rounded-lg mb-1 cursor-pointer transition-all",
+												"mx-2 rounded-lg mb-1 cursor-pointer group transition-all",
 												"hover:bg-accent/50",
 												isSelected && "bg-accent/80"
 											)}
@@ -276,7 +283,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 												<Button
 													variant="ghost"
 													size="icon"
-													className="size-7 shrink-0 rounded-md hover:bg-muted"
+													className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
 													onClick={(e) => handleEditConfig(e, config, true)}
 												>
 													<Edit3 className="size-3.5 text-muted-foreground" />
@@ -307,7 +314,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 											value={`user-${config.id}`}
 											onSelect={() => handleSelectConfig(config)}
 											className={cn(
-												"mx-2 rounded-lg mb-1 cursor-pointer transition-all",
+												"mx-2 rounded-lg mb-1 cursor-pointer group transition-all",
 												"hover:bg-accent/50",
 												isSelected && "bg-accent/80"
 											)}
@@ -338,7 +345,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 												<Button
 													variant="ghost"
 													size="icon"
-													className="size-7 shrink-0 rounded-md hover:bg-muted"
+													className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
 													onClick={(e) => handleEditConfig(e, config, false)}
 												>
 													<Edit3 className="size-3.5 text-muted-foreground" />

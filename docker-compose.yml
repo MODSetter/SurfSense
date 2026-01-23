@@ -45,6 +45,8 @@ services:
     volumes:
       - ./surfsense_backend/app:/app/app
       - shared_temp:/tmp
+      # Uncomment and edit the line below to enable Obsidian vault indexing
+      # - /path/to/your/obsidian/vault:/obsidian-vault:ro
     env_file:
       - ./surfsense_backend/.env
     environment:

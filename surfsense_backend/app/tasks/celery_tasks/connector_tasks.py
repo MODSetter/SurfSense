@@ -761,6 +761,49 @@ async def _index_bookstack_pages(
         )
 
 
+@celery_app.task(name="index_obsidian_vault", bind=True)
+def index_obsidian_vault_task(
+    self,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Celery task to index Obsidian vault notes."""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _index_obsidian_vault(
+                connector_id, search_space_id, user_id, start_date, end_date
+            )
+        )
+    finally:
+        loop.close()
+
+
+async def _index_obsidian_vault(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """Index Obsidian vault with new session."""
+    from app.routes.search_source_connectors_routes import (
+        run_obsidian_indexing,
+    )
+
+    async with get_celery_session_maker()() as session:
+        await run_obsidian_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+
 @celery_app.task(name="index_composio_connector", bind=True)
 def index_composio_connector_task(
     self,

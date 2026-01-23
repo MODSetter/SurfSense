@@ -1,8 +1,7 @@
 """Add Composio connector types to SearchSourceConnectorType and DocumentType enums
 
-Revision ID: 74
-Revises: 73
-Create Date: 2026-01-21
+Revision ID: 79
+Revises: 78
 
 This migration adds the Composio connector enum values to both:
 - searchsourceconnectortype (for connector type tracking)
@@ -23,8 +22,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "74"
-down_revision: str | None = "73"
+revision: str = "79"
+down_revision: str | None = "78"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
