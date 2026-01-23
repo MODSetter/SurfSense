@@ -578,7 +578,7 @@ async def _check_rename_only_update(
         - (True, message): Only filename changed, document was updated
         - (False, None): Content changed or new file, needs full processing
     """
-    from sqlalchemy import cast, select, String
+    from sqlalchemy import String, cast, select
     from sqlalchemy.orm.attributes import flag_modified
 
     from app.db import Document
@@ -603,7 +603,8 @@ async def _check_rename_only_update(
             select(Document).where(
                 Document.search_space_id == search_space_id,
                 Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
-                cast(Document.document_metadata["google_drive_file_id"], String) == file_id,
+                cast(Document.document_metadata["google_drive_file_id"], String)
+                == file_id,
             )
         )
         existing_document = result.scalar_one_or_none()
@@ -755,7 +756,7 @@ async def _remove_document(session: AsyncSession, file_id: str, search_space_id:
 
     Handles both new (file_id-based) and legacy (filename-based) hash schemes.
     """
-    from sqlalchemy import cast, select, String
+    from sqlalchemy import String, cast, select
 
     from app.db import Document
 
@@ -774,7 +775,8 @@ async def _remove_document(session: AsyncSession, file_id: str, search_space_id:
             select(Document).where(
                 Document.search_space_id == search_space_id,
                 Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
-                cast(Document.document_metadata["google_drive_file_id"], String) == file_id,
+                cast(Document.document_metadata["google_drive_file_id"], String)
+                == file_id,
             )
         )
         existing_document = result.scalar_one_or_none()

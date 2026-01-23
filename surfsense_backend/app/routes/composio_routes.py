@@ -350,10 +350,10 @@ async def composio_callback(
             count = await count_connectors_of_type(
                 session, connector_type, space_id, user_id
             )
-            
+
             # Generate base name (e.g., "Gmail", "Google Drive")
             base_name = get_base_name_for_type(connector_type)
-            
+
             # Format: "Gmail (Composio) 1", "Gmail (Composio) 2", etc.
             if count == 0:
                 connector_name = f"{base_name} (Composio) 1"

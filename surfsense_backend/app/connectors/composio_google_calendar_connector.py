@@ -259,7 +259,9 @@ async def index_composio_google_calendar(
 
         documents_indexed = 0
         documents_skipped = 0
-        duplicate_content_count = 0  # Track events skipped due to duplicate content_hash
+        duplicate_content_count = (
+            0  # Track events skipped due to duplicate content_hash
+        )
 
         for event in events:
             try:
@@ -353,7 +355,7 @@ async def index_composio_google_calendar(
                         logger.info(
                             f"Committing batch: {documents_indexed} Google Calendar events processed so far"
                         )
-                        await session.commit(                    )
+                        await session.commit()
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -362,7 +364,7 @@ async def index_composio_google_calendar(
                     duplicate_by_content = await check_duplicate_document_by_hash(
                         session, content_hash
                     )
-                
+
                 if duplicate_by_content:
                     # A document with the same content already exists (likely from standard connector)
                     logger.info(
@@ -458,7 +460,10 @@ async def index_composio_google_calendar(
             )
         except Exception as e:
             # Handle any remaining integrity errors gracefully (race conditions, etc.)
-            if "duplicate key value violates unique constraint" in str(e).lower() or "uniqueviolationerror" in str(e).lower():
+            if (
+                "duplicate key value violates unique constraint" in str(e).lower()
+                or "uniqueviolationerror" in str(e).lower()
+            ):
                 logger.warning(
                     f"Duplicate content_hash detected during final commit. "
                     f"This may occur if the same event was indexed by multiple connectors. "
@@ -495,4 +500,3 @@ async def index_composio_google_calendar(
             f"Failed to index Google Calendar via Composio: {e!s}", exc_info=True
         )
         return 0, f"Failed to index Google Calendar via Composio: {e!s}"
-

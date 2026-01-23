@@ -328,11 +328,7 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
-			if (
-				params.success === "true" &&
-				searchSpaceId &&
-				params.modal === "connectors"
-			) {
+			if (params.success === "true" && searchSpaceId && params.modal === "connectors") {
 				refetchAllConnectors().then((result) => {
 					if (!result.data) return;
 
@@ -346,16 +342,12 @@ export const useConnectorDialog = () => {
 					if (params.connectorId) {
 						const connectorId = parseInt(params.connectorId, 10);
 						newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
-						
+
 						// If we found the connector, find the matching OAuth/Composio connector by type
 						if (newConnector) {
 							oauthConnector =
-								OAUTH_CONNECTORS.find(
-									(c) => c.connectorType === newConnector!.connector_type
-								) ||
-								COMPOSIO_CONNECTORS.find(
-									(c) => c.connectorType === newConnector!.connector_type
-								);
+								OAUTH_CONNECTORS.find((c) => c.connectorType === newConnector!.connector_type) ||
+								COMPOSIO_CONNECTORS.find((c) => c.connectorType === newConnector!.connector_type);
 						}
 					}
 
@@ -364,7 +356,7 @@ export const useConnectorDialog = () => {
 						oauthConnector =
 							OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
 							COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
-						
+
 						if (oauthConnector) {
 							newConnector = result.data.find(
 								(c: SearchSourceConnector) => c.connector_type === oauthConnector!.connectorType

@@ -385,7 +385,9 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
 
         metadata_updates = {
             "indexed_count": indexed_count,
-            "sync_stage": "completed" if (not error_message or is_warning or indexed_count > 0) else "failed",
+            "sync_stage": "completed"
+            if (not error_message or is_warning or indexed_count > 0)
+            else "failed",
             "error_message": error_message,
         }
 

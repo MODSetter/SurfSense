@@ -208,7 +208,7 @@ async def index_google_calendar_events(
             # Use provided dates (including future dates)
             start_date_str = start_date
             end_date_str = end_date
-            
+
             # If start_date and end_date are the same, adjust end_date to be one day later
             # to ensure valid date range (start_date must be strictly before end_date)
             if start_date_str == end_date_str:
@@ -269,10 +269,14 @@ async def index_google_calendar_events(
                     # Check if this is an authentication error that requires re-authentication
                     error_message = error
                     error_type = "APIError"
-                    if "re-authenticate" in error.lower() or "expired or been revoked" in error.lower() or "authentication failed" in error.lower():
+                    if (
+                        "re-authenticate" in error.lower()
+                        or "expired or been revoked" in error.lower()
+                        or "authentication failed" in error.lower()
+                    ):
                         error_message = "Google Calendar authentication failed. Please re-authenticate."
                         error_type = "AuthenticationError"
-                    
+
                     await task_logger.log_task_failure(
                         log_entry,
                         error_message,
@@ -290,7 +294,9 @@ async def index_google_calendar_events(
         documents_indexed = 0
         documents_skipped = 0
         skipped_events = []
-        duplicate_content_count = 0  # Track events skipped due to duplicate content_hash
+        duplicate_content_count = (
+            0  # Track events skipped due to duplicate content_hash
+        )
 
         for event in events:
             try:
@@ -417,7 +423,7 @@ async def index_google_calendar_events(
                     duplicate_by_content = await check_duplicate_document_by_hash(
                         session, content_hash
                     )
-                
+
                 if duplicate_by_content:
                     # A document with the same content already exists (likely from Composio connector)
                     logger.info(
@@ -528,7 +534,10 @@ async def index_google_calendar_events(
             await session.commit()
         except Exception as e:
             # Handle any remaining integrity errors gracefully (race conditions, etc.)
-            if "duplicate key value violates unique constraint" in str(e).lower() or "uniqueviolationerror" in str(e).lower():
+            if (
+                "duplicate key value violates unique constraint" in str(e).lower()
+                or "uniqueviolationerror" in str(e).lower()
+            ):
                 logger.warning(
                     f"Duplicate content_hash detected during final commit. "
                     f"This may occur if the same event was indexed by multiple connectors. "

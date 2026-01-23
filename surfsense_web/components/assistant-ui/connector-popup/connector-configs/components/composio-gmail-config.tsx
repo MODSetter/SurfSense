@@ -12,4 +12,3 @@ interface ComposioGmailConfigProps {
 export const ComposioGmailConfig: FC<ComposioGmailConfigProps> = () => {
 	return <div className="space-y-6" />;
 };
-

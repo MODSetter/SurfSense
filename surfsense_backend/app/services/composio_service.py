@@ -81,7 +81,9 @@ class ComposioService:
     # Default download directory for files from Composio
     DEFAULT_DOWNLOAD_DIR = "/tmp/composio_downloads"
 
-    def __init__(self, api_key: str | None = None, file_download_dir: str | None = None):
+    def __init__(
+        self, api_key: str | None = None, file_download_dir: str | None = None
+    ):
         """
         Initialize the Composio service.
 
@@ -90,18 +92,20 @@ class ComposioService:
             file_download_dir: Directory for downloaded files. Defaults to /tmp/composio_downloads.
         """
         import os
-        
+
         self.api_key = api_key or config.COMPOSIO_API_KEY
         if not self.api_key:
             raise ValueError("COMPOSIO_API_KEY is required but not configured")
-        
+
         # Set up download directory
         self.file_download_dir = file_download_dir or self.DEFAULT_DOWNLOAD_DIR
         os.makedirs(self.file_download_dir, exist_ok=True)
-        
+
         # Initialize Composio client with download directory
         # Per docs: file_download_dir configures where files are downloaded
-        self.client = Composio(api_key=self.api_key, file_download_dir=self.file_download_dir)
+        self.client = Composio(
+            api_key=self.api_key, file_download_dir=self.file_download_dir
+        )
 
     @staticmethod
     def is_enabled() -> bool:
@@ -512,7 +516,7 @@ class ComposioService:
             Tuple of (file content bytes, error message).
         """
         from pathlib import Path
-        
+
         try:
             result = await self.execute_tool(
                 connected_account_id=connected_account_id,
@@ -532,35 +536,37 @@ class ComposioService:
             # Response structure: {data: {...}, error: ..., successful: ...}
             # The actual file info is nested inside data["data"]
             file_path = None
-            
+
             if isinstance(data, dict):
                 # Handle nested response structure: data contains {data, error, successful}
                 # The actual file info is in data["data"]
                 inner_data = data
                 if "data" in data and isinstance(data["data"], dict):
                     inner_data = data["data"]
-                    logger.debug(f"Found nested data structure. Inner keys: {list(inner_data.keys())}")
+                    logger.debug(
+                        f"Found nested data structure. Inner keys: {list(inner_data.keys())}"
+                    )
                 elif "successful" in data and "data" in data:
                     # Standard Composio response wrapper
                     inner_data = data["data"] if data["data"] else data
-                
+
                 # Try documented fields: file_path, downloaded_file_content, path, uri
                 file_path = (
-                    inner_data.get("file_path") or 
-                    inner_data.get("downloaded_file_content") or
-                    inner_data.get("path") or
-                    inner_data.get("uri")
+                    inner_data.get("file_path")
+                    or inner_data.get("downloaded_file_content")
+                    or inner_data.get("path")
+                    or inner_data.get("uri")
                 )
-                
+
                 # Handle nested dict case where downloaded_file_content contains the path
                 if isinstance(file_path, dict):
                     file_path = (
-                        file_path.get("file_path") or
-                        file_path.get("downloaded_file_content") or
-                        file_path.get("path") or
-                        file_path.get("uri")
+                        file_path.get("file_path")
+                        or file_path.get("downloaded_file_content")
+                        or file_path.get("path")
+                        or file_path.get("uri")
                     )
-                
+
                 # If still no path, check if inner_data itself has the nested structure
                 if not file_path and isinstance(inner_data, dict):
                     for key in ["downloaded_file_content", "file_path", "path", "uri"]:
@@ -572,15 +578,17 @@ class ComposioService:
                             elif isinstance(val, dict):
                                 # One more level of nesting
                                 file_path = (
-                                    val.get("file_path") or
-                                    val.get("downloaded_file_content") or
-                                    val.get("path") or
-                                    val.get("uri")
+                                    val.get("file_path")
+                                    or val.get("downloaded_file_content")
+                                    or val.get("path")
+                                    or val.get("uri")
                                 )
                                 if file_path:
                                     break
-                    
-                logger.debug(f"Composio response keys: {list(data.keys())}, inner keys: {list(inner_data.keys()) if isinstance(inner_data, dict) else 'N/A'}, extracted path: {file_path}")
+
+                logger.debug(
+                    f"Composio response keys: {list(data.keys())}, inner keys: {list(inner_data.keys()) if isinstance(inner_data, dict) else 'N/A'}, extracted path: {file_path}"
+                )
             elif isinstance(data, str):
                 # Direct string response (could be path or content)
                 file_path = data
@@ -591,24 +599,31 @@ class ComposioService:
             # Read file from the path
             if file_path and isinstance(file_path, str):
                 path_obj = Path(file_path)
-                
+
                 # Check if it's a valid file path (absolute or in .composio directory)
-                if path_obj.is_absolute() or '.composio' in str(path_obj):
+                if path_obj.is_absolute() or ".composio" in str(path_obj):
                     try:
                         if path_obj.exists():
                             content = path_obj.read_bytes()
-                            logger.info(f"Successfully read {len(content)} bytes from Composio file: {file_path}")
+                            logger.info(
+                                f"Successfully read {len(content)} bytes from Composio file: {file_path}"
+                            )
                             return content, None
                         else:
-                            logger.warning(f"File path from Composio does not exist: {file_path}")
+                            logger.warning(
+                                f"File path from Composio does not exist: {file_path}"
+                            )
                             return None, f"File not found at path: {file_path}"
                     except Exception as e:
-                        logger.error(f"Failed to read file from Composio path {file_path}: {e!s}")
+                        logger.error(
+                            f"Failed to read file from Composio path {file_path}: {e!s}"
+                        )
                         return None, f"Failed to read file: {e!s}"
                 else:
                     # Not a file path - might be base64 encoded content
                     try:
                         import base64
+
                         content = base64.b64decode(file_path)
                         return content, None
                     except Exception:
@@ -625,8 +640,11 @@ class ComposioService:
                     f"Inner data keys: {list(inner_data.keys()) if isinstance(inner_data, dict) else type(inner_data).__name__}, "
                     f"Full inner data: {inner_data}"
                 )
-                return None, f"No file path in Composio response. Keys: {list(data.keys())}, inner: {list(inner_data.keys()) if isinstance(inner_data, dict) else 'N/A'}"
-            
+                return (
+                    None,
+                    f"No file path in Composio response. Keys: {list(data.keys())}, inner: {list(inner_data.keys()) if isinstance(inner_data, dict) else 'N/A'}",
+                )
+
             return None, f"Unexpected data type from Composio: {type(data).__name__}"
 
         except Exception as e:
@@ -638,14 +656,14 @@ class ComposioService:
     ) -> tuple[str | None, str | None]:
         """
         Get the starting page token for Google Drive change tracking.
-        
+
         This token represents the current state and is used for future delta syncs.
         Per Composio docs: Use GOOGLEDRIVE_GET_CHANGES_START_PAGE_TOKEN to get initial token.
-        
+
         Args:
             connected_account_id: Composio connected account ID.
             entity_id: The entity/user ID that owns the connected account.
-        
+
         Returns:
             Tuple of (start_page_token, error message).
         """
@@ -656,27 +674,27 @@ class ComposioService:
                 params={},
                 entity_id=entity_id,
             )
-            
+
             if not result.get("success"):
                 return None, result.get("error", "Unknown error")
-            
+
             data = result.get("data", {})
             # Handle nested response: {data: {startPageToken: ...}, successful: ...}
             if isinstance(data, dict):
                 inner_data = data.get("data", data)
                 token = (
-                    inner_data.get("startPageToken") or
-                    inner_data.get("start_page_token") or
-                    data.get("startPageToken") or
-                    data.get("start_page_token")
+                    inner_data.get("startPageToken")
+                    or inner_data.get("start_page_token")
+                    or data.get("startPageToken")
+                    or data.get("start_page_token")
                 )
                 if token:
                     logger.info(f"Got Drive start page token: {token}")
                     return token, None
-            
+
             logger.warning(f"Could not extract start page token from response: {data}")
             return None, "No start page token in response"
-            
+
         except Exception as e:
             logger.error(f"Failed to get Drive start page token: {e!s}")
             return None, str(e)
@@ -691,18 +709,18 @@ class ComposioService:
     ) -> tuple[list[dict[str, Any]], str | None, str | None]:
         """
         List changes in Google Drive since the given page token.
-        
+
         Per Composio docs: GOOGLEDRIVE_LIST_CHANGES tracks modifications to files/folders.
         If pageToken is not provided, it auto-fetches the current start page token.
         Response includes nextPageToken for pagination and newStartPageToken for future syncs.
-        
+
         Args:
             connected_account_id: Composio connected account ID.
             entity_id: The entity/user ID that owns the connected account.
             page_token: Page token from previous sync (optional - will auto-fetch if not provided).
             page_size: Number of changes per page.
             include_removed: Whether to include removed items in the response.
-        
+
         Returns:
             Tuple of (changes list, new_start_page_token, error message).
         """
@@ -713,42 +731,44 @@ class ComposioService:
             }
             if page_token:
                 params["pageToken"] = page_token
-            
+
             result = await self.execute_tool(
                 connected_account_id=connected_account_id,
                 tool_name="GOOGLEDRIVE_LIST_CHANGES",
                 params=params,
                 entity_id=entity_id,
             )
-            
+
             if not result.get("success"):
                 return [], None, result.get("error", "Unknown error")
-            
+
             data = result.get("data", {})
-            
+
             # Handle nested response structure
             changes = []
             new_start_token = None
-            
+
             if isinstance(data, dict):
                 inner_data = data.get("data", data)
                 changes = inner_data.get("changes", []) or data.get("changes", [])
-                
+
                 # Get the token for next sync
                 # newStartPageToken is returned when all changes have been fetched
                 # nextPageToken is for pagination within the current fetch
                 new_start_token = (
-                    inner_data.get("newStartPageToken") or
-                    inner_data.get("new_start_page_token") or
-                    inner_data.get("nextPageToken") or
-                    inner_data.get("next_page_token") or
-                    data.get("newStartPageToken") or
-                    data.get("nextPageToken")
+                    inner_data.get("newStartPageToken")
+                    or inner_data.get("new_start_page_token")
+                    or inner_data.get("nextPageToken")
+                    or inner_data.get("next_page_token")
+                    or data.get("newStartPageToken")
+                    or data.get("nextPageToken")
                 )
-            
-            logger.info(f"Got {len(changes)} Drive changes, new token: {new_start_token[:20] if new_start_token else 'None'}...")
+
+            logger.info(
+                f"Got {len(changes)} Drive changes, new token: {new_start_token[:20] if new_start_token else 'None'}..."
+            )
             return changes, new_start_token, None
-            
+
         except Exception as e:
             logger.error(f"Failed to list Drive changes: {e!s}")
             return [], None, str(e)

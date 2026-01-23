@@ -611,4 +611,3 @@ async def index_composio_gmail(
     except Exception as e:
         logger.error(f"Failed to index Gmail via Composio: {e!s}", exc_info=True)
         return 0, f"Failed to index Gmail via Composio: {e!s}"
-

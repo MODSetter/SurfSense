@@ -170,13 +170,13 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 								{/* Periodic sync - not shown for Google Drive (regular and Composio) */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" && (
-									<PeriodicSyncConfig
-										enabled={periodicEnabled}
-										frequencyMinutes={frequencyMinutes}
-										onEnabledChange={onPeriodicEnabledChange}
-										onFrequencyChange={onFrequencyChange}
-									/>
-								)}
+										<PeriodicSyncConfig
+											enabled={periodicEnabled}
+											frequencyMinutes={frequencyMinutes}
+											onEnabledChange={onPeriodicEnabledChange}
+											onFrequencyChange={onFrequencyChange}
+										/>
+									)}
 							</>
 						)}
 
@@ -189,7 +189,8 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 								<div className="text-xs sm:text-sm">
 									<p className="font-medium text-xs sm:text-sm">Indexing runs in the background</p>
 									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-										You can continue using SurfSense while we sync your data. Check inbox for updates.
+										You can continue using SurfSense while we sync your data. Check inbox for
+										updates.
 									</p>
 								</div>
 							</div>

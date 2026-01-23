@@ -173,15 +173,16 @@ async def index_google_gmail_messages(
             # Check if this is an authentication error that requires re-authentication
             error_message = error
             error_type = "APIError"
-            if "re-authenticate" in error.lower() or "expired or been revoked" in error.lower() or "authentication failed" in error.lower():
+            if (
+                "re-authenticate" in error.lower()
+                or "expired or been revoked" in error.lower()
+                or "authentication failed" in error.lower()
+            ):
                 error_message = "Gmail authentication failed. Please re-authenticate."
                 error_type = "AuthenticationError"
-            
+
             await task_logger.log_task_failure(
-                log_entry, 
-                error_message,
-                error,
-                {"error_type": error_type}
+                log_entry, error_message, error, {"error_type": error_type}
             )
             return 0, error_message
 

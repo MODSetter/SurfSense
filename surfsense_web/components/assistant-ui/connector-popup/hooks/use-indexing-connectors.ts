@@ -68,9 +68,7 @@ export function useIndexingConnectors(
 				// Only check connector_indexing notifications
 				if (item.type !== "connector_indexing") continue;
 
-				const metadata = isConnectorIndexingMetadata(item.metadata)
-					? item.metadata
-					: null;
+				const metadata = isConnectorIndexingMetadata(item.metadata) ? item.metadata : null;
 				if (!metadata) continue;
 
 				// If status is "in_progress", add connector to indexing set

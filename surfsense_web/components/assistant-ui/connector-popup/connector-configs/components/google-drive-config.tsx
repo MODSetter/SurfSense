@@ -1,6 +1,14 @@
 "use client";
 
-import { File, FileSpreadsheet, FileText, FolderClosed, Image, Presentation, X } from "lucide-react";
+import {
+	File,
+	FileSpreadsheet,
+	FileText,
+	FolderClosed,
+	Image,
+	Presentation,
+	X,
+} from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";

@@ -662,16 +662,16 @@ async def index_connector_content(
                 # Use UTC for "today" to match how last_indexed_at is stored
                 today_utc = datetime.now(UTC).replace(tzinfo=None).date()
                 last_indexed_date = last_indexed_naive.date()
-                
+
                 if last_indexed_date == today_utc:
                     # If last indexed today, go back 1 day to ensure we don't miss anything
                     indexing_from = (today_utc - timedelta(days=1)).strftime("%Y-%m-%d")
                 else:
                     indexing_from = last_indexed_naive.strftime("%Y-%m-%d")
             else:
-                indexing_from = (datetime.now(UTC).replace(tzinfo=None) - timedelta(days=365)).strftime(
-                    "%Y-%m-%d"
-                )
+                indexing_from = (
+                    datetime.now(UTC).replace(tzinfo=None) - timedelta(days=365)
+                ).strftime("%Y-%m-%d")
         else:
             indexing_from = start_date
 
@@ -683,7 +683,7 @@ async def index_connector_content(
         ]:
             # Default to today if no end_date provided (users can manually select future dates)
             indexing_to = today_str if end_date is None else end_date
-            
+
             # If start_date and end_date are the same, adjust end_date to be one day later
             # to ensure valid date range (start_date must be strictly before end_date)
             if indexing_from == indexing_to:
@@ -1251,16 +1251,19 @@ async def _run_indexing_with_notifications(
             if error_or_warning:
                 # Check if this is a duplicate warning or empty result (success cases) or an actual error
                 # Handle both normal and Composio calendar connectors
-                error_or_warning_lower = str(error_or_warning).lower() if error_or_warning else ""
+                error_or_warning_lower = (
+                    str(error_or_warning).lower() if error_or_warning else ""
+                )
                 is_duplicate_warning = "skipped (duplicate)" in error_or_warning_lower
                 # "No X found" messages are success cases - sync worked, just found nothing in date range
-                is_empty_result = ("no " in error_or_warning_lower and "found" in error_or_warning_lower)
-                
+                is_empty_result = (
+                    "no " in error_or_warning_lower
+                    and "found" in error_or_warning_lower
+                )
+
                 if is_duplicate_warning or is_empty_result:
                     # These are success cases - sync worked, just found nothing new
-                    logger.info(
-                        f"Indexing completed successfully: {error_or_warning}"
-                    )
+                    logger.info(f"Indexing completed successfully: {error_or_warning}")
                     # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
                     if update_timestamp_func:
                         await update_timestamp_func(session, connector_id)
@@ -1269,7 +1272,11 @@ async def _run_indexing_with_notifications(
                         # Refresh notification to ensure it's not stale after timestamp update commit
                         await session.refresh(notification)
                         # For empty results, use a cleaner message
-                        notification_message = "No new items found in date range" if is_empty_result else error_or_warning
+                        notification_message = (
+                            "No new items found in date range"
+                            if is_empty_result
+                            else error_or_warning
+                        )
                         await NotificationService.connector_indexing.notify_indexing_completed(
                             session=session,
                             notification=notification,

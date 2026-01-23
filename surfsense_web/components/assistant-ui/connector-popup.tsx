@@ -18,7 +18,10 @@ import { ConnectorDialogHeader } from "./connector-popup/components/connector-di
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
 import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
 import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
-import { COMPOSIO_CONNECTORS, OAUTH_CONNECTORS } from "./connector-popup/constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	OAUTH_CONNECTORS,
+} from "./connector-popup/constants/connector-constants";
 import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
 import { useIndexingConnectors } from "./connector-popup/hooks/use-indexing-connectors";
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";

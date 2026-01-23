@@ -1,6 +1,14 @@
 "use client";
 
-import { File, FileSpreadsheet, FileText, FolderClosed, Image, Presentation, X } from "lucide-react";
+import {
+	File,
+	FileSpreadsheet,
+	FileText,
+	FolderClosed,
+	Image,
+	Presentation,
+	X,
+} from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { ComposioDriveFolderTree } from "@/components/connectors/composio-drive-folder-tree";
@@ -85,7 +93,10 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	return <File className={`${className} text-gray-500`} />;
 }
 
-export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({ connector, onConfigChange }) => {
+export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
+	connector,
+	onConfigChange,
+}) => {
 	const isIndexable = connector.config?.is_indexable as boolean;
 
 	// Initialize with existing selected folders and files from connector config
@@ -184,9 +195,7 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({ connector, o
 									);
 								}
 								if (selectedFiles.length > 0) {
-									parts.push(
-										`${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`
-									);
+									parts.push(`${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`);
 								}
 								return parts.length > 0 ? `(${parts.join(", ")})` : "";
 							})()}
@@ -329,13 +338,10 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({ connector, o
 					<Switch
 						id="include-subfolders"
 						checked={indexingOptions.include_subfolders}
-						onCheckedChange={(checked) =>
-							handleIndexingOptionChange("include_subfolders", checked)
-						}
+						onCheckedChange={(checked) => handleIndexingOptionChange("include_subfolders", checked)}
 					/>
 				</div>
 			</div>
 		</div>
 	);
 };
-

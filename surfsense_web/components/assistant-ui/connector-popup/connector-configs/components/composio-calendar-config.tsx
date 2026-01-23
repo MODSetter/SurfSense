@@ -12,4 +12,3 @@ interface ComposioCalendarConfigProps {
 export const ComposioCalendarConfig: FC<ComposioCalendarConfigProps> = () => {
 	return <div className="space-y-6" />;
 };
-

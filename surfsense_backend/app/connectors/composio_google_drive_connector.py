@@ -453,8 +453,8 @@ async def check_document_by_unique_identifier(
     session: AsyncSession, unique_identifier_hash: str
 ) -> Document | None:
     """Check if a document with the given unique identifier hash already exists."""
-    from sqlalchemy.orm import selectinload
     from sqlalchemy.future import select
+    from sqlalchemy.orm import selectinload
 
     existing_doc_result = await session.execute(
         select(Document)
@@ -517,14 +517,20 @@ async def index_composio_google_drive(
 
         # Route to delta sync or full scan
         if use_delta_sync:
-            logger.info(f"Using delta sync for Composio Google Drive connector {connector_id}")
+            logger.info(
+                f"Using delta sync for Composio Google Drive connector {connector_id}"
+            )
             await task_logger.log_task_progress(
                 log_entry,
                 f"Starting delta sync for Google Drive via Composio (connector {connector_id})",
                 {"stage": "delta_sync", "token": stored_page_token[:20] + "..."},
             )
 
-            documents_indexed, documents_skipped, processing_errors = await _index_composio_drive_delta_sync(
+            (
+                documents_indexed,
+                documents_skipped,
+                processing_errors,
+            ) = await _index_composio_drive_delta_sync(
                 session=session,
                 composio_connector=composio_connector,
                 connector_id=connector_id,
@@ -536,7 +542,9 @@ async def index_composio_google_drive(
                 log_entry=log_entry,
             )
         else:
-            logger.info(f"Using full scan for Composio Google Drive connector {connector_id} (first sync or no token)")
+            logger.info(
+                f"Using full scan for Composio Google Drive connector {connector_id} (first sync or no token)"
+            )
             await task_logger.log_task_progress(
                 log_entry,
                 f"Fetching Google Drive files via Composio for connector {connector_id}",
@@ -547,7 +555,11 @@ async def index_composio_google_drive(
                 },
             )
 
-            documents_indexed, documents_skipped, processing_errors = await _index_composio_drive_full_scan(
+            (
+                documents_indexed,
+                documents_skipped,
+                processing_errors,
+            ) = await _index_composio_drive_full_scan(
                 session=session,
                 composio_connector=composio_connector,
                 connector_id=connector_id,
@@ -580,9 +592,13 @@ async def index_composio_google_drive(
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit
-        logger.info(f"Final commit: Total {documents_indexed} Google Drive files processed")
+        logger.info(
+            f"Final commit: Total {documents_indexed} Google Drive files processed"
+        )
         await session.commit()
-        logger.info("Successfully committed all Composio Google Drive document changes to database")
+        logger.info(
+            "Successfully committed all Composio Google Drive document changes to database"
+        )
 
         # Handle processing errors
         error_message = None
@@ -731,7 +747,9 @@ async def _index_composio_drive_delta_sync(
             processing_errors.append(error_msg)
             documents_skipped += 1
 
-    logger.info(f"Delta sync complete: {documents_indexed} indexed, {documents_skipped} skipped")
+    logger.info(
+        f"Delta sync complete: {documents_indexed} indexed, {documents_skipped} skipped"
+    )
     return documents_indexed, documents_skipped, processing_errors
 
 
@@ -858,20 +876,18 @@ async def _index_composio_drive_full_scan(
         logger.info("No Google Drive files found")
         return 0, 0, []
 
-    logger.info(f"Found {len(all_files)} Google Drive files to index via Composio (full scan)")
+    logger.info(
+        f"Found {len(all_files)} Google Drive files to index via Composio (full scan)"
+    )
 
     for file_info in all_files:
         try:
             # Handle both standard Google API and potential Composio variations
             file_id = file_info.get("id", "") or file_info.get("fileId", "")
             file_name = (
-                file_info.get("name", "")
-                or file_info.get("fileName", "")
-                or "Untitled"
+                file_info.get("name", "") or file_info.get("fileName", "") or "Untitled"
             )
-            mime_type = file_info.get("mimeType", "") or file_info.get(
-                "mime_type", ""
-            )
+            mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
 
             if not file_id:
                 documents_skipped += 1
@@ -901,7 +917,9 @@ async def _index_composio_drive_full_scan(
 
             # Batch commit every 10 documents
             if documents_indexed > 0 and documents_indexed % 10 == 0:
-                logger.info(f"Committing batch: {documents_indexed} Google Drive files processed so far")
+                logger.info(
+                    f"Committing batch: {documents_indexed} Google Drive files processed so far"
+                )
                 await session.commit()
 
         except Exception as e:
@@ -910,7 +928,9 @@ async def _index_composio_drive_full_scan(
             processing_errors.append(error_msg)
             documents_skipped += 1
 
-    logger.info(f"Full scan complete: {documents_indexed} indexed, {documents_skipped} skipped")
+    logger.info(
+        f"Full scan complete: {documents_indexed} indexed, {documents_skipped} skipped"
+    )
     return documents_indexed, documents_skipped, processing_errors
 
 
@@ -948,9 +968,7 @@ async def _process_single_drive_file(
     content, content_error = await composio_connector.get_drive_file_content(file_id)
 
     if content_error or not content:
-        logger.warning(
-            f"Could not get content for file {file_name}: {content_error}"
-        )
+        logger.warning(f"Could not get content for file {file_name}: {content_error}")
         # Use metadata as content fallback
         markdown_content = f"# {file_name}\n\n"
         markdown_content += f"**File ID:** {file_id}\n"
@@ -985,9 +1003,7 @@ async def _process_single_drive_file(
             return 0, 1, processing_errors  # Skipped
 
         # Update existing document
-        user_llm = await get_user_long_context_llm(
-            session, user_id, search_space_id
-        )
+        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
         if user_llm:
             document_metadata = {
@@ -1003,12 +1019,8 @@ async def _process_single_drive_file(
                 markdown_content, user_llm, document_metadata
             )
         else:
-            summary_content = (
-                f"Google Drive File: {file_name}\n\nType: {mime_type}"
-            )
-            summary_embedding = config.embedding_model_instance.embed(
-                summary_content
-            )
+            summary_content = f"Google Drive File: {file_name}\n\nType: {mime_type}"
+            summary_embedding = config.embedding_model_instance.embed(summary_content)
 
         chunks = await create_document_chunks(markdown_content)
 
@@ -1030,9 +1042,7 @@ async def _process_single_drive_file(
         return 1, 0, processing_errors  # Indexed
 
     # Create new document
-    user_llm = await get_user_long_context_llm(
-        session, user_id, search_space_id
-    )
+    user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
     if user_llm:
         document_metadata = {
@@ -1048,12 +1058,8 @@ async def _process_single_drive_file(
             markdown_content, user_llm, document_metadata
         )
     else:
-        summary_content = (
-            f"Google Drive File: {file_name}\n\nType: {mime_type}"
-        )
-        summary_embedding = config.embedding_model_instance.embed(
-            summary_content
-        )
+        summary_content = f"Google Drive File: {file_name}\n\nType: {mime_type}"
+        summary_embedding = config.embedding_model_instance.embed(summary_content)
 
     chunks = await create_document_chunks(markdown_content)
 
@@ -1159,4 +1165,3 @@ async def _fetch_folder_files_recursively(
     except Exception as e:
         logger.error(f"Error in recursive folder fetch: {e!s}")
         return all_files
-

@@ -144,7 +144,10 @@ class GoogleCalendarConnector:
             except Exception as e:
                 error_str = str(e)
                 # Check if this is an invalid_grant error (token expired/revoked)
-                if "invalid_grant" in error_str.lower() or "token has been expired or revoked" in error_str.lower():
+                if (
+                    "invalid_grant" in error_str.lower()
+                    or "token has been expired or revoked" in error_str.lower()
+                ):
                     raise Exception(
                         "Google Calendar authentication failed. Please re-authenticate."
                     ) from e
@@ -173,7 +176,11 @@ class GoogleCalendarConnector:
         except Exception as e:
             error_str = str(e)
             # If the error already contains a user-friendly re-authentication message, preserve it
-            if "re-authenticate" in error_str.lower() or "expired or been revoked" in error_str.lower() or "authentication failed" in error_str.lower():
+            if (
+                "re-authenticate" in error_str.lower()
+                or "expired or been revoked" in error_str.lower()
+                or "authentication failed" in error_str.lower()
+            ):
                 raise Exception(error_str) from e
             raise Exception(f"Failed to create Google Calendar service: {e!s}") from e
 
@@ -283,7 +290,11 @@ class GoogleCalendarConnector:
         except Exception as e:
             error_str = str(e)
             # If the error already contains a user-friendly re-authentication message, preserve it
-            if "re-authenticate" in error_str.lower() or "expired or been revoked" in error_str.lower() or "authentication failed" in error_str.lower():
+            if (
+                "re-authenticate" in error_str.lower()
+                or "expired or been revoked" in error_str.lower()
+                or "authentication failed" in error_str.lower()
+            ):
                 return [], error_str
             return [], f"Error fetching events: {e!s}"
 
