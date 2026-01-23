@@ -6,7 +6,12 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { isSelfHosted } from "@/lib/env-config";
 import { ConnectorCard } from "../components/connector-card";
 import { ComposioConnectorCard } from "../components/composio-connector-card";
-import { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS, COMPOSIO_CONNECTORS } from "../constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	CRAWLERS,
+	OAUTH_CONNECTORS,
+	OTHER_CONNECTORS,
+} from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 /**
@@ -164,7 +169,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 			)}
 
 			{/* Composio Integrations */}
-			{filteredComposio.length > 0 && onOpenComposio && (
+			{/* {filteredComposio.length > 0 && onOpenComposio && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
 						<h3 className="text-sm font-semibold text-muted-foreground">Managed OAuth</h3>
@@ -185,7 +190,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 						))}
 					</div>
 				</section>
-			)}
+			)} */}
 
 			{/* More Integrations */}
 			{filteredOther.length > 0 && (

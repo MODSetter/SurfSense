@@ -84,7 +84,9 @@ async def list_composio_toolkits(user: User = Depends(current_active_user)):
 @router.get("/auth/composio/connector/add")
 async def initiate_composio_auth(
     space_id: int,
-    toolkit_id: str = Query(..., description="Composio toolkit ID (e.g., 'googledrive', 'gmail')"),
+    toolkit_id: str = Query(
+        ..., description="Composio toolkit ID (e.g., 'googledrive', 'gmail')"
+    ),
     user: User = Depends(current_active_user),
 ):
     """
@@ -165,7 +167,9 @@ async def initiate_composio_auth(
 @router.get("/auth/composio/connector/callback")
 async def composio_callback(
     state: str | None = None,
-    connectedAccountId: str | None = None,  # Composio sends camelCase
+    composio_connected_account_id: str | None = Query(
+        None, alias="connectedAccountId"
+    ),  # Composio sends camelCase
     connected_account_id: str | None = None,  # Fallback snake_case
     error: str | None = None,
     session: AsyncSession = Depends(get_async_session),
@@ -232,15 +236,18 @@ async def composio_callback(
         )
 
         # Initialize Composio service
-        service = ComposioService()
-        entity_id = f"surfsense_{user_id}"
-        
+        ComposioService()
+
         # Use camelCase param if provided (Composio's format), fallback to snake_case
-        final_connected_account_id = connectedAccountId or connected_account_id
-        
+        final_connected_account_id = (
+            composio_connected_account_id or connected_account_id
+        )
+
         # DEBUG: Log all query parameters received
-        logger.info(f"DEBUG: Callback received - connectedAccountId: {connectedAccountId}, connected_account_id: {connected_account_id}, using: {final_connected_account_id}")
-        
+        logger.info(
+            f"DEBUG: Callback received - connectedAccountId: {composio_connected_account_id}, connected_account_id: {connected_account_id}, using: {final_connected_account_id}"
+        )
+
         # If we still don't have a connected_account_id, warn but continue
         # (the connector will be created but indexing won't work until updated)
         if not final_connected_account_id:
@@ -249,7 +256,9 @@ async def composio_callback(
                 "The connector will be created but indexing may not work."
             )
         else:
-            logger.info(f"Successfully got connected_account_id: {final_connected_account_id}")
+            logger.info(
+                f"Successfully got connected_account_id: {final_connected_account_id}"
+            )
 
         # Build connector config
         connector_config = {

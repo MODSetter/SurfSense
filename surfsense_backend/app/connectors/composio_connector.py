@@ -268,7 +268,9 @@ class ComposioConnector:
             from_email = header_dict.get("from", "Unknown Sender")
             to_email = header_dict.get("to", "Unknown Recipient")
             # Composio provides messageTimestamp directly
-            date_str = message.get("messageTimestamp", "") or header_dict.get("date", "Unknown Date")
+            date_str = message.get("messageTimestamp", "") or header_dict.get(
+                "date", "Unknown Date"
+            )
 
             # Build markdown content
             markdown_content = f"# {subject}\n\n"

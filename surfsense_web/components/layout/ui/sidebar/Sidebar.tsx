@@ -119,11 +119,6 @@ export function Sidebar({
 				)}
 			</div>
 
-			{/* Platform navigation */}
-			{navItems.length > 0 && (
-				<NavSection items={navItems} onItemClick={onNavItemClick} isCollapsed={isCollapsed} />
-			)}
-
 			{/* Scrollable content */}
 			<ScrollArea className="flex-1">
 				{isCollapsed ? (
@@ -235,7 +230,12 @@ export function Sidebar({
 			</ScrollArea>
 
 			{/* Footer */}
-			<div className="mt-auto">
+			<div className="mt-auto border-t">
+				{/* Platform navigation */}
+				{navItems.length > 0 && (
+					<NavSection items={navItems} onItemClick={onNavItemClick} isCollapsed={isCollapsed} />
+				)}
+
 				{pageUsage && !isCollapsed && (
 					<PageUsageDisplay pagesUsed={pageUsage.pagesUsed} pagesLimit={pageUsage.pagesLimit} />
 				)}

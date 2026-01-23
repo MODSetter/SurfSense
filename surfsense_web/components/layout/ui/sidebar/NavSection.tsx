@@ -30,7 +30,7 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 									type="button"
 									onClick={() => onItemClick?.(item)}
 									className={cn(
-										"flex h-10 w-10 items-center justify-center rounded-md transition-colors",
+										"relative flex h-10 w-10 items-center justify-center rounded-md transition-colors",
 										"hover:bg-accent hover:text-accent-foreground",
 										"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 										item.isActive && "bg-accent text-accent-foreground"
@@ -38,6 +38,11 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 									{...joyrideAttr}
 								>
 									<Icon className="h-4 w-4" />
+									{item.badge && (
+										<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
+											{item.badge}
+										</span>
+									)}
 									<span className="sr-only">{item.title}</span>
 								</button>
 							</TooltipTrigger>
@@ -64,7 +69,11 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 					>
 						<Icon className="h-4 w-4 shrink-0" />
 						<span className="flex-1 truncate">{item.title}</span>
-						{item.badge && <span className="text-xs text-muted-foreground">{item.badge}</span>}
+						{item.badge && (
+							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-medium">
+								{item.badge}
+							</span>
+						)}
 					</button>
 				);
 			})}

@@ -69,7 +69,7 @@ export function CommentPanel({
 			style={!isMobile && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
 		>
 			{hasThreads && (
-				<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+				<div className={cn("min-h-0 flex-1 overflow-y-auto scrollbar-thin", isMobile && "pb-24")}>
 					<div className="space-y-4 p-4">
 						{threads.map((thread) => (
 							<CommentThread
@@ -106,7 +106,7 @@ export function CommentPanel({
 				</div>
 			)}
 
-			<div className="p-3">
+			<div className={cn("p-3", isMobile && "fixed bottom-0 left-0 right-0 z-50 bg-card border-t")}>
 				<CommentComposer
 					members={members}
 					membersLoading={membersLoading}

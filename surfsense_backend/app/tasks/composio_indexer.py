@@ -144,7 +144,9 @@ async def index_composio_connector(
         # Get toolkit ID from config
         toolkit_id = connector.config.get("toolkit_id")
         if not toolkit_id:
-            error_msg = f"Composio connector {connector_id} has no toolkit_id configured"
+            error_msg = (
+                f"Composio connector {connector_id} has no toolkit_id configured"
+            )
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "MissingToolkitId"}
             )
@@ -287,8 +289,14 @@ async def _index_composio_google_drive(
             try:
                 # Handle both standard Google API and potential Composio variations
                 file_id = file_info.get("id", "") or file_info.get("fileId", "")
-                file_name = file_info.get("name", "") or file_info.get("fileName", "") or "Untitled"
-                mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
+                file_name = (
+                    file_info.get("name", "")
+                    or file_info.get("fileName", "")
+                    or "Untitled"
+                )
+                mime_type = file_info.get("mimeType", "") or file_info.get(
+                    "mime_type", ""
+                )
 
                 if not file_id:
                     documents_skipped += 1
@@ -309,12 +317,15 @@ async def _index_composio_google_drive(
                 )
 
                 # Get file content
-                content, content_error = await composio_connector.get_drive_file_content(
-                    file_id
-                )
+                (
+                    content,
+                    content_error,
+                ) = await composio_connector.get_drive_file_content(file_id)
 
                 if content_error or not content:
-                    logger.warning(f"Could not get content for file {file_name}: {content_error}")
+                    logger.warning(
+                        f"Could not get content for file {file_name}: {content_error}"
+                    )
                     # Use metadata as content fallback
                     markdown_content = f"# {file_name}\n\n"
                     markdown_content += f"**File ID:** {file_id}\n"
@@ -344,12 +355,19 @@ async def _index_composio_google_drive(
                             "mime_type": mime_type,
                             "document_type": "Google Drive File (Composio)",
                         }
-                        summary_content, summary_embedding = await generate_document_summary(
+                        (
+                            summary_content,
+                            summary_embedding,
+                        ) = await generate_document_summary(
                             markdown_content, user_llm, document_metadata
                         )
                     else:
-                        summary_content = f"Google Drive File: {file_name}\n\nType: {mime_type}"
-                        summary_embedding = config.embedding_model_instance.embed(summary_content)
+                        summary_content = (
+                            f"Google Drive File: {file_name}\n\nType: {mime_type}"
+                        )
+                        summary_embedding = config.embedding_model_instance.embed(
+                            summary_content
+                        )
 
                     chunks = await create_document_chunks(markdown_content)
 
@@ -382,12 +400,19 @@ async def _index_composio_google_drive(
                         "mime_type": mime_type,
                         "document_type": "Google Drive File (Composio)",
                     }
-                    summary_content, summary_embedding = await generate_document_summary(
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
                         markdown_content, user_llm, document_metadata
                     )
                 else:
-                    summary_content = f"Google Drive File: {file_name}\n\nType: {mime_type}"
-                    summary_embedding = config.embedding_model_instance.embed(summary_content)
+                    summary_content = (
+                        f"Google Drive File: {file_name}\n\nType: {mime_type}"
+                    )
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
 
                 chunks = await create_document_chunks(markdown_content)
 
@@ -527,11 +552,15 @@ async def _index_composio_gmail(
                         date_str = value
 
                 # Format to markdown using the full message data
-                markdown_content = composio_connector.format_gmail_message_to_markdown(message)
+                markdown_content = composio_connector.format_gmail_message_to_markdown(
+                    message
+                )
 
                 # Generate unique identifier
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.COMPOSIO_CONNECTOR, f"gmail_{message_id}", search_space_id
+                    DocumentType.COMPOSIO_CONNECTOR,
+                    f"gmail_{message_id}",
+                    search_space_id,
                 )
 
                 content_hash = generate_content_hash(markdown_content, search_space_id)
@@ -560,12 +589,19 @@ async def _index_composio_gmail(
                             "sender": sender,
                             "document_type": "Gmail Message (Composio)",
                         }
-                        summary_content, summary_embedding = await generate_document_summary(
+                        (
+                            summary_content,
+                            summary_embedding,
+                        ) = await generate_document_summary(
                             markdown_content, user_llm, document_metadata
                         )
                     else:
-                        summary_content = f"Gmail: {subject}\n\nFrom: {sender}\nDate: {date_str}"
-                        summary_embedding = config.embedding_model_instance.embed(summary_content)
+                        summary_content = (
+                            f"Gmail: {subject}\n\nFrom: {sender}\nDate: {date_str}"
+                        )
+                        summary_embedding = config.embedding_model_instance.embed(
+                            summary_content
+                        )
 
                     chunks = await create_document_chunks(markdown_content)
 
@@ -600,12 +636,19 @@ async def _index_composio_gmail(
                         "sender": sender,
                         "document_type": "Gmail Message (Composio)",
                     }
-                    summary_content, summary_embedding = await generate_document_summary(
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
                         markdown_content, user_llm, document_metadata
                     )
                 else:
-                    summary_content = f"Gmail: {subject}\n\nFrom: {sender}\nDate: {date_str}"
-                    summary_embedding = config.embedding_model_instance.embed(summary_content)
+                    summary_content = (
+                        f"Gmail: {subject}\n\nFrom: {sender}\nDate: {date_str}"
+                    )
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
 
                 chunks = await create_document_chunks(markdown_content)
 
@@ -728,18 +771,24 @@ async def _index_composio_google_calendar(
             try:
                 # Handle both standard Google API and potential Composio variations
                 event_id = event.get("id", "") or event.get("eventId", "")
-                summary = event.get("summary", "") or event.get("title", "") or "No Title"
+                summary = (
+                    event.get("summary", "") or event.get("title", "") or "No Title"
+                )
 
                 if not event_id:
                     documents_skipped += 1
                     continue
 
                 # Format to markdown
-                markdown_content = composio_connector.format_calendar_event_to_markdown(event)
+                markdown_content = composio_connector.format_calendar_event_to_markdown(
+                    event
+                )
 
                 # Generate unique identifier
                 unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.COMPOSIO_CONNECTOR, f"calendar_{event_id}", search_space_id
+                    DocumentType.COMPOSIO_CONNECTOR,
+                    f"calendar_{event_id}",
+                    search_space_id,
                 )
 
                 content_hash = generate_content_hash(markdown_content, search_space_id)
@@ -772,14 +821,19 @@ async def _index_composio_google_calendar(
                             "start_time": start_time,
                             "document_type": "Google Calendar Event (Composio)",
                         }
-                        summary_content, summary_embedding = await generate_document_summary(
+                        (
+                            summary_content,
+                            summary_embedding,
+                        ) = await generate_document_summary(
                             markdown_content, user_llm, document_metadata
                         )
                     else:
                         summary_content = f"Calendar: {summary}\n\nStart: {start_time}\nEnd: {end_time}"
                         if location:
                             summary_content += f"\nLocation: {location}"
-                        summary_embedding = config.embedding_model_instance.embed(summary_content)
+                        summary_embedding = config.embedding_model_instance.embed(
+                            summary_content
+                        )
 
                     chunks = await create_document_chunks(markdown_content)
 
@@ -814,14 +868,21 @@ async def _index_composio_google_calendar(
                         "start_time": start_time,
                         "document_type": "Google Calendar Event (Composio)",
                     }
-                    summary_content, summary_embedding = await generate_document_summary(
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
                         markdown_content, user_llm, document_metadata
                     )
                 else:
-                    summary_content = f"Calendar: {summary}\n\nStart: {start_time}\nEnd: {end_time}"
+                    summary_content = (
+                        f"Calendar: {summary}\n\nStart: {start_time}\nEnd: {end_time}"
+                    )
                     if location:
                         summary_content += f"\nLocation: {location}"
-                    summary_embedding = config.embedding_model_instance.embed(summary_content)
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
 
                 chunks = await create_document_chunks(markdown_content)
 
@@ -874,5 +935,7 @@ async def _index_composio_google_calendar(
         return documents_indexed, None
 
     except Exception as e:
-        logger.error(f"Failed to index Google Calendar via Composio: {e!s}", exc_info=True)
+        logger.error(
+            f"Failed to index Google Calendar via Composio: {e!s}", exc_info=True
+        )
         return 0, f"Failed to index Google Calendar via Composio: {e!s}"
