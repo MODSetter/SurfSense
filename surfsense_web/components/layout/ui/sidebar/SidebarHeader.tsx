@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronsUpDown, ScrollText, Settings, Users } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +31,8 @@ export function SidebarHeader({
 }: SidebarHeaderProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const params = useParams();
+	const searchSpaceId = params.search_space_id as string;
 
 	return (
 		<div className={cn("flex shrink-0 items-center", className)}>
@@ -54,7 +56,7 @@ export function SidebarHeader({
 						<Users className="mr-2 h-4 w-4" />
 						{t("manage_members")}
 					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => router.push(`/dashboard/${searchSpace?.id}/logs`)}>
+					<DropdownMenuItem onClick={() => router.push(`/dashboard/${searchSpaceId}/logs`)}>
 						<ScrollText className="mr-2 h-4 w-4" />
 						{t("logs")}
 					</DropdownMenuItem>
