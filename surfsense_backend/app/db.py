@@ -365,6 +365,13 @@ class NewChatThread(BaseModel, TimestampMixin):
         unique=True,
         index=True,
     )
+    # Whether public sharing is currently enabled for this thread
+    public_share_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
