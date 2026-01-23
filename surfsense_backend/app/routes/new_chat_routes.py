@@ -1184,20 +1184,15 @@ async def regenerate_response(
                 detail="Could not determine user query for regeneration. Please provide a user_query.",
             )
 
-        # Delete the last user message and assistant response from the database
-        # Get the last two messages (should be user + assistant)
+        # Get the last two messages to delete AFTER streaming succeeds
+        # This prevents data loss if streaming fails
         last_messages_result = await session.execute(
             select(NewChatMessage)
             .filter(NewChatMessage.thread_id == thread_id)
             .order_by(NewChatMessage.created_at.desc())
             .limit(2)
         )
-        last_messages = last_messages_result.scalars().all()
-
-        for msg in last_messages:
-            await session.delete(msg)
-
-        await session.commit()
+        messages_to_delete = list(last_messages_result.scalars().all())
 
         # Get search space for LLM config
         search_space_result = await session.execute(
@@ -1212,20 +1207,43 @@ async def regenerate_response(
             search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
         )
 
+        # Create a wrapper generator that deletes messages only AFTER streaming succeeds
+        # This prevents data loss if streaming fails (network error, LLM error, etc.)
+        async def stream_with_cleanup():
+            streaming_completed = False
+            try:
+                async for chunk in stream_new_chat(
+                    user_query=user_query_to_use,
+                    search_space_id=request.search_space_id,
+                    chat_id=thread_id,
+                    session=session,
+                    user_id=str(user.id),
+                    llm_config_id=llm_config_id,
+                    attachments=request.attachments,
+                    mentioned_document_ids=request.mentioned_document_ids,
+                    mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                    checkpoint_id=target_checkpoint_id,
+                ):
+                    yield chunk
+                # If we get here, streaming completed successfully
+                streaming_completed = True
+            finally:
+                # Only delete old messages if streaming completed successfully
+                # This ensures we don't lose data on streaming failures
+                if streaming_completed and messages_to_delete:
+                    try:
+                        for msg in messages_to_delete:
+                            await session.delete(msg)
+                        await session.commit()
+                    except Exception as cleanup_error:
+                        # Log but don't fail - the new messages are already streamed
+                        print(
+                            f"[regenerate] Warning: Failed to delete old messages: {cleanup_error}"
+                        )
+
         # Return streaming response with checkpoint_id for rewinding
         return StreamingResponse(
-            stream_new_chat(
-                user_query=user_query_to_use,
-                search_space_id=request.search_space_id,
-                chat_id=thread_id,
-                session=session,
-                user_id=str(user.id),
-                llm_config_id=llm_config_id,
-                attachments=request.attachments,
-                mentioned_document_ids=request.mentioned_document_ids,
-                mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
-                checkpoint_id=target_checkpoint_id,
-            ),
+            stream_with_cleanup(),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
