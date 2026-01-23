@@ -344,13 +344,16 @@ async def composio_callback(
 
         try:
             # Generate a unique, user-friendly connector name
-            connector_name = await generate_unique_connector_name(
+            # Pass just toolkit_name (without "(Composio)") to avoid redundancy
+            base_name = await generate_unique_connector_name(
                 session,
                 connector_type,
                 space_id,
                 user_id,
-                f"{toolkit_name} (Composio)",
+                toolkit_name,
             )
+            # Append "(Composio)" suffix for identification
+            connector_name = f"{base_name} (Composio)"
 
             db_connector = SearchSourceConnector(
                 name=connector_name,

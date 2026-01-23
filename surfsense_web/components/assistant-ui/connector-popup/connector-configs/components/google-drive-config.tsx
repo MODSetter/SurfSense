@@ -1,6 +1,6 @@
 "use client";
 
-import { File, FileSpreadsheet, FileText, FolderClosed, Image, Presentation } from "lucide-react";
+import { File, FileSpreadsheet, FileText, FolderClosed, Image, Presentation, X } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
@@ -135,6 +135,18 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 		updateConfig(selectedFolders, selectedFiles, newOptions);
 	};
 
+	const handleRemoveFolder = (folderId: string) => {
+		const newFolders = selectedFolders.filter((folder) => folder.id !== folderId);
+		setSelectedFolders(newFolders);
+		updateConfig(newFolders, selectedFiles, indexingOptions);
+	};
+
+	const handleRemoveFile = (fileId: string) => {
+		const newFiles = selectedFiles.filter((file) => file.id !== fileId);
+		setSelectedFiles(newFiles);
+		updateConfig(selectedFolders, newFiles, indexingOptions);
+	};
+
 	const totalSelected = selectedFolders.length + selectedFiles.length;
 
 	return (
@@ -161,29 +173,45 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 								if (selectedFiles.length > 0) {
 									parts.push(`${selectedFiles.length} file${selectedFiles.length > 1 ? "s" : ""}`);
 								}
-								return parts.length > 0 ? `(${parts.join(" ")})` : "";
+								return parts.length > 0 ? `(${parts.join(", ")})` : "";
 							})()}
 						</p>
 						<div className="max-h-20 sm:max-h-24 overflow-y-auto space-y-1">
 							{selectedFolders.map((folder) => (
-								<p
+								<div
 									key={folder.id}
 									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={folder.name}
 								>
 									<FolderClosed className="size-3.5 shrink-0 text-gray-500" />
-									{folder.name}
-								</p>
+									<span className="flex-1 truncate">{folder.name}</span>
+									<button
+										type="button"
+										onClick={() => handleRemoveFolder(folder.id)}
+										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										aria-label={`Remove ${folder.name}`}
+									>
+										<X className="size-3.5" />
+									</button>
+								</div>
 							))}
 							{selectedFiles.map((file) => (
-								<p
+								<div
 									key={file.id}
 									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={file.name}
 								>
 									{getFileIconFromName(file.name)}
-									{file.name}
-								</p>
+									<span className="flex-1 truncate">{file.name}</span>
+									<button
+										type="button"
+										onClick={() => handleRemoveFile(file.id)}
+										className="shrink-0 p-0.5 hover:bg-muted-foreground/20 rounded transition-colors"
+										aria-label={`Remove ${file.name}`}
+									>
+										<X className="size-3.5" />
+									</button>
+								</div>
 							))}
 						</div>
 					</div>

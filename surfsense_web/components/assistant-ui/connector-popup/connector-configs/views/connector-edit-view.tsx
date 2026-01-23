@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { getConnectorConfigComponent } from "../index";
+import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 
 interface ConnectorEditViewProps {
 	connector: SearchSourceConnector;
@@ -151,7 +152,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						</div>
 						<div className="flex-1 min-w-0">
 							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal wrap-break-word">
-								{connector.name}
+								{getConnectorDisplayName(connector.name)}
 							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
 								Manage your connector settings and sync configuration

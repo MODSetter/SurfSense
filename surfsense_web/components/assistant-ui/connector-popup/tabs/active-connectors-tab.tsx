@@ -15,6 +15,7 @@ import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cn } from "@/lib/utils";
 import { COMPOSIO_CONNECTORS, OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
+import { getConnectorDisplayName } from "./all-connectors-tab";
 
 interface ActiveConnectorsTabProps {
 	searchQuery: string;
@@ -263,8 +264,8 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 											</div>
 											<div className="flex-1 min-w-0">
 												<div className="flex items-center gap-2">
-													<p className="text-[14px] font-semibold leading-tight">
-														{connector.name}
+													<p className="text-[14px] font-semibold leading-tight truncate">
+														{getConnectorDisplayName(connector.name)}
 													</p>
 												</div>
 												{isIndexing ? (
