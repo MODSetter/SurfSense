@@ -191,7 +191,7 @@ export const AssistantMessage: FC = () => {
 
 			{/* Mobile & Medium screen comment trigger - shown below lg breakpoint */}
 			{showCommentTrigger && !isDesktop && (
-				<div className="mt-2 flex justify-start">
+				<div className="ml-2 mt-1 flex justify-start">
 					<button
 						type="button"
 						onClick={handleCommentTriggerClick}
@@ -234,7 +234,7 @@ const AssistantActionBar: FC = () => {
 			hideWhenRunning
 			autohide="not-last"
 			autohideFloat="single-branch"
-			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
+			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:border md:data-floating:bg-background md:data-floating:p-1 md:data-floating:shadow-sm [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]"
 		>
 			<ActionBarPrimitive.Copy asChild>
 				<TooltipIconButton tooltip="Copy">

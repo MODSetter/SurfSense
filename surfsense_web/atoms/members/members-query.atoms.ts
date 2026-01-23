@@ -9,7 +9,7 @@ export const membersAtom = atomWithQuery((get) => {
 	return {
 		queryKey: cacheKeys.members.all(searchSpaceId?.toString() ?? ""),
 		enabled: !!searchSpaceId,
-		staleTime: 5 * 60 * 1000, // 5 minutes
+		staleTime: 3 * 1000, // 3 seconds - short staleness for live collaboration
 		queryFn: async () => {
 			if (!searchSpaceId) {
 				return [];

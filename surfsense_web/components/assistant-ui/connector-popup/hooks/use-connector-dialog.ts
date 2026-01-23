@@ -83,6 +83,10 @@ export const useConnectorDialog = () => {
 	// MCP list view state (for managing multiple MCP connectors)
 	const [viewingMCPList, setViewingMCPList] = useState(false);
 
+	// Composio toolkit view state
+	const [viewingComposio, setViewingComposio] = useState(false);
+	const [connectingComposioToolkit, setConnectingComposioToolkit] = useState<string | null>(null);
+
 	// Track if we came from accounts list when entering edit mode
 	const [cameFromAccountsList, setCameFromAccountsList] = useState<{
 		connectorType: string;
@@ -153,6 +157,17 @@ export const useConnectorDialog = () => {
 				// Handle MCP list view
 				if (params.view === "mcp-list" && !viewingMCPList) {
 					setViewingMCPList(true);
+				}
+
+				// Clear Composio view if view is not "composio" anymore
+				if (params.view !== "composio" && viewingComposio) {
+					setViewingComposio(false);
+					setConnectingComposioToolkit(null);
+				}
+
+				// Handle Composio view
+				if (params.view === "composio" && !viewingComposio) {
+					setViewingComposio(true);
 				}
 
 				// Handle connect view
@@ -846,6 +861,63 @@ export const useConnectorDialog = () => {
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
 
+	// Handle opening Composio toolkit view
+	const handleOpenComposio = useCallback(() => {
+		if (!searchSpaceId) return;
+
+		setViewingComposio(true);
+
+		// Update URL to show Composio view
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.set("view", "composio");
+		window.history.pushState({ modal: true }, "", url.toString());
+	}, [searchSpaceId]);
+
+	// Handle going back from Composio view
+	const handleBackFromComposio = useCallback(() => {
+		setViewingComposio(false);
+		setConnectingComposioToolkit(null);
+		const url = new URL(window.location.href);
+		url.searchParams.set("modal", "connectors");
+		url.searchParams.delete("view");
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [router]);
+
+	// Handle connecting a Composio toolkit
+	const handleConnectComposioToolkit = useCallback(
+		async (toolkitId: string) => {
+			if (!searchSpaceId) return;
+
+			setConnectingComposioToolkit(toolkitId);
+
+			try {
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/auth/composio/connector/add?space_id=${searchSpaceId}&toolkit_id=${toolkitId}`,
+					{ method: "GET" }
+				);
+
+				if (!response.ok) {
+					throw new Error(`Failed to initiate Composio OAuth for ${toolkitId}`);
+				}
+
+				const data = await response.json();
+
+				if (data.auth_url) {
+					// Redirect to Composio OAuth
+					window.location.href = data.auth_url;
+				} else {
+					throw new Error("No authorization URL received from Composio");
+				}
+			} catch (error) {
+				console.error("Error connecting Composio toolkit:", error);
+				toast.error(`Failed to connect ${toolkitId}. Please try again.`);
+				setConnectingComposioToolkit(null);
+			}
+		},
+		[searchSpaceId]
+	);
+
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(
 		async (refreshConnectors: () => void) => {
@@ -1506,6 +1578,7 @@ export const useConnectorDialog = () => {
 		allConnectors,
 		viewingAccountsType,
 		viewingMCPList,
+		viewingComposio,
 
 		// Setters
 		setSearchQuery,
@@ -1541,5 +1614,12 @@ export const useConnectorDialog = () => {
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,
+
+		// Composio
+		viewingComposio,
+		connectingComposioToolkit,
+		handleOpenComposio,
+		handleBackFromComposio,
+		handleConnectComposioToolkit,
 	};
 };

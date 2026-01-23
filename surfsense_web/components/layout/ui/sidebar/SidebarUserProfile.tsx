@@ -1,24 +1,44 @@
 "use client";
 
-import { ChevronUp, LogOut, Settings } from "lucide-react";
+import { ChevronUp, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
 	DropdownMenuLabel,
+	DropdownMenuPortal,
 	DropdownMenuSeparator,
+	DropdownMenuSub,
+	DropdownMenuSubContent,
+	DropdownMenuSubTrigger,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLocaleContext } from "@/contexts/LocaleContext";
 import { cn } from "@/lib/utils";
 import type { User } from "../../types/layout.types";
+
+// Supported languages configuration
+const LANGUAGES = [
+	{ code: "en" as const, name: "English", flag: "🇺🇸" },
+	{ code: "zh" as const, name: "简体中文", flag: "🇨🇳" },
+];
+
+// Supported themes configuration
+const THEMES = [
+	{ value: "light" as const, name: "Light", icon: Sun },
+	{ value: "dark" as const, name: "Dark", icon: Moon },
+	{ value: "system" as const, name: "System", icon: Laptop },
+];
 
 interface SidebarUserProfileProps {
 	user: User;
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	isCollapsed?: boolean;
+	theme?: string;
+	setTheme?: (theme: "light" | "dark" | "system") => void;
 }
 
 /**
@@ -99,11 +119,22 @@ export function SidebarUserProfile({
 	onUserSettings,
 	onLogout,
 	isCollapsed = false,
+	theme,
+	setTheme,
 }: SidebarUserProfileProps) {
 	const t = useTranslations("sidebar");
+	const { locale, setLocale } = useLocaleContext();
 	const bgColor = stringToColor(user.email);
 	const initials = getInitials(user.email);
 	const displayName = user.name || user.email.split("@")[0];
+
+	const handleLanguageChange = (newLocale: "en" | "zh") => {
+		setLocale(newLocale);
+	};
+
+	const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
+		setTheme?.(newTheme);
+	};
 
 	// Collapsed view - just show avatar with dropdown
 	if (isCollapsed) {
@@ -118,7 +149,8 @@ export function SidebarUserProfile({
 									className={cn(
 										"flex h-10 w-full items-center justify-center rounded-md",
 										"hover:bg-accent transition-colors",
-										"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+										"focus:outline-none focus-visible:outline-none",
+										"data-[state=open]:bg-transparent"
 									)}
 								>
 									<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
@@ -129,7 +161,7 @@ export function SidebarUserProfile({
 						<TooltipContent side="right">{displayName}</TooltipContent>
 					</Tooltip>
 
-					<DropdownMenuContent className="w-56" side="right" align="end" sideOffset={8}>
+					<DropdownMenuContent className="w-56" side="right" align="center" sideOffset={8}>
 						<DropdownMenuLabel className="font-normal">
 							<div className="flex items-center gap-2">
 								<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
@@ -146,6 +178,65 @@ export function SidebarUserProfile({
 							<Settings className="mr-2 h-4 w-4" />
 							{t("user_settings")}
 						</DropdownMenuItem>
+
+						{setTheme && (
+							<DropdownMenuSub>
+								<DropdownMenuSubTrigger>
+									<Sun className="mr-2 h-4 w-4" />
+									{t("theme")}
+								</DropdownMenuSubTrigger>
+								<DropdownMenuPortal>
+									<DropdownMenuSubContent className="gap-1">
+										{THEMES.map((themeOption) => {
+											const Icon = themeOption.icon;
+											const isSelected = theme === themeOption.value;
+											return (
+												<DropdownMenuItem
+													key={themeOption.value}
+													onClick={() => handleThemeChange(themeOption.value)}
+													className={cn(
+														"mb-1 last:mb-0 transition-all",
+														"hover:bg-accent/50",
+														isSelected && "bg-accent/80"
+													)}
+												>
+													<Icon className="mr-2 h-4 w-4" />
+													<span className="flex-1">{t(themeOption.value)}</span>
+												</DropdownMenuItem>
+											);
+										})}
+									</DropdownMenuSubContent>
+								</DropdownMenuPortal>
+							</DropdownMenuSub>
+						)}
+
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger>
+								<Languages className="mr-2 h-4 w-4" />
+								{t("language")}
+							</DropdownMenuSubTrigger>
+							<DropdownMenuPortal>
+								<DropdownMenuSubContent className="gap-1">
+									{LANGUAGES.map((language) => {
+										const isSelected = locale === language.code;
+										return (
+											<DropdownMenuItem
+												key={language.code}
+												onClick={() => handleLanguageChange(language.code)}
+												className={cn(
+													"mb-1 last:mb-0 transition-all",
+													"hover:bg-accent/50",
+													isSelected && "bg-accent/80"
+												)}
+											>
+												<span className="mr-2">{language.flag}</span>
+												<span className="flex-1">{language.name}</span>
+											</DropdownMenuItem>
+										);
+									})}
+								</DropdownMenuSubContent>
+							</DropdownMenuPortal>
+						</DropdownMenuSub>
 
 						<DropdownMenuSeparator />
 
@@ -169,7 +260,8 @@ export function SidebarUserProfile({
 						className={cn(
 							"flex w-full items-center gap-2 px-2 py-3 text-left",
 							"hover:bg-accent transition-colors",
-							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+							"focus:outline-none focus-visible:outline-none",
+							"data-[state=open]:bg-transparent"
 						)}
 					>
 						<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
@@ -185,7 +277,7 @@ export function SidebarUserProfile({
 					</button>
 				</DropdownMenuTrigger>
 
-				<DropdownMenuContent className="w-56" side="top" align="start" sideOffset={4}>
+				<DropdownMenuContent className="w-56" side="top" align="center" sideOffset={4}>
 					<DropdownMenuLabel className="font-normal">
 						<div className="flex items-center gap-2">
 							<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
@@ -202,6 +294,65 @@ export function SidebarUserProfile({
 						<Settings className="mr-2 h-4 w-4" />
 						{t("user_settings")}
 					</DropdownMenuItem>
+
+					{setTheme && (
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger>
+								<Sun className="mr-2 h-4 w-4" />
+								{t("theme")}
+							</DropdownMenuSubTrigger>
+							<DropdownMenuPortal>
+								<DropdownMenuSubContent className="gap-1">
+									{THEMES.map((themeOption) => {
+										const Icon = themeOption.icon;
+										const isSelected = theme === themeOption.value;
+										return (
+											<DropdownMenuItem
+												key={themeOption.value}
+												onClick={() => handleThemeChange(themeOption.value)}
+												className={cn(
+													"mb-1 last:mb-0 transition-all",
+													"hover:bg-accent/50",
+													isSelected && "bg-accent/80"
+												)}
+											>
+												<Icon className="mr-2 h-4 w-4" />
+												<span className="flex-1">{t(themeOption.value)}</span>
+											</DropdownMenuItem>
+										);
+									})}
+								</DropdownMenuSubContent>
+							</DropdownMenuPortal>
+						</DropdownMenuSub>
+					)}
+
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger>
+							<Languages className="mr-2 h-4 w-4" />
+							{t("language")}
+						</DropdownMenuSubTrigger>
+						<DropdownMenuPortal>
+							<DropdownMenuSubContent className="gap-1">
+								{LANGUAGES.map((language) => {
+									const isSelected = locale === language.code;
+									return (
+										<DropdownMenuItem
+											key={language.code}
+											onClick={() => handleLanguageChange(language.code)}
+											className={cn(
+												"mb-1 last:mb-0 transition-all",
+												"hover:bg-accent/50",
+												isSelected && "bg-accent/80"
+											)}
+										>
+											<span className="mr-2">{language.flag}</span>
+											<span className="flex-1">{language.name}</span>
+										</DropdownMenuItem>
+									);
+								})}
+							</DropdownMenuSubContent>
+						</DropdownMenuPortal>
+					</DropdownMenuSub>
 
 					<DropdownMenuSeparator />
 

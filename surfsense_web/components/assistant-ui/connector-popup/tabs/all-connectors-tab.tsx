@@ -3,8 +3,14 @@
 import type { FC } from "react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { ComposioConnectorCard } from "../components/composio-connector-card";
 import { ConnectorCard } from "../components/connector-card";
-import { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	CRAWLERS,
+	OAUTH_CONNECTORS,
+	OTHER_CONNECTORS,
+} from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 /**
@@ -34,6 +40,7 @@ interface AllConnectorsTabProps {
 	onCreateYouTubeCrawler?: () => void;
 	onManage?: (connector: SearchSourceConnector) => void;
 	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
+	onOpenComposio?: () => void;
 }
 
 export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
@@ -49,6 +56,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onCreateYouTubeCrawler,
 	onManage,
 	onViewAccountsList,
+	onOpenComposio,
 }) => {
 	// Filter connectors based on search
 	const filteredOAuth = OAUTH_CONNECTORS.filter(
@@ -68,6 +76,20 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
 			c.description.toLowerCase().includes(searchQuery.toLowerCase())
 	);
+
+	// Filter Composio connectors
+	const filteredComposio = COMPOSIO_CONNECTORS.filter(
+		(c) =>
+			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+			c.description.toLowerCase().includes(searchQuery.toLowerCase())
+	);
+
+	// Count Composio connectors
+	const composioConnectorCount = allConnectors
+		? allConnectors.filter(
+				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.COMPOSIO_CONNECTOR
+			).length
+		: 0;
 
 	return (
 		<div className="space-y-8">
@@ -136,6 +158,30 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 					</div>
 				</section>
 			)}
+
+			{/* Composio Integrations */}
+			{/* {filteredComposio.length > 0 && onOpenComposio && (
+				<section>
+					<div className="flex items-center gap-2 mb-4">
+						<h3 className="text-sm font-semibold text-muted-foreground">Managed OAuth</h3>
+						<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 font-medium">
+							No verification needed
+						</span>
+					</div>
+					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+						{filteredComposio.map((connector) => (
+							<ComposioConnectorCard
+								key={connector.id}
+								id={connector.id}
+								title={connector.title}
+								description={connector.description}
+								connectorCount={composioConnectorCount}
+								onConnect={onOpenComposio}
+							/>
+						))}
+					</div>
+				</section>
+			)} */}
 
 			{/* More Integrations */}
 			{filteredOther.length > 0 && (

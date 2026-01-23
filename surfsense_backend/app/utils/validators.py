@@ -530,7 +530,10 @@ def validate_connector_config(
         #     "validators": {},
         # },
         "GITHUB_CONNECTOR": {
-            "required": ["GITHUB_PAT", "repo_full_names"],
+            # GITHUB_PAT is optional - only required for private repositories
+            # Public repositories can be indexed without authentication
+            "required": ["repo_full_names"],
+            "optional": ["GITHUB_PAT"],  # Optional - only needed for private repos
             "validators": {
                 "repo_full_names": lambda: validate_list_field(
                     "repo_full_names", "repo_full_names"
