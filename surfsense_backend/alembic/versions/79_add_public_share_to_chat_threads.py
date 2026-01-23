@@ -10,6 +10,10 @@ public sharing of chat threads via secure tokenized URLs.
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
+
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = "79"
 down_revision: str | None = "78"
@@ -19,9 +23,13 @@ depends_on: str | Sequence[str] | None = None
 
 def upgrade() -> None:
     """Add public sharing columns to new_chat_threads."""
-    pass
+    # Add public_share_token column
+    op.add_column(
+        "new_chat_threads",
+        sa.Column("public_share_token", sa.String(64), nullable=True),
+    )
 
 
 def downgrade() -> None:
     """Remove public sharing columns from new_chat_threads."""
-    pass
+    op.drop_column("new_chat_threads", "public_share_token")
