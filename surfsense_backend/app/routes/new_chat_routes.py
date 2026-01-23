@@ -45,6 +45,7 @@ from app.schemas.new_chat import (
     NewChatThreadUpdate,
     NewChatThreadVisibilityUpdate,
     NewChatThreadWithMessages,
+    RegenerateRequest,
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
@@ -1010,6 +1011,238 @@ async def handle_new_chat(
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred: {e!s}",
+        ) from None
+
+
+# =============================================================================
+# Chat Regeneration Endpoint (Edit/Reload)
+# =============================================================================
+
+
+@router.post("/threads/{thread_id}/regenerate")
+async def regenerate_response(
+    thread_id: int,
+    request: RegenerateRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Regenerate the AI response for a chat thread.
+
+    This endpoint supports two operations:
+    1. **Edit**: Provide a new `user_query` to replace the last user message and regenerate
+    2. **Reload**: Leave `user_query` empty (or None) to regenerate with the same query
+
+    Both operations:
+    - Rewind the LangGraph checkpointer to the state before the last AI response
+    - Delete the last user message and AI response from the database
+    - Stream a new response from that checkpoint
+
+    Access is granted if:
+    - User is the creator of the thread
+    - Thread visibility is SEARCH_SPACE
+
+    Requires CHATS_UPDATE permission.
+    """
+    from langchain_core.messages import HumanMessage
+
+    from app.agents.new_chat.checkpointer import get_checkpointer
+
+    try:
+        # Verify thread exists and user has permission
+        result = await session.execute(
+            select(NewChatThread).filter(NewChatThread.id == thread_id)
+        )
+        thread = result.scalars().first()
+
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        await check_permission(
+            session,
+            user,
+            thread.search_space_id,
+            Permission.CHATS_UPDATE.value,
+            "You don't have permission to update chats in this search space",
+        )
+
+        # Check thread-level access based on visibility
+        await check_thread_access(session, thread, user)
+
+        # Get the checkpointer and state history
+        checkpointer = await get_checkpointer()
+
+        config = {"configurable": {"thread_id": str(thread_id)}}
+
+        # Collect checkpoint tuples from the async iterator
+        # CheckpointTuple has: config, checkpoint (dict with channel_values), metadata, parent_config
+        checkpoint_tuples = []
+        async for cp_tuple in checkpointer.alist(config):
+            checkpoint_tuples.append(cp_tuple)
+
+        if not checkpoint_tuples:
+            raise HTTPException(
+                status_code=400, detail="No conversation history found for this thread"
+            )
+
+        # Find the checkpoint to rewind to
+        # Checkpoints are in reverse chronological order (newest first)
+        # We need to find a checkpoint before the last user message was added
+        #
+        # The checkpointer stores states after each node execution.
+        # For a typical conversation flow:
+        # - User sends message -> state 1 (with HumanMessage)
+        # - Agent responds -> state 2 (with HumanMessage + AIMessage)
+        #
+        # To regenerate, we need the state BEFORE the last HumanMessage was processed
+
+        target_checkpoint_id = None
+        user_query_to_use = request.user_query
+
+        # Look through checkpoints to find the right one
+        # We want to find the checkpoint just before the last HumanMessage
+        for i, cp_tuple in enumerate(checkpoint_tuples):
+            # Access the checkpoint's channel_values which contains "messages"
+            checkpoint_data = cp_tuple.checkpoint
+            channel_values = checkpoint_data.get("channel_values", {})
+            state_messages = channel_values.get("messages", [])
+
+            if state_messages:
+                last_msg = state_messages[-1]
+                # Find a checkpoint where the last message is NOT a HumanMessage
+                # This means we're at a state before the user's last message
+                if not isinstance(last_msg, HumanMessage):
+                    # If no new user_query provided (reload), extract from a later checkpoint
+                    if user_query_to_use is None and i > 0:
+                        # Get the user query from a more recent checkpoint
+                        for prev_cp_tuple in checkpoint_tuples[:i]:
+                            prev_checkpoint_data = prev_cp_tuple.checkpoint
+                            prev_channel_values = prev_checkpoint_data.get(
+                                "channel_values", {}
+                            )
+                            prev_messages = prev_channel_values.get("messages", [])
+                            for msg in reversed(prev_messages):
+                                if isinstance(msg, HumanMessage):
+                                    user_query_to_use = msg.content
+                                    break
+                            if user_query_to_use:
+                                break
+
+                    target_checkpoint_id = cp_tuple.config["configurable"][
+                        "checkpoint_id"
+                    ]
+                    break
+
+        # If we couldn't find a good checkpoint, try alternative approaches
+        if target_checkpoint_id is None and checkpoint_tuples:
+            if len(checkpoint_tuples) == 1:
+                # Only one checkpoint - get the user query from it if not provided
+                if user_query_to_use is None:
+                    checkpoint_data = checkpoint_tuples[0].checkpoint
+                    channel_values = checkpoint_data.get("channel_values", {})
+                    state_messages = channel_values.get("messages", [])
+                    for msg in state_messages:
+                        if isinstance(msg, HumanMessage):
+                            user_query_to_use = msg.content
+                            break
+            else:
+                # Use the oldest checkpoint
+                target_checkpoint_id = checkpoint_tuples[-1].config["configurable"][
+                    "checkpoint_id"
+                ]
+
+        # If we still don't have a user query, get it from the database
+        if user_query_to_use is None:
+            # Get the last user message from the database
+            last_user_msg_result = await session.execute(
+                select(NewChatMessage)
+                .filter(
+                    NewChatMessage.thread_id == thread_id,
+                    NewChatMessage.role == NewChatMessageRole.USER,
+                )
+                .order_by(NewChatMessage.created_at.desc())
+                .limit(1)
+            )
+            last_user_msg = last_user_msg_result.scalars().first()
+            if last_user_msg:
+                content = last_user_msg.content
+                if isinstance(content, str):
+                    user_query_to_use = content
+                elif isinstance(content, list):
+                    # Extract text from content parts
+                    for part in content:
+                        if isinstance(part, dict) and part.get("type") == "text":
+                            user_query_to_use = part.get("text", "")
+                            break
+                        elif isinstance(part, str):
+                            user_query_to_use = part
+                            break
+
+        if user_query_to_use is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Could not determine user query for regeneration. Please provide a user_query.",
+            )
+
+        # Delete the last user message and assistant response from the database
+        # Get the last two messages (should be user + assistant)
+        last_messages_result = await session.execute(
+            select(NewChatMessage)
+            .filter(NewChatMessage.thread_id == thread_id)
+            .order_by(NewChatMessage.created_at.desc())
+            .limit(2)
+        )
+        last_messages = last_messages_result.scalars().all()
+
+        for msg in last_messages:
+            await session.delete(msg)
+
+        await session.commit()
+
+        # Get search space for LLM config
+        search_space_result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
+        )
+        search_space = search_space_result.scalars().first()
+
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found")
+
+        llm_config_id = (
+            search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
+        )
+
+        # Return streaming response with checkpoint_id for rewinding
+        return StreamingResponse(
+            stream_new_chat(
+                user_query=user_query_to_use,
+                search_space_id=request.search_space_id,
+                chat_id=thread_id,
+                session=session,
+                user_id=str(user.id),
+                llm_config_id=llm_config_id,
+                attachments=request.attachments,
+                mentioned_document_ids=request.mentioned_document_ids,
+                mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                checkpoint_id=target_checkpoint_id,
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred during regeneration: {e!s}",
         ) from None
 
 
