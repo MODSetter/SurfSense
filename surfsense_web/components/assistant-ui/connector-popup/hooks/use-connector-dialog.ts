@@ -1182,8 +1182,11 @@ export const useConnectorDialog = () => {
 				if (!editingConnector.is_indexable) {
 					// Non-indexable connectors (like Tavily API) don't need re-indexing
 					indexingDescription = "Settings saved.";
-				} else if (editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
-					// Google Drive uses folder selection from config, not date ranges
+				} else if (
+					editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
+				) {
+					// Google Drive (both regular and Composio) uses folder selection from config, not date ranges
 					const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
 						| Array<{ id: string; name: string }>
 						| undefined;

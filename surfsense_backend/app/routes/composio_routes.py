@@ -14,7 +14,7 @@ Endpoints:
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -170,9 +170,8 @@ async def initiate_composio_auth(
 
 @router.get("/auth/composio/connector/callback")
 async def composio_callback(
+    request: Request,
     state: str | None = None,
-    connectedAccountId: str | None = None,  # Composio sends camelCase
-    connected_account_id: str | None = None,  # Fallback snake_case
     error: str | None = None,
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -239,14 +238,16 @@ async def composio_callback(
 
         # Initialize Composio service
         service = ComposioService()
-        entity_id = f"surfsense_{user_id}"
 
-        # Use camelCase param if provided (Composio's format), fallback to snake_case
-        final_connected_account_id = connectedAccountId or connected_account_id
+        # Extract connected_account_id from query params (accepts both camelCase and snake_case)
+        query_params = request.query_params
+        final_connected_account_id = query_params.get(
+            "connectedAccountId"
+        ) or query_params.get("connected_account_id")
 
-        # DEBUG: Log all query parameters received
+        # DEBUG: Log query parameter received
         logger.info(
-            f"DEBUG: Callback received - connectedAccountId: {connectedAccountId}, connected_account_id: {connected_account_id}, using: {final_connected_account_id}"
+            f"DEBUG: Callback received - connectedAccountId: {query_params.get('connectedAccountId')}, connected_account_id: {query_params.get('connected_account_id')}, using: {final_connected_account_id}"
         )
 
         # If we still don't have a connected_account_id, warn but continue
@@ -448,7 +449,7 @@ async def list_composio_drive_folders(
         entity_id = f"surfsense_{user.id}"
 
         # Fetch files/folders from Composio Google Drive
-        files, next_token, error = await service.get_drive_files(
+        files, _next_token, error = await service.get_drive_files(
             connected_account_id=composio_connected_account_id,
             entity_id=entity_id,
             folder_id=parent_id,
@@ -502,7 +503,7 @@ async def list_composio_drive_folders(
         file_count = len(files_list)
 
         logger.info(
-            f"✅ Listed {len(items)} total items ({folder_count} folders, {file_count} files) for Composio connector {connector_id}"
+            f"Listed {len(items)} total items ({folder_count} folders, {file_count} files) for Composio connector {connector_id}"
             + (f" in folder {parent_id}" if parent_id else " in ROOT")
         )
 
