@@ -1249,13 +1249,15 @@ async def _run_indexing_with_notifications(
         else:
             # No new documents processed - check if this is an error or just no changes
             if error_or_warning:
-                # Check if this is a duplicate warning (success case) or an actual error
+                # Check if this is a duplicate warning or empty result (success cases) or an actual error
                 # Handle both normal and Composio calendar connectors
                 error_or_warning_lower = str(error_or_warning).lower() if error_or_warning else ""
                 is_duplicate_warning = "skipped (duplicate)" in error_or_warning_lower
+                # "No X found" messages are success cases - sync worked, just found nothing in date range
+                is_empty_result = ("no " in error_or_warning_lower and "found" in error_or_warning_lower)
                 
-                if is_duplicate_warning:
-                    # Duplicate warnings are success cases - sync worked, just found duplicates
+                if is_duplicate_warning or is_empty_result:
+                    # These are success cases - sync worked, just found nothing new
                     logger.info(
                         f"Indexing completed successfully: {error_or_warning}"
                     )
@@ -1266,11 +1268,13 @@ async def _run_indexing_with_notifications(
                     if notification:
                         # Refresh notification to ensure it's not stale after timestamp update commit
                         await session.refresh(notification)
+                        # For empty results, use a cleaner message
+                        notification_message = "No new items found in date range" if is_empty_result else error_or_warning
                         await NotificationService.connector_indexing.notify_indexing_completed(
                             session=session,
                             notification=notification,
                             indexed_count=0,
-                            error_message=error_or_warning,  # Pass as warning, not error
+                            error_message=notification_message,  # Pass as warning, not error
                             is_warning=True,  # Flag to indicate this is a warning, not an error
                         )
                         await (
