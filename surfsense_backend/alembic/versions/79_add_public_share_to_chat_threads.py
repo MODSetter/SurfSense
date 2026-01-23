@@ -49,9 +49,21 @@ def upgrade() -> None:
         """
     )
 
+    # Add partial index on public_share_enabled for fast public chat queries
+    op.execute(
+        """
+        CREATE INDEX ix_new_chat_threads_public_share_enabled
+        ON new_chat_threads(public_share_enabled)
+        WHERE public_share_enabled = TRUE
+        """
+    )
+
 
 def downgrade() -> None:
     """Remove public sharing columns from new_chat_threads."""
+    op.drop_index(
+        "ix_new_chat_threads_public_share_enabled", table_name="new_chat_threads"
+    )
     op.drop_index(
         "ix_new_chat_threads_public_share_token", table_name="new_chat_threads"
     )
