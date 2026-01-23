@@ -48,6 +48,7 @@ import {
 	appendMessage,
 	type ChatVisibility,
 	createThread,
+	getRegenerateUrl,
 	getThreadFull,
 	getThreadMessages,
 	type MessageRecord,
@@ -1045,16 +1046,416 @@ export default function NewChatPage() {
 		[]
 	);
 
-	// Handle editing a message - removes messages after the edited one and sends as new
+	/**
+	 * Handle regeneration (edit or reload) by calling the regenerate endpoint
+	 * and streaming the response. This rewinds the LangGraph checkpointer state.
+	 *
+	 * @param newUserQuery - The new user query (for edit). Pass null/undefined for reload.
+	 */
+	const handleRegenerate = useCallback(
+		async (newUserQuery?: string | null) => {
+			if (!threadId) {
+				toast.error("Cannot regenerate: no active chat thread");
+				return;
+			}
+
+			// Abort any previous streaming request
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+				abortControllerRef.current = null;
+			}
+
+			const token = getBearerToken();
+			if (!token) {
+				toast.error("Not authenticated. Please log in again.");
+				return;
+			}
+
+			// Extract the original user query BEFORE removing messages (for reload mode)
+			let userQueryToDisplay = newUserQuery;
+			let originalUserMessageContent: ThreadMessageLike["content"] | null = null;
+			let originalUserMessageAttachments: ThreadMessageLike["attachments"] | undefined;
+			let originalUserMessageMetadata: ThreadMessageLike["metadata"] | undefined;
+
+			if (!newUserQuery) {
+				// Reload mode - find and preserve the last user message content
+				const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
+				if (lastUserMessage) {
+					originalUserMessageContent = lastUserMessage.content;
+					originalUserMessageAttachments = lastUserMessage.attachments;
+					originalUserMessageMetadata = lastUserMessage.metadata;
+					// Extract text for the API request
+					for (const part of lastUserMessage.content) {
+						if (typeof part === "object" && part.type === "text" && "text" in part) {
+							userQueryToDisplay = part.text;
+							break;
+						}
+					}
+				}
+			}
+
+			// Remove the last two messages (user + assistant) from the UI immediately
+			// The backend will also delete them from the database
+			setMessages((prev) => {
+				if (prev.length >= 2) {
+					return prev.slice(0, -2);
+				}
+				return prev;
+			});
+
+			// Clear thinking steps for the removed messages
+			setMessageThinkingSteps((prev) => {
+				const newMap = new Map(prev);
+				// Remove thinking steps for the last two messages
+				const lastTwoIds = messages
+					.slice(-2)
+					.map((m) => m.id)
+					.filter((id): id is string => !!id);
+				for (const id of lastTwoIds) {
+					newMap.delete(id);
+				}
+				return newMap;
+			});
+
+			// Start streaming
+			setIsRunning(true);
+			const controller = new AbortController();
+			abortControllerRef.current = controller;
+
+			// Add placeholder user message if we have a new query (edit mode)
+			const userMsgId = `msg-user-${Date.now()}`;
+			const assistantMsgId = `msg-assistant-${Date.now()}`;
+			const currentThinkingSteps = new Map<string, ThinkingStepData>();
+
+			// Content parts tracking (same as onNew)
+			type ContentPart =
+				| { type: "text"; text: string }
+				| {
+						type: "tool-call";
+						toolCallId: string;
+						toolName: string;
+						args: Record<string, unknown>;
+						result?: unknown;
+				  };
+			const contentParts: ContentPart[] = [];
+			let currentTextPartIndex = -1;
+			const toolCallIndices = new Map<string, number>();
+
+			const appendText = (delta: string) => {
+				if (currentTextPartIndex >= 0 && contentParts[currentTextPartIndex]?.type === "text") {
+					(contentParts[currentTextPartIndex] as { type: "text"; text: string }).text += delta;
+				} else {
+					contentParts.push({ type: "text", text: delta });
+					currentTextPartIndex = contentParts.length - 1;
+				}
+			};
+
+			const addToolCall = (toolCallId: string, toolName: string, args: Record<string, unknown>) => {
+				if (TOOLS_WITH_UI.has(toolName)) {
+					contentParts.push({ type: "tool-call", toolCallId, toolName, args });
+					toolCallIndices.set(toolCallId, contentParts.length - 1);
+					currentTextPartIndex = -1;
+				}
+			};
+
+			const updateToolCall = (
+				toolCallId: string,
+				update: { args?: Record<string, unknown>; result?: unknown }
+			) => {
+				const index = toolCallIndices.get(toolCallId);
+				if (index !== undefined && contentParts[index]?.type === "tool-call") {
+					const tc = contentParts[index] as ContentPart & { type: "tool-call" };
+					if (update.args) tc.args = update.args;
+					if (update.result !== undefined) tc.result = update.result;
+				}
+			};
+
+			const buildContentForUI = (): ThreadMessageLike["content"] => {
+				const filtered = contentParts.filter((part) => {
+					if (part.type === "text") return part.text.length > 0;
+					if (part.type === "tool-call") return TOOLS_WITH_UI.has(part.toolName);
+					return false;
+				});
+				return filtered.length > 0
+					? (filtered as ThreadMessageLike["content"])
+					: [{ type: "text", text: "" }];
+			};
+
+			const buildContentForPersistence = (): unknown[] => {
+				const parts: unknown[] = [];
+				if (currentThinkingSteps.size > 0) {
+					parts.push({
+						type: "thinking-steps",
+						steps: Array.from(currentThinkingSteps.values()),
+					});
+				}
+				for (const part of contentParts) {
+					if (part.type === "text" && part.text.length > 0) {
+						parts.push(part);
+					} else if (part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName)) {
+						parts.push(part);
+					}
+				}
+				return parts.length > 0 ? parts : [{ type: "text", text: "" }];
+			};
+
+			// Add placeholder messages to UI
+			// Always add back the user message (with new query for edit, or original content for reload)
+			const userMessage: ThreadMessageLike = {
+				id: userMsgId,
+				role: "user",
+				content: newUserQuery
+					? [{ type: "text", text: newUserQuery }]
+					: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }],
+				createdAt: new Date(),
+				attachments: newUserQuery ? undefined : originalUserMessageAttachments,
+				metadata: newUserQuery ? undefined : originalUserMessageMetadata,
+			};
+			setMessages((prev) => [...prev, userMessage]);
+
+			// Add placeholder assistant message
+			setMessages((prev) => [
+				...prev,
+				{
+					id: assistantMsgId,
+					role: "assistant",
+					content: [{ type: "text", text: "" }],
+					createdAt: new Date(),
+				},
+			]);
+
+			try {
+				const response = await fetch(getRegenerateUrl(threadId), {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({
+						search_space_id: searchSpaceId,
+						user_query: newUserQuery || null,
+					}),
+					signal: controller.signal,
+				});
+
+				if (!response.ok) {
+					throw new Error(`Backend error: ${response.status}`);
+				}
+
+				if (!response.body) {
+					throw new Error("No response body");
+				}
+
+				// Parse SSE stream (same logic as onNew)
+				const reader = response.body.getReader();
+				const decoder = new TextDecoder();
+				let buffer = "";
+
+				try {
+					while (true) {
+						const { done, value } = await reader.read();
+						if (done) break;
+
+						buffer += decoder.decode(value, { stream: true });
+						const events = buffer.split(/\r?\n\r?\n/);
+						buffer = events.pop() || "";
+
+						for (const event of events) {
+							const lines = event.split(/\r?\n/);
+							for (const line of lines) {
+								if (!line.startsWith("data: ")) continue;
+								const data = line.slice(6).trim();
+								if (!data || data === "[DONE]") continue;
+
+								try {
+									const parsed = JSON.parse(data);
+
+									switch (parsed.type) {
+										case "text-delta":
+											appendText(parsed.delta);
+											setMessages((prev) =>
+												prev.map((m) =>
+													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
+												)
+											);
+											break;
+
+										case "tool-input-start":
+											addToolCall(parsed.toolCallId, parsed.toolName, {});
+											setMessages((prev) =>
+												prev.map((m) =>
+													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
+												)
+											);
+											break;
+
+										case "tool-input-available":
+											if (toolCallIndices.has(parsed.toolCallId)) {
+												updateToolCall(parsed.toolCallId, { args: parsed.input || {} });
+											} else {
+												addToolCall(parsed.toolCallId, parsed.toolName, parsed.input || {});
+											}
+											setMessages((prev) =>
+												prev.map((m) =>
+													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
+												)
+											);
+											break;
+
+										case "tool-output-available":
+											updateToolCall(parsed.toolCallId, { result: parsed.output });
+											if (parsed.output?.status === "processing" && parsed.output?.task_id) {
+												const idx = toolCallIndices.get(parsed.toolCallId);
+												if (idx !== undefined) {
+													const part = contentParts[idx];
+													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+														setActivePodcastTaskId(parsed.output.task_id);
+													}
+												}
+											}
+											setMessages((prev) =>
+												prev.map((m) =>
+													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
+												)
+											);
+											break;
+
+										case "data-thinking-step": {
+											const stepData = parsed.data as ThinkingStepData;
+											if (stepData?.id) {
+												currentThinkingSteps.set(stepData.id, stepData);
+												setMessageThinkingSteps((prev) => {
+													const newMap = new Map(prev);
+													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
+													return newMap;
+												});
+											}
+											break;
+										}
+
+										case "error":
+											throw new Error(parsed.errorText || "Server error");
+									}
+								} catch (e) {
+									if (e instanceof SyntaxError) continue;
+									throw e;
+								}
+							}
+						}
+					}
+				} finally {
+					reader.releaseLock();
+				}
+
+				// Persist messages after streaming completes
+				const finalContent = buildContentForPersistence();
+				if (contentParts.length > 0) {
+					try {
+						// Persist user message (for both edit and reload modes, since backend deleted it)
+						const userContentToPersist = newUserQuery
+							? [{ type: "text", text: newUserQuery }]
+							: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }];
+
+						const savedUserMessage = await appendMessage(threadId, {
+							role: "user",
+							content: userContentToPersist,
+						});
+
+						// Update user message ID to database ID
+						const newUserMsgId = `msg-${savedUserMessage.id}`;
+						setMessages((prev) =>
+							prev.map((m) => (m.id === userMsgId ? { ...m, id: newUserMsgId } : m))
+						);
+
+						// Persist assistant message
+						const savedMessage = await appendMessage(threadId, {
+							role: "assistant",
+							content: finalContent,
+						});
+
+						// Update assistant message ID to database ID
+						const newMsgId = `msg-${savedMessage.id}`;
+						setMessages((prev) =>
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+						);
+
+						setMessageThinkingSteps((prev) => {
+							const steps = prev.get(assistantMsgId);
+							if (steps) {
+								const newMap = new Map(prev);
+								newMap.delete(assistantMsgId);
+								newMap.set(newMsgId, steps);
+								return newMap;
+							}
+							return prev;
+						});
+
+						// Track successful response
+						trackChatResponseReceived(searchSpaceId, threadId);
+					} catch (err) {
+						console.error("Failed to persist regenerated message:", err);
+					}
+				}
+			} catch (error) {
+				if (error instanceof Error && error.name === "AbortError") {
+					return;
+				}
+				console.error("[NewChatPage] Regeneration error:", error);
+				trackChatError(
+					searchSpaceId,
+					threadId,
+					error instanceof Error ? error.message : "Unknown error"
+				);
+				toast.error("Failed to regenerate response. Please try again.");
+				// Update assistant message with error
+				setMessages((prev) =>
+					prev.map((m) =>
+						m.id === assistantMsgId
+							? {
+									...m,
+									content: [{ type: "text", text: "Sorry, there was an error. Please try again." }],
+								}
+							: m
+					)
+				);
+			} finally {
+				setIsRunning(false);
+				abortControllerRef.current = null;
+			}
+		},
+		[threadId, searchSpaceId, messages, setMessageThinkingSteps]
+	);
+
+	// Handle editing a message - truncates history and regenerates with new query
 	const onEdit = useCallback(
 		async (message: AppendMessage) => {
-			// Find the message being edited by looking at the parentId
-			// The parentId tells us which message's response we're editing
-			// For now, we'll just treat edits like new messages
-			// A more sophisticated implementation would truncate the history
-			await onNew(message);
+			// Extract the new user query from the message content
+			let newUserQuery = "";
+			for (const part of message.content) {
+				if (part.type === "text") {
+					newUserQuery += part.text;
+				}
+			}
+
+			if (!newUserQuery.trim()) {
+				toast.error("Cannot edit with empty message");
+				return;
+			}
+
+			// Call regenerate with the new query
+			await handleRegenerate(newUserQuery.trim());
 		},
-		[onNew]
+		[handleRegenerate]
+	);
+
+	// Handle reloading/refreshing the last AI response
+	const onReload = useCallback(
+		async (parentId: string | null) => {
+			// parentId is the ID of the message to reload from (the user message)
+			// We call regenerate without a query to use the same query
+			await handleRegenerate(null);
+		},
+		[handleRegenerate]
 	);
 
 	// Create external store runtime with attachment support
@@ -1063,6 +1464,7 @@ export default function NewChatPage() {
 		isRunning,
 		onNew,
 		onEdit,
+		onReload,
 		convertMessage,
 		onCancel: cancelRun,
 		adapters: {

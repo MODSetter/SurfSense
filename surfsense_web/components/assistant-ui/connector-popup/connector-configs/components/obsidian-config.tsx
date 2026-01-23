@@ -179,10 +179,7 @@ export const ObsidianConfig: FC<ObsidianConfigProps> = ({
 								Index attachment folders and embedded files
 							</p>
 						</div>
-						<Switch
-							checked={includeAttachments}
-							onCheckedChange={handleIncludeAttachmentsChange}
-						/>
+						<Switch checked={includeAttachments} onCheckedChange={handleIncludeAttachmentsChange} />
 					</div>
 				</div>
 			</div>

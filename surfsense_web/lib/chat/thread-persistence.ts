@@ -160,6 +160,30 @@ export async function getThreadFull(threadId: number): Promise<ThreadRecord> {
 	return baseApiService.get<ThreadRecord>(`/api/v1/threads/${threadId}/full`);
 }
 
+/**
+ * Regeneration request parameters
+ */
+export interface RegenerateParams {
+	searchSpaceId: number;
+	userQuery?: string | null; // New user query (for edit). Null/undefined = reload with same query
+	attachments?: Array<{
+		id: string;
+		name: string;
+		type: string;
+		content: string;
+	}>;
+	mentionedDocumentIds?: number[];
+	mentionedSurfsenseDocIds?: number[];
+}
+
+/**
+ * Get the URL for the regenerate endpoint (for streaming fetch)
+ */
+export function getRegenerateUrl(threadId: number): string {
+	const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+	return `${backendUrl}/api/v1/threads/${threadId}/regenerate`;
+}
+
 // =============================================================================
 // Thread List Manager (for thread list sidebar)
 // =============================================================================
