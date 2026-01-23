@@ -246,13 +246,20 @@ async def index_google_calendar_events(
                     )
                     return 0, None
                 else:
+                    # Check if this is an authentication error that requires re-authentication
+                    error_message = error
+                    error_type = "APIError"
+                    if "re-authenticate" in error.lower() or "expired or been revoked" in error.lower() or "authentication failed" in error.lower():
+                        error_message = "Google Calendar authentication failed. Please re-authenticate."
+                        error_type = "AuthenticationError"
+                    
                     await task_logger.log_task_failure(
                         log_entry,
-                        f"Failed to get Google Calendar events: {error}",
-                        "API Error",
-                        {"error_type": "APIError"},
+                        error_message,
+                        error,
+                        {"error_type": error_type},
                     )
-                    return 0, f"Failed to get Google Calendar events: {error}"
+                    return 0, error_message
 
             logger.info(f"Retrieved {len(events)} events from Google Calendar API")
 

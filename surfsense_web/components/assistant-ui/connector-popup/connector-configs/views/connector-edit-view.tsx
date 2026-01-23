@@ -97,7 +97,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		};
 	}, [checkScrollState]);
 
-	// Reset local quick indexing state when indexing completes
+	// Reset local quick indexing state when indexing completes or fails
 	useEffect(() => {
 		if (!isIndexing) {
 			setIsQuickIndexing(false);

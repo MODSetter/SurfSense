@@ -1375,7 +1375,7 @@ export const useConnectorDialog = () => {
 
 	// Handle quick index (index without date picker, uses backend defaults)
 	const handleQuickIndexConnector = useCallback(
-		async (connectorId: number, connectorType?: string) => {
+		async (connectorId: number, connectorType?: string, stopIndexing?: (id: number) => void) => {
 			if (!searchSpaceId) return;
 
 			// Track quick index clicked event
@@ -1401,6 +1401,10 @@ export const useConnectorDialog = () => {
 			} catch (error) {
 				console.error("Error indexing connector content:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to start indexing");
+				// Stop indexing state on error
+				if (stopIndexing) {
+					stopIndexing(connectorId);
+				}
 			}
 		},
 		[searchSpaceId, indexConnector]

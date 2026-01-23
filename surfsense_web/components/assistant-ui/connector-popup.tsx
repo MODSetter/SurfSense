@@ -5,12 +5,14 @@ import { Cable, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import type { FC } from "react";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
 import { useDocumentsElectric } from "@/hooks/use-documents-electric";
+import { useInbox } from "@/hooks/use-inbox";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
@@ -27,9 +29,17 @@ import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view
 export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const searchParams = useSearchParams();
+	const { data: currentUser } = useAtomValue(currentUserAtom);
 
 	// Fetch document type counts using Electric SQL + PGlite for real-time updates
 	const { documentTypeCounts, loading: documentTypesLoading } = useDocumentsElectric(searchSpaceId);
+
+	// Fetch notifications to detect indexing failures
+	const { inboxItems = [] } = useInbox(
+		currentUser?.id ?? null,
+		searchSpaceId ? Number(searchSpaceId) : null,
+		"connector_indexing"
+	);
 
 	// Check if YouTube view is active
 	const isYouTubeView = searchParams.get("view") === "youtube";
@@ -116,8 +126,10 @@ export const ConnectorIndicator: FC = () => {
 	};
 
 	// Track indexing state locally - clears automatically when Electric SQL detects last_indexed_at changed
-	const { indexingConnectorIds, startIndexing } = useIndexingConnectors(
-		connectors as SearchSourceConnector[]
+	// Also clears when failed notifications are detected
+	const { indexingConnectorIds, startIndexing, stopIndexing } = useIndexingConnectors(
+		connectors as SearchSourceConnector[],
+		inboxItems
 	);
 
 	const isLoading = connectorsLoading || documentTypesLoading;
@@ -246,7 +258,7 @@ export const ConnectorIndicator: FC = () => {
 							editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
 								? () => {
 										startIndexing(editingConnector.id);
-										handleQuickIndexConnector(editingConnector.id, editingConnector.connector_type);
+										handleQuickIndexConnector(editingConnector.id, editingConnector.connector_type, stopIndexing);
 									}
 								: undefined
 						}
