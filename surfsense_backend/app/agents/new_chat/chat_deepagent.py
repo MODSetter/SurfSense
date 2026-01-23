@@ -34,6 +34,7 @@ async def create_surfsense_deep_agent(
     db_session: AsyncSession,
     connector_service: ConnectorService,
     checkpointer: Checkpointer,
+    user_id: str | None = None,
     agent_config: AgentConfig | None = None,
     enabled_tools: list[str] | None = None,
     disabled_tools: list[str] | None = None,
@@ -49,6 +50,8 @@ async def create_surfsense_deep_agent(
     - link_preview: Fetch rich previews for URLs
     - display_image: Display images in chat
     - scrape_webpage: Extract content from webpages
+    - save_memory: Store facts/preferences about the user
+    - recall_memory: Retrieve relevant user memories
 
     The agent also includes TodoListMiddleware by default (via create_deep_agent) which provides:
     - write_todos: Create and update planning/todo lists for complex tasks
@@ -64,6 +67,7 @@ async def create_surfsense_deep_agent(
         connector_service: Initialized connector service for knowledge base search
         checkpointer: LangGraph checkpointer for conversation state persistence.
                       Use AsyncPostgresSaver for production or MemorySaver for testing.
+        user_id: The current user's UUID string (required for memory tools)
         agent_config: Optional AgentConfig from NewLLMConfig for prompt configuration.
                      If None, uses default system prompt with citations enabled.
         enabled_tools: Explicit list of tool names to enable. If None, all default tools
@@ -118,6 +122,7 @@ async def create_surfsense_deep_agent(
         "db_session": db_session,
         "connector_service": connector_service,
         "firecrawl_api_key": firecrawl_api_key,
+        "user_id": user_id,  # Required for memory tools
     }
 
     # Build tools using the async registry (includes MCP tools)

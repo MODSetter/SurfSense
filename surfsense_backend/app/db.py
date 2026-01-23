@@ -54,6 +54,7 @@ class DocumentType(str, Enum):
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
     CIRCLEBACK = "CIRCLEBACK"
     NOTE = "NOTE"
+    COMPOSIO_CONNECTOR = "COMPOSIO_CONNECTOR"  # Generic Composio integration
 
 
 class SearchSourceConnectorType(str, Enum):
@@ -81,6 +82,7 @@ class SearchSourceConnectorType(str, Enum):
     BOOKSTACK_CONNECTOR = "BOOKSTACK_CONNECTOR"
     CIRCLEBACK_CONNECTOR = "CIRCLEBACK_CONNECTOR"
     MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
+    COMPOSIO_CONNECTOR = "COMPOSIO_CONNECTOR"  # Generic Composio integration (Google, Slack, etc.)
 
 
 class LiteLLMProvider(str, Enum):
@@ -413,6 +415,13 @@ class ChatComment(BaseModel, TimestampMixin):
         nullable=False,
         index=True,
     )
+    # Denormalized thread_id for efficient Electric SQL subscriptions (one per thread)
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
     parent_id = Column(
         Integer,
         ForeignKey("chat_comments.id", ondelete="CASCADE"),
@@ -436,6 +445,7 @@ class ChatComment(BaseModel, TimestampMixin):
 
     # Relationships
     message = relationship("NewChatMessage", back_populates="comments")
+    thread = relationship("NewChatThread")
     author = relationship("User")
     parent = relationship(
         "ChatComment", remote_side="ChatComment.id", backref="replies"
@@ -470,6 +480,98 @@ class ChatCommentMention(BaseModel, TimestampMixin):
     # Relationships
     comment = relationship("ChatComment", back_populates="mentions")
     mentioned_user = relationship("User")
+
+
+class ChatSessionState(BaseModel):
+    """
+    Tracks real-time session state for shared chat collaboration.
+    One record per thread, synced via Electric SQL.
+    """
+
+    __tablename__ = "chat_session_state"
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    ai_responding_to_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+    )
+
+    thread = relationship("NewChatThread")
+    ai_responding_to_user = relationship("User")
+
+
+class MemoryCategory(str, Enum):
+    """Categories for user memories."""
+
+    # Using lowercase keys to match PostgreSQL enum values
+    preference = "preference"  # User preferences (e.g., "prefers dark mode")
+    fact = "fact"  # Facts about the user (e.g., "is a Python developer")
+    instruction = (
+        "instruction"  # Standing instructions (e.g., "always respond in bullet points")
+    )
+    context = "context"  # Contextual information (e.g., "working on project X")
+
+
+class UserMemory(BaseModel, TimestampMixin):
+    """
+    Stores facts, preferences, and context about users for personalized AI responses.
+    Similar to Claude's memory feature - enables the AI to remember user information
+    across conversations.
+    """
+
+    __tablename__ = "user_memories"
+
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    # Optional association with a search space (if memory is space-specific)
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    # The actual memory content
+    memory_text = Column(Text, nullable=False)
+    # Category for organization and filtering
+    category = Column(
+        SQLAlchemyEnum(MemoryCategory),
+        nullable=False,
+        default=MemoryCategory.fact,
+    )
+    # Vector embedding for semantic search
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+
+    # Track when memory was last updated
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    # Relationships
+    user = relationship("User", back_populates="memories")
+    search_space = relationship("SearchSpace", back_populates="user_memories")
 
 
 class Document(BaseModel, TimestampMixin):
@@ -656,6 +758,14 @@ class SearchSpace(BaseModel, TimestampMixin):
         "SearchSpaceInvite",
         back_populates="search_space",
         order_by="SearchSpaceInvite.id",
+        cascade="all, delete-orphan",
+    )
+
+    # User memories associated with this search space
+    user_memories = relationship(
+        "UserMemory",
+        back_populates="search_space",
+        order_by="UserMemory.updated_at.desc()",
         cascade="all, delete-orphan",
     )
 
@@ -967,6 +1077,14 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # User memories for personalized AI responses
+        memories = relationship(
+            "UserMemory",
+            back_populates="user",
+            order_by="UserMemory.updated_at.desc()",
+            cascade="all, delete-orphan",
+        )
+
         # Page usage tracking for ETL services
         pages_limit = Column(
             Integer,
@@ -1008,6 +1126,14 @@ else:
             "NewChatThread",
             back_populates="created_by",
             passive_deletes=True,
+        )
+
+        # User memories for personalized AI responses
+        memories = relationship(
+            "UserMemory",
+            back_populates="user",
+            order_by="UserMemory.updated_at.desc()",
+            cascade="all, delete-orphan",
         )
 
         # Page usage tracking for ETL services

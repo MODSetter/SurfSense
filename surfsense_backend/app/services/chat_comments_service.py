@@ -281,8 +281,10 @@ async def create_comment(
             detail="You don't have permission to create comments in this search space",
         )
 
+    thread = message.thread
     comment = ChatComment(
         message_id=message_id,
+        thread_id=thread.id,  # Denormalized for efficient Electric subscriptions
         author_id=user.id,
         content=content,
     )
@@ -299,7 +301,6 @@ async def create_comment(
     user_names = await get_user_names_for_mentions(session, set(mentions_map.keys()))
 
     # Create notifications for mentioned users (excluding author)
-    thread = message.thread
     author_name = user.display_name or user.email
     content_preview = render_mentions(content, user_names)
     for mentioned_user_id, mention_id in mentions_map.items():
@@ -315,6 +316,8 @@ async def create_comment(
             thread_title=thread.title or "Untitled thread",
             author_id=str(user.id),
             author_name=author_name,
+            author_avatar_url=user.avatar_url,
+            author_email=user.email,
             content_preview=content_preview[:200],
             search_space_id=search_space_id,
         )
@@ -391,8 +394,10 @@ async def create_reply(
             detail="You don't have permission to create comments in this search space",
         )
 
+    thread = parent_comment.message.thread
     reply = ChatComment(
         message_id=parent_comment.message_id,
+        thread_id=thread.id,  # Denormalized for efficient Electric subscriptions
         parent_id=comment_id,
         author_id=user.id,
         content=content,
@@ -410,7 +415,6 @@ async def create_reply(
     user_names = await get_user_names_for_mentions(session, set(mentions_map.keys()))
 
     # Create notifications for mentioned users (excluding author)
-    thread = parent_comment.message.thread
     author_name = user.display_name or user.email
     content_preview = render_mentions(content, user_names)
     for mentioned_user_id, mention_id in mentions_map.items():
@@ -426,6 +430,8 @@ async def create_reply(
             thread_title=thread.title or "Untitled thread",
             author_id=str(user.id),
             author_name=author_name,
+            author_avatar_url=user.avatar_url,
+            author_email=user.email,
             content_preview=content_preview[:200],
             search_space_id=search_space_id,
         )
@@ -565,6 +571,8 @@ async def update_comment(
                 thread_title=thread.title or "Untitled thread",
                 author_id=str(user.id),
                 author_name=author_name,
+                author_avatar_url=user.avatar_url,
+                author_email=user.email,
                 content_preview=content_preview[:200],
                 search_space_id=search_space_id,
             )

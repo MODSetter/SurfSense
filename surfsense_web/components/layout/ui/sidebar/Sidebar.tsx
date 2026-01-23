@@ -35,6 +35,8 @@ interface SidebarProps {
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
+	theme?: string;
+	setTheme?: (theme: "light" | "dark" | "system") => void;
 	className?: string;
 }
 
@@ -58,6 +60,8 @@ export function Sidebar({
 	onUserSettings,
 	onLogout,
 	pageUsage,
+	theme,
+	setTheme,
 	className,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
@@ -241,6 +245,8 @@ export function Sidebar({
 					onUserSettings={onUserSettings}
 					onLogout={onLogout}
 					isCollapsed={isCollapsed}
+					theme={theme}
+					setTheme={setTheme}
 				/>
 			</div>
 		</div>

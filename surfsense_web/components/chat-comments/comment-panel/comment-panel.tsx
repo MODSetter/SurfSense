@@ -1,12 +1,24 @@
 "use client";
 
-import { MessageSquarePlus } from "lucide-react";
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
+import { useAtom } from "jotai";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "../comment-composer/comment-composer";
 import { CommentThread } from "../comment-thread/comment-thread";
 import type { CommentPanelProps } from "./types";
+
+function getInitials(name: string | null | undefined, email: string): string {
+	if (name) {
+		return name
+			.split(" ")
+			.map((part) => part[0])
+			.join("")
+			.toUpperCase()
+			.slice(0, 2);
+	}
+	return email[0].toUpperCase();
+}
 
 export function CommentPanel({
 	threads,
@@ -21,15 +33,10 @@ export function CommentPanel({
 	maxHeight,
 	variant = "desktop",
 }: CommentPanelProps) {
-	const [isComposerOpen, setIsComposerOpen] = useState(false);
+	const [{ data: currentUser }] = useAtom(currentUserAtom);
 
 	const handleCommentSubmit = (content: string) => {
 		onCreateComment(content);
-		setIsComposerOpen(false);
-	};
-
-	const handleComposerCancel = () => {
-		setIsComposerOpen(false);
 	};
 
 	const isMobile = variant === "mobile";
@@ -51,7 +58,6 @@ export function CommentPanel({
 	}
 
 	const hasThreads = threads.length > 0;
-	const showEmptyState = !hasThreads && !isComposerOpen;
 
 	// Ensure minimum usable height for empty state + composer button
 	const minHeight = 180;
@@ -63,7 +69,7 @@ export function CommentPanel({
 			style={!isMobile && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
 		>
 			{hasThreads && (
-				<div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
+				<div className={cn("min-h-0 flex-1 overflow-y-auto scrollbar-thin", isMobile && "pb-24")}>
 					<div className="space-y-4 p-4">
 						{threads.map((thread) => (
 							<CommentThread
@@ -81,38 +87,35 @@ export function CommentPanel({
 				</div>
 			)}
 
-			{showEmptyState && (
-				<div className="flex min-h-[120px] flex-col items-center justify-center gap-2 p-4 text-center">
-					<MessageSquarePlus className="size-8 text-muted-foreground/50" />
-					<p className="text-sm text-muted-foreground">No comments yet</p>
-					<p className="text-xs text-muted-foreground/70">
-						Start a conversation about this response
-					</p>
+			{!hasThreads && currentUser && (
+				<div className="flex items-center gap-3 px-4 pt-4 pb-1">
+					<Avatar className="size-10">
+						<AvatarImage
+							src={currentUser.avatar_url ?? undefined}
+							alt={currentUser.display_name ?? currentUser.email}
+						/>
+						<AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+							{getInitials(currentUser.display_name, currentUser.email)}
+						</AvatarFallback>
+					</Avatar>
+					<div className="flex flex-col">
+						<span className="text-sm font-medium">
+							{currentUser.display_name ?? currentUser.email}
+						</span>
+					</div>
 				</div>
 			)}
 
-			<div className={cn("p-3", showEmptyState && !isMobile && "border-t", isMobile && "border-t")}>
-				{isComposerOpen ? (
-					<CommentComposer
-						members={members}
-						membersLoading={membersLoading}
-						placeholder="Write a comment..."
-						submitLabel="Comment"
-						isSubmitting={isSubmitting}
-						onSubmit={handleCommentSubmit}
-						onCancel={handleComposerCancel}
-						autoFocus
-					/>
-				) : (
-					<Button
-						variant="ghost"
-						className="w-full justify-start text-muted-foreground hover:text-foreground"
-						onClick={() => setIsComposerOpen(true)}
-					>
-						<MessageSquarePlus className="mr-2 size-4" />
-						Add a comment...
-					</Button>
-				)}
+			<div className={cn("p-3", isMobile && "fixed bottom-0 left-0 right-0 z-50 bg-card border-t")}>
+				<CommentComposer
+					members={members}
+					membersLoading={membersLoading}
+					placeholder="Comment or @mention"
+					submitLabel="Comment"
+					isSubmitting={isSubmitting}
+					onSubmit={handleCommentSubmit}
+					autoFocus={!hasThreads}
+				/>
 			</div>
 		</div>
 	);

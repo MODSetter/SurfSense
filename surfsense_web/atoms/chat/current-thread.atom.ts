@@ -47,6 +47,11 @@ export const addingCommentToMessageIdAtom = atom(
 	}
 );
 
+// Setter atom for updating thread visibility
+export const setThreadVisibilityAtom = atom(null, (get, set, newVisibility: ChatVisibility) => {
+	set(currentThreadAtom, { ...get(currentThreadAtom), visibility: newVisibility });
+});
+
 export const resetCurrentThreadAtom = atom(null, (_, set) => {
 	set(currentThreadAtom, initialState);
 });

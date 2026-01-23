@@ -990,6 +990,7 @@ async def handle_new_chat(
                 search_space_id=request.search_space_id,
                 chat_id=request.chat_id,
                 session=session,
+                user_id=str(user.id),  # Pass user ID for memory tools and session state
                 llm_config_id=llm_config_id,
                 attachments=request.attachments,
                 mentioned_document_ids=request.mentioned_document_ids,

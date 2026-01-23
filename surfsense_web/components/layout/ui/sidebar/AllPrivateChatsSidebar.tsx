@@ -5,12 +5,12 @@ import { format } from "date-fns";
 import {
 	ArchiveIcon,
 	Loader2,
-	Lock,
 	MessageCircleMore,
 	MoreHorizontal,
 	RotateCcwIcon,
 	Search,
 	Trash2,
+	User,
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -28,6 +28,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
@@ -237,20 +238,9 @@ export function AllPrivateChatsSidebar({
 						aria-label={t("chats") || "Private Chats"}
 					>
 						<div className="shrink-0 p-4 pb-2 space-y-3">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-2">
-									<Lock className="h-5 w-5 text-primary" />
-									<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
-								</div>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 rounded-full"
-									onClick={() => onOpenChange(false)}
-								>
-									<X className="h-4 w-4" />
-									<span className="sr-only">Close</span>
-								</Button>
+							<div className="flex items-center gap-2">
+								<User className="h-5 w-5 text-primary" />
+								<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
 							</div>
 
 							<div className="relative">
@@ -277,32 +267,38 @@ export function AllPrivateChatsSidebar({
 						</div>
 
 						{!isSearchMode && (
-							<div className="shrink-0 flex border-b mx-4">
-								<button
-									type="button"
-									onClick={() => setShowArchived(false)}
-									className={cn(
-										"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
-										!showArchived
-											? "border-b-2 border-primary text-primary"
-											: "text-muted-foreground hover:text-foreground"
-									)}
-								>
-									Active ({activeCount})
-								</button>
-								<button
-									type="button"
-									onClick={() => setShowArchived(true)}
-									className={cn(
-										"flex-1 px-3 py-2 text-center text-xs font-medium transition-colors",
-										showArchived
-											? "border-b-2 border-primary text-primary"
-											: "text-muted-foreground hover:text-foreground"
-									)}
-								>
-									Archived ({archivedCount})
-								</button>
-							</div>
+							<Tabs
+								value={showArchived ? "archived" : "active"}
+								onValueChange={(value) => setShowArchived(value === "archived")}
+								className="shrink-0 mx-4"
+							>
+								<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
+									<TabsTrigger
+										value="active"
+										className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+									>
+										<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+											<MessageCircleMore className="h-4 w-4" />
+											<span>Active</span>
+											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+												{activeCount}
+											</span>
+										</span>
+									</TabsTrigger>
+									<TabsTrigger
+										value="archived"
+										className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+									>
+										<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+											<ArchiveIcon className="h-4 w-4" />
+											<span>Archived</span>
+											<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+												{archivedCount}
+											</span>
+										</span>
+									</TabsTrigger>
+								</TabsList>
+							</Tabs>
 						)}
 
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
@@ -371,7 +367,7 @@ export function AllPrivateChatsSidebar({
 															{isDeleting ? (
 																<Loader2 className="h-3.5 w-3.5 animate-spin" />
 															) : (
-																<MoreHorizontal className="h-3.5 w-3.5" />
+																<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 															)}
 															<span className="sr-only">{t("more_options") || "More options"}</span>
 														</Button>
@@ -419,7 +415,7 @@ export function AllPrivateChatsSidebar({
 								</div>
 							) : (
 								<div className="text-center py-8">
-									<Lock className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+									<User className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 									<p className="text-sm text-muted-foreground">
 										{showArchived
 											? t("no_archived_chats") || "No archived chats"
