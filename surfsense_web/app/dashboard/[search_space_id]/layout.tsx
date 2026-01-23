@@ -39,12 +39,6 @@ export default function DashboardLayout({
 			icon: "SquareLibrary",
 			items: [],
 		},
-		{
-			title: "Logs",
-			url: `/dashboard/${search_space_id}/logs`,
-			icon: "Logs",
-			items: [],
-		},
 	];
 
 	return (

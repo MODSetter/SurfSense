@@ -57,6 +57,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			LUMA_CONNECTOR: "luma-connect-form",
 			CIRCLEBACK_CONNECTOR: "circleback-connect-form",
 			MCP_CONNECTOR: "mcp-connect-form",
+			OBSIDIAN_CONNECTOR: "obsidian-connect-form",
 		};
 		const formId = formIdMap[connectorType];
 		if (formId) {
@@ -141,12 +142,10 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
 							Connecting
 						</>
+					) : connectorType === "MCP_CONNECTOR" ? (
+						"Connect"
 					) : (
-						<>
-							{connectorType === "MCP_CONNECTOR"
-								? "Connect"
-								: `Connect ${getConnectorTypeDisplay(connectorType)}`}
-						</>
+						`Connect ${getConnectorTypeDisplay(connectorType)}`
 					)}
 				</Button>
 			</div>

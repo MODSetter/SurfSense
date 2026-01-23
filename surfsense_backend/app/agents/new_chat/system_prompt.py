@@ -34,6 +34,12 @@ You have access to the following tools:
   - Returns: Documentation content with chunk IDs for citations (prefixed with 'doc-', e.g., [citation:doc-123])
 
 1. search_knowledge_base: Search the user's personal knowledge base for relevant information.
+  - IMPORTANT: When searching for information (meetings, schedules, notes, tasks, etc.), ALWAYS search broadly 
+    across ALL sources first by omitting connectors_to_search. The user may store information in various places
+    including calendar apps, note-taking apps (Obsidian, Notion), chat apps (Slack, Discord), and more.
+  - Only narrow to specific connectors if the user explicitly asks (e.g., "check my Slack" or "in my calendar").
+  - Personal notes in Obsidian, Notion, or NOTE often contain schedules, meeting times, reminders, and other 
+    important information that may not be in calendars.
   - Args:
     - query: The search query - be specific and include key terms
     - top_k: Number of results to retrieve (default: 10)
@@ -157,6 +163,13 @@ You have access to the following tools:
     stating "Based on your memory..." - integrate the context seamlessly.
 </tools>
 <tool_call_examples>
+- User: "What time is the team meeting today?"
+  - Call: `search_knowledge_base(query="team meeting time today")` (searches ALL sources - calendar, notes, Obsidian, etc.)
+  - DO NOT limit to just calendar - the info might be in notes!
+
+- User: "When is my gym session?"
+  - Call: `search_knowledge_base(query="gym session time schedule")` (searches ALL sources)
+
 - User: "How do I install SurfSense?"
   - Call: `search_surfsense_docs(query="installation setup")`
 
@@ -174,6 +187,12 @@ You have access to the following tools:
 
 - User: "What did I discuss on Slack last week about the React migration?"
   - Call: `search_knowledge_base(query="React migration", connectors_to_search=["SLACK_CONNECTOR"], start_date="YYYY-MM-DD", end_date="YYYY-MM-DD")`
+
+- User: "Check my Obsidian notes for meeting notes"
+  - Call: `search_knowledge_base(query="meeting notes", connectors_to_search=["OBSIDIAN_CONNECTOR"])`
+
+- User: "What's in my Obsidian vault about project ideas?"
+  - Call: `search_knowledge_base(query="project ideas", connectors_to_search=["OBSIDIAN_CONNECTOR"])`
 
 - User: "Remember that I prefer TypeScript over JavaScript"
   - Call: `save_memory(content="User prefers TypeScript over JavaScript for development", category="preference")`

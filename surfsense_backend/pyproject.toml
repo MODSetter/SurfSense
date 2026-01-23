@@ -46,12 +46,9 @@ dependencies = [
     "boto3>=1.35.0",
     "langchain-community>=0.3.31",
     "langchain-unstructured>=1.0.0",
-    "langchain>=1.2.0",
     "litellm>=1.80.10",
     "langchain-litellm>=0.3.5",
-    "langgraph>=1.0.5",
     "fake-useragent>=2.2.0",
-    "deepagents>=0.3.0",
     "trafilatura>=2.0.0",
     "fastapi-users[oauth,sqlalchemy]>=15.0.3",
     "chonkie[all]>=1.5.0",
@@ -62,6 +59,9 @@ dependencies = [
     "sse-starlette>=3.1.1,<3.1.2",
     "gitingest>=0.3.1",
     "composio>=0.10.9",
+    "deepagents>=0.3.8",
+    "langchain>=1.2.6",
+    "langgraph>=1.0.5",
 ]
 
 [dependency-groups]

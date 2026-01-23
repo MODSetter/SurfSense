@@ -49,6 +49,7 @@ _ALL_CONNECTORS: list[str] = [
     "BOOKSTACK_CONNECTOR",
     "CRAWLED_URL",
     "CIRCLEBACK",
+    "OBSIDIAN_CONNECTOR",
 ]
 
 
@@ -508,6 +509,16 @@ async def search_knowledge_base_async(
                 )
                 all_documents.extend(chunks)
 
+            elif connector == "OBSIDIAN_CONNECTOR":
+                _, chunks = await connector_service.search_obsidian(
+                    user_query=query,
+                    search_space_id=search_space_id,
+                    top_k=top_k,
+                    start_date=resolved_start_date,
+                    end_date=resolved_end_date,
+                )
+                all_documents.extend(chunks)
+
         except Exception as e:
             print(f"Error searching connector {connector}: {e}")
             continue
@@ -596,6 +607,7 @@ def create_search_knowledge_base_tool(
         - WEBCRAWLER_CONNECTOR: "Webpages indexed by SurfSense" (personally selected websites)
         - BOOKSTACK_CONNECTOR: "BookStack pages" (personal documentation)
         - CIRCLEBACK: "Circleback meeting notes, transcripts, and action items" (personal meeting records)
+        - OBSIDIAN_CONNECTOR: "Obsidian vault notes and markdown files" (personal notes and knowledge management)
 
         NOTE: `WEBCRAWLER_CONNECTOR` is mapped internally to the canonical document type `CRAWLED_URL`.
 

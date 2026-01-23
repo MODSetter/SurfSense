@@ -3,8 +3,9 @@
 import type { FC } from "react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import { ComposioConnectorCard } from "../components/composio-connector-card";
+import { isSelfHosted } from "@/lib/env-config";
 import { ConnectorCard } from "../components/connector-card";
+import { ComposioConnectorCard } from "../components/composio-connector-card";
 import {
 	COMPOSIO_CONNECTORS,
 	CRAWLERS,
@@ -58,23 +59,31 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onViewAccountsList,
 	onOpenComposio,
 }) => {
-	// Filter connectors based on search
+	// Check if self-hosted mode (for showing self-hosted only connectors)
+	const selfHosted = isSelfHosted();
+
+	// Filter connectors based on search and deployment mode
 	const filteredOAuth = OAUTH_CONNECTORS.filter(
 		(c) =>
-			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			c.description.toLowerCase().includes(searchQuery.toLowerCase())
+			// Filter by search query
+			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
+			// Filter self-hosted only connectors in cloud mode
+			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
 	);
 
 	const filteredCrawlers = CRAWLERS.filter(
 		(c) =>
-			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			c.description.toLowerCase().includes(searchQuery.toLowerCase())
+			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
+			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
 	);
 
 	const filteredOther = OTHER_CONNECTORS.filter(
 		(c) =>
-			c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-			c.description.toLowerCase().includes(searchQuery.toLowerCase())
+			(c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				c.description.toLowerCase().includes(searchQuery.toLowerCase())) &&
+			(!("selfHostedOnly" in c) || !c.selfHostedOnly || selfHosted)
 	);
 
 	// Filter Composio connectors
