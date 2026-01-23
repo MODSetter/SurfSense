@@ -155,7 +155,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 			)}
 
 			{/* Composio Integrations */}
-			{filteredComposio.length > 0 && onOpenComposio && (
+			{/* {filteredComposio.length > 0 && onOpenComposio && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
 						<h3 className="text-sm font-semibold text-muted-foreground">Managed OAuth</h3>
@@ -176,7 +176,7 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 						))}
 					</div>
 				</section>
-			)}
+			)} */}
 
 			{/* More Integrations */}
 			{filteredOther.length > 0 && (
