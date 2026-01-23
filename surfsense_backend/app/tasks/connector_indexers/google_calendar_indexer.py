@@ -23,6 +23,7 @@ from app.utils.document_converters import (
 
 from .base import (
     check_document_by_unique_identifier,
+    check_duplicate_document_by_hash,
     get_connector_by_id,
     get_current_timestamp,
     logger,
@@ -289,6 +290,7 @@ async def index_google_calendar_events(
         documents_indexed = 0
         documents_skipped = 0
         skipped_events = []
+        duplicate_content_count = 0  # Track events skipped due to duplicate content_hash
 
         for event in events:
             try:
@@ -409,6 +411,27 @@ async def index_google_calendar_events(
                         )
                         continue
 
+                # Document doesn't exist by unique_identifier_hash
+                # Check if a document with the same content_hash exists (from another connector)
+                with session.no_autoflush:
+                    duplicate_by_content = await check_duplicate_document_by_hash(
+                        session, content_hash
+                    )
+                
+                if duplicate_by_content:
+                    # A document with the same content already exists (likely from Composio connector)
+                    logger.info(
+                        f"Event {event_summary} already indexed by another connector "
+                        f"(existing document ID: {duplicate_by_content.id}, "
+                        f"type: {duplicate_by_content.document_type}). Skipping to avoid duplicate content."
+                    )
+                    duplicate_content_count += 1
+                    documents_skipped += 1
+                    skipped_events.append(
+                        f"{event_summary} (already indexed by another connector)"
+                    )
+                    continue
+
                 # Document doesn't exist - create new one
                 # Generate summary with metadata
                 user_llm = await get_user_long_context_llm(
@@ -501,7 +524,25 @@ async def index_google_calendar_events(
         logger.info(
             f"Final commit: Total {documents_indexed} Google Calendar events processed"
         )
-        await session.commit()
+        try:
+            await session.commit()
+        except Exception as e:
+            # Handle any remaining integrity errors gracefully (race conditions, etc.)
+            if "duplicate key value violates unique constraint" in str(e).lower() or "uniqueviolationerror" in str(e).lower():
+                logger.warning(
+                    f"Duplicate content_hash detected during final commit. "
+                    f"This may occur if the same event was indexed by multiple connectors. "
+                    f"Rolling back and continuing. Error: {e!s}"
+                )
+                await session.rollback()
+                # Don't fail the entire task - some documents may have been successfully indexed
+            else:
+                raise
+
+        # Build warning message if duplicates were found
+        warning_message = None
+        if duplicate_content_count > 0:
+            warning_message = f"{duplicate_content_count} skipped (duplicate)"
 
         await task_logger.log_task_success(
             log_entry,
@@ -510,14 +551,16 @@ async def index_google_calendar_events(
                 "events_processed": total_processed,
                 "documents_indexed": documents_indexed,
                 "documents_skipped": documents_skipped,
+                "duplicate_content_count": duplicate_content_count,
                 "skipped_events_count": len(skipped_events),
             },
         )
 
         logger.info(
-            f"Google Calendar indexing completed: {documents_indexed} new events, {documents_skipped} skipped"
+            f"Google Calendar indexing completed: {documents_indexed} new events, {documents_skipped} skipped "
+            f"({duplicate_content_count} due to duplicate content from other connectors)"
         )
-        return total_processed, None
+        return total_processed, warning_message
 
     except SQLAlchemyError as db_error:
         await session.rollback()

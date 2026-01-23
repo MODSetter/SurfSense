@@ -22,6 +22,8 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import pytz
+from dateutil.parser import isoparse
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -681,6 +683,22 @@ async def index_connector_content(
         ]:
             # Default to today if no end_date provided (users can manually select future dates)
             indexing_to = today_str if end_date is None else end_date
+            
+            # If start_date and end_date are the same, adjust end_date to be one day later
+            # to ensure valid date range (start_date must be strictly before end_date)
+            if indexing_from == indexing_to:
+                dt = isoparse(indexing_to)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=pytz.UTC)
+                else:
+                    dt = dt.astimezone(pytz.UTC)
+                # Add one day to end_date to make it strictly after start_date
+                dt_end = dt + timedelta(days=1)
+                indexing_to = dt_end.strftime("%Y-%m-%d")
+                logger.info(
+                    f"Adjusted end_date from {end_date} to {indexing_to} "
+                    f"to ensure valid date range (start_date must be strictly before end_date)"
+                )
         else:
             # For non-calendar connectors, cap at today
             indexing_to = end_date if end_date else today_str
@@ -1231,20 +1249,48 @@ async def _run_indexing_with_notifications(
         else:
             # No new documents processed - check if this is an error or just no changes
             if error_or_warning:
-                # Actual failure
-                logger.error(f"Indexing failed: {error_or_warning}")
-                if notification:
-                    # Refresh notification to ensure it's not stale after indexing function commits
-                    await session.refresh(notification)
-                    await NotificationService.connector_indexing.notify_indexing_completed(
-                        session=session,
-                        notification=notification,
-                        indexed_count=0,
-                        error_message=error_or_warning,
+                # Check if this is a duplicate warning (success case) or an actual error
+                # Handle both normal and Composio calendar connectors
+                error_or_warning_lower = str(error_or_warning).lower() if error_or_warning else ""
+                is_duplicate_warning = "skipped (duplicate)" in error_or_warning_lower
+                
+                if is_duplicate_warning:
+                    # Duplicate warnings are success cases - sync worked, just found duplicates
+                    logger.info(
+                        f"Indexing completed successfully: {error_or_warning}"
                     )
-                    await (
-                        session.commit()
-                    )  # Commit to ensure Electric SQL syncs the notification update
+                    # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
+                    if update_timestamp_func:
+                        await update_timestamp_func(session, connector_id)
+                        await session.commit()  # Commit timestamp update
+                    if notification:
+                        # Refresh notification to ensure it's not stale after timestamp update commit
+                        await session.refresh(notification)
+                        await NotificationService.connector_indexing.notify_indexing_completed(
+                            session=session,
+                            notification=notification,
+                            indexed_count=0,
+                            error_message=error_or_warning,  # Pass as warning, not error
+                            is_warning=True,  # Flag to indicate this is a warning, not an error
+                        )
+                        await (
+                            session.commit()
+                        )  # Commit to ensure Electric SQL syncs the notification update
+                else:
+                    # Actual failure
+                    logger.error(f"Indexing failed: {error_or_warning}")
+                    if notification:
+                        # Refresh notification to ensure it's not stale after indexing function commits
+                        await session.refresh(notification)
+                        await NotificationService.connector_indexing.notify_indexing_completed(
+                            session=session,
+                            notification=notification,
+                            indexed_count=0,
+                            error_message=error_or_warning,
+                        )
+                        await (
+                            session.commit()
+                        )  # Commit to ensure Electric SQL syncs the notification update
             else:
                 # Success - just no new documents to index (all skipped/unchanged)
                 logger.info(

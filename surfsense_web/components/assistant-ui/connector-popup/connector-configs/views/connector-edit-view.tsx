@@ -100,10 +100,14 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 	// Reset local quick indexing state when indexing completes or fails
 	useEffect(() => {
-		if (!isIndexing) {
-			setIsQuickIndexing(false);
+		if (!isIndexing && isQuickIndexing) {
+			// Small delay to ensure smooth transition
+			const timer = setTimeout(() => {
+				setIsQuickIndexing(false);
+			}, 100);
+			return () => clearTimeout(timer);
 		}
-	}, [isIndexing]);
+	}, [isIndexing, isQuickIndexing]);
 
 	const handleDisconnectClick = () => {
 		setShowDisconnectConfirm(true);
@@ -119,11 +123,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	};
 
 	const handleQuickIndex = useCallback(() => {
-		if (onQuickIndex) {
+		if (onQuickIndex && !isQuickIndexing && !isIndexing) {
 			setIsQuickIndexing(true);
 			onQuickIndex();
 		}
-	}, [onQuickIndex]);
+	}, [onQuickIndex, isQuickIndexing, isIndexing]);
 
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">

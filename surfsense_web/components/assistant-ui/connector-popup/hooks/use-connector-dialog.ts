@@ -1409,7 +1409,12 @@ export const useConnectorDialog = () => {
 			startDate?: Date,
 			endDate?: Date
 		) => {
-			if (!searchSpaceId) return;
+			if (!searchSpaceId) {
+				if (stopIndexing) {
+					stopIndexing(connectorId);
+				}
+				return;
+			}
 
 			// Track quick index clicked event
 			if (connectorType) {
@@ -1437,6 +1442,8 @@ export const useConnectorDialog = () => {
 				queryClient.invalidateQueries({
 					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 				});
+				// Note: Don't call stopIndexing here - let useIndexingConnectors hook
+				// detect when last_indexed_at changes via Electric SQL
 			} catch (error) {
 				console.error("Error indexing connector content:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to start indexing");
@@ -1446,7 +1453,7 @@ export const useConnectorDialog = () => {
 				}
 			}
 		},
-		[searchSpaceId, indexConnector]
+		[searchSpaceId, indexConnector, queryClient]
 	);
 
 	// Handle going back from edit view

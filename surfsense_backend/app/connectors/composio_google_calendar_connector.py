@@ -18,7 +18,10 @@ from app.db import Document, DocumentType
 from app.services.composio_service import TOOLKIT_TO_DOCUMENT_TYPE
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.tasks.connector_indexers.base import calculate_date_range
+from app.tasks.connector_indexers.base import (
+    calculate_date_range,
+    check_duplicate_document_by_hash,
+)
 from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
@@ -256,6 +259,7 @@ async def index_composio_google_calendar(
 
         documents_indexed = 0
         documents_skipped = 0
+        duplicate_content_count = 0  # Track events skipped due to duplicate content_hash
 
         for event in events:
             try:
@@ -349,7 +353,25 @@ async def index_composio_google_calendar(
                         logger.info(
                             f"Committing batch: {documents_indexed} Google Calendar events processed so far"
                         )
-                        await session.commit()
+                        await session.commit(                    )
+                    continue
+
+                # Document doesn't exist by unique_identifier_hash
+                # Check if a document with the same content_hash exists (from standard connector)
+                with session.no_autoflush:
+                    duplicate_by_content = await check_duplicate_document_by_hash(
+                        session, content_hash
+                    )
+                
+                if duplicate_by_content:
+                    # A document with the same content already exists (likely from standard connector)
+                    logger.info(
+                        f"Event {summary} already indexed by another connector "
+                        f"(existing document ID: {duplicate_by_content.id}, "
+                        f"type: {duplicate_by_content.document_type}). Skipping to avoid duplicate content."
+                    )
+                    duplicate_content_count += 1
+                    documents_skipped += 1
                     continue
 
                 # Create new document
@@ -429,10 +451,28 @@ async def index_composio_google_calendar(
         logger.info(
             f"Final commit: Total {documents_indexed} Google Calendar events processed"
         )
-        await session.commit()
-        logger.info(
-            "Successfully committed all Composio Google Calendar document changes to database"
-        )
+        try:
+            await session.commit()
+            logger.info(
+                "Successfully committed all Composio Google Calendar document changes to database"
+            )
+        except Exception as e:
+            # Handle any remaining integrity errors gracefully (race conditions, etc.)
+            if "duplicate key value violates unique constraint" in str(e).lower() or "uniqueviolationerror" in str(e).lower():
+                logger.warning(
+                    f"Duplicate content_hash detected during final commit. "
+                    f"This may occur if the same event was indexed by multiple connectors. "
+                    f"Rolling back and continuing. Error: {e!s}"
+                )
+                await session.rollback()
+                # Don't fail the entire task - some documents may have been successfully indexed
+            else:
+                raise
+
+        # Build warning message if duplicates were found
+        warning_message = None
+        if duplicate_content_count > 0:
+            warning_message = f"{duplicate_content_count} skipped (duplicate)"
 
         await task_logger.log_task_success(
             log_entry,
@@ -440,10 +480,15 @@ async def index_composio_google_calendar(
             {
                 "documents_indexed": documents_indexed,
                 "documents_skipped": documents_skipped,
+                "duplicate_content_count": duplicate_content_count,
             },
         )
 
-        return documents_indexed, None
+        logger.info(
+            f"Composio Google Calendar indexing completed: {documents_indexed} new events, {documents_skipped} skipped "
+            f"({duplicate_content_count} due to duplicate content from other connectors)"
+        )
+        return documents_indexed, warning_message
 
     except Exception as e:
         logger.error(
