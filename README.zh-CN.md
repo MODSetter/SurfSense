@@ -6,6 +6,9 @@
 <a href="https://discord.gg/ejRNvftDp9">
 <img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
 </a>
+<a href="https://www.reddit.com/r/SurfSense/">
+<img src="https://img.shields.io/reddit/subreddit-subscribers/SurfSense?style=social" alt="Reddit">
+</a>
 </div>
 
 <div align="center">

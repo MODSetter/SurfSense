@@ -1,5 +1,5 @@
 "use client";
-import { IconBrandDiscord, IconBrandGithub, IconMenu2, IconX } from "@tabler/icons-react";
+import { IconBrandDiscord, IconBrandGithub, IconBrandReddit, IconMenu2, IconX } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -154,6 +154,14 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
 				</Link>
 				<Link
+					href="https://www.reddit.com/r/SurfSense/"
+					target="_blank"
+					rel="noopener noreferrer"
+					className="hidden rounded-full p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center justify-center"
+				>
+					<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+				</Link>
+				<Link
 					href="https://github.com/MODSetter/SurfSense"
 					target="_blank"
 					rel="noopener noreferrer"
@@ -235,6 +243,14 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
 							>
 								<IconBrandDiscord className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
+							</Link>
+							<Link
+								href="https://www.reddit.com/r/SurfSense/"
+								target="_blank"
+								rel="noopener noreferrer"
+								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
+							>
+								<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
 							</Link>
 							<Link
 								href="https://github.com/MODSetter/SurfSense"
