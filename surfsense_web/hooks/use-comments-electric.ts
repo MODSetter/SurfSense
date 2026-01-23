@@ -15,6 +15,9 @@ import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
+// Debounce delay for stream updates (ms)
+const STREAM_UPDATE_DEBOUNCE_MS = 100;
+
 // Raw comment from PGlite local database
 interface RawCommentRow {
 	id: number;
@@ -208,6 +211,7 @@ export function useCommentsElectric(threadId: number | null) {
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe: () => void } | null>(null);
 	const syncKeyRef = useRef<string | null>(null);
+	const streamUpdateDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Stable callback that uses refs for fresh values
 	const updateReactQueryCache = useCallback((rows: RawCommentRow[]) => {
@@ -275,6 +279,30 @@ export function useCommentsElectric(threadId: number | null) {
 
 				// Set up live query for real-time updates
 				await setupLiveQuery();
+
+				// Subscribe to the sync stream for real-time updates from Electric SQL
+				// This ensures we catch updates even if PGlite live query misses them
+				if (handle.stream) {
+					const stream = handle.stream as { subscribe?: (callback: (messages: unknown[]) => void) => void };
+					if (typeof stream.subscribe === "function") {
+						stream.subscribe((messages: unknown[]) => {
+							if (!mounted) return;
+							// When Electric sync receives new data, refresh from PGlite
+							// This handles cases where live query might miss the update
+							if (messages && messages.length > 0) {
+								// Debounce the refresh to avoid excessive queries
+								if (streamUpdateDebounceRef.current) {
+									clearTimeout(streamUpdateDebounceRef.current);
+								}
+								streamUpdateDebounceRef.current = setTimeout(() => {
+									if (mounted) {
+										fetchAndUpdateCache();
+									}
+								}, STREAM_UPDATE_DEBOUNCE_MS);
+							}
+						});
+					}
+				}
 			} catch {
 				// Sync failed - will retry on next mount
 			}
@@ -347,6 +375,12 @@ export function useCommentsElectric(threadId: number | null) {
 		return () => {
 			mounted = false;
 			syncKeyRef.current = null;
+
+			// Clear debounce timeout
+			if (streamUpdateDebounceRef.current) {
+				clearTimeout(streamUpdateDebounceRef.current);
+				streamUpdateDebounceRef.current = null;
+			}
 
 			if (syncHandleRef.current) {
 				syncHandleRef.current.unsubscribe();
