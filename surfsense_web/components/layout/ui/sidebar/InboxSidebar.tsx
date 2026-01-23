@@ -71,6 +71,17 @@ function getInitials(name: string | null | undefined, email: string | null | und
 }
 
 /**
+ * Format count for display: shows numbers up to 999, then "1k+", "2k+", etc.
+ */
+function formatInboxCount(count: number): string {
+	if (count <= 999) {
+		return count.toString();
+	}
+	const thousands = Math.floor(count / 1000);
+	return `${thousands}k+`;
+}
+
+/**
  * Get display name for connector type
  */
 function getConnectorTypeDisplayName(connectorType: string): string {
@@ -732,7 +743,7 @@ export function InboxSidebar({
 										<AtSign className="h-4 w-4" />
 										<span>{t("mentions") || "Mentions"}</span>
 										<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-											{unreadMentionsCount}
+											{formatInboxCount(unreadMentionsCount)}
 										</span>
 									</span>
 								</TabsTrigger>
@@ -744,7 +755,7 @@ export function InboxSidebar({
 										<History className="h-4 w-4" />
 										<span>{t("status") || "Status"}</span>
 										<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-											{unreadStatusCount}
+											{formatInboxCount(unreadStatusCount)}
 										</span>
 									</span>
 								</TabsTrigger>

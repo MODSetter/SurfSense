@@ -38,6 +38,17 @@ interface LayoutDataProviderProps {
 	breadcrumb?: React.ReactNode;
 }
 
+/**
+ * Format count for display: shows numbers up to 999, then "1k+", "2k+", etc.
+ */
+function formatInboxCount(count: number): string {
+	if (count <= 999) {
+		return count.toString();
+	}
+	const thousands = Math.floor(count / 1000);
+	return `${thousands}k+`;
+}
+
 export function LayoutDataProvider({
 	searchSpaceId,
 	children,
@@ -172,7 +183,7 @@ export function LayoutDataProvider({
 				url: "#inbox", // Special URL to indicate this is handled differently
 				icon: Inbox,
 				isActive: isInboxSidebarOpen,
-				badge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
+				badge: unreadCount > 0 ? formatInboxCount(unreadCount) : undefined,
 			},
 		],
 		[searchSpaceId, pathname, isInboxSidebarOpen, unreadCount]
