@@ -330,56 +330,78 @@ export const useConnectorDialog = () => {
 
 			if (
 				params.success === "true" &&
-				params.connector &&
 				searchSpaceId &&
 				params.modal === "connectors"
 			) {
-				const oauthConnector = OAUTH_CONNECTORS.find((c) => c.id === params.connector);
-				if (oauthConnector) {
-					refetchAllConnectors().then((result) => {
-						if (!result.data) return;
+				refetchAllConnectors().then((result) => {
+					if (!result.data) return;
 
-						let newConnector: SearchSourceConnector | undefined;
-						if (params.connectorId) {
-							const connectorId = parseInt(params.connectorId, 10);
-							newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
-						} else {
+					let newConnector: SearchSourceConnector | undefined;
+					let oauthConnector:
+						| (typeof OAUTH_CONNECTORS)[number]
+						| (typeof COMPOSIO_CONNECTORS)[number]
+						| undefined;
+
+					// First, try to find connector by connectorId if provided
+					if (params.connectorId) {
+						const connectorId = parseInt(params.connectorId, 10);
+						newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
+						
+						// If we found the connector, find the matching OAuth/Composio connector by type
+						if (newConnector) {
+							oauthConnector =
+								OAUTH_CONNECTORS.find(
+									(c) => c.connectorType === newConnector!.connector_type
+								) ||
+								COMPOSIO_CONNECTORS.find(
+									(c) => c.connectorType === newConnector!.connector_type
+								);
+						}
+					}
+
+					// If we don't have a connector yet, try to find by connector param
+					if (!newConnector && params.connector) {
+						oauthConnector =
+							OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
+							COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
+						
+						if (oauthConnector) {
 							newConnector = result.data.find(
-								(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+								(c: SearchSourceConnector) => c.connector_type === oauthConnector!.connectorType
 							);
 						}
+					}
 
-						if (newConnector) {
-							const connectorValidation = searchSourceConnector.safeParse(newConnector);
-							if (connectorValidation.success) {
-								// Track connector connected event for OAuth connectors
-								trackConnectorConnected(
-									Number(searchSpaceId),
-									oauthConnector.connectorType,
-									newConnector.id
-								);
+					if (newConnector && oauthConnector) {
+						const connectorValidation = searchSourceConnector.safeParse(newConnector);
+						if (connectorValidation.success) {
+							// Track connector connected event for OAuth/Composio connectors
+							trackConnectorConnected(
+								Number(searchSpaceId),
+								oauthConnector.connectorType,
+								newConnector.id
+							);
 
-								const config = validateIndexingConfigState({
-									connectorType: oauthConnector.connectorType,
-									connectorId: newConnector.id,
-									connectorTitle: oauthConnector.title,
-								});
-								setIndexingConfig(config);
-								setIndexingConnector(newConnector);
-								setIndexingConnectorConfig(newConnector.config);
-								setIsOpen(true);
-								const url = new URL(window.location.href);
-								url.searchParams.delete("success");
-								url.searchParams.set("connectorId", newConnector.id.toString());
-								url.searchParams.set("view", "configure");
-								window.history.replaceState({}, "", url.toString());
-							} else {
-								console.warn("Invalid connector data after OAuth:", connectorValidation.error);
-								toast.error("Failed to validate connector data");
-							}
+							const config = validateIndexingConfigState({
+								connectorType: oauthConnector.connectorType,
+								connectorId: newConnector.id,
+								connectorTitle: oauthConnector.title,
+							});
+							setIndexingConfig(config);
+							setIndexingConnector(newConnector);
+							setIndexingConnectorConfig(newConnector.config);
+							setIsOpen(true);
+							const url = new URL(window.location.href);
+							url.searchParams.delete("success");
+							url.searchParams.set("connectorId", newConnector.id.toString());
+							url.searchParams.set("view", "configure");
+							window.history.replaceState({}, "", url.toString());
+						} else {
+							console.warn("Invalid connector data after OAuth:", connectorValidation.error);
+							toast.error("Failed to validate connector data");
 						}
-					});
-				}
+					}
+				});
 			}
 		} catch (error) {
 			// Invalid query params - log but don't crash
@@ -863,9 +885,10 @@ export const useConnectorDialog = () => {
 		async (refreshConnectors: () => void) => {
 			if (!indexingConfig || !searchSpaceId) return;
 
-			// Validate date range (skip for Google Drive and Webcrawler)
+			// Validate date range (skip for Google Drive, Composio Drive, and Webcrawler)
 			if (
 				indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+				indexingConfig.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 				indexingConfig.connectorType !== "WEBCRAWLER_CONNECTOR"
 			) {
 				const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
@@ -910,8 +933,12 @@ export const useConnectorDialog = () => {
 					});
 				}
 
-				// Handle Google Drive folder selection
-				if (indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" && indexingConnectorConfig) {
+				// Handle Google Drive folder selection (regular and Composio)
+				if (
+					(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR") &&
+					indexingConnectorConfig
+				) {
 					const selectedFolders = indexingConnectorConfig.selected_folders as
 						| Array<{ id: string; name: string }>
 						| undefined;

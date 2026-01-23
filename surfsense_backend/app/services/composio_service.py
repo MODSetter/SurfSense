@@ -53,6 +53,27 @@ TOOLKIT_TO_DOCUMENT_TYPE = {
     "googlecalendar": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
 }
 
+# Mapping of toolkit IDs to their indexer functions
+# Format: toolkit_id -> (module_path, function_name, supports_date_filter)
+# supports_date_filter: True if the indexer accepts start_date/end_date params
+TOOLKIT_TO_INDEXER = {
+    "googledrive": (
+        "app.connectors.composio_google_drive_connector",
+        "index_composio_google_drive",
+        False,  # Google Drive doesn't use date filtering
+    ),
+    "gmail": (
+        "app.connectors.composio_gmail_connector",
+        "index_composio_gmail",
+        True,  # Gmail uses date filtering
+    ),
+    "googlecalendar": (
+        "app.connectors.composio_google_calendar_connector",
+        "index_composio_google_calendar",
+        True,  # Calendar uses date filtering
+    ),
+}
+
 
 class ComposioService:
     """Service for interacting with Composio API."""

@@ -206,8 +206,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{/* Date range selector and periodic sync - only shown for indexable connectors */}
 						{connector.is_indexable && (
 							<>
-								{/* Date range selector - not shown for Google Drive, Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
+									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "WEBCRAWLER_CONNECTOR" &&
 									connector.connector_type !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
@@ -217,6 +218,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 											onEndDateChange={onEndDateChange}
 											allowFutureDates={
 												connector.connector_type === "GOOGLE_CALENDAR_CONNECTOR" ||
+												connector.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
 												connector.connector_type === "LUMA_CONNECTOR"
 											}
 										/>

@@ -9,11 +9,7 @@ import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import {
-	COMPOSIO_CONNECTORS,
-	type IndexingConfigState,
-	OAUTH_CONNECTORS,
-} from "../../constants/connector-constants";
+import type { IndexingConfigState } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 
@@ -95,11 +91,6 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 		};
 	}, [checkScrollState]);
 
-	// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
-	const authConnector =
-		OAUTH_CONNECTORS.find((c) => c.connectorType === connector?.connector_type) ||
-		COMPOSIO_CONNECTORS.find((c) => c.connectorType === connector?.connector_type);
-
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Fixed Header */}
@@ -158,8 +149,9 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 						{/* Date range selector and periodic sync - only shown for indexable connectors */}
 						{connector?.is_indexable && (
 							<>
-								{/* Date range selector - not shown for Google Drive, Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
 									config.connectorType !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
@@ -169,13 +161,15 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 											onEndDateChange={onEndDateChange}
 											allowFutureDates={
 												config.connectorType === "GOOGLE_CALENDAR_CONNECTOR" ||
+												config.connectorType === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
 												config.connectorType === "LUMA_CONNECTOR"
 											}
 										/>
 									)}
 
-								{/* Periodic sync - not shown for Google Drive */}
-								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && (
+								{/* Periodic sync - not shown for Google Drive (regular and Composio) */}
+								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" && (
 									<PeriodicSyncConfig
 										enabled={periodicEnabled}
 										frequencyMinutes={frequencyMinutes}

@@ -46,6 +46,13 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Map toolkit_id to frontend connector ID
+TOOLKIT_TO_FRONTEND_CONNECTOR_ID = {
+    "googledrive": "composio-googledrive",
+    "gmail": "composio-gmail",
+    "googlecalendar": "composio-googlecalendar",
+}
+
 # Initialize security utilities
 _state_manager = None
 
@@ -327,8 +334,12 @@ async def composio_callback(
             await session.commit()
             await session.refresh(existing_connector)
 
+            # Get the frontend connector ID based on toolkit_id
+            frontend_connector_id = TOOLKIT_TO_FRONTEND_CONNECTOR_ID.get(
+                toolkit_id, "composio-connector"
+            )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=composio-connector&connectorId={existing_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={existing_connector.id}"
             )
 
         try:
@@ -358,8 +369,12 @@ async def composio_callback(
                 f"Successfully created Composio connector {db_connector.id} for user {user_id}, toolkit {toolkit_id}"
             )
 
+            # Get the frontend connector ID based on toolkit_id
+            frontend_connector_id = TOOLKIT_TO_FRONTEND_CONNECTOR_ID.get(
+                toolkit_id, "composio-connector"
+            )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=composio-connector&connectorId={db_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={db_connector.id}"
             )
 
         except IntegrityError as e:
