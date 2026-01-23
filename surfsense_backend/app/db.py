@@ -358,6 +358,14 @@ class NewChatThread(BaseModel, TimestampMixin):
         index=True,
     )
 
+    # Public sharing - cryptographic token for public URL access
+    public_share_token = Column(
+        String(64),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
     created_by = relationship("User", back_populates="new_chat_threads")
