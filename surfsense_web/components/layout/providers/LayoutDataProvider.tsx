@@ -162,17 +162,17 @@ export function LayoutDataProvider({
 	const navItems: NavItem[] = useMemo(
 		() => [
 			{
-				title: "Documents",
-				url: `/dashboard/${searchSpaceId}/documents`,
-				icon: SquareLibrary,
-				isActive: pathname?.includes("/documents"),
-			},
-			{
 				title: "Inbox",
 				url: "#inbox", // Special URL to indicate this is handled differently
 				icon: Inbox,
 				isActive: isInboxSidebarOpen,
 				badge: unreadCount > 0 ? (unreadCount > 99 ? "99+" : unreadCount) : undefined,
+			},
+			{
+				title: "Documents",
+				url: `/dashboard/${searchSpaceId}/documents`,
+				icon: SquareLibrary,
+				isActive: pathname?.includes("/documents"),
 			},
 		],
 		[searchSpaceId, pathname, isInboxSidebarOpen, unreadCount]
