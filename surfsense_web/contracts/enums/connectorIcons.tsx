@@ -66,6 +66,8 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <IconUsersGroup {...iconProps} />;
 		case EnumConnectorName.MCP_CONNECTOR:
 			return <Image src="/connectors/modelcontextprotocol.svg" alt="MCP" {...imgProps} />;
+		case EnumConnectorName.OBSIDIAN_CONNECTOR:
+			return <Image src="/connectors/obsidian.svg" alt="Obsidian" {...imgProps} />;
 		case EnumConnectorName.COMPOSIO_CONNECTOR:
 			return <Image src="/connectors/composio.svg" alt="Composio" {...imgProps} />;
 		// Additional cases for non-enum connector types

@@ -2780,3 +2780,94 @@ class ConnectorService:
         }
 
         return result_object, circleback_docs
+
+    async def search_obsidian(
+        self,
+        user_query: str,
+        search_space_id: int,
+        top_k: int = 20,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+    ) -> tuple:
+        """
+        Search for Obsidian vault notes and return both the source information and langchain documents.
+
+        Uses combined chunk-level and document-level hybrid search with RRF fusion.
+
+        Args:
+            user_query: The user's query
+            search_space_id: The search space ID to search in
+            top_k: Maximum number of results to return
+            start_date: Optional start date for filtering documents by updated_at
+            end_date: Optional end date for filtering documents by updated_at
+
+        Returns:
+            tuple: (sources_info, langchain_documents)
+        """
+        obsidian_docs = await self._combined_rrf_search(
+            query_text=user_query,
+            search_space_id=search_space_id,
+            document_type="OBSIDIAN_CONNECTOR",
+            top_k=top_k,
+            start_date=start_date,
+            end_date=end_date,
+        )
+
+        # Early return if no results
+        if not obsidian_docs:
+            return {
+                "id": 53,
+                "name": "Obsidian Vault",
+                "type": "OBSIDIAN_CONNECTOR",
+                "sources": [],
+            }, []
+
+        def _title_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
+            return doc_info.get("title", "Untitled Note")
+
+        def _url_fn(doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
+            # Obsidian URL format: obsidian://vault_name/path
+            return doc_info.get("url", "")
+
+        def _description_fn(
+            chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
+        ) -> str:
+            description = self._chunk_preview(chunk.get("content", ""), limit=200)
+            info_parts = []
+            vault_name = metadata.get("vault_name")
+            tags = metadata.get("tags", [])
+            if vault_name:
+                info_parts.append(f"Vault: {vault_name}")
+            if tags and isinstance(tags, list) and len(tags) > 0:
+                info_parts.append(f"Tags: {', '.join(tags[:3])}")
+            if info_parts:
+                description = (description + " | " + " | ".join(info_parts)).strip(" |")
+            return description
+
+        def _extra_fields_fn(
+            _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
+        ) -> dict[str, Any]:
+            return {
+                "vault_name": metadata.get("vault_name", ""),
+                "file_path": metadata.get("file_path", ""),
+                "tags": metadata.get("tags", []),
+                "outgoing_links": metadata.get("outgoing_links", []),
+            }
+
+        sources_list = self._build_chunk_sources_from_documents(
+            obsidian_docs,
+            title_fn=_title_fn,
+            url_fn=_url_fn,
+            description_fn=_description_fn,
+            extra_fields_fn=_extra_fields_fn,
+        )
+
+        # Create result object
+        result_object = {
+            "id": 53,
+            "name": "Obsidian Vault",
+            "type": "OBSIDIAN_CONNECTOR",
+            "sources": sources_list,
+        }
+
+        return result_object, obsidian_docs
