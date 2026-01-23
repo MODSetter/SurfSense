@@ -13,7 +13,7 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cn } from "@/lib/utils";
-import { OAUTH_CONNECTORS } from "../constants/connector-constants";
+import { COMPOSIO_CONNECTORS, OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
 
 interface ActiveConnectorsTabProps {
@@ -113,7 +113,10 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 
 	// Get display info for OAuth connector type
 	const getOAuthConnectorTypeInfo = (connectorType: string) => {
-		const oauthConnector = OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType);
+		// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
+		const oauthConnector =
+			OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+			COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
 		return {
 			title:
 				oauthConnector?.title ||

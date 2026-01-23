@@ -398,7 +398,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 								className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10"
 							>
 								<Save className="w-3.5 h-3.5 md:w-4 md:h-4" />
-								{isSaving ? "Saving..." : "Save Changes"}
+								{isSaving ? "Saving" : "Save Changes"}
 							</Button>
 							<Button
 								variant="outline"

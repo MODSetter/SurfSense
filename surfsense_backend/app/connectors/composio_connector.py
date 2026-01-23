@@ -146,6 +146,55 @@ class ComposioConnector:
             file_id=file_id,
         )
 
+    async def get_drive_start_page_token(self) -> tuple[str | None, str | None]:
+        """
+        Get the starting page token for Google Drive change tracking.
+        
+        Returns:
+            Tuple of (start_page_token, error message).
+        """
+        connected_account_id = await self.get_connected_account_id()
+        if not connected_account_id:
+            return None, "No connected account ID found"
+        
+        entity_id = await self.get_entity_id()
+        service = await self._get_service()
+        return await service.get_drive_start_page_token(
+            connected_account_id=connected_account_id,
+            entity_id=entity_id,
+        )
+
+    async def list_drive_changes(
+        self,
+        page_token: str | None = None,
+        page_size: int = 100,
+        include_removed: bool = True,
+    ) -> tuple[list[dict[str, Any]], str | None, str | None]:
+        """
+        List changes in Google Drive since the given page token.
+        
+        Args:
+            page_token: Page token from previous sync (optional).
+            page_size: Number of changes per page.
+            include_removed: Whether to include removed items.
+        
+        Returns:
+            Tuple of (changes list, new_start_page_token, error message).
+        """
+        connected_account_id = await self.get_connected_account_id()
+        if not connected_account_id:
+            return [], None, "No connected account ID found"
+        
+        entity_id = await self.get_entity_id()
+        service = await self._get_service()
+        return await service.list_drive_changes(
+            connected_account_id=connected_account_id,
+            entity_id=entity_id,
+            page_token=page_token,
+            page_size=page_size,
+            include_removed=include_removed,
+        )
+
     # ===== Gmail Methods =====
 
     async def list_gmail_messages(

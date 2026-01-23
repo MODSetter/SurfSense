@@ -200,7 +200,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 					className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10"
 				>
 					<Save className="h-3.5 w-3.5 md:h-4 md:w-4" />
-					{saving ? "Saving..." : "Save Instructions"}
+					{saving ? "Saving" : "Save Instructions"}
 				</Button>
 			</div>
 

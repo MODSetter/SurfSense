@@ -191,7 +191,10 @@ export const useConnectorDialog = () => {
 
 				// Handle configure view (for page refresh support)
 				if (params.view === "configure" && params.connector && !indexingConfig && allConnectors) {
-					const oauthConnector = OAUTH_CONNECTORS.find((c) => c.id === params.connector);
+					// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
+					const oauthConnector =
+						OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
+						COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
 					if (oauthConnector) {
 						let existingConnector: SearchSourceConnector | undefined;
 						if (params.connectorId) {

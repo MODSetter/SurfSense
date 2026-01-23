@@ -9,7 +9,11 @@ import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import { type IndexingConfigState, OAUTH_CONNECTORS } from "../../constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	type IndexingConfigState,
+	OAUTH_CONNECTORS,
+} from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 
@@ -91,7 +95,10 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 		};
 	}, [checkScrollState]);
 
-	const authConnector = OAUTH_CONNECTORS.find((c) => c.connectorType === connector?.connector_type);
+	// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
+	const authConnector =
+		OAUTH_CONNECTORS.find((c) => c.connectorType === connector?.connector_type) ||
+		COMPOSIO_CONNECTORS.find((c) => c.connectorType === connector?.connector_type);
 
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">

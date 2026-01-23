@@ -2288,8 +2288,8 @@ async def run_composio_indexing(
     connector_id: int,
     search_space_id: int,
     user_id: str,
-    start_date: str,
-    end_date: str,
+    start_date: str | None,
+    end_date: str | None,
 ):
     """
     Run Composio connector indexing with real-time notifications.
