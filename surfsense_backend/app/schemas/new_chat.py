@@ -198,7 +198,9 @@ class RegenerateRequest(BaseModel):
     """
 
     search_space_id: int
-    user_query: str | None = None  # New user query (for edit). None = reload with same query
+    user_query: str | None = (
+        None  # New user query (for edit). None = reload with same query
+    )
     attachments: list[ChatAttachment] | None = None
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None

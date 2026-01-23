@@ -1107,7 +1107,10 @@ export default function NewChatPage() {
 			setMessageThinkingSteps((prev) => {
 				const newMap = new Map(prev);
 				// Remove thinking steps for the last two messages
-				const lastTwoIds = messages.slice(-2).map((m) => m.id).filter((id): id is string => !!id);
+				const lastTwoIds = messages
+					.slice(-2)
+					.map((m) => m.id)
+					.filter((id): id is string => !!id);
 				for (const id of lastTwoIds) {
 					newMap.delete(id);
 				}
@@ -1410,9 +1413,7 @@ export default function NewChatPage() {
 						m.id === assistantMsgId
 							? {
 									...m,
-									content: [
-										{ type: "text", text: "Sorry, there was an error. Please try again." },
-									],
+									content: [{ type: "text", text: "Sorry, there was an error. Please try again." }],
 								}
 							: m
 					)

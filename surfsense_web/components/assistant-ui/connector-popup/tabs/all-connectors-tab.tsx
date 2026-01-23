@@ -4,8 +4,8 @@ import type { FC } from "react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { isSelfHosted } from "@/lib/env-config";
-import { ConnectorCard } from "../components/connector-card";
 import { ComposioConnectorCard } from "../components/composio-connector-card";
+import { ConnectorCard } from "../components/connector-card";
 import {
 	COMPOSIO_CONNECTORS,
 	CRAWLERS,
