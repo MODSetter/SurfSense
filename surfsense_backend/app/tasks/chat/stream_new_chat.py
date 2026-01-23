@@ -159,6 +159,7 @@ async def stream_new_chat(
     attachments: list[ChatAttachment] | None = None,
     mentioned_document_ids: list[int] | None = None,
     mentioned_surfsense_doc_ids: list[int] | None = None,
+    checkpoint_id: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -177,6 +178,7 @@ async def stream_new_chat(
         attachments: Optional attachments with extracted content
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
         mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
+        checkpoint_id: Optional checkpoint ID to rewind/fork from (for edit/reload operations)
 
     Yields:
         str: SSE formatted response strings
@@ -325,10 +327,13 @@ async def stream_new_chat(
         }
 
         # Configure LangGraph with thread_id for memory
+        # If checkpoint_id is provided, fork from that checkpoint (for edit/reload)
+        configurable = {"thread_id": str(chat_id)}
+        if checkpoint_id:
+            configurable["checkpoint_id"] = checkpoint_id
+
         config = {
-            "configurable": {
-                "thread_id": str(chat_id),
-            },
+            "configurable": configurable,
             "recursion_limit": 80,  # Increase from default 25 to allow more tool iterations
         }
 

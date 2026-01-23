@@ -184,3 +184,23 @@ class NewChatRequest(BaseModel):
     mentioned_surfsense_doc_ids: list[int] | None = (
         None  # Optional SurfSense documentation IDs mentioned with @ in the chat
     )
+
+
+class RegenerateRequest(BaseModel):
+    """
+    Request schema for regenerating an AI response.
+
+    This supports two operations:
+    1. Edit: Provide a new user_query to replace the last user message and regenerate
+    2. Reload: Leave user_query empty to regenerate the last AI response with the same query
+
+    Both operations rewind the LangGraph checkpointer to the appropriate state.
+    """
+
+    search_space_id: int
+    user_query: str | None = (
+        None  # New user query (for edit). None = reload with same query
+    )
+    attachments: list[ChatAttachment] | None = None
+    mentioned_document_ids: list[int] | None = None
+    mentioned_surfsense_doc_ids: list[int] | None = None

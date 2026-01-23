@@ -6,6 +6,9 @@
 <a href="https://discord.gg/ejRNvftDp9">
 <img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
 </a>
+<a href="https://www.reddit.com/r/SurfSense/">
+<img src="https://img.shields.io/reddit/subreddit-subscribers/SurfSense?style=social" alt="Reddit">
+</a>
 </div>
 
 <div align="center">
@@ -18,7 +21,7 @@
 
 将任何 LLM 连接到您的内部知识源，并与团队成员实时聊天。NotebookLM、Perplexity 和 Glean 的开源替代方案。
 
-SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch 等，未来还会支持更多。
+SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch、Obsidian 等，未来还会支持更多。
 
 <div align="center">
 <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
@@ -73,25 +76,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - 支持多个 TTS 提供商（OpenAI、Azure、Google Vertex AI）
 
 ### 🤖 **深度代理架构**
-
-#### 内置代理工具
-| 工具 | 描述 |
-|------|------|
-| **search_knowledge_base** | 使用语义+全文混合搜索、日期过滤和连接器特定查询搜索您的个人知识库 |
-| **generate_podcast** | 从聊天对话或知识库内容生成音频播客 |
-| **link_preview** | 获取 URL 的 Open Graph 元数据以显示预览卡片 |
-| **display_image** | 在聊天中显示带有元数据和来源归属的图像 |
-| **scrape_webpage** | 从网页中提取完整内容用于分析和总结（支持 Firecrawl 或本地 Chromium/Trafilatura） |
-
-#### 可扩展工具注册表
-贡献者可以通过注册表模式轻松添加新工具：
-1. 在 `surfsense_backend/app/agents/new_chat/tools/` 中创建工具工厂函数
-2. 在 `registry.py` 的 `BUILTIN_TOOLS` 列表中注册
-
-#### 可配置的系统提示词
-- 通过 LLM 配置自定义系统指令
-- 按配置切换引用开关
-- 通过 LiteLLM 集成支持 100+ 种 LLM
+- 基于 [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) 构建 - 支持规划、子代理和文件系统的复杂任务处理代理。
 
 ### 📊 **先进的 RAG 技术**
 - 支持 100+ 种大语言模型
@@ -121,6 +106,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Luma
 - Circleback
 - Elasticsearch
+- Obsidian
 - 更多即将推出......
 
 ## 📄 **支持的文件扩展名**
