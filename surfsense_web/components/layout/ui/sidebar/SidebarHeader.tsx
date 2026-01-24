@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, ScrollText, Settings, Users } from "lucide-react";
+import { ChevronsUpDown, Logs, Settings, Users } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -57,7 +57,7 @@ export function SidebarHeader({
 						{t("manage_members")}
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={() => router.push(`/dashboard/${searchSpaceId}/logs`)}>
-						<ScrollText className="mr-2 h-4 w-4" />
+						<Logs className="mr-2 h-4 w-4" />
 						{t("logs")}
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />

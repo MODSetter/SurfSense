@@ -7,6 +7,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useCallback, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { deleteThread, fetchThreads } from "@/lib/chat/thread-persistence";
+import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -56,6 +57,7 @@ export function LayoutDataProvider({
 }: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
+	const tSidebar = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
 	const pathname = usePathname();
@@ -154,6 +156,7 @@ export function LayoutDataProvider({
 				url: `/dashboard/${searchSpaceId}/new-chat/${thread.id}`,
 				visibility: thread.visibility,
 				isOwnThread: thread.is_own_thread,
+				archived: thread.archived,
 			};
 
 			// Split based on visibility, not ownership:
@@ -304,6 +307,28 @@ export function LayoutDataProvider({
 		setShowDeleteChatDialog(true);
 	}, []);
 
+	const handleChatArchive = useCallback(
+		async (chat: ChatItem) => {
+			const newArchivedState = !chat.archived;
+			const successMessage = newArchivedState
+				? tSidebar("chat_archived") || "Chat archived"
+				: tSidebar("chat_unarchived") || "Chat restored";
+
+			try {
+				await updateThread(chat.id, { archived: newArchivedState });
+				toast.success(successMessage);
+				// Invalidate queries to refresh UI (React Query will only refetch active queries)
+				queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
+				queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
+			} catch (error) {
+				console.error("Error archiving thread:", error);
+				toast.error(tSidebar("error_archiving_chat") || "Failed to archive chat");
+			}
+		},
+		[queryClient, searchSpaceId, tSidebar]
+	);
+
 	const handleSettings = useCallback(() => {
 		router.push(`/dashboard/${searchSpaceId}/settings`);
 	}, [router, searchSpaceId]);
@@ -391,6 +416,7 @@ export function LayoutDataProvider({
 				onNewChat={handleNewChat}
 				onChatSelect={handleChatSelect}
 				onChatDelete={handleChatDelete}
+				onChatArchive={handleChatArchive}
 				onViewAllSharedChats={handleViewAllSharedChats}
 				onViewAllPrivateChats={handleViewAllPrivateChats}
 				user={{

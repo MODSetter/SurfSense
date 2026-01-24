@@ -1,12 +1,13 @@
 "use client";
 
-import { MessageSquare, MoreHorizontal } from "lucide-react";
+import { ArchiveIcon, MessageSquare, MoreHorizontal, RotateCcwIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -14,11 +15,13 @@ import { cn } from "@/lib/utils";
 interface ChatListItemProps {
 	name: string;
 	isActive?: boolean;
+	archived?: boolean;
 	onClick?: () => void;
+	onArchive?: () => void;
 	onDelete?: () => void;
 }
 
-export function ChatListItem({ name, isActive, onClick, onDelete }: ChatListItemProps) {
+export function ChatListItem({ name, isActive, archived, onClick, onArchive, onDelete }: ChatListItemProps) {
 	const t = useTranslations("sidebar");
 
 	return (
@@ -48,15 +51,39 @@ export function ChatListItem({ name, isActive, onClick, onDelete }: ChatListItem
 						</Button>
 					</DropdownMenuTrigger>
 					<DropdownMenuContent align="end" side="right">
-						<DropdownMenuItem
-							onClick={(e) => {
-								e.stopPropagation();
-								onDelete?.();
-							}}
-							className="text-destructive focus:text-destructive"
-						>
-							{t("delete")}
-						</DropdownMenuItem>
+						{onArchive && (
+							<DropdownMenuItem
+								onClick={(e) => {
+									e.stopPropagation();
+									onArchive();
+								}}
+							>
+								{archived ? (
+									<>
+										<RotateCcwIcon className="mr-2 h-4 w-4" />
+										<span>{t("unarchive") || "Restore"}</span>
+									</>
+								) : (
+									<>
+										<ArchiveIcon className="mr-2 h-4 w-4" />
+										<span>{t("archive") || "Archive"}</span>
+									</>
+								)}
+							</DropdownMenuItem>
+						)}
+						{onArchive && onDelete && <DropdownMenuSeparator />}
+						{onDelete && (
+							<DropdownMenuItem
+								onClick={(e) => {
+									e.stopPropagation();
+									onDelete();
+								}}
+								className="text-destructive focus:text-destructive"
+							>
+								<Trash2 className="mr-2 h-4 w-4" />
+								<span>{t("delete")}</span>
+							</DropdownMenuItem>
+						)}
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
