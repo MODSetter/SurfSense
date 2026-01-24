@@ -3,6 +3,7 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useRef, useState } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { getBearerToken } from "@/lib/auth-utils";
 import {
 	cleanupElectric,
 	type ElectricClient,
@@ -105,9 +106,13 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 		};
 	}, [user?.id, isUserLoaded, electricClient]);
 
+	// Check if user is authenticated first (has bearer token)
+	// This prevents showing loading screen for unauthenticated users on homepage
+	const hasToken = typeof window !== "undefined" && !!getBearerToken();
+
 	// For non-authenticated pages (like landing page), render immediately with null context
 	// Also render immediately if user query failed (e.g., token expired)
-	if (!isUserLoaded || !user?.id || isUserError) {
+	if (!hasToken || !isUserLoaded || !user?.id || isUserError) {
 		return <ElectricContext.Provider value={null}>{children}</ElectricContext.Provider>;
 	}
 
