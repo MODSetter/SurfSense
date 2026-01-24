@@ -7,11 +7,11 @@ import {
 	ExternalLink,
 	FileText,
 	Hash,
-	Loader2,
 	Sparkles,
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useTranslations } from "next-intl";
 import type React from "react";
 import { forwardRef, type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
 import type {
 	GetDocumentByChunkResponse,
 	GetSurfsenseDocsByChunkResponse,
@@ -63,7 +64,7 @@ interface ChunkCardProps {
 }
 
 const ChunkCard = forwardRef<HTMLDivElement, ChunkCardProps>(
-	({ chunk, index, totalChunks, isCited, isActive, disableLayoutAnimation }, ref) => {
+	({ chunk, index, totalChunks, isCited }, ref) => {
 		return (
 			<div
 				ref={ref}
@@ -122,12 +123,13 @@ export function SourceDetailPanel({
 	children,
 	isDocsChunk = false,
 }: SourceDetailPanelProps) {
+	const t = useTranslations("dashboard");
 	const scrollAreaRef = useRef<HTMLDivElement>(null);
 	const hasScrolledRef = useRef(false); // Use ref to avoid stale closures
 	const [summaryOpen, setSummaryOpen] = useState(false);
 	const [activeChunkIndex, setActiveChunkIndex] = useState<number | null>(null);
 	const [mounted, setMounted] = useState(false);
-	const [hasScrolledToCited, setHasScrolledToCited] = useState(false);
+	const [_hasScrolledToCited, setHasScrolledToCited] = useState(false);
 	const shouldReduceMotion = useReducedMotion();
 
 	useEffect(() => {
@@ -382,11 +384,8 @@ export function SourceDetailPanel({
 									animate={{ opacity: 1, scale: 1 }}
 									className="flex flex-col items-center gap-4"
 								>
-									<div className="relative">
-										<div className="absolute inset-0 rounded-full bg-primary/20 blur-xl" />
-										<Loader2 className="h-12 w-12 animate-spin text-primary relative" />
-									</div>
-									<p className="text-sm text-muted-foreground font-medium">Loading document</p>
+									<Spinner size="lg"/>
+									<p className="text-sm text-muted-foreground font-medium">{t("loading_document")}</p>
 								</motion.div>
 							</div>
 						)}

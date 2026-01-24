@@ -1,12 +1,12 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
+import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { AmbientBackground } from "./AmbientBackground";
@@ -59,7 +59,11 @@ function LoginContent() {
 			});
 
 			// Show toast with conditional retry action
-			const toastOptions: any = {
+			const toastOptions: {
+				description: string;
+				duration: number;
+				action?: { label: string; onClick: () => void };
+			} = {
 				description: errorDescription,
 				duration: 6000,
 			};
@@ -90,18 +94,7 @@ function LoginContent() {
 
 	// Show loading state while determining auth type
 	if (isLoading) {
-		return (
-			<div className="relative w-full overflow-hidden">
-				<AmbientBackground />
-				<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-					<Logo className="rounded-md" />
-					<div className="mt-8 flex items-center space-x-2">
-						<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-						<span className="text-muted-foreground">{tCommon("loading")}</span>
-					</div>
-				</div>
-			</div>
-		);
+		return <UnifiedLoadingScreen variant="login" message={tCommon("loading")} />;
 	}
 
 	if (authType === "GOOGLE") {
@@ -182,23 +175,9 @@ function LoginContent() {
 	);
 }
 
-// Loading fallback for Suspense
-const LoadingFallback = () => (
-	<div className="relative w-full overflow-hidden">
-		<AmbientBackground />
-		<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-			<Logo className="rounded-md" />
-			<div className="mt-8 flex items-center space-x-2">
-				<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-				<span className="text-muted-foreground">Loading...</span>
-			</div>
-		</div>
-	</div>
-);
-
 export default function LoginPage() {
 	return (
-		<Suspense fallback={<LoadingFallback />}>
+		<Suspense fallback={<UnifiedLoadingScreen variant="login" message="Loading" />}>
 			<LoginContent />
 		</Suspense>
 	);

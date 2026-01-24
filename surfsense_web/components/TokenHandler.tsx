@@ -1,7 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
+import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
 import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
 import { trackLoginSuccess } from "@/lib/posthog/events";
 
@@ -25,6 +27,7 @@ const TokenHandler = ({
 	tokenParamName = "token",
 	storageKey = "surfsense_bearer_token",
 }: TokenHandlerProps) => {
+	const t = useTranslations("auth");
 	const searchParams = useSearchParams();
 
 	useEffect(() => {
@@ -67,9 +70,7 @@ const TokenHandler = ({
 	}, [searchParams, tokenParamName, storageKey, redirectPath]);
 
 	return (
-		<div className="flex items-center justify-center min-h-[200px]">
-			<p className="text-gray-500">Processing authentication...</p>
-		</div>
+		<UnifiedLoadingScreen variant="default" message={t("processing_authentication")} />
 	);
 };
 

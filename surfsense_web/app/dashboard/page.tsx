@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Loader2, Plus, Search } from "lucide-react";
+import { AlertCircle, Plus, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -18,37 +18,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-
-function LoadingScreen() {
-	const t = useTranslations("dashboard");
-	return (
-		<div className="flex min-h-screen flex-col items-center justify-center gap-4">
-			<motion.div
-				initial={{ opacity: 0, scale: 0.8 }}
-				animate={{ opacity: 1, scale: 1 }}
-				transition={{ duration: 0.5 }}
-			>
-				<Card className="w-full max-w-[350px] bg-background/60 backdrop-blur-sm">
-					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">{t("loading")}</CardTitle>
-						<CardDescription>{t("fetching_spaces")}</CardDescription>
-					</CardHeader>
-					<CardContent className="flex justify-center py-6">
-						<motion.div
-							animate={{ rotate: 360 }}
-							transition={{ duration: 1.5, repeat: Number.POSITIVE_INFINITY, ease: "linear" }}
-						>
-							<Loader2 className="h-12 w-12 text-primary" />
-						</motion.div>
-					</CardContent>
-					<CardFooter className="border-t pt-4 text-sm text-muted-foreground">
-						{t("may_take_moment")}
-					</CardFooter>
-				</Card>
-			</motion.div>
-		</div>
-	);
-}
+import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
 
 function ErrorScreen({ message }: { message: string }) {
 	const t = useTranslations("dashboard");
@@ -121,6 +91,7 @@ export default function DashboardPage() {
 	const router = useRouter();
 	const [showCreateDialog, setShowCreateDialog] = useState(false);
 
+	const t = useTranslations("dashboard");
 	const { data: searchSpaces = [], isLoading, error } = useAtomValue(searchSpacesAtom);
 
 	useEffect(() => {
@@ -131,11 +102,11 @@ export default function DashboardPage() {
 		}
 	}, [isLoading, searchSpaces, router]);
 
-	if (isLoading) return <LoadingScreen />;
+	if (isLoading) return <UnifiedLoadingScreen variant="default" message={t("fetching_spaces")} />;
 	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
 
 	if (searchSpaces.length > 0) {
-		return <LoadingScreen />;
+		return <UnifiedLoadingScreen variant="default" message={t("fetching_spaces")} />;
 	}
 
 	return (

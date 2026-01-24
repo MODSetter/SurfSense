@@ -1,8 +1,10 @@
 "use client";
 
 import { useAtomValue } from "jotai";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
 import { getBearerToken } from "@/lib/auth-utils";
 import {
 	cleanupElectric,
@@ -28,6 +30,7 @@ interface ElectricProviderProps {
  * 5. Provides client via context - hooks should use useElectricClient()
  */
 export function ElectricProvider({ children }: ElectricProviderProps) {
+	const t = useTranslations("common");
 	const [electricClient, setElectricClient] = useState<ElectricClient | null>(null);
 	const [error, setError] = useState<Error | null>(null);
 	const {
@@ -120,9 +123,7 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 	if (!electricClient && !error) {
 		return (
 			<ElectricContext.Provider value={null}>
-				<div className="flex items-center justify-center min-h-screen">
-					<div className="text-muted-foreground">Initializing...</div>
-				</div>
+				<UnifiedLoadingScreen variant="default" message={t("initializing")} />
 			</ElectricContext.Provider>
 		);
 	}
