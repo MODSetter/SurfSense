@@ -723,12 +723,24 @@
 	"searchSpaceSettings": {
 		"title": "Search Space Settings",
 		"back_to_app": "Back to app",
+		"nav_general": "General",
+		"nav_general_desc": "Name, description & basic info",
 		"nav_agent_configs": "Agent Configs",
 		"nav_agent_configs_desc": "LLM models with prompts & citations",
 		"nav_role_assignments": "Role Assignments",
 		"nav_role_assignments_desc": "Assign configs to agent roles",
 		"nav_system_instructions": "System Instructions",
-		"nav_system_instructions_desc": "SearchSpace-wide AI instructions"
+		"nav_system_instructions_desc": "SearchSpace-wide AI instructions",
+		"general_name_label": "Name",
+		"general_name_placeholder": "Enter search space name",
+		"general_name_description": "A unique name for your search space.",
+		"general_description_label": "Description",
+		"general_description_placeholder": "Enter search space description",
+		"general_description_description": "A brief description of what this search space will be used for.",
+		"general_reset": "Reset Changes",
+		"general_save": "Save Changes",
+		"general_saving": "Saving",
+		"general_unsaved_changes": "You have unsaved changes. Click \"Save Changes\" to apply them."
 	},
 	"homepage": {
 		"hero_title_part1": "The AI Workspace",
