@@ -22,6 +22,8 @@ import logging
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
+import pytz
+from dateutil.parser import isoparse
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy.exc import IntegrityError
@@ -47,6 +49,7 @@ from app.schemas import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
+from app.services.composio_service import ComposioService
 from app.services.notification_service import NotificationService
 from app.tasks.connector_indexers import (
     index_airtable_records,
@@ -529,6 +532,38 @@ async def delete_search_source_connector(
                     f"Failed to delete periodic schedule for connector {connector_id}"
                 )
 
+        # For Composio connectors, also delete the connected account in Composio
+        composio_connector_types = [
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+        ]
+        if db_connector.connector_type in composio_connector_types:
+            composio_connected_account_id = db_connector.config.get(
+                "composio_connected_account_id"
+            )
+            if composio_connected_account_id and ComposioService.is_enabled():
+                try:
+                    service = ComposioService()
+                    deleted = await service.delete_connected_account(
+                        composio_connected_account_id
+                    )
+                    if deleted:
+                        logger.info(
+                            f"Successfully deleted Composio connected account {composio_connected_account_id} "
+                            f"for connector {connector_id}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Failed to delete Composio connected account {composio_connected_account_id} "
+                            f"for connector {connector_id}"
+                        )
+                except Exception as composio_error:
+                    # Log but don't fail the deletion - Composio account may already be deleted
+                    logger.warning(
+                        f"Error deleting Composio connected account {composio_connected_account_id}: {composio_error!s}"
+                    )
+
         await session.delete(db_connector)
         await session.commit()
         return {"message": "Search source connector deleted successfully"}
@@ -611,32 +646,59 @@ async def index_connector_content(
 
         # Handle different connector types
         response_message = ""
-        today_str = datetime.now().strftime("%Y-%m-%d")
+        # Use UTC for consistency with last_indexed_at storage
+        today_str = datetime.now(UTC).strftime("%Y-%m-%d")
 
         # Determine the actual date range to use
         if start_date is None:
             # Use last_indexed_at or default to 365 days ago
             if connector.last_indexed_at:
-                today = datetime.now().date()
-                if connector.last_indexed_at.date() == today:
-                    # If last indexed today, go back 1 day to ensure we don't miss anything
-                    indexing_from = (today - timedelta(days=1)).strftime("%Y-%m-%d")
-                else:
-                    indexing_from = connector.last_indexed_at.strftime("%Y-%m-%d")
-            else:
-                indexing_from = (datetime.now() - timedelta(days=365)).strftime(
-                    "%Y-%m-%d"
+                # Convert last_indexed_at to timezone-naive for comparison (like calculate_date_range does)
+                last_indexed_naive = (
+                    connector.last_indexed_at.replace(tzinfo=None)
+                    if connector.last_indexed_at.tzinfo
+                    else connector.last_indexed_at
                 )
+                # Use UTC for "today" to match how last_indexed_at is stored
+                today_utc = datetime.now(UTC).replace(tzinfo=None).date()
+                last_indexed_date = last_indexed_naive.date()
+
+                if last_indexed_date == today_utc:
+                    # If last indexed today, go back 1 day to ensure we don't miss anything
+                    indexing_from = (today_utc - timedelta(days=1)).strftime("%Y-%m-%d")
+                else:
+                    indexing_from = last_indexed_naive.strftime("%Y-%m-%d")
+            else:
+                indexing_from = (
+                    datetime.now(UTC).replace(tzinfo=None) - timedelta(days=365)
+                ).strftime("%Y-%m-%d")
         else:
             indexing_from = start_date
 
         # For calendar connectors, default to today but allow future dates if explicitly provided
         if connector.connector_type in [
             SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
             SearchSourceConnectorType.LUMA_CONNECTOR,
         ]:
             # Default to today if no end_date provided (users can manually select future dates)
             indexing_to = today_str if end_date is None else end_date
+
+            # If start_date and end_date are the same, adjust end_date to be one day later
+            # to ensure valid date range (start_date must be strictly before end_date)
+            if indexing_from == indexing_to:
+                dt = isoparse(indexing_to)
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=pytz.UTC)
+                else:
+                    dt = dt.astimezone(pytz.UTC)
+                # Add one day to end_date to make it strictly after start_date
+                dt_end = dt + timedelta(days=1)
+                indexing_to = dt_end.strftime("%Y-%m-%d")
+                logger.info(
+                    f"Adjusted end_date from {end_date} to {indexing_to} "
+                    f"to ensure valid date range (start_date must be strictly before end_date)"
+                )
         else:
             # For non-calendar connectors, cap at today
             indexing_to = end_date if end_date else today_str
@@ -887,11 +949,66 @@ async def index_connector_content(
             )
             response_message = "Obsidian vault indexing started in the background."
 
-        elif connector.connector_type == SearchSourceConnectorType.COMPOSIO_CONNECTOR:
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+        ):
             from app.tasks.celery_tasks.connector_tasks import (
                 index_composio_connector_task,
             )
 
+            # For Composio Google Drive, if drive_items is provided, update connector config
+            # This allows the UI to pass folder/file selection like the regular Google Drive connector
+            if drive_items and drive_items.has_items():
+                # Update connector config with the selected folders/files
+                config = connector.config or {}
+                config["selected_folders"] = [
+                    {"id": f.id, "name": f.name} for f in drive_items.folders
+                ]
+                config["selected_files"] = [
+                    {"id": f.id, "name": f.name} for f in drive_items.files
+                ]
+                if drive_items.indexing_options:
+                    config["indexing_options"] = {
+                        "max_files_per_folder": drive_items.indexing_options.max_files_per_folder,
+                        "incremental_sync": drive_items.indexing_options.incremental_sync,
+                        "include_subfolders": drive_items.indexing_options.include_subfolders,
+                    }
+                connector.config = config
+                from sqlalchemy.orm.attributes import flag_modified
+
+                flag_modified(connector, "config")
+                await session.commit()
+                await session.refresh(connector)
+
+                logger.info(
+                    f"Triggering Composio Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
+                )
+            else:
+                logger.info(
+                    f"Triggering Composio Google Drive indexing for connector {connector_id} into search space {search_space_id} "
+                    f"using existing config (from {indexing_from} to {indexing_to})"
+                )
+
+            index_composio_connector_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = (
+                "Composio Google Drive indexing started in the background."
+            )
+
+        elif connector.connector_type in [
+            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+        ]:
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_composio_connector_task,
+            )
+
+            # For Composio Gmail and Calendar, use the same date calculation logic as normal connectors
+            # This ensures consistent behavior and uses last_indexed_at to reduce API calls
+            # (includes special case: if indexed today, go back 1 day to avoid missing data)
             logger.info(
                 f"Triggering Composio connector indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
@@ -943,7 +1060,9 @@ async def _update_connector_timestamp_by_id(session: AsyncSession, connector_id:
         connector = result.scalars().first()
 
         if connector:
-            connector.last_indexed_at = datetime.now()
+            connector.last_indexed_at = datetime.now(
+                UTC
+            )  # Use UTC for timezone consistency
             await session.commit()
             logger.info(f"Updated last_indexed_at for connector {connector_id}")
     except Exception as e:
@@ -1083,18 +1202,24 @@ async def _run_indexing_with_notifications(
                 )
 
             await update_timestamp_func(session, connector_id)
+            await session.commit()  # Commit timestamp update
             logger.info(
                 f"Indexing completed successfully: {documents_processed} documents processed"
             )
 
-            # Update notification on success
+            # Update notification on success (or partial success with errors)
             if notification:
+                # Refresh notification to ensure it's not stale after timestamp update commit
+                await session.refresh(notification)
                 await NotificationService.connector_indexing.notify_indexing_completed(
                     session=session,
                     notification=notification,
                     indexed_count=documents_processed,
-                    error_message=None,
+                    error_message=error_or_warning,  # Show errors even if some documents were indexed
                 )
+                await (
+                    session.commit()
+                )  # Commit to ensure Electric SQL syncs the notification update
         elif documents_processed > 0:
             # Update notification to storing stage
             if notification:
@@ -1110,24 +1235,73 @@ async def _run_indexing_with_notifications(
                 f"Indexing completed successfully: {documents_processed} documents processed"
             )
             if notification:
+                # Refresh notification to ensure it's not stale after indexing function commits
+                await session.refresh(notification)
                 await NotificationService.connector_indexing.notify_indexing_completed(
                     session=session,
                     notification=notification,
                     indexed_count=documents_processed,
-                    error_message=None,
+                    error_message=error_or_warning,  # Show errors even if some documents were indexed
                 )
+                await (
+                    session.commit()
+                )  # Commit to ensure Electric SQL syncs the notification update
         else:
             # No new documents processed - check if this is an error or just no changes
             if error_or_warning:
-                # Actual failure
-                logger.error(f"Indexing failed: {error_or_warning}")
-                if notification:
-                    await NotificationService.connector_indexing.notify_indexing_completed(
-                        session=session,
-                        notification=notification,
-                        indexed_count=0,
-                        error_message=error_or_warning,
-                    )
+                # Check if this is a duplicate warning or empty result (success cases) or an actual error
+                # Handle both normal and Composio calendar connectors
+                error_or_warning_lower = (
+                    str(error_or_warning).lower() if error_or_warning else ""
+                )
+                is_duplicate_warning = "skipped (duplicate)" in error_or_warning_lower
+                # "No X found" messages are success cases - sync worked, just found nothing in date range
+                is_empty_result = (
+                    "no " in error_or_warning_lower
+                    and "found" in error_or_warning_lower
+                )
+
+                if is_duplicate_warning or is_empty_result:
+                    # These are success cases - sync worked, just found nothing new
+                    logger.info(f"Indexing completed successfully: {error_or_warning}")
+                    # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
+                    if update_timestamp_func:
+                        await update_timestamp_func(session, connector_id)
+                        await session.commit()  # Commit timestamp update
+                    if notification:
+                        # Refresh notification to ensure it's not stale after timestamp update commit
+                        await session.refresh(notification)
+                        # For empty results, use a cleaner message
+                        notification_message = (
+                            "No new items found in date range"
+                            if is_empty_result
+                            else error_or_warning
+                        )
+                        await NotificationService.connector_indexing.notify_indexing_completed(
+                            session=session,
+                            notification=notification,
+                            indexed_count=0,
+                            error_message=notification_message,  # Pass as warning, not error
+                            is_warning=True,  # Flag to indicate this is a warning, not an error
+                        )
+                        await (
+                            session.commit()
+                        )  # Commit to ensure Electric SQL syncs the notification update
+                else:
+                    # Actual failure
+                    logger.error(f"Indexing failed: {error_or_warning}")
+                    if notification:
+                        # Refresh notification to ensure it's not stale after indexing function commits
+                        await session.refresh(notification)
+                        await NotificationService.connector_indexing.notify_indexing_completed(
+                            session=session,
+                            notification=notification,
+                            indexed_count=0,
+                            error_message=error_or_warning,
+                        )
+                        await (
+                            session.commit()
+                        )  # Commit to ensure Electric SQL syncs the notification update
             else:
                 # Success - just no new documents to index (all skipped/unchanged)
                 logger.info(
@@ -1136,13 +1310,19 @@ async def _run_indexing_with_notifications(
                 # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
                 if update_timestamp_func:
                     await update_timestamp_func(session, connector_id)
+                    await session.commit()  # Commit timestamp update
                 if notification:
+                    # Refresh notification to ensure it's not stale after timestamp update commit
+                    await session.refresh(notification)
                     await NotificationService.connector_indexing.notify_indexing_completed(
                         session=session,
                         notification=notification,
                         indexed_count=0,
                         error_message=None,  # No error - sync succeeded
                     )
+                    await (
+                        session.commit()
+                    )  # Commit to ensure Electric SQL syncs the notification update
     except Exception as e:
         logger.error(f"Error in indexing task: {e!s}", exc_info=True)
 
@@ -2153,6 +2333,59 @@ async def run_obsidian_indexing(
         start_date=start_date,
         end_date=end_date,
         indexing_function=index_obsidian_vault,
+        update_timestamp_func=_update_connector_timestamp_by_id,
+    )
+
+
+async def run_composio_indexing_with_new_session(
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str,
+    end_date: str,
+):
+    """
+    Create a new session and run the Composio indexing task.
+    This prevents session leaks by creating a dedicated session for the background task.
+    """
+    async with async_session_maker() as session:
+        await run_composio_indexing(
+            session, connector_id, search_space_id, user_id, start_date, end_date
+        )
+
+
+async def run_composio_indexing(
+    session: AsyncSession,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+    start_date: str | None,
+    end_date: str | None,
+):
+    """
+    Run Composio connector indexing with real-time notifications.
+
+    This wraps the Composio indexer with the notification system so that
+    Electric SQL can sync indexing progress to the frontend in real-time.
+
+    Args:
+        session: Database session
+        connector_id: ID of the Composio connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        start_date: Start date for indexing
+        end_date: End date for indexing
+    """
+    from app.tasks.composio_indexer import index_composio_connector
+
+    await _run_indexing_with_notifications(
+        session=session,
+        connector_id=connector_id,
+        search_space_id=search_space_id,
+        user_id=user_id,
+        start_date=start_date,
+        end_date=end_date,
+        indexing_function=index_composio_connector,
         update_timestamp_func=_update_connector_timestamp_by_id,
     )
 

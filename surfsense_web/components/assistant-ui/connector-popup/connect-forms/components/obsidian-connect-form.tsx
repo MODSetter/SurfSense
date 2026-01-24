@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { FolderOpen, Info } from "lucide-react";
+import { Info } from "lucide-react";
 import type { FC } from "react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -109,7 +109,7 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitti
 	return (
 		<div className="space-y-6 pb-6">
 			<Alert className="bg-purple-500/10 dark:bg-purple-500/10 border-purple-500/30 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<FolderOpen className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1 text-purple-500" />
+				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1 text-purple-500" />
 				<div className="-ml-1">
 					<AlertTitle className="text-xs sm:text-sm">Self-Hosted Only</AlertTitle>
 					<AlertDescription className="text-[10px] sm:text-xs pl-0!">

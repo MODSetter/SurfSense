@@ -25,7 +25,9 @@ export const documentTypeEnum = z.enum([
 	"CIRCLEBACK",
 	"SURFSENSE_DOCS",
 	"NOTE",
-	"COMPOSIO_CONNECTOR",
+	"COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+	"COMPOSIO_GMAIL_CONNECTOR",
+	"COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
 ]);
 
 export const document = z.object({

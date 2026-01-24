@@ -157,7 +157,7 @@
 		"delete_note": "Delete Note",
 		"delete_note_confirm": "Are you sure you want to delete",
 		"action_cannot_undone": "This action cannot be undone.",
-		"deleting": "Deleting...",
+		"deleting": "Deleting",
 		"surfsense_dashboard": "SurfSense Dashboard",
 		"welcome_message": "Welcome to your SurfSense dashboard.",
 		"your_search_spaces": "Your Search Spaces",
@@ -498,7 +498,7 @@
 		"base": "Base",
 		"all_roles_assigned": "All roles are assigned and ready to use! Your LLM configuration is complete.",
 		"save_changes": "Save Changes",
-		"saving": "Saving...",
+		"saving": "Saving",
 		"reset": "Reset",
 		"status": "Status",
 		"status_ready": "Ready",
@@ -548,7 +548,7 @@
 		"log_deleted_error": "Failed to delete log",
 		"confirm_delete_log_title": "Are you sure?",
 		"confirm_delete_log_desc": "This action cannot be undone. This will permanently delete the log entry.",
-		"deleting": "Deleting..."
+		"deleting": "Deleting"
 	},
 	"onboard": {
 		"welcome_title": "Welcome to SurfSense",

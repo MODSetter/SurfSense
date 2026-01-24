@@ -66,6 +66,7 @@ async def _check_and_trigger_schedules():
             from app.tasks.celery_tasks.connector_tasks import (
                 index_airtable_records_task,
                 index_clickup_tasks_task,
+                index_composio_connector_task,
                 index_confluence_pages_task,
                 index_crawled_urls_task,
                 index_discord_messages_task,
@@ -98,6 +99,10 @@ async def _check_and_trigger_schedules():
                 SearchSourceConnectorType.ELASTICSEARCH_CONNECTOR: index_elasticsearch_documents_task,
                 SearchSourceConnectorType.WEBCRAWLER_CONNECTOR: index_crawled_urls_task,
                 SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR: index_google_drive_files_task,
+                # Composio connector types
+                SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: index_composio_connector_task,
+                SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR: index_composio_connector_task,
+                SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: index_composio_connector_task,
             }
 
             # Trigger indexing for each due connector

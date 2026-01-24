@@ -8,16 +8,18 @@ Endpoints:
 - GET /composio/toolkits - List available Composio toolkits
 - GET /auth/composio/connector/add - Initiate OAuth for a specific toolkit
 - GET /auth/composio/connector/callback - Handle OAuth callback
+- GET /connectors/{connector_id}/composio-drive/folders - List folders/files for Composio Google Drive
 """
 
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from app.config import config
 from app.db import (
@@ -29,18 +31,30 @@ from app.db import (
 from app.services.composio_service import (
     COMPOSIO_TOOLKIT_NAMES,
     INDEXABLE_TOOLKITS,
+    TOOLKIT_TO_CONNECTOR_TYPE,
     ComposioService,
 )
 from app.users import current_active_user
 from app.utils.connector_naming import (
-    check_duplicate_connector,
-    generate_unique_connector_name,
+    count_connectors_of_type,
+    get_base_name_for_type,
 )
 from app.utils.oauth_security import OAuthStateManager
+
+# Note: We no longer use check_duplicate_connector for Composio connectors because
+# Composio generates a new connected_account_id each time, even for the same Google account.
+# Instead, we check for existing connectors by type/space/user and update them.
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+# Map toolkit_id to frontend connector ID
+TOOLKIT_TO_FRONTEND_CONNECTOR_ID = {
+    "googledrive": "composio-googledrive",
+    "gmail": "composio-gmail",
+    "googlecalendar": "composio-googlecalendar",
+}
 
 # Initialize security utilities
 _state_manager = None
@@ -166,11 +180,8 @@ async def initiate_composio_auth(
 
 @router.get("/auth/composio/connector/callback")
 async def composio_callback(
+    request: Request,
     state: str | None = None,
-    composio_connected_account_id: str | None = Query(
-        None, alias="connectedAccountId"
-    ),  # Composio sends camelCase
-    connected_account_id: str | None = None,  # Fallback snake_case
     error: str | None = None,
     session: AsyncSession = Depends(get_async_session),
 ):
@@ -236,16 +247,17 @@ async def composio_callback(
         )
 
         # Initialize Composio service
-        ComposioService()
+        service = ComposioService()
 
-        # Use camelCase param if provided (Composio's format), fallback to snake_case
-        final_connected_account_id = (
-            composio_connected_account_id or connected_account_id
-        )
+        # Extract connected_account_id from query params (accepts both camelCase and snake_case)
+        query_params = request.query_params
+        final_connected_account_id = query_params.get(
+            "connectedAccountId"
+        ) or query_params.get("connected_account_id")
 
-        # DEBUG: Log all query parameters received
+        # DEBUG: Log query parameter received
         logger.info(
-            f"DEBUG: Callback received - connectedAccountId: {composio_connected_account_id}, connected_account_id: {connected_account_id}, using: {final_connected_account_id}"
+            f"DEBUG: Callback received - connectedAccountId: {query_params.get('connectedAccountId')}, connected_account_id: {query_params.get('connected_account_id')}, using: {final_connected_account_id}"
         )
 
         # If we still don't have a connected_account_id, warn but continue
@@ -268,38 +280,89 @@ async def composio_callback(
             "is_indexable": toolkit_id in INDEXABLE_TOOLKITS,
         }
 
-        # Check for duplicate connector
-        # For Composio, we use toolkit_id + connected_account_id as unique identifier
-        identifier = final_connected_account_id or f"{toolkit_id}_{user_id}"
+        # Get the specific connector type for this toolkit
+        connector_type_str = TOOLKIT_TO_CONNECTOR_TYPE.get(toolkit_id)
+        if not connector_type_str:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unknown toolkit: {toolkit_id}. Available: {list(TOOLKIT_TO_CONNECTOR_TYPE.keys())}",
+            )
+        connector_type = SearchSourceConnectorType(connector_type_str)
 
-        is_duplicate = await check_duplicate_connector(
-            session,
-            SearchSourceConnectorType.COMPOSIO_CONNECTOR,
-            space_id,
-            user_id,
-            identifier,
+        # Check for existing connector of the same type for this user/space
+        # When reconnecting, Composio gives a new connected_account_id, so we need to
+        # check by connector_type, user_id, and search_space_id instead of connected_account_id
+        existing_connector_result = await session.execute(
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.connector_type == connector_type,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.user_id == user_id,
+            )
         )
-        if is_duplicate:
-            logger.warning(
-                f"Duplicate Composio connector detected for user {user_id} with toolkit {toolkit_id}"
+        existing_connector = existing_connector_result.scalars().first()
+
+        if existing_connector:
+            # Delete the old Composio connected account before updating
+            old_connected_account_id = existing_connector.config.get(
+                "composio_connected_account_id"
+            )
+            if (
+                old_connected_account_id
+                and old_connected_account_id != final_connected_account_id
+            ):
+                try:
+                    deleted = await service.delete_connected_account(
+                        old_connected_account_id
+                    )
+                    if deleted:
+                        logger.info(
+                            f"Deleted old Composio connected account {old_connected_account_id} "
+                            f"before updating connector {existing_connector.id}"
+                        )
+                    else:
+                        logger.warning(
+                            f"Failed to delete old Composio connected account {old_connected_account_id}"
+                        )
+                except Exception as delete_error:
+                    # Log but don't fail - the old account may already be deleted
+                    logger.warning(
+                        f"Error deleting old Composio connected account {old_connected_account_id}: {delete_error!s}"
+                    )
+
+            # Update existing connector with new connected_account_id
+            logger.info(
+                f"Updating existing Composio connector {existing_connector.id} with new connected_account_id {final_connected_account_id}"
+            )
+            existing_connector.config = connector_config
+            await session.commit()
+            await session.refresh(existing_connector)
+
+            # Get the frontend connector ID based on toolkit_id
+            frontend_connector_id = TOOLKIT_TO_FRONTEND_CONNECTOR_ID.get(
+                toolkit_id, "composio-connector"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=composio-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={existing_connector.id}"
             )
 
         try:
-            # Generate a unique, user-friendly connector name
-            connector_name = await generate_unique_connector_name(
-                session,
-                SearchSourceConnectorType.COMPOSIO_CONNECTOR,
-                space_id,
-                user_id,
-                f"{toolkit_name} (Composio)",
+            # Count existing connectors of this type to determine the number
+            count = await count_connectors_of_type(
+                session, connector_type, space_id, user_id
             )
+
+            # Generate base name (e.g., "Gmail", "Google Drive")
+            base_name = get_base_name_for_type(connector_type)
+
+            # Format: "Gmail (Composio) 1", "Gmail (Composio) 2", etc.
+            if count == 0:
+                connector_name = f"{base_name} (Composio) 1"
+            else:
+                connector_name = f"{base_name} (Composio) {count + 1}"
 
             db_connector = SearchSourceConnector(
                 name=connector_name,
-                connector_type=SearchSourceConnectorType.COMPOSIO_CONNECTOR,
+                connector_type=connector_type,
                 config=connector_config,
                 search_space_id=space_id,
                 user_id=user_id,
@@ -314,8 +377,12 @@ async def composio_callback(
                 f"Successfully created Composio connector {db_connector.id} for user {user_id}, toolkit {toolkit_id}"
             )
 
+            # Get the frontend connector ID based on toolkit_id
+            frontend_connector_id = TOOLKIT_TO_FRONTEND_CONNECTOR_ID.get(
+                toolkit_id, "composio-connector"
+            )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=composio-connector&connectorId={db_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={db_connector.id}"
             )
 
         except IntegrityError as e:
@@ -338,4 +405,137 @@ async def composio_callback(
         logger.error(f"Unexpected error in Composio callback: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Composio OAuth: {e!s}"
+        ) from e
+
+
+@router.get("/connectors/{connector_id}/composio-drive/folders")
+async def list_composio_drive_folders(
+    connector_id: int,
+    parent_id: str | None = None,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    List folders AND files in user's Google Drive via Composio with hierarchical support.
+
+    This is called at index time from the manage connector page to display
+    the complete file system (folders and files). Only folders are selectable.
+
+    Args:
+        connector_id: ID of the Composio Google Drive connector
+        parent_id: Optional parent folder ID to list contents (None for root)
+
+    Returns:
+        JSON with list of items: {
+            "items": [
+                {"id": str, "name": str, "mimeType": str, "isFolder": bool, ...},
+                ...
+            ]
+        }
+    """
+    if not ComposioService.is_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Composio integration is not enabled.",
+        )
+
+    try:
+        # Get connector and verify ownership
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Composio Google Drive connector not found or access denied",
+            )
+
+        # Get Composio connected account ID from config
+        composio_connected_account_id = connector.config.get(
+            "composio_connected_account_id"
+        )
+        if not composio_connected_account_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Composio connected account not found. Please reconnect the connector.",
+            )
+
+        # Initialize Composio service and fetch files
+        service = ComposioService()
+        entity_id = f"surfsense_{user.id}"
+
+        # Fetch files/folders from Composio Google Drive
+        files, _next_token, error = await service.get_drive_files(
+            connected_account_id=composio_connected_account_id,
+            entity_id=entity_id,
+            folder_id=parent_id,
+            page_size=100,
+        )
+
+        if error:
+            logger.error(f"Failed to list Composio Drive files: {error}")
+            raise HTTPException(
+                status_code=500, detail=f"Failed to list folder contents: {error}"
+            )
+
+        # Transform files to match the expected format with isFolder field
+        items = []
+        for file_info in files:
+            file_id = file_info.get("id", "") or file_info.get("fileId", "")
+            file_name = (
+                file_info.get("name", "") or file_info.get("fileName", "") or "Untitled"
+            )
+            mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
+
+            if not file_id:
+                continue
+
+            is_folder = mime_type == "application/vnd.google-apps.folder"
+
+            items.append(
+                {
+                    "id": file_id,
+                    "name": file_name,
+                    "mimeType": mime_type,
+                    "isFolder": is_folder,
+                    "parents": file_info.get("parents", []),
+                    "size": file_info.get("size"),
+                    "iconLink": file_info.get("iconLink"),
+                }
+            )
+
+        # Sort: folders first, then files, both alphabetically
+        folders = sorted(
+            [item for item in items if item["isFolder"]],
+            key=lambda x: x["name"].lower(),
+        )
+        files_list = sorted(
+            [item for item in items if not item["isFolder"]],
+            key=lambda x: x["name"].lower(),
+        )
+        items = folders + files_list
+
+        folder_count = len(folders)
+        file_count = len(files_list)
+
+        logger.info(
+            f"Listed {len(items)} total items ({folder_count} folders, {file_count} files) for Composio connector {connector_id}"
+            + (f" in folder {parent_id}" if parent_id else " in ROOT")
+        )
+
+        return {"items": items}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing Composio Drive contents: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to list Drive contents: {e!s}"
         ) from e

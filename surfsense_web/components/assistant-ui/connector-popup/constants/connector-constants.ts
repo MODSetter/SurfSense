@@ -175,14 +175,28 @@ export const OTHER_CONNECTORS = [
 	},
 ] as const;
 
-// Composio Connector (Single entry that opens toolkit selector)
+// Composio Connectors - Individual entries for each supported toolkit
 export const COMPOSIO_CONNECTORS = [
 	{
-		id: "composio-connector",
-		title: "Composio",
-		description: "Connect 100+ apps via Composio (Google, Slack, Notion, etc.)",
-		connectorType: EnumConnectorName.COMPOSIO_CONNECTOR,
-		// No authEndpoint - handled via toolkit selector view
+		id: "composio-googledrive",
+		title: "Google Drive",
+		description: "Search your Drive files via Composio",
+		connectorType: EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+		authEndpoint: "/api/v1/auth/composio/connector/add/?toolkit_id=googledrive",
+	},
+	{
+		id: "composio-gmail",
+		title: "Gmail",
+		description: "Search through your emails via Composio",
+		connectorType: EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
+		authEndpoint: "/api/v1/auth/composio/connector/add/?toolkit_id=gmail",
+	},
+	{
+		id: "composio-googlecalendar",
+		title: "Google Calendar",
+		description: "Search through your events via Composio",
+		connectorType: EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+		authEndpoint: "/api/v1/auth/composio/connector/add/?toolkit_id=googlecalendar",
 	},
 ] as const;
 

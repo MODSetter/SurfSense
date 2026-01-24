@@ -335,6 +335,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         notification: Notification,
         indexed_count: int,
         error_message: str | None = None,
+        is_warning: bool = False,
     ) -> Notification:
         """
         Update notification when connector indexing completes.
@@ -343,7 +344,8 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             session: Database session
             notification: Notification to update
             indexed_count: Total number of items indexed
-            error_message: Error message if indexing failed (optional)
+            error_message: Error message if indexing failed, or warning message (optional)
+            is_warning: If True, treat error_message as a warning (success case) rather than an error
 
         Returns:
             Updated notification
@@ -352,10 +354,26 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             "connector_name", "Connector"
         )
 
+        # If there's an error message but items were indexed, treat it as a warning (partial success)
+        # If is_warning is True, treat it as success even with 0 items (e.g., duplicates found)
+        # Otherwise, treat it as a failure
         if error_message:
-            title = f"Failed: {connector_name}"
-            message = f"Sync failed: {error_message}"
-            status = "failed"
+            if indexed_count > 0:
+                # Partial success with warnings (e.g., duplicate content from other connectors)
+                title = f"Ready: {connector_name}"
+                item_text = "item" if indexed_count == 1 else "items"
+                message = f"Now searchable! {indexed_count} {item_text} synced. Note: {error_message}"
+                status = "completed"
+            elif is_warning:
+                # Warning case (e.g., duplicates found) - treat as success
+                title = f"Ready: {connector_name}"
+                message = f"Sync completed. {error_message}"
+                status = "completed"
+            else:
+                # Complete failure
+                title = f"Failed: {connector_name}"
+                message = f"Sync failed: {error_message}"
+                status = "failed"
         else:
             title = f"Ready: {connector_name}"
             if indexed_count == 0:
@@ -367,7 +385,9 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
 
         metadata_updates = {
             "indexed_count": indexed_count,
-            "sync_stage": "completed" if not error_message else "failed",
+            "sync_stage": "completed"
+            if (not error_message or is_warning or indexed_count > 0)
+            else "failed",
             "error_message": error_message,
         }
 

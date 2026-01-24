@@ -112,6 +112,13 @@ def calculate_date_range(
     Returns:
         Tuple of (start_date_str, end_date_str)
     """
+    # Normalize "undefined" strings to None (from frontend)
+    # This prevents parsing errors and ensures consistent behavior across all indexers
+    if start_date == "undefined" or start_date == "":
+        start_date = None
+    if end_date == "undefined" or end_date == "":
+        end_date = None
+
     if start_date is not None and end_date is not None:
         return start_date, end_date
 

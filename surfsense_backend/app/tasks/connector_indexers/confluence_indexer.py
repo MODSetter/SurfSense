@@ -120,10 +120,9 @@ async def index_confluence_pages(
             )
 
             if error:
-                logger.error(f"Failed to get Confluence pages: {error}")
-
                 # Don't treat "No pages found" as an error that should stop indexing
                 if "No pages found" in error:
+                    logger.info(f"No Confluence pages found: {error}")
                     logger.info(
                         "No pages found is not a critical error, continuing with update"
                     )
@@ -147,6 +146,7 @@ async def index_confluence_pages(
                             await confluence_client.close()
                     return 0, None
                 else:
+                    logger.error(f"Failed to get Confluence pages: {error}")
                     await task_logger.log_task_failure(
                         log_entry,
                         f"Failed to get Confluence pages: {error}",

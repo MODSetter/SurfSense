@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import type { FC } from "react";
 import { useEffect, useState } from "react";
-import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
+import { ComposioDriveFolderTree } from "@/components/connectors/composio-drive-folder-tree";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,7 +22,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { ConnectorConfigProps } from "../index";
+import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+
+interface ComposioDriveConfigProps {
+	connector: SearchSourceConnector;
+	onConfigChange?: (config: Record<string, unknown>) => void;
+	onNameChange?: (name: string) => void;
+}
 
 interface SelectedFolder {
 	id: string;
@@ -87,7 +93,12 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	return <File className={`${className} text-gray-500`} />;
 }
 
-export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
+export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
+	connector,
+	onConfigChange,
+}) => {
+	const isIndexable = connector.config?.is_indexable as boolean;
+
 	// Initialize with existing selected folders and files from connector config
 	const existingFolders =
 		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
@@ -157,14 +168,19 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 
 	const totalSelected = selectedFolders.length + selectedFiles.length;
 
+	// Only show configuration if the connector is indexable
+	if (!isIndexable) {
+		return <div className="space-y-6" />;
+	}
+
 	return (
-		<div className="space-y-4">
+		<div className="space-y-6">
 			{/* Folder & File Selection */}
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">
 				<div className="space-y-1 sm:space-y-2">
 					<h3 className="font-medium text-sm sm:text-base">Folder & File Selection</h3>
 					<p className="text-xs sm:text-sm text-muted-foreground">
-						Select specific folders and/or individual files to index.
+						Select specific folders and/or individual files to index from your Google Drive.
 					</p>
 				</div>
 
@@ -227,7 +243,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 
 				{showFolderSelector ? (
 					<div className="space-y-2 sm:space-y-3">
-						<GoogleDriveFolderTree
+						<ComposioDriveFolderTree
 							connectorId={connector.id}
 							selectedFolders={selectedFolders}
 							onSelectFolders={handleSelectFolders}
@@ -307,23 +323,6 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 							</SelectContent>
 						</Select>
 					</div>
-				</div>
-
-				{/* Incremental sync toggle */}
-				<div className="flex items-center justify-between pt-2 border-t border-slate-400/20">
-					<div className="space-y-0.5">
-						<Label htmlFor="incremental-sync" className="text-sm font-medium">
-							Incremental sync
-						</Label>
-						<p className="text-xs text-muted-foreground">
-							Only sync changes since last index (faster). Disable for a full re-index.
-						</p>
-					</div>
-					<Switch
-						id="incremental-sync"
-						checked={indexingOptions.incremental_sync}
-						onCheckedChange={(checked) => handleIndexingOptionChange("incremental_sync", checked)}
-					/>
 				</div>
 
 				{/* Include subfolders toggle */}
