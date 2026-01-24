@@ -38,7 +38,9 @@ You'll also see your **Application ID** and **Public Key** on this page.
    http://localhost:8000/api/v1/auth/discord/connector/callback
    ```
 
-> ⚠️ Keep **Public Client** disabled (off) since SurfSense uses a server to make requests.
+<Callout type="warn">
+   Keep **Public Client** disabled (off) since SurfSense uses a server to make requests.
+</Callout>
 
 ![OAuth2 Configuration](/docs/connectors/discord/discord-oauth2.png)
 
@@ -46,13 +48,15 @@ You'll also see your **Application ID** and **Public Key** on this page.
 
 1. In the left sidebar, click **"Bot"**
 2. Configure the **Authorization Flow**:
-   - ✅ **Public Bot** - Enable to allow anyone to add the bot to servers
+   - **Public Bot** - Enable to allow anyone to add the bot to servers
 
 3. Enable **Privileged Gateway Intents**:
-   - ✅ **Server Members Intent** - Required to receive GUILD_MEMBERS events
-   - ✅ **Message Content Intent** - Required to receive message content
+   - **Server Members Intent** - Required to receive GUILD_MEMBERS events
+   - **Message Content Intent** - Required to receive message content
 
-> ⚠️ Once your bot reaches 100+ servers, these intents will require verification and approval.
+<Callout type="warn">
+   Once your bot reaches 100+ servers, these intents will require verification and approval.
+</Callout>
 
 ![Bot Settings](/docs/connectors/discord/discord-bot-settings.png)
 

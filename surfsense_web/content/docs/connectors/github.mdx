@@ -3,9 +3,18 @@ title: GitHub
 description: Connect your GitHub repositories to SurfSense
 ---
 
-# GitHub Connector
+# GitHub Integration Setup Guide
 
-Connect your GitHub repositories to SurfSense for code search and AI-powered insights. The connector uses [gitingest](https://gitingest.com) to efficiently index entire codebases.
+This guide walks you through connecting your GitHub repositories to SurfSense for code search and AI-powered insights.
+
+## How it works
+
+The GitHub connector uses [gitingest](https://gitingest.com) to fetch and process repository contents from GitHub.
+
+- For follow-up indexing runs, the connector retrieves the latest repository state and updates changed files.
+- Indexing should be configured to run periodically, so updates should appear in your search results within minutes.
+
+---
 
 ## What Gets Indexed
 
@@ -15,7 +24,9 @@ Connect your GitHub repositories to SurfSense for code search and AI-powered ins
 | Documentation | README files, Markdown documents, text files |
 | Configuration | JSON, YAML, TOML, .env examples, Dockerfiles |
 
-> ⚠️ Binary files and files larger than 5MB are automatically excluded.
+<Callout type="warn">
+    Binary files and files larger than 5MB are automatically excluded.
+</Callout>
 
 ---
 
@@ -39,7 +50,13 @@ For private repos, you need a GitHub Personal Access Token (PAT).
 2. Set an expiration
 3. Click **Generate token** and copy it
 
-> ⚠️ The token starts with `ghp_`. Store it securely.
+<Callout type="warn">
+    The token starts with `ghp_`. Store it securely.
+</Callout>
+
+<Callout type="info" title="Periodic Sync">
+Enable periodic sync to automatically re-index repositories when content changes. Available frequencies: Every 5 minutes, 15 minutes, hourly, every 6 hours, daily, or weekly.
+</Callout>
 
 ---
 
@@ -50,21 +67,6 @@ For private repos, you need a GitHub Personal Access Token (PAT).
 | **Connector Name** | A friendly name to identify this connector | Yes |
 | **GitHub Personal Access Token** | Your PAT (only for private repos) | No |
 | **Repository Names** | Comma-separated list: `owner/repo1, owner/repo2` | Yes |
-
----
-
-## Periodic Sync
-
-Enable periodic sync to automatically re-index repositories when content changes:
-
-| Frequency | Use Case |
-|-----------|----------|
-| Every 5 minutes | Active development |
-| Every 15 minutes | Frequent commits |
-| Every hour | Regular workflow |
-| Every 6 hours | Less active repos |
-| Daily | Reference repositories |
-| Weekly | Stable codebases |
 
 ---
 

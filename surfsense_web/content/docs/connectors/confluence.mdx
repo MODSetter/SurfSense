@@ -28,7 +28,9 @@ This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration
 2. Check the box to agree to Atlassian's developer terms
 3. Click **"Create"**
 
-> ℹ️ New OAuth 2.0 integrations use rotating refresh tokens, which improve security by limiting token validity and enabling automatic detection of token reuse.
+<Callout type="info">
+  New OAuth 2.0 integrations use rotating refresh tokens, which improve security by limiting token validity and enabling automatic detection of token reuse.
+</Callout>
 
 ![Create New Integration Form](/docs/connectors/atlassian/atlassian-name-integration.png)
 
@@ -41,7 +43,9 @@ This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration
    ```
 3. Click **"Save changes"**
 
-> ℹ️ You can enter up to 10 redirect URIs, one per line.
+<Callout type="info">
+  You can enter up to 10 redirect URIs, one per line.
+</Callout>
 
 ![Authorization Callback URLs](/docs/connectors/atlassian/atlassian-authorization.png)
 
@@ -62,7 +66,7 @@ Select the **"Classic scopes"** tab and enable:
 
 | Scope Name | Code | Description |
 |------------|------|-------------|
-| ✅ Read user | `read:confluence-user` | View user information in Confluence that you have access to, including usernames, email addresses and profile pictures |
+| Read user | `read:confluence-user` | View user information in Confluence that you have access to, including usernames, email addresses and profile pictures |
 
 ![Confluence API Classic Scopes](/docs/connectors/atlassian/confluence/atlassian-confluence-classic-scopes.png)
 
@@ -72,9 +76,9 @@ Select the **"Granular scopes"** tab and enable:
 
 | Scope Name | Code | Description |
 |------------|------|-------------|
-| ✅ View pages | `read:page:confluence` | View page content |
-| ✅ View comments | `read:comment:confluence` | View comments on pages or blogposts |
-| ✅ View spaces | `read:space:confluence` | View space details |
+| View pages | `read:page:confluence` | View page content |
+| View comments | `read:comment:confluence` | View comments on pages or blogposts |
+| View spaces | `read:space:confluence` | View space details |
 
 4. Click **"Save"**
 
@@ -85,7 +89,9 @@ Select the **"Granular scopes"** tab and enable:
 1. In the left sidebar, click **"Settings"**
 2. Copy your **Client ID** and **Client Secret**
 
-> ⚠️ Never share your client secret publicly.
+<Callout type="warn">
+  Never share your client secret publicly.
+</Callout>
 
 ---
 

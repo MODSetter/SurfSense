@@ -1,8 +1,133 @@
 ---
 title: Circleback
-description: Connect your circleback to SurfSense
+description: Connect your Circleback meetings to SurfSense
 ---
 
-# Documentation in progress
+# Circleback Integration Setup Guide
 
+This guide walks you through connecting your Circleback meetings to SurfSense for meeting search and AI-powered insights.
 
+## How it works
+
+The Circleback connector uses a **webhook-based integration**. Unlike other connectors that pull data from APIs, Circleback automatically pushes meeting data to SurfSense when meetings are processed.
+
+- Meetings are sent to SurfSense immediately after Circleback processes them
+- No API keys or credentials required
+- No periodic indexing needed - data arrives in real-time
+- Each meeting is stored with its notes, transcript, action items, and insights
+
+---
+
+## What Gets Indexed
+
+| Content Type | Description |
+|--------------|-------------|
+| Meeting Notes | AI-generated meeting notes in Markdown format |
+| Transcript | Full meeting transcript with speaker identification and timestamps |
+| Action Items | Tasks with assignees and status |
+| Attendees | Names and emails of meeting participants |
+| Insights | Custom insights extracted from the meeting |
+| Metadata | Date, duration, tags, meeting URL, and Circleback link |
+
+<Callout type="info">
+    Meeting recordings are not stored in SurfSense, but a link to the recording (valid for 24 hours from Circleback) is included in the indexed document.
+</Callout>
+
+---
+
+## Setup Guide
+
+### Step 1: Create the Connector in SurfSense
+
+1. Navigate to **Connectors** → **Add Connector** → **Circleback**
+2. Enter a connector name (e.g., `My Circleback Meetings`)
+3. Click **Connect** to create the connector
+
+<Callout type="info" title="No Credentials Needed">
+Circleback uses webhooks, so no API key or authentication is required. The webhook URL is unique to your search space.
+</Callout>
+
+### Step 2: Copy Your Webhook URL
+
+After creating the connector:
+
+1. Open the connector settings
+2. Find the **Webhook URL** field
+3. Click **Copy** to copy the URL to your clipboard
+
+The webhook URL looks like:
+```
+https://your-surfsense-url/api/v1/webhooks/circleback/{search_space_id}
+```
+
+### Step 3: Configure Circleback Automation
+
+1. Log into your [Circleback account](https://app.circleback.ai)
+2. Go to **Automations** (in the main navigation)
+3. Click **Create automation**
+4. Add conditions to filter which meetings trigger the webhook (optional):
+   - Specific calendar(s)
+   - Meeting tags
+   - Meeting participants
+5. Select **Send webhook request** as the action
+6. Enter your SurfSense webhook URL
+7. Select the meeting outcomes to include (notes, action items, transcript, insights)
+8. Optionally test with your most recent meeting
+9. Name and save the automation
+
+For detailed instructions, see [Circleback's official webhook documentation](https://circleback.ai/docs/webhook-integration).
+
+<Callout type="warn">
+    Make sure your SurfSense backend is accessible from the internet for Circleback to send webhooks. If self-hosting, you may need to configure a reverse proxy or use a tunneling service.
+</Callout>
+
+---
+
+## Connector Configuration
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| **Connector Name** | A friendly name to identify this connector | Yes |
+
+<Callout type="info">
+    Unlike other connectors, Circleback doesn't support periodic indexing since it's webhook-based. Meetings are automatically pushed to SurfSense when processed by Circleback.
+</Callout>
+
+---
+
+## Verifying the Integration
+
+Once configured, new meetings will automatically appear in SurfSense after Circleback processes them. To verify:
+
+1. Attend or process a meeting with Circleback
+2. Wait for Circleback to complete processing (usually a few minutes after the meeting ends)
+3. Check your SurfSense search space for the new meeting document
+
+Each meeting document includes:
+- A direct link to view the meeting on Circleback
+- Full searchable transcript
+- Extracted action items with assignees
+- Meeting metadata and insights
+
+---
+
+## Troubleshooting
+
+**Meetings not appearing**
+- Verify the webhook URL is correctly configured in Circleback
+- Check that your SurfSense backend is accessible from the internet
+- Look for errors in your SurfSense backend logs
+
+**Webhook URL not showing**
+- Refresh the connector configuration page
+- Ensure the connector was created successfully
+- Check that your backend is running
+
+**Duplicate meetings**
+- Each meeting is uniquely identified by its Circleback meeting ID
+- If content changes, the existing document is updated rather than duplicated
+
+**Delayed indexing**
+- Meeting data is processed asynchronously
+- Documents should appear within a minute of receiving the webhook
+- Check the task queue if experiencing longer delays

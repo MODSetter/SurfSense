@@ -3,4 +3,115 @@ title: Elasticsearch
 description: Connect your Elasticsearch cluster to SurfSense
 ---
 
-# Documentation in progress
+# Elasticsearch Integration Setup Guide
+
+This guide walks you through connecting your Elasticsearch cluster to SurfSense.
+
+## How it works
+
+The Elasticsearch connector allows you to search and retrieve documents from your Elasticsearch cluster. Configure connection details, select specific indices, and set search parameters to make your existing data searchable within SurfSense.
+
+- For follow-up indexing runs, the connector retrieves documents that have been updated since the last indexing attempt.
+- Indexing should be configured to run periodically, so updates should appear in your search results within minutes.
+
+---
+
+## Authorization
+
+<Callout type="info" title="Authentication Required">
+Elasticsearch requires authentication. You can use either an API key or username/password authentication.
+</Callout>
+
+### Step 1: Get Your Elasticsearch Endpoint
+
+You'll need the endpoint URL for your Elasticsearch cluster. This typically looks like:
+
+- **Cloud:** `https://your-cluster.es.region.aws.com:443`
+- **Self-hosted:** `https://elasticsearch.example.com:9200`
+
+### Step 2: Configure Authentication
+
+Elasticsearch requires authentication. You can use either:
+
+**API Key:** A base64-encoded API key. You can create one in Elasticsearch by running:
+
+```bash
+POST /_security/api_key
+```
+
+**Username & Password:** Basic authentication using your Elasticsearch username and password.
+
+### Step 3: Select Indices
+
+Specify which indices to search. You can:
+
+- Use wildcards: `logs-*` to match multiple indices
+- List specific indices: `logs-2024, documents-2024`
+- Leave empty to search all accessible indices (not recommended for performance)
+
+<Callout type="info" title="Periodic Sync">
+Enable periodic sync to automatically re-index documents when content changes. Available frequencies: Every 5 minutes, 15 minutes, hourly, every 6 hours, daily, or weekly.
+</Callout>
+
+---
+
+## Connecting to SurfSense
+
+1. Navigate to the Connector Dashboard and select the **Elasticsearch** Connector.
+2. Fill in the required fields:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Connector Name** | A friendly name to identify this connector | `My Elasticsearch Connector` |
+| **Elasticsearch Endpoint URL** | The full URL of your Elasticsearch cluster | `https://your-cluster.es.region.aws.com:443` |
+| **API Key** | Your base64-encoded API key (if using API key auth) | |
+| **Username** | Your Elasticsearch username (if using basic auth) | |
+| **Password** | Your Elasticsearch password (if using basic auth) | |
+| **Indices** | Comma-separated list of indices to search | `logs-*, documents-2024` |
+
+3. Click **Connect** to establish the connection.
+4. Once connected, your Elasticsearch documents will be indexed automatically.
+
+---
+
+## Advanced Configuration
+
+### Search Query
+
+The default query used for searches. Use `*` to match all documents, or specify a more complex Elasticsearch query.
+
+### Search Fields
+
+Limit searches to specific fields for better performance. Common fields include:
+
+- `title` - Document titles
+- `content` - Main content
+- `description` - Descriptions
+
+Leave empty to search all fields in your documents.
+
+### Maximum Documents
+
+Set a limit on the number of documents retrieved per search (1-10,000). This helps control response times and resource usage. Leave empty to use Elasticsearch's default limit.
+
+---
+
+## Troubleshooting
+
+### Connection Issues
+
+- **Invalid URL:** Ensure your endpoint URL includes the protocol (https://) and port number if required.
+- **SSL/TLS Errors:** Verify that your cluster uses HTTPS and the certificate is valid. Self-signed certificates may require additional configuration.
+- **Connection Timeout:** Check your network connectivity and firewall settings. Ensure the Elasticsearch cluster is accessible from SurfSense servers.
+
+### Authentication Issues
+
+- **Invalid Credentials:** Double-check your username/password or API key. API keys must be base64-encoded.
+- **Permission Denied:** Ensure your API key or user account has read permissions for the indices you want to search.
+- **API Key Format:** Elasticsearch API keys are typically base64-encoded strings. Make sure you're using the full key value.
+
+### Search Issues
+
+- **No Results:** Verify that your index selection matches existing indices. Use wildcards carefully.
+- **Slow Searches:** Limit the number of indices or use specific index names instead of wildcards. Reduce the maximum documents limit.
+- **Field Not Found:** Ensure the search fields you specify actually exist in your Elasticsearch documents.
