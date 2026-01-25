@@ -5,32 +5,44 @@ import { Cable, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import type { FC } from "react";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
 import { useDocumentsElectric } from "@/hooks/use-documents-electric";
+import { useInbox } from "@/hooks/use-inbox";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
 import { ConnectorEditView } from "./connector-popup/connector-configs/views/connector-edit-view";
 import { IndexingConfigurationView } from "./connector-popup/connector-configs/views/indexing-configuration-view";
-import { OAUTH_CONNECTORS } from "./connector-popup/constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	OAUTH_CONNECTORS,
+} from "./connector-popup/constants/connector-constants";
 import { useConnectorDialog } from "./connector-popup/hooks/use-connector-dialog";
 import { useIndexingConnectors } from "./connector-popup/hooks/use-indexing-connectors";
 import { ActiveConnectorsTab } from "./connector-popup/tabs/active-connectors-tab";
 import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
-import { ComposioToolkitView } from "./connector-popup/views/composio-toolkit-view";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
 export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const searchParams = useSearchParams();
+	const { data: currentUser } = useAtomValue(currentUserAtom);
 
 	// Fetch document type counts using Electric SQL + PGlite for real-time updates
 	const { documentTypeCounts, loading: documentTypesLoading } = useDocumentsElectric(searchSpaceId);
+
+	// Fetch notifications to detect indexing failures
+	const { inboxItems = [] } = useInbox(
+		currentUser?.id ?? null,
+		searchSpaceId ? Number(searchSpaceId) : null,
+		"connector_indexing"
+	);
 
 	// Check if YouTube view is active
 	const isYouTubeView = searchParams.get("view") === "youtube";
@@ -88,12 +100,6 @@ export const ConnectorIndicator: FC = () => {
 		setConnectorConfig,
 		setIndexingConnectorConfig,
 		setConnectorName,
-		// Composio
-		viewingComposio,
-		connectingComposioToolkit,
-		handleOpenComposio,
-		handleBackFromComposio,
-		handleConnectComposioToolkit,
 	} = useConnectorDialog();
 
 	// Fetch connectors using Electric SQL + PGlite for real-time updates
@@ -123,8 +129,10 @@ export const ConnectorIndicator: FC = () => {
 	};
 
 	// Track indexing state locally - clears automatically when Electric SQL detects last_indexed_at changed
-	const { indexingConnectorIds, startIndexing } = useIndexingConnectors(
-		connectors as SearchSourceConnector[]
+	// Also clears when failed notifications are detected
+	const { indexingConnectorIds, startIndexing, stopIndexing } = useIndexingConnectors(
+		connectors as SearchSourceConnector[],
+		inboxItems
 	);
 
 	const isLoading = connectorsLoading || documentTypesLoading;
@@ -142,7 +150,7 @@ export const ConnectorIndicator: FC = () => {
 
 	// Check which connectors are already connected
 	// Using Electric SQL + PGlite for real-time connector updates
-	const connectedTypes = new Set(
+	const connectedTypes = new Set<string>(
 		(connectors || []).map((c: SearchSourceConnector) => c.connector_type)
 	);
 
@@ -179,22 +187,11 @@ export const ConnectorIndicator: FC = () => {
 				)}
 			</TooltipIconButton>
 
-			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
+			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
+				<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
 					<YouTubeCrawlerView searchSpaceId={searchSpaceId} onBack={handleBackFromYouTube} />
-				) : viewingComposio && searchSpaceId ? (
-					<ComposioToolkitView
-						searchSpaceId={searchSpaceId}
-						connectedToolkits={(connectors || [])
-							.filter((c: SearchSourceConnector) => c.connector_type === "COMPOSIO_CONNECTOR")
-							.map((c: SearchSourceConnector) => c.config?.toolkit_id as string)
-							.filter(Boolean)}
-						onBack={handleBackFromComposio}
-						onConnectToolkit={handleConnectComposioToolkit}
-						isConnecting={connectingComposioToolkit !== null}
-						connectingToolkitId={connectingComposioToolkit}
-					/>
 				) : viewingMCPList ? (
 					<ConnectorAccountsListView
 						connectorType="MCP_CONNECTOR"
@@ -215,9 +212,14 @@ export const ConnectorIndicator: FC = () => {
 						onBack={handleBackFromAccountsList}
 						onManage={handleStartEdit}
 						onAddAccount={() => {
-							const oauthConnector = OAUTH_CONNECTORS.find(
-								(c) => c.connectorType === viewingAccountsType.connectorType
-							);
+							// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
+							const oauthConnector =
+								OAUTH_CONNECTORS.find(
+									(c) => c.connectorType === viewingAccountsType.connectorType
+								) ||
+								COMPOSIO_CONNECTORS.find(
+									(c) => c.connectorType === viewingAccountsType.connectorType
+								);
 							if (oauthConnector) {
 								handleConnectOAuth(oauthConnector);
 							}
@@ -260,7 +262,13 @@ export const ConnectorIndicator: FC = () => {
 							editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
 								? () => {
 										startIndexing(editingConnector.id);
-										handleQuickIndexConnector(editingConnector.id, editingConnector.connector_type);
+										handleQuickIndexConnector(
+											editingConnector.id,
+											editingConnector.connector_type,
+											stopIndexing,
+											startDate,
+											endDate
+										);
 									}
 								: undefined
 						}
@@ -331,7 +339,6 @@ export const ConnectorIndicator: FC = () => {
 											onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
 											onManage={handleStartEdit}
 											onViewAccountsList={handleViewAccountsList}
-											onOpenComposio={handleOpenComposio}
 										/>
 									</TabsContent>
 

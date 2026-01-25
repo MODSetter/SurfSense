@@ -39,7 +39,7 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 								>
 									<Icon className="h-4 w-4" />
 									{item.badge && (
-										<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
+										<span className="absolute top-0.5 right-0.5 inline-flex items-center justify-center min-w-[14px] h-[14px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-medium">
 											{item.badge}
 										</span>
 									)}
@@ -70,7 +70,7 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 						<Icon className="h-4 w-4 shrink-0" />
 						<span className="flex-1 truncate">{item.title}</span>
 						{item.badge && (
-							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-red-500 text-white text-xs font-medium">
+							<span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
 								{item.badge}
 							</span>
 						)}

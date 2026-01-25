@@ -402,7 +402,7 @@ async def list_google_drive_folders(
         file_count = len(items) - folder_count
 
         logger.info(
-            f"✅ Listed {len(items)} total items ({folder_count} folders, {file_count} files) for connector {connector_id}"
+            f"Listed {len(items)} total items ({folder_count} folders, {file_count} files) for connector {connector_id}"
             + (f" in folder {parent_id}" if parent_id else " in ROOT")
         )
 

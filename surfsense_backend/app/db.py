@@ -55,7 +55,9 @@ class DocumentType(str, Enum):
     CIRCLEBACK = "CIRCLEBACK"
     OBSIDIAN_CONNECTOR = "OBSIDIAN_CONNECTOR"
     NOTE = "NOTE"
-    COMPOSIO_CONNECTOR = "COMPOSIO_CONNECTOR"  # Generic Composio integration
+    COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
+    COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
+    COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
 class SearchSourceConnectorType(str, Enum):
@@ -86,9 +88,9 @@ class SearchSourceConnectorType(str, Enum):
         "OBSIDIAN_CONNECTOR"  # Self-hosted only - Local Obsidian vault indexing
     )
     MCP_CONNECTOR = "MCP_CONNECTOR"  # Model Context Protocol - User-defined API tools
-    COMPOSIO_CONNECTOR = (
-        "COMPOSIO_CONNECTOR"  # Generic Composio integration (Google, Slack, etc.)
-    )
+    COMPOSIO_GOOGLE_DRIVE_CONNECTOR = "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
+    COMPOSIO_GMAIL_CONNECTOR = "COMPOSIO_GMAIL_CONNECTOR"
+    COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
 class LiteLLMProvider(str, Enum):

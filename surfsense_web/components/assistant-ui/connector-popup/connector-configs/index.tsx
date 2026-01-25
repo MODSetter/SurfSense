@@ -6,7 +6,9 @@ import { BaiduSearchApiConfig } from "./components/baidu-search-api-config";
 import { BookStackConfig } from "./components/bookstack-config";
 import { CirclebackConfig } from "./components/circleback-config";
 import { ClickUpConfig } from "./components/clickup-config";
-import { ComposioConfig } from "./components/composio-config";
+import { ComposioCalendarConfig } from "./components/composio-calendar-config";
+import { ComposioDriveConfig } from "./components/composio-drive-config";
+import { ComposioGmailConfig } from "./components/composio-gmail-config";
 import { ConfluenceConfig } from "./components/confluence-config";
 import { DiscordConfig } from "./components/discord-config";
 import { ElasticsearchConfig } from "./components/elasticsearch-config";
@@ -77,8 +79,12 @@ export function getConnectorConfigComponent(
 			return MCPConfig;
 		case "OBSIDIAN_CONNECTOR":
 			return ObsidianConfig;
-		case "COMPOSIO_CONNECTOR":
-			return ComposioConfig;
+		case "COMPOSIO_GOOGLE_DRIVE_CONNECTOR":
+			return ComposioDriveConfig;
+		case "COMPOSIO_GMAIL_CONNECTOR":
+			return ComposioGmailConfig;
+		case "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR":
+			return ComposioCalendarConfig;
 		// OAuth connectors (Gmail, Calendar, Airtable, Notion) and others don't need special config UI
 		default:
 			return null;

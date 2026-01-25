@@ -231,7 +231,7 @@ export function AllSharedChatsSidebar({
 						initial={{ x: "-100%" }}
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
-						transition={{ type: "spring", damping: 25, stiffness: 300 }}
+						transition={{ type: "tween", duration: 0.3, ease: "easeOut" }}
 						className="fixed inset-y-0 left-0 z-70 w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"

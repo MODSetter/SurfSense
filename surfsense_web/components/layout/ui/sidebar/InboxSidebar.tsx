@@ -71,6 +71,17 @@ function getInitials(name: string | null | undefined, email: string | null | und
 }
 
 /**
+ * Format count for display: shows numbers up to 999, then "1k+", "2k+", etc.
+ */
+function formatInboxCount(count: number): string {
+	if (count <= 999) {
+		return count.toString();
+	}
+	const thousands = Math.floor(count / 1000);
+	return `${thousands}k+`;
+}
+
+/**
  * Get display name for connector type
  */
 function getConnectorTypeDisplayName(connectorType: string): string {
@@ -79,6 +90,9 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
 		GOOGLE_GMAIL_CONNECTOR: "Gmail",
 		GOOGLE_DRIVE_CONNECTOR: "Google Drive",
+		COMPOSIO_GOOGLE_DRIVE_CONNECTOR: "Composio Google Drive",
+		COMPOSIO_GMAIL_CONNECTOR: "Composio Gmail",
+		COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: "Composio Google Calendar",
 		LINEAR_CONNECTOR: "Linear",
 		NOTION_CONNECTOR: "Notion",
 		SLACK_CONNECTOR: "Slack",
@@ -446,7 +460,7 @@ export function InboxSidebar({
 						initial={{ x: "-100%" }}
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
-						transition={{ type: "spring", damping: 25, stiffness: 300 }}
+						transition={{ type: "tween", duration: 0.3, ease: "easeOut" }}
 						className="fixed inset-y-0 left-0 z-70 w-90 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"
@@ -729,7 +743,7 @@ export function InboxSidebar({
 										<AtSign className="h-4 w-4" />
 										<span>{t("mentions") || "Mentions"}</span>
 										<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-											{unreadMentionsCount}
+											{formatInboxCount(unreadMentionsCount)}
 										</span>
 									</span>
 								</TabsTrigger>
@@ -741,7 +755,7 @@ export function InboxSidebar({
 										<History className="h-4 w-4" />
 										<span>{t("status") || "Status"}</span>
 										<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-											{unreadStatusCount}
+											{formatInboxCount(unreadStatusCount)}
 										</span>
 									</span>
 								</TabsTrigger>

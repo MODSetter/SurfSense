@@ -116,6 +116,13 @@ async def index_luma_events(
 
         luma_client = LumaConnector(api_key=api_key)
 
+        # Handle 'undefined' string from frontend (treat as None)
+        # This prevents "time data 'undefined' does not match format" errors
+        if start_date == "undefined" or start_date == "":
+            start_date = None
+        if end_date == "undefined" or end_date == "":
+            end_date = None
+
         # Calculate date range
         # For calendar connectors, allow future dates to index upcoming events
         if start_date is None or end_date is None:
@@ -172,10 +179,9 @@ async def index_luma_events(
             )
 
             if error:
-                logger.error(f"Failed to get Luma events: {error}")
-
                 # Don't treat "No events found" as an error that should stop indexing
                 if "No events found" in error or "no events" in error.lower():
+                    logger.info(f"No Luma events found: {error}")
                     logger.info(
                         "No events found is not a critical error, continuing with update"
                     )
@@ -195,6 +201,7 @@ async def index_luma_events(
                     )
                     return 0, None
                 else:
+                    logger.error(f"Failed to get Luma events: {error}")
                     await task_logger.log_task_failure(
                         log_entry,
                         f"Failed to get Luma events: {error}",

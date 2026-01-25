@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import {
 	createNewLLMConfigMutationAtom,
 	deleteNewLLMConfigMutationAtom,
@@ -50,7 +49,6 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import type { NewLLMConfig } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
 
@@ -112,12 +110,10 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		async (formData: LLMConfigFormData) => {
 			try {
 				if (editingConfig) {
+					const { search_space_id, ...updateData } = formData;
 					await updateConfig({
 						id: editingConfig.id,
-						data: {
-							...formData,
-							search_space_id: undefined, // Can't change search_space_id
-						},
+						data: updateData,
 					});
 				} else {
 					await createConfig(formData);
@@ -156,9 +152,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		setEditingConfig(null);
 	};
 
-	const getProviderInfo = (providerValue: string) =>
-		LLM_PROVIDERS.find((p) => p.value === providerValue);
-
 	return (
 		<div className="space-y-4 md:space-y-6">
 			{/* Header */}
@@ -180,9 +173,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			{/* Error Alerts */}
 			<AnimatePresence>
 				{errors.length > 0 &&
-					errors.map((err, i) => (
+					errors.map((err) => (
 						<motion.div
-							key={`error-${i}`}
+							key={err?.message ?? `error-${Date.now()}-${Math.random()}`}
 							initial={{ opacity: 0, y: -10 }}
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: -10 }}
@@ -269,7 +262,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						<motion.div variants={container} initial="hidden" animate="show" className="grid gap-4">
 							<AnimatePresence mode="popLayout">
 								{configs?.map((config) => {
-									const providerInfo = getProviderInfo(config.provider);
 									return (
 										<motion.div
 											key={config.id}
@@ -493,7 +485,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 							{isDeleting ? (
 								<>
 									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Deleting...
+									Deleting
 								</>
 							) : (
 								<>

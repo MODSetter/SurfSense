@@ -7,6 +7,7 @@ via NewLLMConfig.
 """
 
 from collections.abc import Sequence
+from typing import Any
 
 from deepagents import create_deep_agent
 from langchain_core.tools import BaseTool
@@ -22,6 +23,90 @@ from app.agents.new_chat.system_prompt import (
 )
 from app.agents.new_chat.tools.registry import build_tools_async
 from app.services.connector_service import ConnectorService
+
+# =============================================================================
+# Connector Type Mapping
+# =============================================================================
+
+# Maps SearchSourceConnectorType enum values to the searchable document/connector types
+# used by the knowledge_base tool. Some connectors map to different document types.
+_CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
+    # Direct mappings (connector type == searchable type)
+    "TAVILY_API": "TAVILY_API",
+    "SEARXNG_API": "SEARXNG_API",
+    "LINKUP_API": "LINKUP_API",
+    "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
+    "SLACK_CONNECTOR": "SLACK_CONNECTOR",
+    "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
+    "NOTION_CONNECTOR": "NOTION_CONNECTOR",
+    "GITHUB_CONNECTOR": "GITHUB_CONNECTOR",
+    "LINEAR_CONNECTOR": "LINEAR_CONNECTOR",
+    "DISCORD_CONNECTOR": "DISCORD_CONNECTOR",
+    "JIRA_CONNECTOR": "JIRA_CONNECTOR",
+    "CONFLUENCE_CONNECTOR": "CONFLUENCE_CONNECTOR",
+    "CLICKUP_CONNECTOR": "CLICKUP_CONNECTOR",
+    "GOOGLE_CALENDAR_CONNECTOR": "GOOGLE_CALENDAR_CONNECTOR",
+    "GOOGLE_GMAIL_CONNECTOR": "GOOGLE_GMAIL_CONNECTOR",
+    "GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",  # Connector type differs from document type
+    "AIRTABLE_CONNECTOR": "AIRTABLE_CONNECTOR",
+    "LUMA_CONNECTOR": "LUMA_CONNECTOR",
+    "ELASTICSEARCH_CONNECTOR": "ELASTICSEARCH_CONNECTOR",
+    "WEBCRAWLER_CONNECTOR": "CRAWLED_URL",  # Maps to document type
+    "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
+    "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
+    "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
+    # Composio connectors
+    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+    "COMPOSIO_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
+    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+}
+
+# Document types that don't come from SearchSourceConnector but should always be searchable
+_ALWAYS_AVAILABLE_DOC_TYPES: list[str] = [
+    "EXTENSION",  # Browser extension data
+    "FILE",  # Uploaded files
+    "NOTE",  # User notes
+    "YOUTUBE_VIDEO",  # YouTube videos
+]
+
+
+def _map_connectors_to_searchable_types(
+    connector_types: list[Any],
+) -> list[str]:
+    """
+    Map SearchSourceConnectorType enums to searchable document/connector types.
+
+    This function:
+    1. Converts connector type enums to their searchable counterparts
+    2. Includes always-available document types (EXTENSION, FILE, NOTE, YOUTUBE_VIDEO)
+    3. Deduplicates while preserving order
+
+    Args:
+        connector_types: List of SearchSourceConnectorType enum values
+
+    Returns:
+        List of searchable connector/document type strings
+    """
+    result_set: set[str] = set()
+    result_list: list[str] = []
+
+    # Add always-available document types first
+    for doc_type in _ALWAYS_AVAILABLE_DOC_TYPES:
+        if doc_type not in result_set:
+            result_set.add(doc_type)
+            result_list.append(doc_type)
+
+    # Map each connector type to its searchable equivalent
+    for ct in connector_types:
+        # Handle both enum and string types
+        ct_str = ct.value if hasattr(ct, "value") else str(ct)
+        searchable = _CONNECTOR_TYPE_TO_SEARCHABLE.get(ct_str)
+        if searchable and searchable not in result_set:
+            result_set.add(searchable)
+            result_list.append(searchable)
+
+    return result_list
+
 
 # =============================================================================
 # Deep Agent Factory
@@ -116,6 +201,30 @@ async def create_surfsense_deep_agent(
             additional_tools=[my_custom_tool]
         )
     """
+    # Discover available connectors and document types for this search space
+    # This enables dynamic tool docstrings that inform the LLM about what's actually available
+    available_connectors: list[str] | None = None
+    available_document_types: list[str] | None = None
+
+    try:
+        # Get enabled search source connectors for this search space
+        connector_types = await connector_service.get_available_connectors(
+            search_space_id
+        )
+        if connector_types:
+            # Convert enum values to strings and also include mapped document types
+            available_connectors = _map_connectors_to_searchable_types(connector_types)
+
+        # Get document types that have at least one document indexed
+        available_document_types = await connector_service.get_available_document_types(
+            search_space_id
+        )
+    except Exception as e:
+        # Log but don't fail - fall back to all connectors if discovery fails
+        import logging
+
+        logging.warning(f"Failed to discover available connectors/document types: {e}")
+
     # Build dependencies dict for the tools registry
     dependencies = {
         "search_space_id": search_space_id,
@@ -123,6 +232,9 @@ async def create_surfsense_deep_agent(
         "connector_service": connector_service,
         "firecrawl_api_key": firecrawl_api_key,
         "user_id": user_id,  # Required for memory tools
+        # Dynamic connector/document type discovery for knowledge base tool
+        "available_connectors": available_connectors,
+        "available_document_types": available_document_types,
     }
 
     # Build tools using the async registry (includes MCP tools)

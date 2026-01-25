@@ -85,6 +85,7 @@ class ToolDefinition:
 # Contributors: Add your new tools here!
 BUILTIN_TOOLS: list[ToolDefinition] = [
     # Core tool - searches the user's knowledge base
+    # Now supports dynamic connector/document type discovery
     ToolDefinition(
         name="search_knowledge_base",
         description="Search the user's personal knowledge base for relevant information",
@@ -92,8 +93,12 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             search_space_id=deps["search_space_id"],
             db_session=deps["db_session"],
             connector_service=deps["connector_service"],
+            # Optional: dynamically discovered connectors/document types
+            available_connectors=deps.get("available_connectors"),
+            available_document_types=deps.get("available_document_types"),
         ),
         requires=["search_space_id", "db_session", "connector_service"],
+        # Note: available_connectors and available_document_types are optional
     ),
     # Podcast generation tool
     ToolDefinition(
