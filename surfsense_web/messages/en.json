@@ -46,6 +46,7 @@
 		"hide_password": "Hide password",
 		"remember_me": "Remember Me",
 		"sign_in": "Sign In",
+		"signing_in": "Signing in",
 		"sign_up": "Sign Up",
 		"sign_in_with": "Sign in with {provider}",
 		"dont_have_account": "Don't have an account?",

@@ -46,6 +46,7 @@
 		"hide_password": "隐藏密码",
 		"remember_me": "记住我",
 		"sign_in": "登录",
+		"signing_in": "正在登录",
 		"sign_up": "注册",
 		"sign_in_with": "使用 {provider} 登录",
 		"dont_have_account": "还没有账户？",
