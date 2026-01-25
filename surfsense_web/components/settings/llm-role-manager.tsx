@@ -6,7 +6,6 @@ import {
 	Bot,
 	CheckCircle,
 	FileText,
-	Loader2,
 	RefreshCw,
 	RotateCcw,
 	Save,
@@ -32,6 +31,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 
 const ROLE_DESCRIPTIONS = {
 	agent: {
@@ -206,7 +206,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				<Card>
 					<CardContent className="flex items-center justify-center py-8 md:py-12">
 						<div className="flex items-center gap-2 text-muted-foreground">
-							<Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
+							<Spinner size="sm" className="md:h-5 md:w-5" />
 							<span className="text-xs md:text-sm">
 								{configsLoading && preferencesLoading
 									? "Loading configurations and preferences..."

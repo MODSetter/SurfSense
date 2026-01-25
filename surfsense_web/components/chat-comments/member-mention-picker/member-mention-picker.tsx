@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
 import { MemberMentionItem } from "./member-mention-item";
 import type { MemberMentionPickerProps } from "./types";
 
@@ -24,7 +24,7 @@ export function MemberMentionPicker({
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center py-6">
-				<Loader2 className="size-5 animate-spin text-muted-foreground" />
+				<Spinner size="md" className="text-muted-foreground" />
 			</div>
 		);
 	}

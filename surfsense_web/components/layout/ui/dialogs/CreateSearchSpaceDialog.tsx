@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -26,6 +26,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { trackSearchSpaceCreated } from "@/lib/posthog/events";
 
 const formSchema = z.object({
@@ -145,7 +146,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 							<Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto h-9 sm:h-10 text-sm">
 								{isSubmitting ? (
 									<>
-										<Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+										<Spinner size="sm" className="mr-1.5" />
 										{t("creating")}
 									</>
 								) : (

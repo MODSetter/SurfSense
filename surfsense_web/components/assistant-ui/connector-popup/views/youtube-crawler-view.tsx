@@ -2,13 +2,14 @@
 
 import { TagInput, type Tag as TagType } from "emblor";
 import { useAtom } from "jotai";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FC, useState } from "react";
 import { toast } from "sonner";
 import { createDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Label } from "@/components/ui/label";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -222,7 +223,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 				>
 					{isSubmitting ? (
 						<>
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							<Spinner size="sm" className="mr-2" />
 							{t("processing")}
 						</>
 					) : (

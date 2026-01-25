@@ -1,9 +1,10 @@
 "use client";
 
-import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Info } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { cn } from "@/lib/utils";
@@ -216,7 +217,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 				>
 					{isStartingIndexing ? (
 						<>
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							<Spinner size="sm" className="mr-2" />
 							Starting...
 						</>
 					) : (

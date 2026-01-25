@@ -1,9 +1,10 @@
 "use client";
 
 import { IconBrandYoutube } from "@tabler/icons-react";
-import { FileText, Loader2 } from "lucide-react";
+import { FileText } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { cn } from "@/lib/utils";
@@ -111,7 +112,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				</div>
 				{isIndexing ? (
 					<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
-						<Loader2 className="size-3 animate-spin" />
+						<Spinner size="xs" />
 						Syncing
 					</p>
 				) : isConnected ? (
@@ -151,7 +152,7 @@ export const ConnectorCard: FC<ConnectorCardProps> = ({
 				disabled={isConnecting || !isEnabled}
 			>
 				{isConnecting ? (
-					<Loader2 className="size-3 animate-spin" />
+					<Spinner size="xs" />
 				) : !isEnabled ? (
 					"Unavailable"
 				) : isConnected ? (

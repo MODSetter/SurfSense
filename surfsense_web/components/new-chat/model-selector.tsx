@@ -8,7 +8,6 @@ import {
 	Cloud,
 	Edit3,
 	Globe,
-	Loader2,
 	Plus,
 	Settings2,
 	Sparkles,
@@ -36,6 +35,7 @@ import {
 	CommandSeparator,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
 import type {
 	GlobalNewLLMConfig,
 	NewLLMConfigPublic,
@@ -179,7 +179,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 				>
 					{isLoading ? (
 						<>
-							<Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+							<Spinner size="sm" className="text-muted-foreground" />
 							<span className="text-muted-foreground hidden md:inline">Loading</span>
 						</>
 					) : currentConfig ? (

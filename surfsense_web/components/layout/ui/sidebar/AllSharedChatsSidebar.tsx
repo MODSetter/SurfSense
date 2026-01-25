@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
 	ArchiveIcon,
-	Loader2,
 	MessageCircleMore,
 	MoreHorizontal,
 	RotateCcwIcon,
@@ -30,6 +29,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Spinner } from "@/components/ui/spinner";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
 	deleteThread,
@@ -304,7 +304,7 @@ export function AllSharedChatsSidebar({
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{isLoading ? (
 								<div className="flex items-center justify-center py-8">
-									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+									<Spinner size="md" className="text-muted-foreground" />
 								</div>
 							) : error ? (
 								<div className="text-center py-8 text-sm text-destructive">
@@ -365,7 +365,7 @@ export function AllSharedChatsSidebar({
 															disabled={isBusy}
 														>
 															{isDeleting ? (
-																<Loader2 className="h-3.5 w-3.5 animate-spin" />
+																<Spinner size="xs" />
 															) : (
 																<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 															)}
