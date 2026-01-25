@@ -29,8 +29,7 @@ SurfSense is a highly customizable AI research agent, connected to external sour
 
 # Video 
 
-https://github.com/user-attachments/assets/42a29ea1-d4d8-4213-9c69-972b5b806d58
-
+https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 
 
 ## Podcast Sample
@@ -52,8 +51,10 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Interact in Natural Language and get cited answers.
 ### 📄 **Cited Answers**
 - Get Cited answers just like Perplexity.
+### 🧩 **Universal Compatibility**
+- Connect virtually any inference provider via the OpenAI spec and LiteLLM.
 ### 🔔 **Privacy & Local LLM Support**
-- Works Flawlessly with Ollama local LLMs.
+- Works Flawlessly with local LLMs like vLLM and Ollama.
 ### 🏠 **Self Hostable**
 - Open source and easy to deploy locally.
 ### 👥 **Team Collaboration with RBAC**
@@ -61,6 +62,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 - Invite team members with customizable roles (Owner, Admin, Editor, Viewer)
 - Granular permissions for documents, chats, connectors, and settings
 - Share knowledge bases securely within your organization
+- Team chats update in real-time and "Chat about the chat" in comment threads
 ### 🎙️ Podcasts 
 - Blazingly fast podcast generation agent. (Creates a 3-minute podcast in under 20 seconds.)
 - Convert your chat conversations into engaging audio content
@@ -237,6 +239,8 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 
  ### **BackEnd** 
 
+-  **LiteLLM**: Universal LLM integration supporting 100+ models (OpenAI, Anthropic, Ollama, etc.)
+
 -  **FastAPI**: Modern, fast web framework for building APIs with Python
   
 -  **PostgreSQL with pgvector**: Database with vector search capabilities for similarity searches
@@ -252,8 +256,6 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 -  **LangGraph**: Framework for developing stateful AI agents with conversation persistence
 
 -  **LangChain**: Framework for developing AI-powered applications.
-
--  **LiteLLM**: Universal LLM integration supporting 100+ models (OpenAI, Anthropic, Ollama, etc.)
 
 -  **Rerankers**: Advanced result ranking for improved search relevance
 

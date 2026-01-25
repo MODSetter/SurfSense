@@ -1,13 +1,14 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { Inbox, LogOut, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -68,11 +69,16 @@ export function LayoutDataProvider({
 	const { data: user } = useAtomValue(currentUserAtom);
 	const { data: searchSpacesData, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
 
-	// Current IDs from URL
+	// State for handling new chat navigation when router is out of sync
+	const [pendingNewChat, setPendingNewChat] = useState(false);
+
+	// Current IDs from URL, with fallback to atom for replaceState updates
 	const currentChatId = params?.chat_id
 		? Number(Array.isArray(params.chat_id) ? params.chat_id[0] : params.chat_id)
-		: null;
+		: currentThreadState.id;
 
 	// Fetch current search space (for caching purposes)
 	useQuery({
@@ -123,6 +129,17 @@ export function LayoutDataProvider({
 	const [searchSpaceToLeave, setSearchSpaceToLeave] = useState<SearchSpace | null>(null);
 	const [isDeletingSearchSpace, setIsDeletingSearchSpace] = useState(false);
 	const [isLeavingSearchSpace, setIsLeavingSearchSpace] = useState(false);
+
+	// Effect to complete new chat navigation after router syncs
+	// This runs when handleNewChat detected an out-of-sync state and triggered a sync
+	useEffect(() => {
+		if (pendingNewChat && params?.chat_id) {
+			// Router is now synced (chat_id is in params), complete navigation to new-chat
+			resetCurrentThread();
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
+			setPendingNewChat(false);
+		}
+	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
 
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
@@ -176,17 +193,17 @@ export function LayoutDataProvider({
 	const navItems: NavItem[] = useMemo(
 		() => [
 			{
-				title: "Documents",
-				url: `/dashboard/${searchSpaceId}/documents`,
-				icon: SquareLibrary,
-				isActive: pathname?.includes("/documents"),
-			},
-			{
 				title: "Inbox",
 				url: "#inbox", // Special URL to indicate this is handled differently
 				icon: Inbox,
 				isActive: isInboxSidebarOpen,
 				badge: unreadCount > 0 ? formatInboxCount(unreadCount) : undefined,
+			},
+			{
+				title: "Documents",
+				url: `/dashboard/${searchSpaceId}/documents`,
+				icon: SquareLibrary,
+				isActive: pathname?.includes("/documents"),
 			},
 		],
 		[searchSpaceId, pathname, isInboxSidebarOpen, unreadCount]
@@ -292,8 +309,20 @@ export function LayoutDataProvider({
 	);
 
 	const handleNewChat = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/new-chat`);
-	}, [router, searchSpaceId]);
+		// Check if router is out of sync (thread created via replaceState but params don't have chat_id)
+		const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
+
+		if (isOutOfSync) {
+			// First sync Next.js router by navigating to the current chat's actual URL
+			// This updates the router's internal state to match the browser URL
+			router.replace(`/dashboard/${searchSpaceId}/new-chat/${currentThreadState.id}`);
+			// Set flag to trigger navigation to new-chat after params update
+			setPendingNewChat(true);
+		} else {
+			// Normal navigation - router is in sync
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
+		}
+	}, [router, searchSpaceId, currentThreadState.id, params?.chat_id]);
 
 	const handleChatSelect = useCallback(
 		(chat: ChatItem) => {

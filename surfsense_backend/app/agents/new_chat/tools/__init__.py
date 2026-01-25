@@ -19,6 +19,7 @@ Available tools:
 # Tool factory exports (for direct use)
 from .display_image import create_display_image_tool
 from .knowledge_base import (
+    CONNECTOR_DESCRIPTIONS,
     create_search_knowledge_base_tool,
     format_documents_for_context,
     search_knowledge_base_async,
@@ -40,6 +41,8 @@ from .user_memory import create_recall_memory_tool, create_save_memory_tool
 __all__ = [
     # Registry
     "BUILTIN_TOOLS",
+    # Knowledge base utilities
+    "CONNECTOR_DESCRIPTIONS",
     "ToolDefinition",
     "build_tools",
     # Tool factories
@@ -51,7 +54,6 @@ __all__ = [
     "create_scrape_webpage_tool",
     "create_search_knowledge_base_tool",
     "create_search_surfsense_docs_tool",
-    # Knowledge base utilities
     "format_documents_for_context",
     "get_all_tool_names",
     "get_default_enabled_tools",
