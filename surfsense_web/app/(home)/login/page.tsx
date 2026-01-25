@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
-import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { AmbientBackground } from "./AmbientBackground";
@@ -92,9 +92,12 @@ function LoginContent() {
 		setIsLoading(false);
 	}, [searchParams, t, tCommon]);
 
-	// Show loading state while determining auth type
+	// Use global loading screen for auth type determination - spinner animation won't reset
+	useGlobalLoadingEffect(isLoading, tCommon("loading"), "login");
+
+	// Show nothing while loading - the GlobalLoadingProvider handles the loading UI
 	if (isLoading) {
-		return <UnifiedLoadingScreen variant="login" message={tCommon("loading")} />;
+		return null;
 	}
 
 	if (authType === "GOOGLE") {
@@ -176,8 +179,9 @@ function LoginContent() {
 }
 
 export default function LoginPage() {
+	// Suspense fallback returns null - the GlobalLoadingProvider handles the loading UI
 	return (
-		<Suspense fallback={<UnifiedLoadingScreen variant="login" message="Loading" />}>
+		<Suspense fallback={null}>
 			<LoginContent />
 		</Suspense>
 	);

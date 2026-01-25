@@ -18,7 +18,7 @@ import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 
 export function DashboardClientLayout({
 	children,
@@ -146,18 +146,22 @@ export function DashboardClientLayout({
 		setActiveSearchSpaceIdState(activeSeacrhSpaceId);
 	}, [search_space_id, setActiveSearchSpaceIdState]);
 
-	if (
-		(!hasCheckedOnboarding &&
+	// Determine if we should show loading
+	const shouldShowLoading =
+		((!hasCheckedOnboarding &&
 			(loading || accessLoading || globalConfigsLoading) &&
 			!isOnboardingPage) ||
-		isAutoConfiguring
-	) {
-		return (
-			<UnifiedLoadingScreen
-				variant="default"
-				message={isAutoConfiguring ? t("setting_up_ai") : t("checking_llm_prefs")}
-			/>
-		);
+			isAutoConfiguring);
+
+	// Use global loading screen - spinner animation won't reset
+	useGlobalLoadingEffect(
+		shouldShowLoading,
+		isAutoConfiguring ? t("setting_up_ai") : t("checking_llm_prefs"),
+		"default"
+	);
+
+	if (shouldShowLoading) {
+		return null;
 	}
 
 	if (error && !hasCheckedOnboarding && !isOnboardingPage) {

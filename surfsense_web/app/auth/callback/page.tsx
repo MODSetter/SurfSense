@@ -1,15 +1,13 @@
 "use client";
 
 import { Suspense } from "react";
-import { useTranslations } from "next-intl";
-import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
 import TokenHandler from "@/components/TokenHandler";
 
 export default function AuthCallbackPage() {
-	const t = useTranslations("auth");
-	
+	// Suspense fallback returns null - the GlobalLoadingProvider handles the loading UI
+	// TokenHandler uses useGlobalLoadingEffect to show the loading screen
 	return (
-		<Suspense fallback={<UnifiedLoadingScreen variant="default" message={t("processing_authentication")} />}>
+		<Suspense fallback={null}>
 			<TokenHandler
 				redirectPath="/dashboard"
 				tokenParamName="token"

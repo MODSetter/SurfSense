@@ -18,7 +18,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
-import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 
 function ErrorScreen({ message }: { message: string }) {
 	const t = useTranslations("dashboard");
@@ -102,11 +102,16 @@ export default function DashboardPage() {
 		}
 	}, [isLoading, searchSpaces, router]);
 
-	if (isLoading) return <UnifiedLoadingScreen variant="default" message={t("fetching_spaces")} />;
+	// Show loading while fetching or while we have spaces and are about to redirect
+	const shouldShowLoading = isLoading || searchSpaces.length > 0;
+
+	// Use global loading screen - spinner animation won't reset
+	useGlobalLoadingEffect(shouldShowLoading, t("fetching_spaces"), "default");
+
 	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
 
-	if (searchSpaces.length > 0) {
-		return <UnifiedLoadingScreen variant="default" message={t("fetching_spaces")} />;
+	if (shouldShowLoading) {
+		return null;
 	}
 
 	return (

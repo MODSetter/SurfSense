@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
-import { UnifiedLoadingScreen } from "@/components/ui/unified-loading-screen";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 interface DashboardLayoutProps {
@@ -12,6 +12,9 @@ interface DashboardLayoutProps {
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
 	const t = useTranslations("dashboard");
 	const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+
+	// Use the global loading screen - spinner animation won't reset
+	useGlobalLoadingEffect(isCheckingAuth, t("checking_auth"), "default");
 
 	useEffect(() => {
 		// Check if user is authenticated
@@ -24,9 +27,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 		setIsCheckingAuth(false);
 	}, []);
 
-	// Show loading screen while checking authentication
+	// Return null while loading - the global provider handles the loading UI
 	if (isCheckingAuth) {
-		return <UnifiedLoadingScreen variant="default" message={t("checking_auth")} />;
+		return null;
 	}
 
 	return (
