@@ -29,8 +29,7 @@ SurfSense is a highly customizable AI research agent, connected to external sour
 
 # Video 
 
-https://github.com/user-attachments/assets/42a29ea1-d4d8-4213-9c69-972b5b806d58
-
+https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 
 
 ## Podcast Sample
