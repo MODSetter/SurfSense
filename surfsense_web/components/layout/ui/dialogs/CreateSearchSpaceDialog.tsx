@@ -107,7 +107,12 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 								<FormItem>
 									<FormLabel className="text-sm">{t("name_label")}</FormLabel>
 									<FormControl>
-										<Input placeholder={t("name_placeholder")} {...field} autoFocus className="text-sm h-9 sm:h-10" />
+										<Input
+											placeholder={t("name_placeholder")}
+											{...field}
+											autoFocus
+											className="text-sm h-9 sm:h-10"
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -126,7 +131,11 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 										</span>
 									</FormLabel>
 									<FormControl>
-										<Input placeholder={t("description_placeholder")} {...field} className="text-sm h-9 sm:h-10" />
+										<Input
+											placeholder={t("description_placeholder")}
+											{...field}
+											className="text-sm h-9 sm:h-10"
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -143,7 +152,11 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 							>
 								{tCommon("cancel")}
 							</Button>
-							<Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto h-9 sm:h-10 text-sm">
+							<Button
+								type="submit"
+								disabled={isSubmitting}
+								className="w-full sm:w-auto h-9 sm:h-10 text-sm"
+							>
 								{isSubmitting ? (
 									<>
 										<Spinner size="sm" className="mr-1.5" />

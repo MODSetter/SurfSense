@@ -30,8 +30,8 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
 		<div
 			className={cn(
 				"fixed inset-0 z-[9999]",
-				isLoading 
-					? "opacity-100 pointer-events-auto" 
+				isLoading
+					? "opacity-100 pointer-events-auto"
 					: "opacity-0 pointer-events-none transition-opacity duration-150"
 			)}
 			aria-hidden={!isLoading}
@@ -77,4 +77,3 @@ export function GlobalLoadingProvider({ children }: { children: React.ReactNode 
 		</>
 	);
 }
-

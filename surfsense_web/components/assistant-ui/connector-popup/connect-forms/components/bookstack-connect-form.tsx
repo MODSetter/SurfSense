@@ -296,7 +296,6 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitt
 					</ul>
 				</div>
 			)}
-
 		</div>
 	);
 };

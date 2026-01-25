@@ -1,15 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import {
-	AlertCircle,
-	Bot,
-	CheckCircle,
-	FileText,
-	RefreshCw,
-	RotateCcw,
-	Save,
-} from "lucide-react";
+import { AlertCircle, Bot, CheckCircle, FileText, RefreshCw, RotateCcw, Save } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

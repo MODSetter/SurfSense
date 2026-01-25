@@ -21,7 +21,14 @@ interface ChatListItemProps {
 	onDelete?: () => void;
 }
 
-export function ChatListItem({ name, isActive, archived, onClick, onArchive, onDelete }: ChatListItemProps) {
+export function ChatListItem({
+	name,
+	isActive,
+	archived,
+	onClick,
+	onArchive,
+	onDelete,
+}: ChatListItemProps) {
 	const t = useTranslations("sidebar");
 
 	return (

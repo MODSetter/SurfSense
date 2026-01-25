@@ -28,4 +28,3 @@ export const showGlobalLoadingAtom = atom(
 export const hideGlobalLoadingAtom = atom(null, (get, set) => {
 	set(globalLoadingAtom, { isLoading: false, message: undefined, variant: "default" });
 });
-

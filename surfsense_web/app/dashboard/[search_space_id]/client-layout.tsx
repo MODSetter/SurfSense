@@ -148,10 +148,10 @@ export function DashboardClientLayout({
 
 	// Determine if we should show loading
 	const shouldShowLoading =
-		((!hasCheckedOnboarding &&
+		(!hasCheckedOnboarding &&
 			(loading || accessLoading || globalConfigsLoading) &&
 			!isOnboardingPage) ||
-			isAutoConfiguring);
+		isAutoConfiguring;
 
 	// Use global loading screen - spinner animation won't reset
 	useGlobalLoadingEffect(

@@ -202,9 +202,7 @@ export function SidebarUserProfile({
 												>
 													<Icon className="mr-2 h-4 w-4" />
 													<span className="flex-1">{t(themeOption.value)}</span>
-													{isSelected && (
-														<Check className="h-4 w-4 shrink-0" />
-													)}
+													{isSelected && <Check className="h-4 w-4 shrink-0" />}
 												</DropdownMenuItem>
 											);
 										})}
@@ -234,9 +232,7 @@ export function SidebarUserProfile({
 											>
 												<span className="mr-2">{language.flag}</span>
 												<span className="flex-1">{language.name}</span>
-												{isSelected && (
-													<Check className="h-4 w-4 shrink-0" />
-												)}
+												{isSelected && <Check className="h-4 w-4 shrink-0" />}
 											</DropdownMenuItem>
 										);
 									})}
@@ -308,29 +304,27 @@ export function SidebarUserProfile({
 								{t("theme")}
 							</DropdownMenuSubTrigger>
 							<DropdownMenuPortal>
-							<DropdownMenuSubContent className="gap-1">
-								{THEMES.map((themeOption) => {
-									const Icon = themeOption.icon;
-									const isSelected = theme === themeOption.value;
-									return (
-										<DropdownMenuItem
-											key={themeOption.value}
-											onClick={() => handleThemeChange(themeOption.value)}
-											className={cn(
-												"mb-1 last:mb-0 transition-all",
-												"hover:bg-accent/50",
-												isSelected && "text-primary"
-											)}
-										>
-											<Icon className="mr-2 h-4 w-4" />
-											<span className="flex-1">{t(themeOption.value)}</span>
-											{isSelected && (
-												<Check className="h-4 w-4 shrink-0" />
-											)}
-										</DropdownMenuItem>
-									);
-								})}
-							</DropdownMenuSubContent>
+								<DropdownMenuSubContent className="gap-1">
+									{THEMES.map((themeOption) => {
+										const Icon = themeOption.icon;
+										const isSelected = theme === themeOption.value;
+										return (
+											<DropdownMenuItem
+												key={themeOption.value}
+												onClick={() => handleThemeChange(themeOption.value)}
+												className={cn(
+													"mb-1 last:mb-0 transition-all",
+													"hover:bg-accent/50",
+													isSelected && "text-primary"
+												)}
+											>
+												<Icon className="mr-2 h-4 w-4" />
+												<span className="flex-1">{t(themeOption.value)}</span>
+												{isSelected && <Check className="h-4 w-4 shrink-0" />}
+											</DropdownMenuItem>
+										);
+									})}
+								</DropdownMenuSubContent>
 							</DropdownMenuPortal>
 						</DropdownMenuSub>
 					)}
@@ -356,9 +350,7 @@ export function SidebarUserProfile({
 										>
 											<span className="mr-2">{language.flag}</span>
 											<span className="flex-1">{language.name}</span>
-											{isSelected && (
-												<Check className="h-4 w-4 shrink-0" />
-											)}
+											{isSelected && <Check className="h-4 w-4 shrink-0" />}
 										</DropdownMenuItem>
 									);
 								})}

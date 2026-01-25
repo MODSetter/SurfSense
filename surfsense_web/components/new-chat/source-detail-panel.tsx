@@ -1,15 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-	BookOpen,
-	ChevronDown,
-	ExternalLink,
-	FileText,
-	Hash,
-	Sparkles,
-	X,
-} from "lucide-react";
+import { BookOpen, ChevronDown, ExternalLink, FileText, Hash, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useTranslations } from "next-intl";
 import type React from "react";
@@ -384,8 +376,10 @@ export function SourceDetailPanel({
 									animate={{ opacity: 1, scale: 1 }}
 									className="flex flex-col items-center gap-4"
 								>
-									<Spinner size="lg"/>
-									<p className="text-sm text-muted-foreground font-medium">{t("loading_document")}</p>
+									<Spinner size="lg" />
+									<p className="text-sm text-muted-foreground font-medium">
+										{t("loading_document")}
+									</p>
 								</motion.div>
 							</div>
 						)}
