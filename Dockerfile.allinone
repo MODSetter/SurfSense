@@ -228,7 +228,7 @@ COPY scripts/docker/init-postgres.sh /app/init-postgres.sh
 RUN dos2unix /app/init-postgres.sh && chmod +x /app/init-postgres.sh
 
 # Clean up build dependencies to reduce image size
-RUN apt-get purge -y build-essential postgresql-server-dev-14 git \
+RUN apt-get purge -y build-essential postgresql-server-dev-14 \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
