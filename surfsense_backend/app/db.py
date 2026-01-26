@@ -693,6 +693,14 @@ class Podcast(BaseModel, TimestampMixin):
     )
     search_space = relationship("SearchSpace", back_populates="podcasts")
 
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    thread = relationship("NewChatThread")
+
 
 class SearchSpace(BaseModel, TimestampMixin):
     __tablename__ = "searchspaces"
