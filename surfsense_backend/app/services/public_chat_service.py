@@ -253,6 +253,7 @@ async def clone_public_chat(
     Clone a public chat to user's account.
 
     Creates a new private thread with all messages and podcasts.
+    Citations are stripped since they reference the original user's documents.
     """
     import copy
 
@@ -291,7 +292,7 @@ async def clone_public_chat(
         podcast_id_map: dict[int, int] = {}
 
         for msg in sorted(source_thread.messages, key=lambda m: m.created_at):
-            new_content = copy.deepcopy(msg.content)
+            new_content = sanitize_content_for_public(msg.content)
 
             if isinstance(new_content, list):
                 for part in new_content:
