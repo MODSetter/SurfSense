@@ -12,10 +12,8 @@ import { type FC, type ReactNode, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { cn } from "@/lib/utils";
 
 interface PublicThreadProps {
-	header?: ReactNode;
 	footer?: ReactNode;
 }
 
@@ -23,7 +21,7 @@ interface PublicThreadProps {
  * Read-only thread component for public chat viewing.
  * No composer, no edit capabilities - just message display.
  */
-export const PublicThread: FC<PublicThreadProps> = ({ header, footer }) => {
+export const PublicThread: FC<PublicThreadProps> = ({ footer }) => {
 	return (
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
@@ -32,8 +30,6 @@ export const PublicThread: FC<PublicThreadProps> = ({ header, footer }) => {
 			}}
 		>
 			<ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4">
-				{header}
-
 				<ThreadPrimitive.Messages
 					components={{
 						UserMessage: PublicUserMessage,
@@ -159,10 +155,8 @@ const PublicAssistantActionBar: FC = () => {
 	return (
 		<ActionBarPrimitive.Root
 			autohide="not-last"
-			className={cn(
-				"aui-assistant-action-bar-root -ml-1 flex gap-1 text-muted-foreground",
-				"opacity-0 group-hover:opacity-100 transition-opacity"
-			)}
+			autohideFloat="single-branch"
+			className="aui-assistant-action-bar-root -ml-1 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
 		>
 			<ActionBarPrimitive.Copy asChild>
 				<TooltipIconButton tooltip="Copy">

@@ -23,9 +23,18 @@ UI_TOOLS = {
 
 
 def strip_citations(text: str) -> str:
-    """Remove [citation:X] and [citation:doc-X] patterns from text."""
-    text = re.sub(r"\[citation:(doc-)?\d+\]", "", text)
-    text = re.sub(r"\s+", " ", text)
+    """
+    Remove [citation:X] and [citation:doc-X] patterns from text.
+    Preserves newlines to maintain markdown formatting.
+    """
+    # Remove citation patterns (including Chinese brackets 【】)
+    text = re.sub(r"[\[【]citation:(doc-)?\d+[\]】]", "", text)
+    # Collapse multiple spaces/tabs (but NOT newlines) into single space
+    text = re.sub(r"[^\S\n]+", " ", text)
+    # Normalize excessive blank lines (3+ newlines → 2)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Clean up spaces around newlines
+    text = re.sub(r" *\n *", "\n", text)
     return text.strip()
 
 

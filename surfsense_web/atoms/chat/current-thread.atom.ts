@@ -17,6 +17,8 @@ interface CurrentThreadState {
 	visibility: ChatVisibility | null;
 	hasComments: boolean;
 	addingCommentToMessageId: number | null;
+	publicShareEnabled: boolean;
+	publicShareToken: string | null;
 }
 
 const initialState: CurrentThreadState = {
@@ -24,6 +26,8 @@ const initialState: CurrentThreadState = {
 	visibility: null,
 	hasComments: false,
 	addingCommentToMessageId: null,
+	publicShareEnabled: false,
+	publicShareToken: null,
 };
 
 export const currentThreadAtom = atom<CurrentThreadState>(initialState);
