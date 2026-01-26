@@ -25,7 +25,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas import PodcastRead
-from app.users import current_active_user
+from app.users import current_active_user, current_optional_user
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -161,46 +161,49 @@ async def delete_podcast(
 async def stream_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User | None = Depends(current_optional_user),
 ):
     """
     Stream a podcast audio file.
-    Requires PODCASTS_READ permission for the search space.
+
+    Access is allowed if:
+    - User is authenticated with PODCASTS_READ permission, OR
+    - Podcast belongs to a publicly shared thread
 
     Note: Both /stream and /audio endpoints are supported for compatibility.
     """
+    from app.services.public_chat_service import is_podcast_publicly_accessible
+
     try:
         result = await session.execute(select(Podcast).filter(Podcast.id == podcast_id))
         podcast = result.scalars().first()
 
         if not podcast:
-            raise HTTPException(
-                status_code=404,
-                detail="Podcast not found",
+            raise HTTPException(status_code=404, detail="Podcast not found")
+
+        is_public = await is_podcast_publicly_accessible(session, podcast_id)
+
+        if not is_public:
+            if not user:
+                raise HTTPException(status_code=401, detail="Authentication required")
+
+            await check_permission(
+                session,
+                user,
+                podcast.search_space_id,
+                Permission.PODCASTS_READ.value,
+                "You don't have permission to access podcasts in this search space",
             )
 
-        # Check permission for the search space
-        await check_permission(
-            session,
-            user,
-            podcast.search_space_id,
-            Permission.PODCASTS_READ.value,
-            "You don't have permission to access podcasts in this search space",
-        )
-
-        # Get the file path
         file_path = podcast.file_location
 
-        # Check if the file exists
         if not file_path or not os.path.isfile(file_path):
             raise HTTPException(status_code=404, detail="Podcast audio file not found")
 
-        # Define a generator function to stream the file
         def iterfile():
             with open(file_path, mode="rb") as file_like:
                 yield from file_like
 
-        # Return a streaming response with appropriate headers
         return StreamingResponse(
             iterfile(),
             media_type="audio/mpeg",

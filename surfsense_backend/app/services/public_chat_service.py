@@ -289,6 +289,7 @@ async def clone_public_chat(
                                 session,
                                 old_podcast_id,
                                 target_search_space_id,
+                                new_thread.id,
                             )
                             if new_podcast_id:
                                 podcast_id_map[old_podcast_id] = new_podcast_id
@@ -331,6 +332,7 @@ async def _clone_podcast(
     session: AsyncSession,
     podcast_id: int,
     target_search_space_id: int,
+    target_thread_id: int,
 ) -> int | None:
     """Clone a podcast record and its audio file."""
     import shutil
@@ -359,6 +361,7 @@ async def _clone_podcast(
         podcast_transcript=original.podcast_transcript,
         file_location=new_file_path,
         search_space_id=target_search_space_id,
+        thread_id=target_thread_id,
     )
     session.add(new_podcast)
     await session.flush()
@@ -412,3 +415,27 @@ async def _create_clone_failure_notification(
     )
     session.add(notification)
     await session.commit()
+
+
+async def is_podcast_publicly_accessible(
+    session: AsyncSession,
+    podcast_id: int,
+) -> bool:
+    """
+    Check if a podcast belongs to a publicly shared thread.
+
+    Uses the thread_id foreign key for efficient lookup.
+    """
+    from app.db import Podcast
+
+    result = await session.execute(
+        select(Podcast)
+        .options(selectinload(Podcast.thread))
+        .filter(Podcast.id == podcast_id)
+    )
+    podcast = result.scalars().first()
+
+    if not podcast or not podcast.thread:
+        return False
+
+    return podcast.thread.public_share_enabled
