@@ -95,6 +95,7 @@ class NewChatThreadRead(NewChatThreadBase, IDModel):
     search_space_id: int
     visibility: ChatVisibility
     created_by_id: UUID | None = None
+    public_share_enabled: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -133,7 +134,8 @@ class ThreadListItem(BaseModel):
     archived: bool
     visibility: ChatVisibility
     created_by_id: UUID | None = None
-    is_own_thread: bool = False  # True if the current user created this thread
+    is_own_thread: bool = False
+    public_share_enabled: bool = False
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
 
