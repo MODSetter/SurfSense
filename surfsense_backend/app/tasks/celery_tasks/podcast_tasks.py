@@ -67,6 +67,7 @@ def generate_content_podcast_task(
     search_space_id: int,
     podcast_title: str = "SurfSense Podcast",
     user_prompt: str | None = None,
+    thread_id: int | None = None,
 ) -> dict:
     """
     Celery task to generate podcast from source content (for new-chat).
@@ -78,6 +79,7 @@ def generate_content_podcast_task(
         search_space_id: ID of the search space
         podcast_title: Title for the podcast
         user_prompt: Optional instructions for podcast style/tone
+        thread_id: Optional ID of the chat thread that generated this podcast
 
     Returns:
         dict with podcast_id on success, or error info on failure
@@ -92,6 +94,7 @@ def generate_content_podcast_task(
                 search_space_id,
                 podcast_title,
                 user_prompt,
+                thread_id,
             )
         )
         loop.run_until_complete(loop.shutdown_asyncgens())
@@ -111,6 +114,7 @@ async def _generate_content_podcast(
     search_space_id: int,
     podcast_title: str = "SurfSense Podcast",
     user_prompt: str | None = None,
+    thread_id: int | None = None,
 ) -> dict:
     """Generate content-based podcast with new session."""
     async with get_celery_session_maker()() as session:
@@ -158,6 +162,7 @@ async def _generate_content_podcast(
                 podcast_transcript=serializable_transcript,
                 file_location=file_path,
                 search_space_id=search_space_id,
+                thread_id=thread_id,
             )
             session.add(podcast)
             await session.commit()

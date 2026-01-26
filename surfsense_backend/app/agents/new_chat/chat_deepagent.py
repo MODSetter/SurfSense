@@ -35,6 +35,7 @@ async def create_surfsense_deep_agent(
     connector_service: ConnectorService,
     checkpointer: Checkpointer,
     user_id: str | None = None,
+    thread_id: int | None = None,
     agent_config: AgentConfig | None = None,
     enabled_tools: list[str] | None = None,
     disabled_tools: list[str] | None = None,
@@ -123,6 +124,7 @@ async def create_surfsense_deep_agent(
         "connector_service": connector_service,
         "firecrawl_api_key": firecrawl_api_key,
         "user_id": user_id,  # Required for memory tools
+        "thread_id": thread_id,  # For podcast tool
     }
 
     # Build tools using the async registry (includes MCP tools)

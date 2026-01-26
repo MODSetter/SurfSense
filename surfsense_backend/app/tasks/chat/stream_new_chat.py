@@ -255,6 +255,7 @@ async def stream_new_chat(
             connector_service=connector_service,
             checkpointer=checkpointer,
             user_id=user_id,  # Pass user ID for memory tools
+            thread_id=chat_id,  # Pass chat ID for podcast association
             agent_config=agent_config,  # Pass prompt configuration
             firecrawl_api_key=firecrawl_api_key,  # Pass Firecrawl API key if configured
         )

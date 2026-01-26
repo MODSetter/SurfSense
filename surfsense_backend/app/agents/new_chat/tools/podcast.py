@@ -69,6 +69,7 @@ def clear_active_podcast_task(search_space_id: int) -> None:
 def create_generate_podcast_tool(
     search_space_id: int,
     db_session: AsyncSession,
+    thread_id: int | None = None,
 ):
     """
     Factory function to create the generate_podcast tool with injected dependencies.
@@ -76,6 +77,7 @@ def create_generate_podcast_tool(
     Args:
         search_space_id: The user's search space ID
         db_session: Database session (not used - Celery creates its own)
+        thread_id: The chat thread ID for associating the podcast
 
     Returns:
         A configured tool function for generating podcasts
@@ -145,6 +147,7 @@ def create_generate_podcast_tool(
                 search_space_id=search_space_id,
                 podcast_title=podcast_title,
                 user_prompt=user_prompt,
+                thread_id=thread_id,
             )
 
             # Mark this task as active
