@@ -45,11 +45,14 @@ from app.schemas.new_chat import (
     NewChatThreadUpdate,
     NewChatThreadVisibilityUpdate,
     NewChatThreadWithMessages,
+    PublicShareToggleRequest,
+    PublicShareToggleResponse,
     RegenerateRequest,
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
 )
+from app.services.public_chat_service import toggle_public_share
 from app.tasks.chat.stream_new_chat import stream_new_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
@@ -727,6 +730,32 @@ async def update_thread_visibility(
             status_code=500,
             detail=f"An unexpected error occurred while updating thread visibility: {e!s}",
         ) from None
+
+
+@router.patch(
+    "/threads/{thread_id}/public-share", response_model=PublicShareToggleResponse
+)
+async def update_thread_public_share(
+    thread_id: int,
+    request: Request,
+    toggle_request: PublicShareToggleRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Enable or disable public sharing for a thread.
+
+    Only the creator of the thread can manage public sharing.
+    When enabled, returns a public URL that anyone can use to view the chat.
+    """
+    base_url = str(request.base_url).rstrip("/")
+    return await toggle_public_share(
+        session=session,
+        thread_id=thread_id,
+        enabled=toggle_request.enabled,
+        user=user,
+        base_url=base_url,
+    )
 
 
 # =============================================================================
