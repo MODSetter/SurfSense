@@ -28,13 +28,13 @@ async def read_public_chat(
     Get a public chat by share token.
 
     No authentication required.
-    Returns sanitized content (citations stripped, non-UI tools removed).
+    Returns sanitized content (citations stripped).
     """
     return await get_public_chat(session, share_token)
 
 
 @router.post("/{share_token}/clone", response_model=CloneInitiatedResponse)
-async def clone_public_chat(
+async def clone_public_chat_endpoint(
     share_token: str,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
@@ -45,19 +45,20 @@ async def clone_public_chat(
     Requires authentication.
     Initiates a background job to copy the chat.
     """
+    from app.tasks.celery_tasks.clone_chat_tasks import clone_public_chat_task
+
     thread = await get_thread_by_share_token(session, share_token)
 
     if not thread:
         raise HTTPException(status_code=404, detail="Not found")
 
-    # TODO: Implement Celery task for cloning
-    # For now, return a placeholder response
-    # The actual implementation will:
-    # 1. Get user's default search space
-    # 2. Queue Celery task to clone thread, messages, and podcasts
-    # 3. Create notification on completion
+    task_result = clone_public_chat_task.delay(
+        share_token=share_token,
+        user_id=str(user.id),
+    )
 
-    raise HTTPException(
-        status_code=501,
-        detail="Clone functionality not yet implemented",
+    return CloneInitiatedResponse(
+        status="processing",
+        task_id=task_result.id,
+        message="Copying chat to your account...",
     )
