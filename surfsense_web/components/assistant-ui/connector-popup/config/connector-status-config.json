@@ -29,11 +29,6 @@
 			"enabled": false,
 			"status": "disabled",
 			"statusMessage": "Not available yet."
-		},
-		"GITHUB_CONNECTOR": {
-			"enabled": false,
-			"status": "warning",
-			"statusMessage": "Some issues with indexing repositories."
 		}
 	},
 	"globalSettings": {
