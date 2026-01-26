@@ -355,7 +355,7 @@ export default function NewChatPage() {
 			hasComments: currentThread?.has_comments ?? false,
 			addingCommentToMessageId: null,
 			publicShareEnabled: currentThread?.public_share_enabled ?? false,
-			publicShareToken: null, 
+			publicShareToken: currentThread?.public_share_token ?? null,
 		});
 	}, [currentThread, setCurrentThreadState]);
 

@@ -96,6 +96,7 @@ class NewChatThreadRead(NewChatThreadBase, IDModel):
     visibility: ChatVisibility
     created_by_id: UUID | None = None
     public_share_enabled: bool = False
+    public_share_token: str | None = None
     created_at: datetime
     updated_at: datetime
 

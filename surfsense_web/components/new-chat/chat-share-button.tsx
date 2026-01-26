@@ -245,17 +245,24 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							</p>
 						</div>
 						{isPublicEnabled && publicShareToken && (
-							<button
-								type="button"
+							<div
+								role="button"
+								tabIndex={0}
 								onClick={(e) => {
 									e.stopPropagation();
 									handleCopyPublicLink();
 								}}
-								className="shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors"
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.stopPropagation();
+										handleCopyPublicLink();
+									}
+								}}
+								className="shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors cursor-pointer"
 								title="Copy public link"
 							>
 								<Link2 className="size-4 text-muted-foreground" />
-							</button>
+							</div>
 						)}
 					</button>
 				</div>

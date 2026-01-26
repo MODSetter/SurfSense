@@ -84,12 +84,17 @@ async def read_podcasts(
 async def read_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User | None = Depends(current_optional_user),
 ):
     """
     Get a specific podcast by ID.
-    Requires PODCASTS_READ permission for the search space.
+
+    Access is allowed if:
+    - User is authenticated with PODCASTS_READ permission, OR
+    - Podcast belongs to a publicly shared thread
     """
+    from app.services.public_chat_service import is_podcast_publicly_accessible
+
     try:
         result = await session.execute(select(Podcast).filter(Podcast.id == podcast_id))
         podcast = result.scalars().first()
@@ -100,14 +105,18 @@ async def read_podcast(
                 detail="Podcast not found",
             )
 
-        # Check permission for the search space
-        await check_permission(
-            session,
-            user,
-            podcast.search_space_id,
-            Permission.PODCASTS_READ.value,
-            "You don't have permission to read podcasts in this search space",
-        )
+        is_public = await is_podcast_publicly_accessible(session, podcast_id)
+
+        if not is_public:
+            if not user:
+                raise HTTPException(status_code=401, detail="Authentication required")
+            await check_permission(
+                session,
+                user,
+                podcast.search_space_id,
+                Permission.PODCASTS_READ.value,
+                "You don't have permission to read podcasts in this search space",
+            )
 
         return podcast
     except HTTPException as he:

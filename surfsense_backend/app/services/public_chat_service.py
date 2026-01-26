@@ -27,8 +27,8 @@ def strip_citations(text: str) -> str:
     Remove [citation:X] and [citation:doc-X] patterns from text.
     Preserves newlines to maintain markdown formatting.
     """
-    # Remove citation patterns (including Chinese brackets 【】)
-    text = re.sub(r"[\[【]citation:(doc-)?\d+[\]】]", "", text)
+    # Remove citation patterns
+    text = re.sub(r"[\[【]\u200B?citation:(doc-)?\d+\u200B?[\]】]", "", text)
     # Collapse multiple spaces/tabs (but NOT newlines) into single space
     text = re.sub(r"[^\S\n]+", " ", text)
     # Normalize excessive blank lines (3+ newlines → 2)
@@ -63,8 +63,17 @@ def sanitize_content_for_public(content: list | str | None) -> list:
                 sanitized.append({"type": "text", "text": clean_text})
 
         elif part_type == "tool-call":
-            if part.get("toolName") in UI_TOOLS:
-                sanitized.append(part)
+            tool_name = part.get("toolName")
+            if tool_name not in UI_TOOLS:
+                continue
+
+            # Skip podcasts that are still processing (would cause auth errors)
+            if tool_name == "generate_podcast":
+                result = part.get("result", {})
+                if result.get("status") in ("processing", "already_generating"):
+                    continue
+
+            sanitized.append(part)
 
     return sanitized
 
