@@ -129,6 +129,7 @@ async def read_search_spaces(
             result = await session.execute(
                 select(SearchSpace)
                 .filter(SearchSpace.user_id == user.id)
+                .order_by(SearchSpace.id.asc())
                 .offset(skip)
                 .limit(limit)
             )
@@ -138,6 +139,7 @@ async def read_search_spaces(
                 select(SearchSpace)
                 .join(SearchSpaceMembership)
                 .filter(SearchSpaceMembership.user_id == user.id)
+                .order_by(SearchSpace.id.asc())
                 .offset(skip)
                 .limit(limit)
             )

@@ -1,8 +1,11 @@
 "use client";
 
 import { useAtomValue } from "jotai";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
+import { getBearerToken } from "@/lib/auth-utils";
 import {
 	cleanupElectric,
 	type ElectricClient,
@@ -27,6 +30,7 @@ interface ElectricProviderProps {
  * 5. Provides client via context - hooks should use useElectricClient()
  */
 export function ElectricProvider({ children }: ElectricProviderProps) {
+	const t = useTranslations("common");
 	const [electricClient, setElectricClient] = useState<ElectricClient | null>(null);
 	const [error, setError] = useState<Error | null>(null);
 	const {
@@ -105,21 +109,25 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 		};
 	}, [user?.id, isUserLoaded, electricClient]);
 
+	// Check if user is authenticated first (has bearer token)
+	// This prevents showing loading screen for unauthenticated users on homepage
+	const hasToken = typeof window !== "undefined" && !!getBearerToken();
+
+	// Determine if we should show loading
+	const shouldShowLoading = hasToken && isUserLoaded && !!user?.id && !electricClient && !error;
+
+	// Use global loading hook with ownership tracking - prevents flash during transitions
+	useGlobalLoadingEffect(shouldShowLoading, t("initializing"), "default");
+
 	// For non-authenticated pages (like landing page), render immediately with null context
 	// Also render immediately if user query failed (e.g., token expired)
-	if (!isUserLoaded || !user?.id || isUserError) {
+	if (!hasToken || !isUserLoaded || !user?.id || isUserError) {
 		return <ElectricContext.Provider value={null}>{children}</ElectricContext.Provider>;
 	}
 
-	// Show loading state while initializing for authenticated users
+	// Return children with null context while initializing - the global provider handles the loading UI
 	if (!electricClient && !error) {
-		return (
-			<ElectricContext.Provider value={null}>
-				<div className="flex items-center justify-center min-h-screen">
-					<div className="text-muted-foreground">Initializing...</div>
-				</div>
-			</ElectricContext.Provider>
-		);
+		return <ElectricContext.Provider value={null}>{children}</ElectricContext.Provider>;
 	}
 
 	// If there's an error, still render but warn

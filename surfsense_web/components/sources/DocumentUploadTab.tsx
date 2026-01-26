@@ -1,13 +1,14 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, FileType, Info, Loader2, Tag, Upload, X } from "lucide-react";
+import { CheckCircle2, FileType, Info, Tag, Upload, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	Accordion,
 	AccordionContent,
@@ -424,7 +425,7 @@ export function DocumentUploadTab({
 									>
 										{isUploading ? (
 											<span className="flex items-center gap-2">
-												<Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
+												<Spinner size="sm" />
 												{t("uploading")}
 											</span>
 										) : (

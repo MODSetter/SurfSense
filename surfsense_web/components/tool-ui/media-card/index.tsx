@@ -1,12 +1,13 @@
 "use client";
 
-import { ExternalLinkIcon, Globe, ImageIcon, LinkIcon, Loader2 } from "lucide-react";
+import { ExternalLinkIcon, Globe, ImageIcon, LinkIcon } from "lucide-react";
 import Image from "next/image";
 import { Component, type ReactNode } from "react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -299,18 +300,17 @@ export function MediaCard({
 
 					{/* Response Actions */}
 					{responseActions && responseActions.length > 0 && (
-						<div
-							className="mt-4 flex items-center justify-end gap-2 border-t pt-3"
-							onClick={(e) => e.stopPropagation()}
-							onKeyDown={(e) => e.stopPropagation()}
-						>
+						<div className="mt-4 flex items-center justify-end gap-2 border-t pt-3">
 							{responseActions.map((action) => (
 								<Tooltip key={action.id}>
 									<TooltipTrigger asChild>
 										<Button
 											variant={action.variant || "secondary"}
 											size="sm"
-											onClick={() => onResponseAction?.(action.id)}
+											onClick={(e) => {
+												e.stopPropagation();
+												onResponseAction?.(action.id);
+											}}
 										>
 											{action.label}
 										</Button>
@@ -337,7 +337,7 @@ export function MediaCardLoading({ title = "Loading preview..." }: { title?: str
 	return (
 		<Card className="w-full max-w-md overflow-hidden">
 			<div className="aspect-[2/1] bg-muted animate-pulse flex items-center justify-center">
-				<Loader2 className="size-8 text-muted-foreground animate-spin" />
+				<Spinner size="lg" className="text-muted-foreground" />
 			</div>
 			<CardContent className="p-4">
 				<div className="flex items-center gap-3">

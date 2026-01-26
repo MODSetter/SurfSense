@@ -32,6 +32,12 @@ const TOUR_STEPS: TourStep[] = [
 		content: "Access and manage all your uploaded documents.",
 		placement: "right",
 	},
+	{
+		target: '[data-joyride="inbox-sidebar"]',
+		title: "Check your inbox",
+		content: "View mentions and notifications in one place.",
+		placement: "right",
+	},
 ];
 
 interface TooltipPosition {
@@ -188,14 +194,15 @@ function TourTooltip({
 	const getPointerStyles = (): React.CSSProperties => {
 		const lineLength = 16;
 		const dotSize = 6;
-		// Check if this is the documents step (stepIndex === 1)
+		// Check if this is the documents step (stepIndex === 1) or inbox step (stepIndex === 2)
 		const isDocumentsStep = stepIndex === 1;
+		const isInboxStep = stepIndex === 2;
 
 		if (position.pointerPosition === "left") {
 			return {
 				position: "absolute",
 				left: -lineLength - dotSize,
-				top: isDocumentsStep ? "calc(50% - 8px)" : "50%",
+				top: isDocumentsStep || isInboxStep ? "calc(50% - 8px)" : "50%",
 				transform: "translateY(-50%)",
 				display: "flex",
 				alignItems: "center",
@@ -518,12 +525,13 @@ export function OnboardingTour() {
 
 		// User is new and hasn't seen tour - wait for DOM elements and start tour
 		const checkAndStartTour = () => {
-			// Check if both required elements exist
+			// Check if all required elements exist
 			const connectorEl = document.querySelector(TOUR_STEPS[0].target);
 			const documentsEl = document.querySelector(TOUR_STEPS[1].target);
+			const inboxEl = document.querySelector(TOUR_STEPS[2].target);
 
-			if (connectorEl && documentsEl) {
-				// Both elements found, start tour
+			if (connectorEl && documentsEl && inboxEl) {
+				// All elements found, start tour
 				setIsActive(true);
 				setTargetEl(connectorEl);
 				setSpotlightTargetEl(connectorEl);

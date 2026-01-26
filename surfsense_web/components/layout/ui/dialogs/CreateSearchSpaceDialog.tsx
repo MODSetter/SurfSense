@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
-import { Loader2, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -26,6 +26,7 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { trackSearchSpaceCreated } from "@/lib/posthog/events";
 
 const formSchema = z.object({
@@ -82,29 +83,36 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 
 	return (
 		<Dialog open={open} onOpenChange={handleOpenChange}>
-			<DialogContent className="sm:max-w-md">
-				<DialogHeader>
-					<div className="flex items-center gap-3">
-						<div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
-							<Search className="h-5 w-5 text-primary" />
+			<DialogContent className="max-w-[90vw] sm:max-w-sm p-4 sm:p-5 data-[state=open]:animate-none data-[state=closed]:animate-none">
+				<DialogHeader className="space-y-2 pb-2">
+					<div className="flex items-center gap-2 sm:gap-3">
+						<div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+							<Search className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
 						</div>
-						<div>
-							<DialogTitle>{t("create_title")}</DialogTitle>
-							<DialogDescription>{t("create_description")}</DialogDescription>
+						<div className="flex-1 min-w-0">
+							<DialogTitle className="text-base sm:text-lg">{t("create_title")}</DialogTitle>
+							<DialogDescription className="text-xs sm:text-sm mt-0.5">
+								{t("create_description")}
+							</DialogDescription>
 						</div>
 					</div>
 				</DialogHeader>
 
 				<Form {...form}>
-					<form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-4">
+					<form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col gap-3 sm:gap-4">
 						<FormField
 							control={form.control}
 							name="name"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>{t("name_label")}</FormLabel>
+									<FormLabel className="text-sm">{t("name_label")}</FormLabel>
 									<FormControl>
-										<Input placeholder={t("name_placeholder")} {...field} autoFocus />
+										<Input
+											placeholder={t("name_placeholder")}
+											{...field}
+											autoFocus
+											className="text-sm h-9 sm:h-10"
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -116,38 +124,47 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 							name="description"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel>
+									<FormLabel className="text-sm">
 										{t("description_label")}{" "}
 										<span className="text-muted-foreground font-normal">
 											({tCommon("optional")})
 										</span>
 									</FormLabel>
 									<FormControl>
-										<Input placeholder={t("description_placeholder")} {...field} />
+										<Input
+											placeholder={t("description_placeholder")}
+											{...field}
+											className="text-sm h-9 sm:h-10"
+										/>
 									</FormControl>
 									<FormMessage />
 								</FormItem>
 							)}
 						/>
 
-						<DialogFooter className="flex gap-2 pt-2">
+						<DialogFooter className="flex-col sm:flex-row gap-2 pt-2 sm:pt-3">
 							<Button
 								type="button"
 								variant="outline"
 								onClick={() => handleOpenChange(false)}
 								disabled={isSubmitting}
+								className="w-full sm:w-auto h-9 sm:h-10 text-sm"
 							>
 								{tCommon("cancel")}
 							</Button>
-							<Button type="submit" disabled={isSubmitting}>
+							<Button
+								type="submit"
+								disabled={isSubmitting}
+								className="w-full sm:w-auto h-9 sm:h-10 text-sm"
+							>
 								{isSubmitting ? (
 									<>
-										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										<Spinner size="sm" className="mr-1.5" />
 										{t("creating")}
 									</>
 								) : (
 									<>
-										<Plus className="mr-2 h-4 w-4" />
+										<Plus className="-mr-1 h-4 w-4" />
 										{t("create_button")}
 									</>
 								)}

@@ -1,10 +1,11 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { AlertCircleIcon, Loader2Icon, MicIcon } from "lucide-react";
+import { AlertCircleIcon, MicIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Audio } from "@/components/tool-ui/audio";
+import { Spinner } from "@/components/ui/spinner";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 import { clearActivePodcastTaskId, setActivePodcastTaskId } from "@/lib/chat/podcast-state";
@@ -97,8 +98,8 @@ function PodcastGeneratingState({ title }: { title: string }) {
 				<div className="flex-1">
 					<h3 className="font-semibold text-foreground text-lg">{title}</h3>
 					<div className="mt-2 flex items-center gap-2 text-muted-foreground">
-						<Loader2Icon className="size-4 animate-spin" />
-						<span className="text-sm">Generating podcast. This may take a few minutes</span>
+						<Spinner size="sm" />
+						<span className="text-sm">Generating podcast. This may take a few minutes.</span>
 					</div>
 					<div className="mt-3">
 						<div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
@@ -144,7 +145,7 @@ function AudioLoadingState({ title }: { title: string }) {
 				<div className="flex-1">
 					<h3 className="font-semibold text-foreground">{title}</h3>
 					<div className="mt-2 flex items-center gap-2 text-muted-foreground">
-						<Loader2Icon className="size-4 animate-spin" />
+						<Spinner size="sm" />
 						<span className="text-sm">Loading audio...</span>
 					</div>
 				</div>

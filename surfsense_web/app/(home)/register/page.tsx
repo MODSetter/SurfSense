@@ -18,6 +18,7 @@ import {
 	trackRegistrationSuccess,
 } from "@/lib/posthog/events";
 import { AmbientBackground } from "../login/AmbientBackground";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function RegisterPage() {
 	const t = useTranslations("auth");
@@ -60,9 +61,6 @@ export default function RegisterPage() {
 		// Track registration attempt
 		trackRegistrationAttempt();
 
-		// Show loading toast
-		const loadingToast = toast.loading(t("creating_account"));
-
 		try {
 			await register({
 				email,
@@ -77,7 +75,6 @@ export default function RegisterPage() {
 
 			// Success toast
 			toast.success(t("register_success"), {
-				id: loadingToast,
 				description: t("redirecting_login"),
 				duration: 2000,
 			});
@@ -95,7 +92,6 @@ export default function RegisterPage() {
 						trackRegistrationFailure("Registration disabled");
 						setError({ title: "Registration is disabled", message: friendlyMessage });
 						toast.error("Registration is disabled", {
-							id: loadingToast,
 							description: friendlyMessage,
 							duration: 6000,
 						});
@@ -109,7 +105,6 @@ export default function RegisterPage() {
 					trackRegistrationFailure(err.message);
 					setError({ title: err.name, message: err.message });
 					toast.error(err.name, {
-						id: loadingToast,
 						description: err.message,
 						duration: 6000,
 					});
@@ -137,7 +132,6 @@ export default function RegisterPage() {
 
 			// Show error toast with conditional retry action
 			const toastOptions: any = {
-				id: loadingToast,
 				description: errorDetails.description,
 				duration: 6000,
 			};
@@ -295,9 +289,16 @@ export default function RegisterPage() {
 						<button
 							type="submit"
 							disabled={isRegistering}
-							className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base"
+							className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
 						>
-							{isRegistering ? t("creating_account_btn") : t("register")}
+							{isRegistering ? (
+								<>
+									<Spinner size="sm" className="text-white" />
+									<span>{t("creating_account_btn")}</span>
+								</>
+							) : (
+								t("register")
+							)}
 						</button>
 					</form>
 

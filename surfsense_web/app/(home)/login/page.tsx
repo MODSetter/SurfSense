@@ -1,12 +1,12 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Suspense, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Logo } from "@/components/Logo";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { AmbientBackground } from "./AmbientBackground";
@@ -59,7 +59,11 @@ function LoginContent() {
 			});
 
 			// Show toast with conditional retry action
-			const toastOptions: any = {
+			const toastOptions: {
+				description: string;
+				duration: number;
+				action?: { label: string; onClick: () => void };
+			} = {
 				description: errorDescription,
 				duration: 6000,
 			};
@@ -88,20 +92,12 @@ function LoginContent() {
 		setIsLoading(false);
 	}, [searchParams, t, tCommon]);
 
-	// Show loading state while determining auth type
+	// Use global loading screen for auth type determination - spinner animation won't reset
+	useGlobalLoadingEffect(isLoading, tCommon("loading"), "login");
+
+	// Show nothing while loading - the GlobalLoadingProvider handles the loading UI
 	if (isLoading) {
-		return (
-			<div className="relative w-full overflow-hidden">
-				<AmbientBackground />
-				<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-					<Logo className="rounded-md" />
-					<div className="mt-8 flex items-center space-x-2">
-						<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-						<span className="text-muted-foreground">{tCommon("loading")}</span>
-					</div>
-				</div>
-			</div>
-		);
+		return null;
 	}
 
 	if (authType === "GOOGLE") {
@@ -182,23 +178,10 @@ function LoginContent() {
 	);
 }
 
-// Loading fallback for Suspense
-const LoadingFallback = () => (
-	<div className="relative w-full overflow-hidden">
-		<AmbientBackground />
-		<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-			<Logo className="rounded-md" />
-			<div className="mt-8 flex items-center space-x-2">
-				<Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-				<span className="text-muted-foreground">Loading...</span>
-			</div>
-		</div>
-	</div>
-);
-
 export default function LoginPage() {
+	// Suspense fallback returns null - the GlobalLoadingProvider handles the loading UI
 	return (
-		<Suspense fallback={<LoadingFallback />}>
+		<Suspense fallback={null}>
 			<LoginContent />
 		</Suspense>
 	);

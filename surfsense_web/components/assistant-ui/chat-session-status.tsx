@@ -1,8 +1,8 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import type { FC } from "react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ChatSessionStatusProps {
 	isAiResponding: boolean;
@@ -43,7 +43,7 @@ export const ChatSessionStatus: FC<ChatSessionStatusProps> = ({
 				className
 			)}
 		>
-			<Loader2 className="size-3.5 animate-spin" />
+			<Spinner size="xs" />
 			<span>Currently responding to {displayName}</span>
 		</div>
 	);

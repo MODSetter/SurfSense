@@ -10,11 +10,13 @@ import {
 	MessageSquare,
 	Settings,
 	X,
+	FileText,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
+import { GeneralSettingsManager } from "@/components/settings/general-settings-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
@@ -30,6 +32,12 @@ interface SettingsNavItem {
 }
 
 const settingsNavItems: SettingsNavItem[] = [
+	{
+		id: "general",
+		labelKey: "nav_general",
+		descriptionKey: "nav_general_desc",
+		icon: FileText,
+	},
 	{
 		id: "models",
 		labelKey: "nav_agent_configs",
@@ -262,6 +270,9 @@ function SettingsContent({
 								ease: [0.4, 0, 0.2, 1],
 							}}
 						>
+							{activeSection === "general" && (
+								<GeneralSettingsManager searchSpaceId={searchSpaceId} />
+							)}
 							{activeSection === "models" && <ModelConfigManager searchSpaceId={searchSpaceId} />}
 							{activeSection === "roles" && <LLMRoleManager searchSpaceId={searchSpaceId} />}
 							{activeSection === "prompts" && <PromptConfigManager searchSpaceId={searchSpaceId} />}
@@ -277,7 +288,7 @@ export default function SettingsPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
-	const [activeSection, setActiveSection] = useState("models");
+	const [activeSection, setActiveSection] = useState("general");
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	// Track settings section view

@@ -30,6 +30,7 @@ export interface ChatItem {
 	isActive?: boolean;
 	visibility?: "PRIVATE" | "SEARCH_SPACE";
 	isOwnThread?: boolean;
+	archived?: boolean;
 }
 
 export interface PageUsage {

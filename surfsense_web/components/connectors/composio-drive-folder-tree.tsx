@@ -10,12 +10,12 @@ import {
 	FolderOpen,
 	HardDrive,
 	Image,
-	Loader2,
 	Presentation,
 } from "lucide-react";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
 import { useComposioDriveFolders } from "@/hooks/use-composio-drive-folders";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cn } from "@/lib/utils";
@@ -253,7 +253,7 @@ export function ComposioDriveFolderTree({
 							aria-label={isExpanded ? `Collapse ${item.name}` : `Expand ${item.name}`}
 						>
 							{isLoading ? (
-								<Loader2 className="h-2.5 w-2.5 sm:h-3 sm:w-3 animate-spin" />
+								<Spinner size="xs" className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
 							) : isExpanded ? (
 								<ChevronDown className="h-3 w-3 sm:h-4 sm:w-4" />
 							) : (
@@ -344,7 +344,7 @@ export function ComposioDriveFolderTree({
 
 					{isLoadingRoot && (
 						<div className="flex items-center justify-center py-4 sm:py-8">
-							<Loader2 className="h-4 w-4 sm:h-6 sm:w-6 animate-spin text-muted-foreground" />
+							<Spinner size="sm" className="sm:h-6 sm:w-6 text-muted-foreground" />
 						</div>
 					)}
 

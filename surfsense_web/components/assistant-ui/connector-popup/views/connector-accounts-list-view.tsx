@@ -1,9 +1,10 @@
 "use client";
 
 import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } from "date-fns";
-import { ArrowLeft, Loader2, Plus, Server } from "lucide-react";
+import { ArrowLeft, Plus, Server } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
@@ -143,7 +144,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 					>
 						<div className="flex h-5 w-5 items-center justify-center rounded-md bg-primary/10 shrink-0">
 							{isConnecting ? (
-								<Loader2 className="size-3 animate-spin text-primary" />
+								<Spinner size="xs" className="text-primary" />
 							) : (
 								<Plus className="size-3 text-primary" />
 							)}
@@ -207,7 +208,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 										</p>
 										{isIndexing ? (
 											<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
-												<Loader2 className="size-3 animate-spin" />
+												<Spinner size="xs" />
 												Syncing
 											</p>
 										) : (

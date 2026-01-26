@@ -1,13 +1,14 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Cable, Loader2 } from "lucide-react";
+import { Cable } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import type { FC } from "react";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
@@ -174,7 +175,7 @@ export const ConnectorIndicator: FC = () => {
 				onClick={() => handleOpenChange(true)}
 			>
 				{isLoading ? (
-					<Loader2 className="size-4 animate-spin" />
+					<Spinner size="sm" />
 				) : (
 					<>
 						<Cable className="size-4 stroke-[1.5px]" />

@@ -14,7 +14,6 @@ import {
 	Hash,
 	Link2,
 	LinkIcon,
-	Loader2,
 	Logs,
 	type LucideIcon,
 	MessageCircle,
@@ -106,6 +105,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { Spinner } from "@/components/ui/spinner";
 import type {
 	CreateInviteRequest,
 	DeleteInviteRequest,
@@ -321,7 +321,7 @@ export default function TeamManagementPage() {
 					animate={{ opacity: 1, scale: 1 }}
 					className="flex flex-col items-center gap-4"
 				>
-					<Loader2 className="h-10 w-10 text-primary animate-spin" />
+					<Spinner size="lg" className="text-primary" />
 					<p className="text-muted-foreground">Loading team data...</p>
 				</motion.div>
 			</div>
@@ -571,7 +571,7 @@ function MembersTab({
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-8 w-8 text-primary animate-spin" />
+				<Spinner size="md" className="text-primary" />
 			</div>
 		);
 	}
@@ -911,7 +911,7 @@ function RolesTab({
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-8 w-8 text-primary animate-spin" />
+				<Spinner size="md" className="text-primary" />
 			</div>
 		);
 	}
@@ -1068,7 +1068,7 @@ function InvitesTab({
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-8 w-8 text-primary animate-spin" />
+				<Spinner size="md" className="text-primary" />
 			</div>
 		);
 	}
@@ -1446,7 +1446,7 @@ function CreateInviteDialog({
 							<Button onClick={handleCreate} disabled={creating}>
 								{creating ? (
 									<>
-										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+										<Spinner size="sm" className="mr-2" />
 										Creating
 									</>
 								) : (
@@ -1699,7 +1699,7 @@ function CreateRoleDialog({
 					<Button onClick={handleCreate} disabled={creating || !name.trim()}>
 						{creating ? (
 							<>
-								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+								<Spinner size="sm" className="mr-2" />
 								Creating
 							</>
 						) : (

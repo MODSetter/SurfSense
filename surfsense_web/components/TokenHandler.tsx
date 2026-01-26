@@ -1,7 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect } from "react";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
 import { trackLoginSuccess } from "@/lib/posthog/events";
 
@@ -25,7 +27,11 @@ const TokenHandler = ({
 	tokenParamName = "token",
 	storageKey = "surfsense_bearer_token",
 }: TokenHandlerProps) => {
+	const t = useTranslations("auth");
 	const searchParams = useSearchParams();
+
+	// Always show loading for this component - spinner animation won't reset
+	useGlobalLoadingEffect(true, t("processing_authentication"), "default");
 
 	useEffect(() => {
 		// Only run on client-side
@@ -66,11 +72,8 @@ const TokenHandler = ({
 		}
 	}, [searchParams, tokenParamName, storageKey, redirectPath]);
 
-	return (
-		<div className="flex items-center justify-center min-h-[200px]">
-			<p className="text-gray-500">Processing authentication...</p>
-		</div>
-	);
+	// Return null - the global provider handles the loading UI
+	return null;
 };
 
 export default TokenHandler;

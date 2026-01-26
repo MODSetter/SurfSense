@@ -1,5 +1,11 @@
 "use client";
-import { IconBrandDiscord, IconBrandGithub, IconBrandReddit, IconMenu2, IconX } from "@tabler/icons-react";
+import {
+	IconBrandDiscord,
+	IconBrandGithub,
+	IconBrandReddit,
+	IconMenu2,
+	IconX,
+} from "@tabler/icons-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
