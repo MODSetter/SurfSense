@@ -204,3 +204,55 @@ class RegenerateRequest(BaseModel):
     attachments: list[ChatAttachment] | None = None
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
+
+
+# =============================================================================
+# Public Sharing Schemas
+# =============================================================================
+
+
+class PublicShareToggleRequest(BaseModel):
+    """Request to enable/disable public sharing for a thread."""
+
+    enabled: bool
+
+
+class PublicShareToggleResponse(BaseModel):
+    """Response after toggling public sharing."""
+
+    enabled: bool
+    public_url: str | None = None
+    share_token: str | None = None
+
+
+# =============================================================================
+# Public Chat View Schemas (for unauthenticated access)
+# =============================================================================
+
+
+class PublicAuthor(BaseModel):
+    display_name: str | None = None
+    avatar_url: str | None = None
+
+
+class PublicChatMessage(BaseModel):
+    role: NewChatMessageRole
+    content: Any
+    author: PublicAuthor | None = None
+    created_at: datetime
+
+
+class PublicChatThread(BaseModel):
+    title: str
+    created_at: datetime
+
+
+class PublicChatResponse(BaseModel):
+    thread: PublicChatThread
+    messages: list[PublicChatMessage]
+
+
+class CloneInitiatedResponse(BaseModel):
+    status: str = "processing"
+    task_id: str
+    message: str = "Copying chat to your account..."
