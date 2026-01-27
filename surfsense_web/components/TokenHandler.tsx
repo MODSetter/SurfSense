@@ -1,7 +1,6 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
@@ -27,11 +26,10 @@ const TokenHandler = ({
 	tokenParamName = "token",
 	storageKey = "surfsense_bearer_token",
 }: TokenHandlerProps) => {
-	const t = useTranslations("auth");
 	const searchParams = useSearchParams();
 
 	// Always show loading for this component - spinner animation won't reset
-	useGlobalLoadingEffect(true, t("processing_authentication"), "default");
+	useGlobalLoadingEffect(true);
 
 	useEffect(() => {
 		// Only run on client-side

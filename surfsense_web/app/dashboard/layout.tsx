@@ -1,6 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
@@ -10,11 +9,10 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-	const t = useTranslations("dashboard");
 	const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
 	// Use the global loading screen - spinner animation won't reset
-	useGlobalLoadingEffect(isCheckingAuth, t("checking_auth"), "default");
+	useGlobalLoadingEffect(isCheckingAuth);
 
 	useEffect(() => {
 		// Check if user is authenticated
