@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink, Gift, Loader2, Mail, Star } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -20,10 +21,21 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { IncentiveTaskInfo } from "@/contracts/types/incentive-tasks.types";
 import { incentiveTasksApiService } from "@/lib/apis/incentive-tasks-api.service";
+import {
+	trackIncentiveContactOpened,
+	trackIncentivePageViewed,
+	trackIncentiveTaskClicked,
+	trackIncentiveTaskCompleted,
+} from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
 
 export default function MorePagesPage() {
 	const queryClient = useQueryClient();
+
+	// Track page view on mount
+	useEffect(() => {
+		trackIncentivePageViewed();
+	}, []);
 
 	// Fetch tasks from API
 	const { data, isLoading } = useQuery({
@@ -34,9 +46,14 @@ export default function MorePagesPage() {
 	// Mutation to complete a task
 	const completeMutation = useMutation({
 		mutationFn: incentiveTasksApiService.completeTask,
-		onSuccess: (response) => {
+		onSuccess: (response, taskType) => {
 			if (response.success) {
 				toast.success(response.message);
+				// Track task completion
+				const task = data?.tasks.find((t) => t.task_type === taskType);
+				if (task) {
+					trackIncentiveTaskCompleted(taskType, task.pages_reward);
+				}
 				// Invalidate queries to refresh data
 				queryClient.invalidateQueries({ queryKey: ["incentive-tasks"] });
 				queryClient.invalidateQueries({ queryKey: ["user"] });
@@ -49,6 +66,7 @@ export default function MorePagesPage() {
 
 	const handleTaskClick = (task: IncentiveTaskInfo) => {
 		if (!task.completed) {
+			trackIncentiveTaskClicked(task.task_type);
 			completeMutation.mutate(task.task_type);
 		}
 	};
@@ -148,7 +166,7 @@ export default function MorePagesPage() {
 					<p className="mb-3 text-sm text-muted-foreground">
 						{allCompleted ? "Thanks! Need even more pages?" : "Need more pages?"}
 					</p>
-					<Dialog>
+					<Dialog onOpenChange={(open) => open && trackIncentiveContactOpened()}>
 						<DialogTrigger asChild>
 							<Button variant="outline" size="sm" className="gap-2">
 								<Mail className="h-4 w-4" />
