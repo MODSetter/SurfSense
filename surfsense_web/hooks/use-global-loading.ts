@@ -20,21 +20,18 @@ let pendingHideTimeout: ReturnType<typeof setTimeout> | null = null;
 export function useGlobalLoading() {
 	const [loading, setLoading] = useAtom(globalLoadingAtom);
 
-	const show = useCallback(
-		(message?: string, variant: "login" | "default" = "default") => {
-			// Cancel any pending hide - new loading request takes over
-			if (pendingHideTimeout) {
-				clearTimeout(pendingHideTimeout);
-				pendingHideTimeout = null;
-			}
+	const show = useCallback(() => {
+		// Cancel any pending hide - new loading request takes over
+		if (pendingHideTimeout) {
+			clearTimeout(pendingHideTimeout);
+			pendingHideTimeout = null;
+		}
 
-			const id = ++loadingIdCounter;
-			currentLoadingId = id;
-			setLoading({ isLoading: true, message, variant });
-			return id;
-		},
-		[setLoading]
-	);
+		const id = ++loadingIdCounter;
+		currentLoadingId = id;
+		setLoading({ isLoading: true });
+		return id;
+	}, [setLoading]);
 
 	const hide = useCallback(
 		(id?: number) => {
@@ -50,7 +47,7 @@ export function useGlobalLoading() {
 					// Double-check we're still the current loading after the delay
 					if (id === undefined || id === currentLoadingId) {
 						currentLoadingId = null;
-						setLoading({ isLoading: false, message: undefined, variant: "default" });
+						setLoading({ isLoading: false });
 					}
 					pendingHideTimeout = null;
 				}, 50); // Small delay to allow next component to mount and show loading
@@ -70,27 +67,21 @@ export function useGlobalLoading() {
  * transition loading states (e.g., layout → page).
  *
  * @param shouldShow - Whether the loading screen should be visible
- * @param message - Optional message to display
- * @param variant - Visual style variant ("login" or "default")
  */
-export function useGlobalLoadingEffect(
-	shouldShow: boolean,
-	message?: string,
-	variant: "login" | "default" = "default"
-) {
+export function useGlobalLoadingEffect(shouldShow: boolean) {
 	const { show, hide } = useGlobalLoading();
 	const loadingIdRef = useRef<number | null>(null);
 
 	useEffect(() => {
 		if (shouldShow) {
 			// Show loading and store the ID
-			loadingIdRef.current = show(message, variant);
+			loadingIdRef.current = show();
 		} else if (loadingIdRef.current !== null) {
 			// Only hide if we were the ones showing loading
 			hide(loadingIdRef.current);
 			loadingIdRef.current = null;
 		}
-	}, [shouldShow, message, variant, show, hide]);
+	}, [shouldShow, show, hide]);
 
 	// Cleanup on unmount - only hide if we're still the active loading
 	useEffect(() => {

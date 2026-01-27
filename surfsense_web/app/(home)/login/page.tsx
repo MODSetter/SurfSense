@@ -93,7 +93,7 @@ function LoginContent() {
 	}, [searchParams, t, tCommon]);
 
 	// Use global loading screen for auth type determination - spinner animation won't reset
-	useGlobalLoadingEffect(isLoading, tCommon("loading"), "login");
+	useGlobalLoadingEffect(isLoading);
 
 	// Show nothing while loading - the GlobalLoadingProvider handles the loading UI
 	if (isLoading) {

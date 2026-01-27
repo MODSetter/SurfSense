@@ -154,11 +154,7 @@ export function DashboardClientLayout({
 		isAutoConfiguring;
 
 	// Use global loading screen - spinner animation won't reset
-	useGlobalLoadingEffect(
-		shouldShowLoading,
-		isAutoConfiguring ? t("setting_up_ai") : t("checking_llm_prefs"),
-		"default"
-	);
+	useGlobalLoadingEffect(shouldShowLoading);
 
 	if (shouldShowLoading) {
 		return null;
