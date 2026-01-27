@@ -10,7 +10,11 @@ import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { type ChatVisibility, type ThreadRecord, updateThreadVisibility } from "@/lib/chat/thread-persistence";
+import {
+	type ChatVisibility,
+	type ThreadRecord,
+	updateThreadVisibility,
+} from "@/lib/chat/thread-persistence";
 import { cn } from "@/lib/utils";
 
 interface ChatShareButtonProps {
@@ -107,7 +111,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				publicShareEnabled: response.enabled,
 				publicShareToken: response.share_token,
 			}));
-		} catch(error) {
+		} catch (error) {
 			console.error("Failed to toggle public share:", error);
 		}
 	}, [thread, isPublicEnabled, togglePublicShare, setCurrentThreadState]);
@@ -126,7 +130,11 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 	}
 
 	const CurrentIcon = isPublicEnabled ? Globe : currentVisibility === "PRIVATE" ? User : Users;
-	const buttonLabel = isPublicEnabled ? "Public" : currentVisibility === "PRIVATE" ? "Private" : "Shared";
+	const buttonLabel = isPublicEnabled
+		? "Public"
+		: currentVisibility === "PRIVATE"
+			? "Private"
+			: "Shared";
 
 	return (
 		<Popover open={open} onOpenChange={setOpen}>

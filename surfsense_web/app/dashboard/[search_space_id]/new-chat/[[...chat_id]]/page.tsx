@@ -41,12 +41,12 @@ import { useMessagesElectric } from "@/hooks/use-messages-electric";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
+import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
-import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	appendMessage,
 	type ChatVisibility,
@@ -110,7 +110,6 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 
 	return [];
 }
-
 
 /**
  * Tools that should render custom UI in the chat.

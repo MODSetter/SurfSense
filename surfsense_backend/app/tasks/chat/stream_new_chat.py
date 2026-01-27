@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
-from app.utils.content_utils import bootstrap_history_from_db
 from app.agents.new_chat.checkpointer import get_checkpointer
 from app.agents.new_chat.llm_config import (
     AgentConfig,
@@ -35,6 +34,7 @@ from app.services.chat_session_state_service import (
 )
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
+from app.utils.content_utils import bootstrap_history_from_db
 
 
 def format_attachments_as_context(attachments: list[ChatAttachment]) -> str:

@@ -29,7 +29,7 @@ const GoogleLogo = ({ className }: { className?: string }) => (
 );
 
 interface SignInButtonProps {
-	/** 
+	/**
 	 * - "desktop": Hidden on mobile, visible on md+ (for navbar with separate mobile menu)
 	 * - "mobile": Full width, always visible (for mobile menu)
 	 * - "compact": Always visible, compact size (for headers)

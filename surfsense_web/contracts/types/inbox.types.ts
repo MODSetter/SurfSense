@@ -279,7 +279,13 @@ export function isChatCloneFailedMetadata(metadata: unknown): metadata is ChatCl
 export function parseInboxItemMetadata(
 	type: InboxItemTypeEnum,
 	metadata: unknown
-): ConnectorIndexingMetadata | DocumentProcessingMetadata | NewMentionMetadata | ChatClonedMetadata | ChatCloneFailedMetadata | null {
+):
+	| ConnectorIndexingMetadata
+	| DocumentProcessingMetadata
+	| NewMentionMetadata
+	| ChatClonedMetadata
+	| ChatCloneFailedMetadata
+	| null {
 	switch (type) {
 		case "connector_indexing": {
 			const result = connectorIndexingMetadata.safeParse(metadata);
