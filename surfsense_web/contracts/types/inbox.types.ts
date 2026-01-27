@@ -9,8 +9,6 @@ export const inboxItemTypeEnum = z.enum([
 	"connector_indexing",
 	"document_processing",
 	"new_mention",
-	"chat_cloned",
-	"chat_clone_failed",
 ]);
 
 /**
@@ -91,22 +89,6 @@ export const newMentionMetadata = z.object({
 });
 
 /**
- * Chat cloned success metadata schema
- */
-export const chatClonedMetadata = z.object({
-	thread_id: z.number(),
-	search_space_id: z.number(),
-});
-
-/**
- * Chat clone failed metadata schema
- */
-export const chatCloneFailedMetadata = z.object({
-	share_token: z.string(),
-	error: z.string(),
-});
-
-/**
  * Union of all inbox item metadata types
  * Use this when the inbox item type is unknown
  */
@@ -114,8 +96,6 @@ export const inboxItemMetadata = z.union([
 	connectorIndexingMetadata,
 	documentProcessingMetadata,
 	newMentionMetadata,
-	chatClonedMetadata,
-	chatCloneFailedMetadata,
 	baseInboxItemMetadata,
 ]);
 
@@ -151,16 +131,6 @@ export const documentProcessingInboxItem = inboxItem.extend({
 export const newMentionInboxItem = inboxItem.extend({
 	type: z.literal("new_mention"),
 	metadata: newMentionMetadata,
-});
-
-export const chatClonedInboxItem = inboxItem.extend({
-	type: z.literal("chat_cloned"),
-	metadata: chatClonedMetadata,
-});
-
-export const chatCloneFailedInboxItem = inboxItem.extend({
-	type: z.literal("chat_clone_failed"),
-	metadata: chatCloneFailedMetadata,
 });
 
 // =============================================================================
@@ -260,32 +230,12 @@ export function isNewMentionMetadata(metadata: unknown): metadata is NewMentionM
 }
 
 /**
- * Type guard for ChatClonedMetadata
- */
-export function isChatClonedMetadata(metadata: unknown): metadata is ChatClonedMetadata {
-	return chatClonedMetadata.safeParse(metadata).success;
-}
-
-/**
- * Type guard for ChatCloneFailedMetadata
- */
-export function isChatCloneFailedMetadata(metadata: unknown): metadata is ChatCloneFailedMetadata {
-	return chatCloneFailedMetadata.safeParse(metadata).success;
-}
-
-/**
  * Safe metadata parser - returns typed metadata or null
  */
 export function parseInboxItemMetadata(
 	type: InboxItemTypeEnum,
 	metadata: unknown
-):
-	| ConnectorIndexingMetadata
-	| DocumentProcessingMetadata
-	| NewMentionMetadata
-	| ChatClonedMetadata
-	| ChatCloneFailedMetadata
-	| null {
+): ConnectorIndexingMetadata | DocumentProcessingMetadata | NewMentionMetadata | null {
 	switch (type) {
 		case "connector_indexing": {
 			const result = connectorIndexingMetadata.safeParse(metadata);
@@ -297,14 +247,6 @@ export function parseInboxItemMetadata(
 		}
 		case "new_mention": {
 			const result = newMentionMetadata.safeParse(metadata);
-			return result.success ? result.data : null;
-		}
-		case "chat_cloned": {
-			const result = chatClonedMetadata.safeParse(metadata);
-			return result.success ? result.data : null;
-		}
-		case "chat_clone_failed": {
-			const result = chatCloneFailedMetadata.safeParse(metadata);
 			return result.success ? result.data : null;
 		}
 		default:
@@ -323,15 +265,11 @@ export type BaseInboxItemMetadata = z.infer<typeof baseInboxItemMetadata>;
 export type ConnectorIndexingMetadata = z.infer<typeof connectorIndexingMetadata>;
 export type DocumentProcessingMetadata = z.infer<typeof documentProcessingMetadata>;
 export type NewMentionMetadata = z.infer<typeof newMentionMetadata>;
-export type ChatClonedMetadata = z.infer<typeof chatClonedMetadata>;
-export type ChatCloneFailedMetadata = z.infer<typeof chatCloneFailedMetadata>;
 export type InboxItemMetadata = z.infer<typeof inboxItemMetadata>;
 export type InboxItem = z.infer<typeof inboxItem>;
 export type ConnectorIndexingInboxItem = z.infer<typeof connectorIndexingInboxItem>;
 export type DocumentProcessingInboxItem = z.infer<typeof documentProcessingInboxItem>;
 export type NewMentionInboxItem = z.infer<typeof newMentionInboxItem>;
-export type ChatClonedInboxItem = z.infer<typeof chatClonedInboxItem>;
-export type ChatCloneFailedInboxItem = z.infer<typeof chatCloneFailedInboxItem>;
 
 // API Request/Response types
 export type GetNotificationsRequest = z.infer<typeof getNotificationsRequest>;
