@@ -59,6 +59,58 @@ router = APIRouter()
 
 # ============ Permissions Endpoints ============
 
+# Human-readable descriptions for each permission
+PERMISSION_DESCRIPTIONS = {
+    # Documents
+    "documents:create": "Add new documents, files, and content to the search space",
+    "documents:read": "View and search documents in the search space",
+    "documents:update": "Edit existing documents and their metadata",
+    "documents:delete": "Remove documents from the search space",
+    # Chats
+    "chats:create": "Start new AI chat conversations",
+    "chats:read": "View chat history and conversations",
+    "chats:update": "Edit chat titles and settings",
+    "chats:delete": "Delete chat conversations",
+    # Comments
+    "comments:create": "Add comments and annotations to documents",
+    "comments:read": "View comments on documents",
+    "comments:delete": "Remove comments from documents",
+    # LLM Configs
+    "llm_configs:create": "Add new AI model configurations",
+    "llm_configs:read": "View AI model settings and configurations",
+    "llm_configs:update": "Modify AI model configurations",
+    "llm_configs:delete": "Remove AI model configurations",
+    # Podcasts
+    "podcasts:create": "Generate new AI podcasts from content",
+    "podcasts:read": "Listen to and view generated podcasts",
+    "podcasts:update": "Edit podcast settings and metadata",
+    "podcasts:delete": "Remove generated podcasts",
+    # Connectors
+    "connectors:create": "Set up new data source integrations",
+    "connectors:read": "View configured data sources and their status",
+    "connectors:update": "Modify data source configurations",
+    "connectors:delete": "Remove data source integrations",
+    # Logs
+    "logs:read": "View activity logs and audit trail",
+    "logs:delete": "Clear activity logs",
+    # Members
+    "members:invite": "Send invitations to new team members",
+    "members:view": "View the list of team members",
+    "members:remove": "Remove members from the search space",
+    "members:manage_roles": "Assign and change member roles",
+    # Roles
+    "roles:create": "Create new custom roles",
+    "roles:read": "View available roles and their permissions",
+    "roles:update": "Modify role permissions",
+    "roles:delete": "Remove custom roles",
+    # Settings
+    "settings:view": "View search space settings",
+    "settings:update": "Modify search space settings",
+    "settings:delete": "Delete the entire search space",
+    # Full access
+    "*": "Full access to all features and settings",
+}
+
 
 @router.get("/permissions", response_model=PermissionsListResponse)
 async def list_all_permissions(
@@ -71,12 +123,14 @@ async def list_all_permissions(
     for perm in Permission:
         # Extract category from permission value (e.g., "documents:read" -> "documents")
         category = perm.value.split(":")[0] if ":" in perm.value else "general"
+        description = PERMISSION_DESCRIPTIONS.get(perm.value, f"Permission for {perm.value}")
 
         permissions.append(
             PermissionInfo(
                 value=perm.value,
                 name=perm.name,
                 category=category,
+                description=description,
             )
         )
 
