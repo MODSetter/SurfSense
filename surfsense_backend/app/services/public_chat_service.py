@@ -255,8 +255,6 @@ async def clone_public_chat(
     Creates a new private thread with all messages and podcasts.
     Citations are stripped since they reference the original user's documents.
     """
-    import copy
-
     from app.db import (
         ChatVisibility,
         NewChatMessage,
