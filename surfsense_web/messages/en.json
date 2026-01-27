@@ -2,8 +2,6 @@
 	"common": {
 		"app_name": "SurfSense",
 		"welcome": "Welcome",
-		"loading": "Loading",
-		"initializing": "Initializing",
 		"save": "Save",
 		"cancel": "Cancel",
 		"delete": "Delete",
@@ -80,8 +78,7 @@
 		"passwords_no_match_desc": "The passwords you entered do not match",
 		"creating_account": "Creating your account",
 		"creating_account_btn": "Creating account",
-		"redirecting_login": "Redirecting to login page",
-		"processing_authentication": "Processing authentication"
+		"redirecting_login": "Redirecting to login page"
 	},
 	"searchSpace": {
 		"create_title": "Create Search Space",
@@ -146,10 +143,7 @@
 		"api_keys": "API Keys",
 		"profile": "Profile",
 		"loading_dashboard": "Loading Dashboard",
-		"checking_auth": "Checking authentication",
 		"loading_config": "Loading Configuration",
-		"checking_llm_prefs": "Checking your LLM preferences",
-		"setting_up_ai": "Setting up AI",
 		"config_error": "Configuration Error",
 		"failed_load_llm_config": "Failed to load your LLM configuration",
 		"error_loading_chats": "Error loading chats",
@@ -171,7 +165,6 @@
 		"create_search_space": "Create Search Space",
 		"add_new_search_space": "Add New Search Space",
 		"loading": "Loading",
-		"fetching_spaces": "Fetching your search spaces",
 		"may_take_moment": "This may take a moment",
 		"error": "Error",
 		"something_wrong": "Something went wrong",
