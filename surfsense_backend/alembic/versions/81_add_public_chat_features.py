@@ -8,6 +8,7 @@ Adds columns for:
 1. Public sharing via tokenized URLs (public_share_token, public_share_enabled)
 2. Clone tracking for audit (cloned_from_thread_id, cloned_at)
 3. History bootstrap flag for cloned chats (needs_history_bootstrap)
+4. Clone pending flag for two-phase clone (clone_pending)
 """
 
 from collections.abc import Sequence
@@ -78,6 +79,13 @@ def upgrade() -> None:
 
     op.execute(
         """
+        ALTER TABLE new_chat_threads
+        ADD COLUMN IF NOT EXISTS clone_pending BOOLEAN NOT NULL DEFAULT FALSE;
+        """
+    )
+
+    op.execute(
+        """
         CREATE INDEX IF NOT EXISTS ix_new_chat_threads_cloned_from_thread_id
         ON new_chat_threads(cloned_from_thread_id)
         WHERE cloned_from_thread_id IS NOT NULL;
@@ -89,6 +97,7 @@ def downgrade() -> None:
     """Remove public sharing and cloning columns from new_chat_threads."""
 
     op.execute("DROP INDEX IF EXISTS ix_new_chat_threads_cloned_from_thread_id")
+    op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS clone_pending")
     op.execute(
         "ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS needs_history_bootstrap"
     )

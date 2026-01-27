@@ -97,6 +97,7 @@ class NewChatThreadRead(NewChatThreadBase, IDModel):
     created_by_id: UUID | None = None
     public_share_enabled: bool = False
     public_share_token: str | None = None
+    clone_pending: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -255,7 +256,15 @@ class PublicChatResponse(BaseModel):
     messages: list[PublicChatMessage]
 
 
-class CloneInitiatedResponse(BaseModel):
-    status: str = "processing"
-    task_id: str
-    message: str = "Copying chat to your account..."
+class CloneInitResponse(BaseModel):
+
+
+    thread_id: int
+    search_space_id: int
+    share_token: str
+
+
+class CompleteCloneResponse(BaseModel):
+
+    status: str
+    message_count: int

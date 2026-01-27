@@ -437,6 +437,13 @@ class NewChatThread(BaseModel, TimestampMixin):
         default=False,
         server_default="false",
     )
+    # Flag indicating content clone is pending (two-phase clone)
+    clone_pending = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
