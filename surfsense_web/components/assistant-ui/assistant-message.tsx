@@ -11,6 +11,7 @@ import type { FC } from "react";
 import { useContext, useEffect, useRef, useState } from "react";
 import {
 	addingCommentToMessageIdAtom,
+	commentsCollapsedAtom,
 	commentsEnabledAtom,
 } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
@@ -102,6 +103,7 @@ export const AssistantMessage: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const dbMessageId = parseMessageId(messageId);
 	const commentsEnabled = useAtomValue(commentsEnabledAtom);
+	const commentsCollapsed = useAtomValue(commentsCollapsedAtom);
 	const [addingCommentToMessageId, setAddingCommentToMessageId] = useAtom(
 		addingCommentToMessageIdAtom
 	);
@@ -157,8 +159,8 @@ export const AssistantMessage: FC = () => {
 		>
 			<AssistantMessageInner />
 
-			{/* Desktop comment panel - only on lg screens and above */}
-			{searchSpaceId && commentsEnabled && !isMessageStreaming && (
+			{/* Desktop comment panel - only on lg screens and above, hidden when collapsed */}
+			{searchSpaceId && commentsEnabled && !isMessageStreaming && !commentsCollapsed && (
 				<div className="absolute left-full top-0 ml-4 hidden lg:block w-72">
 					<div
 						className={`sticky top-3 ${showCommentPanel ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}

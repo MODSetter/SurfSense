@@ -7,19 +7,21 @@ import {
 	Check,
 	CheckCheck,
 	CheckCircle2,
+	ChevronLeft,
+	ChevronRight,
 	History,
 	Inbox,
 	LayoutGrid,
 	ListFilter,
-	PanelLeftClose,
-	PanelLeft,
 	Search,
 	X,
 } from "lucide-react";
+import { useAtom } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { setCommentsCollapsedAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -171,6 +173,9 @@ export function InboxSidebar({
 	const router = useRouter();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 
+	// Comments collapsed state (desktop only, when docked)
+	const [, setCommentsCollapsed] = useAtom(setCommentsCollapsedAtom);
+
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeTab, setActiveTab] = useState<InboxTab>("mentions");
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
@@ -199,15 +204,16 @@ export function InboxSidebar({
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
 
-	// Only lock body scroll on mobile (Notion-style keeps desktop content scrollable)
+	// Only lock body scroll on mobile when inbox is open
 	useEffect(() => {
-		if (open && isMobile) {
-			document.body.style.overflow = "hidden";
-		} else {
-			document.body.style.overflow = "";
-		}
+		if (!open || !isMobile) return;
+		
+		// Store original overflow to restore on cleanup
+		const originalOverflow = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		
 		return () => {
-			document.body.style.overflow = "";
+			document.body.style.overflow = originalOverflow;
 		};
 	}, [open, isMobile]);
 
@@ -702,6 +708,25 @@ export function InboxSidebar({
 											{t("mark_all_read") || "Mark all as read"}
 										</TooltipContent>
 									</Tooltip>
+									{/* Close button - mobile only */}
+									{isMobile && (
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8 rounded-full"
+													onClick={() => onOpenChange(false)}
+												>
+													<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+													<span className="sr-only">{t("close") || "Close"}</span>
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent className="z-80">
+												{t("close") || "Close"}
+											</TooltipContent>
+										</Tooltip>
+									)}
 									{/* Dock/Undock button - desktop only */}
 									{!isMobile && onDockedChange && (
 										<Tooltip>
@@ -712,27 +737,29 @@ export function InboxSidebar({
 													className="h-8 w-8 rounded-full"
 													onClick={() => {
 														if (isDocked) {
-															// Undocking: close the inbox completely
+															// Collapse: show comments immediately, then close inbox
+															setCommentsCollapsed(false);
 															onDockedChange(false);
 															onOpenChange(false);
 														} else {
-															// Docking: keep open and dock
+															// Expand: hide comments immediately
+															setCommentsCollapsed(true);
 															onDockedChange(true);
 														}
 													}}
 												>
 													{isDocked ? (
-														<PanelLeftClose className="h-4 w-4 text-muted-foreground" />
+														<ChevronLeft className="h-4 w-4 text-muted-foreground" />
 													) : (
-														<PanelLeft className="h-4 w-4 text-muted-foreground" />
+														<ChevronRight className="h-4 w-4 text-muted-foreground" />
 													)}
 													<span className="sr-only">
-														{isDocked ? "Close inbox" : "Dock inbox"}
+														{isDocked ? "Collapse panel" : "Expand panel"}
 													</span>
 												</Button>
 											</TooltipTrigger>
 											<TooltipContent className="z-80">
-												{isDocked ? "Close inbox" : "Dock inbox"}
+												{isDocked ? "Collapse panel" : "Expand panel"}
 											</TooltipContent>
 										</Tooltip>
 									)}

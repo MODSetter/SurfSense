@@ -151,26 +151,26 @@ export function LayoutShell({
 							setTheme={setTheme}
 						/>
 
-						<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-							{children}
-						</main>
+					<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+						{children}
+					</main>
 
-						{/* Mobile Inbox Sidebar */}
-						{inbox && (
-							<InboxSidebar
-								open={inbox.isOpen}
-								onOpenChange={inbox.onOpenChange}
-								inboxItems={inbox.items}
-								unreadCount={inbox.unreadCount}
-								loading={inbox.loading}
-								loadingMore={inbox.loadingMore}
-								hasMore={inbox.hasMore}
-								loadMore={inbox.loadMore}
-								markAsRead={inbox.markAsRead}
-								markAllAsRead={inbox.markAllAsRead}
-								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-							/>
-						)}
+					{/* Mobile Inbox Sidebar - only render when open to avoid scroll blocking */}
+					{inbox?.isOpen && (
+						<InboxSidebar
+							open={inbox.isOpen}
+							onOpenChange={inbox.onOpenChange}
+							inboxItems={inbox.items}
+							unreadCount={inbox.unreadCount}
+							loading={inbox.loading}
+							loadingMore={inbox.loadingMore}
+							hasMore={inbox.hasMore}
+							loadMore={inbox.loadMore}
+							markAsRead={inbox.markAsRead}
+							markAllAsRead={inbox.markAllAsRead}
+							onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+						/>
+					)}
 					</div>
 				</TooltipProvider>
 			</SidebarProvider>
