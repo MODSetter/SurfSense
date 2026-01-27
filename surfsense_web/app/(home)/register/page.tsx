@@ -9,6 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { registerMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Logo } from "@/components/Logo";
+import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { AppError, ValidationError } from "@/lib/error";
@@ -18,7 +19,6 @@ import {
 	trackRegistrationSuccess,
 } from "@/lib/posthog/events";
 import { AmbientBackground } from "../login/AmbientBackground";
-import { Spinner } from "@/components/ui/spinner";
 
 export default function RegisterPage() {
 	const t = useTranslations("auth");

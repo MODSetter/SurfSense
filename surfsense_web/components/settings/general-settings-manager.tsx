@@ -1,7 +1,7 @@
 "use client";
 
-import { useAtomValue } from "jotai";
 import { useQuery } from "@tanstack/react-query";
+import { useAtomValue } from "jotai";
 import { Info, RotateCcw, Save } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";

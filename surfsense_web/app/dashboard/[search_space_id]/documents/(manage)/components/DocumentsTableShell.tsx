@@ -8,8 +8,8 @@ import React from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { DocumentViewer } from "@/components/document-viewer";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	Table,
 	TableBody,

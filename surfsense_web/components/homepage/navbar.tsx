@@ -105,7 +105,7 @@ export const Navbar = () => {
 	}, []);
 
 	return (
-		<div className="fixed top-1 left-0 right-0 z-[60] w-full">
+		<div className="fixed top-1 left-0 right-0 z-60 w-full">
 			<DesktopNav navItems={navItems} isScrolled={isScrolled} />
 			<MobileNav navItems={navItems} isScrolled={isScrolled} />
 		</div>

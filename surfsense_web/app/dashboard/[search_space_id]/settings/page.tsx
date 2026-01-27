@@ -5,12 +5,12 @@ import {
 	Bot,
 	Brain,
 	ChevronRight,
+	FileText,
 	type LucideIcon,
 	Menu,
 	MessageSquare,
 	Settings,
 	X,
-	FileText,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";

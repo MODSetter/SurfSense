@@ -9,8 +9,8 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import { getConnectorConfigComponent } from "../index";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
+import { getConnectorConfigComponent } from "../index";
 
 interface ConnectorEditViewProps {
 	connector: SearchSourceConnector;

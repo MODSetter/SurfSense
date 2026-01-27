@@ -3,10 +3,10 @@
 import { useAtomValue } from "jotai";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { AmbientBackground } from "@/app/(home)/login/AmbientBackground";
 import { globalLoadingAtom } from "@/atoms/ui/loading.atoms";
 import { Logo } from "@/components/Logo";
 import { Spinner } from "@/components/ui/spinner";
-import { AmbientBackground } from "@/app/(home)/login/AmbientBackground";
 import { cn } from "@/lib/utils";
 
 /**

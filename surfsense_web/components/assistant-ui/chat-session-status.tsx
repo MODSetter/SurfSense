@@ -1,8 +1,8 @@
 "use client";
 
 import type { FC } from "react";
-import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
 interface ChatSessionStatusProps {
 	isAiResponding: boolean;

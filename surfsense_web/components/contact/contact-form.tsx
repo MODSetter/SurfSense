@@ -33,7 +33,7 @@ export function ContactFormGridWithDetails() {
 						<IconCalendar className="h-5 w-5" />
 						Schedule a Meeting
 					</Link>
-					
+
 					<div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400">
 						<span className="h-px w-8 bg-neutral-300 dark:bg-neutral-600" />
 						<span className="text-sm">or</span>

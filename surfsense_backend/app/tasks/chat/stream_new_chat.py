@@ -87,10 +87,14 @@ def format_mentioned_documents_as_context(documents: list[Document]) -> str:
         context_parts.append("<document>")
         context_parts.append("<document_metadata>")
         context_parts.append(f"  <document_id>{doc.id}</document_id>")
-        context_parts.append(f"  <document_type>{doc.document_type.value}</document_type>")
+        context_parts.append(
+            f"  <document_type>{doc.document_type.value}</document_type>"
+        )
         context_parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
         context_parts.append(f"  <url><![CDATA[{url}]]></url>")
-        context_parts.append(f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>")
+        context_parts.append(
+            f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>"
+        )
         context_parts.append("</document_metadata>")
         context_parts.append("")
         context_parts.append("<document_content>")
