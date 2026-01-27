@@ -1,8 +1,8 @@
 "use client";
 
 import { Copy, Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { publicChatApiService } from "@/lib/apis/public-chat-api.service";
@@ -14,17 +14,11 @@ interface PublicChatFooterProps {
 
 export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 	const router = useRouter();
+	const searchParams = useSearchParams();
 	const [isCloning, setIsCloning] = useState(false);
+	const hasAutoCloned = useRef(false);
 
-	const handleCopyAndContinue = async () => {
-		const token = getBearerToken();
-
-		if (!token) {
-			const returnUrl = encodeURIComponent(`/public/${shareToken}`);
-			router.push(`/login?returnUrl=${returnUrl}&action=clone`);
-			return;
-		}
-
+	const triggerClone = useCallback(async () => {
 		setIsCloning(true);
 
 		try {
@@ -43,6 +37,31 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 		} finally {
 			setIsCloning(false);
 		}
+	}, [shareToken, router]);
+
+	// Auto-trigger clone if user just logged in with action=clone
+	useEffect(() => {
+		const action = searchParams.get("action");
+		const token = getBearerToken();
+
+		// Only auto-clone once, if authenticated and action=clone is present
+		if (action === "clone" && token && !hasAutoCloned.current && !isCloning) {
+			hasAutoCloned.current = true;
+			triggerClone();
+		}
+	}, [searchParams, isCloning, triggerClone]);
+
+	const handleCopyAndContinue = async () => {
+		const token = getBearerToken();
+
+		if (!token) {
+			// Include action=clone in the returnUrl so it persists after login
+			const returnUrl = encodeURIComponent(`/public/${shareToken}?action=clone`);
+			router.push(`/login?returnUrl=${returnUrl}`);
+			return;
+		}
+
+		await triggerClone();
 	};
 
 	return (
