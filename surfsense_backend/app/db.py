@@ -412,6 +412,25 @@ class NewChatThread(BaseModel, TimestampMixin):
         server_default="false",
     )
 
+    # Clone tracking - for audit and history bootstrap
+    cloned_from_thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    cloned_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+    )
+    # Flag to bootstrap LangGraph checkpointer with DB messages on first message
+    needs_history_bootstrap = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
     created_by = relationship("User", back_populates="new_chat_threads")

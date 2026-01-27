@@ -4,6 +4,7 @@ Service layer for public chat sharing and cloning.
 
 import re
 import secrets
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -283,6 +284,9 @@ async def clone_public_chat(
             search_space_id=target_search_space_id,
             created_by_id=user_id,
             public_share_enabled=False,
+            cloned_from_thread_id=source_thread.id,
+            cloned_at=datetime.now(UTC),
+            needs_history_bootstrap=True,
         )
         session.add(new_thread)
         await session.flush()

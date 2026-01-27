@@ -1027,6 +1027,7 @@ async def handle_new_chat(
                 attachments=request.attachments,
                 mentioned_document_ids=request.mentioned_document_ids,
                 mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                needs_history_bootstrap=thread.needs_history_bootstrap,
             ),
             media_type="text/event-stream",
             headers={
@@ -1254,6 +1255,7 @@ async def regenerate_response(
                     mentioned_document_ids=request.mentioned_document_ids,
                     mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
                     checkpoint_id=target_checkpoint_id,
+                    needs_history_bootstrap=thread.needs_history_bootstrap,
                 ):
                     yield chunk
                 # If we get here, streaming completed successfully
