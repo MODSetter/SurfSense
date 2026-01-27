@@ -464,6 +464,22 @@ async def check_document_by_unique_identifier(
     return existing_doc_result.scalars().first()
 
 
+async def check_document_by_content_hash(
+    session: AsyncSession, content_hash: str
+) -> Document | None:
+    """Check if a document with the given content hash already exists.
+    
+    This is used to prevent duplicate content from being indexed, regardless
+    of which connector originally indexed it.
+    """
+    from sqlalchemy.future import select
+
+    existing_doc_result = await session.execute(
+        select(Document).where(Document.content_hash == content_hash)
+    )
+    return existing_doc_result.scalars().first()
+
+
 async def update_connector_last_indexed(
     session: AsyncSession,
     connector,
@@ -487,8 +503,11 @@ async def index_composio_google_drive(
     log_entry,
     update_last_indexed: bool = True,
     max_items: int = 1000,
-) -> tuple[int, str]:
+) -> tuple[int, int, str | None]:
     """Index Google Drive files via Composio with delta sync support.
+    
+    Returns:
+        Tuple of (documents_indexed, documents_skipped, error_message or None)
 
     Delta Sync Flow:
     1. First sync: Full scan + get initial page token
@@ -628,11 +647,11 @@ async def index_composio_google_drive(
                 },
             )
 
-        return documents_indexed, error_message
+        return documents_indexed, documents_skipped, error_message
 
     except Exception as e:
         logger.error(f"Failed to index Google Drive via Composio: {e!s}", exc_info=True)
-        return 0, f"Failed to index Google Drive via Composio: {e!s}"
+        return 0, 0, f"Failed to index Google Drive via Composio: {e!s}"
 
 
 async def _index_composio_drive_delta_sync(
@@ -1000,7 +1019,7 @@ async def _process_single_drive_file(
 
     if existing_document:
         if existing_document.content_hash == content_hash:
-            return 0, 1, processing_errors  # Skipped
+            return 0, 1, processing_errors  # Skipped - unchanged
 
         # Update existing document
         user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
@@ -1039,7 +1058,17 @@ async def _process_single_drive_file(
         existing_document.chunks = chunks
         existing_document.updated_at = get_current_timestamp()
 
-        return 1, 0, processing_errors  # Indexed
+        return 1, 0, processing_errors  # Indexed - updated
+
+    # Check if content_hash already exists (from any connector)
+    # This prevents duplicate content and avoids IntegrityError on unique constraint
+    existing_by_content_hash = await check_document_by_content_hash(session, content_hash)
+    if existing_by_content_hash:
+        logger.info(
+            f"Skipping file {file_name} (file_id={file_id}): identical content "
+            f"already indexed as '{existing_by_content_hash.title}'"
+        )
+        return 0, 1, processing_errors  # Skipped - duplicate content
 
     # Create new document
     user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
@@ -1085,7 +1114,7 @@ async def _process_single_drive_file(
     )
     session.add(document)
 
-    return 1, 0, processing_errors  # Indexed
+    return 1, 0, processing_errors  # Indexed - new
 
 
 async def _fetch_folder_files_recursively(
