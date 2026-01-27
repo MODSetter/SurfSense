@@ -11,6 +11,8 @@ interface SidebarSectionProps {
 	children: React.ReactNode;
 	action?: React.ReactNode;
 	persistentAction?: React.ReactNode;
+	className?: string;
+	fillHeight?: boolean;
 }
 
 export function SidebarSection({
@@ -19,12 +21,22 @@ export function SidebarSection({
 	children,
 	action,
 	persistentAction,
+	className,
+	fillHeight = false,
 }: SidebarSectionProps) {
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 
 	return (
-		<Collapsible open={isOpen} onOpenChange={setIsOpen} className="overflow-hidden">
-			<div className="flex items-center group/section">
+		<Collapsible 
+			open={isOpen} 
+			onOpenChange={setIsOpen} 
+			className={cn(
+				"overflow-hidden",
+				fillHeight && "flex flex-col flex-1 min-h-0",
+				className
+			)}
+		>
+			<div className="flex items-center group/section shrink-0">
 				<CollapsibleTrigger className="flex flex-1 items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors min-w-0">
 					<ChevronRight
 						className={cn(
@@ -48,8 +60,16 @@ export function SidebarSection({
 				)}
 			</div>
 
-			<CollapsibleContent className="overflow-hidden">
-				<div className="px-2 pb-2">{children}</div>
+			<CollapsibleContent className={cn(
+				"overflow-hidden",
+				fillHeight && "flex-1 flex flex-col min-h-0"
+			)}>
+				<div className={cn(
+					"px-2 pb-2",
+					fillHeight && "flex-1 flex flex-col min-h-0 overflow-hidden"
+				)}>
+					{children}
+				</div>
 			</CollapsibleContent>
 		</Collapsible>
 	);
