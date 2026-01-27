@@ -26,6 +26,9 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 				share_token: shareToken,
 			});
 
+			// Force PGlite to resync notifications on next dashboard load
+			localStorage.setItem("surfsense_force_notif_resync", "true");
+
 			toast.success("Copying chat to your account...", {
 				description: "You'll be notified when it's ready.",
 			});

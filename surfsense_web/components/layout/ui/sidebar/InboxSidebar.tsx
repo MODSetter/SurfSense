@@ -7,6 +7,7 @@ import {
 	Check,
 	CheckCheck,
 	CheckCircle2,
+	Copy,
 	History,
 	Inbox,
 	LayoutGrid,
@@ -43,6 +44,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	type ConnectorIndexingMetadata,
+	isChatClonedMetadata,
+	isChatCloneFailedMetadata,
 	isConnectorIndexingMetadata,
 	isNewMentionMetadata,
 	type NewMentionMetadata,
@@ -196,10 +199,15 @@ export function InboxSidebar({
 		[inboxItems]
 	);
 
+	// Status tab includes: connector indexing, document processing, chat clone notifications
 	const statusItems = useMemo(
 		() =>
 			inboxItems.filter(
-				(item) => item.type === "connector_indexing" || item.type === "document_processing"
+				(item) =>
+					item.type === "connector_indexing" ||
+					item.type === "document_processing" ||
+					item.type === "chat_cloned" ||
+					item.type === "chat_clone_failed"
 			),
 		[inboxItems]
 	);
@@ -320,7 +328,17 @@ export function InboxSidebar({
 						router.push(url);
 					}
 				}
+			} else if (item.type === "chat_cloned") {
+				// Navigate to the cloned chat
+				if (isChatClonedMetadata(item.metadata)) {
+					const { search_space_id, thread_id } = item.metadata;
+					const url = `/dashboard/${search_space_id}/new-chat/${thread_id}`;
+					onOpenChange(false);
+					onCloseMobileSidebar?.();
+					router.push(url);
+				}
 			}
+			// chat_clone_failed: just mark as read, no navigation
 		},
 		[markAsRead, router, onOpenChange, onCloseMobileSidebar]
 	);
@@ -377,6 +395,24 @@ export function InboxSidebar({
 						{getInitials(null, null)}
 					</AvatarFallback>
 				</Avatar>
+			);
+		}
+
+		// For chat cloned success, show green copy icon
+		if (item.type === "chat_cloned") {
+			return (
+				<div className="h-8 w-8 flex items-center justify-center rounded-full bg-green-500/10">
+					<Copy className="h-4 w-4 text-green-500" />
+				</div>
+			);
+		}
+
+		// For chat clone failed, show red alert icon
+		if (item.type === "chat_clone_failed") {
+			return (
+				<div className="h-8 w-8 flex items-center justify-center rounded-full bg-red-500/10">
+					<AlertCircle className="h-4 w-4 text-red-500" />
+				</div>
 			);
 		}
 
