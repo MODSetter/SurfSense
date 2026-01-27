@@ -1,0 +1,143 @@
+---
+title: Obsidian
+description: Connect your Obsidian vault to SurfSense
+---
+
+# Obsidian Integration Setup Guide
+
+This guide walks you through connecting your Obsidian vault to SurfSense for note search and AI-powered insights.
+
+<Callout type="warn">
+    This connector requires direct file system access and only works with self-hosted SurfSense installations.
+</Callout>
+
+## How it works
+
+The Obsidian connector scans your local Obsidian vault directory and indexes all Markdown files. It preserves your note structure and extracts metadata from YAML frontmatter.
+
+- For follow-up indexing runs, the connector uses content hashing to skip unchanged files for faster sync.
+- Indexing should be configured to run periodically, so updates should appear in your search results within minutes.
+
+---
+
+## What Gets Indexed
+
+| Content Type | Description |
+|--------------|-------------|
+| Markdown Files | All `.md` files in your vault |
+| Frontmatter | YAML metadata (title, tags, aliases, dates) |
+| Wiki Links | Links between notes (`[[note]]`) |
+| Inline Tags | Tags throughout your notes (`#tag`) |
+| Note Content | Full content with intelligent chunking |
+
+<Callout type="warn">
+    Binary files and attachments are not indexed by default. Enable "Include Attachments" to index embedded files.
+</Callout>
+
+---
+
+## Quick Start (Local Installation)
+
+1. Navigate to **Connectors** → **Add Connector** → **Obsidian**
+2. Enter your vault path: `/Users/yourname/Documents/MyVault`
+3. Enter a vault name (e.g., `Personal Notes`)
+4. Click **Connect Obsidian**
+
+<Callout type="info">
+    Find your vault path: In Obsidian, right-click any note → "Reveal in Finder" (macOS) or "Show in Explorer" (Windows).
+</Callout>
+
+<Callout type="info" title="Periodic Sync">
+Enable periodic sync to automatically re-index notes when content changes. Available frequencies: Every 5 minutes, 15 minutes, hourly, every 6 hours, daily, or weekly.
+</Callout>
+
+---
+
+## Docker Setup
+
+For Docker deployments, you need to mount your Obsidian vault as a volume.
+
+### Step 1: Update docker-compose.yml
+
+Add your vault as a volume mount to the SurfSense backend service:
+
+```yaml
+services:
+  surfsense:
+    # ... other config
+    volumes:
+      - /path/to/your/obsidian/vault:/app/obsidian_vaults/my-vault:ro
+```
+
+<Callout type="info">
+    The `:ro` flag mounts the vault as read-only, which is recommended for security.
+</Callout>
+
+### Step 2: Configure the Connector
+
+Use the **container path** (not your local path) when setting up the connector:
+
+| Your Local Path | Container Path (use this) |
+|-----------------|---------------------------|
+| `/Users/john/Documents/MyVault` | `/app/obsidian_vaults/my-vault` |
+| `C:\Users\john\Documents\MyVault` | `/app/obsidian_vaults/my-vault` |
+
+### Example: Multiple Vaults
+
+```yaml
+volumes:
+  - /Users/john/Documents/PersonalNotes:/app/obsidian_vaults/personal:ro
+  - /Users/john/Documents/WorkNotes:/app/obsidian_vaults/work:ro
+```
+
+Then create separate connectors for each vault using `/app/obsidian_vaults/personal` and `/app/obsidian_vaults/work`.
+
+---
+
+## Connector Configuration
+
+| Field | Description | Required |
+|-------|-------------|----------|
+| **Connector Name** | A friendly name to identify this connector | Yes |
+| **Vault Path** | Absolute path to your vault (container path for Docker) | Yes |
+| **Vault Name** | Display name for your vault in search results | Yes |
+| **Exclude Folders** | Comma-separated folder names to skip | No |
+| **Include Attachments** | Index embedded files (images, PDFs) | No |
+
+---
+
+## Recommended Exclusions
+
+Common folders to exclude from indexing:
+
+| Folder | Reason |
+|--------|--------|
+| `.obsidian` | Obsidian config files (always exclude) |
+| `.trash` | Obsidian's trash folder |
+| `templates` | Template files you don't want searchable |
+| `daily-notes` | If you want to exclude daily notes |
+| `attachments` | If not using "Include Attachments" |
+
+Default exclusions: `.obsidian,.trash`
+
+---
+
+## Troubleshooting
+
+**Vault not found / Permission denied**
+- Verify the path exists and is accessible
+- For Docker: ensure the volume is mounted correctly in `docker-compose.yml`
+- Check file permissions: SurfSense needs read access to the vault directory
+
+**No notes indexed**
+- Ensure your vault contains `.md` files
+- Check that notes aren't in excluded folders
+- Verify the path points to the vault root (contains `.obsidian` folder)
+
+**Changes not appearing**
+- Wait for the next sync cycle, or manually trigger re-indexing
+- For Docker: restart the container if you modified volume mounts
+
+**Docker: "path not found" error**
+- Use the container path (`/app/obsidian_vaults/...`), not your local path
+- Verify the volume mount in `docker-compose.yml` matches

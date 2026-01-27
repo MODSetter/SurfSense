@@ -6,12 +6,6 @@ import type { FC } from "react";
 import { useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import {
-	Accordion,
-	AccordionContent,
-	AccordionItem,
-	AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
 	Form,
@@ -85,6 +79,7 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitt
 					BOOKSTACK_TOKEN_SECRET: values.token_secret,
 				},
 				is_indexable: true,
+				is_active: true,
 				last_indexed_at: null,
 				periodic_indexing_enabled: periodicEnabled,
 				indexing_frequency_minutes: periodicEnabled ? parseInt(frequencyMinutes, 10) : null,
@@ -301,124 +296,6 @@ export const BookStackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitt
 					</ul>
 				</div>
 			)}
-
-			{/* Documentation Section */}
-			<Accordion
-				type="single"
-				collapsible
-				className="w-full border border-border rounded-xl bg-slate-400/5 dark:bg-white/5"
-			>
-				<AccordionItem value="documentation" className="border-0">
-					<AccordionTrigger className="text-sm sm:text-base font-medium px-3 sm:px-6 no-underline hover:no-underline">
-						Documentation
-					</AccordionTrigger>
-					<AccordionContent className="px-3 sm:px-6 pb-3 sm:pb-6 space-y-6">
-						<div>
-							<h3 className="text-sm sm:text-base font-semibold mb-2">How it works</h3>
-							<p className="text-[10px] sm:text-xs text-muted-foreground">
-								The BookStack connector uses the BookStack REST API to fetch all pages from your
-								BookStack instance that your account has access to.
-							</p>
-							<ul className="mt-2 list-disc pl-5 text-[10px] sm:text-xs text-muted-foreground space-y-1">
-								<li>
-									For follow up indexing runs, the connector retrieves pages that have been updated
-									since the last indexing attempt.
-								</li>
-								<li>
-									Indexing is configured to run periodically, so updates should appear in your
-									search results within minutes.
-								</li>
-							</ul>
-						</div>
-
-						<div className="space-y-4">
-							<div>
-								<h3 className="text-sm sm:text-base font-semibold mb-2">Authorization</h3>
-								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 mb-4">
-									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-									<AlertTitle className="text-[10px] sm:text-xs">API Token Required</AlertTitle>
-									<AlertDescription className="text-[9px] sm:text-[10px]">
-										You need to create an API token from your BookStack instance. The token requires
-										"Access System API" permission.
-									</AlertDescription>
-								</Alert>
-
-								<div className="space-y-4 sm:space-y-6">
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
-											Step 1: Create an API Token
-										</h4>
-										<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground">
-											<li>Log in to your BookStack instance</li>
-											<li>Click on your profile icon → Edit Profile</li>
-											<li>Navigate to the "API Tokens" tab</li>
-											<li>Click "Create Token" and give it a name</li>
-											<li>Copy both the Token ID and Token Secret</li>
-											<li>Paste them in the form above</li>
-										</ol>
-									</div>
-
-									<div>
-										<h4 className="text-[10px] sm:text-xs font-medium mb-2">
-											Step 2: Grant necessary access
-										</h4>
-										<p className="text-[10px] sm:text-xs text-muted-foreground mb-3">
-											Your user account must have "Access System API" permission. The connector will
-											only index content your account can view.
-										</p>
-										<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
-											<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-											<AlertTitle className="text-[10px] sm:text-xs">Rate Limiting</AlertTitle>
-											<AlertDescription className="text-[9px] sm:text-[10px]">
-												BookStack API has a rate limit of 180 requests per minute. The connector
-												automatically handles rate limiting to ensure reliable indexing.
-											</AlertDescription>
-										</Alert>
-									</div>
-								</div>
-							</div>
-						</div>
-
-						<div className="space-y-4">
-							<div>
-								<h3 className="text-sm sm:text-base font-semibold mb-2">Indexing</h3>
-								<ol className="list-decimal pl-5 space-y-2 text-[10px] sm:text-xs text-muted-foreground mb-4">
-									<li>
-										Navigate to the Connector Dashboard and select the <strong>BookStack</strong>{" "}
-										Connector.
-									</li>
-									<li>
-										Enter your <strong>BookStack Instance URL</strong> (e.g.,
-										https://docs.example.com)
-									</li>
-									<li>
-										Enter your <strong>Token ID</strong> and <strong>Token Secret</strong> from your
-										BookStack API token.
-									</li>
-									<li>
-										Click <strong>Connect</strong> to establish the connection.
-									</li>
-									<li>Once connected, your BookStack pages will be indexed automatically.</li>
-								</ol>
-
-								<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
-									<Info className="h-3 w-3 sm:h-4 sm:w-4" />
-									<AlertTitle className="text-[10px] sm:text-xs">What Gets Indexed</AlertTitle>
-									<AlertDescription className="text-[9px] sm:text-[10px]">
-										<p className="mb-2">The BookStack connector indexes the following data:</p>
-										<ul className="list-disc pl-5 space-y-1">
-											<li>All pages from your BookStack instance</li>
-											<li>Page content in Markdown format</li>
-											<li>Page titles and metadata</li>
-											<li>Book and chapter hierarchy information</li>
-										</ul>
-									</AlertDescription>
-								</Alert>
-							</div>
-						</div>
-					</AccordionContent>
-				</AccordionItem>
-			</Accordion>
 		</div>
 	);
 };

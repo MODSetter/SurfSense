@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { type FC, useMemo } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
@@ -139,7 +140,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 				>
 					{isSubmitting ? (
 						<>
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							<Spinner size="sm" className="mr-2" />
 							Connecting
 						</>
 					) : connectorType === "MCP_CONNECTOR" ? (

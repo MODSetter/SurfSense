@@ -36,20 +36,20 @@ After registration, configure the required scopes (permissions) for your integra
 
 | Scope | Description |
 |-------|-------------|
-| ✅ `data.recordComments:read` | See comments in records |
-| ✅ `data.records:read` | See the data in records |
+| `data.recordComments:read` | See comments in records |
+| `data.records:read` | See the data in records |
 
 ### Base schema
 
 | Scope | Description |
 |-------|-------------|
-| ✅ `schema.bases:read` | See the structure of a base, like table names or field types |
+| `schema.bases:read` | See the structure of a base, like table names or field types |
 
 ### User metadata
 
 | Scope | Description |
 |-------|-------------|
-| ✅ `user.email:read` | See the user's email address |
+| `user.email:read` | See the user's email address |
 
 ![Scopes Configuration](/docs/connectors/airtable/airtable-scopes.png)
 
@@ -80,7 +80,9 @@ After saving, you'll find your OAuth credentials on the integration page:
 1. Copy your **Client ID**
 2. Copy your **Client Secret**
 
-> ⚠️ Never share your client secret publicly.
+<Callout type="warn">
+  Never share your client secret publicly.
+</Callout>
 
 ---
 

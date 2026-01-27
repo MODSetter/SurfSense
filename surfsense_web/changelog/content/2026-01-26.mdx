@@ -1,0 +1,88 @@
+---
+title: "SurfSense v0.0.12 - New Main UI, Real-time Collaboration and Comments"
+description: "SurfSense v0.0.12 transforms the platform with a redesigned chat-first interface, real-time collaboration features, comment threads with @mentions, and instant notifications powered by ElectricSQL + PGlite."
+date: "2026-01-26"
+tags: ["UX", "UI", "Real-time chat", "Collaboration", "Comments"]
+version: "0.0.12"
+---
+
+<img src="/changelog/0.0.12/header.gif" alt="SurfSense v0.0.12 - New Main UI, Real-time Collaboration and Comments" className="rounded-lg w-full" />
+
+## What's New in v0.0.12
+
+This release brings major improvements to **collaboration and user experience**. We've completely redesigned the main interface to be chat-first, introduced real-time notifications and live collaboration features, and added a powerful commenting system with @mentions. These changes make SurfSense faster, more intuitive, and better for team collaboration.
+
+### Major UX/UI Overhaul
+
+#### New Chat-First Interface
+
+- **Dashboard Removed**: Users now land directly in a chat for faster access
+- **Redesigned Search Spaces**: Moved to a left column with color-coded icons and hover tooltips
+- **Collapsible Sidebar**: New sidebar design with collapsible sections for private and group chats
+- **Streamlined Settings**: Accessible through intuitive dropdown menus
+- **Mobile-Responsive Design**: Better experience on all devices
+- **Single-Click Google Login**: Replaces the old two-step process
+
+### Real-Time Collaboration Features
+
+#### Live Shared Chats
+
+- **Multi-User Collaboration**: Multiple users can now collaborate in the same chat in real-time
+- **Status Indicators**: See when the AI is responding to another team member
+- **Instant Sync**: Changes sync instantly across all open tabs and users
+
+#### Chat Comments with @Mentions
+
+- **Comment on AI Responses**: Discuss responses directly with your team
+- **Single-Level Threading**: Reply to comments with organized threads
+- **@Mentions**: Tag teammates to get their attention
+- **Real-Time Notifications**: Receive instant alerts when someone mentions you
+
+#### Real-Time Notifications
+
+- **Instant Updates**: Replaced slow polling with instant notifications using ElectricSQL + PGlite
+- **New Inbox**: See connector indexing, document processing, and system events immediately
+- **Cross-Tab Sync**: Syncs across all your browser tabs in real-time
+
+### Connector Enhancements
+
+#### OAuth Migration for Better Security
+
+- **New OAuth Connectors**: Migrated Linear, Slack, Notion, Discord, Confluence, and Jira to OAuth-based authentication
+- **Circleback Integration**: Connect your AI meeting notes from Circleback
+- **Future Date Indexing**: Index future dates for calendar-based connectors to plan ahead
+- **5-Minute Periodic Syncing**: Near-real-time updates option
+- **Real-Time UI Updates**: See connector indexing progress without page refreshes
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>Bug Fixes</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Syncs with no new content now show "Already up to date!" instead of falsely reporting failures</li>
+        <li>Restored missing indexing options page for Google Drive connector</li>
+        <li>File mention picker now handles large document counts with server-side search and pagination</li>
+        <li>Reasoning steps no longer overlap with chat input field</li>
+        <li>File upload modal is now scrollable when adding many files</li>
+        <li>OAuth connectors now display properly on mobile devices</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-2">
+    <AccordionTrigger>Technical Improvements</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Made Alembic migrations idempotent for safer deployments</li>
+        <li>Migrations now work on fresh databases from scratch</li>
+        <li>Major refactoring of chat components for better maintainability</li>
+        <li>Streamlined sidebar and connector page code</li>
+        <li>Fixed legacy route handling</li>
+        <li>Fixed hardcoded Docker values for complex deployments</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+This release transforms SurfSense into a truly collaborative, real-time platform with a redesigned interface that puts chat front and center. The addition of comments, @mentions, and live collaboration features makes it easier than ever for teams to work together without leaving the app.
+
+SurfSense is your AI-powered federated search solution, connecting all your knowledge sources in one place.

@@ -1,11 +1,12 @@
 "use client";
 
-import { ExternalLinkIcon, ImageIcon, Loader2 } from "lucide-react";
+import { ExternalLinkIcon, ImageIcon } from "lucide-react";
 import NextImage from "next/image";
 import { Component, type ReactNode, useState } from "react";
 import { z } from "zod";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 
 /**
@@ -184,7 +185,7 @@ export function ImageLoading({ title = "Loading image..." }: { title?: string })
 		<Card className="w-full max-w-md overflow-hidden">
 			<div className="aspect-[4/3] bg-muted flex items-center justify-center">
 				<div className="flex flex-col items-center gap-3">
-					<Loader2 className="size-8 text-muted-foreground animate-spin" />
+					<Spinner size="lg" className="text-muted-foreground" />
 					<p className="text-muted-foreground text-sm">{title}</p>
 				</div>
 			</div>

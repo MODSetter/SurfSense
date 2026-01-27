@@ -8,7 +8,6 @@ import {
 	ChevronDown,
 	ChevronsUpDown,
 	Key,
-	Loader2,
 	MessageSquareQuote,
 	Rocket,
 	Sparkles,
@@ -48,6 +47,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { getModelsByProvider } from "@/contracts/enums/llm-models";
@@ -592,7 +592,7 @@ export function LLMConfigForm({
 					>
 						{isSubmitting ? (
 							<>
-								<Loader2 className="h-3.5 w-3.5 sm:h-4 sm:w-4 animate-spin" />
+								<Spinner size="sm" />
 								{mode === "edit" ? "Updating..." : "Creating"}
 							</>
 						) : (

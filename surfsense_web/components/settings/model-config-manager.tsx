@@ -7,7 +7,6 @@ import {
 	Clock,
 	Edit3,
 	FileText,
-	Loader2,
 	MessageSquareQuote,
 	Plus,
 	RefreshCw,
@@ -48,6 +47,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { NewLLMConfig } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
@@ -211,7 +211,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				<Card>
 					<CardContent className="flex items-center justify-center py-10 md:py-16">
 						<div className="flex flex-col items-center gap-2 md:gap-3">
-							<Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-muted-foreground" />
+							<Spinner size="md" className="md:h-8 md:w-8 text-muted-foreground" />
 							<span className="text-xs md:text-sm text-muted-foreground">
 								Loading configurations...
 							</span>
@@ -484,7 +484,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						>
 							{isDeleting ? (
 								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+									<Spinner size="sm" className="mr-2" />
 									Deleting
 								</>
 							) : (

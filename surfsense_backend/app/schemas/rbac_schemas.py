@@ -167,6 +167,7 @@ class PermissionInfo(BaseModel):
     value: str
     name: str
     category: str
+    description: str
 
 
 class PermissionsListResponse(BaseModel):

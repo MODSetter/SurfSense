@@ -422,6 +422,31 @@ export function trackPeriodicIndexingStarted(
 }
 
 // ============================================
+// INCENTIVE TASKS EVENTS
+// ============================================
+
+export function trackIncentivePageViewed() {
+	posthog.capture("incentive_page_viewed");
+}
+
+export function trackIncentiveTaskCompleted(taskType: string, pagesRewarded: number) {
+	posthog.capture("incentive_task_completed", {
+		task_type: taskType,
+		pages_rewarded: pagesRewarded,
+	});
+}
+
+export function trackIncentiveTaskClicked(taskType: string) {
+	posthog.capture("incentive_task_clicked", {
+		task_type: taskType,
+	});
+}
+
+export function trackIncentiveContactOpened() {
+	posthog.capture("incentive_contact_opened");
+}
+
+// ============================================
 // USER IDENTIFICATION
 // ============================================
 

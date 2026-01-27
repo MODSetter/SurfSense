@@ -20,7 +20,9 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 				const joyrideAttr =
 					item.title === "Documents" || item.title.toLowerCase().includes("documents")
 						? { "data-joyride": "documents-sidebar" }
-						: {};
+						: item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
+							? { "data-joyride": "inbox-sidebar" }
+							: {};
 
 				if (isCollapsed) {
 					return (
@@ -32,8 +34,7 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 									className={cn(
 										"relative flex h-10 w-10 items-center justify-center rounded-md transition-colors",
 										"hover:bg-accent hover:text-accent-foreground",
-										"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-										item.isActive && "bg-accent text-accent-foreground"
+										"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 									)}
 									{...joyrideAttr}
 								>
@@ -62,8 +63,7 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 						className={cn(
 							"flex items-center gap-2 rounded-md mx-2 px-2 py-1.5 text-sm transition-colors text-left",
 							"hover:bg-accent hover:text-accent-foreground",
-							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-							item.isActive && "bg-accent text-accent-foreground"
+							"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
 						)}
 						{...joyrideAttr}
 					>

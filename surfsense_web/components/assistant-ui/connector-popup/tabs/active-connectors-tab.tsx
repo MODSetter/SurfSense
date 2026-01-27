@@ -1,11 +1,12 @@
 "use client";
 
-import { ArrowRight, Cable, Loader2 } from "lucide-react";
+import { ArrowRight, Cable } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { FC } from "react";
 import { useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -209,7 +210,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												<p className="text-[14px] font-semibold leading-tight truncate">{title}</p>
 												{isAnyIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
-														<Loader2 className="size-3 animate-spin" />
+														<Spinner size="xs" />
 														Syncing
 													</p>
 												) : (
@@ -270,7 +271,7 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 												</div>
 												{isIndexing ? (
 													<p className="text-[11px] text-primary mt-1 flex items-center gap-1.5">
-														<Loader2 className="size-3 animate-spin" />
+														<Spinner size="xs" />
 														Syncing
 													</p>
 												) : !isMCPConnector ? (

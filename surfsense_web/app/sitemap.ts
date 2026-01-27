@@ -175,5 +175,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			changeFrequency: "daily",
 			priority: 0.8,
 		},
+		// How-to documentation
+		{
+			url: "https://www.surfsense.com/docs/how-to/electric-sql",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.8,
+		},
 	];
 }

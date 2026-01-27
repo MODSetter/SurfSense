@@ -1,7 +1,6 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Loader2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -17,6 +16,7 @@ import {
 import { Logo } from "@/components/Logo";
 import { LLMConfigForm, type LLMConfigFormData } from "@/components/shared/llm-config-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
 export default function OnboardPage() {
@@ -156,7 +156,7 @@ export default function OnboardPage() {
 					<div className="relative">
 						<div className="absolute inset-0 blur-3xl bg-gradient-to-r from-violet-500/20 to-cyan-500/20 rounded-full" />
 						<div className="relative flex items-center justify-center w-24 h-24 mx-auto rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-2xl shadow-violet-500/25">
-							<Loader2 className="h-12 w-12 text-white animate-spin" />
+							<Spinner size="xl" className="text-white" />
 						</div>
 					</div>
 					<div className="space-y-2">

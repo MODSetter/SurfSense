@@ -6,8 +6,6 @@ import {
 	AlertCircle,
 	ArrowRight,
 	CheckCircle2,
-	Clock,
-	Loader2,
 	LogIn,
 	Shield,
 	Sparkles,
@@ -30,6 +28,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import type { AcceptInviteResponse } from "@/contracts/types/invites.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
@@ -164,7 +163,7 @@ export default function InviteAcceptPage() {
 								animate={{ rotate: 360 }}
 								transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
 							>
-								<Loader2 className="h-12 w-12 text-primary" />
+								<Spinner size="xl" className="text-primary" />
 							</motion.div>
 							<p className="mt-4 text-muted-foreground">Loading invite details...</p>
 						</CardContent>
@@ -353,7 +352,7 @@ export default function InviteAcceptPage() {
 								<Button className="flex-1 gap-2" onClick={handleAccept} disabled={accepting}>
 									{accepting ? (
 										<>
-											<Loader2 className="h-4 w-4 animate-spin" />
+											<Spinner size="sm" />
 											Accepting...
 										</>
 									) : (

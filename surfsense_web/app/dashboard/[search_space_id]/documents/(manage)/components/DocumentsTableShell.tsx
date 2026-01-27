@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronUp, FileX, Loader2, Plus } from "lucide-react";
+import { ChevronDown, ChevronUp, FileX, Plus } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -9,6 +9,7 @@ import { useDocumentUploadDialog } from "@/components/assistant-ui/document-uplo
 import { DocumentViewer } from "@/components/document-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	Table,
 	TableBody,
@@ -114,7 +115,7 @@ export function DocumentsTableShell({
 			{loading ? (
 				<div className="flex h-[400px] w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-2">
-						<Loader2 className="h-8 w-8 animate-spin text-primary" />
+						<Spinner size="lg" className="text-primary" />
 						<p className="text-sm text-muted-foreground">{t("loading")}</p>
 					</div>
 				</div>

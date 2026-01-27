@@ -1,15 +1,16 @@
 "use client";
 
-import { ArrowLeft, Info, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, Info, RefreshCw, Trash2 } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import { getConnectorConfigComponent } from "../index";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
+import { getConnectorConfigComponent } from "../index";
 
 interface ConnectorEditViewProps {
 	connector: SearchSourceConnector;
@@ -311,7 +312,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							>
 								{isDisconnecting ? (
 									<>
-										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										<Spinner size="sm" className="mr-2" />
 										Disconnecting
 									</>
 								) : (
@@ -347,7 +348,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				>
 					{isSaving ? (
 						<>
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							<Spinner size="sm" className="mr-2" />
 							Saving
 						</>
 					) : (
