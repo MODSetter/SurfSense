@@ -11,6 +11,8 @@ import {
 	Inbox,
 	LayoutGrid,
 	ListFilter,
+	PanelLeftClose,
+	PanelLeft,
 	Search,
 	X,
 } from "lucide-react";
@@ -18,7 +20,6 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,11 @@ import {
 import type { InboxItem } from "@/hooks/use-inbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+import { useSidebarContextSafe } from "../../hooks";
+
+// Sidebar width constants
+const SIDEBAR_COLLAPSED_WIDTH = 60;
+const SIDEBAR_EXPANDED_WIDTH = 240;
 
 /**
  * Get initials from name or email for avatar fallback
@@ -109,6 +115,7 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 		YOUTUBE_CONNECTOR: "YouTube",
 		CIRCLEBACK_CONNECTOR: "Circleback",
 		MCP_CONNECTOR: "MCP",
+		OBSIDIAN_CONNECTOR: "Obsidian",
 		TAVILY_API: "Tavily",
 		SEARXNG_API: "SearXNG",
 		LINKUP_API: "Linkup",
@@ -139,6 +146,10 @@ interface InboxSidebarProps {
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
 	onCloseMobileSidebar?: () => void;
+	/** Whether the inbox is docked (permanent) or floating */
+	isDocked?: boolean;
+	/** Callback to toggle docked state */
+	onDockedChange?: (docked: boolean) => void;
 }
 
 export function InboxSidebar({
@@ -153,6 +164,8 @@ export function InboxSidebar({
 	markAsRead,
 	markAllAsRead,
 	onCloseMobileSidebar,
+	isDocked = false,
+	onDockedChange,
 }: InboxSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
@@ -186,8 +199,9 @@ export function InboxSidebar({
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
 
+	// Only lock body scroll on mobile (Notion-style keeps desktop content scrollable)
 	useEffect(() => {
-		if (open) {
+		if (open && isMobile) {
 			document.body.style.overflow = "hidden";
 		} else {
 			document.body.style.overflow = "";
@@ -195,7 +209,7 @@ export function InboxSidebar({
 		return () => {
 			document.body.style.overflow = "";
 		};
-	}, [open]);
+	}, [open, isMobile]);
 
 	// Reset connector filter when switching away from status tab
 	useEffect(() => {
@@ -440,36 +454,21 @@ export function InboxSidebar({
 		};
 	};
 
+	// Get sidebar collapsed state from context (provided by LayoutShell)
+	const sidebarContext = useSidebarContextSafe();
+	const isCollapsed = sidebarContext?.isCollapsed ?? false;
+
+	// Calculate the left position for the inbox panel (relative to sidebar)
+	const sidebarWidth = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+
 	if (!mounted) return null;
 
-	return createPortal(
-		<AnimatePresence>
-			{open && (
-				<>
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-70 bg-black/50"
-						onClick={() => onOpenChange(false)}
-						aria-hidden="true"
-					/>
-
-					<motion.div
-						initial={{ x: "-100%" }}
-						animate={{ x: 0 }}
-						exit={{ x: "-100%" }}
-						transition={{ type: "tween", duration: 0.3, ease: "easeOut" }}
-						className="fixed inset-y-0 left-0 z-70 w-90 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
-						role="dialog"
-						aria-modal="true"
-						aria-label={t("inbox") || "Inbox"}
-					>
-						<div className="shrink-0 p-4 pb-2 space-y-3">
+	// Shared content component for both docked and floating modes
+	const inboxContent = (
+		<>
+			<div className="shrink-0 p-4 pb-2 space-y-3">
 							<div className="flex items-center justify-between">
 								<div className="flex items-center gap-2">
-									<Inbox className="h-5 w-5 text-primary" />
 									<h2 className="text-lg font-semibold">{t("inbox") || "Inbox"}</h2>
 								</div>
 								<div className="flex items-center gap-1">
@@ -703,6 +702,40 @@ export function InboxSidebar({
 											{t("mark_all_read") || "Mark all as read"}
 										</TooltipContent>
 									</Tooltip>
+									{/* Dock/Undock button - desktop only */}
+									{!isMobile && onDockedChange && (
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<Button
+													variant="ghost"
+													size="icon"
+													className="h-8 w-8 rounded-full"
+													onClick={() => {
+														if (isDocked) {
+															// Undocking: close the inbox completely
+															onDockedChange(false);
+															onOpenChange(false);
+														} else {
+															// Docking: keep open and dock
+															onDockedChange(true);
+														}
+													}}
+												>
+													{isDocked ? (
+														<PanelLeftClose className="h-4 w-4 text-muted-foreground" />
+													) : (
+														<PanelLeft className="h-4 w-4 text-muted-foreground" />
+													)}
+													<span className="sr-only">
+														{isDocked ? "Close inbox" : "Dock inbox"}
+													</span>
+												</Button>
+											</TooltipTrigger>
+											<TooltipContent className="z-80">
+												{isDocked ? "Close inbox" : "Dock inbox"}
+											</TooltipContent>
+										</Tooltip>
+									)}
 								</div>
 							</div>
 
@@ -858,11 +891,70 @@ export function InboxSidebar({
 									</p>
 								</div>
 							)}
-						</div>
-					</motion.div>
+			</div>
+		</>
+	);
+
+	// DOCKED MODE: Render as a static flex child (no animation, no click-away)
+	if (isDocked && open && !isMobile) {
+		return (
+			<aside
+				className="h-full w-[360px] shrink-0 bg-background flex flex-col border-r"
+				aria-label={t("inbox") || "Inbox"}
+			>
+				{inboxContent}
+			</aside>
+		);
+	}
+
+	// FLOATING MODE: Render with animation and click-away layer
+	return (
+		<AnimatePresence>
+			{open && (
+				<>
+					{/* Click-away layer - only covers the content area, not the sidebar */}
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.15 }}
+						style={{
+							left: isMobile ? 0 : sidebarWidth,
+						}}
+						className="absolute inset-y-0 right-0"
+						onClick={() => onOpenChange(false)}
+						aria-hidden="true"
+					/>
+
+					{/* Clip container - positioned at sidebar edge with overflow hidden */}
+					<div
+						style={{
+							left: isMobile ? 0 : sidebarWidth,
+							width: isMobile ? "100%" : 360,
+						}}
+						className={cn(
+							"absolute z-10 overflow-hidden pointer-events-none",
+							"inset-y-0"
+						)}
+					>
+						<motion.div
+							initial={{ x: "-100%" }}
+							animate={{ x: 0 }}
+							exit={{ x: "-100%" }}
+							transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+							className={cn(
+								"h-full w-full bg-background flex flex-col pointer-events-auto",
+								"sm:border-r sm:shadow-xl"
+							)}
+							role="dialog"
+							aria-modal="true"
+							aria-label={t("inbox") || "Inbox"}
+						>
+							{inboxContent}
+						</motion.div>
+					</div>
 				</>
 			)}
-		</AnimatePresence>,
-		document.body
+		</AnimatePresence>
 	);
 }

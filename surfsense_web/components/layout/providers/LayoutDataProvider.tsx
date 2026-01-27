@@ -32,7 +32,6 @@ import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { LayoutShell } from "../ui/shell";
 import { AllPrivateChatsSidebar } from "../ui/sidebar/AllPrivateChatsSidebar";
 import { AllSharedChatsSidebar } from "../ui/sidebar/AllSharedChatsSidebar";
-import { InboxSidebar } from "../ui/sidebar/InboxSidebar";
 
 interface LayoutDataProviderProps {
 	searchSpaceId: string;
@@ -100,6 +99,7 @@ export function LayoutDataProvider({
 
 	// Inbox sidebar state
 	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
+	const [isInboxDocked, setIsInboxDocked] = useState(false);
 
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
@@ -298,9 +298,9 @@ export function LayoutDataProvider({
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
-			// Handle inbox specially - open sidebar instead of navigating
+			// Handle inbox specially - toggle sidebar instead of navigating
 			if (item.url === "#inbox") {
-				setIsInboxSidebarOpen(true);
+				setIsInboxSidebarOpen((prev) => !prev);
 				return;
 			}
 			router.push(item.url);
@@ -462,6 +462,20 @@ export function LayoutDataProvider({
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}
+				inbox={{
+					isOpen: isInboxSidebarOpen,
+					onOpenChange: setIsInboxSidebarOpen,
+					items: inboxItems,
+					unreadCount,
+					loading: inboxLoading,
+					loadingMore: inboxLoadingMore,
+					hasMore: inboxHasMore,
+					loadMore: inboxLoadMore,
+					markAsRead,
+					markAllAsRead,
+					isDocked: isInboxDocked,
+					onDockedChange: setIsInboxDocked,
+				}}
 			>
 				{children}
 			</LayoutShell>
@@ -605,20 +619,6 @@ export function LayoutDataProvider({
 				open={isAllPrivateChatsSidebarOpen}
 				onOpenChange={setIsAllPrivateChatsSidebarOpen}
 				searchSpaceId={searchSpaceId}
-			/>
-
-			{/* Inbox Sidebar */}
-			<InboxSidebar
-				open={isInboxSidebarOpen}
-				onOpenChange={setIsInboxSidebarOpen}
-				inboxItems={inboxItems}
-				unreadCount={unreadCount}
-				loading={inboxLoading}
-				loadingMore={inboxLoadingMore}
-				hasMore={inboxHasMore}
-				loadMore={inboxLoadMore}
-				markAsRead={markAsRead}
-				markAllAsRead={markAllAsRead}
 			/>
 
 			{/* Create Search Space Dialog */}

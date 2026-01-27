@@ -1,14 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import type { InboxItem } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
-import { useSidebarState } from "../../hooks";
+import { SidebarProvider, useSidebarState } from "../../hooks";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
-import { MobileSidebar, MobileSidebarTrigger, Sidebar } from "../sidebar";
+import { InboxSidebar, MobileSidebar, MobileSidebarTrigger, Sidebar } from "../sidebar";
+
+// Inbox-related props
+interface InboxProps {
+	isOpen: boolean;
+	onOpenChange: (open: boolean) => void;
+	items: InboxItem[];
+	unreadCount: number;
+	loading: boolean;
+	loadingMore?: boolean;
+	hasMore?: boolean;
+	loadMore?: () => void;
+	markAsRead: (id: number) => Promise<boolean>;
+	markAllAsRead: () => Promise<boolean>;
+	/** Whether the inbox is docked (permanent) */
+	isDocked?: boolean;
+	/** Callback to change docked state */
+	onDockedChange?: (docked: boolean) => void;
+}
 
 interface LayoutShellProps {
 	searchSpaces: SearchSpace[];
@@ -42,6 +61,8 @@ interface LayoutShellProps {
 	isChatPage?: boolean;
 	children: React.ReactNode;
 	className?: string;
+	// Inbox props
+	inbox?: InboxProps;
 }
 
 export function LayoutShell({
@@ -76,111 +97,176 @@ export function LayoutShell({
 	isChatPage = false,
 	children,
 	className,
+	inbox,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-	const { isCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
+	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
+
+	// Memoize context value to prevent unnecessary re-renders
+	const sidebarContextValue = useMemo(
+		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
+		[isCollapsed, setIsCollapsed, toggleCollapsed]
+	);
 
 	// Mobile layout
 	if (isMobile) {
 		return (
-			<TooltipProvider delayDuration={0}>
-				<div className={cn("flex h-screen w-full flex-col bg-background", className)}>
-					<Header
-						breadcrumb={breadcrumb}
-						mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
-					/>
+			<SidebarProvider value={sidebarContextValue}>
+				<TooltipProvider delayDuration={0}>
+					<div className={cn("flex h-screen w-full flex-col bg-background", className)}>
+						<Header
+							breadcrumb={breadcrumb}
+							mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
+						/>
 
-					<MobileSidebar
-						isOpen={mobileMenuOpen}
-						onOpenChange={setMobileMenuOpen}
-						searchSpaces={searchSpaces}
-						activeSearchSpaceId={activeSearchSpaceId}
-						onSearchSpaceSelect={onSearchSpaceSelect}
-						onSearchSpaceDelete={onSearchSpaceDelete}
-						onSearchSpaceSettings={onSearchSpaceSettings}
-						onAddSearchSpace={onAddSearchSpace}
-						searchSpace={searchSpace}
-						navItems={navItems}
-						onNavItemClick={onNavItemClick}
-						chats={chats}
-						sharedChats={sharedChats}
-						activeChatId={activeChatId}
-						onNewChat={onNewChat}
-						onChatSelect={onChatSelect}
-						onChatDelete={onChatDelete}
-						onChatArchive={onChatArchive}
-						onViewAllSharedChats={onViewAllSharedChats}
-						onViewAllPrivateChats={onViewAllPrivateChats}
-						user={user}
-						onSettings={onSettings}
-						onManageMembers={onManageMembers}
-						onUserSettings={onUserSettings}
-						onLogout={onLogout}
-						pageUsage={pageUsage}
-						theme={theme}
-						setTheme={setTheme}
-					/>
+						<MobileSidebar
+							isOpen={mobileMenuOpen}
+							onOpenChange={setMobileMenuOpen}
+							searchSpaces={searchSpaces}
+							activeSearchSpaceId={activeSearchSpaceId}
+							onSearchSpaceSelect={onSearchSpaceSelect}
+							onSearchSpaceDelete={onSearchSpaceDelete}
+							onSearchSpaceSettings={onSearchSpaceSettings}
+							onAddSearchSpace={onAddSearchSpace}
+							searchSpace={searchSpace}
+							navItems={navItems}
+							onNavItemClick={onNavItemClick}
+							chats={chats}
+							sharedChats={sharedChats}
+							activeChatId={activeChatId}
+							onNewChat={onNewChat}
+							onChatSelect={onChatSelect}
+							onChatDelete={onChatDelete}
+							onChatArchive={onChatArchive}
+							onViewAllSharedChats={onViewAllSharedChats}
+							onViewAllPrivateChats={onViewAllPrivateChats}
+							user={user}
+							onSettings={onSettings}
+							onManageMembers={onManageMembers}
+							onUserSettings={onUserSettings}
+							onLogout={onLogout}
+							pageUsage={pageUsage}
+							theme={theme}
+							setTheme={setTheme}
+						/>
 
-					<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-						{children}
-					</main>
-				</div>
-			</TooltipProvider>
+						<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+							{children}
+						</main>
+
+						{/* Mobile Inbox Sidebar */}
+						{inbox && (
+							<InboxSidebar
+								open={inbox.isOpen}
+								onOpenChange={inbox.onOpenChange}
+								inboxItems={inbox.items}
+								unreadCount={inbox.unreadCount}
+								loading={inbox.loading}
+								loadingMore={inbox.loadingMore}
+								hasMore={inbox.hasMore}
+								loadMore={inbox.loadMore}
+								markAsRead={inbox.markAsRead}
+								markAllAsRead={inbox.markAllAsRead}
+								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+							/>
+						)}
+					</div>
+				</TooltipProvider>
+			</SidebarProvider>
 		);
 	}
 
 	// Desktop layout
 	return (
-		<TooltipProvider delayDuration={0}>
-			<div className={cn("flex h-screen w-full gap-2 p-2 overflow-hidden bg-muted/40", className)}>
-				<div className="hidden md:flex overflow-hidden">
-					<IconRail
-						searchSpaces={searchSpaces}
-						activeSearchSpaceId={activeSearchSpaceId}
-						onSearchSpaceSelect={onSearchSpaceSelect}
-						onSearchSpaceDelete={onSearchSpaceDelete}
-						onSearchSpaceSettings={onSearchSpaceSettings}
-						onAddSearchSpace={onAddSearchSpace}
-					/>
+		<SidebarProvider value={sidebarContextValue}>
+			<TooltipProvider delayDuration={0}>
+				<div className={cn("flex h-screen w-full gap-2 p-2 overflow-hidden bg-muted/40", className)}>
+					<div className="hidden md:flex overflow-hidden">
+						<IconRail
+							searchSpaces={searchSpaces}
+							activeSearchSpaceId={activeSearchSpaceId}
+							onSearchSpaceSelect={onSearchSpaceSelect}
+							onSearchSpaceDelete={onSearchSpaceDelete}
+							onSearchSpaceSettings={onSearchSpaceSettings}
+							onAddSearchSpace={onAddSearchSpace}
+						/>
+					</div>
+
+					{/* Main container with sidebar and content - relative for inbox positioning */}
+					<div className="relative flex flex-1 rounded-xl border bg-background overflow-hidden">
+						<Sidebar
+							searchSpace={searchSpace}
+							isCollapsed={isCollapsed}
+							onToggleCollapse={toggleCollapsed}
+							navItems={navItems}
+							onNavItemClick={onNavItemClick}
+							chats={chats}
+							sharedChats={sharedChats}
+							activeChatId={activeChatId}
+							onNewChat={onNewChat}
+							onChatSelect={onChatSelect}
+							onChatDelete={onChatDelete}
+							onChatArchive={onChatArchive}
+							onViewAllSharedChats={onViewAllSharedChats}
+							onViewAllPrivateChats={onViewAllPrivateChats}
+							user={user}
+							onSettings={onSettings}
+							onManageMembers={onManageMembers}
+							onUserSettings={onUserSettings}
+							onLogout={onLogout}
+							pageUsage={pageUsage}
+							theme={theme}
+							setTheme={setTheme}
+							className="hidden md:flex border-r shrink-0"
+						/>
+
+						{/* Docked Inbox Sidebar - renders as flex sibling between sidebar and content */}
+						{inbox?.isDocked && (
+							<InboxSidebar
+								open={inbox.isOpen}
+								onOpenChange={inbox.onOpenChange}
+								inboxItems={inbox.items}
+								unreadCount={inbox.unreadCount}
+								loading={inbox.loading}
+								loadingMore={inbox.loadingMore}
+								hasMore={inbox.hasMore}
+								loadMore={inbox.loadMore}
+								markAsRead={inbox.markAsRead}
+								markAllAsRead={inbox.markAllAsRead}
+								isDocked={inbox.isDocked}
+								onDockedChange={inbox.onDockedChange}
+							/>
+						)}
+
+						<main className="flex-1 flex flex-col min-w-0">
+							<Header breadcrumb={breadcrumb} />
+
+							<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+								{children}
+							</div>
+						</main>
+
+						{/* Floating Inbox Sidebar - positioned absolutely on top of content */}
+						{inbox && !inbox.isDocked && (
+							<InboxSidebar
+								open={inbox.isOpen}
+								onOpenChange={inbox.onOpenChange}
+								inboxItems={inbox.items}
+								unreadCount={inbox.unreadCount}
+								loading={inbox.loading}
+								loadingMore={inbox.loadingMore}
+								hasMore={inbox.hasMore}
+								loadMore={inbox.loadMore}
+								markAsRead={inbox.markAsRead}
+								markAllAsRead={inbox.markAllAsRead}
+								isDocked={false}
+								onDockedChange={inbox.onDockedChange}
+							/>
+						)}
+					</div>
 				</div>
-
-				<div className="flex flex-1 rounded-xl border bg-background overflow-hidden">
-					<Sidebar
-						searchSpace={searchSpace}
-						isCollapsed={isCollapsed}
-						onToggleCollapse={toggleCollapsed}
-						navItems={navItems}
-						onNavItemClick={onNavItemClick}
-						chats={chats}
-						sharedChats={sharedChats}
-						activeChatId={activeChatId}
-						onNewChat={onNewChat}
-						onChatSelect={onChatSelect}
-						onChatDelete={onChatDelete}
-						onChatArchive={onChatArchive}
-						onViewAllSharedChats={onViewAllSharedChats}
-						onViewAllPrivateChats={onViewAllPrivateChats}
-						user={user}
-						onSettings={onSettings}
-						onManageMembers={onManageMembers}
-						onUserSettings={onUserSettings}
-						onLogout={onLogout}
-						pageUsage={pageUsage}
-						theme={theme}
-						setTheme={setTheme}
-						className="hidden md:flex border-r shrink-0"
-					/>
-
-					<main className="flex-1 flex flex-col min-w-0">
-						<Header breadcrumb={breadcrumb} />
-
-						<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-							{children}
-						</div>
-					</main>
-				</div>
-			</div>
-		</TooltipProvider>
+			</TooltipProvider>
+		</SidebarProvider>
 	);
 }
