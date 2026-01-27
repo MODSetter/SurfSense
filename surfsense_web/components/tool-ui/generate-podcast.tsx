@@ -86,23 +86,23 @@ function parsePodcastDetails(data: unknown): { podcast_transcript?: PodcastTrans
  */
 function PodcastGeneratingState({ title }: { title: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-6">
-			<div className="flex items-center gap-4">
-				<div className="relative">
-					<div className="flex size-16 items-center justify-center rounded-full bg-primary/20">
-						<MicIcon className="size-8 text-primary" />
+		<div className="my-4 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 sm:p-6">
+			<div className="flex items-center gap-3 sm:gap-4">
+				<div className="relative shrink-0">
+					<div className="flex size-12 sm:size-16 items-center justify-center rounded-full bg-primary/20">
+						<MicIcon className="size-6 sm:size-8 text-primary" />
 					</div>
 					{/* Animated rings */}
 					<div className="absolute inset-1 animate-ping rounded-full bg-primary/20" />
 				</div>
-				<div className="flex-1">
-					<h3 className="font-semibold text-foreground text-lg">{title}</h3>
-					<div className="mt-2 flex items-center gap-2 text-muted-foreground">
-						<Spinner size="sm" />
-						<span className="text-sm">Generating podcast. This may take a few minutes.</span>
+				<div className="flex-1 min-w-0">
+					<h3 className="font-semibold text-foreground text-sm sm:text-lg leading-tight">{title}</h3>
+					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
+						<Spinner size="sm" className="size-3 sm:size-4" />
+						<span className="text-xs sm:text-sm">Generating podcast. This may take a few minutes.</span>
 					</div>
-					<div className="mt-3">
-						<div className="h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
+					<div className="mt-2 sm:mt-3">
+						<div className="h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
 							<div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
 						</div>
 					</div>
@@ -117,15 +117,15 @@ function PodcastGeneratingState({ title }: { title: string }) {
  */
 function PodcastErrorState({ title, error }: { title: string; error: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border border-destructive/20 bg-destructive/5 p-6">
-			<div className="flex items-center gap-4">
-				<div className="flex size-16 shrink-0 items-center justify-center rounded-full bg-destructive/10">
-					<AlertCircleIcon className="size-8 text-destructive" />
+		<div className="my-4 overflow-hidden rounded-xl border border-destructive/20 bg-destructive/5 p-4 sm:p-6">
+			<div className="flex items-center gap-3 sm:gap-4">
+				<div className="flex size-12 sm:size-16 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+					<AlertCircleIcon className="size-6 sm:size-8 text-destructive" />
 				</div>
-				<div className="flex-1">
-					<h3 className="font-semibold text-foreground">{title}</h3>
-					<p className="mt-1 text-destructive text-sm">Failed to generate podcast</p>
-					<p className="mt-2 text-muted-foreground text-sm">{error}</p>
+				<div className="flex-1 min-w-0">
+					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">{title}</h3>
+					<p className="mt-1 text-destructive text-xs sm:text-sm">Failed to generate podcast</p>
+					<p className="mt-1.5 sm:mt-2 text-muted-foreground text-xs sm:text-sm">{error}</p>
 				</div>
 			</div>
 		</div>
@@ -137,16 +137,16 @@ function PodcastErrorState({ title, error }: { title: string; error: string }) {
  */
 function AudioLoadingState({ title }: { title: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border bg-muted/30 p-6">
-			<div className="flex items-center gap-4">
-				<div className="flex size-16 items-center justify-center rounded-full bg-primary/10">
-					<MicIcon className="size-8 text-primary/50" />
+		<div className="my-4 overflow-hidden rounded-xl border bg-muted/30 p-4 sm:p-6">
+			<div className="flex items-center gap-3 sm:gap-4">
+				<div className="flex size-12 sm:size-16 shrink-0 items-center justify-center rounded-full bg-primary/10">
+					<MicIcon className="size-6 sm:size-8 text-primary/50" />
 				</div>
-				<div className="flex-1">
-					<h3 className="font-semibold text-foreground">{title}</h3>
-					<div className="mt-2 flex items-center gap-2 text-muted-foreground">
-						<Spinner size="sm" />
-						<span className="text-sm">Loading audio...</span>
+				<div className="flex-1 min-w-0">
+					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">{title}</h3>
+					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
+						<Spinner size="sm" className="size-3 sm:size-4" />
+						<span className="text-xs sm:text-sm">Loading audio...</span>
 					</div>
 				</div>
 			</div>
@@ -264,13 +264,13 @@ function PodcastPlayer({
 			/>
 			{/* Transcript section */}
 			{transcript && transcript.length > 0 && (
-				<details className="mt-3 rounded-lg border bg-muted/30 p-3">
-					<summary className="cursor-pointer font-medium text-muted-foreground text-sm hover:text-foreground">
+				<details className="mt-2 sm:mt-3 rounded-lg border bg-muted/30 p-2.5 sm:p-3">
+					<summary className="cursor-pointer font-medium text-muted-foreground text-xs sm:text-sm hover:text-foreground">
 						View transcript ({transcript.length} entries)
 					</summary>
-					<div className="mt-3 space-y-3 max-h-96 overflow-y-auto">
+					<div className="mt-2 sm:mt-3 space-y-2 sm:space-y-3 max-h-64 sm:max-h-96 overflow-y-auto">
 						{transcript.map((entry, idx) => (
-							<div key={`${idx}-${entry.speaker_id}`} className="text-sm">
+							<div key={`${idx}-${entry.speaker_id}`} className="text-xs sm:text-sm">
 								<span className="font-medium text-primary">Speaker {entry.speaker_id + 1}:</span>{" "}
 								<span className="text-muted-foreground">{entry.dialog}</span>
 							</div>
@@ -392,9 +392,9 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 		if (status.type === "incomplete") {
 			if (status.reason === "cancelled") {
 				return (
-					<div className="my-4 rounded-xl border border-muted p-4 text-muted-foreground">
-						<p className="flex items-center gap-2">
-							<MicIcon className="size-4" />
+					<div className="my-4 rounded-xl border border-muted p-3 sm:p-4 text-muted-foreground">
+						<p className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm">
+							<MicIcon className="size-3.5 sm:size-4" />
 							<span className="line-through">Podcast generation cancelled</span>
 						</p>
 					</div>
@@ -424,16 +424,16 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 		// The FIRST tool call will display the podcast when ready
 		if (result.status === "already_generating") {
 			return (
-				<div className="my-4 overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-					<div className="flex items-center gap-3">
-						<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
-							<MicIcon className="size-5 text-amber-500" />
+				<div className="my-4 overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 sm:p-4">
+					<div className="flex items-center gap-2.5 sm:gap-3">
+						<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-full bg-amber-500/20">
+							<MicIcon className="size-4 sm:size-5 text-amber-500" />
 						</div>
-						<div>
-							<p className="text-amber-600 dark:text-amber-400 text-sm font-medium">
+						<div className="min-w-0">
+							<p className="text-amber-600 dark:text-amber-400 text-xs sm:text-sm font-medium">
 								Podcast already in progress
 							</p>
-							<p className="text-muted-foreground text-xs mt-0.5">
+							<p className="text-muted-foreground text-[10px] sm:text-xs mt-0.5">
 								Please wait for the current podcast to complete.
 							</p>
 						</div>
