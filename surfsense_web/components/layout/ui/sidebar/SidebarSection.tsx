@@ -27,14 +27,10 @@ export function SidebarSection({
 	const [isOpen, setIsOpen] = useState(defaultOpen);
 
 	return (
-		<Collapsible 
-			open={isOpen} 
-			onOpenChange={setIsOpen} 
-			className={cn(
-				"overflow-hidden",
-				fillHeight && "flex flex-col flex-1 min-h-0",
-				className
-			)}
+		<Collapsible
+			open={isOpen}
+			onOpenChange={setIsOpen}
+			className={cn("overflow-hidden", fillHeight && "flex flex-col flex-1 min-h-0", className)}
 		>
 			<div className="flex items-center group/section shrink-0">
 				<CollapsibleTrigger className="flex flex-1 items-center gap-1.5 px-2 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors min-w-0">
@@ -60,14 +56,12 @@ export function SidebarSection({
 				)}
 			</div>
 
-			<CollapsibleContent className={cn(
-				"overflow-hidden",
-				fillHeight && "flex-1 flex flex-col min-h-0"
-			)}>
-				<div className={cn(
-					"px-2 pb-2",
-					fillHeight && "flex-1 flex flex-col min-h-0 overflow-hidden"
-				)}>
+			<CollapsibleContent
+				className={cn("overflow-hidden", fillHeight && "flex-1 flex flex-col min-h-0")}
+			>
+				<div
+					className={cn("px-2 pb-2", fillHeight && "flex-1 flex flex-col min-h-0 overflow-hidden")}
+				>
 					{children}
 				</div>
 			</CollapsibleContent>

@@ -171,7 +171,9 @@ export function Sidebar({
 					>
 						{sharedChats.length > 0 ? (
 							<div className="relative flex-1 min-h-0">
-								<div className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? 'pb-8' : ''}`}>
+								<div
+									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-8" : ""}`}
+								>
 									{sharedChats.slice(0, 20).map((chat) => (
 										<ChatListItem
 											key={chat.id}
@@ -221,7 +223,9 @@ export function Sidebar({
 					>
 						{chats.length > 0 ? (
 							<div className="relative flex-1 min-h-0">
-								<div className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? 'pb-8' : ''}`}>
+								<div
+									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-8" : ""}`}
+								>
 									{chats.slice(0, 20).map((chat) => (
 										<ChatListItem
 											key={chat.id}
