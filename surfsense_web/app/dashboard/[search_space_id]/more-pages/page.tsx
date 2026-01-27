@@ -1,5 +1,6 @@
 "use client";
 
+import { IconCalendar, IconMailFilled } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink, Gift, Loader2, Mail, Star } from "lucide-react";
 import { motion } from "motion/react";
@@ -7,6 +8,14 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+	DialogTrigger,
+} from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { IncentiveTaskInfo } from "@/contracts/types/incentive-tasks.types";
@@ -139,15 +148,43 @@ export default function MorePagesPage() {
 					<p className="mb-3 text-sm text-muted-foreground">
 						{allCompleted ? "Thanks! Need even more pages?" : "Need more pages?"}
 					</p>
-					<Button variant="outline" size="sm" asChild>
-						<Link
-							href="mailto:rohan@surfsense.com?subject=Request%20to%20Increase%20Page%20Limits"
-							className="gap-2"
-						>
-							<Mail className="h-4 w-4" />
-							Contact Us
-						</Link>
-					</Button>
+					<Dialog>
+						<DialogTrigger asChild>
+							<Button variant="outline" size="sm" className="gap-2">
+								<Mail className="h-4 w-4" />
+								Contact Us
+							</Button>
+						</DialogTrigger>
+						<DialogContent className="sm:max-w-md">
+							<DialogHeader>
+								<DialogTitle>Contact Us</DialogTitle>
+								<DialogDescription>Schedule a meeting or send us an email.</DialogDescription>
+							</DialogHeader>
+							<div className="flex flex-col items-center gap-4 py-4">
+								<Link
+									href="https://calendly.com/eric-surfsense/surfsense-meeting"
+									target="_blank"
+									rel="noopener noreferrer"
+									className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
+								>
+									<IconCalendar className="h-4 w-4" />
+									Schedule a Meeting
+								</Link>
+								<div className="flex items-center gap-2 text-muted-foreground">
+									<span className="h-px w-8 bg-border" />
+									<span className="text-xs">or</span>
+									<span className="h-px w-8 bg-border" />
+								</div>
+								<Link
+									href="mailto:eric@surfsense.com"
+									className="flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
+								>
+									<IconMailFilled className="h-4 w-4" />
+									eric@surfsense.com
+								</Link>
+							</div>
+						</DialogContent>
+					</Dialog>
 				</div>
 			</motion.div>
 		</div>
