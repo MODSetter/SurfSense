@@ -13,7 +13,11 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import {
+	clearTargetCommentIdAtom,
+	currentThreadAtom,
+	setTargetCommentIdAtom,
+} from "@/atoms/chat/current-thread.atom";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
@@ -261,6 +265,8 @@ export default function NewChatPage() {
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const hydratePlanState = useSetAtom(hydratePlanStateAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
+	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
+	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -424,44 +430,31 @@ export default function NewChatPage() {
 
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
 	const searchParams = useSearchParams();
-	const targetCommentId = searchParams.get("commentId");
+	const targetCommentIdParam = searchParams.get("commentId");
 
+	// Set target comment ID from URL param - the AssistantMessage and CommentItem
+	// components will handle scrolling and highlighting once comments are loaded
 	useEffect(() => {
-		if (!targetCommentId || isInitializing || messages.length === 0) return;
-
-		const tryScroll = () => {
-			const el = document.querySelector(`[data-comment-id="${targetCommentId}"]`);
-			if (el) {
-				el.scrollIntoView({ behavior: "smooth", block: "center" });
-				return true;
+		if (targetCommentIdParam && !isInitializing) {
+			const commentId = Number.parseInt(targetCommentIdParam, 10);
+			if (!Number.isNaN(commentId)) {
+				setTargetCommentId(commentId);
 			}
-			return false;
-		};
+		}
 
-		// Try immediately
-		if (tryScroll()) return;
-
-		// Retry every 200ms for up to 10 seconds
-		const intervalId = setInterval(() => {
-			if (tryScroll()) clearInterval(intervalId);
-		}, 200);
-
-		const timeoutId = setTimeout(() => clearInterval(intervalId), 10000);
-
-		return () => {
-			clearInterval(intervalId);
-			clearTimeout(timeoutId);
-		};
-	}, [targetCommentId, isInitializing, messages.length]);
+		// Cleanup on unmount or when navigating away
+		return () => clearTargetCommentId();
+	}, [targetCommentIdParam, isInitializing, setTargetCommentId, clearTargetCommentId]);
 
 	// Sync current thread state to atom
 	useEffect(() => {
-		setCurrentThreadState({
+		setCurrentThreadState((prev) => ({
+			...prev,
 			id: currentThread?.id ?? null,
 			visibility: currentThread?.visibility ?? null,
 			hasComments: currentThread?.has_comments ?? false,
 			addingCommentToMessageId: null,
-		});
+		}));
 	}, [currentThread, setCurrentThreadState]);
 
 	// Cancel ongoing request

@@ -76,3 +76,20 @@ export const toggleCommentsCollapsedAtom = atom(null, (get, set) => {
 export const setCommentsCollapsedAtom = atom(null, (get, set, collapsed: boolean) => {
 	set(currentThreadAtom, { ...get(currentThreadAtom), commentsCollapsed: collapsed });
 });
+
+/** Target comment ID to scroll to (from URL navigation or inbox click) */
+export const targetCommentIdAtom = atom<number | null>(null);
+
+/** Setter for target comment ID - also ensures comments are not collapsed */
+export const setTargetCommentIdAtom = atom(null, (get, set, commentId: number | null) => {
+	// Ensure comments are not collapsed when navigating to a comment
+	if (commentId !== null) {
+		set(currentThreadAtom, { ...get(currentThreadAtom), commentsCollapsed: false });
+	}
+	set(targetCommentIdAtom, commentId);
+});
+
+/** Clear target after navigation completes */
+export const clearTargetCommentIdAtom = atom(null, (_, set) => {
+	set(targetCommentIdAtom, null);
+});

@@ -1,6 +1,12 @@
 "use client";
 
+import { useAtomValue, useSetAtom } from "jotai";
 import { MessageSquare } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+	clearTargetCommentIdAtom,
+	targetCommentIdAtom,
+} from "@/atoms/chat/current-thread.atom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -113,6 +119,37 @@ export function CommentItem({
 	members = [],
 	membersLoading = false,
 }: CommentItemProps) {
+	const commentRef = useRef<HTMLDivElement>(null);
+	const [isHighlighted, setIsHighlighted] = useState(false);
+
+	// Target comment navigation
+	const targetCommentId = useAtomValue(targetCommentIdAtom);
+	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
+
+	const isTarget = targetCommentId === comment.id;
+
+	// Scroll into view and highlight when this is the target comment
+	useEffect(() => {
+		if (isTarget && commentRef.current) {
+			// Small delay to ensure DOM is ready
+			const scrollTimeoutId = setTimeout(() => {
+				commentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+				setIsHighlighted(true);
+			}, 150);
+
+			// Remove highlight and clear target after delay
+			const clearTimeoutId = setTimeout(() => {
+				setIsHighlighted(false);
+				clearTargetCommentId();
+			}, 3000);
+
+			return () => {
+				clearTimeout(scrollTimeoutId);
+				clearTimeout(clearTimeoutId);
+			};
+		}
+	}, [isTarget, clearTargetCommentId]);
+
 	const displayName =
 		comment.author?.displayName || comment.author?.email.split("@")[0] || "Unknown";
 	const email = comment.author?.email || "";
@@ -122,7 +159,14 @@ export function CommentItem({
 	};
 
 	return (
-		<div className={cn("group flex gap-3")} data-comment-id={comment.id}>
+		<div
+			ref={commentRef}
+			className={cn(
+				"group flex gap-3 rounded-lg p-1 -m-1 transition-all duration-300",
+				isHighlighted && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+			)}
+			data-comment-id={comment.id}
+		>
 			<Avatar className="size-8 shrink-0">
 				{comment.author?.avatarUrl && (
 					<AvatarImage src={comment.author.avatarUrl} alt={displayName} />

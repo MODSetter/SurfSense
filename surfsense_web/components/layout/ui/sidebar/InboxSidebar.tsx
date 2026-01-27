@@ -21,7 +21,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { setCommentsCollapsedAtom } from "@/atoms/chat/current-thread.atom";
+import { setCommentsCollapsedAtom, setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -175,6 +175,8 @@ export function InboxSidebar({
 
 	// Comments collapsed state (desktop only, when docked)
 	const [, setCommentsCollapsed] = useAtom(setCommentsCollapsedAtom);
+	// Target comment for navigation - also ensures comments panel is visible
+	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeTab, setActiveTab] = useState<InboxTab>("mentions");
@@ -346,6 +348,12 @@ export function InboxSidebar({
 					const commentId = item.metadata.comment_id;
 
 					if (searchSpaceId && threadId) {
+						// Pre-set target comment ID before navigation
+						// This also ensures comments panel is not collapsed
+						if (commentId) {
+							setTargetCommentId(commentId);
+						}
+
 						const url = commentId
 							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
 							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
@@ -356,7 +364,7 @@ export function InboxSidebar({
 				}
 			}
 		},
-		[markAsRead, router, onOpenChange, onCloseMobileSidebar]
+		[markAsRead, router, onOpenChange, onCloseMobileSidebar, setTargetCommentId]
 	);
 
 	const handleMarkAllAsRead = useCallback(async () => {
