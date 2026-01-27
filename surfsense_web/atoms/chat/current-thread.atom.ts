@@ -62,9 +62,7 @@ export const resetCurrentThreadAtom = atom(null, (_, set) => {
 });
 
 /** Atom to read whether comments panel is collapsed */
-export const commentsCollapsedAtom = atom(
-	(get) => get(currentThreadAtom).commentsCollapsed
-);
+export const commentsCollapsedAtom = atom((get) => get(currentThreadAtom).commentsCollapsed);
 
 /** Atom to toggle the comments collapsed state */
 export const toggleCommentsCollapsedAtom = atom(null, (get, set) => {

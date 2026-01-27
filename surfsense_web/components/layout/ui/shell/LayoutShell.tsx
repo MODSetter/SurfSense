@@ -11,16 +11,26 @@ import { Header } from "../header";
 import { IconRail } from "../icon-rail";
 import { InboxSidebar, MobileSidebar, MobileSidebarTrigger, Sidebar } from "../sidebar";
 
-// Inbox-related props
-interface InboxProps {
-	isOpen: boolean;
-	onOpenChange: (open: boolean) => void;
+// Tab-specific data source props
+interface TabDataSource {
 	items: InboxItem[];
 	unreadCount: number;
 	loading: boolean;
 	loadingMore?: boolean;
 	hasMore?: boolean;
 	loadMore?: () => void;
+}
+
+// Inbox-related props with separate data sources per tab
+interface InboxProps {
+	isOpen: boolean;
+	onOpenChange: (open: boolean) => void;
+	/** Mentions tab data source with independent pagination */
+	mentions: TabDataSource;
+	/** Status tab data source with independent pagination */
+	status: TabDataSource;
+	/** Combined unread count for nav badge */
+	totalUnreadCount: number;
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
 	/** Whether the inbox is docked (permanent) */
@@ -151,26 +161,23 @@ export function LayoutShell({
 							setTheme={setTheme}
 						/>
 
-					<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-						{children}
-					</main>
+						<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+							{children}
+						</main>
 
-					{/* Mobile Inbox Sidebar - only render when open to avoid scroll blocking */}
-					{inbox?.isOpen && (
-						<InboxSidebar
-							open={inbox.isOpen}
-							onOpenChange={inbox.onOpenChange}
-							inboxItems={inbox.items}
-							unreadCount={inbox.unreadCount}
-							loading={inbox.loading}
-							loadingMore={inbox.loadingMore}
-							hasMore={inbox.hasMore}
-							loadMore={inbox.loadMore}
-							markAsRead={inbox.markAsRead}
-							markAllAsRead={inbox.markAllAsRead}
-							onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-						/>
-					)}
+						{/* Mobile Inbox Sidebar - only render when open to avoid scroll blocking */}
+						{inbox?.isOpen && (
+							<InboxSidebar
+								open={inbox.isOpen}
+								onOpenChange={inbox.onOpenChange}
+								mentions={inbox.mentions}
+								status={inbox.status}
+								totalUnreadCount={inbox.totalUnreadCount}
+								markAsRead={inbox.markAsRead}
+								markAllAsRead={inbox.markAllAsRead}
+								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+							/>
+						)}
 					</div>
 				</TooltipProvider>
 			</SidebarProvider>
@@ -181,7 +188,9 @@ export function LayoutShell({
 	return (
 		<SidebarProvider value={sidebarContextValue}>
 			<TooltipProvider delayDuration={0}>
-				<div className={cn("flex h-screen w-full gap-2 p-2 overflow-hidden bg-muted/40", className)}>
+				<div
+					className={cn("flex h-screen w-full gap-2 p-2 overflow-hidden bg-muted/40", className)}
+				>
 					<div className="hidden md:flex overflow-hidden">
 						<IconRail
 							searchSpaces={searchSpaces}
@@ -226,12 +235,9 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								inboxItems={inbox.items}
-								unreadCount={inbox.unreadCount}
-								loading={inbox.loading}
-								loadingMore={inbox.loadingMore}
-								hasMore={inbox.hasMore}
-								loadMore={inbox.loadMore}
+								mentions={inbox.mentions}
+								status={inbox.status}
+								totalUnreadCount={inbox.totalUnreadCount}
 								markAsRead={inbox.markAsRead}
 								markAllAsRead={inbox.markAllAsRead}
 								isDocked={inbox.isDocked}
@@ -252,12 +258,9 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								inboxItems={inbox.items}
-								unreadCount={inbox.unreadCount}
-								loading={inbox.loading}
-								loadingMore={inbox.loadingMore}
-								hasMore={inbox.hasMore}
-								loadMore={inbox.loadMore}
+								mentions={inbox.mentions}
+								status={inbox.status}
+								totalUnreadCount={inbox.totalUnreadCount}
 								markAsRead={inbox.markAsRead}
 								markAllAsRead={inbox.markAllAsRead}
 								isDocked={false}

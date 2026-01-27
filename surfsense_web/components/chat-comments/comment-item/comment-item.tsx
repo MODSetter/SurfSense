@@ -3,10 +3,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { MessageSquare } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import {
-	clearTargetCommentIdAtom,
-	targetCommentIdAtom,
-} from "@/atoms/chat/current-thread.atom";
+import { clearTargetCommentIdAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -82,10 +79,9 @@ function renderMentions(content: string): React.ReactNode {
 	const mentionPattern = /@\{([^}]+)\}/g;
 	const parts: React.ReactNode[] = [];
 	let lastIndex = 0;
-	let match: RegExpExecArray | null;
 
-	while ((match = mentionPattern.exec(content)) !== null) {
-		if (match.index > lastIndex) {
+	for (const match of content.matchAll(mentionPattern)) {
+		if (match.index !== undefined && match.index > lastIndex) {
 			parts.push(content.slice(lastIndex, match.index));
 		}
 
@@ -96,7 +92,7 @@ function renderMentions(content: string): React.ReactNode {
 			</span>
 		);
 
-		lastIndex = match.index + match[0].length;
+		lastIndex = (match.index ?? 0) + match[0].length;
 	}
 
 	if (lastIndex < content.length) {

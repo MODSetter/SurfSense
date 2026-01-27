@@ -197,7 +197,9 @@ export function Audio({ id, src, title, description, artwork, durationMs, classN
 					<div className="min-w-0">
 						<h3 className="truncate font-semibold text-foreground text-sm sm:text-base">{title}</h3>
 						{description && (
-							<p className="mt-0.5 line-clamp-1 text-muted-foreground text-xs sm:text-sm">{description}</p>
+							<p className="mt-0.5 line-clamp-1 text-muted-foreground text-xs sm:text-sm">
+								{description}
+							</p>
 						)}
 					</div>
 
@@ -243,7 +245,11 @@ export function Audio({ id, src, title, description, artwork, durationMs, classN
 					{/* Volume control */}
 					<div className="flex items-center gap-1 sm:gap-1.5">
 						<Button variant="ghost" size="icon" onClick={toggleMute} className="size-7 sm:size-8">
-							{isMuted ? <VolumeXIcon className="size-3.5 sm:size-4" /> : <Volume2Icon className="size-3.5 sm:size-4" />}
+							{isMuted ? (
+								<VolumeXIcon className="size-3.5 sm:size-4" />
+							) : (
+								<Volume2Icon className="size-3.5 sm:size-4" />
+							)}
 						</Button>
 						{/* Custom volume bar - visually distinct from progress slider */}
 						<div className="relative flex h-6 w-12 sm:w-16 items-center">
@@ -268,7 +274,12 @@ export function Audio({ id, src, title, description, artwork, durationMs, classN
 				</div>
 
 				{/* Download button */}
-				<Button variant="outline" size="sm" onClick={handleDownload} className="gap-1.5 sm:gap-2 h-7 sm:h-8 px-2.5 sm:px-3 text-xs sm:text-sm">
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={handleDownload}
+					className="gap-1.5 sm:gap-2 h-7 sm:h-8 px-2.5 sm:px-3 text-xs sm:text-sm"
+				>
 					<DownloadIcon className="size-3 sm:size-4" />
 					Download
 				</Button>

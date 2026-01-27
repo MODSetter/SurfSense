@@ -6,6 +6,7 @@ For older items (beyond the sync window), use the list endpoint.
 """
 
 from datetime import UTC, datetime, timedelta
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
@@ -19,6 +20,9 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 
 # Must match frontend SYNC_WINDOW_DAYS in use-inbox.ts
 SYNC_WINDOW_DAYS = 14
+
+# Valid notification types - must match frontend InboxItemTypeEnum
+NotificationType = Literal["connector_indexing", "document_processing", "new_mention"]
 
 
 class NotificationResponse(BaseModel):
@@ -73,6 +77,9 @@ class UnreadCountResponse(BaseModel):
 @router.get("/unread-count", response_model=UnreadCountResponse)
 async def get_unread_count(
     search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    type_filter: NotificationType | None = Query(
+        None, alias="type", description="Filter by notification type"
+    ),
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> UnreadCountResponse:
@@ -103,6 +110,10 @@ async def get_unread_count(
             | (Notification.search_space_id.is_(None))
         )
 
+    # Filter by notification type if provided
+    if type_filter:
+        base_filter.append(Notification.type == type_filter)
+
     # Total unread count (all time)
     total_query = select(func.count(Notification.id)).where(*base_filter)
     total_result = await session.execute(total_query)
@@ -125,7 +136,7 @@ async def get_unread_count(
 @router.get("", response_model=NotificationListResponse)
 async def list_notifications(
     search_space_id: int | None = Query(None, description="Filter by search space ID"),
-    type_filter: str | None = Query(
+    type_filter: NotificationType | None = Query(
         None, alias="type", description="Filter by notification type"
     ),
     before_date: str | None = Query(

@@ -96,10 +96,14 @@ function PodcastGeneratingState({ title }: { title: string }) {
 					<div className="absolute inset-1 animate-ping rounded-full bg-primary/20" />
 				</div>
 				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-lg leading-tight">{title}</h3>
+					<h3 className="font-semibold text-foreground text-sm sm:text-lg leading-tight">
+						{title}
+					</h3>
 					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
 						<Spinner size="sm" className="size-3 sm:size-4" />
-						<span className="text-xs sm:text-sm">Generating podcast. This may take a few minutes.</span>
+						<span className="text-xs sm:text-sm">
+							Generating podcast. This may take a few minutes.
+						</span>
 					</div>
 					<div className="mt-2 sm:mt-3">
 						<div className="h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
@@ -123,7 +127,9 @@ function PodcastErrorState({ title, error }: { title: string; error: string }) {
 					<AlertCircleIcon className="size-6 sm:size-8 text-destructive" />
 				</div>
 				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">{title}</h3>
+					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">
+						{title}
+					</h3>
 					<p className="mt-1 text-destructive text-xs sm:text-sm">Failed to generate podcast</p>
 					<p className="mt-1.5 sm:mt-2 text-muted-foreground text-xs sm:text-sm">{error}</p>
 				</div>
@@ -143,7 +149,9 @@ function AudioLoadingState({ title }: { title: string }) {
 					<MicIcon className="size-6 sm:size-8 text-primary/50" />
 				</div>
 				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">{title}</h3>
+					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">
+						{title}
+					</h3>
 					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
 						<Spinner size="sm" className="size-3 sm:size-4" />
 						<span className="text-xs sm:text-sm">Loading audio...</span>

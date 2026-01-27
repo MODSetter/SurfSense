@@ -104,18 +104,54 @@ export function LayoutDataProvider({
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
-	// Inbox hook
+	// Inbox hooks - separate data sources for mentions and status tabs
+	// This ensures each tab has independent pagination and data loading
 	const userId = user?.id ? String(user.id) : null;
+
+	// Mentions: Only fetch "new_mention" type notifications
 	const {
-		inboxItems,
-		unreadCount,
-		loading: inboxLoading,
-		loadingMore: inboxLoadingMore,
-		hasMore: inboxHasMore,
-		loadMore: inboxLoadMore,
-		markAsRead,
-		markAllAsRead,
+		inboxItems: mentionItems,
+		unreadCount: mentionUnreadCount,
+		loading: mentionLoading,
+		loadingMore: mentionLoadingMore,
+		hasMore: mentionHasMore,
+		loadMore: mentionLoadMore,
+		markAsRead: markMentionAsRead,
+		markAllAsRead: markAllMentionsAsRead,
+	} = useInbox(userId, Number(searchSpaceId) || null, "new_mention");
+
+	// Status: Fetch all types (will be filtered client-side to status types)
+	// We pass null to get all, then InboxSidebar filters to status types
+	const {
+		inboxItems: statusItems,
+		unreadCount: statusUnreadCount,
+		loading: statusLoading,
+		loadingMore: statusLoadingMore,
+		hasMore: statusHasMore,
+		loadMore: statusLoadMore,
+		markAsRead: markStatusAsRead,
+		markAllAsRead: markAllStatusAsRead,
 	} = useInbox(userId, Number(searchSpaceId) || null, null);
+
+	// Combined unread count for nav badge (mentions take priority for visibility)
+	const totalUnreadCount = mentionUnreadCount + statusUnreadCount;
+
+	// Unified mark as read that delegates to the correct hook
+	const markAsRead = useCallback(
+		async (id: number) => {
+			// Try both - one will succeed based on which list has the item
+			const mentionResult = await markMentionAsRead(id);
+			if (mentionResult) return true;
+			return markStatusAsRead(id);
+		},
+		[markMentionAsRead, markStatusAsRead]
+	);
+
+	// Mark all as read for both types
+	const markAllAsRead = useCallback(async () => {
+		await Promise.all([markAllMentionsAsRead(), markAllStatusAsRead()]);
+		return true;
+	}, [markAllMentionsAsRead, markAllStatusAsRead]);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -197,7 +233,7 @@ export function LayoutDataProvider({
 				url: "#inbox", // Special URL to indicate this is handled differently
 				icon: Inbox,
 				isActive: isInboxSidebarOpen,
-				badge: unreadCount > 0 ? formatInboxCount(unreadCount) : undefined,
+				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
 			},
 			{
 				title: "Documents",
@@ -206,7 +242,7 @@ export function LayoutDataProvider({
 				isActive: pathname?.includes("/documents"),
 			},
 		],
-		[searchSpaceId, pathname, isInboxSidebarOpen, unreadCount]
+		[searchSpaceId, pathname, isInboxSidebarOpen, totalUnreadCount]
 	);
 
 	// Handlers
@@ -465,12 +501,24 @@ export function LayoutDataProvider({
 				inbox={{
 					isOpen: isInboxSidebarOpen,
 					onOpenChange: setIsInboxSidebarOpen,
-					items: inboxItems,
-					unreadCount,
-					loading: inboxLoading,
-					loadingMore: inboxLoadingMore,
-					hasMore: inboxHasMore,
-					loadMore: inboxLoadMore,
+					// Separate data sources for each tab
+					mentions: {
+						items: mentionItems,
+						unreadCount: mentionUnreadCount,
+						loading: mentionLoading,
+						loadingMore: mentionLoadingMore,
+						hasMore: mentionHasMore,
+						loadMore: mentionLoadMore,
+					},
+					status: {
+						items: statusItems,
+						unreadCount: statusUnreadCount,
+						loading: statusLoading,
+						loadingMore: statusLoadingMore,
+						hasMore: statusHasMore,
+						loadMore: statusLoadMore,
+					},
+					totalUnreadCount,
 					markAsRead,
 					markAllAsRead,
 					isDocked: isInboxDocked,

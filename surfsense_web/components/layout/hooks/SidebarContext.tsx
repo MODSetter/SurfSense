@@ -34,4 +34,3 @@ export function useSidebarContext(): SidebarContextValue {
 export function useSidebarContextSafe(): SidebarContextValue | null {
 	return useContext(SidebarContext);
 }
-
