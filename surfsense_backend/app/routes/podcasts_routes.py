@@ -116,7 +116,7 @@ async def read_podcast(
                 "You don't have permission to read podcasts in this search space",
             )
 
-        return podcast
+        return PodcastRead.from_orm_with_entries(podcast)
     except HTTPException as he:
         raise he
     except SQLAlchemyError:

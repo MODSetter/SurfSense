@@ -20,21 +20,31 @@ const GeneratePodcastArgsSchema = z.object({
 });
 
 const GeneratePodcastResultSchema = z.object({
-	status: z.enum(["processing", "already_generating", "success", "error"]),
-	task_id: z.string().nullish(),
+	// Support both old and new status values for backwards compatibility
+	status: z.enum([
+		"pending",
+		"generating",
+		"ready",
+		"failed",
+		// Legacy values from old saved chats
+		"processing",
+		"already_generating",
+		"success",
+		"error",
+	]),
 	podcast_id: z.number().nullish(),
+	task_id: z.string().nullish(), // Legacy field for old saved chats
 	title: z.string().nullish(),
 	transcript_entries: z.number().nullish(),
 	message: z.string().nullish(),
 	error: z.string().nullish(),
 });
 
-const TaskStatusResponseSchema = z.object({
-	status: z.enum(["processing", "success", "error"]),
-	podcast_id: z.number().nullish(),
-	title: z.string().nullish(),
+const PodcastStatusResponseSchema = z.object({
+	status: z.enum(["pending", "generating", "ready", "failed"]),
+	id: z.number(),
+	title: z.string(),
 	transcript_entries: z.number().nullish(),
-	state: z.string().nullish(),
 	error: z.string().nullish(),
 });
 
@@ -52,17 +62,17 @@ const PodcastDetailsSchema = z.object({
  */
 type GeneratePodcastArgs = z.infer<typeof GeneratePodcastArgsSchema>;
 type GeneratePodcastResult = z.infer<typeof GeneratePodcastResultSchema>;
-type TaskStatusResponse = z.infer<typeof TaskStatusResponseSchema>;
+type PodcastStatusResponse = z.infer<typeof PodcastStatusResponseSchema>;
 type PodcastTranscriptEntry = z.infer<typeof PodcastTranscriptEntrySchema>;
 
 /**
- * Parse and validate task status response
+ * Parse and validate podcast status response
  */
-function parseTaskStatusResponse(data: unknown): TaskStatusResponse {
-	const result = TaskStatusResponseSchema.safeParse(data);
+function parsePodcastStatusResponse(data: unknown): PodcastStatusResponse | null {
+	const result = PodcastStatusResponseSchema.safeParse(data);
 	if (!result.success) {
-		console.warn("Invalid task status response:", result.error.issues);
-		return { status: "error", error: "Invalid response from server" };
+		console.warn("Invalid podcast status response:", result.error.issues);
+		return null;
 	}
 	return result.data;
 }
@@ -283,44 +293,42 @@ function PodcastPlayer({
 }
 
 /**
- * Polling component that checks task status and shows player when complete
+ * Polling component that checks podcast status and shows player when ready
  */
-function PodcastTaskPoller({ taskId, title }: { taskId: string; title: string }) {
-	const [taskStatus, setTaskStatus] = useState<TaskStatusResponse>({ status: "processing" });
+function PodcastStatusPoller({ podcastId, title }: { podcastId: number; title: string }) {
+	const [podcastStatus, setPodcastStatus] = useState<PodcastStatusResponse | null>(null);
 	const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
 	// Set active podcast state when this component mounts
 	useEffect(() => {
-		setActivePodcastTaskId(taskId);
+		setActivePodcastTaskId(String(podcastId));
 
 		// Clear when component unmounts
 		return () => {
-			// Only clear if this task is still the active one
 			clearActivePodcastTaskId();
 		};
-	}, [taskId]);
+	}, [podcastId]);
 
-	// Poll for task status
+	// Poll for podcast status
 	useEffect(() => {
 		const pollStatus = async () => {
 			try {
-				const rawResponse = await baseApiService.get<unknown>(
-					`/api/v1/podcasts/task/${taskId}/status`
-				);
-				const response = parseTaskStatusResponse(rawResponse);
-				setTaskStatus(response);
+				const rawResponse = await baseApiService.get<unknown>(`/api/v1/podcasts/${podcastId}`);
+				const response = parsePodcastStatusResponse(rawResponse);
+				if (response) {
+					setPodcastStatus(response);
 
-				// Stop polling if task is complete or errored
-				if (response.status !== "processing") {
-					if (pollingRef.current) {
-						clearInterval(pollingRef.current);
-						pollingRef.current = null;
+					// Stop polling if podcast is ready or failed
+					if (response.status === "ready" || response.status === "failed") {
+						if (pollingRef.current) {
+							clearInterval(pollingRef.current);
+							pollingRef.current = null;
+						}
+						clearActivePodcastTaskId();
 					}
-					// Clear the active podcast state when task completes
-					clearActivePodcastTaskId();
 				}
 			} catch (err) {
-				console.error("Error polling task status:", err);
+				console.error("Error polling podcast status:", err);
 				// Don't stop polling on network errors, continue polling
 			}
 		};
@@ -336,27 +344,31 @@ function PodcastTaskPoller({ taskId, title }: { taskId: string; title: string })
 				clearInterval(pollingRef.current);
 			}
 		};
-	}, [taskId]);
+	}, [podcastId]);
 
-	// Show loading state while processing
-	if (taskStatus.status === "processing") {
+	// Show loading state while pending or generating
+	if (
+		!podcastStatus ||
+		podcastStatus.status === "pending" ||
+		podcastStatus.status === "generating"
+	) {
 		return <PodcastGeneratingState title={title} />;
 	}
 
 	// Show error state
-	if (taskStatus.status === "error") {
-		return <PodcastErrorState title={title} error={taskStatus.error || "Generation failed"} />;
+	if (podcastStatus.status === "failed") {
+		return <PodcastErrorState title={title} error={podcastStatus.error || "Generation failed"} />;
 	}
 
-	// Show player when complete
-	if (taskStatus.status === "success" && taskStatus.podcast_id) {
+	// Show player when ready
+	if (podcastStatus.status === "ready") {
 		return (
 			<PodcastPlayer
-				podcastId={taskStatus.podcast_id}
-				title={taskStatus.title || title}
+				podcastId={podcastStatus.id}
+				title={podcastStatus.title || title}
 				description={
-					taskStatus.transcript_entries
-						? `${taskStatus.transcript_entries} dialogue entries`
+					podcastStatus.transcript_entries
+						? `${podcastStatus.transcript_entries} dialogue entries`
 						: "SurfSense AI-generated podcast"
 				}
 			/>
@@ -415,14 +427,15 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 			return <PodcastGeneratingState title={title} />;
 		}
 
-		// Error result
-		if (result.status === "error") {
-			return <PodcastErrorState title={title} error={result.error || "Unknown error"} />;
+		// Failed result (new: "failed", legacy: "error")
+		if (result.status === "failed" || result.status === "error") {
+			return <PodcastErrorState title={title} error={result.error || "Generation failed"} />;
 		}
 
 		// Already generating - show simple warning, don't create another poller
 		// The FIRST tool call will display the podcast when ready
-		if (result.status === "already_generating") {
+		// (new: "generating", legacy: "already_generating")
+		if (result.status === "generating" || result.status === "already_generating") {
 			return (
 				<div className="my-4 overflow-hidden rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
 					<div className="flex items-center gap-3">
@@ -442,13 +455,13 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 			);
 		}
 
-		// Processing - poll for completion
-		if (result.status === "processing" && result.task_id) {
-			return <PodcastTaskPoller taskId={result.task_id} title={result.title || title} />;
+		// Pending - poll for completion (new: "pending" with podcast_id)
+		if (result.status === "pending" && result.podcast_id) {
+			return <PodcastStatusPoller podcastId={result.podcast_id} title={result.title || title} />;
 		}
 
-		// Success with podcast_id (direct result, not via polling)
-		if (result.status === "success" && result.podcast_id) {
+		// Ready with podcast_id (new: "ready", legacy: "success")
+		if ((result.status === "ready" || result.status === "success") && result.podcast_id) {
 			return (
 				<PodcastPlayer
 					podcastId={result.podcast_id}
@@ -462,7 +475,29 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 			);
 		}
 
+		// Legacy: old chats with Celery task_id (status: "processing" or "success" without podcast_id)
+		// These can't be recovered since the old task polling endpoint no longer exists
+		if (result.task_id && !result.podcast_id) {
+			return (
+				<div className="my-4 overflow-hidden rounded-xl border border-muted p-4">
+					<div className="flex items-center gap-3">
+						<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+							<MicIcon className="size-5 text-muted-foreground" />
+						</div>
+						<div>
+							<p className="text-muted-foreground text-sm">
+								This podcast was generated with an older version and cannot be displayed.
+							</p>
+							<p className="text-muted-foreground text-xs mt-0.5">
+								Please generate a new podcast to listen.
+							</p>
+						</div>
+					</div>
+				</div>
+			);
+		}
+
 		// Fallback - missing required data
-		return <PodcastErrorState title={title} error="Missing task ID or podcast ID" />;
+		return <PodcastErrorState title={title} error="Missing podcast ID" />;
 	},
 });

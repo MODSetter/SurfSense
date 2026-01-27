@@ -790,13 +790,13 @@ export default function NewChatPage() {
 											// Update the tool call with its result
 											updateToolCall(parsed.toolCallId, { result: parsed.output });
 											// Handle podcast-specific logic
-											if (parsed.output?.status === "processing" && parsed.output?.task_id) {
+											if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 												// Check if this is a podcast tool by looking at the content part
 												const idx = toolCallIndices.get(parsed.toolCallId);
 												if (idx !== undefined) {
 													const part = contentParts[idx];
 													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-														setActivePodcastTaskId(parsed.output.task_id);
+														setActivePodcastTaskId(String(parsed.output.podcast_id));
 													}
 												}
 											}
@@ -1210,12 +1210,12 @@ export default function NewChatPage() {
 
 										case "tool-output-available":
 											updateToolCall(parsed.toolCallId, { result: parsed.output });
-											if (parsed.output?.status === "processing" && parsed.output?.task_id) {
+											if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 												const idx = toolCallIndices.get(parsed.toolCallId);
 												if (idx !== undefined) {
 													const part = contentParts[idx];
 													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-														setActivePodcastTaskId(parsed.output.task_id);
+														setActivePodcastTaskId(String(parsed.output.podcast_id));
 													}
 												}
 											}

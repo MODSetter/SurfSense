@@ -753,7 +753,12 @@ class Podcast(BaseModel, TimestampMixin):
     podcast_transcript = Column(JSONB, nullable=True)
     file_location = Column(Text, nullable=True)
     status = Column(
-        SQLAlchemyEnum(PodcastStatus, name="podcast_status", create_type=False),
+        SQLAlchemyEnum(
+            PodcastStatus,
+            name="podcast_status",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
         nullable=False,
         default=PodcastStatus.READY,
         server_default="ready",
