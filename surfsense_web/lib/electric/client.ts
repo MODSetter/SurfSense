@@ -274,16 +274,6 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				CREATE INDEX IF NOT EXISTS idx_new_chat_messages_created_at ON new_chat_messages(created_at);
 			`);
 
-			// Force resync notifications if flagged (e.g., after clone from public page)
-			if (
-				typeof window !== "undefined" &&
-				localStorage.getItem("surfsense_force_notif_resync") === "true"
-			) {
-				console.log("[Electric] Force resync flag detected, clearing notifications table");
-				await db.exec("DELETE FROM notifications");
-				localStorage.removeItem("surfsense_force_notif_resync");
-			}
-
 			const electricUrl = getElectricUrl();
 
 			// STEP 4: Create the client wrapper

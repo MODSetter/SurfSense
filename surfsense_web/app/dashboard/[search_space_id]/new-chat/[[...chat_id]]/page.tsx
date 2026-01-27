@@ -187,6 +187,12 @@ export default function NewChatPage() {
 						? membersData?.find((m) => m.user_id === msg.author_id)
 						: null;
 
+					// Preserve existing author info if member lookup fails (e.g., cloned chats)
+					const existingMsg = prev.find((m) => m.id === `msg-${msg.id}`);
+					const existingAuthor = existingMsg?.metadata?.custom?.author as
+						| { displayName?: string | null; avatarUrl?: string | null }
+						| undefined;
+
 					return convertToThreadMessage({
 						id: msg.id,
 						thread_id: msg.thread_id,
@@ -194,8 +200,8 @@ export default function NewChatPage() {
 						content: msg.content,
 						author_id: msg.author_id,
 						created_at: msg.created_at,
-						author_display_name: member?.user_display_name ?? null,
-						author_avatar_url: member?.user_avatar_url ?? null,
+						author_display_name: member?.user_display_name ?? existingAuthor?.displayName ?? null,
+						author_avatar_url: member?.user_avatar_url ?? existingAuthor?.avatarUrl ?? null,
 					});
 				});
 			});

@@ -119,6 +119,15 @@ export function useInbox(
 
 		async function startSync() {
 			try {
+				// Check for force resync flag (e.g., after clone from public page)
+				if (localStorage.getItem("surfsense_force_notif_resync") === "true") {
+					console.log("[useInbox] Force resync flag detected, clearing notifications");
+					await client.db.exec("DELETE FROM notifications");
+					localStorage.removeItem("surfsense_force_notif_resync");
+					// Reset sync key to force a fresh sync
+					userSyncKeyRef.current = null;
+				}
+
 				const cutoffDate = getSyncCutoffDate();
 				const userSyncKey = `inbox_${userId}_${cutoffDate}`;
 
