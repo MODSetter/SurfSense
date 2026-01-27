@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxext6 \
     libxrender1 \
     dos2unix \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # Update certificates and install SSL tools

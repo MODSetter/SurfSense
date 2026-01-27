@@ -8,6 +8,7 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
+import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { ValidationError } from "@/lib/error";
@@ -42,9 +43,6 @@ export function LocalLoginForm() {
 		// Track login attempt
 		trackLoginAttempt("local");
 
-		// Show loading toast
-		const loadingToast = toast.loading(tCommon("loading"));
-
 		try {
 			const data = await login({
 				username,
@@ -62,8 +60,7 @@ export function LocalLoginForm() {
 
 			// Success toast
 			toast.success(t("login_success"), {
-				id: loadingToast,
-				description: "Redirecting to dashboard...",
+				description: "Redirecting to dashboard",
 				duration: 2000,
 			});
 
@@ -76,7 +73,6 @@ export function LocalLoginForm() {
 				trackLoginFailure("local", err.message);
 				setError({ title: err.name, message: err.message });
 				toast.error(err.name, {
-					id: loadingToast,
 					description: err.message,
 					duration: 6000,
 				});
@@ -106,7 +102,6 @@ export function LocalLoginForm() {
 
 			// Show error toast with conditional retry action
 			const toastOptions: any = {
-				id: loadingToast,
 				description: errorDetails.description,
 				duration: 6000,
 			};
@@ -244,9 +239,16 @@ export function LocalLoginForm() {
 				<button
 					type="submit"
 					disabled={isLoggingIn}
-					className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base"
+					className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
 				>
-					{isLoggingIn ? tCommon("loading") : t("sign_in")}
+					{isLoggingIn ? (
+						<>
+							<Spinner size="sm" className="text-white" />
+							<span>{t("signing_in")}</span>
+						</>
+					) : (
+						t("sign_in")
+					)}
 				</button>
 			</form>
 

@@ -1,6 +1,8 @@
 "use client";
 
-import { Mail } from "lucide-react";
+import { Plus } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { Progress } from "@/components/ui/progress";
 
 interface PageUsageDisplayProps {
@@ -9,6 +11,8 @@ interface PageUsageDisplayProps {
 }
 
 export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProps) {
+	const params = useParams();
+	const searchSpaceId = params.search_space_id;
 	const usagePercentage = (pagesUsed / pagesLimit) * 100;
 
 	return (
@@ -21,13 +25,13 @@ export function PageUsageDisplay({ pagesUsed, pagesLimit }: PageUsageDisplayProp
 					<span className="font-medium">{usagePercentage.toFixed(0)}%</span>
 				</div>
 				<Progress value={usagePercentage} className="h-1.5" />
-				<a
-					href="mailto:rohan@surfsense.com?subject=Request%20to%20Increase%20Page%20Limits"
+				<Link
+					href={`/dashboard/${searchSpaceId}/more-pages`}
 					className="flex items-center gap-1.5 text-[10px] text-muted-foreground hover:text-primary transition-colors"
 				>
-					<Mail className="h-3 w-3 shrink-0" />
-					<span>Contact to increase limits</span>
-				</a>
+					<Plus className="h-3 w-3 shrink-0" />
+					<span>Get More Pages</span>
+				</Link>
 			</div>
 		</div>
 	);

@@ -68,8 +68,12 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <Image src="/connectors/modelcontextprotocol.svg" alt="MCP" {...imgProps} />;
 		case EnumConnectorName.OBSIDIAN_CONNECTOR:
 			return <Image src="/connectors/obsidian.svg" alt="Obsidian" {...imgProps} />;
-		case EnumConnectorName.COMPOSIO_CONNECTOR:
-			return <Image src="/connectors/composio.svg" alt="Composio" {...imgProps} />;
+		case EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+			return <Image src="/connectors/google-drive.svg" alt="Google Drive" {...imgProps} />;
+		case EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR:
+			return <Image src="/connectors/google-gmail.svg" alt="Gmail" {...imgProps} />;
+		case EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR:
+			return <Image src="/connectors/google-calendar.svg" alt="Google Calendar" {...imgProps} />;
 		// Additional cases for non-enum connector types
 		case "YOUTUBE_CONNECTOR":
 			return <Image src="/connectors/youtube.svg" alt="YouTube" {...imgProps} />;
@@ -89,8 +93,12 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 			return <File {...iconProps} />;
 		case "GOOGLE_DRIVE_FILE":
 			return <File {...iconProps} />;
-		case "COMPOSIO_CONNECTOR":
-			return <Image src="/connectors/composio.svg" alt="Composio" {...imgProps} />;
+		case "COMPOSIO_GOOGLE_DRIVE_CONNECTOR":
+			return <Image src="/connectors/google-drive.svg" alt="Google Drive" {...imgProps} />;
+		case "COMPOSIO_GMAIL_CONNECTOR":
+			return <Image src="/connectors/google-gmail.svg" alt="Gmail" {...imgProps} />;
+		case "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR":
+			return <Image src="/connectors/google-calendar.svg" alt="Google Calendar" {...imgProps} />;
 		case "NOTE":
 			return <FileText {...iconProps} />;
 		case "EXTENSION":

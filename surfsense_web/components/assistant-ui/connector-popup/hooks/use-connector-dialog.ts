@@ -26,7 +26,11 @@ import {
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
-import { OAUTH_CONNECTORS, OTHER_CONNECTORS } from "../constants/connector-constants";
+import {
+	COMPOSIO_CONNECTORS,
+	OAUTH_CONNECTORS,
+	OTHER_CONNECTORS,
+} from "../constants/connector-constants";
 import {
 	dateRangeSchema,
 	frequencyMinutesSchema,
@@ -82,10 +86,6 @@ export const useConnectorDialog = () => {
 
 	// MCP list view state (for managing multiple MCP connectors)
 	const [viewingMCPList, setViewingMCPList] = useState(false);
-
-	// Composio toolkit view state
-	const [viewingComposio, setViewingComposio] = useState(false);
-	const [connectingComposioToolkit, setConnectingComposioToolkit] = useState<string | null>(null);
 
 	// Track if we came from accounts list when entering edit mode
 	const [cameFromAccountsList, setCameFromAccountsList] = useState<{
@@ -159,32 +159,28 @@ export const useConnectorDialog = () => {
 					setViewingMCPList(true);
 				}
 
-				// Clear Composio view if view is not "composio" anymore
-				if (params.view !== "composio" && viewingComposio) {
-					setViewingComposio(false);
-					setConnectingComposioToolkit(null);
-				}
-
-				// Handle Composio view
-				if (params.view === "composio" && !viewingComposio) {
-					setViewingComposio(true);
-				}
-
 				// Handle connect view
 				if (params.view === "connect" && params.connectorType && !connectingConnectorType) {
 					setConnectingConnectorType(params.connectorType);
 				}
 
 				// Handle accounts view
-				if (params.view === "accounts" && params.connectorType && !viewingAccountsType) {
-					const oauthConnector = OAUTH_CONNECTORS.find(
-						(c) => c.connectorType === params.connectorType
-					);
-					if (oauthConnector) {
-						setViewingAccountsType({
-							connectorType: oauthConnector.connectorType,
-							connectorTitle: oauthConnector.title,
-						});
+				if (params.view === "accounts" && params.connectorType) {
+					// Update state if not set, or if connectorType has changed
+					const needsUpdate =
+						!viewingAccountsType || viewingAccountsType.connectorType !== params.connectorType;
+
+					if (needsUpdate) {
+						// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
+						const oauthConnector =
+							OAUTH_CONNECTORS.find((c) => c.connectorType === params.connectorType) ||
+							COMPOSIO_CONNECTORS.find((c) => c.connectorType === params.connectorType);
+						if (oauthConnector) {
+							setViewingAccountsType({
+								connectorType: oauthConnector.connectorType,
+								connectorTitle: oauthConnector.title,
+							});
+						}
 					}
 				}
 
@@ -195,7 +191,10 @@ export const useConnectorDialog = () => {
 
 				// Handle configure view (for page refresh support)
 				if (params.view === "configure" && params.connector && !indexingConfig && allConnectors) {
-					const oauthConnector = OAUTH_CONNECTORS.find((c) => c.id === params.connector);
+					// Check both OAUTH_CONNECTORS and COMPOSIO_CONNECTORS
+					const oauthConnector =
+						OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
+						COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
 					if (oauthConnector) {
 						let existingConnector: SearchSourceConnector | undefined;
 						if (params.connectorId) {
@@ -293,6 +292,7 @@ export const useConnectorDialog = () => {
 		indexingConfig,
 		connectingConnectorType,
 		viewingAccountsType,
+		viewingMCPList,
 	]);
 
 	// Detect OAuth success / Failure and transition to config view
@@ -328,58 +328,72 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
-			if (
-				params.success === "true" &&
-				params.connector &&
-				searchSpaceId &&
-				params.modal === "connectors"
-			) {
-				const oauthConnector = OAUTH_CONNECTORS.find((c) => c.id === params.connector);
-				if (oauthConnector) {
-					refetchAllConnectors().then((result) => {
-						if (!result.data) return;
+			if (params.success === "true" && searchSpaceId && params.modal === "connectors") {
+				refetchAllConnectors().then((result) => {
+					if (!result.data) return;
 
-						let newConnector: SearchSourceConnector | undefined;
-						if (params.connectorId) {
-							const connectorId = parseInt(params.connectorId, 10);
-							newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
-						} else {
+					let newConnector: SearchSourceConnector | undefined;
+					let oauthConnector:
+						| (typeof OAUTH_CONNECTORS)[number]
+						| (typeof COMPOSIO_CONNECTORS)[number]
+						| undefined;
+
+					// First, try to find connector by connectorId if provided
+					if (params.connectorId) {
+						const connectorId = parseInt(params.connectorId, 10);
+						newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
+
+						// If we found the connector, find the matching OAuth/Composio connector by type
+						if (newConnector) {
+							oauthConnector =
+								OAUTH_CONNECTORS.find((c) => c.connectorType === newConnector!.connector_type) ||
+								COMPOSIO_CONNECTORS.find((c) => c.connectorType === newConnector!.connector_type);
+						}
+					}
+
+					// If we don't have a connector yet, try to find by connector param
+					if (!newConnector && params.connector) {
+						oauthConnector =
+							OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
+							COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
+
+						if (oauthConnector) {
 							newConnector = result.data.find(
-								(c: SearchSourceConnector) => c.connector_type === oauthConnector.connectorType
+								(c: SearchSourceConnector) => c.connector_type === oauthConnector!.connectorType
 							);
 						}
+					}
 
-						if (newConnector) {
-							const connectorValidation = searchSourceConnector.safeParse(newConnector);
-							if (connectorValidation.success) {
-								// Track connector connected event for OAuth connectors
-								trackConnectorConnected(
-									Number(searchSpaceId),
-									oauthConnector.connectorType,
-									newConnector.id
-								);
+					if (newConnector && oauthConnector) {
+						const connectorValidation = searchSourceConnector.safeParse(newConnector);
+						if (connectorValidation.success) {
+							// Track connector connected event for OAuth/Composio connectors
+							trackConnectorConnected(
+								Number(searchSpaceId),
+								oauthConnector.connectorType,
+								newConnector.id
+							);
 
-								const config = validateIndexingConfigState({
-									connectorType: oauthConnector.connectorType,
-									connectorId: newConnector.id,
-									connectorTitle: oauthConnector.title,
-								});
-								setIndexingConfig(config);
-								setIndexingConnector(newConnector);
-								setIndexingConnectorConfig(newConnector.config);
-								setIsOpen(true);
-								const url = new URL(window.location.href);
-								url.searchParams.delete("success");
-								url.searchParams.set("connectorId", newConnector.id.toString());
-								url.searchParams.set("view", "configure");
-								window.history.replaceState({}, "", url.toString());
-							} else {
-								console.warn("Invalid connector data after OAuth:", connectorValidation.error);
-								toast.error("Failed to validate connector data");
-							}
+							const config = validateIndexingConfigState({
+								connectorType: oauthConnector.connectorType,
+								connectorId: newConnector.id,
+								connectorTitle: oauthConnector.title,
+							});
+							setIndexingConfig(config);
+							setIndexingConnector(newConnector);
+							setIndexingConnectorConfig(newConnector.config);
+							setIsOpen(true);
+							const url = new URL(window.location.href);
+							url.searchParams.delete("success");
+							url.searchParams.set("connectorId", newConnector.id.toString());
+							url.searchParams.set("view", "configure");
+							window.history.replaceState({}, "", url.toString());
+						} else {
+							console.warn("Invalid connector data after OAuth:", connectorValidation.error);
+							toast.error("Failed to validate connector data");
 						}
-					});
-				}
+					}
+				});
 			}
 		} catch (error) {
 			// Invalid query params - log but don't crash
@@ -389,17 +403,18 @@ export const useConnectorDialog = () => {
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(
-		async (connector: (typeof OAUTH_CONNECTORS)[number]) => {
+		async (connector: (typeof OAUTH_CONNECTORS)[number] | (typeof COMPOSIO_CONNECTORS)[number]) => {
 			if (!searchSpaceId || !connector.authEndpoint) return;
 
 			// Set connecting state immediately to disable button and show spinner
 			setConnectingId(connector.id);
 
 			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}?space_id=${searchSpaceId}`,
-					{ method: "GET" }
-				);
+				// Check if authEndpoint already has query parameters
+				const separator = connector.authEndpoint.includes("?") ? "&" : "?";
+				const url = `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}${connector.authEndpoint}${separator}space_id=${searchSpaceId}`;
+
+				const response = await authenticatedFetch(url, { method: "GET" });
 
 				if (!response.ok) {
 					throw new Error(`Failed to initiate ${connector.title} OAuth`);
@@ -799,23 +814,19 @@ export const useConnectorDialog = () => {
 
 	// Handle viewing accounts list for OAuth connector type
 	const handleViewAccountsList = useCallback(
-		(connectorType: string, connectorTitle: string) => {
+		(connectorType: string, _connectorTitle?: string) => {
 			if (!searchSpaceId) return;
 
-			setViewingAccountsType({
-				connectorType,
-				connectorTitle,
-			});
-
 			// Update URL to show accounts view, preserving current tab
+			// The useEffect will handle setting viewingAccountsType based on URL params
 			const url = new URL(window.location.href);
 			url.searchParams.set("modal", "connectors");
 			url.searchParams.set("view", "accounts");
 			url.searchParams.set("connectorType", connectorType);
 			// Keep the current tab in URL so we can go back to it
-			window.history.pushState({ modal: true }, "", url.toString());
+			router.replace(url.pathname + url.search, { scroll: false });
 		},
-		[searchSpaceId]
+		[searchSpaceId, router]
 	);
 
 	// Handle going back from accounts list view
@@ -839,8 +850,8 @@ export const useConnectorDialog = () => {
 		const url = new URL(window.location.href);
 		url.searchParams.set("modal", "connectors");
 		url.searchParams.set("view", "mcp-list");
-		window.history.pushState({ modal: true }, "", url.toString());
-	}, [searchSpaceId]);
+		router.replace(url.pathname + url.search, { scroll: false });
+	}, [searchSpaceId, router]);
 
 	// Handle going back from MCP list view
 	const handleBackFromMCPList = useCallback(() => {
@@ -861,71 +872,15 @@ export const useConnectorDialog = () => {
 		router.replace(url.pathname + url.search, { scroll: false });
 	}, [router]);
 
-	// Handle opening Composio toolkit view
-	const handleOpenComposio = useCallback(() => {
-		if (!searchSpaceId) return;
-
-		setViewingComposio(true);
-
-		// Update URL to show Composio view
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		url.searchParams.set("view", "composio");
-		window.history.pushState({ modal: true }, "", url.toString());
-	}, [searchSpaceId]);
-
-	// Handle going back from Composio view
-	const handleBackFromComposio = useCallback(() => {
-		setViewingComposio(false);
-		setConnectingComposioToolkit(null);
-		const url = new URL(window.location.href);
-		url.searchParams.set("modal", "connectors");
-		url.searchParams.delete("view");
-		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
-
-	// Handle connecting a Composio toolkit
-	const handleConnectComposioToolkit = useCallback(
-		async (toolkitId: string) => {
-			if (!searchSpaceId) return;
-
-			setConnectingComposioToolkit(toolkitId);
-
-			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/auth/composio/connector/add?space_id=${searchSpaceId}&toolkit_id=${toolkitId}`,
-					{ method: "GET" }
-				);
-
-				if (!response.ok) {
-					throw new Error(`Failed to initiate Composio OAuth for ${toolkitId}`);
-				}
-
-				const data = await response.json();
-
-				if (data.auth_url) {
-					// Redirect to Composio OAuth
-					window.location.href = data.auth_url;
-				} else {
-					throw new Error("No authorization URL received from Composio");
-				}
-			} catch (error) {
-				console.error("Error connecting Composio toolkit:", error);
-				toast.error(`Failed to connect ${toolkitId}. Please try again.`);
-				setConnectingComposioToolkit(null);
-			}
-		},
-		[searchSpaceId]
-	);
-
 	// Handle starting indexing
 	const handleStartIndexing = useCallback(
 		async (refreshConnectors: () => void) => {
 			if (!indexingConfig || !searchSpaceId) return;
 
-			// Validate date range (skip for Google Drive and Webcrawler)
+			// Validate date range (skip for Google Drive, Composio Drive, and Webcrawler)
 			if (
 				indexingConfig.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+				indexingConfig.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 				indexingConfig.connectorType !== "WEBCRAWLER_CONNECTOR"
 			) {
 				const dateRangeValidation = dateRangeSchema.safeParse({ startDate, endDate });
@@ -970,8 +925,12 @@ export const useConnectorDialog = () => {
 					});
 				}
 
-				// Handle Google Drive folder selection
-				if (indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" && indexingConnectorConfig) {
+				// Handle Google Drive folder selection (regular and Composio)
+				if (
+					(indexingConfig.connectorType === "GOOGLE_DRIVE_CONNECTOR" ||
+						indexingConfig.connectorType === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR") &&
+					indexingConnectorConfig
+				) {
 					const selectedFolders = indexingConnectorConfig.selected_folders as
 						| Array<{ id: string; name: string }>
 						| undefined;
@@ -1191,8 +1150,12 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
-			// Prevent periodic indexing for Google Drive without folders/files selected
-			if (periodicEnabled && editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
+			// Prevent periodic indexing for Google Drive (regular or Composio) without folders/files selected
+			if (
+				periodicEnabled &&
+				(editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR")
+			) {
 				const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
 					| Array<{ id: string; name: string }>
 					| undefined;
@@ -1241,8 +1204,11 @@ export const useConnectorDialog = () => {
 				if (!editingConnector.is_indexable) {
 					// Non-indexable connectors (like Tavily API) don't need re-indexing
 					indexingDescription = "Settings saved.";
-				} else if (editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR") {
-					// Google Drive uses folder selection from config, not date ranges
+				} else if (
+					editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+					editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR"
+				) {
+					// Google Drive (both regular and Composio) uses folder selection from config, not date ranges
 					const selectedFolders = (connectorConfig || editingConnector.config)?.selected_folders as
 						| Array<{ id: string; name: string }>
 						| undefined;
@@ -1423,13 +1389,24 @@ export const useConnectorDialog = () => {
 				setIsDisconnecting(false);
 			}
 		},
-		[editingConnector, searchSpaceId, deleteConnector, router]
+		[editingConnector, searchSpaceId, deleteConnector, router, cameFromMCPList]
 	);
 
-	// Handle quick index (index without date picker, uses backend defaults)
+	// Handle quick index (index with selected date range, or backend defaults if none selected)
 	const handleQuickIndexConnector = useCallback(
-		async (connectorId: number, connectorType?: string) => {
-			if (!searchSpaceId) return;
+		async (
+			connectorId: number,
+			connectorType?: string,
+			stopIndexing?: (id: number) => void,
+			startDate?: Date,
+			endDate?: Date
+		) => {
+			if (!searchSpaceId) {
+				if (stopIndexing) {
+					stopIndexing(connectorId);
+				}
+				return;
+			}
 
 			// Track quick index clicked event
 			if (connectorType) {
@@ -1437,10 +1414,16 @@ export const useConnectorDialog = () => {
 			}
 
 			try {
+				// Format dates if provided, otherwise pass undefined (backend will use defaults)
+				const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
+				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
+
 				await indexConnector({
 					connector_id: connectorId,
 					queryParams: {
 						search_space_id: searchSpaceId,
+						start_date: startDateStr,
+						end_date: endDateStr,
 					},
 				});
 				toast.success("Indexing started", {
@@ -1451,12 +1434,18 @@ export const useConnectorDialog = () => {
 				queryClient.invalidateQueries({
 					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 				});
+				// Note: Don't call stopIndexing here - let useIndexingConnectors hook
+				// detect when last_indexed_at changes via Electric SQL
 			} catch (error) {
 				console.error("Error indexing connector content:", error);
 				toast.error(error instanceof Error ? error.message : "Failed to start indexing");
+				// Stop indexing state on error
+				if (stopIndexing) {
+					stopIndexing(connectorId);
+				}
 			}
 		},
-		[searchSpaceId, indexConnector]
+		[searchSpaceId, indexConnector, queryClient]
 	);
 
 	// Handle going back from edit view
@@ -1578,7 +1567,6 @@ export const useConnectorDialog = () => {
 		allConnectors,
 		viewingAccountsType,
 		viewingMCPList,
-		viewingComposio,
 
 		// Setters
 		setSearchQuery,
@@ -1614,12 +1602,5 @@ export const useConnectorDialog = () => {
 		connectorConfig,
 		setConnectorConfig,
 		setIndexingConnectorConfig,
-
-		// Composio
-		viewingComposio,
-		connectingComposioToolkit,
-		handleOpenComposio,
-		handleBackFromComposio,
-		handleConnectComposioToolkit,
 	};
 };

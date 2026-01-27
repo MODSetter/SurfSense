@@ -7,7 +7,7 @@ import {
 	useAssistantApi,
 	useAssistantState,
 } from "@assistant-ui/react";
-import { FileText, Loader2, Paperclip, PlusIcon, Upload, XIcon } from "lucide-react";
+import { FileText, Paperclip, PlusIcon, Upload, XIcon } from "lucide-react";
 import Image from "next/image";
 import { type FC, type PropsWithChildren, useEffect, useRef, useState } from "react";
 import { useShallow } from "zustand/shallow";
@@ -20,6 +20,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { useDocumentUploadDialog } from "./document-upload-popup";
@@ -135,7 +136,7 @@ const AttachmentThumb: FC = () => {
 	if (isProcessing) {
 		return (
 			<div className="flex h-full w-full items-center justify-center bg-muted">
-				<Loader2 className="size-6 animate-spin text-muted-foreground" />
+				<Spinner size="md" className="text-muted-foreground" />
 			</div>
 		);
 	}
@@ -213,7 +214,7 @@ const AttachmentUI: FC = () => {
 			>
 				{isProcessing ? (
 					<span className="flex items-center gap-1.5">
-						<Loader2 className="size-3 animate-spin" />
+						<Spinner size="xs" />
 						Processing...
 					</span>
 				) : (

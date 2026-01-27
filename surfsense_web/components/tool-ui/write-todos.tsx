@@ -2,7 +2,6 @@
 
 import { makeAssistantToolUI, useAssistantState } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Loader2 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { z } from "zod";
 import {
@@ -11,6 +10,7 @@ import {
 	registerPlanOwner,
 	updatePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
+import { Spinner } from "@/components/ui/spinner";
 import { Plan, PlanErrorBoundary, parseSerializablePlan, TodoStatusSchema } from "./plan";
 
 // ============================================================================
@@ -46,7 +46,7 @@ function WriteTodosLoading() {
 	return (
 		<div className="my-4 w-full max-w-xl rounded-2xl border bg-card/60 px-5 py-4 shadow-sm">
 			<div className="flex items-center gap-3">
-				<Loader2 className="size-5 animate-spin text-primary" />
+				<Spinner size="md" className="text-primary" />
 				<span className="text-sm text-muted-foreground">Creating plan...</span>
 			</div>
 		</div>

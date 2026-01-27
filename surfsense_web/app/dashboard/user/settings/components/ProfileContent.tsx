@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Loader2, Menu, User } from "lucide-react";
+import { Menu, User } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -11,6 +11,7 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Spinner } from "@/components/ui/spinner";
 
 interface ProfileContentProps {
 	onMenuClick: () => void;
@@ -129,7 +130,7 @@ export function ProfileContent({ onMenuClick }: ProfileContentProps) {
 						>
 							{isUserLoading ? (
 								<div className="flex items-center justify-center py-12">
-									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+									<Spinner size="md" className="text-muted-foreground" />
 								</div>
 							) : (
 								<form onSubmit={handleSubmit} className="space-y-6">
@@ -166,7 +167,7 @@ export function ProfileContent({ onMenuClick }: ProfileContentProps) {
 
 									<div className="flex justify-end">
 										<Button type="submit" disabled={isPending || !hasChanges}>
-											{isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+											{isPending && <Spinner size="sm" className="mr-2" />}
 											{t("profile_save")}
 										</Button>
 									</div>

@@ -7,7 +7,6 @@ import {
 	Clock,
 	Edit3,
 	FileText,
-	Loader2,
 	MessageSquareQuote,
 	Plus,
 	RefreshCw,
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useState } from "react";
-import { toast } from "sonner";
 import {
 	createNewLLMConfigMutationAtom,
 	deleteNewLLMConfigMutationAtom,
@@ -49,8 +47,8 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import type { NewLLMConfig } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
 
@@ -112,12 +110,10 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		async (formData: LLMConfigFormData) => {
 			try {
 				if (editingConfig) {
+					const { search_space_id, ...updateData } = formData;
 					await updateConfig({
 						id: editingConfig.id,
-						data: {
-							...formData,
-							search_space_id: undefined, // Can't change search_space_id
-						},
+						data: updateData,
 					});
 				} else {
 					await createConfig(formData);
@@ -156,9 +152,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		setEditingConfig(null);
 	};
 
-	const getProviderInfo = (providerValue: string) =>
-		LLM_PROVIDERS.find((p) => p.value === providerValue);
-
 	return (
 		<div className="space-y-4 md:space-y-6">
 			{/* Header */}
@@ -180,9 +173,9 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			{/* Error Alerts */}
 			<AnimatePresence>
 				{errors.length > 0 &&
-					errors.map((err, i) => (
+					errors.map((err) => (
 						<motion.div
-							key={`error-${i}`}
+							key={err?.message ?? `error-${Date.now()}-${Math.random()}`}
 							initial={{ opacity: 0, y: -10 }}
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: -10 }}
@@ -218,7 +211,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				<Card>
 					<CardContent className="flex items-center justify-center py-10 md:py-16">
 						<div className="flex flex-col items-center gap-2 md:gap-3">
-							<Loader2 className="h-6 w-6 md:h-8 md:w-8 animate-spin text-muted-foreground" />
+							<Spinner size="md" className="md:h-8 md:w-8 text-muted-foreground" />
 							<span className="text-xs md:text-sm text-muted-foreground">
 								Loading configurations...
 							</span>
@@ -269,7 +262,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						<motion.div variants={container} initial="hidden" animate="show" className="grid gap-4">
 							<AnimatePresence mode="popLayout">
 								{configs?.map((config) => {
-									const providerInfo = getProviderInfo(config.provider);
 									return (
 										<motion.div
 											key={config.id}
@@ -492,8 +484,8 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 						>
 							{isDeleting ? (
 								<>
-									<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-									Deleting...
+									<Spinner size="sm" className="mr-2" />
+									Deleting
 								</>
 							) : (
 								<>

@@ -4,7 +4,6 @@ import type { FC } from "react";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { isSelfHosted } from "@/lib/env-config";
-import { ComposioConnectorCard } from "../components/composio-connector-card";
 import { ConnectorCard } from "../components/connector-card";
 import {
 	COMPOSIO_CONNECTORS,
@@ -35,13 +34,14 @@ interface AllConnectorsTabProps {
 	allConnectors: SearchSourceConnector[] | undefined;
 	documentTypeCounts?: Record<string, number>;
 	indexingConnectorIds?: Set<number>;
-	onConnectOAuth: (connector: (typeof OAUTH_CONNECTORS)[number]) => void;
+	onConnectOAuth: (
+		connector: (typeof OAUTH_CONNECTORS)[number] | (typeof COMPOSIO_CONNECTORS)[number]
+	) => void;
 	onConnectNonOAuth?: (connectorType: string) => void;
 	onCreateWebcrawler?: () => void;
 	onCreateYouTubeCrawler?: () => void;
 	onManage?: (connector: SearchSourceConnector) => void;
 	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
-	onOpenComposio?: () => void;
 }
 
 export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
@@ -57,7 +57,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 	onCreateYouTubeCrawler,
 	onManage,
 	onViewAccountsList,
-	onOpenComposio,
 }) => {
 	// Check if self-hosted mode (for showing self-hosted only connectors)
 	const selfHosted = isSelfHosted();
@@ -93,23 +92,18 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 			c.description.toLowerCase().includes(searchQuery.toLowerCase())
 	);
 
-	// Count Composio connectors
-	const composioConnectorCount = allConnectors
-		? allConnectors.filter(
-				(c: SearchSourceConnector) => c.connector_type === EnumConnectorName.COMPOSIO_CONNECTOR
-			).length
-		: 0;
-
 	return (
 		<div className="space-y-8">
-			{/* Quick Connect */}
-			{filteredOAuth.length > 0 && (
+			{/* Managed OAuth (Composio Integrations) */}
+			{filteredComposio.length > 0 && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">Quick Connect</h3>
+						<h3 className="text-sm font-semibold text-muted-foreground">
+							Managed OAuth (Composio)
+						</h3>
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{filteredOAuth.map((connector) => {
+						{filteredComposio.map((connector) => {
 							const isConnected = connectedTypes.has(connector.connectorType);
 							const isConnecting = connectingId === connector.id;
 
@@ -122,18 +116,6 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 									: [];
 
 							const accountCount = typeConnectors.length;
-
-							// Get the most recent last_indexed_at across all accounts
-							const mostRecentLastIndexed = typeConnectors.reduce<string | undefined>(
-								(latest, c) => {
-									if (!c.last_indexed_at) return latest;
-									if (!latest) return c.last_indexed_at;
-									return new Date(c.last_indexed_at) > new Date(latest)
-										? c.last_indexed_at
-										: latest;
-								},
-								undefined
-							);
 
 							const documentCount = getDocumentCountForConnector(
 								connector.connectorType,
@@ -168,29 +150,59 @@ export const AllConnectorsTab: FC<AllConnectorsTabProps> = ({
 				</section>
 			)}
 
-			{/* Composio Integrations */}
-			{/* {filteredComposio.length > 0 && onOpenComposio && (
+			{/* Quick Connect */}
+			{filteredOAuth.length > 0 && (
 				<section>
 					<div className="flex items-center gap-2 mb-4">
-						<h3 className="text-sm font-semibold text-muted-foreground">Managed OAuth</h3>
-						<span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 border border-violet-500/20 font-medium">
-							No verification needed
-						</span>
+						<h3 className="text-sm font-semibold text-muted-foreground">Quick Connect</h3>
 					</div>
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-						{filteredComposio.map((connector) => (
-							<ComposioConnectorCard
-								key={connector.id}
-								id={connector.id}
-								title={connector.title}
-								description={connector.description}
-								connectorCount={composioConnectorCount}
-								onConnect={onOpenComposio}
-							/>
-						))}
+						{filteredOAuth.map((connector) => {
+							const isConnected = connectedTypes.has(connector.connectorType);
+							const isConnecting = connectingId === connector.id;
+
+							// Find all connectors of this type
+							const typeConnectors =
+								isConnected && allConnectors
+									? allConnectors.filter(
+											(c: SearchSourceConnector) => c.connector_type === connector.connectorType
+										)
+									: [];
+
+							const accountCount = typeConnectors.length;
+
+							const documentCount = getDocumentCountForConnector(
+								connector.connectorType,
+								documentTypeCounts
+							);
+
+							// Check if any account is currently indexing
+							const isIndexing = typeConnectors.some((c) => indexingConnectorIds?.has(c.id));
+
+							return (
+								<ConnectorCard
+									key={connector.id}
+									id={connector.id}
+									title={connector.title}
+									description={connector.description}
+									connectorType={connector.connectorType}
+									isConnected={isConnected}
+									isConnecting={isConnecting}
+									documentCount={documentCount}
+									accountCount={accountCount}
+									isIndexing={isIndexing}
+									onConnect={() => onConnectOAuth(connector)}
+									onManage={
+										isConnected && onViewAccountsList
+											? () => onViewAccountsList(connector.connectorType, connector.title)
+											: undefined
+									}
+								/>
+							);
+						})}
 					</div>
 				</section>
-			)} */}
+			)}
 
 			{/* More Integrations */}
 			{filteredOther.length > 0 && (

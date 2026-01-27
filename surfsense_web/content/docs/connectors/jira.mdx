@@ -28,7 +28,9 @@ This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration
 2. Check the box to agree to Atlassian's developer terms
 3. Click **"Create"**
 
-> ℹ️ New OAuth 2.0 integrations use rotating refresh tokens, which improve security by limiting token validity and enabling automatic detection of token reuse.
+<Callout type="info">
+  New OAuth 2.0 integrations use rotating refresh tokens, which improve security by limiting token validity and enabling automatic detection of token reuse.
+</Callout>
 
 ![Create New Integration Form](/docs/connectors/atlassian/atlassian-name-integration.png)
 
@@ -41,7 +43,9 @@ This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration
    ```
 3. Click **"Save changes"**
 
-> ℹ️ You can enter up to 10 redirect URIs, one per line.
+<Callout type="info">
+  You can enter up to 10 redirect URIs, one per line.
+</Callout>
 
 ![Authorization Callback URLs](/docs/connectors/atlassian/atlassian-authorization.png)
 
@@ -60,8 +64,8 @@ This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration
 
 | Scope Name | Code | Description |
 |------------|------|-------------|
-| ✅ View Jira issue data | `read:jira-work` | Read Jira project and issue data, search for issues, and objects associated with issues like attachments and worklogs |
-| ✅ View user profiles | `read:jira-user` | View user information in Jira that the user has access to, including usernames, email addresses, and avatars |
+| View Jira issue data | `read:jira-work` | Read Jira project and issue data, search for issues, and objects associated with issues like attachments and worklogs |
+| View user profiles | `read:jira-user` | View user information in Jira that the user has access to, including usernames, email addresses, and avatars |
 
 4. Click **"Save"**
 
@@ -72,7 +76,9 @@ This guide walks you through setting up an Atlassian OAuth 2.0 (3LO) integration
 1. In the left sidebar, click **"Settings"**
 2. Copy your **Client ID** and **Client Secret**
 
-> ⚠️ Never share your client secret publicly.
+<Callout type="warn">
+  Never share your client secret publicly.
+</Callout>
 
 ---
 

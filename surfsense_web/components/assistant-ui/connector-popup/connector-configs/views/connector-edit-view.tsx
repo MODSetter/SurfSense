@@ -1,13 +1,15 @@
 "use client";
 
-import { ArrowLeft, Info, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { ArrowLeft, Info, RefreshCw, Trash2 } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
+import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 
 interface ConnectorEditViewProps {
@@ -97,12 +99,16 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 		};
 	}, [checkScrollState]);
 
-	// Reset local quick indexing state when indexing completes
+	// Reset local quick indexing state when indexing completes or fails
 	useEffect(() => {
-		if (!isIndexing) {
-			setIsQuickIndexing(false);
+		if (!isIndexing && isQuickIndexing) {
+			// Small delay to ensure smooth transition
+			const timer = setTimeout(() => {
+				setIsQuickIndexing(false);
+			}, 100);
+			return () => clearTimeout(timer);
 		}
-	}, [isIndexing]);
+	}, [isIndexing, isQuickIndexing]);
 
 	const handleDisconnectClick = () => {
 		setShowDisconnectConfirm(true);
@@ -118,11 +124,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	};
 
 	const handleQuickIndex = useCallback(() => {
-		if (onQuickIndex) {
+		if (onQuickIndex && !isQuickIndexing && !isIndexing) {
 			setIsQuickIndexing(true);
 			onQuickIndex();
 		}
-	}, [onQuickIndex]);
+	}, [onQuickIndex, isQuickIndexing, isIndexing]);
 
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
@@ -151,7 +157,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						</div>
 						<div className="flex-1 min-w-0">
 							<h2 className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal wrap-break-word">
-								{connector.name}
+								{getConnectorDisplayName(connector.name)}
 							</h2>
 							<p className="text-xs sm:text-base text-muted-foreground mt-1">
 								Manage your connector settings and sync configuration
@@ -206,8 +212,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						{/* Date range selector and periodic sync - only shown for indexable connectors */}
 						{connector.is_indexable && (
 							<>
-								{/* Date range selector - not shown for Google Drive, Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
+									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "WEBCRAWLER_CONNECTOR" &&
 									connector.connector_type !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
@@ -217,6 +224,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 											onEndDateChange={onEndDateChange}
 											allowFutureDates={
 												connector.connector_type === "GOOGLE_CALENDAR_CONNECTOR" ||
+												connector.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
 												connector.connector_type === "LUMA_CONNECTOR"
 											}
 										/>
@@ -224,8 +232,11 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 
 								{/* Periodic sync - shown for all indexable connectors */}
 								{(() => {
-									// Check if Google Drive has folders/files selected
+									// Check if Google Drive (regular or Composio) has folders/files selected
 									const isGoogleDrive = connector.connector_type === "GOOGLE_DRIVE_CONNECTOR";
+									const isComposioGoogleDrive =
+										connector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
+									const requiresFolderSelection = isGoogleDrive || isComposioGoogleDrive;
 									const selectedFolders =
 										(connector.config?.selected_folders as
 											| Array<{ id: string; name: string }>
@@ -235,7 +246,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 											| Array<{ id: string; name: string }>
 											| undefined) || [];
 									const hasItemsSelected = selectedFolders.length > 0 || selectedFiles.length > 0;
-									const isDisabled = isGoogleDrive && !hasItemsSelected;
+									const isDisabled = requiresFolderSelection && !hasItemsSelected;
 
 									return (
 										<PeriodicSyncConfig
@@ -266,8 +277,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 										Re-indexing runs in the background
 									</p>
 									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-										You can continue using SurfSense while we sync your data. Check the Active tab
-										to see progress.
+										You can continue using SurfSense while we sync your data. Check inbox for
+										updates.
 									</p>
 								</div>
 							</div>
@@ -301,7 +312,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							>
 								{isDisconnecting ? (
 									<>
-										<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+										<Spinner size="sm" className="mr-2" />
 										Disconnecting
 									</>
 								) : (
@@ -337,8 +348,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 				>
 					{isSaving ? (
 						<>
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							Saving...
+							<Spinner size="sm" className="mr-2" />
+							Saving
 						</>
 					) : (
 						"Save Changes"

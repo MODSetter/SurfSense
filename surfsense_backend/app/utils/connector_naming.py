@@ -28,6 +28,9 @@ BASE_NAME_FOR_TYPE = {
     SearchSourceConnectorType.CONFLUENCE_CONNECTOR: "Confluence",
     SearchSourceConnectorType.AIRTABLE_CONNECTOR: "Airtable",
     SearchSourceConnectorType.MCP_CONNECTOR: "Model Context Protocol (MCP)",
+    SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR: "Gmail",
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR: "Google Drive",
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
 }
 
 

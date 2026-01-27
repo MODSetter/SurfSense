@@ -233,6 +233,29 @@ class ConnectorsApiService {
 		);
 	};
 
+	/**
+	 * List Composio Google Drive folders and files
+	 */
+	listComposioDriveFolders = async (request: ListGoogleDriveFoldersRequest) => {
+		const parsedRequest = listGoogleDriveFoldersRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		const { connector_id, parent_id } = parsedRequest.data;
+
+		const queryParams = parent_id ? `?parent_id=${encodeURIComponent(parent_id)}` : "";
+
+		return baseApiService.get(
+			`/api/v1/connectors/${connector_id}/composio-drive/folders${queryParams}`,
+			listGoogleDriveFoldersResponse
+		);
+	};
+
 	// =============================================================================
 	// MCP Connector Methods
 	// =============================================================================

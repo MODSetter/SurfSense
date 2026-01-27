@@ -3,4 +3,68 @@ title: Luma
 description: Connect your Luma events to SurfSense
 ---
 
-# Documentation in progress
+# Luma Integration Setup Guide
+
+This guide walks you through connecting your Luma events to SurfSense for event search and AI-powered insights.
+
+## How it works
+
+The Luma connector uses the Luma API to fetch all events that your API key has access to.
+
+- For follow-up indexing runs, the connector retrieves events that have been updated since the last indexing attempt.
+- Indexing should be configured to run periodically, so updates should appear in your search results within minutes.
+
+---
+
+## Authorization
+
+<Callout type="info" title="API Key Required">
+You need a Luma API key to use this connector. The key will be used to read your Luma events with read-only permissions.
+</Callout>
+
+### Step 1: Get Your API Key
+
+1. Log into your Luma account
+2. Navigate to your account settings
+3. Go to API settings or Developer settings
+4. Generate a new API key
+5. Copy the generated API key
+
+You can also visit [Luma API Docs](https://docs.luma.com/reference/getting-started-with-your-api) for more information.
+
+### Step 2: Grant Necessary Access
+
+The API key will have access to all events that your user account can see. Make sure your account has appropriate permissions for the events you want to index.
+
+<Callout type="info" title="Periodic Sync">
+Enable periodic sync to automatically re-index events when content changes. Available frequencies: Every 5 minutes, 15 minutes, hourly, every 6 hours, daily, or weekly.
+</Callout>
+
+---
+
+## Connecting to SurfSense
+
+1. Navigate to the Connector Dashboard and select the **Luma** Connector.
+2. Fill in the required fields:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Connector Name** | A friendly name to identify this connector | `My Luma Connector` |
+| **Luma API Key** | Your Luma API key (will be encrypted and stored securely) | |
+
+3. Click **Connect** to establish the connection.
+4. Once connected, your Luma events will be indexed automatically.
+
+### What Gets Indexed
+
+The Luma connector indexes the following data:
+
+| Data Type | Description |
+|-----------|-------------|
+| Event Details | Titles, descriptions, metadata |
+| Attendee Info | Attendee information and lists |
+| Event Metadata | Dates, locations, settings |
+
+<Callout type="warn">
+  Event attachments and linked files are not indexed by this connector.
+</Callout>

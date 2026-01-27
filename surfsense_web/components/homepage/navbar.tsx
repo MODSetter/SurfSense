@@ -19,7 +19,7 @@ export const Navbar = () => {
 	const [isScrolled, setIsScrolled] = useState(false);
 
 	const navItems = [
-		// { name: "Home", link: "/" },
+		{ name: "Contact Us", link: "/contact" },
 		{ name: "Pricing", link: "/pricing" },
 		{ name: "Changelog", link: "/changelog" },
 		// { name: "Sign In", link: "/login" },
@@ -39,7 +39,7 @@ export const Navbar = () => {
 	}, []);
 
 	return (
-		<div className="fixed top-1 left-0 right-0 z-[60] w-full">
+		<div className="fixed top-1 left-0 right-0 z-60 w-full">
 			<DesktopNav navItems={navItems} isScrolled={isScrolled} />
 			<MobileNav navItems={navItems} isScrolled={isScrolled} />
 		</div>

@@ -9,6 +9,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -34,6 +35,7 @@ import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
+import { Spinner } from "@/components/ui/spinner";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
@@ -132,6 +134,7 @@ interface ThinkingStepData {
 }
 
 export default function NewChatPage() {
+	const t = useTranslations("dashboard");
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
@@ -1379,8 +1382,9 @@ export default function NewChatPage() {
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
 		return (
-			<div className="flex h-[calc(100vh-64px)] items-center justify-center">
-				<div className="text-muted-foreground">Loading chat...</div>
+			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
+				<Spinner size="lg" />
+				<div className="text-sm text-muted-foreground">{t("loading_chat")}</div>
 			</div>
 		);
 	}

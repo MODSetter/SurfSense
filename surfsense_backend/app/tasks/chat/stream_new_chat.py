@@ -54,21 +54,68 @@ def format_attachments_as_context(attachments: list[ChatAttachment]) -> str:
 
 
 def format_mentioned_documents_as_context(documents: list[Document]) -> str:
-    """Format mentioned documents as context for the agent."""
+    """
+    Format mentioned documents as context for the agent.
+
+    Uses the same XML structure as knowledge_base.format_documents_for_context
+    to ensure citations work properly with chunk IDs.
+    """
     if not documents:
         return ""
 
     context_parts = ["<mentioned_documents>"]
     context_parts.append(
         "The user has explicitly mentioned the following documents from their knowledge base. "
-        "These documents are directly relevant to the query and should be prioritized as primary sources."
+        "These documents are directly relevant to the query and should be prioritized as primary sources. "
+        "Use [citation:CHUNK_ID] format for citations (e.g., [citation:123])."
     )
-    for i, doc in enumerate(documents, 1):
-        context_parts.append(
-            f"<document index='{i}' id='{doc.id}' title='{doc.title}' type='{doc.document_type.value}'>"
+    context_parts.append("")
+
+    for doc in documents:
+        # Build metadata JSON
+        metadata = doc.document_metadata or {}
+        metadata_json = json.dumps(metadata, ensure_ascii=False)
+
+        # Get URL from metadata
+        url = (
+            metadata.get("url")
+            or metadata.get("source")
+            or metadata.get("page_url")
+            or ""
         )
-        context_parts.append(f"<![CDATA[{doc.content}]]>")
+
+        context_parts.append("<document>")
+        context_parts.append("<document_metadata>")
+        context_parts.append(f"  <document_id>{doc.id}</document_id>")
+        context_parts.append(
+            f"  <document_type>{doc.document_type.value}</document_type>"
+        )
+        context_parts.append(f"  <title><![CDATA[{doc.title}]]></title>")
+        context_parts.append(f"  <url><![CDATA[{url}]]></url>")
+        context_parts.append(
+            f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>"
+        )
+        context_parts.append("</document_metadata>")
+        context_parts.append("")
+        context_parts.append("<document_content>")
+
+        # Use chunks if available (preferred for proper citations)
+        if hasattr(doc, "chunks") and doc.chunks:
+            for chunk in doc.chunks:
+                context_parts.append(
+                    f"  <chunk id='{chunk.id}'><![CDATA[{chunk.content}]]></chunk>"
+                )
+        else:
+            # Fallback to document content if chunks not loaded
+            # Use document ID as chunk ID prefix for consistency
+            context_parts.append(
+                f"  <chunk id='{doc.id}'><![CDATA[{doc.content}]]></chunk>"
+            )
+
+        context_parts.append("</document_content>")
         context_parts.append("</document>")
+        context_parts.append("")
+
     context_parts.append("</mentioned_documents>")
 
     return "\n".join(context_parts)
@@ -80,8 +127,6 @@ def format_mentioned_surfsense_docs_as_context(
     """Format mentioned SurfSense documentation as context for the agent."""
     if not documents:
         return ""
-
-    import json
 
     context_parts = ["<mentioned_surfsense_docs>"]
     context_parts.append(
@@ -263,11 +308,15 @@ async def stream_new_chat(
         # Build input with message history from frontend
         langchain_messages = []
 
-        # Fetch mentioned documents if any
+        # Fetch mentioned documents if any (with chunks for proper citations)
         mentioned_documents: list[Document] = []
         if mentioned_document_ids:
+            from sqlalchemy.orm import selectinload as doc_selectinload
+
             result = await session.execute(
-                select(Document).filter(
+                select(Document)
+                .options(doc_selectinload(Document.chunks))
+                .filter(
                     Document.id.in_(mentioned_document_ids),
                     Document.search_space_id == search_space_id,
                 )

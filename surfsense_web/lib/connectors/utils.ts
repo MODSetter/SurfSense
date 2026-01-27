@@ -16,11 +16,15 @@ export const getConnectorTypeDisplay = (type: string): string => {
 		GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
 		GOOGLE_GMAIL_CONNECTOR: "Google Gmail",
 		GOOGLE_DRIVE_CONNECTOR: "Google Drive",
+		COMPOSIO_GOOGLE_DRIVE_CONNECTOR: "Google Drive",
+		COMPOSIO_GMAIL_CONNECTOR: "Gmail",
+		COMPOSIO_GOOGLE_CALENDAR_CONNECTOR: "Google Calendar",
 		AIRTABLE_CONNECTOR: "Airtable",
 		LUMA_CONNECTOR: "Luma",
 		ELASTICSEARCH_CONNECTOR: "Elasticsearch",
 		WEBCRAWLER_CONNECTOR: "Web Pages",
 		CIRCLEBACK_CONNECTOR: "Circleback",
+		OBSIDIAN_CONNECTOR: "Obsidian",
 	};
 	return typeMap[type] || type;
 };

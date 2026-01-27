@@ -1,7 +1,7 @@
 """Add thread_id to podcasts
 
-Revision ID: 80
-Revises: 79
+Revision ID: 82
+Revises: 81
 Create Date: 2026-01-23
 
 """
@@ -10,8 +10,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "80"
-down_revision: str | None = "79"
+revision: str = "82"
+down_revision: str | None = "81"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

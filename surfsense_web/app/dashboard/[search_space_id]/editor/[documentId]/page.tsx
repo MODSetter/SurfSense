@@ -1,8 +1,7 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
 import { useAtom } from "jotai";
-import { AlertCircle, ArrowLeft, FileText, Loader2, Save } from "lucide-react";
+import { AlertCircle, ArrowLeft, FileText, Save } from "lucide-react";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Spinner } from "@/components/ui/spinner";
 import { notesApiService } from "@/lib/apis/notes-api.service";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
@@ -78,7 +78,6 @@ function extractTitleFromBlockNote(blocknoteDocument: BlockNoteDocument): string
 export default function EditorPage() {
 	const params = useParams();
 	const router = useRouter();
-	const queryClient = useQueryClient();
 	const documentId = params.documentId as string;
 	const searchSpaceId = Number(params.search_space_id);
 	const isNewNote = documentId === "new";
@@ -349,8 +348,8 @@ export default function EditorPage() {
 			<div className="flex items-center justify-center min-h-[400px] p-6">
 				<Card className="w-full max-w-md">
 					<CardContent className="flex flex-col items-center justify-center py-12">
-						<Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-						<p className="text-muted-foreground">Loading editor...</p>
+						<Spinner size="xl" className="text-primary mb-4" />
+						<p className="text-muted-foreground">Loading editor</p>
 					</CardContent>
 				</Card>
 			</div>
@@ -437,7 +436,7 @@ export default function EditorPage() {
 					>
 						{saving ? (
 							<>
-								<Loader2 className="h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
+								<Spinner size="sm" className="h-3.5 w-3.5 md:h-4 md:w-4" />
 								<span className="text-xs md:text-sm">{isNewNote ? "Creating" : "Saving"}</span>
 							</>
 						) : (

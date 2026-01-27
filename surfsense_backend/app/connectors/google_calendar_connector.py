@@ -142,6 +142,15 @@ class GoogleCalendarConnector:
                     flag_modified(connector, "config")
                     await self._session.commit()
             except Exception as e:
+                error_str = str(e)
+                # Check if this is an invalid_grant error (token expired/revoked)
+                if (
+                    "invalid_grant" in error_str.lower()
+                    or "token has been expired or revoked" in error_str.lower()
+                ):
+                    raise Exception(
+                        "Google Calendar authentication failed. Please re-authenticate."
+                    ) from e
                 raise Exception(
                     f"Failed to refresh Google OAuth credentials: {e!s}"
                 ) from e
@@ -165,6 +174,14 @@ class GoogleCalendarConnector:
             self.service = build("calendar", "v3", credentials=credentials)
             return self.service
         except Exception as e:
+            error_str = str(e)
+            # If the error already contains a user-friendly re-authentication message, preserve it
+            if (
+                "re-authenticate" in error_str.lower()
+                or "expired or been revoked" in error_str.lower()
+                or "authentication failed" in error_str.lower()
+            ):
+                raise Exception(error_str) from e
             raise Exception(f"Failed to create Google Calendar service: {e!s}") from e
 
     async def get_calendars(self) -> tuple[list[dict[str, Any]], str | None]:
@@ -271,6 +288,14 @@ class GoogleCalendarConnector:
             return events, None
 
         except Exception as e:
+            error_str = str(e)
+            # If the error already contains a user-friendly re-authentication message, preserve it
+            if (
+                "re-authenticate" in error_str.lower()
+                or "expired or been revoked" in error_str.lower()
+                or "authentication failed" in error_str.lower()
+            ):
+                return [], error_str
             return [], f"Error fetching events: {e!s}"
 
     def format_event_to_markdown(self, event: dict[str, Any]) -> str:

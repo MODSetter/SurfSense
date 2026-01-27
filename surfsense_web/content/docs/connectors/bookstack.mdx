@@ -3,4 +3,70 @@ title: Bookstack
 description: Connect your Bookstack instance to SurfSense
 ---
 
-# Documentation in progress
+# BookStack Integration Setup Guide
+
+This guide walks you through connecting your BookStack instance to SurfSense.
+
+## How it works
+
+The BookStack connector uses the BookStack REST API to fetch all pages from your BookStack instance that your account has access to.
+
+- For follow up indexing runs, the connector retrieves pages that have been updated since the last indexing attempt.
+- Indexing should be configured to run periodically, so updates should appear in your search results within minutes.
+
+---
+
+## Authorization
+
+<Callout type="info" title="API Token Required">
+You need to create an API token from your BookStack instance. The token requires "Access System API" permission.
+</Callout>
+
+### Step 1: Create an API Token
+
+1. Log in to your BookStack instance
+2. Click on your profile icon → Edit Profile
+3. Navigate to the "API Tokens" tab
+4. Click "Create Token" and give it a name
+5. Copy both the **Token ID** and **Token Secret**
+6. Paste them in the connector form
+
+### Step 2: Grant necessary access
+
+Your user account must have "Access System API" permission. The connector will only index content your account can view.
+
+<Callout type="info" title="Rate Limiting">
+BookStack API has a rate limit of 180 requests per minute. The connector automatically handles rate limiting to ensure reliable indexing.
+</Callout>
+
+<Callout type="info" title="Periodic Sync">
+Enable periodic sync to automatically re-index pages when content changes. Available frequencies: Every 5 minutes, 15 minutes, hourly, every 6 hours, daily, or weekly.
+</Callout>
+
+---
+
+## Connecting to SurfSense
+
+1. Navigate to the Connector Dashboard and select the **BookStack** Connector.
+2. Fill in the required fields:
+
+| Field | Description | Example |
+|-------|-------------|---------|
+| **Connector Name** | A friendly name to identify this connector | `My BookStack Connector` |
+| **BookStack Base URL** | The full URL of your BookStack instance | `https://docs.example.com` |
+| **Token ID** | Your API Token ID from BookStack | |
+| **Token Secret** | Your API Token Secret from BookStack | |
+
+3. Click **Connect** to establish the connection.
+4. Once connected, your BookStack pages will be indexed automatically.
+
+### What Gets Indexed
+
+The BookStack connector indexes the following data:
+
+| Data Type | Description |
+|-----------|-------------|
+| Pages | All pages from your BookStack instance |
+| Content | Page content in Markdown format |
+| Metadata | Page titles and metadata |
+| Structure | Book and chapter hierarchy information |

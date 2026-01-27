@@ -136,10 +136,9 @@ async def index_bookstack_pages(
             )
 
             if error:
-                logger.error(f"Failed to get BookStack pages: {error}")
-
                 # Don't treat "No pages found" as an error that should stop indexing
                 if "No pages found" in error:
+                    logger.info(f"No BookStack pages found: {error}")
                     logger.info(
                         "No pages found is not a critical error, continuing with update"
                     )
@@ -159,6 +158,7 @@ async def index_bookstack_pages(
                     )
                     return 0, None
                 else:
+                    logger.error(f"Failed to get BookStack pages: {error}")
                     await task_logger.log_task_failure(
                         log_entry,
                         f"Failed to get BookStack pages: {error}",

@@ -1,7 +1,6 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { Loader2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
@@ -19,6 +18,7 @@ import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
 
 export function DashboardClientLayout({
 	children,
@@ -146,31 +146,22 @@ export function DashboardClientLayout({
 		setActiveSearchSpaceIdState(activeSeacrhSpaceId);
 	}, [search_space_id, setActiveSearchSpaceIdState]);
 
-	if (
+	// Determine if we should show loading
+	const shouldShowLoading =
 		(!hasCheckedOnboarding &&
 			(loading || accessLoading || globalConfigsLoading) &&
 			!isOnboardingPage) ||
-		isAutoConfiguring
-	) {
-		return (
-			<div className="flex flex-col items-center justify-center min-h-screen space-y-4">
-				<Card className="w-[350px] bg-background/60 backdrop-blur-sm">
-					<CardHeader className="pb-2">
-						<CardTitle className="text-xl font-medium">
-							{isAutoConfiguring ? "Setting up AI..." : t("loading_config")}
-						</CardTitle>
-						<CardDescription>
-							{isAutoConfiguring
-								? "Auto-configuring with available settings"
-								: t("checking_llm_prefs")}
-						</CardDescription>
-					</CardHeader>
-					<CardContent className="flex justify-center py-6">
-						<Loader2 className="h-12 w-12 text-primary animate-spin" />
-					</CardContent>
-				</Card>
-			</div>
-		);
+		isAutoConfiguring;
+
+	// Use global loading screen - spinner animation won't reset
+	useGlobalLoadingEffect(
+		shouldShowLoading,
+		isAutoConfiguring ? t("setting_up_ai") : t("checking_llm_prefs"),
+		"default"
+	);
+
+	if (shouldShowLoading) {
+		return null;
 	}
 
 	if (error && !hasCheckedOnboarding && !isOnboardingPage) {

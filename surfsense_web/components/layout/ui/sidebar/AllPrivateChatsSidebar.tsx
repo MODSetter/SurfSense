@@ -4,7 +4,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
 	ArchiveIcon,
-	Loader2,
 	MessageCircleMore,
 	MoreHorizontal,
 	RotateCcwIcon,
@@ -28,6 +27,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
@@ -231,7 +231,7 @@ export function AllPrivateChatsSidebar({
 						initial={{ x: "-100%" }}
 						animate={{ x: 0 }}
 						exit={{ x: "-100%" }}
-						transition={{ type: "spring", damping: 25, stiffness: 300 }}
+						transition={{ type: "tween", duration: 0.3, ease: "easeOut" }}
 						className="fixed inset-y-0 left-0 z-70 w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
 						role="dialog"
 						aria-modal="true"
@@ -304,7 +304,7 @@ export function AllPrivateChatsSidebar({
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{isLoading ? (
 								<div className="flex items-center justify-center py-8">
-									<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+									<Spinner size="md" className="text-muted-foreground" />
 								</div>
 							) : error ? (
 								<div className="text-center py-8 text-sm text-destructive">
@@ -365,7 +365,7 @@ export function AllPrivateChatsSidebar({
 															disabled={isBusy}
 														>
 															{isDeleting ? (
-																<Loader2 className="h-3.5 w-3.5 animate-spin" />
+																<Spinner size="xs" />
 															) : (
 																<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 															)}

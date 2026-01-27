@@ -14,7 +14,6 @@ import {
 	Hash,
 	Link2,
 	LinkIcon,
-	Loader2,
 	Logs,
 	type LucideIcon,
 	MessageCircle,
@@ -96,6 +95,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	Table,
 	TableBody,
@@ -105,7 +105,6 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import type {
 	CreateInviteRequest,
 	DeleteInviteRequest,
@@ -122,6 +121,7 @@ import type {
 	Role,
 	UpdateRoleRequest,
 } from "@/contracts/types/roles.types";
+import type { PermissionInfo } from "@/contracts/types/permissions.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { trackSearchSpaceInviteSent, trackSearchSpaceUsersViewed } from "@/lib/posthog/events";
@@ -321,7 +321,7 @@ export default function TeamManagementPage() {
 					animate={{ opacity: 1, scale: 1 }}
 					className="flex flex-col items-center gap-4"
 				>
-					<Loader2 className="h-10 w-10 text-primary animate-spin" />
+					<Spinner size="lg" className="text-primary" />
 					<p className="text-muted-foreground">Loading team data...</p>
 				</motion.div>
 			</div>
@@ -471,13 +471,6 @@ export default function TeamManagementPage() {
 									className="w-full md:w-auto"
 								/>
 							)}
-							{activeTab === "roles" && hasPermission("roles:create") && (
-								<CreateRoleDialog
-									groupedPermissions={groupedPermissions}
-									onCreateRole={handleCreateRole}
-									className="w-full md:w-auto"
-								/>
-							)}
 						</div>
 
 						<TabsContent value="members" className="space-y-4">
@@ -499,8 +492,10 @@ export default function TeamManagementPage() {
 								loading={rolesLoading}
 								onUpdateRole={handleUpdateRole}
 								onDeleteRole={handleDeleteRole}
+								onCreateRole={handleCreateRole}
 								canUpdate={hasPermission("roles:update")}
 								canDelete={hasPermission("roles:delete")}
+								canCreate={hasPermission("roles:create")}
 							/>
 						</TabsContent>
 
@@ -571,7 +566,7 @@ function MembersTab({
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-8 w-8 text-primary animate-spin" />
+				<Spinner size="md" className="text-primary" />
 			</div>
 		);
 	}
@@ -767,17 +762,71 @@ function MembersTab({
 
 // ============ Role Permissions Display ============
 
-const CATEGORY_CONFIG: Record<string, { label: string; icon: LucideIcon; order: number }> = {
-	documents: { label: "Documents", icon: FileText, order: 1 },
-	chats: { label: "Chats", icon: MessageSquare, order: 2 },
-	comments: { label: "Comments", icon: MessageCircle, order: 3 },
-	llm_configs: { label: "LLM Configs", icon: Bot, order: 4 },
-	podcasts: { label: "Podcasts", icon: Mic, order: 5 },
-	connectors: { label: "Connectors", icon: Plug, order: 6 },
-	logs: { label: "Logs", icon: Logs, order: 7 },
-	members: { label: "Members", icon: Users, order: 8 },
-	roles: { label: "Roles", icon: Shield, order: 9 },
-	settings: { label: "Settings", icon: Settings, order: 10 },
+// Unified category configuration used across all role-related components
+const CATEGORY_CONFIG: Record<
+	string,
+	{ label: string; icon: LucideIcon; description: string; order: number }
+> = {
+	documents: {
+		label: "Documents",
+		icon: FileText,
+		description: "Manage files, notes, and content",
+		order: 1,
+	},
+	chats: {
+		label: "AI Chats",
+		icon: MessageSquare,
+		description: "Create and manage AI conversations",
+		order: 2,
+	},
+	comments: {
+		label: "Comments",
+		icon: MessageCircle,
+		description: "Add annotations to documents",
+		order: 3,
+	},
+	llm_configs: {
+		label: "AI Models",
+		icon: Bot,
+		description: "Configure AI model settings",
+		order: 4,
+	},
+	podcasts: {
+		label: "Podcasts",
+		icon: Mic,
+		description: "Generate AI podcasts from content",
+		order: 5,
+	},
+	connectors: {
+		label: "Integrations",
+		icon: Plug,
+		description: "Connect external data sources",
+		order: 6,
+	},
+	logs: {
+		label: "Activity Logs",
+		icon: Logs,
+		description: "View and manage audit trail",
+		order: 7,
+	},
+	members: {
+		label: "Team Members",
+		icon: Users,
+		description: "Manage team membership",
+		order: 8,
+	},
+	roles: {
+		label: "Roles",
+		icon: Shield,
+		description: "Configure role permissions",
+		order: 9,
+	},
+	settings: {
+		label: "Settings",
+		icon: Settings,
+		description: "Manage search space settings",
+		order: 10,
+	},
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -893,25 +942,31 @@ function RolePermissionsDisplay({ permissions }: { permissions: string[] }) {
 
 function RolesTab({
 	roles,
-	groupedPermissions: _groupedPermissions,
+	groupedPermissions,
 	loading,
 	onUpdateRole: _onUpdateRole,
 	onDeleteRole,
+	onCreateRole,
 	canUpdate,
 	canDelete,
+	canCreate,
 }: {
 	roles: Role[];
-	groupedPermissions: Record<string, { value: string; name: string; category: string }[]>;
+	groupedPermissions: Record<string, PermissionWithDescription[]>;
 	loading: boolean;
 	onUpdateRole: (roleId: number, data: { permissions?: string[] }) => Promise<Role>;
 	onDeleteRole: (roleId: number) => Promise<boolean>;
+	onCreateRole: (data: CreateRoleRequest["data"]) => Promise<Role>;
 	canUpdate: boolean;
 	canDelete: boolean;
+	canCreate: boolean;
 }) {
+	const [showCreateRole, setShowCreateRole] = useState(false);
+
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-8 w-8 text-primary animate-spin" />
+				<Spinner size="md" className="text-primary" />
 			</div>
 		);
 	}
@@ -921,123 +976,149 @@ function RolesTab({
 			initial={{ opacity: 0, y: 10 }}
 			animate={{ opacity: 1, y: 0 }}
 			exit={{ opacity: 0, y: -10 }}
-			className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+			className="space-y-6"
 		>
-			{roles.map((role, index) => (
+			{/* Create Role Button / Section */}
+			{canCreate && !showCreateRole && (
 				<motion.div
-					key={role.id}
-					initial={{ opacity: 0, scale: 0.95 }}
-					animate={{ opacity: 1, scale: 1 }}
-					transition={{ delay: index * 0.05 }}
+					initial={{ opacity: 0 }}
+					animate={{ opacity: 1 }}
+					className="flex justify-end"
 				>
-					<Card
-						className={cn(
-							"relative overflow-hidden transition-all hover:shadow-lg",
-							role.is_system_role && "ring-1 ring-primary/20"
-						)}
-					>
-						{role.is_system_role && (
-							<div className="absolute top-0 right-0 px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded-bl-lg">
-								System Role
-							</div>
-						)}
-						<CardHeader>
-							<div className="flex items-start justify-between">
-								<div className="flex items-center gap-3">
-									<div
-										className={cn(
-											"h-10 w-10 rounded-lg flex items-center justify-center",
-											role.name === "Owner" && "bg-amber-500/20",
-											role.name === "Editor" && "bg-blue-500/20",
-											role.name === "Viewer" && "bg-gray-500/20",
-											!["Owner", "Editor", "Viewer"].includes(role.name) && "bg-primary/20"
-										)}
-									>
-										<ShieldCheck
-											className={cn(
-												"h-5 w-5",
-												role.name === "Owner" && "text-amber-600",
-												role.name === "Editor" && "text-blue-600",
-												role.name === "Viewer" && "text-gray-600",
-												!["Owner", "Editor", "Viewer"].includes(role.name) && "text-primary"
-											)}
-										/>
-									</div>
-									<div>
-										<CardTitle className="text-lg">{role.name}</CardTitle>
-										{role.is_default && (
-											<Badge variant="outline" className="text-xs mt-1">
-												Default
-											</Badge>
-										)}
-									</div>
-								</div>
-								{!role.is_system_role && (
-									<DropdownMenu>
-										<DropdownMenuTrigger asChild>
-											<Button variant="ghost" size="icon" className="h-8 w-8">
-												<MoreHorizontal className="h-4 w-4" />
-											</Button>
-										</DropdownMenuTrigger>
-										<DropdownMenuContent align="end">
-											{canUpdate && (
-												<DropdownMenuItem
-													onClick={() => {
-														// TODO: Implement edit role dialog/modal
-													}}
-												>
-													<Edit2 className="h-4 w-4 mr-2" />
-													Edit Role
-												</DropdownMenuItem>
-											)}
-											{canDelete && (
-												<>
-													<DropdownMenuSeparator />
-													<AlertDialog>
-														<AlertDialogTrigger asChild>
-															<DropdownMenuItem
-																className="text-destructive focus:text-destructive"
-																onSelect={(e) => e.preventDefault()}
-															>
-																<Trash2 className="h-4 w-4 mr-2" />
-																Delete Role
-															</DropdownMenuItem>
-														</AlertDialogTrigger>
-														<AlertDialogContent>
-															<AlertDialogHeader>
-																<AlertDialogTitle>Delete role?</AlertDialogTitle>
-																<AlertDialogDescription>
-																	This will permanently delete the "{role.name}" role. Members with
-																	this role will lose their permissions.
-																</AlertDialogDescription>
-															</AlertDialogHeader>
-															<AlertDialogFooter>
-																<AlertDialogCancel>Cancel</AlertDialogCancel>
-																<AlertDialogAction
-																	onClick={() => onDeleteRole(role.id)}
-																	className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-																>
-																	Delete
-																</AlertDialogAction>
-															</AlertDialogFooter>
-														</AlertDialogContent>
-													</AlertDialog>
-												</>
-											)}
-										</DropdownMenuContent>
-									</DropdownMenu>
-								)}
-							</div>
-							{role.description && (
-								<CardDescription className="mt-2">{role.description}</CardDescription>
-							)}
-						</CardHeader>
-						<CardContent>
-							<RolePermissionsDisplay permissions={role.permissions} />
-						</CardContent>
-					</Card>
+					<Button onClick={() => setShowCreateRole(true)} className="gap-2">
+						<Plus className="h-4 w-4" />
+						Create Custom Role
+					</Button>
 				</motion.div>
-			))}
+			)}
+
+			{/* Create Role Form */}
+			{showCreateRole && (
+				<CreateRoleSection
+					groupedPermissions={groupedPermissions}
+					onCreateRole={onCreateRole}
+					onCancel={() => setShowCreateRole(false)}
+				/>
+			)}
+
+			{/* Roles Grid */}
+			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				{roles.map((role, index) => (
+					<motion.div
+						key={role.id}
+						initial={{ opacity: 0, scale: 0.95 }}
+						animate={{ opacity: 1, scale: 1 }}
+						transition={{ delay: index * 0.05 }}
+					>
+						<Card
+							className={cn(
+								"relative overflow-hidden transition-all hover:shadow-lg",
+								role.is_system_role && "ring-1 ring-primary/20"
+							)}
+						>
+							{role.is_system_role && (
+								<div className="absolute top-0 right-0 px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded-bl-lg">
+									System Role
+								</div>
+							)}
+							<CardHeader>
+								<div className="flex items-start justify-between">
+									<div className="flex items-center gap-3">
+										<div
+											className={cn(
+												"h-10 w-10 rounded-lg flex items-center justify-center",
+												role.name === "Owner" && "bg-amber-500/20",
+												role.name === "Editor" && "bg-blue-500/20",
+												role.name === "Viewer" && "bg-gray-500/20",
+												!["Owner", "Editor", "Viewer"].includes(role.name) && "bg-primary/20"
+											)}
+										>
+											<ShieldCheck
+												className={cn(
+													"h-5 w-5",
+													role.name === "Owner" && "text-amber-600",
+													role.name === "Editor" && "text-blue-600",
+													role.name === "Viewer" && "text-gray-600",
+													!["Owner", "Editor", "Viewer"].includes(role.name) && "text-primary"
+												)}
+											/>
+										</div>
+										<div>
+											<CardTitle className="text-lg">{role.name}</CardTitle>
+											{role.is_default && (
+												<Badge variant="outline" className="text-xs mt-1">
+													Default
+												</Badge>
+											)}
+										</div>
+									</div>
+									{!role.is_system_role && (
+										<DropdownMenu>
+											<DropdownMenuTrigger asChild>
+												<Button variant="ghost" size="icon" className="h-8 w-8">
+													<MoreHorizontal className="h-4 w-4" />
+												</Button>
+											</DropdownMenuTrigger>
+											<DropdownMenuContent align="end">
+												{canUpdate && (
+													<DropdownMenuItem
+														onClick={() => {
+															// TODO: Implement edit role dialog/modal
+														}}
+													>
+														<Edit2 className="h-4 w-4 mr-2" />
+														Edit Role
+													</DropdownMenuItem>
+												)}
+												{canDelete && (
+													<>
+														<DropdownMenuSeparator />
+														<AlertDialog>
+															<AlertDialogTrigger asChild>
+																<DropdownMenuItem
+																	className="text-destructive focus:text-destructive"
+																	onSelect={(e) => e.preventDefault()}
+																>
+																	<Trash2 className="h-4 w-4 mr-2" />
+																	Delete Role
+																</DropdownMenuItem>
+															</AlertDialogTrigger>
+															<AlertDialogContent>
+																<AlertDialogHeader>
+																	<AlertDialogTitle>Delete role?</AlertDialogTitle>
+																	<AlertDialogDescription>
+																		This will permanently delete the "{role.name}" role. Members
+																		with this role will lose their permissions.
+																	</AlertDialogDescription>
+																</AlertDialogHeader>
+																<AlertDialogFooter>
+																	<AlertDialogCancel>Cancel</AlertDialogCancel>
+																	<AlertDialogAction
+																		onClick={() => onDeleteRole(role.id)}
+																		className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+																	>
+																		Delete
+																	</AlertDialogAction>
+																</AlertDialogFooter>
+															</AlertDialogContent>
+														</AlertDialog>
+													</>
+												)}
+											</DropdownMenuContent>
+										</DropdownMenu>
+									)}
+								</div>
+								{role.description && (
+									<CardDescription className="mt-2">{role.description}</CardDescription>
+								)}
+							</CardHeader>
+							<CardContent>
+								<RolePermissionsDisplay permissions={role.permissions} />
+							</CardContent>
+						</Card>
+					</motion.div>
+				))}
+			</div>
 		</motion.div>
 	);
 }
@@ -1068,7 +1149,7 @@ function InvitesTab({
 	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-12">
-				<Loader2 className="h-8 w-8 text-primary animate-spin" />
+				<Spinner size="md" className="text-primary" />
 			</div>
 		);
 	}
@@ -1446,7 +1527,7 @@ function CreateInviteDialog({
 							<Button onClick={handleCreate} disabled={creating}>
 								{creating ? (
 									<>
-										<Loader2 className="h-4 w-4 mr-2 animate-spin" />
+										<Spinner size="sm" className="mr-2" />
 										Creating
 									</>
 								) : (
@@ -1461,66 +1542,116 @@ function CreateInviteDialog({
 	);
 }
 
-// ============ Create Role Dialog ============
+// ============ Create Role Section ============
 
 // Preset permission sets for quick role creation
-// Editor: can create/read/update content, but cannot manage roles, remove members, or change settings
-// Viewer: read-only access with ability to create comments
-const PRESET_PERMISSIONS = {
-	editor: [
-		"documents:create",
-		"documents:read",
-		"documents:update",
-		"chats:create",
-		"chats:read",
-		"chats:update",
-		"comments:create",
-		"comments:read",
-		"llm_configs:create",
-		"llm_configs:read",
-		"llm_configs:update",
-		"podcasts:create",
-		"podcasts:read",
-		"podcasts:update",
-		"connectors:create",
-		"connectors:read",
-		"connectors:update",
-		"logs:read",
-		"members:invite",
-		"members:view",
-		"roles:read",
-		"settings:view",
-	],
-	viewer: [
-		"documents:read",
-		"chats:read",
-		"comments:create",
-		"comments:read",
-		"llm_configs:read",
-		"podcasts:read",
-		"connectors:read",
-		"logs:read",
-		"members:view",
-		"roles:read",
-		"settings:view",
-	],
+const ROLE_PRESETS = {
+	editor: {
+		name: "Editor",
+		description: "Can create, read, and update content, but cannot delete or manage team settings",
+		permissions: [
+			"documents:create",
+			"documents:read",
+			"documents:update",
+			"chats:create",
+			"chats:read",
+			"chats:update",
+			"comments:create",
+			"comments:read",
+			"llm_configs:create",
+			"llm_configs:read",
+			"llm_configs:update",
+			"podcasts:create",
+			"podcasts:read",
+			"podcasts:update",
+			"connectors:create",
+			"connectors:read",
+			"connectors:update",
+			"logs:read",
+			"members:invite",
+			"members:view",
+			"roles:read",
+			"settings:view",
+		],
+	},
+	viewer: {
+		name: "Viewer",
+		description: "Read-only access with ability to add comments",
+		permissions: [
+			"documents:read",
+			"chats:read",
+			"comments:create",
+			"comments:read",
+			"llm_configs:read",
+			"podcasts:read",
+			"connectors:read",
+			"logs:read",
+			"members:view",
+			"roles:read",
+			"settings:view",
+		],
+	},
+	contributor: {
+		name: "Contributor",
+		description: "Can add and manage their own content",
+		permissions: [
+			"documents:create",
+			"documents:read",
+			"documents:update",
+			"chats:create",
+			"chats:read",
+			"comments:create",
+			"comments:read",
+			"llm_configs:read",
+			"podcasts:read",
+			"connectors:read",
+			"logs:read",
+			"members:view",
+			"roles:read",
+			"settings:view",
+		],
+	},
 };
 
-function CreateRoleDialog({
+// Action display labels
+const ACTION_DISPLAY: Record<string, { label: string; color: string }> = {
+	create: { label: "Create", color: "text-emerald-600 bg-emerald-500/10" },
+	read: { label: "View", color: "text-blue-600 bg-blue-500/10" },
+	update: { label: "Edit", color: "text-amber-600 bg-amber-500/10" },
+	delete: { label: "Delete", color: "text-red-600 bg-red-500/10" },
+	invite: { label: "Invite", color: "text-violet-600 bg-violet-500/10" },
+	view: { label: "View", color: "text-blue-600 bg-blue-500/10" },
+	remove: { label: "Remove", color: "text-red-600 bg-red-500/10" },
+	manage_roles: { label: "Manage Roles", color: "text-violet-600 bg-violet-500/10" },
+};
+
+// Use the imported PermissionInfo type which now includes description
+type PermissionWithDescription = PermissionInfo;
+
+function CreateRoleSection({
 	groupedPermissions,
 	onCreateRole,
-	className,
+	onCancel,
 }: {
-	groupedPermissions: Record<string, { value: string; name: string; category: string }[]>;
+	groupedPermissions: Record<string, PermissionWithDescription[]>;
 	onCreateRole: (data: CreateRoleRequest["data"]) => Promise<Role>;
-	className?: string;
+	onCancel: () => void;
 }) {
-	const [open, setOpen] = useState(false);
 	const [creating, setCreating] = useState(false);
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 	const [isDefault, setIsDefault] = useState(false);
+	const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+
+	// Sort categories by order
+	const sortedCategories = useMemo(() => {
+		return Object.keys(groupedPermissions).sort((a, b) => {
+			const orderA = CATEGORY_CONFIG[a]?.order ?? 99;
+			const orderB = CATEGORY_CONFIG[b]?.order ?? 99;
+			return orderA - orderB;
+		});
+	}, [groupedPermissions]);
 
 	const handleCreate = async () => {
 		if (!name.trim()) {
@@ -1536,11 +1667,7 @@ function CreateRoleDialog({
 				permissions: selectedPermissions,
 				is_default: isDefault,
 			});
-			setOpen(false);
-			setName("");
-			setDescription("");
-			setSelectedPermissions([]);
-			setIsDefault(false);
+			onCancel();
 		} catch (error) {
 			console.error("Failed to create role:", error);
 		} finally {
@@ -1548,166 +1675,358 @@ function CreateRoleDialog({
 		}
 	};
 
-	const togglePermission = (perm: string) => {
+	const togglePermission = useCallback((perm: string) => {
 		setSelectedPermissions((prev) =>
 			prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
 		);
-	};
+	}, []);
 
-	const toggleCategory = (category: string) => {
-		const categoryPerms = groupedPermissions[category]?.map((p) => p.value) || [];
-		const allSelected = categoryPerms.every((p) => selectedPermissions.includes(p));
+	const toggleCategory = useCallback(
+		(category: string) => {
+			const categoryPerms = groupedPermissions[category]?.map((p) => p.value) || [];
+			const allSelected = categoryPerms.every((p) => selectedPermissions.includes(p));
 
-		if (allSelected) {
-			setSelectedPermissions((prev) => prev.filter((p) => !categoryPerms.includes(p)));
-		} else {
-			setSelectedPermissions((prev) => [...new Set([...prev, ...categoryPerms])]);
+			if (allSelected) {
+				setSelectedPermissions((prev) => prev.filter((p) => !categoryPerms.includes(p)));
+			} else {
+				setSelectedPermissions((prev) => [...new Set([...prev, ...categoryPerms])]);
+			}
+		},
+		[groupedPermissions, selectedPermissions]
+	);
+
+	const toggleCategoryExpanded = useCallback((category: string) => {
+		setExpandedCategories((prev) =>
+			prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+		);
+	}, []);
+
+	const applyPreset = useCallback((presetKey: keyof typeof ROLE_PRESETS) => {
+		const preset = ROLE_PRESETS[presetKey];
+		setSelectedPermissions(preset.permissions);
+		if (!name.trim()) {
+			setName(preset.name);
+			setDescription(preset.description);
 		}
-	};
+		toast.success(`Applied ${preset.name} preset`);
+	}, [name]);
 
-	const applyPreset = (preset: "editor" | "viewer") => {
-		setSelectedPermissions(PRESET_PERMISSIONS[preset]);
-		toast.success(`Applied ${preset === "editor" ? "Editor" : "Viewer"} preset permissions`);
-	};
+	const getCategoryStats = useCallback(
+		(category: string) => {
+			const perms = groupedPermissions[category] || [];
+			const selected = perms.filter((p) => selectedPermissions.includes(p.value)).length;
+			return { selected, total: perms.length, allSelected: selected === perms.length };
+		},
+		[groupedPermissions, selectedPermissions]
+	);
 
 	return (
-		<Dialog open={open} onOpenChange={setOpen}>
-			<DialogTrigger asChild>
-				<Button className={cn("gap-2", className)}>
-					<Plus className="h-4 w-4" />
-					Create Role
-				</Button>
-			</DialogTrigger>
-			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-xl p-4 md:p-6">
-				<DialogHeader>
-					<DialogTitle>Create Custom Role</DialogTitle>
-					<DialogDescription className="text-xs md:text-sm">
-						Define a new role with specific permissions for this search space.
-					</DialogDescription>
-				</DialogHeader>
-				<div className="space-y-3 py-2 md:py-4">
-					<div className="flex flex-col md:grid md:grid-cols-2 gap-3 md:gap-4">
+		<motion.div
+			initial={{ opacity: 0, y: -10 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, y: -10 }}
+			className="mb-6"
+		>
+			<Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
+				<CardHeader className="pb-4">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-3">
+							<div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+								<Plus className="h-5 w-5 text-primary" />
+							</div>
+							<div>
+								<CardTitle className="text-lg">Create Custom Role</CardTitle>
+								<CardDescription className="text-sm">
+									Define permissions for a new role in this search space
+								</CardDescription>
+							</div>
+						</div>
+						<Button variant="ghost" size="icon" onClick={onCancel}>
+							<Trash2 className="h-4 w-4" />
+						</Button>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{/* Quick Start with Presets */}
+					<div className="space-y-3">
+						<Label className="text-sm font-medium">Quick Start with a Template</Label>
+						<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+							{Object.entries(ROLE_PRESETS).map(([key, preset]) => (
+								<button
+									key={key}
+									type="button"
+									onClick={() => applyPreset(key as keyof typeof ROLE_PRESETS)}
+									className={cn(
+										"p-4 rounded-lg border-2 text-left transition-all hover:border-primary/50 hover:bg-primary/5",
+										selectedPermissions.length > 0 &&
+											preset.permissions.every((p) => selectedPermissions.includes(p))
+											? "border-primary bg-primary/10"
+											: "border-border"
+									)}
+								>
+									<div className="flex items-center gap-2 mb-1">
+										<ShieldCheck
+											className={cn(
+												"h-4 w-4",
+												key === "editor" && "text-blue-600",
+												key === "viewer" && "text-gray-600",
+												key === "contributor" && "text-emerald-600"
+											)}
+										/>
+										<span className="font-medium text-sm">{preset.name}</span>
+									</div>
+									<p className="text-xs text-muted-foreground">{preset.description}</p>
+								</button>
+							))}
+						</div>
+					</div>
+
+					{/* Role Details */}
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 						<div className="space-y-2">
 							<Label htmlFor="role-name">Role Name *</Label>
 							<Input
 								id="role-name"
-								placeholder="e.g., Contributor"
+								placeholder="e.g., Content Manager"
 								value={name}
 								onChange={(e) => setName(e.target.value)}
 							/>
 						</div>
 						<div className="space-y-2">
-							<Label className="flex items-center gap-2">
-								<Checkbox checked={isDefault} onCheckedChange={(v) => setIsDefault(!!v)} />
+							<Label htmlFor="role-description">Description</Label>
+							<Input
+								id="role-description"
+								placeholder="Brief description of this role"
+								value={description}
+								onChange={(e) => setDescription(e.target.value)}
+							/>
+						</div>
+					</div>
+
+					{/* Default Role Checkbox */}
+					<div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+						<Checkbox
+							id="is-default"
+							checked={isDefault}
+							onCheckedChange={(checked) => setIsDefault(checked === true)}
+						/>
+						<div className="flex-1">
+							<Label htmlFor="is-default" className="cursor-pointer font-medium">
 								Set as default role
 							</Label>
 							<p className="text-xs text-muted-foreground">
-								New invites without a role will use this
+								New members without a specific role will be assigned this role
 							</p>
 						</div>
 					</div>
-					<div className="space-y-2">
-						<Label htmlFor="role-description">Description</Label>
-						<Textarea
-							id="role-description"
-							placeholder="Describe what this role can do..."
-							value={description}
-							onChange={(e) => setDescription(e.target.value)}
-							rows={2}
-						/>
-					</div>
-					<div className="space-y-2">
-						<div className="flex items-center justify-between">
-							<Label>Permissions ({selectedPermissions.length} selected)</Label>
-							<div className="flex gap-2">
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="h-7 text-xs gap-1"
-									onClick={() => applyPreset("editor")}
-								>
-									<ShieldCheck className="h-3 w-3 text-blue-600" />
-									Editor Preset
-								</Button>
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="h-7 text-xs gap-1"
-									onClick={() => applyPreset("viewer")}
-								>
-									<ShieldCheck className="h-3 w-3 text-gray-600" />
-									Viewer Preset
-								</Button>
-							</div>
-						</div>
-						<p className="text-xs text-muted-foreground">
-							Use presets to quickly apply Editor (create/read/update) or Viewer (read-only)
-							permissions
-						</p>
-						<ScrollArea className="h-64 rounded-lg border p-4">
-							<div className="space-y-4">
-								{Object.entries(groupedPermissions).map(([category, perms]) => {
-									const categorySelected = perms.filter((p) =>
-										selectedPermissions.includes(p.value)
-									).length;
-									const allSelected = categorySelected === perms.length;
 
-									return (
-										<div key={category} className="space-y-2">
-											<button
-												type="button"
-												className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded w-full text-left"
-												onClick={() => toggleCategory(category)}
-											>
+					{/* Permissions Section */}
+					<div className="space-y-3">
+						<div className="flex items-center justify-between">
+							<Label className="text-sm font-medium">
+								Permissions ({selectedPermissions.length} selected)
+							</Label>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="text-xs h-7"
+								onClick={() =>
+									setExpandedCategories(
+										expandedCategories.length === sortedCategories.length ? [] : sortedCategories
+									)
+								}
+							>
+								{expandedCategories.length === sortedCategories.length
+									? "Collapse All"
+									: "Expand All"}
+							</Button>
+						</div>
+
+						<div className="space-y-2">
+							{sortedCategories.map((category) => {
+								const config = CATEGORY_CONFIG[category] || {
+									label: category,
+									icon: FileText,
+									description: "",
+									order: 99,
+								};
+								const IconComponent = config.icon;
+								const stats = getCategoryStats(category);
+								const isExpanded = expandedCategories.includes(category);
+								const perms = groupedPermissions[category] || [];
+
+								return (
+									<div
+										key={category}
+										className="rounded-lg border bg-card overflow-hidden"
+									>
+										{/* Category Header */}
+										<div
+											className={cn(
+												"flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+												stats.allSelected && "bg-primary/5"
+											)}
+											onClick={() => toggleCategoryExpanded(category)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													toggleCategoryExpanded(category);
+												}
+											}}
+											tabIndex={0}
+											role="button"
+										>
+											<div className="flex items-center gap-3">
+												<div
+													className={cn(
+														"h-8 w-8 rounded-lg flex items-center justify-center",
+														stats.selected > 0 ? "bg-primary/10" : "bg-muted"
+													)}
+												>
+													<IconComponent
+														className={cn(
+															"h-4 w-4",
+															stats.selected > 0 ? "text-primary" : "text-muted-foreground"
+														)}
+													/>
+												</div>
+												<div>
+													<div className="flex items-center gap-2">
+														<span className="font-medium text-sm">{config.label}</span>
+														<Badge
+															variant={stats.selected > 0 ? "default" : "secondary"}
+															className="text-xs h-5"
+														>
+															{stats.selected}/{stats.total}
+														</Badge>
+													</div>
+													<p className="text-xs text-muted-foreground hidden md:block">
+														{config.description}
+													</p>
+												</div>
+											</div>
+											<div className="flex items-center gap-2">
 												<Checkbox
-													checked={allSelected}
+													checked={stats.allSelected}
 													onCheckedChange={() => toggleCategory(category)}
+													onClick={(e) => e.stopPropagation()}
+													aria-label={`Select all ${config.label} permissions`}
 												/>
-												<span className="text-sm font-medium capitalize">
-													{category} ({categorySelected}/{perms.length})
-												</span>
-											</button>
-											<div className="grid grid-cols-2 gap-2 ml-6">
-												{perms.map((perm) => (
-													<button
-														type="button"
-														key={perm.value}
-														className="flex items-center gap-2 cursor-pointer text-left"
-														onClick={() => togglePermission(perm.value)}
+												<motion.div
+													animate={{ rotate: isExpanded ? 180 : 0 }}
+													transition={{ duration: 0.2 }}
+												>
+													<svg
+														className="h-4 w-4 text-muted-foreground"
+														fill="none"
+														viewBox="0 0 24 24"
+														stroke="currentColor"
 													>
-														<Checkbox
-															checked={selectedPermissions.includes(perm.value)}
-															onCheckedChange={() => togglePermission(perm.value)}
+														<path
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															strokeWidth={2}
+															d="M19 9l-7 7-7-7"
 														/>
-														<span className="text-xs">{perm.value.split(":")[1]}</span>
-													</button>
-												))}
+													</svg>
+												</motion.div>
 											</div>
 										</div>
-									);
-								})}
-							</div>
-						</ScrollArea>
+
+										{/* Permissions List */}
+										{isExpanded && (
+											<motion.div
+												initial={{ height: 0, opacity: 0 }}
+												animate={{ height: "auto", opacity: 1 }}
+												exit={{ height: 0, opacity: 0 }}
+												transition={{ duration: 0.2 }}
+												className="border-t"
+											>
+												<div className="p-3 space-y-1">
+													{perms.map((perm) => {
+														const action = perm.value.split(":")[1];
+														const actionConfig = ACTION_DISPLAY[action] || {
+															label: action,
+															color: "text-gray-600 bg-gray-500/10",
+														};
+														const isSelected = selectedPermissions.includes(perm.value);
+
+														return (
+															<div
+																key={perm.value}
+																className={cn(
+																	"flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors",
+																	isSelected
+																		? "bg-primary/10 hover:bg-primary/15"
+																		: "hover:bg-muted/50"
+																)}
+																onClick={() => togglePermission(perm.value)}
+																onKeyDown={(e) => {
+																	if (e.key === "Enter" || e.key === " ") {
+																		e.preventDefault();
+																		togglePermission(perm.value);
+																	}
+																}}
+																tabIndex={0}
+																role="checkbox"
+																aria-checked={isSelected}
+															>
+																<div className="flex items-center gap-3 flex-1 min-w-0">
+																	<Checkbox
+																		checked={isSelected}
+																		onCheckedChange={() => togglePermission(perm.value)}
+																		onClick={(e) => e.stopPropagation()}
+																	/>
+																	<div className="flex-1 min-w-0">
+																		<div className="flex items-center gap-2">
+																			<span
+																				className={cn(
+																					"text-xs font-medium px-2 py-0.5 rounded",
+																					actionConfig.color
+																				)}
+																			>
+																				{actionConfig.label}
+																			</span>
+																		</div>
+																		<p className="text-xs text-muted-foreground mt-0.5 truncate">
+																			{perm.description}
+																		</p>
+																	</div>
+																</div>
+															</div>
+														);
+													})}
+												</div>
+											</motion.div>
+										)}
+									</div>
+								);
+							})}
+						</div>
 					</div>
-				</div>
-				<DialogFooter>
-					<Button variant="outline" onClick={() => setOpen(false)}>
-						Cancel
-					</Button>
-					<Button onClick={handleCreate} disabled={creating || !name.trim()}>
-						{creating ? (
-							<>
-								<Loader2 className="h-4 w-4 mr-2 animate-spin" />
-								Creating
-							</>
-						) : (
-							"Create Role"
-						)}
-					</Button>
-				</DialogFooter>
-			</DialogContent>
-		</Dialog>
+
+					{/* Actions */}
+					<div className="flex items-center justify-end gap-3 pt-4 border-t">
+						<Button variant="outline" onClick={onCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleCreate} disabled={creating || !name.trim()}>
+							{creating ? (
+								<>
+									<Spinner size="sm" className="mr-2" />
+									Creating...
+								</>
+							) : (
+								<>
+									<Check className="h-4 w-4 mr-2" />
+									Create Role
+								</>
+							)}
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
+		</motion.div>
 	);
 }

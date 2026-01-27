@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronUp, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
+import { Check, ChevronUp, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
 	DropdownMenu,
@@ -197,11 +197,12 @@ export function SidebarUserProfile({
 													className={cn(
 														"mb-1 last:mb-0 transition-all",
 														"hover:bg-accent/50",
-														isSelected && "bg-accent/80"
+														isSelected && "text-primary"
 													)}
 												>
 													<Icon className="mr-2 h-4 w-4" />
 													<span className="flex-1">{t(themeOption.value)}</span>
+													{isSelected && <Check className="h-4 w-4 shrink-0" />}
 												</DropdownMenuItem>
 											);
 										})}
@@ -226,11 +227,12 @@ export function SidebarUserProfile({
 												className={cn(
 													"mb-1 last:mb-0 transition-all",
 													"hover:bg-accent/50",
-													isSelected && "bg-accent/80"
+													isSelected && "text-primary"
 												)}
 											>
 												<span className="mr-2">{language.flag}</span>
 												<span className="flex-1">{language.name}</span>
+												{isSelected && <Check className="h-4 w-4 shrink-0" />}
 											</DropdownMenuItem>
 										);
 									})}
@@ -313,11 +315,12 @@ export function SidebarUserProfile({
 												className={cn(
 													"mb-1 last:mb-0 transition-all",
 													"hover:bg-accent/50",
-													isSelected && "bg-accent/80"
+													isSelected && "text-primary"
 												)}
 											>
 												<Icon className="mr-2 h-4 w-4" />
 												<span className="flex-1">{t(themeOption.value)}</span>
+												{isSelected && <Check className="h-4 w-4 shrink-0" />}
 											</DropdownMenuItem>
 										);
 									})}
@@ -342,11 +345,12 @@ export function SidebarUserProfile({
 											className={cn(
 												"mb-1 last:mb-0 transition-all",
 												"hover:bg-accent/50",
-												isSelected && "bg-accent/80"
+												isSelected && "text-primary"
 											)}
 										>
 											<span className="mr-2">{language.flag}</span>
 											<span className="flex-1">{language.name}</span>
+											{isSelected && <Check className="h-4 w-4 shrink-0" />}
 										</DropdownMenuItem>
 									);
 								})}

@@ -1,15 +1,16 @@
 "use client";
 
-import { ArrowLeft, Check, Info, Loader2 } from "lucide-react";
+import { ArrowLeft, Check, Info } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
-import { type IndexingConfigState, OAUTH_CONNECTORS } from "../../constants/connector-constants";
+import type { IndexingConfigState } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 
@@ -91,8 +92,6 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 		};
 	}, [checkScrollState]);
 
-	const authConnector = OAUTH_CONNECTORS.find((c) => c.connectorType === connector?.connector_type);
-
 	return (
 		<div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 			{/* Fixed Header */}
@@ -151,8 +150,9 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 						{/* Date range selector and periodic sync - only shown for indexable connectors */}
 						{connector?.is_indexable && (
 							<>
-								{/* Date range selector - not shown for Google Drive, Webcrawler, or GitHub (indexes full repo snapshots) */}
+								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "WEBCRAWLER_CONNECTOR" &&
 									config.connectorType !== "GITHUB_CONNECTOR" && (
 										<DateRangeSelector
@@ -162,20 +162,22 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 											onEndDateChange={onEndDateChange}
 											allowFutureDates={
 												config.connectorType === "GOOGLE_CALENDAR_CONNECTOR" ||
+												config.connectorType === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
 												config.connectorType === "LUMA_CONNECTOR"
 											}
 										/>
 									)}
 
-								{/* Periodic sync - not shown for Google Drive */}
-								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" && (
-									<PeriodicSyncConfig
-										enabled={periodicEnabled}
-										frequencyMinutes={frequencyMinutes}
-										onEnabledChange={onPeriodicEnabledChange}
-										onFrequencyChange={onFrequencyChange}
-									/>
-								)}
+								{/* Periodic sync - not shown for Google Drive (regular and Composio) */}
+								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
+									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" && (
+										<PeriodicSyncConfig
+											enabled={periodicEnabled}
+											frequencyMinutes={frequencyMinutes}
+											onEnabledChange={onPeriodicEnabledChange}
+											onFrequencyChange={onFrequencyChange}
+										/>
+									)}
 							</>
 						)}
 
@@ -188,8 +190,8 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 								<div className="text-xs sm:text-sm">
 									<p className="font-medium text-xs sm:text-sm">Indexing runs in the background</p>
 									<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-										You can continue using SurfSense while we sync your data. Check the Active tab
-										to see progress.
+										You can continue using SurfSense while we sync your data. Check inbox for
+										updates.
 									</p>
 								</div>
 							</div>
@@ -215,7 +217,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 				>
 					{isStartingIndexing ? (
 						<>
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							<Spinner size="sm" className="mr-2" />
 							Starting...
 						</>
 					) : (

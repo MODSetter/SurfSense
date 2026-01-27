@@ -24,6 +24,11 @@
 			"enabled": true,
 			"status": "warning",
 			"statusMessage": "Some requests may be blocked if not using Firecrawl."
+		},
+		"COMPOSIO_GOOGLE_DRIVE_CONNECTOR": {
+			"enabled": false,
+			"status": "disabled",
+			"statusMessage": "Not available yet."
 		}
 	},
 	"globalSettings": {
