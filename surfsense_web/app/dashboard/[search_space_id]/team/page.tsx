@@ -105,7 +105,6 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Textarea } from "@/components/ui/textarea";
 import type {
 	CreateInviteRequest,
 	DeleteInviteRequest,
@@ -763,17 +762,71 @@ function MembersTab({
 
 // ============ Role Permissions Display ============
 
-const CATEGORY_CONFIG: Record<string, { label: string; icon: LucideIcon; order: number }> = {
-	documents: { label: "Documents", icon: FileText, order: 1 },
-	chats: { label: "Chats", icon: MessageSquare, order: 2 },
-	comments: { label: "Comments", icon: MessageCircle, order: 3 },
-	llm_configs: { label: "LLM Configs", icon: Bot, order: 4 },
-	podcasts: { label: "Podcasts", icon: Mic, order: 5 },
-	connectors: { label: "Connectors", icon: Plug, order: 6 },
-	logs: { label: "Logs", icon: Logs, order: 7 },
-	members: { label: "Members", icon: Users, order: 8 },
-	roles: { label: "Roles", icon: Shield, order: 9 },
-	settings: { label: "Settings", icon: Settings, order: 10 },
+// Unified category configuration used across all role-related components
+const CATEGORY_CONFIG: Record<
+	string,
+	{ label: string; icon: LucideIcon; description: string; order: number }
+> = {
+	documents: {
+		label: "Documents",
+		icon: FileText,
+		description: "Manage files, notes, and content",
+		order: 1,
+	},
+	chats: {
+		label: "AI Chats",
+		icon: MessageSquare,
+		description: "Create and manage AI conversations",
+		order: 2,
+	},
+	comments: {
+		label: "Comments",
+		icon: MessageCircle,
+		description: "Add annotations to documents",
+		order: 3,
+	},
+	llm_configs: {
+		label: "AI Models",
+		icon: Bot,
+		description: "Configure AI model settings",
+		order: 4,
+	},
+	podcasts: {
+		label: "Podcasts",
+		icon: Mic,
+		description: "Generate AI podcasts from content",
+		order: 5,
+	},
+	connectors: {
+		label: "Integrations",
+		icon: Plug,
+		description: "Connect external data sources",
+		order: 6,
+	},
+	logs: {
+		label: "Activity Logs",
+		icon: Logs,
+		description: "View and manage audit trail",
+		order: 7,
+	},
+	members: {
+		label: "Team Members",
+		icon: Users,
+		description: "Manage team membership",
+		order: 8,
+	},
+	roles: {
+		label: "Roles",
+		icon: Shield,
+		description: "Configure role permissions",
+		order: 9,
+	},
+	settings: {
+		label: "Settings",
+		icon: Settings,
+		description: "Manage search space settings",
+		order: 10,
+	},
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -1560,73 +1613,6 @@ const ROLE_PRESETS = {
 	},
 };
 
-// Category display configuration with icons and descriptions
-const CATEGORY_DISPLAY: Record<
-	string,
-	{ label: string; icon: LucideIcon; description: string; order: number }
-> = {
-	documents: {
-		label: "Documents",
-		icon: FileText,
-		description: "Manage files, notes, and content",
-		order: 1,
-	},
-	chats: {
-		label: "AI Chats",
-		icon: MessageSquare,
-		description: "Create and manage AI conversations",
-		order: 2,
-	},
-	comments: {
-		label: "Comments",
-		icon: MessageCircle,
-		description: "Add annotations to documents",
-		order: 3,
-	},
-	llm_configs: {
-		label: "AI Models",
-		icon: Bot,
-		description: "Configure AI model settings",
-		order: 4,
-	},
-	podcasts: {
-		label: "Podcasts",
-		icon: Mic,
-		description: "Generate AI podcasts from content",
-		order: 5,
-	},
-	connectors: {
-		label: "Integrations",
-		icon: Plug,
-		description: "Connect external data sources",
-		order: 6,
-	},
-	logs: {
-		label: "Activity Logs",
-		icon: Logs,
-		description: "View and manage audit trail",
-		order: 7,
-	},
-	members: {
-		label: "Team Members",
-		icon: Users,
-		description: "Manage team membership",
-		order: 8,
-	},
-	roles: {
-		label: "Roles",
-		icon: Shield,
-		description: "Configure role permissions",
-		order: 9,
-	},
-	settings: {
-		label: "Settings",
-		icon: Settings,
-		description: "Manage search space settings",
-		order: 10,
-	},
-};
-
 // Action display labels
 const ACTION_DISPLAY: Record<string, { label: string; color: string }> = {
 	create: { label: "Create", color: "text-emerald-600 bg-emerald-500/10" },
@@ -1661,8 +1647,8 @@ function CreateRoleSection({
 	// Sort categories by order
 	const sortedCategories = useMemo(() => {
 		return Object.keys(groupedPermissions).sort((a, b) => {
-			const orderA = CATEGORY_DISPLAY[a]?.order ?? 99;
-			const orderB = CATEGORY_DISPLAY[b]?.order ?? 99;
+			const orderA = CATEGORY_CONFIG[a]?.order ?? 99;
+			const orderB = CATEGORY_CONFIG[b]?.order ?? 99;
 			return orderA - orderB;
 		});
 	}, [groupedPermissions]);
@@ -1859,10 +1845,11 @@ function CreateRoleSection({
 
 						<div className="space-y-2">
 							{sortedCategories.map((category) => {
-								const config = CATEGORY_DISPLAY[category] || {
+								const config = CATEGORY_CONFIG[category] || {
 									label: category,
 									icon: FileText,
 									description: "",
+									order: 99,
 								};
 								const IconComponent = config.icon;
 								const stats = getCategoryStats(category);
