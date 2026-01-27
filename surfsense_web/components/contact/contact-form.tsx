@@ -1,104 +1,55 @@
 "use client";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { IconMailFilled } from "@tabler/icons-react";
+import { IconCalendar, IconMailFilled } from "@tabler/icons-react";
 import { motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import type React from "react";
-import { useId, useState } from "react";
-import { useForm } from "react-hook-form";
-import { toast } from "sonner";
-import { z } from "zod";
+import { useId } from "react";
 import { cn } from "@/lib/utils";
 
-// Define validation schema matching the database schema
-const contactFormSchema = z.object({
-	name: z.string().min(1, "Name is required").max(255, "Name is too long"),
-	email: z.email("Invalid email address").max(255, "Email is too long"),
-	company: z.string().min(1, "Company is required").max(255, "Company name is too long"),
-	message: z.string().optional().prefault(""),
-});
-
-type ContactFormData = z.infer<typeof contactFormSchema>;
-
 export function ContactFormGridWithDetails() {
-	const [isSubmitting, setIsSubmitting] = useState(false);
-
-	const {
-		register,
-		handleSubmit,
-		formState: { errors },
-		reset,
-	} = useForm<ContactFormData>({
-		resolver: zodResolver(contactFormSchema),
-	});
-
-	const onSubmit = async (data: ContactFormData) => {
-		setIsSubmitting(true);
-
-		try {
-			const response = await fetch("/api/contact", {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(data),
-			});
-
-			const result = await response.json();
-
-			if (response.ok) {
-				toast.success("Message sent successfully!", {
-					description: "We will get back to you as soon as possible.",
-				});
-				reset();
-			} else {
-				toast.error("Failed to send message", {
-					description: result.message || "Please try again later.",
-				});
-			}
-		} catch (error) {
-			console.error("Error submitting form:", error);
-			toast.error("Something went wrong", {
-				description: "Please try again later.",
-			});
-		} finally {
-			setIsSubmitting(false);
-		}
-	};
-
 	return (
-		<div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-10 px-4 py-10 md:px-6 md:py-20 lg:grid-cols-2">
-			<div className="relative flex flex-col items-center overflow-hidden lg:items-start">
+		<div className="mx-auto flex w-full max-w-7xl flex-col items-center gap-10 px-4 py-10 md:px-6 md:py-20">
+			<div className="relative flex flex-col items-center overflow-hidden">
 				<div className="flex items-start justify-start">
 					<FeatureIconContainer className="flex items-center justify-center overflow-hidden">
 						<IconMailFilled className="h-6 w-6 text-blue-500" />
 					</FeatureIconContainer>
 				</div>
-				<h2 className="mt-9 bg-gradient-to-b from-neutral-800 to-neutral-900 bg-clip-text text-left text-xl font-bold text-transparent md:text-3xl lg:text-5xl dark:from-neutral-200 dark:to-neutral-300">
+				<h2 className="mt-9 bg-gradient-to-b from-neutral-800 to-neutral-900 bg-clip-text text-center text-xl font-bold text-transparent md:text-3xl lg:text-5xl dark:from-neutral-200 dark:to-neutral-300">
 					Contact
 				</h2>
-				<p className="mt-8 max-w-lg text-center text-base text-neutral-600 md:text-left dark:text-neutral-400">
-					We'd love to Hear From You.
+				<p className="mt-8 max-w-lg text-center text-base text-neutral-600 dark:text-neutral-400">
+					We'd love to hear from you. Schedule a meeting or send us an email.
 				</p>
 
-				<div className="mt-10 hidden flex-col items-center gap-4 md:flex-row lg:flex">
+				<div className="mt-10 flex flex-col items-center gap-6">
 					<Link
-						href="mailto:rohan@surfsense.com"
-						className="text-sm text-neutral-500 dark:text-neutral-400"
+						href="https://calendly.com/eric-surfsense/surfsense-meeting"
+						target="_blank"
+						rel="noopener noreferrer"
+						className="flex items-center gap-3 rounded-xl bg-gradient-to-b from-blue-500 to-blue-600 px-6 py-3 text-base font-medium text-white shadow-lg transition duration-200 hover:from-blue-600 hover:to-blue-700"
 					>
-						rohan@surfsense.com
+						<IconCalendar className="h-5 w-5" />
+						Schedule a Meeting
 					</Link>
-					<div className="h-1 w-1 rounded-full bg-neutral-500 dark:bg-neutral-400" />
+					
+					<div className="flex items-center gap-2 text-neutral-500 dark:text-neutral-400">
+						<span className="h-px w-8 bg-neutral-300 dark:bg-neutral-600" />
+						<span className="text-sm">or</span>
+						<span className="h-px w-8 bg-neutral-300 dark:bg-neutral-600" />
+					</div>
 
 					<Link
-						href="https://cal.com/mod-surfsense"
-						className="text-sm text-neutral-500 dark:text-neutral-400"
+						href="mailto:eric@surfsense.com"
+						className="flex items-center gap-2 text-base text-neutral-600 transition duration-200 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
 					>
-						https://cal.com/mod-surfsense
+						<IconMailFilled className="h-5 w-5" />
+						eric@surfsense.com
 					</Link>
 				</div>
-				<div className="div relative mt-20 flex w-[600px] flex-shrink-0 -translate-x-10 items-center justify-center [perspective:800px] [transform-style:preserve-3d] sm:-translate-x-0 lg:-translate-x-32">
+
+				<div className="div relative mt-20 flex w-[600px] flex-shrink-0 items-center justify-center [perspective:800px] [transform-style:preserve-3d]">
 					<Pin className="h-30 w-85 top-0 left-0" />
 
 					<Image
@@ -110,95 +61,6 @@ export function ContactFormGridWithDetails() {
 					/>
 				</div>
 			</div>
-			<form
-				onSubmit={handleSubmit(onSubmit)}
-				className="relative mx-auto flex w-full max-w-2xl flex-col items-start gap-4 overflow-hidden rounded-3xl bg-gradient-to-b from-gray-100 to-gray-200 p-4 sm:p-10 dark:from-neutral-900 dark:to-neutral-950"
-			>
-				<Grid size={20} />
-				<div className="relative z-20 mb-4 w-full">
-					<label
-						className="mb-2 inline-block text-sm font-medium text-neutral-600 dark:text-neutral-300"
-						htmlFor="name"
-					>
-						Full name
-					</label>
-					<input
-						id="name"
-						type="text"
-						placeholder="John Doe"
-						{...register("name")}
-						className={cn(
-							"shadow-input h-10 w-full rounded-md border bg-white pl-4 text-sm text-neutral-700 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-neutral-800 focus:outline-none active:outline-none dark:border-neutral-800 dark:bg-neutral-800 dark:text-white",
-							errors.name ? "border-red-500" : "border-transparent"
-						)}
-					/>
-					{errors.name && <p className="mt-1 text-xs text-red-500">{errors.name.message}</p>}
-				</div>
-				<div className="relative z-20 mb-4 w-full">
-					<label
-						className="mb-2 inline-block text-sm font-medium text-neutral-600 dark:text-neutral-300"
-						htmlFor="email"
-					>
-						Email Address
-					</label>
-					<input
-						id="email"
-						type="email"
-						placeholder="john.doe@example.com"
-						{...register("email")}
-						className={cn(
-							"shadow-input h-10 w-full rounded-md border bg-white pl-4 text-sm text-neutral-700 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-neutral-800 focus:outline-none active:outline-none dark:border-neutral-800 dark:bg-neutral-800 dark:text-white",
-							errors.email ? "border-red-500" : "border-transparent"
-						)}
-					/>
-					{errors.email && <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>}
-				</div>
-				<div className="relative z-20 mb-4 w-full">
-					<label
-						className="mb-2 inline-block text-sm font-medium text-neutral-600 dark:text-neutral-300"
-						htmlFor="company"
-					>
-						Company
-					</label>
-					<input
-						id="company"
-						type="text"
-						placeholder="Example Inc."
-						{...register("company")}
-						className={cn(
-							"shadow-input h-10 w-full rounded-md border bg-white pl-4 text-sm text-neutral-700 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-neutral-800 focus:outline-none active:outline-none dark:border-neutral-800 dark:bg-neutral-800 dark:text-white",
-							errors.company ? "border-red-500" : "border-transparent"
-						)}
-					/>
-					{errors.company && <p className="mt-1 text-xs text-red-500">{errors.company.message}</p>}
-				</div>
-				<div className="relative z-20 mb-4 w-full">
-					<label
-						className="mb-2 inline-block text-sm font-medium text-neutral-600 dark:text-neutral-300"
-						htmlFor="message"
-					>
-						Message <span className="text-neutral-400 text-xs font-normal">(optional)</span>
-					</label>
-					<textarea
-						id="message"
-						rows={5}
-						placeholder="Type your message here"
-						{...register("message")}
-						className={cn(
-							"shadow-input w-full rounded-md border bg-white pt-4 pl-4 text-sm text-neutral-700 placeholder-neutral-500 outline-none focus:ring-2 focus:ring-neutral-800 focus:outline-none active:outline-none dark:border-neutral-800 dark:bg-neutral-800 dark:text-white",
-							errors.message ? "border-red-500" : "border-transparent"
-						)}
-					/>
-					{errors.message && <p className="mt-1 text-xs text-red-500">{errors.message.message}</p>}
-				</div>
-				<button
-					type="submit"
-					disabled={isSubmitting}
-					className="relative z-10 flex items-center justify-center rounded-md border border-transparent bg-neutral-800 px-4 py-2 text-sm font-medium text-white shadow-[0px_1px_0px_0px_#FFFFFF20_inset] transition duration-200 hover:bg-neutral-900 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
-				>
-					{isSubmitting ? "Submitting..." : "Submit"}
-				</button>
-			</form>
 		</div>
 	);
 }
