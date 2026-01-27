@@ -40,7 +40,10 @@ def strip_citations(text: str) -> str:
 
 
 def sanitize_content_for_public(content: list | str | None) -> list:
-    """Filter message content for public view."""
+    """
+    Filter message content for public view.
+    Strips citations and filters to UI-relevant tools.
+    """
     if content is None:
         return []
 
@@ -67,13 +70,6 @@ def sanitize_content_for_public(content: list | str | None) -> list:
             tool_name = part.get("toolName")
             if tool_name not in UI_TOOLS:
                 continue
-
-            # Skip podcasts that are still processing (would cause auth errors)
-            if tool_name == "generate_podcast":
-                result = part.get("result", {})
-                if result.get("status") in ("processing", "already_generating"):
-                    continue
-
             sanitized.append(part)
 
     return sanitized
@@ -355,16 +351,16 @@ async def _clone_podcast(
     target_search_space_id: int,
     target_thread_id: int,
 ) -> int | None:
-    """Clone a podcast record and its audio file."""
+    """Clone a podcast record and its audio file. Only clones ready podcasts."""
     import shutil
     import uuid
     from pathlib import Path
 
-    from app.db import Podcast
+    from app.db import Podcast, PodcastStatus
 
     result = await session.execute(select(Podcast).filter(Podcast.id == podcast_id))
     original = result.scalars().first()
-    if not original:
+    if not original or original.status != PodcastStatus.READY:
         return None
 
     new_file_path = None
@@ -381,6 +377,7 @@ async def _clone_podcast(
         title=original.title,
         podcast_transcript=original.podcast_transcript,
         file_location=new_file_path,
+        status=PodcastStatus.READY,
         search_space_id=target_search_space_id,
         thread_id=target_thread_id,
     )

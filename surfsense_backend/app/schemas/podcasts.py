@@ -1,9 +1,17 @@
 """Podcast schemas for API responses."""
 
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 from pydantic import BaseModel
+
+
+class PodcastStatusEnum(str, Enum):
+    PENDING = "pending"
+    GENERATING = "generating"
+    READY = "ready"
+    FAILED = "failed"
 
 
 class PodcastBase(BaseModel):
@@ -33,6 +41,7 @@ class PodcastRead(PodcastBase):
     """Schema for reading a podcast."""
 
     id: int
+    status: PodcastStatusEnum = PodcastStatusEnum.READY
     created_at: datetime
 
     class Config:

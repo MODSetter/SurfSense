@@ -1,21 +1,19 @@
 """
-Podcast routes for task status polling and audio retrieval.
+Podcast routes for CRUD operations and audio streaming.
 
 These routes support the podcast generation feature in new-chat.
-Note: The old Chat-based podcast generation has been removed.
+Frontend polls GET /podcasts/{podcast_id} to check status field.
 """
 
 import os
 from pathlib import Path
 
-from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.celery_app import celery_app
 from app.db import (
     Permission,
     Podcast,
@@ -227,63 +225,4 @@ async def stream_podcast(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error streaming podcast: {e!s}"
-        ) from e
-
-
-@router.get("/podcasts/task/{task_id}/status")
-async def get_podcast_task_status(
-    task_id: str,
-    user: User = Depends(current_active_user),
-):
-    """
-    Get the status of a podcast generation task.
-    Used by new-chat frontend to poll for completion.
-
-    Returns:
-    - status: "processing" | "success" | "error"
-    - podcast_id: (only if status == "success")
-    - title: (only if status == "success")
-    - error: (only if status == "error")
-    """
-    try:
-        result = AsyncResult(task_id, app=celery_app)
-
-        if result.ready():
-            # Task completed
-            if result.successful():
-                task_result = result.result
-                if isinstance(task_result, dict):
-                    if task_result.get("status") == "success":
-                        return {
-                            "status": "success",
-                            "podcast_id": task_result.get("podcast_id"),
-                            "title": task_result.get("title"),
-                            "transcript_entries": task_result.get("transcript_entries"),
-                        }
-                    else:
-                        return {
-                            "status": "error",
-                            "error": task_result.get("error", "Unknown error"),
-                        }
-                else:
-                    return {
-                        "status": "error",
-                        "error": "Unexpected task result format",
-                    }
-            else:
-                # Task failed
-                return {
-                    "status": "error",
-                    "error": str(result.result) if result.result else "Task failed",
-                }
-        else:
-            # Task still processing
-            return {
-                "status": "processing",
-                "state": result.state,
-            }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error checking task status: {e!s}"
         ) from e

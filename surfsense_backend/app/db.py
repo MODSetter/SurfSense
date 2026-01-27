@@ -93,6 +93,13 @@ class SearchSourceConnectorType(str, Enum):
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
+class PodcastStatus(str, Enum):
+    PENDING = "pending"
+    GENERATING = "generating"
+    READY = "ready"
+    FAILED = "failed"
+
+
 class LiteLLMProvider(str, Enum):
     """
     Enum for LLM providers supported by LiteLLM.
@@ -743,8 +750,15 @@ class Podcast(BaseModel, TimestampMixin):
     __tablename__ = "podcasts"
 
     title = Column(String(500), nullable=False)
-    podcast_transcript = Column(JSONB, nullable=True)  # List of transcript entries
-    file_location = Column(Text, nullable=True)  # Path to the audio file
+    podcast_transcript = Column(JSONB, nullable=True)
+    file_location = Column(Text, nullable=True)
+    status = Column(
+        SQLAlchemyEnum(PodcastStatus, name="podcast_status", create_type=False),
+        nullable=False,
+        default=PodcastStatus.READY,
+        server_default="ready",
+        index=True,
+    )
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
