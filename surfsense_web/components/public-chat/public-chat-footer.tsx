@@ -22,22 +22,15 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 		setIsCloning(true);
 
 		try {
-			await publicChatApiService.clonePublicChat({
+			const response = await publicChatApiService.clonePublicChat({
 				share_token: shareToken,
 			});
 
-			// Force PGlite to resync notifications on next dashboard load
-			localStorage.setItem("surfsense_force_notif_resync", "true");
-
-			toast.success("Copying chat to your account...", {
-				description: "You'll be notified when it's ready.",
-			});
-
-			router.push("/dashboard");
+			// Redirect to the new chat page (content will be loaded there)
+			router.push(`/dashboard/${response.search_space_id}/new-chat/${response.thread_id}`);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Failed to copy chat";
 			toast.error(message);
-		} finally {
 			setIsCloning(false);
 		}
 	}, [shareToken, router]);
