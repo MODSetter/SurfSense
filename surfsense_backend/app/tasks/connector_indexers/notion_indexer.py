@@ -190,12 +190,13 @@ async def index_notion_pages(
         if not pages:
             await task_logger.log_task_success(
                 log_entry,
-                f"No Notion pages found for connector {connector_id}",
+                f"No Notion pages found for connector {connector_id}. "
+                "Ensure pages are shared with the Notion integration.",
                 {"pages_found": 0},
             )
             logger.info("No Notion pages found to index")
             await notion_client.close()
-            return 0, "No Notion pages found"
+            return 0, None  # Success with 0 pages, not an error
 
         # Track the number of documents indexed
         documents_indexed = 0
