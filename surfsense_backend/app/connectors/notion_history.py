@@ -465,19 +465,33 @@ class NotionHistoryConnector:
         cursor = None
 
         while has_more:
-            if cursor:
-                search_params["start_cursor"] = cursor
+            try:
+                if cursor:
+                    search_params["start_cursor"] = cursor
 
-            # Use retry wrapper for search API call
-            search_results = await self._api_call_with_retry(
-                notion.search, on_retry=self._on_retry_callback, **search_params
-            )
+                # Use retry wrapper for search API call
+                search_results = await self._api_call_with_retry(
+                    notion.search, on_retry=self._on_retry_callback, **search_params
+                )
 
-            pages.extend(search_results["results"])
-            has_more = search_results.get("has_more", False)
+                pages.extend(search_results["results"])
+                has_more = search_results.get("has_more", False)
 
-            if has_more:
-                cursor = search_results.get("next_cursor")
+                if has_more:
+                    cursor = search_results.get("next_cursor")
+
+            except APIResponseError as e:
+                error_message = str(e)
+                # Handle invalid cursor - stop pagination gracefully
+                if "start_cursor provided is invalid" in error_message:
+                    logger.warning(
+                        f"Invalid pagination cursor encountered. "
+                        f"Continuing with {len(pages)} pages already fetched."
+                    )
+                    has_more = False
+                    continue
+                # Re-raise other errors
+                raise
 
         all_page_data = []
 
