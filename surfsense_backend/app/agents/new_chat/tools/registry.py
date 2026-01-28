@@ -107,8 +107,9 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         factory=lambda deps: create_generate_podcast_tool(
             search_space_id=deps["search_space_id"],
             db_session=deps["db_session"],
+            thread_id=deps["thread_id"],
         ),
-        requires=["search_space_id", "db_session"],
+        requires=["search_space_id", "db_session", "thread_id"],
     ),
     # Link preview tool - fetches Open Graph metadata for URLs
     ToolDefinition(

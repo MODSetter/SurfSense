@@ -18,6 +18,8 @@ import redis
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import Podcast, PodcastStatus
+
 # Redis connection for tracking active podcast tasks
 # Uses the same Redis instance as Celery
 REDIS_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
@@ -32,50 +34,44 @@ def get_redis_client() -> redis.Redis:
     return _redis_client
 
 
-def get_active_podcast_key(search_space_id: int) -> str:
-    """Generate Redis key for tracking active podcast task."""
-    return f"podcast:active:{search_space_id}"
+def _redis_key(search_space_id: int) -> str:
+    return f"podcast:generating:{search_space_id}"
 
 
-def get_active_podcast_task(search_space_id: int) -> str | None:
-    """Check if there's an active podcast task for this search space."""
+def get_generating_podcast_id(search_space_id: int) -> int | None:
+    """Get the podcast ID currently being generated for this search space."""
     try:
         client = get_redis_client()
-        return client.get(get_active_podcast_key(search_space_id))
+        value = client.get(_redis_key(search_space_id))
+        return int(value) if value else None
     except Exception:
-        # If Redis is unavailable, allow the request (fail open)
         return None
 
 
-def set_active_podcast_task(search_space_id: int, task_id: str) -> None:
-    """Mark a podcast task as active for this search space."""
+def set_generating_podcast(search_space_id: int, podcast_id: int) -> None:
+    """Mark a podcast as currently generating for this search space."""
     try:
         client = get_redis_client()
-        # Set with 30-minute expiry as safety net (podcast should complete before this)
-        client.setex(get_active_podcast_key(search_space_id), 1800, task_id)
+        client.setex(_redis_key(search_space_id), 1800, str(podcast_id))
     except Exception as e:
-        print(f"[generate_podcast] Warning: Could not set active task in Redis: {e}")
-
-
-def clear_active_podcast_task(search_space_id: int) -> None:
-    """Clear the active podcast task for this search space."""
-    try:
-        client = get_redis_client()
-        client.delete(get_active_podcast_key(search_space_id))
-    except Exception as e:
-        print(f"[generate_podcast] Warning: Could not clear active task in Redis: {e}")
+        print(f"[generate_podcast] Warning: Could not set generating podcast in Redis: {e}")
 
 
 def create_generate_podcast_tool(
     search_space_id: int,
     db_session: AsyncSession,
+    thread_id: int | None = None,
 ):
     """
     Factory function to create the generate_podcast tool with injected dependencies.
 
+    Pre-creates podcast record with pending status so podcast_id is available
+    immediately for frontend polling.
+
     Args:
         search_space_id: The user's search space ID
-        db_session: Database session (not used - Celery creates its own)
+        db_session: Database session for creating the podcast record
+        thread_id: The chat thread ID for associating the podcast
 
     Returns:
         A configured tool function for generating podcasts
@@ -98,76 +94,71 @@ def create_generate_podcast_tool(
         - "Make a podcast about..."
         - "Turn this into a podcast"
 
-        The tool will start generating a podcast in the background.
-        The podcast will be available once generation completes.
-
-        IMPORTANT: Only one podcast can be generated at a time. If a podcast
-        is already being generated, this tool will return a message asking
-        the user to wait.
-
         Args:
             source_content: The text content to convert into a podcast.
-                           This can be a summary, research findings, or any text
-                           the user wants transformed into an audio podcast.
             podcast_title: Title for the podcast (default: "SurfSense Podcast")
             user_prompt: Optional instructions for podcast style, tone, or format.
-                        For example: "Make it casual and fun" or "Focus on the key insights"
 
         Returns:
             A dictionary containing:
-            - status: "processing" (task submitted), "already_generating", or "error"
-            - task_id: The Celery task ID for polling status (if processing)
+            - status: PodcastStatus value (pending, generating, or failed)
+            - podcast_id: The podcast ID for polling (when status is pending or generating)
             - title: The podcast title
-            - message: Status message for the user
+            - message: Status message (or "error" field if status is failed)
         """
         try:
-            # Check if a podcast is already being generated for this search space
-            active_task_id = get_active_podcast_task(search_space_id)
-            if active_task_id:
+            generating_podcast_id = get_generating_podcast_id(search_space_id)
+            if generating_podcast_id:
                 print(
-                    f"[generate_podcast] Blocked duplicate request. Active task: {active_task_id}"
+                    f"[generate_podcast] Blocked duplicate request. Generating podcast: {generating_podcast_id}"
                 )
                 return {
-                    "status": "already_generating",
-                    "task_id": active_task_id,
+                    "status": PodcastStatus.GENERATING.value,
+                    "podcast_id": generating_podcast_id,
                     "title": podcast_title,
-                    "message": "A podcast is already being generated. Please wait for it to complete before requesting another one.",
+                    "message": "A podcast is already being generated. Please wait for it to complete.",
                 }
 
-            # Import Celery task here to avoid circular imports
+            podcast = Podcast(
+                title=podcast_title,
+                status=PodcastStatus.PENDING,
+                search_space_id=search_space_id,
+                thread_id=thread_id,
+            )
+            db_session.add(podcast)
+            await db_session.commit()
+            await db_session.refresh(podcast)
+
             from app.tasks.celery_tasks.podcast_tasks import (
                 generate_content_podcast_task,
             )
 
-            # Submit Celery task for background processing
             task = generate_content_podcast_task.delay(
+                podcast_id=podcast.id,
                 source_content=source_content,
                 search_space_id=search_space_id,
-                podcast_title=podcast_title,
                 user_prompt=user_prompt,
             )
 
-            # Mark this task as active
-            set_active_podcast_task(search_space_id, task.id)
+            set_generating_podcast(search_space_id, podcast.id)
 
-            print(f"[generate_podcast] Submitted Celery task: {task.id}")
+            print(f"[generate_podcast] Created podcast {podcast.id}, task: {task.id}")
 
-            # Return immediately with task_id for polling
             return {
-                "status": "processing",
-                "task_id": task.id,
+                "status": PodcastStatus.PENDING.value,
+                "podcast_id": podcast.id,
                 "title": podcast_title,
                 "message": "Podcast generation started. This may take a few minutes.",
             }
 
         except Exception as e:
             error_message = str(e)
-            print(f"[generate_podcast] Error submitting task: {error_message}")
+            print(f"[generate_podcast] Error: {error_message}")
             return {
-                "status": "error",
+                "status": PodcastStatus.FAILED.value,
                 "error": error_message,
                 "title": podcast_title,
-                "task_id": None,
+                "podcast_id": None,
             }
 
     return generate_podcast

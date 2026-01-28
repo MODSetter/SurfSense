@@ -232,8 +232,8 @@ export function InboxSidebar({
 	const currentDataSource = activeTab === "mentions" ? mentions : status;
 	const { loading, loadingMore = false, hasMore = false, loadMore } = currentDataSource;
 
-	// For status items, filter to only show status notification types
-	// (the status data source may include all types from API)
+	// Status tab includes: connector indexing, document processing
+	// Filter to only show status notification types
 	const statusItems = useMemo(
 		() =>
 			status.items.filter(

@@ -23,7 +23,10 @@ export type RequestOptions = {
 class BaseApiService {
 	baseUrl: string;
 
-	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh"]; // Add more endpoints as needed
+	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh"];
+
+	// Prefixes that don't require auth (checked with startsWith)
+	noAuthPrefixes: string[] = ["/api/v1/public/", "/api/v1/podcasts/"];
 
 	// Use a getter to always read fresh token from localStorage
 	// This ensures the token is always up-to-date after login/logout
@@ -84,7 +87,10 @@ class BaseApiService {
 			}
 
 			// Validate the bearer token
-			if (!this.bearerToken && !this.noAuthEndpoints.includes(url)) {
+			const isNoAuthEndpoint =
+				this.noAuthEndpoints.includes(url) ||
+				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix));
+			if (!this.bearerToken && !isNoAuthEndpoint) {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
 
