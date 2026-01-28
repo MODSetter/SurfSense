@@ -115,13 +115,13 @@ import type {
 	Membership,
 	UpdateMembershipRequest,
 } from "@/contracts/types/members.types";
+import type { PermissionInfo } from "@/contracts/types/permissions.types";
 import type {
 	CreateRoleRequest,
 	DeleteRoleRequest,
 	Role,
 	UpdateRoleRequest,
 } from "@/contracts/types/roles.types";
-import type { PermissionInfo } from "@/contracts/types/permissions.types";
 import { invitesApiService } from "@/lib/apis/invites-api.service";
 import { rolesApiService } from "@/lib/apis/roles-api.service";
 import { trackSearchSpaceInviteSent, trackSearchSpaceUsersViewed } from "@/lib/posthog/events";
@@ -980,11 +980,7 @@ function RolesTab({
 		>
 			{/* Create Role Button / Section */}
 			{canCreate && !showCreateRole && (
-				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					className="flex justify-end"
-				>
+				<motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-end">
 					<Button onClick={() => setShowCreateRole(true)} className="gap-2">
 						<Plus className="h-4 w-4" />
 						Create Custom Role
@@ -1701,15 +1697,18 @@ function CreateRoleSection({
 		);
 	}, []);
 
-	const applyPreset = useCallback((presetKey: keyof typeof ROLE_PRESETS) => {
-		const preset = ROLE_PRESETS[presetKey];
-		setSelectedPermissions(preset.permissions);
-		if (!name.trim()) {
-			setName(preset.name);
-			setDescription(preset.description);
-		}
-		toast.success(`Applied ${preset.name} preset`);
-	}, [name]);
+	const applyPreset = useCallback(
+		(presetKey: keyof typeof ROLE_PRESETS) => {
+			const preset = ROLE_PRESETS[presetKey];
+			setSelectedPermissions(preset.permissions);
+			if (!name.trim()) {
+				setName(preset.name);
+				setDescription(preset.description);
+			}
+			toast.success(`Applied ${preset.name} preset`);
+		},
+		[name]
+	);
 
 	const getCategoryStats = useCallback(
 		(category: string) => {
@@ -1857,10 +1856,7 @@ function CreateRoleSection({
 								const perms = groupedPermissions[category] || [];
 
 								return (
-									<div
-										key={category}
-										className="rounded-lg border bg-card overflow-hidden"
-									>
+									<div key={category} className="rounded-lg border bg-card overflow-hidden">
 										{/* Category Header */}
 										<div
 											className={cn(

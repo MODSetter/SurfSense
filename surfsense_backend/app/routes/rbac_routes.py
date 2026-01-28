@@ -123,7 +123,9 @@ async def list_all_permissions(
     for perm in Permission:
         # Extract category from permission value (e.g., "documents:read" -> "documents")
         category = perm.value.split(":")[0] if ":" in perm.value else "general"
-        description = PERMISSION_DESCRIPTIONS.get(perm.value, f"Permission for {perm.value}")
+        description = PERMISSION_DESCRIPTIONS.get(
+            perm.value, f"Permission for {perm.value}"
+        )
 
         permissions.append(
             PermissionInfo(

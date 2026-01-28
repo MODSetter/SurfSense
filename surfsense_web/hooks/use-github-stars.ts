@@ -25,6 +25,10 @@ export const useGithubStars = () => {
 
 				setStars(data?.stargazers_count);
 			} catch (err) {
+				// Ignore abort errors (expected on unmount)
+				if (err instanceof Error && err.name === "AbortError") {
+					return;
+				}
 				if (err instanceof Error) {
 					console.error("Error fetching stars:", err);
 					setError(err.message);
@@ -37,7 +41,7 @@ export const useGithubStars = () => {
 		getStars();
 
 		return () => {
-			abortController.abort();
+			abortController.abort("Component unmounted");
 		};
 	}, []);
 

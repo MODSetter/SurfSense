@@ -1,21 +1,19 @@
 """
-Podcast routes for task status polling and audio retrieval.
+Podcast routes for CRUD operations and audio streaming.
 
 These routes support the podcast generation feature in new-chat.
-Note: The old Chat-based podcast generation has been removed.
+Frontend polls GET /podcasts/{podcast_id} to check status field.
 """
 
 import os
 from pathlib import Path
 
-from celery.result import AsyncResult
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.celery_app import celery_app
 from app.db import (
     Permission,
     Podcast,
@@ -25,7 +23,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas import PodcastRead
-from app.users import current_active_user
+from app.users import current_active_user, current_optional_user
 from app.utils.rbac import check_permission
 
 router = APIRouter()
@@ -84,12 +82,17 @@ async def read_podcasts(
 async def read_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User | None = Depends(current_optional_user),
 ):
     """
     Get a specific podcast by ID.
-    Requires PODCASTS_READ permission for the search space.
+
+    Access is allowed if:
+    - User is authenticated with PODCASTS_READ permission, OR
+    - Podcast belongs to a publicly shared thread
     """
+    from app.services.public_chat_service import is_podcast_publicly_accessible
+
     try:
         result = await session.execute(select(Podcast).filter(Podcast.id == podcast_id))
         podcast = result.scalars().first()
@@ -100,16 +103,20 @@ async def read_podcast(
                 detail="Podcast not found",
             )
 
-        # Check permission for the search space
-        await check_permission(
-            session,
-            user,
-            podcast.search_space_id,
-            Permission.PODCASTS_READ.value,
-            "You don't have permission to read podcasts in this search space",
-        )
+        is_public = await is_podcast_publicly_accessible(session, podcast_id)
 
-        return podcast
+        if not is_public:
+            if not user:
+                raise HTTPException(status_code=401, detail="Authentication required")
+            await check_permission(
+                session,
+                user,
+                podcast.search_space_id,
+                Permission.PODCASTS_READ.value,
+                "You don't have permission to read podcasts in this search space",
+            )
+
+        return PodcastRead.from_orm_with_entries(podcast)
     except HTTPException as he:
         raise he
     except SQLAlchemyError:
@@ -161,46 +168,49 @@ async def delete_podcast(
 async def stream_podcast(
     podcast_id: int,
     session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
+    user: User | None = Depends(current_optional_user),
 ):
     """
     Stream a podcast audio file.
-    Requires PODCASTS_READ permission for the search space.
+
+    Access is allowed if:
+    - User is authenticated with PODCASTS_READ permission, OR
+    - Podcast belongs to a publicly shared thread
 
     Note: Both /stream and /audio endpoints are supported for compatibility.
     """
+    from app.services.public_chat_service import is_podcast_publicly_accessible
+
     try:
         result = await session.execute(select(Podcast).filter(Podcast.id == podcast_id))
         podcast = result.scalars().first()
 
         if not podcast:
-            raise HTTPException(
-                status_code=404,
-                detail="Podcast not found",
+            raise HTTPException(status_code=404, detail="Podcast not found")
+
+        is_public = await is_podcast_publicly_accessible(session, podcast_id)
+
+        if not is_public:
+            if not user:
+                raise HTTPException(status_code=401, detail="Authentication required")
+
+            await check_permission(
+                session,
+                user,
+                podcast.search_space_id,
+                Permission.PODCASTS_READ.value,
+                "You don't have permission to access podcasts in this search space",
             )
 
-        # Check permission for the search space
-        await check_permission(
-            session,
-            user,
-            podcast.search_space_id,
-            Permission.PODCASTS_READ.value,
-            "You don't have permission to access podcasts in this search space",
-        )
-
-        # Get the file path
         file_path = podcast.file_location
 
-        # Check if the file exists
         if not file_path or not os.path.isfile(file_path):
             raise HTTPException(status_code=404, detail="Podcast audio file not found")
 
-        # Define a generator function to stream the file
         def iterfile():
             with open(file_path, mode="rb") as file_like:
                 yield from file_like
 
-        # Return a streaming response with appropriate headers
         return StreamingResponse(
             iterfile(),
             media_type="audio/mpeg",
@@ -215,63 +225,4 @@ async def stream_podcast(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error streaming podcast: {e!s}"
-        ) from e
-
-
-@router.get("/podcasts/task/{task_id}/status")
-async def get_podcast_task_status(
-    task_id: str,
-    user: User = Depends(current_active_user),
-):
-    """
-    Get the status of a podcast generation task.
-    Used by new-chat frontend to poll for completion.
-
-    Returns:
-    - status: "processing" | "success" | "error"
-    - podcast_id: (only if status == "success")
-    - title: (only if status == "success")
-    - error: (only if status == "error")
-    """
-    try:
-        result = AsyncResult(task_id, app=celery_app)
-
-        if result.ready():
-            # Task completed
-            if result.successful():
-                task_result = result.result
-                if isinstance(task_result, dict):
-                    if task_result.get("status") == "success":
-                        return {
-                            "status": "success",
-                            "podcast_id": task_result.get("podcast_id"),
-                            "title": task_result.get("title"),
-                            "transcript_entries": task_result.get("transcript_entries"),
-                        }
-                    else:
-                        return {
-                            "status": "error",
-                            "error": task_result.get("error", "Unknown error"),
-                        }
-                else:
-                    return {
-                        "status": "error",
-                        "error": "Unexpected task result format",
-                    }
-            else:
-                # Task failed
-                return {
-                    "status": "error",
-                    "error": str(result.result) if result.result else "Task failed",
-                }
-        else:
-            # Task still processing
-            return {
-                "status": "processing",
-                "state": result.state,
-            }
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error checking task status: {e!s}"
         ) from e

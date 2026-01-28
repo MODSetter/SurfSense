@@ -1,7 +1,6 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
@@ -30,7 +29,6 @@ interface ElectricProviderProps {
  * 5. Provides client via context - hooks should use useElectricClient()
  */
 export function ElectricProvider({ children }: ElectricProviderProps) {
-	const t = useTranslations("common");
 	const [electricClient, setElectricClient] = useState<ElectricClient | null>(null);
 	const [error, setError] = useState<Error | null>(null);
 	const {
@@ -117,7 +115,7 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 	const shouldShowLoading = hasToken && isUserLoaded && !!user?.id && !electricClient && !error;
 
 	// Use global loading hook with ownership tracking - prevents flash during transitions
-	useGlobalLoadingEffect(shouldShowLoading, t("initializing"), "default");
+	useGlobalLoadingEffect(shouldShowLoading);
 
 	// For non-authenticated pages (like landing page), render immediately with null context
 	// Also render immediately if user query failed (e.g., token expired)

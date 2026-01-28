@@ -12,5 +12,17 @@ if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
 		capture_pageview: "history_change",
 		// Enable session recording
 		capture_pageleave: true,
+		loaded: (posthog) => {
+			// Expose PostHog to window for console access and toolbar
+			if (typeof window !== "undefined") {
+				window.posthog = posthog;
+			}
+		},
 	});
+}
+
+// Always expose posthog to window for debugging/toolbar access
+// This allows testing feature flags even without POSTHOG_KEY configured
+if (typeof window !== "undefined") {
+	window.posthog = posthog;
 }

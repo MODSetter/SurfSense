@@ -86,10 +86,10 @@ export function LayoutDataProvider({
 		enabled: !!searchSpaceId,
 	});
 
-	// Fetch threads
+	// Fetch threads (40 total to allow up to 20 per section - shared/private)
 	const { data: threadsData } = useQuery({
-		queryKey: ["threads", searchSpaceId, { limit: 4 }],
-		queryFn: () => fetchThreads(Number(searchSpaceId), 4),
+		queryKey: ["threads", searchSpaceId, { limit: 40 }],
+		queryFn: () => fetchThreads(Number(searchSpaceId), 40),
 		enabled: !!searchSpaceId,
 	});
 

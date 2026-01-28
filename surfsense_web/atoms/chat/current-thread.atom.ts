@@ -19,6 +19,8 @@ interface CurrentThreadState {
 	addingCommentToMessageId: number | null;
 	/** Whether the right-side comments panel is collapsed (desktop only) */
 	commentsCollapsed: boolean;
+	publicShareEnabled: boolean;
+	publicShareToken: string | null;
 }
 
 const initialState: CurrentThreadState = {
@@ -27,6 +29,8 @@ const initialState: CurrentThreadState = {
 	hasComments: false,
 	addingCommentToMessageId: null,
 	commentsCollapsed: false,
+	publicShareEnabled: false,
+	publicShareToken: null,
 };
 
 export const currentThreadAtom = atom<CurrentThreadState>(initialState);
