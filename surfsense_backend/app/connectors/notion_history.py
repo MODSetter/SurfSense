@@ -77,6 +77,8 @@ class NotionHistoryConnector:
         self._pages_with_skipped_content: list[str] = []
         # Optional callback to notify about retry progress (for user notifications)
         self._on_retry_callback: RetryCallbackType | None = None
+        # Track if using legacy integration token (for upgrade notification)
+        self._using_legacy_token: bool = False
 
     def set_retry_callback(self, callback: RetryCallbackType | None) -> None:
         """
@@ -119,6 +121,18 @@ class NotionHistoryConnector:
 
             config_data = connector.config.copy()
 
+            # Check for legacy integration token format first
+            # (for connectors created before OAuth was implemented)
+            legacy_token = config_data.get("NOTION_INTEGRATION_TOKEN")
+            raw_access_token = config_data.get("access_token")
+
+            # Validate that we have some form of token
+            if not raw_access_token and not legacy_token:
+                raise ValueError(
+                    "Notion integration not properly connected. "
+                    "Please remove and re-add the Notion connector."
+                )
+
             # Decrypt credentials if they are encrypted
             token_encrypted = config_data.get("_token_encrypted", False)
             if token_encrypted and config.SECRET_KEY:
@@ -143,13 +157,38 @@ class NotionHistoryConnector:
                         f"Failed to decrypt Notion credentials for connector {self._connector_id}: {e!s}"
                     )
                     raise ValueError(
-                        f"Failed to decrypt Notion credentials: {e!s}"
+                        "Notion credentials could not be decrypted. "
+                        "Please remove and re-add the Notion connector."
                     ) from e
+
+            # Handle legacy format: convert NOTION_INTEGRATION_TOKEN to access_token
+            if not config_data.get("access_token") and legacy_token:
+                config_data["access_token"] = legacy_token
+                self._using_legacy_token = True
+                logger.info(
+                    f"Using legacy NOTION_INTEGRATION_TOKEN for connector {self._connector_id}"
+                )
+
+            # Final validation: ensure we have a valid access_token after all processing
+            final_token = config_data.get("access_token")
+            if not final_token or (isinstance(final_token, str) and not final_token.strip()):
+                raise ValueError(
+                    "Notion access token is invalid or empty. "
+                    "Please remove and re-add the Notion connector."
+                )
 
             try:
                 self._credentials = NotionAuthCredentialsBase.from_dict(config_data)
+            except KeyError as e:
+                raise ValueError(
+                    f"Notion credentials are incomplete (missing {e}). "
+                    "Please reconnect your Notion account."
+                ) from e
             except Exception as e:
-                raise ValueError(f"Invalid Notion credentials: {e!s}") from e
+                raise ValueError(
+                    f"Notion credentials format error: {e!s}. "
+                    "Please reconnect your Notion account."
+                ) from e
 
         # Check if token is expired and refreshable
         if self._credentials.is_expired and self._credentials.is_refreshable:
@@ -355,6 +394,15 @@ class NotionHistoryConnector:
             Number of pages with skipped content
         """
         return len(self._pages_with_skipped_content)
+
+    def is_using_legacy_token(self) -> bool:
+        """
+        Check if connector is using legacy integration token format.
+
+        Returns:
+            True if using legacy NOTION_INTEGRATION_TOKEN, False if using OAuth
+        """
+        return self._using_legacy_token
 
     def _record_skipped_content(self, page_title: str):
         """
