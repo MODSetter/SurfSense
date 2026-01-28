@@ -156,6 +156,39 @@ async def _check_and_trigger_schedules():
                             )
                             await session.commit()
                             continue
+
+                    # Special handling for Webcrawler - skip if no URLs configured
+                    elif (
+                        connector.connector_type
+                        == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR
+                    ):
+                        from app.utils.webcrawler_utils import parse_webcrawler_urls
+
+                        connector_config = connector.config or {}
+                        urls = parse_webcrawler_urls(connector_config.get("INITIAL_URLS"))
+
+                        if urls:
+                            task.delay(
+                                connector.id,
+                                connector.search_space_id,
+                                str(connector.user_id),
+                                None,  # start_date
+                                None,  # end_date
+                            )
+                        else:
+                            # No URLs configured - skip indexing but still update next_scheduled_at
+                            logger.info(
+                                f"Webcrawler connector {connector.id} has no URLs configured, "
+                                "skipping periodic indexing (will check again at next scheduled time)"
+                            )
+                            from datetime import timedelta
+
+                            connector.next_scheduled_at = now + timedelta(
+                                minutes=connector.indexing_frequency_minutes
+                            )
+                            await session.commit()
+                            continue
+
                     else:
                         task.delay(
                             connector.id,

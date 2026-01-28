@@ -18,6 +18,7 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+from app.utils.webcrawler_utils import parse_webcrawler_urls
 
 from .base import (
     check_document_by_unique_identifier,
@@ -97,13 +98,7 @@ async def index_crawled_urls(
         api_key = connector.config.get("FIRECRAWL_API_KEY")
 
         # Get URLs from connector config
-        initial_urls = connector.config.get("INITIAL_URLS", "")
-        if isinstance(initial_urls, str):
-            urls = [url.strip() for url in initial_urls.split("\n") if url.strip()]
-        elif isinstance(initial_urls, list):
-            urls = [url.strip() for url in initial_urls if url.strip()]
-        else:
-            urls = []
+        urls = parse_webcrawler_urls(connector.config.get("INITIAL_URLS"))
 
         logger.info(
             f"Starting crawled web page indexing for connector {connector_id} with {len(urls)} URLs"
