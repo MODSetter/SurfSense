@@ -1,6 +1,7 @@
 import logging
 
 from notion_client import AsyncClient
+from notion_client.errors import APIResponseError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -11,6 +12,17 @@ from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
 logger = logging.getLogger(__name__)
+
+# Known unsupported block types that Notion API doesn't expose
+# These will be skipped gracefully instead of failing the entire sync
+UNSUPPORTED_BLOCK_TYPE_ERRORS = [
+    "transcription is not supported",
+    "ai_block is not supported",
+    "is not supported via the API",
+]
+
+# Known unsupported block types to check before API calls
+UNSUPPORTED_BLOCK_TYPES = ["transcription", "ai_block"]
 
 
 class NotionHistoryConnector:
@@ -32,6 +44,8 @@ class NotionHistoryConnector:
         self._connector_id = connector_id
         self._credentials = credentials
         self._notion_client: AsyncClient | None = None
+        # Track pages with skipped unsupported content (for user notifications)
+        self._pages_with_skipped_content: list[str] = []
 
     async def _get_valid_token(self) -> str:
         """
@@ -163,6 +177,34 @@ class NotionHistoryConnector:
             await self._notion_client.aclose()
             self._notion_client = None
 
+    def get_pages_with_skipped_content(self) -> list[str]:
+        """
+        Get list of page titles that had unsupported content skipped.
+
+        Returns:
+            List of page titles with skipped content
+        """
+        return self._pages_with_skipped_content
+
+    def get_skipped_content_count(self) -> int:
+        """
+        Get count of pages that had unsupported content skipped.
+
+        Returns:
+            Number of pages with skipped content
+        """
+        return len(self._pages_with_skipped_content)
+
+    def _record_skipped_content(self, page_title: str):
+        """
+        Record that a page had unsupported content skipped.
+
+        Args:
+            page_title: Title of the page with skipped content
+        """
+        if page_title not in self._pages_with_skipped_content:
+            self._pages_with_skipped_content.append(page_title)
+
     async def __aenter__(self):
         """Async context manager entry."""
         return self
@@ -229,14 +271,21 @@ class NotionHistoryConnector:
 
         for page in pages:
             page_id = page["id"]
+            page_title = self.get_page_title(page)
 
-            # Get detailed page information
-            page_content = await self.get_page_content(page_id)
+            # Get detailed page information (pass title for skip tracking)
+            page_content, had_skipped_content = await self.get_page_content(
+                page_id, page_title
+            )
+
+            # Record if this page had skipped content
+            if had_skipped_content:
+                self._record_skipped_content(page_title)
 
             all_page_data.append(
                 {
                     "page_id": page_id,
-                    "title": self.get_page_title(page),
+                    "title": page_title,
                     "content": page_content,
                 }
             )
@@ -265,46 +314,85 @@ class NotionHistoryConnector:
         # If no title found, return the page ID as fallback
         return f"Untitled page ({page['id']})"
 
-    async def get_page_content(self, page_id):
+    async def get_page_content(
+        self, page_id: str, page_title: str | None = None
+    ) -> tuple[list, bool]:
         """
         Fetches the content (blocks) of a specific page.
 
         Args:
             page_id (str): The ID of the page to fetch
+            page_title (str, optional): Title of the page (for logging)
 
         Returns:
-            list: List of processed blocks from the page
+            tuple: (List of processed blocks, bool indicating if content was skipped)
         """
         notion = await self._get_client()
 
         blocks = []
         has_more = True
         cursor = None
+        skipped_blocks_count = 0
+        had_skipped_content = False
 
         # Paginate through all blocks
         while has_more:
-            if cursor:
-                response = await notion.blocks.children.list(
-                    block_id=page_id, start_cursor=cursor
-                )
-            else:
-                response = await notion.blocks.children.list(block_id=page_id)
+            try:
+                if cursor:
+                    response = await notion.blocks.children.list(
+                        block_id=page_id, start_cursor=cursor
+                    )
+                else:
+                    response = await notion.blocks.children.list(block_id=page_id)
 
-            blocks.extend(response["results"])
-            has_more = response["has_more"]
+                blocks.extend(response["results"])
+                has_more = response["has_more"]
 
-            if has_more:
-                cursor = response["next_cursor"]
+                if has_more:
+                    cursor = response["next_cursor"]
+
+            except APIResponseError as e:
+                error_message = str(e)
+                # Check if this is an unsupported block type error
+                if any(
+                    err in error_message for err in UNSUPPORTED_BLOCK_TYPE_ERRORS
+                ):
+                    logger.warning(
+                        f"Skipping page blocks due to unsupported block type in page {page_id}: {error_message}"
+                    )
+                    skipped_blocks_count += 1
+                    had_skipped_content = True
+                    # If we haven't fetched any blocks yet, return empty
+                    # If we have some blocks, continue with what we have
+                    has_more = False
+                    continue
+                elif "Could not find block" in error_message:
+                    logger.warning(
+                        f"Block not found in page {page_id}, continuing with available blocks: {error_message}"
+                    )
+                    has_more = False
+                    continue
+                # Re-raise other API errors
+                raise
+
+        if skipped_blocks_count > 0:
+            logger.info(
+                f"Page {page_id}: Skipped {skipped_blocks_count} unsupported block sections, "
+                f"successfully processed {len(blocks)} blocks"
+            )
 
         # Process nested blocks recursively
         processed_blocks = []
         for block in blocks:
-            processed_block = await self.process_block(block)
-            processed_blocks.append(processed_block)
+            processed_block, block_had_skips = await self.process_block(block)
+            if processed_block:  # Only add if block was processed successfully
+                processed_blocks.append(processed_block)
+            if block_had_skips:
+                had_skipped_content = True
 
-        return processed_blocks
+        return processed_blocks, had_skipped_content
 
-    async def process_block(self, block):
+    async def process_block(self, block) -> tuple[dict | None, bool]:
         """
         Processes a block and recursively fetches any child blocks.
 
@@ -312,12 +400,28 @@ class NotionHistoryConnector:
             block (dict): The block to process
 
         Returns:
-            dict: Processed block with content and children
+            tuple: (Processed block dict or None, bool indicating if content was skipped)
         """
         notion = await self._get_client()
 
         block_id = block["id"]
         block_type = block["type"]
+        had_skipped_content = False
+
+        # Check if this is a known unsupported block type before processing
+        if block_type in UNSUPPORTED_BLOCK_TYPES:
+            logger.debug(
+                f"Skipping unsupported block type: {block_type} (block_id: {block_id})"
+            )
+            return (
+                {
+                    "id": block_id,
+                    "type": block_type,
+                    "content": f"[{block_type} block - not supported by Notion API]",
+                    "children": [],
+                },
+                True,  # Content was skipped
+            )
 
         # Extract block content based on its type
         content = self.extract_block_content(block)
@@ -327,17 +431,48 @@ class NotionHistoryConnector:
         child_blocks = []
 
         if has_children:
-            # Fetch and process child blocks
-            children_response = await notion.blocks.children.list(block_id=block_id)
-            for child_block in children_response["results"]:
-                child_blocks.append(await self.process_block(child_block))
+            try:
+                # Fetch and process child blocks
+                children_response = await notion.blocks.children.list(
+                    block_id=block_id
+                )
+                for child_block in children_response["results"]:
+                    processed_child, child_had_skips = await self.process_block(
+                        child_block
+                    )
+                    if processed_child:
+                        child_blocks.append(processed_child)
+                    if child_had_skips:
+                        had_skipped_content = True
+            except APIResponseError as e:
+                error_message = str(e)
+                # Check if this is an unsupported block type error
+                if any(
+                    err in error_message for err in UNSUPPORTED_BLOCK_TYPE_ERRORS
+                ):
+                    logger.warning(
+                        f"Skipping children of block {block_id} due to unsupported block type: {error_message}"
+                    )
+                    had_skipped_content = True
+                    # Continue without children instead of failing
+                elif "Could not find block" in error_message:
+                    logger.warning(
+                        f"Block {block_id} children not accessible, skipping: {error_message}"
+                    )
+                    # Continue without children
+                else:
+                    # Re-raise other API errors
+                    raise
 
-        return {
-            "id": block_id,
-            "type": block_type,
-            "content": content,
-            "children": child_blocks,
-        }
+        return (
+            {
+                "id": block_id,
+                "type": block_type,
+                "content": content,
+                "children": child_blocks,
+            },
+            had_skipped_content,
+        )
 
     def extract_block_content(self, block):
         """

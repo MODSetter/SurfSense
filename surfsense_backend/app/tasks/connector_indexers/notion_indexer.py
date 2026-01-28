@@ -156,6 +156,13 @@ async def index_notion_pages(
                 start_date=start_date_iso, end_date=end_date_iso
             )
             logger.info(f"Found {len(pages)} Notion pages")
+
+            # Get count of pages that had unsupported content skipped
+            pages_with_skipped_content = notion_client.get_skipped_content_count()
+            if pages_with_skipped_content > 0:
+                logger.info(
+                    f"{pages_with_skipped_content} pages had Notion AI content skipped (not available via API)"
+                )
         except Exception as e:
             await task_logger.log_task_failure(
                 log_entry,
@@ -437,12 +444,22 @@ async def index_notion_pages(
         logger.info(f"Final commit: Total {documents_indexed} documents processed")
         await session.commit()
 
-        # Prepare result message
+        # Get final count of pages with skipped Notion AI content
+        pages_with_skipped_ai_content = notion_client.get_skipped_content_count()
+
+        # Prepare result message with user-friendly notification about skipped content
         result_message = None
         if skipped_pages:
             result_message = f"Processed {total_processed} pages. Skipped {len(skipped_pages)} pages: {', '.join(skipped_pages)}"
         else:
             result_message = f"Processed {total_processed} pages."
+
+        # Add user-friendly message about skipped Notion AI content
+        if pages_with_skipped_ai_content > 0:
+            result_message += (
+                f" Audio transcriptions and AI summaries from Notion aren't accessible "
+                f"via their API — all other content was saved."
+            )
 
         # Log success
         await task_logger.log_task_success(
@@ -453,6 +470,7 @@ async def index_notion_pages(
                 "documents_indexed": documents_indexed,
                 "documents_skipped": documents_skipped,
                 "skipped_pages_count": len(skipped_pages),
+                "pages_with_skipped_ai_content": pages_with_skipped_ai_content,
                 "result_message": result_message,
             },
         )
@@ -464,10 +482,18 @@ async def index_notion_pages(
         # Clean up the async client
         await notion_client.close()
 
+        # Return user-friendly message about skipped AI content (if any)
+        # This will be shown in the notification to inform users
+        user_notification_message = None
+        if pages_with_skipped_ai_content > 0:
+            user_notification_message = (
+                "Some Notion AI content couldn't be synced (Notion API limitation)"
+            )
+
         return (
             total_processed,
-            None,
-        )  # Return None on success (result_message is for logging only)
+            user_notification_message,
+        )  # Return message about skipped AI content if any
 
     except SQLAlchemyError as db_error:
         await session.rollback()
