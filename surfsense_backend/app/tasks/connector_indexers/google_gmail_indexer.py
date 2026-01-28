@@ -24,6 +24,7 @@ from app.utils.document_converters import (
 )
 
 from .base import (
+    calculate_date_range,
     check_document_by_unique_identifier,
     check_duplicate_document_by_hash,
     get_connector_by_id,
@@ -164,10 +165,22 @@ async def index_google_gmail_messages(
             credentials, session, user_id, connector_id
         )
 
+        # Calculate date range using last_indexed_at if dates not provided
+        # This ensures Gmail uses the same date logic as other connectors
+        # (uses last_indexed_at → now, or 365 days back for first-time indexing)
+        calculated_start_date, calculated_end_date = calculate_date_range(
+            connector, start_date, end_date, default_days_back=365
+        )
+
         # Fetch recent Google gmail messages
-        logger.info(f"Fetching recent emails for connector {connector_id}")
+        logger.info(
+            f"Fetching emails for connector {connector_id} "
+            f"from {calculated_start_date} to {calculated_end_date}"
+        )
         messages, error = await gmail_connector.get_recent_messages(
-            max_results=max_messages, start_date=start_date, end_date=end_date
+            max_results=max_messages,
+            start_date=calculated_start_date,
+            end_date=calculated_end_date,
         )
 
         if error:
