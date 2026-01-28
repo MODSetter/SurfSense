@@ -55,7 +55,9 @@ def _clear_generating_podcast(search_space_id: int) -> None:
         client = redis.from_url(redis_url, decode_responses=True)
         key = f"podcast:generating:{search_space_id}"
         client.delete(key)
-        logger.info(f"Cleared generating podcast key for search_space_id={search_space_id}")
+        logger.info(
+            f"Cleared generating podcast key for search_space_id={search_space_id}"
+        )
     except Exception as e:
         logger.warning(f"Could not clear generating podcast key: {e}")
 
@@ -119,9 +121,7 @@ async def _generate_content_podcast(
 ) -> dict:
     """Generate content-based podcast and update existing record."""
     async with get_celery_session_maker()() as session:
-        result = await session.execute(
-            select(Podcast).filter(Podcast.id == podcast_id)
-        )
+        result = await session.execute(select(Podcast).filter(Podcast.id == podcast_id))
         podcast = result.scalars().first()
 
         if not podcast:

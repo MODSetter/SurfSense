@@ -257,14 +257,11 @@ class PublicChatResponse(BaseModel):
 
 
 class CloneInitResponse(BaseModel):
-
-
     thread_id: int
     search_space_id: int
     share_token: str
 
 
 class CompleteCloneResponse(BaseModel):
-
     status: str
     message_count: int

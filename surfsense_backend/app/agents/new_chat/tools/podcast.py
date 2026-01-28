@@ -54,7 +54,9 @@ def set_generating_podcast(search_space_id: int, podcast_id: int) -> None:
         client = get_redis_client()
         client.setex(_redis_key(search_space_id), 1800, str(podcast_id))
     except Exception as e:
-        print(f"[generate_podcast] Warning: Could not set generating podcast in Redis: {e}")
+        print(
+            f"[generate_podcast] Warning: Could not set generating podcast in Redis: {e}"
+        )
 
 
 def create_generate_podcast_tool(

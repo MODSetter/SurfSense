@@ -941,7 +941,11 @@ async def index_connector_content(
                     f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
                 )
                 index_crawled_urls_task.delay(
-                    connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+                    connector_id,
+                    search_space_id,
+                    str(user.id),
+                    indexing_from,
+                    indexing_to,
                 )
                 response_message = "Web page indexing started in the background."
 

@@ -21,6 +21,8 @@ def parse_webcrawler_urls(initial_urls: str | list | None) -> list[str]:
     if isinstance(initial_urls, str):
         return [url.strip() for url in initial_urls.split("\n") if url.strip()]
     elif isinstance(initial_urls, list):
-        return [url.strip() for url in initial_urls if isinstance(url, str) and url.strip()]
+        return [
+            url.strip() for url in initial_urls if isinstance(url, str) and url.strip()
+        ]
     else:
         return []

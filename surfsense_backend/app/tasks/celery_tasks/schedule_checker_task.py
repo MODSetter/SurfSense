@@ -165,7 +165,9 @@ async def _check_and_trigger_schedules():
                         from app.utils.webcrawler_utils import parse_webcrawler_urls
 
                         connector_config = connector.config or {}
-                        urls = parse_webcrawler_urls(connector_config.get("INITIAL_URLS"))
+                        urls = parse_webcrawler_urls(
+                            connector_config.get("INITIAL_URLS")
+                        )
 
                         if urls:
                             task.delay(
