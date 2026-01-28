@@ -360,7 +360,9 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         skipped_text = ""
         if skipped_count and skipped_count > 0:
             skipped_item_text = "item" if skipped_count == 1 else "items"
-            skipped_text = f" ({skipped_count} {skipped_item_text} skipped - already indexed)"
+            skipped_text = (
+                f" ({skipped_count} {skipped_item_text} skipped - already indexed)"
+            )
 
         # If there's an error message but items were indexed, treat it as a warning (partial success)
         # If is_warning is True, treat it as success even with 0 items (e.g., duplicates found)
@@ -392,7 +394,9 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
                     message = "Already up to date! No new items to sync."
             else:
                 item_text = "item" if indexed_count == 1 else "items"
-                message = f"Now searchable! {indexed_count} {item_text} synced{skipped_text}."
+                message = (
+                    f"Now searchable! {indexed_count} {item_text} synced{skipped_text}."
+                )
             status = "completed"
 
         metadata_updates = {

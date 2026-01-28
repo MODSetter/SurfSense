@@ -1190,7 +1190,7 @@ async def _run_indexing_with_notifications(
             end_date=end_date,
             update_last_indexed=False,
         )
-        
+
         # Handle both 2-tuple and 3-tuple returns for backwards compatibility
         if len(result) == 3:
             documents_processed, documents_skipped, error_or_warning = result
