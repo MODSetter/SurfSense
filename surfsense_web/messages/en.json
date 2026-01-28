@@ -708,7 +708,8 @@
 		"all": "All",
 		"unread": "Unread",
 		"connectors": "Connectors",
-		"all_connectors": "All connectors"
+		"all_connectors": "All connectors",
+		"close": "Close"
 	},
 	"errors": {
 		"something_went_wrong": "Something went wrong",

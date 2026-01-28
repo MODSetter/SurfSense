@@ -2,6 +2,7 @@ import {
 	type GetNotificationsRequest,
 	type GetNotificationsResponse,
 	type GetUnreadCountResponse,
+	type InboxItemTypeEnum,
 	getNotificationsRequest,
 	getNotificationsResponse,
 	getUnreadCountResponse,
@@ -92,11 +93,19 @@ class NotificationsApiService {
 	 * Get unread notification count with split between total and recent
 	 * - total_unread: All unread notifications
 	 * - recent_unread: Unread within sync window (last 14 days)
+	 * @param searchSpaceId - Optional search space ID to filter by
+	 * @param type - Optional notification type to filter by (type-safe enum)
 	 */
-	getUnreadCount = async (searchSpaceId?: number): Promise<GetUnreadCountResponse> => {
+	getUnreadCount = async (
+		searchSpaceId?: number,
+		type?: InboxItemTypeEnum
+	): Promise<GetUnreadCountResponse> => {
 		const params = new URLSearchParams();
 		if (searchSpaceId !== undefined) {
 			params.append("search_space_id", String(searchSpaceId));
+		}
+		if (type) {
+			params.append("type", type);
 		}
 		const queryString = params.toString();
 

@@ -318,9 +318,13 @@ export function useInbox(
 
 			try {
 				// STEP 1: Fetch server counts (total and recent) - guaranteed accurate
-				console.log("[useInbox] Fetching unread count from server");
+				console.log(
+					"[useInbox] Fetching unread count from server",
+					typeFilter ? `for type: ${typeFilter}` : "for all types"
+				);
 				const serverCounts = await notificationsApiService.getUnreadCount(
-					searchSpaceId ?? undefined
+					searchSpaceId ?? undefined,
+					typeFilter ?? undefined
 				);
 
 				if (mounted) {

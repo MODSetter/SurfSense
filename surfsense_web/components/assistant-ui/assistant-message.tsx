@@ -5,13 +5,16 @@ import {
 	MessagePrimitive,
 	useAssistantState,
 } from "@assistant-ui/react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
 	addingCommentToMessageIdAtom,
+	clearTargetCommentIdAtom,
+	commentsCollapsedAtom,
 	commentsEnabledAtom,
+	targetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { BranchPicker } from "@/components/assistant-ui/branch-picker";
@@ -102,6 +105,7 @@ export const AssistantMessage: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const dbMessageId = parseMessageId(messageId);
 	const commentsEnabled = useAtomValue(commentsEnabledAtom);
+	const commentsCollapsed = useAtomValue(commentsCollapsedAtom);
 	const [addingCommentToMessageId, setAddingCommentToMessageId] = useAtom(
 		addingCommentToMessageIdAtom
 	);
@@ -115,10 +119,22 @@ export const AssistantMessage: FC = () => {
 	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
 	const isMessageStreaming = isThreadRunning && isLastMessage;
 
-	const { data: commentsData } = useComments({
+	const { data: commentsData, isSuccess: commentsLoaded } = useComments({
 		messageId: dbMessageId ?? 0,
 		enabled: !!dbMessageId,
 	});
+
+	// Target comment navigation - read target from global atom
+	const targetCommentId = useAtomValue(targetCommentIdAtom);
+	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
+
+	// Check if target comment belongs to this message (including replies)
+	const hasTargetComment = useMemo(() => {
+		if (!targetCommentId || !commentsData?.comments) return false;
+		return commentsData.comments.some(
+			(c) => c.id === targetCommentId || c.replies?.some((r) => r.id === targetCommentId)
+		);
+	}, [targetCommentId, commentsData]);
 
 	const commentCount = commentsData?.total_count ?? 0;
 	const hasComments = commentCount > 0;
@@ -144,6 +160,24 @@ export const AssistantMessage: FC = () => {
 		return () => observer.disconnect();
 	}, []);
 
+	// Auto-open sheet on mobile/tablet when this message has the target comment
+	useEffect(() => {
+		if (hasTargetComment && !isDesktop && commentsLoaded) {
+			setIsSheetOpen(true);
+		}
+	}, [hasTargetComment, isDesktop, commentsLoaded]);
+
+	// Scroll message into view when it contains target comment (desktop)
+	useEffect(() => {
+		if (hasTargetComment && isDesktop && commentsLoaded && messageRef.current) {
+			// Small delay to ensure DOM is ready after comments render
+			const timeoutId = setTimeout(() => {
+				messageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+			}, 100);
+			return () => clearTimeout(timeoutId);
+		}
+	}, [hasTargetComment, isDesktop, commentsLoaded]);
+
 	const showCommentTrigger = searchSpaceId && commentsEnabled && !isMessageStreaming && dbMessageId;
 
 	// Determine sheet side based on screen size
@@ -157,8 +191,8 @@ export const AssistantMessage: FC = () => {
 		>
 			<AssistantMessageInner />
 
-			{/* Desktop comment panel - only on lg screens and above */}
-			{searchSpaceId && commentsEnabled && !isMessageStreaming && (
+			{/* Desktop comment panel - only on lg screens and above, hidden when collapsed */}
+			{searchSpaceId && commentsEnabled && !isMessageStreaming && !commentsCollapsed && (
 				<div className="absolute left-full top-0 ml-4 hidden lg:block w-72">
 					<div
 						className={`sticky top-3 ${showCommentPanel ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
