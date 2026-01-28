@@ -34,6 +34,7 @@ from app.services.chat_session_state_service import (
 )
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
+from app.utils.content_utils import bootstrap_history_from_db
 
 
 def format_attachments_as_context(attachments: list[ChatAttachment]) -> str:
@@ -205,13 +206,13 @@ async def stream_new_chat(
     mentioned_document_ids: list[int] | None = None,
     mentioned_surfsense_doc_ids: list[int] | None = None,
     checkpoint_id: str | None = None,
+    needs_history_bootstrap: bool = False,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
 
     This uses the Vercel AI SDK Data Stream Protocol (SSE format) for streaming.
     The chat_id is used as LangGraph's thread_id for memory/checkpointing.
-    Message history can be passed from the frontend for context.
 
     Args:
         user_query: The user's query
@@ -221,6 +222,7 @@ async def stream_new_chat(
         user_id: The current user's UUID string (for memory tools and session state)
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
         attachments: Optional attachments with extracted content
+        needs_history_bootstrap: If True, load message history from DB (for cloned chats)
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
         mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
         checkpoint_id: Optional checkpoint ID to rewind/fork from (for edit/reload operations)
@@ -300,12 +302,28 @@ async def stream_new_chat(
             connector_service=connector_service,
             checkpointer=checkpointer,
             user_id=user_id,  # Pass user ID for memory tools
+            thread_id=chat_id,  # Pass chat ID for podcast association
             agent_config=agent_config,  # Pass prompt configuration
             firecrawl_api_key=firecrawl_api_key,  # Pass Firecrawl API key if configured
         )
 
-        # Build input with message history from frontend
+        # Build input with message history
         langchain_messages = []
+
+        # Bootstrap history for cloned chats (no LangGraph checkpoint exists yet)
+        if needs_history_bootstrap:
+            langchain_messages = await bootstrap_history_from_db(session, chat_id)
+
+            # Clear the flag so we don't bootstrap again on next message
+            from app.db import NewChatThread
+
+            thread_result = await session.execute(
+                select(NewChatThread).filter(NewChatThread.id == chat_id)
+            )
+            thread = thread_result.scalars().first()
+            if thread:
+                thread.needs_history_bootstrap = False
+                await session.commit()
 
         # Fetch mentioned documents if any (with chunks for proper citations)
         mentioned_documents: list[Document] = []

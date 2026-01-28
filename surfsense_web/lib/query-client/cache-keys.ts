@@ -79,4 +79,7 @@ export const cacheKeys = {
 	comments: {
 		byMessage: (messageId: number) => ["comments", "message", messageId] as const,
 	},
+	publicChat: {
+		byToken: (shareToken: string) => ["public-chat", shareToken] as const,
+	},
 };

@@ -41,12 +41,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import {
-	type ConnectorIndexingMetadata,
-	isConnectorIndexingMetadata,
-	isNewMentionMetadata,
-	type NewMentionMetadata,
-} from "@/contracts/types/inbox.types";
+import { isConnectorIndexingMetadata, isNewMentionMetadata } from "@/contracts/types/inbox.types";
 import type { InboxItem } from "@/hooks/use-inbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -210,6 +205,7 @@ export function InboxSidebar({
 		[inboxItems]
 	);
 
+	// Status tab includes: connector indexing, document processing
 	const statusItems = useMemo(
 		() =>
 			inboxItems.filter(
