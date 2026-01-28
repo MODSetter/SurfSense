@@ -2,6 +2,7 @@
 Notion connector indexer.
 """
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -28,6 +29,10 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type alias for retry callback
+# Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds) -> None
+RetryCallbackType = Callable[[str, int, int, float], Awaitable[None]]
+
 
 async def index_notion_pages(
     session: AsyncSession,
@@ -37,6 +42,7 @@ async def index_notion_pages(
     start_date: str | None = None,
     end_date: str | None = None,
     update_last_indexed: bool = True,
+    on_retry_callback: RetryCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index Notion pages from all accessible pages.
@@ -49,6 +55,9 @@ async def index_notion_pages(
         start_date: Start date for indexing (YYYY-MM-DD format)
         end_date: End date for indexing (YYYY-MM-DD format)
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        on_retry_callback: Optional callback for retry progress notifications.
+            Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds)
+            retry_reason is one of: 'rate_limit', 'server_error', 'timeout'
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -137,6 +146,10 @@ async def index_notion_pages(
         notion_client = NotionHistoryConnector(
             session=session, connector_id=connector_id
         )
+
+        # Set retry callback if provided (for user notifications during rate limits)
+        if on_retry_callback:
+            notion_client.set_retry_callback(on_retry_callback)
 
         logger.info(f"Fetching Notion pages from {start_date_iso} to {end_date_iso}")
 

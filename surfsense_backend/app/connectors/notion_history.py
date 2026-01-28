@@ -1,4 +1,7 @@
+import asyncio
 import logging
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
 from notion_client import AsyncClient
 from notion_client.errors import APIResponseError
@@ -12,6 +15,32 @@ from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
 logger = logging.getLogger(__name__)
+
+# Type variable for generic return type
+T = TypeVar("T")
+
+# ============================================================================
+# Retry Configuration (per Notion API docs)
+# https://developers.notion.com/reference/request-limits
+# https://developers.notion.com/reference/status-codes
+# ============================================================================
+MAX_RETRIES = 5
+BASE_RETRY_DELAY = 1.0  # seconds
+MAX_RETRY_DELAY = 60.0  # seconds (Notion's max request timeout)
+
+# Type alias for retry callback function
+# Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds) -> None
+# retry_reason: 'rate_limit', 'server_error', 'timeout'
+# This callback can be used to update notifications during retries
+RetryCallbackType = Callable[[str, int, int, float], Awaitable[None]]
+
+# HTTP status codes that should trigger a retry
+# 429: rate_limited - Use Retry-After header
+# 500: internal_server_error - Unexpected error
+# 502: bad_gateway - Failed upstream connection
+# 503: service_unavailable - Notion unavailable or timeout
+# 504: gateway_timeout - Notion timed out
+RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
 
 # Known unsupported block types that Notion API doesn't expose
 # These will be skipped gracefully instead of failing the entire sync
@@ -46,6 +75,24 @@ class NotionHistoryConnector:
         self._notion_client: AsyncClient | None = None
         # Track pages with skipped unsupported content (for user notifications)
         self._pages_with_skipped_content: list[str] = []
+        # Optional callback to notify about retry progress (for user notifications)
+        self._on_retry_callback: RetryCallbackType | None = None
+
+    def set_retry_callback(self, callback: RetryCallbackType | None) -> None:
+        """
+        Set a callback function to be called when API calls are retried.
+
+        This allows the indexer to receive notifications about rate limits
+        and other transient errors, which can be used to update user-facing
+        notifications.
+
+        Args:
+            callback: Async function with signature:
+                      callback(retry_reason, attempt, max_attempts, wait_seconds) -> None
+                      retry_reason: 'rate_limit', 'server_error', or 'timeout'
+                      Set to None to disable callbacks.
+        """
+        self._on_retry_callback = callback
 
     async def _get_valid_token(self) -> str:
         """
@@ -171,6 +218,120 @@ class NotionHistoryConnector:
             self._notion_client = AsyncClient(auth=token)
         return self._notion_client
 
+    async def _api_call_with_retry(
+        self,
+        api_func: Callable[..., Awaitable[T]],
+        *args: Any,
+        on_retry: RetryCallbackType | None = None,
+        **kwargs: Any,
+    ) -> T:
+        """
+        Execute Notion API call with retry logic and exponential backoff.
+
+        Handles retryable errors per Notion API documentation:
+        - 429 rate_limited: Uses Retry-After header value
+        - 500 internal_server_error: Retries with exponential backoff
+        - 502 bad_gateway: Retries with exponential backoff
+        - 503 service_unavailable: Retries with exponential backoff
+        - 504 gateway_timeout: Retries with exponential backoff
+
+        Args:
+            api_func: The async Notion API function to call
+            *args: Positional arguments to pass to the API function
+            on_retry: Optional callback to notify about retry progress.
+                      Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds)
+                      retry_reason is one of: 'rate_limit', 'server_error', 'timeout'
+            **kwargs: Keyword arguments to pass to the API function
+
+        Returns:
+            The result from the API call
+
+        Raises:
+            APIResponseError: If all retries are exhausted or error is not retryable
+        """
+        last_exception: APIResponseError | None = None
+        retry_delay = BASE_RETRY_DELAY
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                return await api_func(*args, **kwargs)
+
+            except APIResponseError as e:
+                last_exception = e
+
+                # Check if this error is retryable
+                if e.status not in RETRYABLE_STATUS_CODES:
+                    # Not retryable (e.g., 400, 401, 403, 404) - raise immediately
+                    raise
+
+                # Check if we've exhausted retries
+                if attempt == MAX_RETRIES - 1:
+                    logger.error(
+                        f"Notion API call failed after {MAX_RETRIES} retries. "
+                        f"Last error: {e.status} {e.code}"
+                    )
+                    raise
+
+                # Determine retry reason and wait time based on status code
+                if e.status == 429:
+                    # Rate limited - use Retry-After header if available
+                    retry_reason = "rate_limit"
+                    retry_after = e.headers.get("Retry-After") if e.headers else None
+                    if retry_after:
+                        try:
+                            wait_time = float(retry_after)
+                        except (ValueError, TypeError):
+                            wait_time = retry_delay
+                    else:
+                        wait_time = retry_delay
+                    logger.warning(
+                        f"Notion API rate limited (429). "
+                        f"Waiting {wait_time}s. Attempt {attempt + 1}/{MAX_RETRIES}"
+                    )
+                elif e.status == 504:
+                    # Gateway timeout
+                    retry_reason = "timeout"
+                    wait_time = min(retry_delay, MAX_RETRY_DELAY)
+                    logger.warning(
+                        f"Notion API timeout ({e.status}). "
+                        f"Retrying in {wait_time}s. Attempt {attempt + 1}/{MAX_RETRIES}"
+                    )
+                else:
+                    # Server error (500/502/503) - use exponential backoff
+                    retry_reason = "server_error"
+                    wait_time = min(retry_delay, MAX_RETRY_DELAY)
+                    logger.warning(
+                        f"Notion API error {e.status} ({e.code}). "
+                        f"Retrying in {wait_time}s. Attempt {attempt + 1}/{MAX_RETRIES}"
+                    )
+
+                # Notify about retry via callback (for user notifications)
+                # Call before sleeping so user sees the message while we wait
+                if on_retry:
+                    try:
+                        await on_retry(
+                            retry_reason,
+                            attempt + 1,  # 1-based for display
+                            MAX_RETRIES,
+                            wait_time,
+                        )
+                    except Exception as callback_error:
+                        # Don't let callback errors break the retry logic
+                        logger.warning(
+                            f"Retry callback failed: {callback_error}"
+                        )
+
+                # Wait before retrying
+                await asyncio.sleep(wait_time)
+
+                # Exponential backoff for next attempt
+                retry_delay = min(retry_delay * 2, MAX_RETRY_DELAY)
+
+        # This should not be reached, but just in case
+        if last_exception:
+            raise last_exception
+        raise RuntimeError("Unexpected state in retry logic")
+
     async def close(self):
         """Close the async client connection."""
         if self._notion_client:
@@ -228,7 +389,7 @@ class NotionHistoryConnector:
 
         # Build the filter for the search
         # Note: Notion API requires specific filter structure
-        search_params = {}
+        search_params: dict[str, Any] = {}
 
         # Filter for pages only (not databases)
         search_params["filter"] = {"value": "page", "property": "object"}
@@ -259,7 +420,10 @@ class NotionHistoryConnector:
             if cursor:
                 search_params["start_cursor"] = cursor
 
-            search_results = await notion.search(**search_params)
+            # Use retry wrapper for search API call
+            search_results = await self._api_call_with_retry(
+                notion.search, on_retry=self._on_retry_callback, **search_params
+            )
 
             pages.extend(search_results["results"])
             has_more = search_results.get("has_more", False)
@@ -338,12 +502,20 @@ class NotionHistoryConnector:
         # Paginate through all blocks
         while has_more:
             try:
+                # Use retry wrapper for blocks.children.list API call
                 if cursor:
-                    response = await notion.blocks.children.list(
-                        block_id=page_id, start_cursor=cursor
+                    response = await self._api_call_with_retry(
+                        notion.blocks.children.list,
+                        on_retry=self._on_retry_callback,
+                        block_id=page_id,
+                        start_cursor=cursor,
                     )
                 else:
-                    response = await notion.blocks.children.list(block_id=page_id)
+                    response = await self._api_call_with_retry(
+                        notion.blocks.children.list,
+                        on_retry=self._on_retry_callback,
+                        block_id=page_id,
+                    )
 
                 blocks.extend(response["results"])
                 has_more = response["has_more"]
@@ -372,7 +544,7 @@ class NotionHistoryConnector:
                     )
                     has_more = False
                     continue
-                # Re-raise other API errors
+                # Re-raise other API errors (after retry exhaustion)
                 raise
 
         if skipped_blocks_count > 0:
@@ -432,9 +604,11 @@ class NotionHistoryConnector:
 
         if has_children:
             try:
-                # Fetch and process child blocks
-                children_response = await notion.blocks.children.list(
-                    block_id=block_id
+                # Use retry wrapper for blocks.children.list API call
+                children_response = await self._api_call_with_retry(
+                    notion.blocks.children.list,
+                    on_retry=self._on_retry_callback,
+                    block_id=block_id,
                 )
                 for child_block in children_response["results"]:
                     processed_child, child_had_skips = await self.process_block(
@@ -461,7 +635,7 @@ class NotionHistoryConnector:
                     )
                     # Continue without children
                 else:
-                    # Re-raise other API errors
+                    # Re-raise other API errors (after retry exhaustion)
                     raise
 
         return (
