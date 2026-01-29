@@ -163,6 +163,7 @@ class IncentiveTaskType(str, Enum):
     """
 
     GITHUB_STAR = "GITHUB_STAR"
+    REDDIT_FOLLOW = "REDDIT_FOLLOW"
     # Future tasks can be added here:
     # GITHUB_ISSUE = "GITHUB_ISSUE"
     # SOCIAL_SHARE = "SOCIAL_SHARE"
@@ -177,6 +178,12 @@ INCENTIVE_TASKS_CONFIG = {
         "description": "Show your support by starring SurfSense on GitHub",
         "pages_reward": 100,
         "action_url": "https://github.com/MODSetter/SurfSense",
+    },
+    IncentiveTaskType.REDDIT_FOLLOW: {
+        "title": "Join our Subreddit",
+        "description": "Join the SurfSense community on Reddit",
+        "pages_reward": 100,
+        "action_url": "https://www.reddit.com/r/SurfSense/",
     },
     # Future tasks can be configured here:
     # IncentiveTaskType.GITHUB_ISSUE: {
