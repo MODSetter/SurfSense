@@ -314,10 +314,28 @@ async def _get_llm_config_by_id(
 ) -> dict | None:
     """
     Get an LLM config by ID as a dictionary. Returns database config for positive IDs,
-    global config for negative IDs, or None if ID is None.
+    global config for negative IDs, Auto mode config for ID 0, or None if ID is None.
     """
     if config_id is None:
         return None
+
+    # Auto mode (ID 0) - uses LiteLLM Router for load balancing
+    if config_id == 0:
+        return {
+            "id": 0,
+            "name": "Auto (Load Balanced)",
+            "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling",
+            "provider": "AUTO",
+            "custom_provider": None,
+            "model_name": "auto",
+            "api_base": None,
+            "litellm_params": {},
+            "system_instructions": "",
+            "use_default_system_instructions": True,
+            "citations_enabled": True,
+            "is_global": True,
+            "is_auto_mode": True,
+        }
 
     if config_id < 0:
         # Global config - find from YAML

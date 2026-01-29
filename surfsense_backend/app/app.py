@@ -9,7 +9,7 @@ from app.agents.new_chat.checkpointer import (
     close_checkpointer,
     setup_checkpointer_tables,
 )
-from app.config import config
+from app.config import config, initialize_llm_router
 from app.db import User, create_db_and_tables, get_async_session
 from app.routes import router as crud_router
 from app.schemas import UserCreate, UserRead, UserUpdate
@@ -23,6 +23,8 @@ async def lifespan(app: FastAPI):
     await create_db_and_tables()
     # Setup LangGraph checkpointer tables for conversation persistence
     await setup_checkpointer_tables()
+    # Initialize LLM Router for Auto mode load balancing
+    initialize_llm_router()
     # Seed Surfsense documentation
     await seed_surfsense_docs()
     yield

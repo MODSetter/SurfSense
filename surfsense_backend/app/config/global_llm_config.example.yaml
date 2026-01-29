@@ -10,9 +10,38 @@
 # These configurations will be available to all users as a convenient option
 # Users can choose to use these global configs or add their own
 #
+# AUTO MODE (Recommended):
+# - Auto mode (ID: 0) uses LiteLLM Router to automatically load balance across all global configs
+# - This helps avoid rate limits by distributing requests across multiple providers
+# - New users are automatically assigned Auto mode by default
+# - Configure router_settings below to customize the load balancing behavior
+#
 # Structure matches NewLLMConfig:
 # - LLM model configuration (provider, model_name, api_key, etc.)
 # - Prompt configuration (system_instructions, citations_enabled)
+
+# Router Settings for Auto Mode
+# These settings control how the LiteLLM Router distributes requests across models
+router_settings:
+  # Routing strategy options:
+  # - "usage-based-routing": Routes to deployment with lowest current usage (recommended for rate limits)
+  # - "simple-shuffle": Random distribution with optional RPM/TPM weighting
+  # - "least-busy": Routes to least busy deployment
+  # - "latency-based-routing": Routes based on response latency
+  routing_strategy: "usage-based-routing"
+  
+  # Number of retries before failing
+  num_retries: 3
+  
+  # Number of failures allowed before cooling down a deployment
+  allowed_fails: 3
+  
+  # Cooldown time in seconds after allowed_fails is exceeded
+  cooldown_time: 60
+  
+  # Fallback models (optional) - when primary fails, try these
+  # Format: [{"primary_model": ["fallback1", "fallback2"]}]
+  # fallbacks: []
 
 global_llm_configs:
   # Example: OpenAI GPT-4 Turbo with citations enabled
@@ -23,6 +52,9 @@ global_llm_configs:
     model_name: "gpt-4-turbo-preview"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
+    # Rate limits for load balancing (requests/tokens per minute)
+    rpm: 500  # Requests per minute
+    tpm: 100000  # Tokens per minute
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
@@ -39,6 +71,8 @@ global_llm_configs:
     model_name: "claude-3-opus-20240229"
     api_key: "sk-ant-your-anthropic-api-key-here"
     api_base: ""
+    rpm: 1000
+    tpm: 100000
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
@@ -54,6 +88,8 @@ global_llm_configs:
     model_name: "gpt-3.5-turbo"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
+    rpm: 3500  # GPT-3.5 has higher rate limits
+    tpm: 200000
     litellm_params:
       temperature: 0.5
       max_tokens: 2000
@@ -69,6 +105,8 @@ global_llm_configs:
     model_name: "deepseek-chat"
     api_key: "your-deepseek-api-key-here"
     api_base: "https://api.deepseek.com/v1"
+    rpm: 60
+    tpm: 100000
     litellm_params:
       temperature: 0.7
       max_tokens: 4000
@@ -92,6 +130,8 @@ global_llm_configs:
     model_name: "llama3-70b-8192"
     api_key: "your-groq-api-key-here"
     api_base: ""
+    rpm: 30  # Groq has lower rate limits on free tier
+    tpm: 14400
     litellm_params:
       temperature: 0.7
       max_tokens: 8000
@@ -100,6 +140,7 @@ global_llm_configs:
     citations_enabled: true
 
 # Notes:
+# - ID 0 is reserved for "Auto" mode - uses LiteLLM Router for load balancing
 # - Use negative IDs to distinguish global configs from user configs (NewLLMConfig in DB)
 # - IDs should be unique and sequential (e.g., -1, -2, -3, etc.)
 # - The 'api_key' field will not be exposed to users via API
@@ -107,3 +148,5 @@ global_llm_configs:
 # - use_default_system_instructions: true = use SURFSENSE_SYSTEM_INSTRUCTIONS when system_instructions is empty
 # - citations_enabled: true = include citation instructions, false = include anti-citation instructions
 # - All standard LiteLLM providers are supported
+# - rpm/tpm: Optional rate limits for load balancing (requests/tokens per minute)
+#   These help the router distribute load evenly and avoid rate limit errors

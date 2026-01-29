@@ -1215,8 +1215,12 @@ async def stream_new_chat(
 
     except Exception as e:
         # Handle any errors
+        import traceback
+
         error_message = f"Error during chat: {e!s}"
         print(f"[stream_new_chat] {error_message}")
+        print(f"[stream_new_chat] Exception type: {type(e).__name__}")
+        print(f"[stream_new_chat] Traceback:\n{traceback.format_exc()}")
 
         # Close any open text block
         if current_text_id is not None:

@@ -53,8 +53,12 @@ export default function OnboardPage() {
 		}
 	}, []);
 
-	// Check if onboarding is already complete
-	const isOnboardingComplete = preferences.agent_llm_id && preferences.document_summary_llm_id;
+	// Check if onboarding is already complete (including 0 for Auto mode)
+	const isOnboardingComplete =
+		preferences.agent_llm_id !== null &&
+		preferences.agent_llm_id !== undefined &&
+		preferences.document_summary_llm_id !== null &&
+		preferences.document_summary_llm_id !== undefined;
 
 	// If onboarding is already complete, redirect immediately
 	useEffect(() => {
