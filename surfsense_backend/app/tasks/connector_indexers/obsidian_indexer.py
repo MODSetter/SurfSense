@@ -28,6 +28,7 @@ from app.utils.document_converters import (
 from .base import (
     build_document_metadata_string,
     check_document_by_unique_identifier,
+    check_duplicate_document_by_hash,
     get_connector_by_id,
     get_current_timestamp,
     logger,
@@ -426,6 +427,22 @@ async def index_obsidian_vault(
                     indexed_count += 1
 
                 else:
+                    # Document doesn't exist by unique_identifier_hash
+                    # Check if a document with the same content_hash exists (from another connector)
+                    with session.no_autoflush:
+                        duplicate_by_content = await check_duplicate_document_by_hash(
+                            session, content_hash
+                        )
+
+                    if duplicate_by_content:
+                        logger.info(
+                            f"Obsidian note {title} already indexed by another connector "
+                            f"(existing document ID: {duplicate_by_content.id}, "
+                            f"type: {duplicate_by_content.document_type}). Skipping."
+                        )
+                        skipped_count += 1
+                        continue
+
                     # Create new document
                     logger.info(f"Indexing new note: {title}")
 

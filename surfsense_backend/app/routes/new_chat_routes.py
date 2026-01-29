@@ -670,7 +670,9 @@ async def delete_thread(
         ) from None
 
 
-@router.post("/threads/{thread_id}/complete-clone", response_model=CompleteCloneResponse)
+@router.post(
+    "/threads/{thread_id}/complete-clone", response_model=CompleteCloneResponse
+)
 async def complete_clone(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -702,7 +704,9 @@ async def complete_clone(
             raise HTTPException(status_code=400, detail="Clone already completed")
 
         if not thread.cloned_from_thread_id:
-            raise HTTPException(status_code=400, detail="No source thread to clone from")
+            raise HTTPException(
+                status_code=400, detail="No source thread to clone from"
+            )
 
         message_count = await complete_clone_content(
             session=session,

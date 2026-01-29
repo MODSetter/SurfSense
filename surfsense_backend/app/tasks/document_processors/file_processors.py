@@ -55,7 +55,9 @@ LLAMACLOUD_RETRYABLE_EXCEPTIONS = (
 )
 
 # Timeout calculation constants
-UPLOAD_BYTES_PER_SECOND_SLOW = 100 * 1024  # 100 KB/s (conservative for slow connections)
+UPLOAD_BYTES_PER_SECOND_SLOW = (
+    100 * 1024
+)  # 100 KB/s (conservative for slow connections)
 MIN_UPLOAD_TIMEOUT = 120  # Minimum 2 minutes for any file
 MAX_UPLOAD_TIMEOUT = 1800  # Maximum 30 minutes for very large files
 BASE_JOB_TIMEOUT = 600  # 10 minutes base for job processing
@@ -219,19 +221,19 @@ async def find_existing_document_with_migration(
 def calculate_upload_timeout(file_size_bytes: int) -> float:
     """
     Calculate appropriate upload timeout based on file size.
-    
+
     Assumes a conservative slow connection speed to handle worst-case scenarios.
-    
+
     Args:
         file_size_bytes: Size of the file in bytes
-        
+
     Returns:
         Timeout in seconds
     """
     # Calculate time needed at slow connection speed
     # Add 50% buffer for network variability and SSL overhead
     estimated_time = (file_size_bytes / UPLOAD_BYTES_PER_SECOND_SLOW) * 1.5
-    
+
     # Clamp to reasonable bounds
     return max(MIN_UPLOAD_TIMEOUT, min(estimated_time, MAX_UPLOAD_TIMEOUT))
 
@@ -239,21 +241,21 @@ def calculate_upload_timeout(file_size_bytes: int) -> float:
 def calculate_job_timeout(estimated_pages: int, file_size_bytes: int) -> float:
     """
     Calculate job processing timeout based on page count and file size.
-    
+
     Args:
         estimated_pages: Estimated number of pages
         file_size_bytes: Size of the file in bytes
-        
+
     Returns:
         Timeout in seconds
     """
     # Base timeout + time per page
     page_based_timeout = BASE_JOB_TIMEOUT + (estimated_pages * PER_PAGE_JOB_TIMEOUT)
-    
+
     # Also consider file size (large images take longer to process)
     # ~1 minute per 10MB of file size
     size_based_timeout = BASE_JOB_TIMEOUT + (file_size_bytes / (10 * 1024 * 1024)) * 60
-    
+
     # Use the larger of the two estimates
     return max(page_based_timeout, size_based_timeout)
 
@@ -284,18 +286,18 @@ async def parse_with_llamacloud_retry(
     """
     import os
     import random
-    
+
     from llama_cloud_services import LlamaParse
     from llama_cloud_services.parse.utils import ResultType
 
     # Get file size for timeout calculations
     file_size_bytes = os.path.getsize(file_path)
     file_size_mb = file_size_bytes / (1024 * 1024)
-    
+
     # Calculate dynamic timeouts based on file size and page count
     upload_timeout = calculate_upload_timeout(file_size_bytes)
     job_timeout = calculate_job_timeout(estimated_pages, file_size_bytes)
-    
+
     # HTTP client timeouts - scaled based on file size
     # Write timeout is critical for large file uploads
     custom_timeout = httpx.Timeout(
@@ -304,7 +306,7 @@ async def parse_with_llamacloud_retry(
         write=upload_timeout,  # Dynamic based on file size (upload time)
         pool=120.0,  # 2 minutes to acquire connection from pool
     )
-    
+
     logging.info(
         f"LlamaCloud upload configured: file_size={file_size_mb:.1f}MB, "
         f"pages={estimated_pages}, upload_timeout={upload_timeout:.0f}s, "
@@ -335,14 +337,14 @@ async def parse_with_llamacloud_retry(
 
                 # Parse the file asynchronously
                 result = await parser.aparse(file_path)
-                
+
                 # Success - log if we had previous failures
                 if attempt > 1:
                     logging.info(
                         f"LlamaCloud upload succeeded on attempt {attempt} after "
                         f"{len(attempt_errors)} failures"
                     )
-                
+
                 return result
 
         except LLAMACLOUD_RETRYABLE_EXCEPTIONS as e:
@@ -355,8 +357,7 @@ async def parse_with_llamacloud_retry(
                 # Calculate exponential backoff with jitter
                 # Base delay doubles each attempt, capped at max delay
                 base_delay = min(
-                    LLAMACLOUD_BASE_DELAY * (2 ** (attempt - 1)),
-                    LLAMACLOUD_MAX_DELAY
+                    LLAMACLOUD_BASE_DELAY * (2 ** (attempt - 1)), LLAMACLOUD_MAX_DELAY
                 )
                 # Add random jitter (±25%) to prevent thundering herd
                 jitter = base_delay * 0.25 * (2 * random.random() - 1)

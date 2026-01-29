@@ -143,6 +143,7 @@ export default function NewChatPage() {
 	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
 	const [isCompletingClone, setIsCompletingClone] = useState(false);
+	const [cloneError, setCloneError] = useState(false);
 	const [threadId, setThreadId] = useState<number | null>(null);
 	const [currentThread, setCurrentThread] = useState<ThreadRecord | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
@@ -333,7 +334,7 @@ export default function NewChatPage() {
 
 	// Handle clone completion when thread has clone_pending flag
 	useEffect(() => {
-		if (!currentThread?.clone_pending || isCompletingClone) return;
+		if (!currentThread?.clone_pending || isCompletingClone || cloneError) return;
 
 		const completeClone = async () => {
 			setIsCompletingClone(true);
@@ -351,13 +352,14 @@ export default function NewChatPage() {
 			} catch (error) {
 				console.error("[NewChatPage] Failed to complete clone:", error);
 				toast.error("Failed to copy chat content. Please try again.");
+				setCloneError(true);
 			} finally {
 				setIsCompletingClone(false);
 			}
 		};
 
 		completeClone();
-	}, [currentThread?.clone_pending, currentThread?.id, isCompletingClone, initializeThread, queryClient]);
+	}, [currentThread?.clone_pending, currentThread?.id, isCompletingClone, cloneError, initializeThread, queryClient]);
 
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
 	const searchParams = useSearchParams();

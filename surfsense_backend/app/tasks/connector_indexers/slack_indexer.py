@@ -22,6 +22,7 @@ from .base import (
     build_document_metadata_markdown,
     calculate_date_range,
     check_document_by_unique_identifier,
+    check_duplicate_document_by_hash,
     get_connector_by_id,
     get_current_timestamp,
     logger,
@@ -324,6 +325,22 @@ async def index_slack_messages(
                             documents_indexed += 1
                             logger.info(f"Successfully updated Slack message {msg_ts}")
                             continue
+
+                    # Document doesn't exist by unique_identifier_hash
+                    # Check if a document with the same content_hash exists (from another connector)
+                    with session.no_autoflush:
+                        duplicate_by_content = await check_duplicate_document_by_hash(
+                            session, content_hash
+                        )
+
+                    if duplicate_by_content:
+                        logger.info(
+                            f"Slack message {msg_ts} in channel {channel_name} already indexed by another connector "
+                            f"(existing document ID: {duplicate_by_content.id}, "
+                            f"type: {duplicate_by_content.document_type}). Skipping."
+                        )
+                        documents_skipped += 1
+                        continue
 
                     # Document doesn't exist - create new one
                     # Process chunks

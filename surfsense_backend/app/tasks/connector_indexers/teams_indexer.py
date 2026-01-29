@@ -21,6 +21,7 @@ from .base import (
     build_document_metadata_markdown,
     calculate_date_range,
     check_document_by_unique_identifier,
+    check_duplicate_document_by_hash,
     get_connector_by_id,
     get_current_timestamp,
     logger,
@@ -353,6 +354,27 @@ async def index_teams_messages(
                                         message_id,
                                     )
                                     continue
+
+                            # Document doesn't exist by unique_identifier_hash
+                            # Check if a document with the same content_hash exists (from another connector)
+                            with session.no_autoflush:
+                                duplicate_by_content = (
+                                    await check_duplicate_document_by_hash(
+                                        session, content_hash
+                                    )
+                                )
+
+                            if duplicate_by_content:
+                                logger.info(
+                                    "Teams message %s in channel %s already indexed by another connector "
+                                    "(existing document ID: %s, type: %s). Skipping.",
+                                    message_id,
+                                    channel_name,
+                                    duplicate_by_content.id,
+                                    duplicate_by_content.document_type,
+                                )
+                                documents_skipped += 1
+                                continue
 
                             # Document doesn't exist - create new one
                             # Process chunks

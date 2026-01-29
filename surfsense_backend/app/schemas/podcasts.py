@@ -59,6 +59,8 @@ class PodcastRead(PodcastBase):
             "search_space_id": obj.search_space_id,
             "status": obj.status,
             "created_at": obj.created_at,
-            "transcript_entries": len(obj.podcast_transcript) if obj.podcast_transcript else None,
+            "transcript_entries": len(obj.podcast_transcript)
+            if obj.podcast_transcript
+            else None,
         }
         return cls(**data)

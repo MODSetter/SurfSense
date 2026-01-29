@@ -23,6 +23,7 @@ from app.utils.document_converters import (
 from .base import (
     calculate_date_range,
     check_document_by_unique_identifier,
+    check_duplicate_document_by_hash,
     get_connector_by_id,
     get_current_timestamp,
     logger,
@@ -283,6 +284,22 @@ async def index_jira_issues(
                             f"Successfully updated Jira issue {issue_identifier}"
                         )
                         continue
+
+                # Document doesn't exist by unique_identifier_hash
+                # Check if a document with the same content_hash exists (from another connector)
+                with session.no_autoflush:
+                    duplicate_by_content = await check_duplicate_document_by_hash(
+                        session, content_hash
+                    )
+
+                if duplicate_by_content:
+                    logger.info(
+                        f"Jira issue {issue_identifier} already indexed by another connector "
+                        f"(existing document ID: {duplicate_by_content.id}, "
+                        f"type: {duplicate_by_content.document_type}). Skipping."
+                    )
+                    documents_skipped += 1
+                    continue
 
                 # Document doesn't exist - create new one
                 # Generate summary with metadata
