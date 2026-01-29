@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtom } from "jotai";
 import {
 	AlertCircle,
 	AtSign,
@@ -16,7 +17,6 @@ import {
 	Search,
 	X,
 } from "lucide-react";
-import { useAtom } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

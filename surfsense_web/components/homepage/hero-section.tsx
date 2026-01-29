@@ -109,10 +109,10 @@ export function HeroSection() {
 				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
 				your team.
 			</p>
-		<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
-			<GetStartedButton />
-			<ContactSalesButton />
-		</div>
+			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
+				<GetStartedButton />
+				<ContactSalesButton />
+			</div>
 			<div
 				ref={containerRef}
 				className="relative mx-auto max-w-7xl rounded-[32px] border border-neutral-200/50 bg-neutral-100 p-2 backdrop-blur-lg md:p-4 dark:border-neutral-700 dark:bg-neutral-800/50"

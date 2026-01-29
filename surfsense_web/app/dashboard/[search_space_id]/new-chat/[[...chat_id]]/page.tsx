@@ -359,7 +359,14 @@ export default function NewChatPage() {
 		};
 
 		completeClone();
-	}, [currentThread?.clone_pending, currentThread?.id, isCompletingClone, cloneError, initializeThread, queryClient]);
+	}, [
+		currentThread?.clone_pending,
+		currentThread?.id,
+		isCompletingClone,
+		cloneError,
+		initializeThread,
+		queryClient,
+	]);
 
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
 	const searchParams = useSearchParams();

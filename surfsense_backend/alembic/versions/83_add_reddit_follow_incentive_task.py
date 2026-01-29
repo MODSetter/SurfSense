@@ -9,8 +9,6 @@ Changes:
 
 from collections.abc import Sequence
 
-import sqlalchemy as sa
-
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -27,7 +25,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """Remove REDDIT_FOLLOW from incentivetasktype enum.
-    
+
     Note: PostgreSQL doesn't support removing values from enums directly.
     This would require recreating the enum type, which is complex and risky.
     For safety, we leave the enum value in place during downgrade.
