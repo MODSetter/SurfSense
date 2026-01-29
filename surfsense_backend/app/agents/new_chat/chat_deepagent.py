@@ -10,8 +10,8 @@ from collections.abc import Sequence
 from typing import Any
 
 from deepagents import create_deep_agent
+from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
-from langchain_litellm import ChatLiteLLM
 from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -114,7 +114,7 @@ def _map_connectors_to_searchable_types(
 
 
 async def create_surfsense_deep_agent(
-    llm: ChatLiteLLM,
+    llm: BaseChatModel,
     search_space_id: int,
     db_session: AsyncSession,
     connector_service: ConnectorService,

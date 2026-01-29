@@ -135,14 +135,19 @@ class GlobalNewLLMConfigRead(BaseModel):
     Schema for reading global LLM configs from YAML.
     Global configs have negative IDs and no search_space_id.
     API key is hidden for security.
+
+    ID 0 is reserved for Auto mode which uses LiteLLM Router for load balancing.
     """
 
-    id: int = Field(..., description="Negative ID for global configs")
+    id: int = Field(
+        ...,
+        description="Config ID: 0 for Auto mode, negative for global configs",
+    )
     name: str
     description: str | None = None
 
     # LLM Model Configuration (no api_key)
-    provider: str  # String because YAML doesn't enforce enum
+    provider: str  # String because YAML doesn't enforce enum, "AUTO" for Auto mode
     custom_provider: str | None = None
     model_name: str
     api_base: str | None = None
@@ -154,6 +159,7 @@ class GlobalNewLLMConfigRead(BaseModel):
     citations_enabled: bool = True
 
     is_global: bool = True  # Always true for global configs
+    is_auto_mode: bool = False  # True only for Auto mode (ID 0)
 
 
 # =============================================================================

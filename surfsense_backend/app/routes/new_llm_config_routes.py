@@ -50,13 +50,33 @@ async def get_global_new_llm_configs(
     These are pre-configured by the system administrator and available to all users.
     API keys are not exposed through this endpoint.
 
-    Global configs have negative IDs to distinguish from user-created configs.
+    Includes:
+    - Auto mode (ID 0): Uses LiteLLM Router for automatic load balancing
+    - Global configs (negative IDs): Individual pre-configured LLM providers
     """
     try:
         global_configs = config.GLOBAL_LLM_CONFIGS
 
-        # Transform to new structure, hiding API keys
-        safe_configs = []
+        # Start with Auto mode as the first option (recommended default)
+        safe_configs = [
+            {
+                "id": 0,
+                "name": "Auto (Load Balanced)",
+                "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling. Recommended for most users.",
+                "provider": "AUTO",
+                "custom_provider": None,
+                "model_name": "auto",
+                "api_base": None,
+                "litellm_params": {},
+                "system_instructions": "",
+                "use_default_system_instructions": True,
+                "citations_enabled": True,
+                "is_global": True,
+                "is_auto_mode": True,
+            }
+        ]
+
+        # Add individual global configs
         for cfg in global_configs:
             safe_config = {
                 "id": cfg.get("id"),

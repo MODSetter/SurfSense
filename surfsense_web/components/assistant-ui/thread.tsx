@@ -485,7 +485,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		if (agentLlmId === null || agentLlmId === undefined) return false;
 
 		// Check if the configured model actually exists
-		if (agentLlmId < 0) {
+		// Auto mode (ID 0) and global configs (negative IDs) are in globalConfigs
+		if (agentLlmId <= 0) {
 			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
 		}
 		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;

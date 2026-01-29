@@ -1,7 +1,16 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Bot, CheckCircle, FileText, RefreshCw, RotateCcw, Save } from "lucide-react";
+import {
+	AlertCircle,
+	Bot,
+	CheckCircle,
+	FileText,
+	RefreshCw,
+	RotateCcw,
+	Save,
+	Shuffle,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -24,6 +33,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
 const ROLE_DESCRIPTIONS = {
 	agent: {
@@ -71,8 +81,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const [assignments, setAssignments] = useState({
-		agent_llm_id: preferences.agent_llm_id || "",
-		document_summary_llm_id: preferences.document_summary_llm_id || "",
+		agent_llm_id: preferences.agent_llm_id ?? "",
+		document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 	});
 
 	const [hasChanges, setHasChanges] = useState(false);
@@ -80,8 +90,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 	useEffect(() => {
 		const newAssignments = {
-			agent_llm_id: preferences.agent_llm_id || "",
-			document_summary_llm_id: preferences.document_summary_llm_id || "",
+			agent_llm_id: preferences.agent_llm_id ?? "",
+			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 		};
 		setAssignments(newAssignments);
 		setHasChanges(false);
@@ -97,8 +107,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 		// Check if there are changes compared to current preferences
 		const currentPrefs = {
-			agent_llm_id: preferences.agent_llm_id || "",
-			document_summary_llm_id: preferences.document_summary_llm_id || "",
+			agent_llm_id: preferences.agent_llm_id ?? "",
+			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 		};
 
 		const hasChangesNow = Object.keys(newAssignments).some(
@@ -141,13 +151,19 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 	const handleReset = () => {
 		setAssignments({
-			agent_llm_id: preferences.agent_llm_id || "",
-			document_summary_llm_id: preferences.document_summary_llm_id || "",
+			agent_llm_id: preferences.agent_llm_id ?? "",
+			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 		});
 		setHasChanges(false);
 	};
 
-	const isAssignmentComplete = assignments.agent_llm_id && assignments.document_summary_llm_id;
+	const isAssignmentComplete =
+		assignments.agent_llm_id !== "" &&
+		assignments.agent_llm_id !== null &&
+		assignments.agent_llm_id !== undefined &&
+		assignments.document_summary_llm_id !== "" &&
+		assignments.document_summary_llm_id !== null &&
+		assignments.document_summary_llm_id !== undefined;
 
 	// Combine global and custom configs (new system)
 	const allConfigs = [
@@ -300,22 +316,47 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																	<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
 																		Global Configurations
 																	</div>
-																	{globalConfigs.map((config) => (
-																		<SelectItem key={config.id} value={config.id.toString()}>
-																			<div className="flex items-center gap-2">
-																				<Badge variant="outline" className="text-xs">
-																					{config.provider}
-																				</Badge>
-																				<span>{config.name}</span>
-																				<span className="text-muted-foreground">
-																					({config.model_name})
-																				</span>
-																				<Badge variant="secondary" className="text-xs">
-																					🌐 Global
-																				</Badge>
-																			</div>
-																		</SelectItem>
-																	))}
+																	{globalConfigs.map((config) => {
+																		const isAutoMode =
+																			"is_auto_mode" in config && config.is_auto_mode;
+																		return (
+																			<SelectItem key={config.id} value={config.id.toString()}>
+																				<div className="flex items-center gap-2">
+																					{isAutoMode ? (
+																						<Badge
+																							variant="outline"
+																							className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-700"
+																						>
+																							<Shuffle className="size-3 mr-1" />
+																							AUTO
+																						</Badge>
+																					) : (
+																						<Badge variant="outline" className="text-xs">
+																							{config.provider}
+																						</Badge>
+																					)}
+																					<span>{config.name}</span>
+																					{!isAutoMode && (
+																						<span className="text-muted-foreground">
+																							({config.model_name})
+																						</span>
+																					)}
+																					{isAutoMode ? (
+																						<Badge
+																							variant="secondary"
+																							className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+																						>
+																							Recommended
+																						</Badge>
+																					) : (
+																						<Badge variant="secondary" className="text-xs">
+																							🌐 Global
+																						</Badge>
+																					)}
+																				</div>
+																			</SelectItem>
+																		);
+																	})}
 																</>
 															)}
 
@@ -349,27 +390,65 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 												</div>
 
 												{assignedConfig && (
-													<div className="mt-2 md:mt-3 p-2 md:p-3 bg-muted/50 rounded-lg">
+													<div
+														className={cn(
+															"mt-2 md:mt-3 p-2 md:p-3 rounded-lg",
+															"is_auto_mode" in assignedConfig && assignedConfig.is_auto_mode
+																? "bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50"
+																: "bg-muted/50"
+														)}
+													>
 														<div className="flex items-center gap-1.5 md:gap-2 text-xs md:text-sm flex-wrap">
-															<Bot className="w-3 h-3 md:w-4 md:h-4 shrink-0" />
+															{"is_auto_mode" in assignedConfig && assignedConfig.is_auto_mode ? (
+																<Shuffle className="w-3 h-3 md:w-4 md:h-4 shrink-0 text-violet-600 dark:text-violet-400" />
+															) : (
+																<Bot className="w-3 h-3 md:w-4 md:h-4 shrink-0" />
+															)}
 															<span className="font-medium">Assigned:</span>
-															<Badge variant="secondary" className="text-[10px] md:text-xs">
-																{assignedConfig.provider}
-															</Badge>
-															<span>{assignedConfig.name}</span>
-															{"is_global" in assignedConfig && assignedConfig.is_global && (
-																<Badge variant="outline" className="text-[9px] md:text-xs">
-																	🌐 Global
+															{"is_auto_mode" in assignedConfig && assignedConfig.is_auto_mode ? (
+																<Badge
+																	variant="secondary"
+																	className="text-[10px] md:text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+																>
+																	AUTO
+																</Badge>
+															) : (
+																<Badge variant="secondary" className="text-[10px] md:text-xs">
+																	{assignedConfig.provider}
 																</Badge>
 															)}
+															<span>{assignedConfig.name}</span>
+															{"is_auto_mode" in assignedConfig && assignedConfig.is_auto_mode ? (
+																<Badge
+																	variant="outline"
+																	className="text-[9px] md:text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-700"
+																>
+																	Recommended
+																</Badge>
+															) : (
+																"is_global" in assignedConfig &&
+																assignedConfig.is_global && (
+																	<Badge variant="outline" className="text-[9px] md:text-xs">
+																		🌐 Global
+																	</Badge>
+																)
+															)}
 														</div>
-														<div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
-															Model: {assignedConfig.model_name}
-														</div>
-														{assignedConfig.api_base && (
-															<div className="text-[10px] md:text-xs text-muted-foreground">
-																Base: {assignedConfig.api_base}
+														{"is_auto_mode" in assignedConfig && assignedConfig.is_auto_mode ? (
+															<div className="text-[10px] md:text-xs text-violet-600 dark:text-violet-400 mt-0.5 md:mt-1">
+																Automatically load balances across all available LLM providers
 															</div>
+														) : (
+															<>
+																<div className="text-[10px] md:text-xs text-muted-foreground mt-0.5 md:mt-1">
+																	Model: {assignedConfig.model_name}
+																</div>
+																{assignedConfig.api_base && (
+																	<div className="text-[10px] md:text-xs text-muted-foreground">
+																		Base: {assignedConfig.api_base}
+																	</div>
+																)}
+															</>
 														)}
 													</div>
 												)}

@@ -136,14 +136,15 @@ export const getDefaultSystemInstructionsResponse = z.object({
 
 /**
  * Global NewLLMConfig - from YAML, has negative IDs
+ * ID 0 is reserved for "Auto" mode which uses LiteLLM Router for load balancing
  */
 export const globalNewLLMConfig = z.object({
-	id: z.number(), // Negative IDs for global configs
+	id: z.number(), // 0 for Auto mode, negative IDs for global configs
 	name: z.string(),
 	description: z.string().nullable().optional(),
 
 	// LLM Model Configuration (no api_key)
-	provider: z.string(), // String because YAML doesn't enforce enum
+	provider: z.string(), // String because YAML doesn't enforce enum, "AUTO" for Auto mode
 	custom_provider: z.string().nullable().optional(),
 	model_name: z.string(),
 	api_base: z.string().nullable().optional(),
@@ -155,6 +156,7 @@ export const globalNewLLMConfig = z.object({
 	citations_enabled: z.boolean().default(true),
 
 	is_global: z.literal(true),
+	is_auto_mode: z.boolean().optional().default(false), // True only for Auto mode (ID 0)
 });
 
 export const getGlobalNewLLMConfigsResponse = z.array(globalNewLLMConfig);
