@@ -53,7 +53,9 @@ async def clone_public_chat_endpoint(
     source_thread = await get_thread_by_share_token(session, share_token)
 
     if not source_thread:
-        raise HTTPException(status_code=404, detail="Chat not found or no longer public")
+        raise HTTPException(
+            status_code=404, detail="Chat not found or no longer public"
+        )
 
     target_search_space_id = await get_user_default_search_space(session, user.id)
 

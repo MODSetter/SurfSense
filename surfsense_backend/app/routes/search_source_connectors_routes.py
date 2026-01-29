@@ -187,6 +187,7 @@ async def create_search_source_connector(
                 user_id=str(user.id),
                 connector_type=db_connector.connector_type,
                 frequency_minutes=db_connector.indexing_frequency_minutes,
+                connector_config=db_connector.config,
             )
             if not success:
                 logger.warning(
@@ -646,6 +647,7 @@ async def index_connector_content(
 
         # Handle different connector types
         response_message = ""
+        indexing_started = True
         # Use UTC for consistency with last_indexed_at storage
         today_str = datetime.now(UTC).strftime("%Y-%m-%d")
 
@@ -921,14 +923,31 @@ async def index_connector_content(
 
         elif connector.connector_type == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import index_crawled_urls_task
+            from app.utils.webcrawler_utils import parse_webcrawler_urls
 
-            logger.info(
-                f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_crawled_urls_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Web page indexing started in the background."
+            # Check if URLs are configured before triggering indexing
+            connector_config = connector.config or {}
+            urls = parse_webcrawler_urls(connector_config.get("INITIAL_URLS"))
+
+            if not urls:
+                # URLs are optional - skip indexing gracefully
+                logger.info(
+                    f"Webcrawler connector {connector_id} has no URLs configured, skipping indexing"
+                )
+                response_message = "No URLs configured for this connector. Add URLs in the connector settings to enable indexing."
+                indexing_started = False
+            else:
+                logger.info(
+                    f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                )
+                index_crawled_urls_task.delay(
+                    connector_id,
+                    search_space_id,
+                    str(user.id),
+                    indexing_from,
+                    indexing_to,
+                )
+                response_message = "Web page indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.OBSIDIAN_CONNECTOR:
             from app.config import config as app_config
@@ -1025,6 +1044,7 @@ async def index_connector_content(
 
         return {
             "message": response_message,
+            "indexing_started": indexing_started,
             "connector_id": connector_id,
             "search_space_id": search_space_id,
             "indexing_from": indexing_from,
@@ -1223,8 +1243,15 @@ async def _run_indexing_with_notifications(
             indexing_kwargs["on_retry_callback"] = on_retry_callback
 
         # Run the indexing function
-        documents_processed, error_or_warning = await indexing_function(**indexing_kwargs)
-        current_indexed_count = documents_processed
+        # Some indexers return (indexed, error), others return (indexed, skipped, error)
+        result = await indexing_function(**indexing_kwargs)
+
+        # Handle both 2-tuple and 3-tuple returns for backwards compatibility
+        if len(result) == 3:
+            documents_processed, documents_skipped, error_or_warning = result
+        else:
+            documents_processed, error_or_warning = result
+            documents_skipped = None
 
         # Update connector timestamp if function provided and indexing was successful
         if documents_processed > 0 and update_timestamp_func:
@@ -1252,6 +1279,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=documents_processed,
                     error_message=error_or_warning,  # Show errors even if some documents were indexed
+                    skipped_count=documents_skipped,
                 )
                 await (
                     session.commit()
@@ -1278,6 +1306,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=documents_processed,
                     error_message=error_or_warning,  # Show errors even if some documents were indexed
+                    skipped_count=documents_skipped,
                 )
                 await (
                     session.commit()
@@ -1319,6 +1348,7 @@ async def _run_indexing_with_notifications(
                             indexed_count=0,
                             error_message=notification_message,  # Pass as warning, not error
                             is_warning=True,  # Flag to indicate this is a warning, not an error
+                            skipped_count=documents_skipped,
                         )
                         await (
                             session.commit()
@@ -1334,6 +1364,7 @@ async def _run_indexing_with_notifications(
                             notification=notification,
                             indexed_count=0,
                             error_message=error_or_warning,
+                            skipped_count=documents_skipped,
                         )
                         await (
                             session.commit()
@@ -1355,6 +1386,7 @@ async def _run_indexing_with_notifications(
                         notification=notification,
                         indexed_count=0,
                         error_message=None,  # No error - sync succeeded
+                        skipped_count=documents_skipped,
                     )
                     await (
                         session.commit()
@@ -1372,6 +1404,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=0,
                     error_message=str(e),
+                    skipped_count=None,  # Unknown on exception
                 )
             except Exception as notif_error:
                 logger.error(f"Failed to update notification: {notif_error!s}")

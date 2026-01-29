@@ -291,6 +291,9 @@ async def complete_clone_content(
 
                     if old_podcast_id and old_podcast_id in podcast_id_map:
                         result_data["podcast_id"] = podcast_id_map[old_podcast_id]
+                    elif old_podcast_id:
+                        # Podcast couldn't be cloned (not ready), remove reference
+                        result_data.pop("podcast_id", None)
 
         new_message = NewChatMessage(
             thread_id=target_thread.id,
