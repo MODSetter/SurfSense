@@ -1180,7 +1180,8 @@ async def _run_indexing_with_notifications(
             )
 
         # Run the indexing function
-        documents_processed, error_or_warning = await indexing_function(
+        # Some indexers return (indexed, error), others return (indexed, skipped, error)
+        result = await indexing_function(
             session=session,
             connector_id=connector_id,
             search_space_id=search_space_id,
@@ -1189,6 +1190,13 @@ async def _run_indexing_with_notifications(
             end_date=end_date,
             update_last_indexed=False,
         )
+
+        # Handle both 2-tuple and 3-tuple returns for backwards compatibility
+        if len(result) == 3:
+            documents_processed, documents_skipped, error_or_warning = result
+        else:
+            documents_processed, error_or_warning = result
+            documents_skipped = None
 
         # Update connector timestamp if function provided and indexing was successful
         if documents_processed > 0 and update_timestamp_func:
@@ -1216,6 +1224,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=documents_processed,
                     error_message=error_or_warning,  # Show errors even if some documents were indexed
+                    skipped_count=documents_skipped,
                 )
                 await (
                     session.commit()
@@ -1242,6 +1251,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=documents_processed,
                     error_message=error_or_warning,  # Show errors even if some documents were indexed
+                    skipped_count=documents_skipped,
                 )
                 await (
                     session.commit()
@@ -1283,6 +1293,7 @@ async def _run_indexing_with_notifications(
                             indexed_count=0,
                             error_message=notification_message,  # Pass as warning, not error
                             is_warning=True,  # Flag to indicate this is a warning, not an error
+                            skipped_count=documents_skipped,
                         )
                         await (
                             session.commit()
@@ -1298,6 +1309,7 @@ async def _run_indexing_with_notifications(
                             notification=notification,
                             indexed_count=0,
                             error_message=error_or_warning,
+                            skipped_count=documents_skipped,
                         )
                         await (
                             session.commit()
@@ -1319,6 +1331,7 @@ async def _run_indexing_with_notifications(
                         notification=notification,
                         indexed_count=0,
                         error_message=None,  # No error - sync succeeded
+                        skipped_count=documents_skipped,
                     )
                     await (
                         session.commit()
@@ -1336,6 +1349,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=0,
                     error_message=str(e),
+                    skipped_count=None,  # Unknown on exception
                 )
             except Exception as notif_error:
                 logger.error(f"Failed to update notification: {notif_error!s}")
