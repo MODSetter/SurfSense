@@ -1,21 +1,25 @@
 """
-Routes for public chat access (unauthenticated and mixed-auth endpoints).
+Routes for public chat access via immutable snapshots.
+
+All public endpoints use share_token for access - no authentication required
+for read operations. Clone requires authentication.
 """
 
-from datetime import UTC, datetime
+import os
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import ChatVisibility, NewChatThread, User, get_async_session
+from app.db import User, get_async_session
 from app.schemas.new_chat import (
-    CloneInitResponse,
+    CloneResponse,
     PublicChatResponse,
 )
 from app.services.public_chat_service import (
+    clone_from_snapshot,
     get_public_chat,
-    get_thread_by_share_token,
-    get_user_default_search_space,
+    get_snapshot_podcast,
 )
 from app.users import current_active_user
 
@@ -28,57 +32,60 @@ async def read_public_chat(
     session: AsyncSession = Depends(get_async_session),
 ):
     """
-    Get a public chat by share token.
+    Get a public chat snapshot by share token.
 
     No authentication required.
-    Returns sanitized content (citations stripped).
+    Returns immutable snapshot data (sanitized, citations stripped).
     """
     return await get_public_chat(session, share_token)
 
 
-@router.post("/{share_token}/clone", response_model=CloneInitResponse)
-async def clone_public_chat_endpoint(
+@router.post("/{share_token}/clone", response_model=CloneResponse)
+async def clone_public_chat(
     share_token: str,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     """
-    Initialize cloning a public chat to the user's account.
+    Clone a public chat snapshot to the user's account.
 
-    Creates an empty thread with clone_pending=True.
-    Frontend should redirect to the new thread and call /complete-clone.
-
+    Single-phase clone: creates thread and copies messages in one request.
     Requires authentication.
     """
-    source_thread = await get_thread_by_share_token(session, share_token)
+    return await clone_from_snapshot(session, share_token, user)
 
-    if not source_thread:
-        raise HTTPException(
-            status_code=404, detail="Chat not found or no longer public"
-        )
 
-    target_search_space_id = await get_user_default_search_space(session, user.id)
+@router.get("/{share_token}/podcasts/{podcast_id}/stream")
+async def stream_public_podcast(
+    share_token: str,
+    podcast_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Stream a podcast from a public chat snapshot.
 
-    if target_search_space_id is None:
-        raise HTTPException(status_code=400, detail="No search space found for user")
+    No authentication required - the share_token provides access.
+    Looks up podcast by original_id in the snapshot's podcasts array.
+    """
+    podcast_info = await get_snapshot_podcast(session, share_token, podcast_id)
 
-    new_thread = NewChatThread(
-        title=source_thread.title,
-        archived=False,
-        visibility=ChatVisibility.PRIVATE,
-        search_space_id=target_search_space_id,
-        created_by_id=user.id,
-        public_share_enabled=False,
-        cloned_from_thread_id=source_thread.id,
-        cloned_at=datetime.now(UTC),
-        clone_pending=True,
-    )
-    session.add(new_thread)
-    await session.commit()
-    await session.refresh(new_thread)
+    if not podcast_info:
+        raise HTTPException(status_code=404, detail="Podcast not found")
 
-    return CloneInitResponse(
-        thread_id=new_thread.id,
-        search_space_id=target_search_space_id,
-        share_token=share_token,
+    file_path = podcast_info.get("file_path")
+
+    if not file_path or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Podcast audio file not found")
+
+    def iterfile():
+        with open(file_path, mode="rb") as file_like:
+            yield from file_like
+
+    return StreamingResponse(
+        iterfile(),
+        media_type="audio/mpeg",
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": f"inline; filename={os.path.basename(file_path)}",
+        },
     )
