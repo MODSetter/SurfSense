@@ -382,9 +382,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             "temporary_error": f"{service_name} temporarily unavailable",
         }
 
-        base_message = retry_messages.get(
-            retry_reason, f"Waiting for {service_name}"
-        )
+        base_message = retry_messages.get(retry_reason, f"Waiting for {service_name}")
 
         # Add wait time and progress info
         if wait_seconds and wait_seconds > 5:

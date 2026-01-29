@@ -534,7 +534,9 @@ async def index_notion_pages(
                 "Using legacy token. Reconnect with OAuth for better reliability."
             )
 
-        user_notification_message = " ".join(notification_parts) if notification_parts else None
+        user_notification_message = (
+            " ".join(notification_parts) if notification_parts else None
+        )
 
         return (
             total_processed,

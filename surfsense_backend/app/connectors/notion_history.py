@@ -171,7 +171,9 @@ class NotionHistoryConnector:
 
             # Final validation: ensure we have a valid access_token after all processing
             final_token = config_data.get("access_token")
-            if not final_token or (isinstance(final_token, str) and not final_token.strip()):
+            if not final_token or (
+                isinstance(final_token, str) and not final_token.strip()
+            ):
                 raise ValueError(
                     "Notion access token is invalid or empty. "
                     "Please remove and re-add the Notion connector."
@@ -356,9 +358,7 @@ class NotionHistoryConnector:
                         )
                     except Exception as callback_error:
                         # Don't let callback errors break the retry logic
-                        logger.warning(
-                            f"Retry callback failed: {callback_error}"
-                        )
+                        logger.warning(f"Retry callback failed: {callback_error}")
 
                 # Wait before retrying
                 await asyncio.sleep(wait_time)
@@ -588,9 +588,7 @@ class NotionHistoryConnector:
             except APIResponseError as e:
                 error_message = str(e)
                 # Check if this is an unsupported block type error
-                if any(
-                    err in error_message for err in UNSUPPORTED_BLOCK_TYPE_ERRORS
-                ):
+                if any(err in error_message for err in UNSUPPORTED_BLOCK_TYPE_ERRORS):
                     logger.warning(
                         f"Skipping page blocks due to unsupported block type in page {page_id}: {error_message}"
                     )
@@ -683,9 +681,7 @@ class NotionHistoryConnector:
             except APIResponseError as e:
                 error_message = str(e)
                 # Check if this is an unsupported block type error
-                if any(
-                    err in error_message for err in UNSUPPORTED_BLOCK_TYPE_ERRORS
-                ):
+                if any(err in error_message for err in UNSUPPORTED_BLOCK_TYPE_ERRORS):
                     logger.warning(
                         f"Skipping children of block {block_id} due to unsupported block type: {error_message}"
                     )
