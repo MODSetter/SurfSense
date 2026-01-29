@@ -17,6 +17,10 @@ interface CurrentThreadState {
 	visibility: ChatVisibility | null;
 	hasComments: boolean;
 	addingCommentToMessageId: number | null;
+	/** Whether the right-side comments panel is collapsed (desktop only) */
+	commentsCollapsed: boolean;
+	publicShareEnabled: boolean;
+	publicShareToken: string | null;
 }
 
 const initialState: CurrentThreadState = {
@@ -24,6 +28,9 @@ const initialState: CurrentThreadState = {
 	visibility: null,
 	hasComments: false,
 	addingCommentToMessageId: null,
+	commentsCollapsed: false,
+	publicShareEnabled: false,
+	publicShareToken: null,
 };
 
 export const currentThreadAtom = atom<CurrentThreadState>(initialState);
@@ -34,6 +41,8 @@ export const commentsEnabledAtom = atom(
 
 export const showCommentsGutterAtom = atom((get) => {
 	const thread = get(currentThreadAtom);
+	// Hide gutter if comments are collapsed
+	if (thread.commentsCollapsed) return false;
 	return (
 		thread.visibility === "SEARCH_SPACE" &&
 		(thread.hasComments || thread.addingCommentToMessageId !== null)
@@ -54,4 +63,35 @@ export const setThreadVisibilityAtom = atom(null, (get, set, newVisibility: Chat
 
 export const resetCurrentThreadAtom = atom(null, (_, set) => {
 	set(currentThreadAtom, initialState);
+});
+
+/** Atom to read whether comments panel is collapsed */
+export const commentsCollapsedAtom = atom((get) => get(currentThreadAtom).commentsCollapsed);
+
+/** Atom to toggle the comments collapsed state */
+export const toggleCommentsCollapsedAtom = atom(null, (get, set) => {
+	const current = get(currentThreadAtom);
+	set(currentThreadAtom, { ...current, commentsCollapsed: !current.commentsCollapsed });
+});
+
+/** Atom to explicitly set the comments collapsed state */
+export const setCommentsCollapsedAtom = atom(null, (get, set, collapsed: boolean) => {
+	set(currentThreadAtom, { ...get(currentThreadAtom), commentsCollapsed: collapsed });
+});
+
+/** Target comment ID to scroll to (from URL navigation or inbox click) */
+export const targetCommentIdAtom = atom<number | null>(null);
+
+/** Setter for target comment ID - also ensures comments are not collapsed */
+export const setTargetCommentIdAtom = atom(null, (get, set, commentId: number | null) => {
+	// Ensure comments are not collapsed when navigating to a comment
+	if (commentId !== null) {
+		set(currentThreadAtom, { ...get(currentThreadAtom), commentsCollapsed: false });
+	}
+	set(targetCommentIdAtom, commentId);
+});
+
+/** Clear target after navigation completes */
+export const clearTargetCommentIdAtom = atom(null, (_, set) => {
+	set(targetCommentIdAtom, null);
 });

@@ -106,7 +106,7 @@ export default function DashboardPage() {
 	const shouldShowLoading = isLoading || searchSpaces.length > 0;
 
 	// Use global loading screen - spinner animation won't reset
-	useGlobalLoadingEffect(shouldShowLoading, t("fetching_spaces"), "default");
+	useGlobalLoadingEffect(shouldShowLoading);
 
 	if (error) return <ErrorScreen message={error?.message || "Failed to load search spaces"} />;
 

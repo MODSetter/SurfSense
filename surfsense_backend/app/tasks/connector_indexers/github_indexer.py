@@ -24,6 +24,7 @@ from app.utils.document_converters import (
 
 from .base import (
     check_document_by_unique_identifier,
+    check_duplicate_document_by_hash,
     get_connector_by_id,
     get_current_timestamp,
     logger,
@@ -319,6 +320,21 @@ async def _process_repository_digest(
             # Delete existing document to replace with new one
             await session.delete(existing_document)
             await session.flush()
+    else:
+        # Document doesn't exist by unique_identifier_hash
+        # Check if a document with the same content_hash exists (from another connector)
+        with session.no_autoflush:
+            duplicate_by_content = await check_duplicate_document_by_hash(
+                session, content_hash
+            )
+
+        if duplicate_by_content:
+            logger.info(
+                f"Repository {repo_full_name} already indexed by another connector "
+                f"(existing document ID: {duplicate_by_content.id}, "
+                f"type: {duplicate_by_content.document_type}). Skipping."
+            )
+            return 0
 
     # Generate summary using LLM (ONE call per repository!)
     user_llm = await get_user_long_context_llm(session, user_id, search_space_id)

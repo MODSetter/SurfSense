@@ -3,7 +3,6 @@
 import { FolderOpen, MessageSquare, PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
@@ -121,101 +120,113 @@ export function Sidebar({
 				)}
 			</div>
 
-			{/* Scrollable content */}
-			<ScrollArea className="flex-1">
-				{isCollapsed ? (
-					<div className="flex flex-col items-center gap-2 py-2 w-[60px]">
-						{(chats.length > 0 || sharedChats.length > 0) && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-10 w-10"
-										onClick={() => onToggleCollapse?.()}
-									>
-										<MessageSquare className="h-4 w-4" />
-										<span className="sr-only">{t("chats")}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent side="right">
-									{t("chats")} ({chats.length + sharedChats.length})
-								</TooltipContent>
-							</Tooltip>
+			{/* Chat sections - fills available space */}
+			{isCollapsed ? (
+				<div className="flex-1 flex flex-col items-center gap-2 py-2 w-[60px]">
+					{(chats.length > 0 || sharedChats.length > 0) && (
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-10 w-10"
+									onClick={() => onToggleCollapse?.()}
+								>
+									<MessageSquare className="h-4 w-4" />
+									<span className="sr-only">{t("chats")}</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent side="right">
+								{t("chats")} ({chats.length + sharedChats.length})
+							</TooltipContent>
+						</Tooltip>
+					)}
+				</div>
+			) : (
+				<div className="flex-1 flex flex-col gap-1 py-2 w-[240px] min-h-0 overflow-hidden">
+					{/* Shared Chats Section - takes half the space */}
+					<SidebarSection
+						title={t("shared_chats")}
+						defaultOpen={true}
+						fillHeight={true}
+						action={
+							onViewAllSharedChats ? (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
+											onClick={onViewAllSharedChats}
+										>
+											<FolderOpen className="h-4 w-4" />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="top">
+										{t("view_all_shared_chats") || "View all shared chats"}
+									</TooltipContent>
+								</Tooltip>
+							) : undefined
+						}
+					>
+						{sharedChats.length > 0 ? (
+							<div className="relative flex-1 min-h-0">
+								<div
+									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-8" : ""}`}
+								>
+									{sharedChats.slice(0, 20).map((chat) => (
+										<ChatListItem
+											key={chat.id}
+											name={chat.name}
+											isActive={chat.id === activeChatId}
+											archived={chat.archived}
+											onClick={() => onChatSelect(chat)}
+											onArchive={() => onChatArchive?.(chat)}
+											onDelete={() => onChatDelete?.(chat)}
+										/>
+									))}
+								</div>
+								{/* Gradient fade indicator when more than 4 items */}
+								{sharedChats.length > 4 && (
+									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-sidebar via-sidebar/90 to-transparent" />
+								)}
+							</div>
+						) : (
+							<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_shared_chats")}</p>
 						)}
-					</div>
-				) : (
-					<div className="flex flex-col gap-1 py-2 w-[240px]">
-						{/* Shared Chats Section */}
-						<SidebarSection
-							title={t("shared_chats")}
-							defaultOpen={true}
-							action={
-								onViewAllSharedChats ? (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-												onClick={onViewAllSharedChats}
-											>
-												<FolderOpen className="h-4 w-4" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent side="top">
-											{t("view_all_shared_chats") || "View all shared chats"}
-										</TooltipContent>
-									</Tooltip>
-								) : undefined
-							}
-						>
-							{sharedChats.length > 0 ? (
-								<div className="flex flex-col gap-0.5">
-									{sharedChats.map((chat) => (
-										<ChatListItem
-											key={chat.id}
-											name={chat.name}
-											isActive={chat.id === activeChatId}
-											archived={chat.archived}
-											onClick={() => onChatSelect(chat)}
-											onArchive={() => onChatArchive?.(chat)}
-											onDelete={() => onChatDelete?.(chat)}
-										/>
-									))}
-								</div>
-							) : (
-								<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_shared_chats")}</p>
-							)}
-						</SidebarSection>
+					</SidebarSection>
 
-						{/* Private Chats Section */}
-						<SidebarSection
-							title={t("chats")}
-							defaultOpen={true}
-							action={
-								onViewAllPrivateChats ? (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-												onClick={onViewAllPrivateChats}
-											>
-												<FolderOpen className="h-4 w-4" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent side="top">
-											{t("view_all_private_chats") || "View all private chats"}
-										</TooltipContent>
-									</Tooltip>
-								) : undefined
-							}
-						>
-							{chats.length > 0 ? (
-								<div className="flex flex-col gap-0.5">
-									{chats.map((chat) => (
+					{/* Private Chats Section - takes half the space */}
+					<SidebarSection
+						title={t("chats")}
+						defaultOpen={true}
+						fillHeight={true}
+						action={
+							onViewAllPrivateChats ? (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
+											onClick={onViewAllPrivateChats}
+										>
+											<FolderOpen className="h-4 w-4" />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent side="top">
+										{t("view_all_private_chats") || "View all private chats"}
+									</TooltipContent>
+								</Tooltip>
+							) : undefined
+						}
+					>
+						{chats.length > 0 ? (
+							<div className="relative flex-1 min-h-0">
+								<div
+									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-8" : ""}`}
+								>
+									{chats.slice(0, 20).map((chat) => (
 										<ChatListItem
 											key={chat.id}
 											name={chat.name}
@@ -227,13 +238,17 @@ export function Sidebar({
 										/>
 									))}
 								</div>
-							) : (
-								<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_chats")}</p>
-							)}
-						</SidebarSection>
-					</div>
-				)}
-			</ScrollArea>
+								{/* Gradient fade indicator when more than 4 items */}
+								{chats.length > 4 && (
+									<div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-sidebar via-sidebar/90 to-transparent" />
+								)}
+							</div>
+						) : (
+							<p className="px-2 py-1 text-xs text-muted-foreground">{t("no_chats")}</p>
+						)}
+					</SidebarSection>
+				</div>
+			)}
 
 			{/* Footer */}
 			<div className="mt-auto border-t">

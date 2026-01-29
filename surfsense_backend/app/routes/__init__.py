@@ -31,6 +31,7 @@ from .notes_routes import router as notes_router
 from .notifications_routes import router as notifications_router
 from .notion_add_connector_route import router as notion_add_connector_router
 from .podcasts_routes import router as podcasts_router
+from .public_chat_routes import router as public_chat_router
 from .rbac_routes import router as rbac_router
 from .search_source_connectors_routes import router as search_source_connectors_router
 from .search_spaces_routes import router as search_spaces_router
@@ -68,4 +69,5 @@ router.include_router(circleback_webhook_router)  # Circleback meeting webhooks
 router.include_router(surfsense_docs_router)  # Surfsense documentation for citations
 router.include_router(notifications_router)  # Notifications with Electric SQL sync
 router.include_router(composio_router)  # Composio OAuth and toolkit management
+router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages

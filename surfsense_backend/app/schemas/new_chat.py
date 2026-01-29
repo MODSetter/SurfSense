@@ -95,6 +95,9 @@ class NewChatThreadRead(NewChatThreadBase, IDModel):
     search_space_id: int
     visibility: ChatVisibility
     created_by_id: UUID | None = None
+    public_share_enabled: bool = False
+    public_share_token: str | None = None
+    clone_pending: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -133,7 +136,8 @@ class ThreadListItem(BaseModel):
     archived: bool
     visibility: ChatVisibility
     created_by_id: UUID | None = None
-    is_own_thread: bool = False  # True if the current user created this thread
+    is_own_thread: bool = False
+    public_share_enabled: bool = False
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
 
@@ -204,3 +208,60 @@ class RegenerateRequest(BaseModel):
     attachments: list[ChatAttachment] | None = None
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
+
+
+# =============================================================================
+# Public Sharing Schemas
+# =============================================================================
+
+
+class PublicShareToggleRequest(BaseModel):
+    """Request to enable/disable public sharing for a thread."""
+
+    enabled: bool
+
+
+class PublicShareToggleResponse(BaseModel):
+    """Response after toggling public sharing."""
+
+    enabled: bool
+    public_url: str | None = None
+    share_token: str | None = None
+
+
+# =============================================================================
+# Public Chat View Schemas (for unauthenticated access)
+# =============================================================================
+
+
+class PublicAuthor(BaseModel):
+    display_name: str | None = None
+    avatar_url: str | None = None
+
+
+class PublicChatMessage(BaseModel):
+    role: NewChatMessageRole
+    content: Any
+    author: PublicAuthor | None = None
+    created_at: datetime
+
+
+class PublicChatThread(BaseModel):
+    title: str
+    created_at: datetime
+
+
+class PublicChatResponse(BaseModel):
+    thread: PublicChatThread
+    messages: list[PublicChatMessage]
+
+
+class CloneInitResponse(BaseModel):
+    thread_id: int
+    search_space_id: int
+    share_token: str
+
+
+class CompleteCloneResponse(BaseModel):
+    status: str
+    message_count: int

@@ -1,4 +1,5 @@
 "use client";
+import { useFeatureFlagVariantKey } from "@posthog/react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
@@ -33,6 +34,8 @@ const GoogleLogo = ({ className }: { className?: string }) => (
 export function HeroSection() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const parentRef = useRef<HTMLDivElement>(null);
+	const heroVariant = useFeatureFlagVariantKey("notebooklm_flag");
+	const isNotebookLMVariant = heroVariant === "notebooklm";
 
 	return (
 		<div
@@ -83,12 +86,22 @@ export function HeroSection() {
 
 			<h2 className="relative z-50 mx-auto mb-4 mt-4 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
 				<Balancer>
-					The AI Workspace{" "}
-					<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
-						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-							<span className="">Built for Teams</span>
+					{isNotebookLMVariant ? (
+						<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
+							<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
+								<span className="">NotebookLM for Teams</span>
+							</div>
 						</div>
-					</div>
+					) : (
+						<>
+							The AI Workspace{" "}
+							<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
+								<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
+									<span className="">Built for Teams</span>
+								</div>
+							</div>
+						</>
+					)}
 				</Balancer>
 			</h2>
 			{/* // TODO:aCTUAL DESCRITION */}
@@ -98,12 +111,7 @@ export function HeroSection() {
 			</p>
 			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
 				<GetStartedButton />
-				{/* <Link
-					href="/pricing"
-					className="shadow-input group relative z-20 flex h-10 w-full cursor-pointer items-center justify-center space-x-2 rounded-lg bg-white p-px px-4 py-2 text-sm font-semibold leading-6 text-black no-underline transition duration-200 hover:-translate-y-0.5 sm:w-52 dark:bg-neutral-800 dark:text-white"
-				>
-					Start Free Trial
-				</Link> */}
+				<ContactSalesButton />
 			</div>
 			<div
 				ref={containerRef}
@@ -188,6 +196,21 @@ function GetStartedButton() {
 				className="group relative z-20 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-black px-6 py-2.5 text-sm font-semibold text-white shadow-lg transition-shadow duration-300 hover:shadow-xl sm:w-56 dark:bg-white dark:text-black"
 			>
 				Get Started
+			</Link>
+		</motion.div>
+	);
+}
+
+function ContactSalesButton() {
+	return (
+		<motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
+			<Link
+				href="https://calendly.com/eric-surfsense/surfsense-meeting"
+				target="_blank"
+				rel="noopener noreferrer"
+				className="group relative z-20 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-neutral-700 shadow-lg ring-1 ring-neutral-200/50 transition-shadow duration-300 hover:shadow-xl sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
+			>
+				Contact Sales
 			</Link>
 		</motion.div>
 	);

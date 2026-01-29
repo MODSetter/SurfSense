@@ -187,6 +187,7 @@ async def create_search_source_connector(
                 user_id=str(user.id),
                 connector_type=db_connector.connector_type,
                 frequency_minutes=db_connector.indexing_frequency_minutes,
+                connector_config=db_connector.config,
             )
             if not success:
                 logger.warning(
@@ -646,6 +647,7 @@ async def index_connector_content(
 
         # Handle different connector types
         response_message = ""
+        indexing_started = True
         # Use UTC for consistency with last_indexed_at storage
         today_str = datetime.now(UTC).strftime("%Y-%m-%d")
 
@@ -921,14 +923,31 @@ async def index_connector_content(
 
         elif connector.connector_type == SearchSourceConnectorType.WEBCRAWLER_CONNECTOR:
             from app.tasks.celery_tasks.connector_tasks import index_crawled_urls_task
+            from app.utils.webcrawler_utils import parse_webcrawler_urls
 
-            logger.info(
-                f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
-            )
-            index_crawled_urls_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
-            )
-            response_message = "Web page indexing started in the background."
+            # Check if URLs are configured before triggering indexing
+            connector_config = connector.config or {}
+            urls = parse_webcrawler_urls(connector_config.get("INITIAL_URLS"))
+
+            if not urls:
+                # URLs are optional - skip indexing gracefully
+                logger.info(
+                    f"Webcrawler connector {connector_id} has no URLs configured, skipping indexing"
+                )
+                response_message = "No URLs configured for this connector. Add URLs in the connector settings to enable indexing."
+                indexing_started = False
+            else:
+                logger.info(
+                    f"Triggering web pages indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                )
+                index_crawled_urls_task.delay(
+                    connector_id,
+                    search_space_id,
+                    str(user.id),
+                    indexing_from,
+                    indexing_to,
+                )
+                response_message = "Web page indexing started in the background."
 
         elif connector.connector_type == SearchSourceConnectorType.OBSIDIAN_CONNECTOR:
             from app.config import config as app_config
@@ -1025,6 +1044,7 @@ async def index_connector_content(
 
         return {
             "message": response_message,
+            "indexing_started": indexing_started,
             "connector_id": connector_id,
             "search_space_id": search_space_id,
             "indexing_from": indexing_from,
@@ -1129,6 +1149,7 @@ async def _run_indexing_with_notifications(
     end_date: str,
     indexing_function,
     update_timestamp_func=None,
+    supports_retry_callback: bool = False,
 ):
     """
     Generic helper to run indexing with real-time notifications.
@@ -1142,10 +1163,14 @@ async def _run_indexing_with_notifications(
         end_date: End date for indexing
         indexing_function: Async function that performs the indexing
         update_timestamp_func: Optional function to update connector timestamp
+        supports_retry_callback: Whether the indexing function supports on_retry_callback
     """
     from uuid import UUID
 
     notification = None
+    # Track indexed count for retry notifications
+    current_indexed_count = 0
+
     try:
         # Get connector info for notification
         connector_result = await session.execute(
@@ -1179,16 +1204,54 @@ async def _run_indexing_with_notifications(
                 stage="fetching",
             )
 
+        # Create retry callback for connectors that support it
+        async def on_retry_callback(
+            retry_reason: str, attempt: int, max_attempts: int, wait_seconds: float
+        ) -> None:
+            """Callback to update notification during API retries (rate limits, etc.)"""
+            nonlocal notification
+            if notification:
+                try:
+                    await session.refresh(notification)
+                    await NotificationService.connector_indexing.notify_retry_progress(
+                        session=session,
+                        notification=notification,
+                        indexed_count=current_indexed_count,
+                        retry_reason=retry_reason,
+                        attempt=attempt,
+                        max_attempts=max_attempts,
+                        wait_seconds=wait_seconds,
+                    )
+                    await session.commit()
+                except Exception as e:
+                    # Don't let notification errors break the indexing
+                    logger.warning(f"Failed to update retry notification: {e}")
+
+        # Build kwargs for indexing function
+        indexing_kwargs = {
+            "session": session,
+            "connector_id": connector_id,
+            "search_space_id": search_space_id,
+            "user_id": user_id,
+            "start_date": start_date,
+            "end_date": end_date,
+            "update_last_indexed": False,
+        }
+
+        # Add retry callback for connectors that support it
+        if supports_retry_callback:
+            indexing_kwargs["on_retry_callback"] = on_retry_callback
+
         # Run the indexing function
-        documents_processed, error_or_warning = await indexing_function(
-            session=session,
-            connector_id=connector_id,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            start_date=start_date,
-            end_date=end_date,
-            update_last_indexed=False,
-        )
+        # Some indexers return (indexed, error), others return (indexed, skipped, error)
+        result = await indexing_function(**indexing_kwargs)
+
+        # Handle both 2-tuple and 3-tuple returns for backwards compatibility
+        if len(result) == 3:
+            documents_processed, documents_skipped, error_or_warning = result
+        else:
+            documents_processed, error_or_warning = result
+            documents_skipped = None
 
         # Update connector timestamp if function provided and indexing was successful
         if documents_processed > 0 and update_timestamp_func:
@@ -1216,6 +1279,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=documents_processed,
                     error_message=error_or_warning,  # Show errors even if some documents were indexed
+                    skipped_count=documents_skipped,
                 )
                 await (
                     session.commit()
@@ -1242,6 +1306,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=documents_processed,
                     error_message=error_or_warning,  # Show errors even if some documents were indexed
+                    skipped_count=documents_skipped,
                 )
                 await (
                     session.commit()
@@ -1260,8 +1325,15 @@ async def _run_indexing_with_notifications(
                     "no " in error_or_warning_lower
                     and "found" in error_or_warning_lower
                 )
+                # Informational warnings - sync succeeded but some content couldn't be synced
+                # These are NOT errors, just notifications about API limitations or recommendations
+                is_info_warning = (
+                    "couldn't be synced" in error_or_warning_lower
+                    or "using legacy token" in error_or_warning_lower
+                    or "(api limitation)" in error_or_warning_lower
+                )
 
-                if is_duplicate_warning or is_empty_result:
+                if is_duplicate_warning or is_empty_result or is_info_warning:
                     # These are success cases - sync worked, just found nothing new
                     logger.info(f"Indexing completed successfully: {error_or_warning}")
                     # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
@@ -1283,6 +1355,7 @@ async def _run_indexing_with_notifications(
                             indexed_count=0,
                             error_message=notification_message,  # Pass as warning, not error
                             is_warning=True,  # Flag to indicate this is a warning, not an error
+                            skipped_count=documents_skipped,
                         )
                         await (
                             session.commit()
@@ -1298,6 +1371,7 @@ async def _run_indexing_with_notifications(
                             notification=notification,
                             indexed_count=0,
                             error_message=error_or_warning,
+                            skipped_count=documents_skipped,
                         )
                         await (
                             session.commit()
@@ -1319,6 +1393,7 @@ async def _run_indexing_with_notifications(
                         notification=notification,
                         indexed_count=0,
                         error_message=None,  # No error - sync succeeded
+                        skipped_count=documents_skipped,
                     )
                     await (
                         session.commit()
@@ -1336,6 +1411,7 @@ async def _run_indexing_with_notifications(
                     notification=notification,
                     indexed_count=0,
                     error_message=str(e),
+                    skipped_count=None,  # Unknown on exception
                 )
             except Exception as notif_error:
                 logger.error(f"Failed to update notification: {notif_error!s}")
@@ -1362,6 +1438,7 @@ async def run_notion_indexing_with_new_session(
             end_date=end_date,
             indexing_function=index_notion_pages,
             update_timestamp_func=_update_connector_timestamp_by_id,
+            supports_retry_callback=True,  # Notion connector supports retry notifications
         )
 
 
@@ -1393,6 +1470,7 @@ async def run_notion_indexing(
         end_date=end_date,
         indexing_function=index_notion_pages,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_retry_callback=True,  # Notion connector supports retry notifications
     )
 
 

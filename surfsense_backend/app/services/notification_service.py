@@ -329,6 +329,90 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             metadata_updates=metadata_updates,
         )
 
+    async def notify_retry_progress(
+        self,
+        session: AsyncSession,
+        notification: Notification,
+        indexed_count: int,
+        retry_reason: str,
+        attempt: int,
+        max_attempts: int,
+        wait_seconds: float | None = None,
+        service_name: str | None = None,
+    ) -> Notification:
+        """
+        Update notification when a connector is retrying due to rate limits or errors.
+
+        This method provides user-friendly feedback when external service limitations
+        (rate limits, temporary outages) cause delays. Users see that the delay is
+        not our fault and the sync is still progressing.
+
+        This method can be used by ANY connector (Notion, Slack, Airtable, etc.)
+        when they hit rate limits or transient errors.
+
+        Args:
+            session: Database session
+            notification: Notification to update
+            indexed_count: Number of items indexed so far
+            retry_reason: Reason for retry ('rate_limit', 'server_error', 'timeout')
+            attempt: Current retry attempt number (1-based)
+            max_attempts: Maximum number of retry attempts
+            wait_seconds: Seconds to wait before retry (optional, for display)
+            service_name: Name of the external service (e.g., 'Notion', 'Slack')
+                         If not provided, extracts from notification metadata
+
+        Returns:
+            Updated notification
+        """
+        # Get service name from notification if not provided
+        if not service_name:
+            service_name = notification.notification_metadata.get(
+                "connector_name", "Service"
+            )
+            # Extract just the service name if it's "Notion - My Workspace"
+            if " - " in service_name:
+                service_name = service_name.split(" - ")[0]
+
+        # User-friendly messages for different retry reasons
+        # These make it clear the delay is due to the external service, not SurfSense
+        retry_messages = {
+            "rate_limit": f"{service_name} rate limit reached",
+            "server_error": f"{service_name} is slow to respond",
+            "timeout": f"{service_name} took too long",
+            "temporary_error": f"{service_name} temporarily unavailable",
+        }
+
+        base_message = retry_messages.get(retry_reason, f"Waiting for {service_name}")
+
+        # Add wait time and progress info
+        if wait_seconds and wait_seconds > 5:
+            # Only show wait time if it's significant
+            message = f"{base_message}. Retrying in {int(wait_seconds)}s..."
+        else:
+            message = f"{base_message}. Retrying..."
+
+        # Add progress count if we have any
+        if indexed_count > 0:
+            item_text = "item" if indexed_count == 1 else "items"
+            message = f"{message} ({indexed_count} {item_text} synced so far)"
+
+        metadata_updates = {
+            "indexed_count": indexed_count,
+            "sync_stage": "waiting_retry",
+            "retry_attempt": attempt,
+            "retry_max_attempts": max_attempts,
+            "retry_reason": retry_reason,
+            "retry_wait_seconds": wait_seconds,
+        }
+
+        return await self.update_notification(
+            session=session,
+            notification=notification,
+            message=message,
+            status="in_progress",
+            metadata_updates=metadata_updates,
+        )
+
     async def notify_indexing_completed(
         self,
         session: AsyncSession,
@@ -336,6 +420,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         indexed_count: int,
         error_message: str | None = None,
         is_warning: bool = False,
+        skipped_count: int | None = None,
     ) -> Notification:
         """
         Update notification when connector indexing completes.
@@ -346,6 +431,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
             indexed_count: Total number of items indexed
             error_message: Error message if indexing failed, or warning message (optional)
             is_warning: If True, treat error_message as a warning (success case) rather than an error
+            skipped_count: Number of items skipped (e.g., duplicates) - optional
 
         Returns:
             Updated notification
@@ -353,6 +439,14 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         connector_name = notification.notification_metadata.get(
             "connector_name", "Connector"
         )
+
+        # Build the skipped text if there are skipped items
+        skipped_text = ""
+        if skipped_count and skipped_count > 0:
+            skipped_item_text = "item" if skipped_count == 1 else "items"
+            skipped_text = (
+                f" ({skipped_count} {skipped_item_text} skipped - already indexed)"
+            )
 
         # If there's an error message but items were indexed, treat it as a warning (partial success)
         # If is_warning is True, treat it as success even with 0 items (e.g., duplicates found)
@@ -362,12 +456,12 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
                 # Partial success with warnings (e.g., duplicate content from other connectors)
                 title = f"Ready: {connector_name}"
                 item_text = "item" if indexed_count == 1 else "items"
-                message = f"Now searchable! {indexed_count} {item_text} synced. Note: {error_message}"
+                message = f"Now searchable! {indexed_count} {item_text} synced{skipped_text}. Note: {error_message}"
                 status = "completed"
             elif is_warning:
                 # Warning case (e.g., duplicates found) - treat as success
                 title = f"Ready: {connector_name}"
-                message = f"Sync completed. {error_message}"
+                message = f"Sync completed{skipped_text}. {error_message}"
                 status = "completed"
             else:
                 # Complete failure
@@ -377,14 +471,21 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
         else:
             title = f"Ready: {connector_name}"
             if indexed_count == 0:
-                message = "Already up to date! No new items to sync."
+                if skipped_count and skipped_count > 0:
+                    skipped_item_text = "item" if skipped_count == 1 else "items"
+                    message = f"Already up to date! {skipped_count} {skipped_item_text} skipped (already indexed)."
+                else:
+                    message = "Already up to date! No new items to sync."
             else:
                 item_text = "item" if indexed_count == 1 else "items"
-                message = f"Now searchable! {indexed_count} {item_text} synced."
+                message = (
+                    f"Now searchable! {indexed_count} {item_text} synced{skipped_text}."
+                )
             status = "completed"
 
         metadata_updates = {
             "indexed_count": indexed_count,
+            "skipped_count": skipped_count or 0,
             "sync_stage": "completed"
             if (not error_message or is_warning or indexed_count > 0)
             else "failed",

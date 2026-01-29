@@ -218,7 +218,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 					{isStartingIndexing ? (
 						<>
 							<Spinner size="sm" className="mr-2" />
-							Starting...
+							Starting
 						</>
 					) : (
 						"Start Indexing"

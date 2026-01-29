@@ -37,6 +37,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas.new_chat import (
+    CompleteCloneResponse,
     NewChatMessageAppend,
     NewChatMessageRead,
     NewChatRequest,
@@ -45,11 +46,14 @@ from app.schemas.new_chat import (
     NewChatThreadUpdate,
     NewChatThreadVisibilityUpdate,
     NewChatThreadWithMessages,
+    PublicShareToggleRequest,
+    PublicShareToggleResponse,
     RegenerateRequest,
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
 )
+from app.services.public_chat_service import toggle_public_share
 from app.tasks.chat.stream_new_chat import stream_new_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
@@ -215,6 +219,7 @@ async def list_threads(
                 visibility=thread.visibility,
                 created_by_id=thread.created_by_id,
                 is_own_thread=is_own_thread,
+                public_share_enabled=thread.public_share_enabled,
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
             )
@@ -316,6 +321,7 @@ async def search_threads(
                     thread.created_by_id == user.id
                     or (thread.created_by_id is None and is_search_space_owner)
                 ),
+                public_share_enabled=thread.public_share_enabled,
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
             )
@@ -664,6 +670,66 @@ async def delete_thread(
         ) from None
 
 
+@router.post(
+    "/threads/{thread_id}/complete-clone", response_model=CompleteCloneResponse
+)
+async def complete_clone(
+    thread_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Complete the cloning process for a thread.
+
+    Copies messages and podcasts from the source thread.
+    Sets clone_pending=False and needs_history_bootstrap=True when done.
+
+    Requires authentication and ownership of the thread.
+    """
+    from app.services.public_chat_service import complete_clone_content
+
+    try:
+        result = await session.execute(
+            select(NewChatThread).filter(NewChatThread.id == thread_id)
+        )
+        thread = result.scalars().first()
+
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        if thread.created_by_id != user.id:
+            raise HTTPException(status_code=403, detail="Not authorized")
+
+        if not thread.clone_pending:
+            raise HTTPException(status_code=400, detail="Clone already completed")
+
+        if not thread.cloned_from_thread_id:
+            raise HTTPException(
+                status_code=400, detail="No source thread to clone from"
+            )
+
+        message_count = await complete_clone_content(
+            session=session,
+            target_thread=thread,
+            source_thread_id=thread.cloned_from_thread_id,
+            target_search_space_id=thread.search_space_id,
+        )
+
+        return CompleteCloneResponse(
+            status="success",
+            message_count=message_count,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred while completing clone: {e!s}",
+        ) from None
+
+
 @router.patch("/threads/{thread_id}/visibility", response_model=NewChatThreadRead)
 async def update_thread_visibility(
     thread_id: int,
@@ -727,6 +793,32 @@ async def update_thread_visibility(
             status_code=500,
             detail=f"An unexpected error occurred while updating thread visibility: {e!s}",
         ) from None
+
+
+@router.patch(
+    "/threads/{thread_id}/public-share", response_model=PublicShareToggleResponse
+)
+async def update_thread_public_share(
+    thread_id: int,
+    request: Request,
+    toggle_request: PublicShareToggleRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Enable or disable public sharing for a thread.
+
+    Only the creator of the thread can manage public sharing.
+    When enabled, returns a public URL that anyone can use to view the chat.
+    """
+    base_url = str(request.base_url).rstrip("/")
+    return await toggle_public_share(
+        session=session,
+        thread_id=thread_id,
+        enabled=toggle_request.enabled,
+        user=user,
+        base_url=base_url,
+    )
 
 
 # =============================================================================
@@ -996,6 +1088,7 @@ async def handle_new_chat(
                 attachments=request.attachments,
                 mentioned_document_ids=request.mentioned_document_ids,
                 mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
+                needs_history_bootstrap=thread.needs_history_bootstrap,
             ),
             media_type="text/event-stream",
             headers={
@@ -1223,6 +1316,7 @@ async def regenerate_response(
                     mentioned_document_ids=request.mentioned_document_ids,
                     mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
                     checkpoint_id=target_checkpoint_id,
+                    needs_history_bootstrap=thread.needs_history_bootstrap,
                 ):
                     yield chunk
                 # If we get here, streaming completed successfully

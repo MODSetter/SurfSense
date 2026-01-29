@@ -13,7 +13,11 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import {
+	clearTargetCommentIdAtom,
+	currentThreadAtom,
+	setTargetCommentIdAtom,
+} from "@/atoms/chat/current-thread.atom";
 import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
@@ -38,9 +42,11 @@ import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-
 import { Spinner } from "@/components/ui/spinner";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
+import { publicChatApiService } from "@/lib/apis/public-chat-api.service";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
+import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
 	looksLikePodcastRequest,
@@ -111,112 +117,6 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 }
 
 /**
- * Zod schema for persisted attachment info
- */
-const PersistedAttachmentSchema = z.object({
-	id: z.string(),
-	name: z.string(),
-	type: z.string(),
-	contentType: z.string().optional(),
-	imageDataUrl: z.string().optional(),
-	extractedContent: z.string().optional(),
-});
-
-const AttachmentsPartSchema = z.object({
-	type: z.literal("attachments"),
-	items: z.array(PersistedAttachmentSchema),
-});
-
-type PersistedAttachment = z.infer<typeof PersistedAttachmentSchema>;
-
-/**
- * Extract persisted attachments from message content (type-safe with Zod)
- */
-function extractPersistedAttachments(content: unknown): PersistedAttachment[] {
-	if (!Array.isArray(content)) return [];
-
-	for (const part of content) {
-		const result = AttachmentsPartSchema.safeParse(part);
-		if (result.success) {
-			return result.data.items;
-		}
-	}
-
-	return [];
-}
-
-/**
- * Convert backend message to assistant-ui ThreadMessageLike format
- * Filters out 'thinking-steps' part as it's handled separately via messageThinkingSteps
- * Restores attachments for user messages from persisted data
- */
-function convertToThreadMessage(msg: MessageRecord): ThreadMessageLike {
-	let content: ThreadMessageLike["content"];
-
-	if (typeof msg.content === "string") {
-		content = [{ type: "text", text: msg.content }];
-	} else if (Array.isArray(msg.content)) {
-		// Filter out custom metadata parts - they're handled separately
-		const filteredContent = msg.content.filter((part: unknown) => {
-			if (typeof part !== "object" || part === null || !("type" in part)) return true;
-			const partType = (part as { type: string }).type;
-			// Filter out thinking-steps, mentioned-documents, and attachments
-			return (
-				partType !== "thinking-steps" &&
-				partType !== "mentioned-documents" &&
-				partType !== "attachments"
-			);
-		});
-		content =
-			filteredContent.length > 0
-				? (filteredContent as ThreadMessageLike["content"])
-				: [{ type: "text", text: "" }];
-	} else {
-		content = [{ type: "text", text: String(msg.content) }];
-	}
-
-	// Restore attachments for user messages
-	let attachments: ThreadMessageLike["attachments"];
-	if (msg.role === "user") {
-		const persistedAttachments = extractPersistedAttachments(msg.content);
-		if (persistedAttachments.length > 0) {
-			attachments = persistedAttachments.map((att) => ({
-				id: att.id,
-				name: att.name,
-				type: att.type as "document" | "image" | "file",
-				contentType: att.contentType || "application/octet-stream",
-				status: { type: "complete" as const },
-				content: [],
-				// Custom fields for our ChatAttachment interface
-				imageDataUrl: att.imageDataUrl,
-				extractedContent: att.extractedContent,
-			}));
-		}
-	}
-
-	// Build metadata.custom for author display in shared chats
-	const metadata = msg.author_id
-		? {
-				custom: {
-					author: {
-						displayName: msg.author_display_name ?? null,
-						avatarUrl: msg.author_avatar_url ?? null,
-					},
-				},
-			}
-		: undefined;
-
-	return {
-		id: `msg-${msg.id}`,
-		role: msg.role,
-		content,
-		createdAt: new Date(msg.created_at),
-		attachments,
-		metadata,
-	};
-}
-
-/**
  * Tools that should render custom UI in the chat.
  */
 const TOOLS_WITH_UI = new Set([
@@ -242,6 +142,8 @@ export default function NewChatPage() {
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
+	const [isCompletingClone, setIsCompletingClone] = useState(false);
+	const [cloneError, setCloneError] = useState(false);
 	const [threadId, setThreadId] = useState<number | null>(null);
 	const [currentThread, setCurrentThread] = useState<ThreadRecord | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
@@ -261,6 +163,8 @@ export default function NewChatPage() {
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const hydratePlanState = useSetAtom(hydratePlanStateAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
+	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
+	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -294,6 +198,12 @@ export default function NewChatPage() {
 						? membersData?.find((m) => m.user_id === msg.author_id)
 						: null;
 
+					// Preserve existing author info if member lookup fails (e.g., cloned chats)
+					const existingMsg = prev.find((m) => m.id === `msg-${msg.id}`);
+					const existingAuthor = existingMsg?.metadata?.custom?.author as
+						| { displayName?: string | null; avatarUrl?: string | null }
+						| undefined;
+
 					return convertToThreadMessage({
 						id: msg.id,
 						thread_id: msg.thread_id,
@@ -301,8 +211,8 @@ export default function NewChatPage() {
 						content: msg.content,
 						author_id: msg.author_id,
 						created_at: msg.created_at,
-						author_display_name: member?.user_display_name ?? null,
-						author_avatar_url: member?.user_avatar_url ?? null,
+						author_display_name: member?.user_display_name ?? existingAuthor?.displayName ?? null,
+						author_avatar_url: member?.user_avatar_url ?? existingAuthor?.avatarUrl ?? null,
 					});
 				});
 			});
@@ -422,46 +332,71 @@ export default function NewChatPage() {
 		initializeThread();
 	}, [initializeThread]);
 
+	// Handle clone completion when thread has clone_pending flag
+	useEffect(() => {
+		if (!currentThread?.clone_pending || isCompletingClone || cloneError) return;
+
+		const completeClone = async () => {
+			setIsCompletingClone(true);
+
+			try {
+				await publicChatApiService.completeClone({ thread_id: currentThread.id });
+
+				// Re-initialize thread to fetch cloned content using existing logic
+				await initializeThread();
+
+				// Invalidate threads query to update sidebar
+				queryClient.invalidateQueries({
+					predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "threads",
+				});
+			} catch (error) {
+				console.error("[NewChatPage] Failed to complete clone:", error);
+				toast.error("Failed to copy chat content. Please try again.");
+				setCloneError(true);
+			} finally {
+				setIsCompletingClone(false);
+			}
+		};
+
+		completeClone();
+	}, [
+		currentThread?.clone_pending,
+		currentThread?.id,
+		isCompletingClone,
+		cloneError,
+		initializeThread,
+		queryClient,
+	]);
+
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
 	const searchParams = useSearchParams();
-	const targetCommentId = searchParams.get("commentId");
+	const targetCommentIdParam = searchParams.get("commentId");
 
+	// Set target comment ID from URL param - the AssistantMessage and CommentItem
+	// components will handle scrolling and highlighting once comments are loaded
 	useEffect(() => {
-		if (!targetCommentId || isInitializing || messages.length === 0) return;
-
-		const tryScroll = () => {
-			const el = document.querySelector(`[data-comment-id="${targetCommentId}"]`);
-			if (el) {
-				el.scrollIntoView({ behavior: "smooth", block: "center" });
-				return true;
+		if (targetCommentIdParam && !isInitializing) {
+			const commentId = Number.parseInt(targetCommentIdParam, 10);
+			if (!Number.isNaN(commentId)) {
+				setTargetCommentId(commentId);
 			}
-			return false;
-		};
+		}
 
-		// Try immediately
-		if (tryScroll()) return;
-
-		// Retry every 200ms for up to 10 seconds
-		const intervalId = setInterval(() => {
-			if (tryScroll()) clearInterval(intervalId);
-		}, 200);
-
-		const timeoutId = setTimeout(() => clearInterval(intervalId), 10000);
-
-		return () => {
-			clearInterval(intervalId);
-			clearTimeout(timeoutId);
-		};
-	}, [targetCommentId, isInitializing, messages.length]);
+		// Cleanup on unmount or when navigating away
+		return () => clearTargetCommentId();
+	}, [targetCommentIdParam, isInitializing, setTargetCommentId, clearTargetCommentId]);
 
 	// Sync current thread state to atom
 	useEffect(() => {
-		setCurrentThreadState({
+		setCurrentThreadState((prev) => ({
+			...prev,
 			id: currentThread?.id ?? null,
 			visibility: currentThread?.visibility ?? null,
 			hasComments: currentThread?.has_comments ?? false,
 			addingCommentToMessageId: null,
-		});
+			publicShareEnabled: currentThread?.public_share_enabled ?? false,
+			publicShareToken: currentThread?.public_share_token ?? null,
+		}));
 	}, [currentThread, setCurrentThreadState]);
 
 	// Cancel ongoing request
@@ -887,13 +822,13 @@ export default function NewChatPage() {
 											// Update the tool call with its result
 											updateToolCall(parsed.toolCallId, { result: parsed.output });
 											// Handle podcast-specific logic
-											if (parsed.output?.status === "processing" && parsed.output?.task_id) {
+											if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 												// Check if this is a podcast tool by looking at the content part
 												const idx = toolCallIndices.get(parsed.toolCallId);
 												if (idx !== undefined) {
 													const part = contentParts[idx];
 													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-														setActivePodcastTaskId(parsed.output.task_id);
+														setActivePodcastTaskId(String(parsed.output.podcast_id));
 													}
 												}
 											}
@@ -1307,12 +1242,12 @@ export default function NewChatPage() {
 
 										case "tool-output-available":
 											updateToolCall(parsed.toolCallId, { result: parsed.output });
-											if (parsed.output?.status === "processing" && parsed.output?.task_id) {
+											if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 												const idx = toolCallIndices.get(parsed.toolCallId);
 												if (idx !== undefined) {
 													const part = contentParts[idx];
 													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-														setActivePodcastTaskId(parsed.output.task_id);
+														setActivePodcastTaskId(String(parsed.output.podcast_id));
 													}
 												}
 											}
@@ -1481,6 +1416,16 @@ export default function NewChatPage() {
 			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
 				<Spinner size="lg" />
 				<div className="text-sm text-muted-foreground">{t("loading_chat")}</div>
+			</div>
+		);
+	}
+
+	// Show loading state while completing clone
+	if (isCompletingClone) {
+		return (
+			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
+				<Spinner size="lg" />
+				<div className="text-sm text-muted-foreground">Copying chat content...</div>
 			</div>
 		);
 	}

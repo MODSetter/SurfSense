@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtom } from "jotai";
 import {
 	AlertCircle,
 	AtSign,
@@ -7,6 +8,8 @@ import {
 	Check,
 	CheckCheck,
 	CheckCircle2,
+	ChevronLeft,
+	ChevronRight,
 	History,
 	Inbox,
 	LayoutGrid,
@@ -18,7 +21,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { setCommentsCollapsedAtom, setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -41,15 +44,15 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import {
-	type ConnectorIndexingMetadata,
-	isConnectorIndexingMetadata,
-	isNewMentionMetadata,
-	type NewMentionMetadata,
-} from "@/contracts/types/inbox.types";
+import { isConnectorIndexingMetadata, isNewMentionMetadata } from "@/contracts/types/inbox.types";
 import type { InboxItem } from "@/hooks/use-inbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
+import { useSidebarContextSafe } from "../../hooks";
+
+// Sidebar width constants
+const SIDEBAR_COLLAPSED_WIDTH = 60;
+const SIDEBAR_EXPANDED_WIDTH = 240;
 
 /**
  * Get initials from name or email for avatar fallback
@@ -109,6 +112,7 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 		YOUTUBE_CONNECTOR: "YouTube",
 		CIRCLEBACK_CONNECTOR: "Circleback",
 		MCP_CONNECTOR: "MCP",
+		OBSIDIAN_CONNECTOR: "Obsidian",
 		TAVILY_API: "Tavily",
 		SEARXNG_API: "SearXNG",
 		LINKUP_API: "Linkup",
@@ -127,36 +131,54 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 type InboxTab = "mentions" | "status";
 type InboxFilter = "all" | "unread";
 
-interface InboxSidebarProps {
-	open: boolean;
-	onOpenChange: (open: boolean) => void;
-	inboxItems: InboxItem[];
+// Tab-specific data source with independent pagination
+interface TabDataSource {
+	items: InboxItem[];
 	unreadCount: number;
 	loading: boolean;
 	loadingMore?: boolean;
 	hasMore?: boolean;
 	loadMore?: () => void;
+}
+
+interface InboxSidebarProps {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	/** Mentions tab data source with independent pagination */
+	mentions: TabDataSource;
+	/** Status tab data source with independent pagination */
+	status: TabDataSource;
+	/** Combined unread count for mark all as read */
+	totalUnreadCount: number;
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
 	onCloseMobileSidebar?: () => void;
+	/** Whether the inbox is docked (permanent) or floating */
+	isDocked?: boolean;
+	/** Callback to toggle docked state */
+	onDockedChange?: (docked: boolean) => void;
 }
 
 export function InboxSidebar({
 	open,
 	onOpenChange,
-	inboxItems,
-	unreadCount,
-	loading,
-	loadingMore = false,
-	hasMore = false,
-	loadMore,
+	mentions,
+	status,
+	totalUnreadCount,
 	markAsRead,
 	markAllAsRead,
 	onCloseMobileSidebar,
+	isDocked = false,
+	onDockedChange,
 }: InboxSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
+
+	// Comments collapsed state (desktop only, when docked)
+	const [, setCommentsCollapsed] = useAtom(setCommentsCollapsedAtom);
+	// Target comment for navigation - also ensures comments panel is visible
+	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [activeTab, setActiveTab] = useState<InboxTab>("mentions");
@@ -186,16 +208,18 @@ export function InboxSidebar({
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
 
+	// Only lock body scroll on mobile when inbox is open
 	useEffect(() => {
-		if (open) {
-			document.body.style.overflow = "hidden";
-		} else {
-			document.body.style.overflow = "";
-		}
+		if (!open || !isMobile) return;
+
+		// Store original overflow to restore on cleanup
+		const originalOverflow = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+
 		return () => {
-			document.body.style.overflow = "";
+			document.body.style.overflow = originalOverflow;
 		};
-	}, [open]);
+	}, [open, isMobile]);
 
 	// Reset connector filter when switching away from status tab
 	useEffect(() => {
@@ -204,18 +228,18 @@ export function InboxSidebar({
 		}
 	}, [activeTab]);
 
-	// Split items by type
-	const mentionItems = useMemo(
-		() => inboxItems.filter((item) => item.type === "new_mention"),
-		[inboxItems]
-	);
+	// Get current tab's data source - each tab has independent data and pagination
+	const currentDataSource = activeTab === "mentions" ? mentions : status;
+	const { loading, loadingMore = false, hasMore = false, loadMore } = currentDataSource;
 
+	// Status tab includes: connector indexing, document processing
+	// Filter to only show status notification types
 	const statusItems = useMemo(
 		() =>
-			inboxItems.filter(
+			status.items.filter(
 				(item) => item.type === "connector_indexing" || item.type === "document_processing"
 			),
-		[inboxItems]
+		[status.items]
 	);
 
 	// Get unique connector types from status items for filtering
@@ -237,12 +261,12 @@ export function InboxSidebar({
 		}));
 	}, [statusItems]);
 
-	// Get items for current tab
-	const currentTabItems = activeTab === "mentions" ? mentionItems : statusItems;
+	// Get items for current tab - mentions use their source directly, status uses filtered items
+	const displayItems = activeTab === "mentions" ? mentions.items : statusItems;
 
 	// Filter items based on filter type, connector filter, and search query
 	const filteredItems = useMemo(() => {
-		let items = currentTabItems;
+		let items = displayItems;
 
 		// Apply read/unread filter
 		if (activeFilter === "unread") {
@@ -273,7 +297,7 @@ export function InboxSidebar({
 		}
 
 		return items;
-	}, [currentTabItems, activeFilter, activeTab, selectedConnector, searchQuery]);
+	}, [displayItems, activeFilter, activeTab, selectedConnector, searchQuery]);
 
 	// Intersection Observer for infinite scroll with prefetching
 	// Only active when not searching (search results are client-side filtered)
@@ -299,16 +323,11 @@ export function InboxSidebar({
 		}
 
 		return () => observer.disconnect();
-	}, [loadMore, hasMore, loadingMore, open, searchQuery, filteredItems.length]);
+	}, [loadMore, hasMore, loadingMore, open, searchQuery]);
 
-	// Count unread items per tab
-	const unreadMentionsCount = useMemo(() => {
-		return mentionItems.filter((item) => !item.read).length;
-	}, [mentionItems]);
-
-	const unreadStatusCount = useMemo(() => {
-		return statusItems.filter((item) => !item.read).length;
-	}, [statusItems]);
+	// Use unread counts from data sources (more accurate than client-side counting)
+	const unreadMentionsCount = mentions.unreadCount;
+	const unreadStatusCount = status.unreadCount;
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
@@ -326,6 +345,12 @@ export function InboxSidebar({
 					const commentId = item.metadata.comment_id;
 
 					if (searchSpaceId && threadId) {
+						// Pre-set target comment ID before navigation
+						// This also ensures comments panel is not collapsed
+						if (commentId) {
+							setTargetCommentId(commentId);
+						}
+
 						const url = commentId
 							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
 							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
@@ -336,7 +361,7 @@ export function InboxSidebar({
 				}
 			}
 		},
-		[markAsRead, router, onOpenChange, onCloseMobileSidebar]
+		[markAsRead, router, onOpenChange, onCloseMobileSidebar, setTargetCommentId]
 	);
 
 	const handleMarkAllAsRead = useCallback(async () => {
@@ -440,237 +465,141 @@ export function InboxSidebar({
 		};
 	};
 
+	// Get sidebar collapsed state from context (provided by LayoutShell)
+	const sidebarContext = useSidebarContextSafe();
+	const isCollapsed = sidebarContext?.isCollapsed ?? false;
+
+	// Calculate the left position for the inbox panel (relative to sidebar)
+	const sidebarWidth = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+
 	if (!mounted) return null;
 
-	return createPortal(
-		<AnimatePresence>
-			{open && (
-				<>
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-70 bg-black/50"
-						onClick={() => onOpenChange(false)}
-						aria-hidden="true"
-					/>
-
-					<motion.div
-						initial={{ x: "-100%" }}
-						animate={{ x: 0 }}
-						exit={{ x: "-100%" }}
-						transition={{ type: "tween", duration: 0.3, ease: "easeOut" }}
-						className="fixed inset-y-0 left-0 z-70 w-90 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
-						role="dialog"
-						aria-modal="true"
-						aria-label={t("inbox") || "Inbox"}
-					>
-						<div className="shrink-0 p-4 pb-2 space-y-3">
-							<div className="flex items-center justify-between">
-								<div className="flex items-center gap-2">
-									<Inbox className="h-5 w-5 text-primary" />
-									<h2 className="text-lg font-semibold">{t("inbox") || "Inbox"}</h2>
-								</div>
-								<div className="flex items-center gap-1">
-									{/* Mobile: Button that opens bottom drawer */}
-									{isMobile ? (
-										<>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-8 w-8 rounded-full"
-														onClick={() => setFilterDrawerOpen(true)}
-													>
-														<ListFilter className="h-4 w-4 text-muted-foreground" />
-														<span className="sr-only">{t("filter") || "Filter"}</span>
-													</Button>
-												</TooltipTrigger>
-												<TooltipContent className="z-80">{t("filter") || "Filter"}</TooltipContent>
-											</Tooltip>
-											<Drawer
-												open={filterDrawerOpen}
-												onOpenChange={setFilterDrawerOpen}
-												shouldScaleBackground={false}
-											>
-												<DrawerContent className="max-h-[70vh] z-80" overlayClassName="z-80">
-													<DrawerHandle />
-													<DrawerHeader className="px-4 pb-3 pt-2">
-														<DrawerTitle className="flex items-center gap-2 text-base font-semibold">
-															<ListFilter className="size-5" />
-															{t("filter") || "Filter"}
-														</DrawerTitle>
-													</DrawerHeader>
-													<div className="flex-1 overflow-y-auto p-4 space-y-4">
-														{/* Filter section */}
-														<div className="space-y-2">
-															<p className="text-xs text-muted-foreground/80 font-medium px-1">
-																{t("filter") || "Filter"}
-															</p>
-															<div className="space-y-1">
-																<button
-																	type="button"
-																	onClick={() => {
-																		setActiveFilter("all");
-																		setFilterDrawerOpen(false);
-																	}}
-																	className={cn(
-																		"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																		activeFilter === "all"
-																			? "bg-primary/10 text-primary"
-																			: "hover:bg-muted"
-																	)}
-																>
-																	<span className="flex items-center gap-2">
-																		<Inbox className="h-4 w-4" />
-																		<span>{t("all") || "All"}</span>
-																	</span>
-																	{activeFilter === "all" && <Check className="h-4 w-4" />}
-																</button>
-																<button
-																	type="button"
-																	onClick={() => {
-																		setActiveFilter("unread");
-																		setFilterDrawerOpen(false);
-																	}}
-																	className={cn(
-																		"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																		activeFilter === "unread"
-																			? "bg-primary/10 text-primary"
-																			: "hover:bg-muted"
-																	)}
-																>
-																	<span className="flex items-center gap-2">
-																		<BellDot className="h-4 w-4" />
-																		<span>{t("unread") || "Unread"}</span>
-																	</span>
-																	{activeFilter === "unread" && <Check className="h-4 w-4" />}
-																</button>
-															</div>
-														</div>
-														{/* Connectors section - only for status tab */}
-														{activeTab === "status" && uniqueConnectorTypes.length > 0 && (
-															<div className="space-y-2">
-																<p className="text-xs text-muted-foreground/80 font-medium px-1">
-																	{t("connectors") || "Connectors"}
-																</p>
-																<div className="space-y-1">
-																	<button
-																		type="button"
-																		onClick={() => {
-																			setSelectedConnector(null);
-																			setFilterDrawerOpen(false);
-																		}}
-																		className={cn(
-																			"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																			selectedConnector === null
-																				? "bg-primary/10 text-primary"
-																				: "hover:bg-muted"
-																		)}
-																	>
-																		<span className="flex items-center gap-2">
-																			<LayoutGrid className="h-4 w-4" />
-																			<span>{t("all_connectors") || "All connectors"}</span>
-																		</span>
-																		{selectedConnector === null && <Check className="h-4 w-4" />}
-																	</button>
-																	{uniqueConnectorTypes.map((connector) => (
-																		<button
-																			key={connector.type}
-																			type="button"
-																			onClick={() => {
-																				setSelectedConnector(connector.type);
-																				setFilterDrawerOpen(false);
-																			}}
-																			className={cn(
-																				"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																				selectedConnector === connector.type
-																					? "bg-primary/10 text-primary"
-																					: "hover:bg-muted"
-																			)}
-																		>
-																			<span className="flex items-center gap-2">
-																				{getConnectorIcon(connector.type, "h-4 w-4")}
-																				<span>{connector.displayName}</span>
-																			</span>
-																			{selectedConnector === connector.type && (
-																				<Check className="h-4 w-4" />
-																			)}
-																		</button>
-																	))}
-																</div>
-															</div>
-														)}
-													</div>
-												</DrawerContent>
-											</Drawer>
-										</>
-									) : (
-										/* Desktop: Dropdown menu */
-										<DropdownMenu
-											open={openDropdown === "filter"}
-											onOpenChange={(isOpen) => setOpenDropdown(isOpen ? "filter" : null)}
+	// Shared content component for both docked and floating modes
+	const inboxContent = (
+		<>
+			<div className="shrink-0 p-4 pb-2 space-y-3">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
+						<h2 className="text-lg font-semibold">{t("inbox") || "Inbox"}</h2>
+					</div>
+					<div className="flex items-center gap-1">
+						{/* Mobile: Button that opens bottom drawer */}
+						{isMobile ? (
+							<>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-8 w-8 rounded-full"
+											onClick={() => setFilterDrawerOpen(true)}
 										>
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<DropdownMenuTrigger asChild>
-														<Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-															<ListFilter className="h-4 w-4 text-muted-foreground" />
-															<span className="sr-only">{t("filter") || "Filter"}</span>
-														</Button>
-													</DropdownMenuTrigger>
-												</TooltipTrigger>
-												<TooltipContent className="z-80">{t("filter") || "Filter"}</TooltipContent>
-											</Tooltip>
-											<DropdownMenuContent
-												align="end"
-												className={cn("z-80", activeTab === "status" ? "w-52" : "w-44")}
-											>
-												<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
+											<ListFilter className="h-4 w-4 text-muted-foreground" />
+											<span className="sr-only">{t("filter") || "Filter"}</span>
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent className="z-80">{t("filter") || "Filter"}</TooltipContent>
+								</Tooltip>
+								<Drawer
+									open={filterDrawerOpen}
+									onOpenChange={setFilterDrawerOpen}
+									shouldScaleBackground={false}
+								>
+									<DrawerContent className="max-h-[70vh] z-80" overlayClassName="z-80">
+										<DrawerHandle />
+										<DrawerHeader className="px-4 pb-3 pt-2">
+											<DrawerTitle className="flex items-center gap-2 text-base font-semibold">
+												<ListFilter className="size-5" />
+												{t("filter") || "Filter"}
+											</DrawerTitle>
+										</DrawerHeader>
+										<div className="flex-1 overflow-y-auto p-4 space-y-4">
+											{/* Filter section */}
+											<div className="space-y-2">
+												<p className="text-xs text-muted-foreground/80 font-medium px-1">
 													{t("filter") || "Filter"}
-												</DropdownMenuLabel>
-												<DropdownMenuItem
-													onClick={() => setActiveFilter("all")}
-													className="flex items-center justify-between"
-												>
-													<span className="flex items-center gap-2">
-														<Inbox className="h-4 w-4" />
-														<span>{t("all") || "All"}</span>
-													</span>
-													{activeFilter === "all" && <Check className="h-4 w-4" />}
-												</DropdownMenuItem>
-												<DropdownMenuItem
-													onClick={() => setActiveFilter("unread")}
-													className="flex items-center justify-between"
-												>
-													<span className="flex items-center gap-2">
-														<BellDot className="h-4 w-4" />
-														<span>{t("unread") || "Unread"}</span>
-													</span>
-													{activeFilter === "unread" && <Check className="h-4 w-4" />}
-												</DropdownMenuItem>
-												{activeTab === "status" && uniqueConnectorTypes.length > 0 && (
-													<>
-														<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
-															{t("connectors") || "Connectors"}
-														</DropdownMenuLabel>
-														<DropdownMenuItem
-															onClick={() => setSelectedConnector(null)}
-															className="flex items-center justify-between"
+												</p>
+												<div className="space-y-1">
+													<button
+														type="button"
+														onClick={() => {
+															setActiveFilter("all");
+															setFilterDrawerOpen(false);
+														}}
+														className={cn(
+															"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+															activeFilter === "all"
+																? "bg-primary/10 text-primary"
+																: "hover:bg-muted"
+														)}
+													>
+														<span className="flex items-center gap-2">
+															<Inbox className="h-4 w-4" />
+															<span>{t("all") || "All"}</span>
+														</span>
+														{activeFilter === "all" && <Check className="h-4 w-4" />}
+													</button>
+													<button
+														type="button"
+														onClick={() => {
+															setActiveFilter("unread");
+															setFilterDrawerOpen(false);
+														}}
+														className={cn(
+															"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+															activeFilter === "unread"
+																? "bg-primary/10 text-primary"
+																: "hover:bg-muted"
+														)}
+													>
+														<span className="flex items-center gap-2">
+															<BellDot className="h-4 w-4" />
+															<span>{t("unread") || "Unread"}</span>
+														</span>
+														{activeFilter === "unread" && <Check className="h-4 w-4" />}
+													</button>
+												</div>
+											</div>
+											{/* Connectors section - only for status tab */}
+											{activeTab === "status" && uniqueConnectorTypes.length > 0 && (
+												<div className="space-y-2">
+													<p className="text-xs text-muted-foreground/80 font-medium px-1">
+														{t("connectors") || "Connectors"}
+													</p>
+													<div className="space-y-1">
+														<button
+															type="button"
+															onClick={() => {
+																setSelectedConnector(null);
+																setFilterDrawerOpen(false);
+															}}
+															className={cn(
+																"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																selectedConnector === null
+																	? "bg-primary/10 text-primary"
+																	: "hover:bg-muted"
+															)}
 														>
 															<span className="flex items-center gap-2">
 																<LayoutGrid className="h-4 w-4" />
 																<span>{t("all_connectors") || "All connectors"}</span>
 															</span>
 															{selectedConnector === null && <Check className="h-4 w-4" />}
-														</DropdownMenuItem>
+														</button>
 														{uniqueConnectorTypes.map((connector) => (
-															<DropdownMenuItem
+															<button
 																key={connector.type}
-																onClick={() => setSelectedConnector(connector.type)}
-																className="flex items-center justify-between"
+																type="button"
+																onClick={() => {
+																	setSelectedConnector(connector.type);
+																	setFilterDrawerOpen(false);
+																}}
+																className={cn(
+																	"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																	selectedConnector === connector.type
+																		? "bg-primary/10 text-primary"
+																		: "hover:bg-muted"
+																)}
 															>
 																<span className="flex items-center gap-2">
 																	{getConnectorIcon(connector.type, "h-4 w-4")}
@@ -679,190 +608,372 @@ export function InboxSidebar({
 																{selectedConnector === connector.type && (
 																	<Check className="h-4 w-4" />
 																)}
-															</DropdownMenuItem>
+															</button>
 														))}
-													</>
-												)}
-											</DropdownMenuContent>
-										</DropdownMenu>
-									)}
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 rounded-full"
-												onClick={handleMarkAllAsRead}
-												disabled={unreadCount === 0}
-											>
-												<CheckCheck className="h-4 w-4 text-muted-foreground" />
-												<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+													</div>
+												</div>
+											)}
+										</div>
+									</DrawerContent>
+								</Drawer>
+							</>
+						) : (
+							/* Desktop: Dropdown menu */
+							<DropdownMenu
+								open={openDropdown === "filter"}
+								onOpenChange={(isOpen) => setOpenDropdown(isOpen ? "filter" : null)}
+							>
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<DropdownMenuTrigger asChild>
+											<Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+												<ListFilter className="h-4 w-4 text-muted-foreground" />
+												<span className="sr-only">{t("filter") || "Filter"}</span>
 											</Button>
-										</TooltipTrigger>
-										<TooltipContent className="z-80">
-											{t("mark_all_read") || "Mark all as read"}
-										</TooltipContent>
-									</Tooltip>
-								</div>
-							</div>
-
-							<div className="relative">
-								<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-								<Input
-									type="text"
-									placeholder={t("search_inbox") || "Search inbox"}
-									value={searchQuery}
-									onChange={(e) => setSearchQuery(e.target.value)}
-									className="pl-9 pr-8 h-9"
-								/>
-								{searchQuery && (
+										</DropdownMenuTrigger>
+									</TooltipTrigger>
+									<TooltipContent className="z-80">{t("filter") || "Filter"}</TooltipContent>
+								</Tooltip>
+								<DropdownMenuContent
+									align="end"
+									className={cn("z-80", activeTab === "status" ? "w-52" : "w-44")}
+								>
+									<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
+										{t("filter") || "Filter"}
+									</DropdownMenuLabel>
+									<DropdownMenuItem
+										onClick={() => setActiveFilter("all")}
+										className="flex items-center justify-between"
+									>
+										<span className="flex items-center gap-2">
+											<Inbox className="h-4 w-4" />
+											<span>{t("all") || "All"}</span>
+										</span>
+										{activeFilter === "all" && <Check className="h-4 w-4" />}
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onClick={() => setActiveFilter("unread")}
+										className="flex items-center justify-between"
+									>
+										<span className="flex items-center gap-2">
+											<BellDot className="h-4 w-4" />
+											<span>{t("unread") || "Unread"}</span>
+										</span>
+										{activeFilter === "unread" && <Check className="h-4 w-4" />}
+									</DropdownMenuItem>
+									{activeTab === "status" && uniqueConnectorTypes.length > 0 && (
+										<>
+											<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
+												{t("connectors") || "Connectors"}
+											</DropdownMenuLabel>
+											<DropdownMenuItem
+												onClick={() => setSelectedConnector(null)}
+												className="flex items-center justify-between"
+											>
+												<span className="flex items-center gap-2">
+													<LayoutGrid className="h-4 w-4" />
+													<span>{t("all_connectors") || "All connectors"}</span>
+												</span>
+												{selectedConnector === null && <Check className="h-4 w-4" />}
+											</DropdownMenuItem>
+											{uniqueConnectorTypes.map((connector) => (
+												<DropdownMenuItem
+													key={connector.type}
+													onClick={() => setSelectedConnector(connector.type)}
+													className="flex items-center justify-between"
+												>
+													<span className="flex items-center gap-2">
+														{getConnectorIcon(connector.type, "h-4 w-4")}
+														<span>{connector.displayName}</span>
+													</span>
+													{selectedConnector === connector.type && <Check className="h-4 w-4" />}
+												</DropdownMenuItem>
+											))}
+										</>
+									)}
+								</DropdownMenuContent>
+							</DropdownMenu>
+						)}
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full"
+									onClick={handleMarkAllAsRead}
+									disabled={totalUnreadCount === 0}
+								>
+									<CheckCheck className="h-4 w-4 text-muted-foreground" />
+									<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent className="z-80">
+								{t("mark_all_read") || "Mark all as read"}
+							</TooltipContent>
+						</Tooltip>
+						{/* Close button - mobile only */}
+						{isMobile && (
+							<Tooltip>
+								<TooltipTrigger asChild>
 									<Button
 										variant="ghost"
 										size="icon"
-										className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
-										onClick={handleClearSearch}
+										className="h-8 w-8 rounded-full"
+										onClick={() => onOpenChange(false)}
 									>
-										<X className="h-3.5 w-3.5" />
-										<span className="sr-only">{t("clear_search") || "Clear search"}</span>
+										<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+										<span className="sr-only">{t("close") || "Close"}</span>
 									</Button>
-								)}
-							</div>
-						</div>
+								</TooltipTrigger>
+								<TooltipContent className="z-80">{t("close") || "Close"}</TooltipContent>
+							</Tooltip>
+						)}
+						{/* Dock/Undock button - desktop only */}
+						{!isMobile && onDockedChange && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 rounded-full"
+										onClick={() => {
+											if (isDocked) {
+												// Collapse: show comments immediately, then close inbox
+												setCommentsCollapsed(false);
+												onDockedChange(false);
+												onOpenChange(false);
+											} else {
+												// Expand: hide comments immediately
+												setCommentsCollapsed(true);
+												onDockedChange(true);
+											}
+										}}
+									>
+										{isDocked ? (
+											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+										) : (
+											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+										)}
+										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent className="z-80">
+									{isDocked ? "Collapse panel" : "Expand panel"}
+								</TooltipContent>
+							</Tooltip>
+						)}
+					</div>
+				</div>
 
-						<Tabs
-							value={activeTab}
-							onValueChange={(value) => setActiveTab(value as InboxTab)}
-							className="shrink-0 mx-4"
+				<div className="relative">
+					<Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+					<Input
+						type="text"
+						placeholder={t("search_inbox") || "Search inbox"}
+						value={searchQuery}
+						onChange={(e) => setSearchQuery(e.target.value)}
+						className="pl-9 pr-8 h-9"
+					/>
+					{searchQuery && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+							onClick={handleClearSearch}
 						>
-							<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
-								<TabsTrigger
-									value="mentions"
-									className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-								>
-									<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
-										<AtSign className="h-4 w-4" />
-										<span>{t("mentions") || "Mentions"}</span>
-										<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-											{formatInboxCount(unreadMentionsCount)}
-										</span>
-									</span>
-								</TabsTrigger>
-								<TabsTrigger
-									value="status"
-									className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-								>
-									<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
-										<History className="h-4 w-4" />
-										<span>{t("status") || "Status"}</span>
-										<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-											{formatInboxCount(unreadStatusCount)}
-										</span>
-									</span>
-								</TabsTrigger>
-							</TabsList>
-						</Tabs>
+							<X className="h-3.5 w-3.5" />
+							<span className="sr-only">{t("clear_search") || "Clear search"}</span>
+						</Button>
+					)}
+				</div>
+			</div>
 
-						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-							{loading ? (
-								<div className="flex items-center justify-center py-8">
-									<Spinner size="md" className="text-muted-foreground" />
-								</div>
-							) : filteredItems.length > 0 ? (
-								<div className="space-y-2">
-									{filteredItems.map((item, index) => {
-										const isMarkingAsRead = markingAsReadId === item.id;
-										// Place prefetch trigger on 5th item from end (only if not searching)
-										const isPrefetchTrigger =
-											!searchQuery && hasMore && index === filteredItems.length - 5;
+			<Tabs
+				value={activeTab}
+				onValueChange={(value) => setActiveTab(value as InboxTab)}
+				className="shrink-0 mx-4"
+			>
+				<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
+					<TabsTrigger
+						value="mentions"
+						className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+					>
+						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+							<AtSign className="h-4 w-4" />
+							<span>{t("mentions") || "Mentions"}</span>
+							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+								{formatInboxCount(unreadMentionsCount)}
+							</span>
+						</span>
+					</TabsTrigger>
+					<TabsTrigger
+						value="status"
+						className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+					>
+						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+							<History className="h-4 w-4" />
+							<span>{t("status") || "Status"}</span>
+							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
+								{formatInboxCount(unreadStatusCount)}
+							</span>
+						</span>
+					</TabsTrigger>
+				</TabsList>
+			</Tabs>
 
-										return (
-											<div
-												key={item.id}
-												ref={isPrefetchTrigger ? prefetchTriggerRef : undefined}
-												className={cn(
-													"group flex items-center gap-3 rounded-lg px-3 py-3 text-sm h-[80px] overflow-hidden",
-													"hover:bg-accent hover:text-accent-foreground",
-													"transition-colors cursor-pointer",
-													isMarkingAsRead && "opacity-50 pointer-events-none"
-												)}
+			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
+				{loading ? (
+					<div className="flex items-center justify-center py-8">
+						<Spinner size="md" className="text-muted-foreground" />
+					</div>
+				) : filteredItems.length > 0 ? (
+					<div className="space-y-2">
+						{filteredItems.map((item, index) => {
+							const isMarkingAsRead = markingAsReadId === item.id;
+							// Place prefetch trigger on 5th item from end (only if not searching)
+							const isPrefetchTrigger =
+								!searchQuery && hasMore && index === filteredItems.length - 5;
+
+							return (
+								<div
+									key={item.id}
+									ref={isPrefetchTrigger ? prefetchTriggerRef : undefined}
+									className={cn(
+										"group flex items-center gap-3 rounded-lg px-3 py-3 text-sm h-[80px] overflow-hidden",
+										"hover:bg-accent hover:text-accent-foreground",
+										"transition-colors cursor-pointer",
+										isMarkingAsRead && "opacity-50 pointer-events-none"
+									)}
+								>
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<button
+												type="button"
+												onClick={() => handleItemClick(item)}
+												disabled={isMarkingAsRead}
+												className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
 											>
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<button
-															type="button"
-															onClick={() => handleItemClick(item)}
-															disabled={isMarkingAsRead}
-															className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
-														>
-															<div className="shrink-0">{getStatusIcon(item)}</div>
-															<div className="flex-1 min-w-0 overflow-hidden">
-																<p
-																	className={cn(
-																		"text-xs font-medium line-clamp-2",
-																		!item.read && "font-semibold"
-																	)}
-																>
-																	{item.title}
-																</p>
-																<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-																	{convertRenderedToDisplay(item.message)}
-																</p>
-															</div>
-														</button>
-													</TooltipTrigger>
-													<TooltipContent side="bottom" align="start" className="max-w-[250px]">
-														<p className="font-medium">{item.title}</p>
-														<p className="text-muted-foreground mt-1">
-															{convertRenderedToDisplay(item.message)}
-														</p>
-													</TooltipContent>
-												</Tooltip>
-
-												{/* Time and unread dot - fixed width to prevent content shift */}
-												<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">
-													<span className="text-[10px] text-muted-foreground">
-														{formatTime(item.created_at)}
-													</span>
-													{!item.read && (
-														<span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-													)}
+												<div className="shrink-0">{getStatusIcon(item)}</div>
+												<div className="flex-1 min-w-0 overflow-hidden">
+													<p
+														className={cn(
+															"text-xs font-medium line-clamp-2",
+															!item.read && "font-semibold"
+														)}
+													>
+														{item.title}
+													</p>
+													<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+														{convertRenderedToDisplay(item.message)}
+													</p>
 												</div>
-											</div>
-										);
-									})}
-									{/* Fallback trigger at the very end if less than 5 items and not searching */}
-									{!searchQuery && filteredItems.length < 5 && hasMore && (
-										<div ref={prefetchTriggerRef} className="h-1" />
-									)}
+											</button>
+										</TooltipTrigger>
+										<TooltipContent side="bottom" align="start" className="max-w-[250px]">
+											<p className="font-medium">{item.title}</p>
+											<p className="text-muted-foreground mt-1">
+												{convertRenderedToDisplay(item.message)}
+											</p>
+										</TooltipContent>
+									</Tooltip>
+
+									{/* Time and unread dot - fixed width to prevent content shift */}
+									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">
+										<span className="text-[10px] text-muted-foreground">
+											{formatTime(item.created_at)}
+										</span>
+										{!item.read && <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />}
+									</div>
 								</div>
-							) : searchQuery ? (
-								<div className="text-center py-8">
-									<Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-									<p className="text-sm text-muted-foreground">
-										{t("no_results_found") || "No results found"}
-									</p>
-									<p className="text-xs text-muted-foreground/70 mt-1">
-										{t("try_different_search") || "Try a different search term"}
-									</p>
-								</div>
-							) : (
-								<div className="text-center py-8">
-									{activeTab === "mentions" ? (
-										<AtSign className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-									) : (
-										<History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-									)}
-									<p className="text-sm text-muted-foreground">{getEmptyStateMessage().title}</p>
-									<p className="text-xs text-muted-foreground/70 mt-1">
-										{getEmptyStateMessage().hint}
-									</p>
-								</div>
+							);
+						})}
+						{/* Fallback trigger at the very end if less than 5 items and not searching */}
+						{!searchQuery && filteredItems.length < 5 && hasMore && (
+							<div ref={prefetchTriggerRef} className="h-1" />
+						)}
+					</div>
+				) : searchQuery ? (
+					<div className="text-center py-8">
+						<Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+						<p className="text-sm text-muted-foreground">
+							{t("no_results_found") || "No results found"}
+						</p>
+						<p className="text-xs text-muted-foreground/70 mt-1">
+							{t("try_different_search") || "Try a different search term"}
+						</p>
+					</div>
+				) : (
+					<div className="text-center py-8">
+						{activeTab === "mentions" ? (
+							<AtSign className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+						) : (
+							<History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+						)}
+						<p className="text-sm text-muted-foreground">{getEmptyStateMessage().title}</p>
+						<p className="text-xs text-muted-foreground/70 mt-1">{getEmptyStateMessage().hint}</p>
+					</div>
+				)}
+			</div>
+		</>
+	);
+
+	// DOCKED MODE: Render as a static flex child (no animation, no click-away)
+	if (isDocked && open && !isMobile) {
+		return (
+			<aside
+				className="h-full w-[360px] shrink-0 bg-background flex flex-col border-r"
+				aria-label={t("inbox") || "Inbox"}
+			>
+				{inboxContent}
+			</aside>
+		);
+	}
+
+	// FLOATING MODE: Render with animation and click-away layer
+	return (
+		<AnimatePresence>
+			{open && (
+				<>
+					{/* Click-away layer - only covers the content area, not the sidebar */}
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.15 }}
+						style={{
+							left: isMobile ? 0 : sidebarWidth,
+						}}
+						className="absolute inset-y-0 right-0"
+						onClick={() => onOpenChange(false)}
+						aria-hidden="true"
+					/>
+
+					{/* Clip container - positioned at sidebar edge with overflow hidden */}
+					<div
+						style={{
+							left: isMobile ? 0 : sidebarWidth,
+							width: isMobile ? "100%" : 360,
+						}}
+						className={cn("absolute z-10 overflow-hidden pointer-events-none", "inset-y-0")}
+					>
+						<motion.div
+							initial={{ x: "-100%" }}
+							animate={{ x: 0 }}
+							exit={{ x: "-100%" }}
+							transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+							className={cn(
+								"h-full w-full bg-background flex flex-col pointer-events-auto",
+								"sm:border-r sm:shadow-xl"
 							)}
-						</div>
-					</motion.div>
+							role="dialog"
+							aria-modal="true"
+							aria-label={t("inbox") || "Inbox"}
+						>
+							{inboxContent}
+						</motion.div>
+					</div>
 				</>
 			)}
-		</AnimatePresence>,
-		document.body
+		</AnimatePresence>
 	);
 }

@@ -2,8 +2,6 @@
 	"common": {
 		"app_name": "SurfSense",
 		"welcome": "欢迎",
-		"loading": "加载中...",
-		"initializing": "正在初始化",
 		"save": "保存",
 		"cancel": "取消",
 		"delete": "删除",
@@ -80,8 +78,7 @@
 		"passwords_no_match_desc": "您输入的密码不一致",
 		"creating_account": "正在创建您的账户",
 		"creating_account_btn": "创建中",
-		"redirecting_login": "正在跳转到登录页面",
-		"processing_authentication": "正在处理身份验证"
+		"redirecting_login": "正在跳转到登录页面"
 	},
 	"searchSpace": {
 		"create_title": "创建搜索空间",
@@ -131,10 +128,7 @@
 		"api_keys": "API 密钥",
 		"profile": "个人资料",
 		"loading_dashboard": "正在加载仪表盘",
-		"checking_auth": "正在检查身份验证",
 		"loading_config": "正在加载配置",
-		"checking_llm_prefs": "正在检查您的 LLM 偏好设置",
-		"setting_up_ai": "正在设置 AI",
 		"config_error": "配置错误",
 		"failed_load_llm_config": "无法加载您的 LLM 配置",
 		"error_loading_chats": "加载对话失败",
@@ -156,7 +150,6 @@
 		"create_search_space": "创建搜索空间",
 		"add_new_search_space": "添加新的搜索空间",
 		"loading": "加载中",
-		"fetching_spaces": "正在获取您的搜索空间",
 		"may_take_moment": "这可能需要一些时间",
 		"error": "错误",
 		"something_wrong": "出现错误",
@@ -686,7 +679,7 @@
 		"system": "系统",
 		"logout": "退出登录",
 		"inbox": "收件箱",
-		"search_inbox": "搜索收件箱...",
+		"search_inbox": "搜索收件箱",
 		"mark_all_read": "全部标记为已读",
 		"mark_as_read": "标记为已读",
 		"mentions": "提及",
@@ -700,7 +693,8 @@
 		"all": "全部",
 		"unread": "未读",
 		"connectors": "连接器",
-		"all_connectors": "所有连接器"
+		"all_connectors": "所有连接器",
+		"close": "关闭"
 	},
 	"errors": {
 		"something_went_wrong": "出错了",

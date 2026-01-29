@@ -27,6 +27,13 @@ function LoginContent() {
 		const error = searchParams.get("error");
 		const message = searchParams.get("message");
 		const logout = searchParams.get("logout");
+		const returnUrl = searchParams.get("returnUrl");
+
+		// Save returnUrl to localStorage so it persists through OAuth flows (e.g., Google)
+		// This is read by TokenHandler after successful authentication
+		if (returnUrl) {
+			localStorage.setItem("surfsense_redirect_path", decodeURIComponent(returnUrl));
+		}
 
 		// Show registration success message
 		if (registered === "true") {
@@ -93,7 +100,7 @@ function LoginContent() {
 	}, [searchParams, t, tCommon]);
 
 	// Use global loading screen for auth type determination - spinner animation won't reset
-	useGlobalLoadingEffect(isLoading, tCommon("loading"), "login");
+	useGlobalLoadingEffect(isLoading);
 
 	// Show nothing while loading - the GlobalLoadingProvider handles the loading UI
 	if (isLoading) {

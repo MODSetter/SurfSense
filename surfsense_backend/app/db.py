@@ -93,6 +93,13 @@ class SearchSourceConnectorType(str, Enum):
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
+class PodcastStatus(str, Enum):
+    PENDING = "pending"
+    GENERATING = "generating"
+    READY = "ready"
+    FAILED = "failed"
+
+
 class LiteLLMProvider(str, Enum):
     """
     Enum for LLM providers supported by LiteLLM.
@@ -156,6 +163,7 @@ class IncentiveTaskType(str, Enum):
     """
 
     GITHUB_STAR = "GITHUB_STAR"
+    REDDIT_FOLLOW = "REDDIT_FOLLOW"
     # Future tasks can be added here:
     # GITHUB_ISSUE = "GITHUB_ISSUE"
     # SOCIAL_SHARE = "SOCIAL_SHARE"
@@ -170,6 +178,12 @@ INCENTIVE_TASKS_CONFIG = {
         "description": "Show your support by starring SurfSense on GitHub",
         "pages_reward": 100,
         "action_url": "https://github.com/MODSetter/SurfSense",
+    },
+    IncentiveTaskType.REDDIT_FOLLOW: {
+        "title": "Join our Subreddit",
+        "description": "Join the SurfSense community on Reddit",
+        "pages_reward": 100,
+        "action_url": "https://www.reddit.com/r/SurfSense/",
     },
     # Future tasks can be configured here:
     # IncentiveTaskType.GITHUB_ISSUE: {
@@ -395,6 +409,47 @@ class NewChatThread(BaseModel, TimestampMixin):
         ForeignKey("user.id", ondelete="SET NULL"),
         nullable=True,  # Nullable for existing records before migration
         index=True,
+    )
+
+    # Public sharing - cryptographic token for public URL access
+    public_share_token = Column(
+        String(64),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    # Whether public sharing is currently enabled for this thread
+    public_share_enabled = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+
+    # Clone tracking - for audit and history bootstrap
+    cloned_from_thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    cloned_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=True,
+    )
+    # Flag to bootstrap LangGraph checkpointer with DB messages on first message
+    needs_history_bootstrap = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
+    )
+    # Flag indicating content clone is pending (two-phase clone)
+    clone_pending = Column(
+        Boolean,
+        nullable=False,
+        default=False,
+        server_default="false",
     )
 
     # Relationships
@@ -709,13 +764,33 @@ class Podcast(BaseModel, TimestampMixin):
     __tablename__ = "podcasts"
 
     title = Column(String(500), nullable=False)
-    podcast_transcript = Column(JSONB, nullable=True)  # List of transcript entries
-    file_location = Column(Text, nullable=True)  # Path to the audio file
+    podcast_transcript = Column(JSONB, nullable=True)
+    file_location = Column(Text, nullable=True)
+    status = Column(
+        SQLAlchemyEnum(
+            PodcastStatus,
+            name="podcast_status",
+            create_type=False,
+            values_callable=lambda x: [e.value for e in x],
+        ),
+        nullable=False,
+        default=PodcastStatus.READY,
+        server_default="ready",
+        index=True,
+    )
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
     search_space = relationship("SearchSpace", back_populates="podcasts")
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    thread = relationship("NewChatThread")
 
 
 class SearchSpace(BaseModel, TimestampMixin):

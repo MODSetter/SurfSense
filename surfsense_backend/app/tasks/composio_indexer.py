@@ -86,7 +86,7 @@ async def index_composio_connector(
     end_date: str | None = None,
     update_last_indexed: bool = True,
     max_items: int = 1000,
-) -> tuple[int, str]:
+) -> tuple[int, int, str | None]:
     """
     Index content from a Composio connector.
 
@@ -104,7 +104,7 @@ async def index_composio_connector(
         max_items: Maximum number of items to fetch
 
     Returns:
-        Tuple of (number_of_indexed_items, error_message or None)
+        Tuple of (number_of_indexed_items, number_of_skipped_items, error_message or None)
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
@@ -132,14 +132,14 @@ async def index_composio_connector(
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "InvalidConnectorType"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         if not connector:
             error_msg = f"Composio connector with ID {connector_id} not found"
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "ConnectorNotFound"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         # Get toolkit ID from config
         toolkit_id = connector.config.get("toolkit_id")
@@ -150,7 +150,7 @@ async def index_composio_connector(
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "MissingToolkitId"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         # Check if toolkit is indexable
         if toolkit_id not in INDEXABLE_TOOLKITS:
@@ -158,7 +158,7 @@ async def index_composio_connector(
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "ToolkitNotIndexable"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         # Get indexer function from registry
         try:
@@ -167,7 +167,7 @@ async def index_composio_connector(
             await task_logger.log_task_failure(
                 log_entry, str(e), {"error_type": "NoIndexerImplemented"}
             )
-            return 0, str(e)
+            return 0, 0, str(e)
 
         # Build kwargs for the indexer function
         kwargs = {
@@ -199,7 +199,7 @@ async def index_composio_connector(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -209,4 +209,4 @@ async def index_composio_connector(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Composio connector: {e!s}", exc_info=True)
-        return 0, f"Failed to index Composio connector: {e!s}"
+        return 0, 0, f"Failed to index Composio connector: {e!s}"
