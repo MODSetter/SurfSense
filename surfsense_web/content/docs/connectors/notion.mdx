@@ -66,6 +66,29 @@ Click **Save** to apply the capabilities.
 
 ---
 
+## Limitations & Unsupported Content
+
+Notion's API has limitations on certain block types that cannot be retrieved. SurfSense will automatically skip these unsupported blocks and continue syncing all other content.
+
+### Unsupported Block Types
+
+The following Notion features are **not accessible via the Notion API** and will be skipped during sync:
+
+- **Transcription blocks** - Audio/video transcriptions from Notion AI
+- **AI blocks** - AI-generated content blocks
+
+### Learn More
+
+The Notion API only supports specific block types for retrieval. The official list of **supported block types** is documented in Notion's Block reference:
+
+- **[Block Object Reference](https://developers.notion.com/reference/block)** - Official documentation listing all supported block types. Any block type not listed here (such as `transcription` and `ai_block`) is not accessible via the Notion API.
+
+For additional information:
+- [Working with Page Content](https://developers.notion.com/docs/working-with-page-content) - Guide on how the Notion API handles page content
+- [Notion API Reference](https://developers.notion.com/reference) - Complete API documentation
+
+---
+
 ## Running SurfSense with Notion Connector
 
 Add the Notion environment variables to your Docker run command:

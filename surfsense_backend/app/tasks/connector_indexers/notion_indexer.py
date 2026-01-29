@@ -2,6 +2,7 @@
 Notion connector indexer.
 """
 
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -29,6 +30,10 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type alias for retry callback
+# Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds) -> None
+RetryCallbackType = Callable[[str, int, int, float], Awaitable[None]]
+
 
 async def index_notion_pages(
     session: AsyncSession,
@@ -38,6 +43,7 @@ async def index_notion_pages(
     start_date: str | None = None,
     end_date: str | None = None,
     update_last_indexed: bool = True,
+    on_retry_callback: RetryCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index Notion pages from all accessible pages.
@@ -50,6 +56,9 @@ async def index_notion_pages(
         start_date: Start date for indexing (YYYY-MM-DD format)
         end_date: End date for indexing (YYYY-MM-DD format)
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        on_retry_callback: Optional callback for retry progress notifications.
+            Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds)
+            retry_reason is one of: 'rate_limit', 'server_error', 'timeout'
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -139,6 +148,10 @@ async def index_notion_pages(
             session=session, connector_id=connector_id
         )
 
+        # Set retry callback if provided (for user notifications during rate limits)
+        if on_retry_callback:
+            notion_client.set_retry_callback(on_retry_callback)
+
         logger.info(f"Fetching Notion pages from {start_date_iso} to {end_date_iso}")
 
         await task_logger.log_task_progress(
@@ -157,6 +170,20 @@ async def index_notion_pages(
                 start_date=start_date_iso, end_date=end_date_iso
             )
             logger.info(f"Found {len(pages)} Notion pages")
+
+            # Get count of pages that had unsupported content skipped
+            pages_with_skipped_content = notion_client.get_skipped_content_count()
+            if pages_with_skipped_content > 0:
+                logger.info(
+                    f"{pages_with_skipped_content} pages had Notion AI content skipped (not available via API)"
+                )
+
+            # Check if using legacy integration token and log warning
+            if notion_client.is_using_legacy_token():
+                logger.warning(
+                    f"Connector {connector_id} is using legacy integration token. "
+                    "Recommend reconnecting with OAuth."
+                )
         except Exception as e:
             await task_logger.log_task_failure(
                 log_entry,
@@ -171,12 +198,13 @@ async def index_notion_pages(
         if not pages:
             await task_logger.log_task_success(
                 log_entry,
-                f"No Notion pages found for connector {connector_id}",
+                f"No Notion pages found for connector {connector_id}. "
+                "Ensure pages are shared with the Notion integration.",
                 {"pages_found": 0},
             )
             logger.info("No Notion pages found to index")
             await notion_client.close()
-            return 0, "No Notion pages found"
+            return 0, None  # Success with 0 pages, not an error
 
         # Track the number of documents indexed
         documents_indexed = 0
@@ -454,12 +482,22 @@ async def index_notion_pages(
         logger.info(f"Final commit: Total {documents_indexed} documents processed")
         await session.commit()
 
-        # Prepare result message
+        # Get final count of pages with skipped Notion AI content
+        pages_with_skipped_ai_content = notion_client.get_skipped_content_count()
+
+        # Prepare result message with user-friendly notification about skipped content
         result_message = None
         if skipped_pages:
             result_message = f"Processed {total_processed} pages. Skipped {len(skipped_pages)} pages: {', '.join(skipped_pages)}"
         else:
             result_message = f"Processed {total_processed} pages."
+
+        # Add user-friendly message about skipped Notion AI content
+        if pages_with_skipped_ai_content > 0:
+            result_message += (
+                " Audio transcriptions and AI summaries from Notion aren't accessible "
+                "via their API - all other content was saved."
+            )
 
         # Log success
         await task_logger.log_task_success(
@@ -470,6 +508,7 @@ async def index_notion_pages(
                 "documents_indexed": documents_indexed,
                 "documents_skipped": documents_skipped,
                 "skipped_pages_count": len(skipped_pages),
+                "pages_with_skipped_ai_content": pages_with_skipped_ai_content,
                 "result_message": result_message,
             },
         )
@@ -481,10 +520,26 @@ async def index_notion_pages(
         # Clean up the async client
         await notion_client.close()
 
+        # Build user-friendly notification messages
+        # This will be shown in the notification to inform users
+        notification_parts = []
+
+        if pages_with_skipped_ai_content > 0:
+            notification_parts.append(
+                "Some Notion AI content couldn't be synced (API limitation)"
+            )
+
+        if notion_client.is_using_legacy_token():
+            notification_parts.append(
+                "Using legacy token. Reconnect with OAuth for better reliability."
+            )
+
+        user_notification_message = " ".join(notification_parts) if notification_parts else None
+
         return (
             total_processed,
-            None,
-        )  # Return None on success (result_message is for logging only)
+            user_notification_message,
+        )
 
     except SQLAlchemyError as db_error:
         await session.rollback()
