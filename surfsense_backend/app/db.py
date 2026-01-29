@@ -411,21 +411,6 @@ class NewChatThread(BaseModel, TimestampMixin):
         index=True,
     )
 
-    # Public sharing - cryptographic token for public URL access
-    public_share_token = Column(
-        String(64),
-        nullable=True,
-        unique=True,
-        index=True,
-    )
-    # Whether public sharing is currently enabled for this thread
-    public_share_enabled = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default="false",
-    )
-
     # Clone tracking - for audit and history bootstrap
     cloned_from_thread_id = Column(
         Integer,
@@ -444,13 +429,6 @@ class NewChatThread(BaseModel, TimestampMixin):
         default=False,
         server_default="false",
     )
-    # Flag indicating content clone is pending (two-phase clone)
-    clone_pending = Column(
-        Boolean,
-        nullable=False,
-        default=False,
-        server_default="false",
-    )
 
     # Relationships
     search_space = relationship("SearchSpace", back_populates="new_chat_threads")
@@ -459,6 +437,11 @@ class NewChatThread(BaseModel, TimestampMixin):
         "NewChatMessage",
         back_populates="thread",
         order_by="NewChatMessage.created_at",
+        cascade="all, delete-orphan",
+    )
+    snapshots = relationship(
+        "PublicChatSnapshot",
+        back_populates="thread",
         cascade="all, delete-orphan",
     )
 
@@ -498,6 +481,87 @@ class NewChatMessage(BaseModel, TimestampMixin):
         "ChatComment",
         back_populates="message",
         cascade="all, delete-orphan",
+    )
+
+
+class PublicChatSnapshot(BaseModel, TimestampMixin):
+    """
+    Immutable snapshot of a chat thread for public sharing.
+
+    Each snapshot is a frozen copy of the chat at a specific point in time.
+    The snapshot_data JSONB contains all messages and metadata needed to
+    render the public chat without querying the original thread.
+
+    Key features:
+    - Immutable: Content never changes after creation
+    - Deduplication: content_hash prevents duplicate snapshots of same state
+    - Cascade delete: Deleted when parent thread is deleted
+    - Message tracking: message_ids array enables cascade delete on message edit
+    """
+
+    __tablename__ = "public_chat_snapshots"
+
+    # Link to original thread - CASCADE DELETE when thread is deleted
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # Public access token (unique URL identifier)
+    share_token = Column(
+        String(64),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    # SHA-256 hash of message content for deduplication
+    # Same content = same hash = return existing snapshot instead of creating new
+    content_hash = Column(
+        String(64),
+        nullable=False,
+        index=True,
+    )
+
+    # Immutable snapshot data - self-contained for rendering
+    # Structure:
+    # {
+    #   "version": 1,
+    #   "title": "Chat title",
+    #   "snapshot_at": "2026-01-29T12:00:00Z",
+    #   "author": { "display_name": "...", "avatar_url": "..." },
+    #   "messages": [
+    #     { "id": 123, "role": "user|assistant", "content": [...], "author": {...}, "created_at": "..." }
+    #   ],
+    #   "podcasts": [
+    #     { "original_id": 456, "title": "...", "transcript": "...", "file_path": "..." }
+    #   ]
+    # }
+    snapshot_data = Column(JSONB, nullable=False)
+
+    # Array of message IDs included in this snapshot
+    # Used for cascade deletion when messages are edited/deleted
+    # GIN index enables fast array overlap queries
+    message_ids = Column(ARRAY(Integer), nullable=False)
+
+    # Who created this snapshot
+    created_by_user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    # Relationships
+    thread = relationship("NewChatThread", back_populates="snapshots")
+    created_by = relationship("User")
+
+    # Constraints
+    __table_args__ = (
+        # Prevent duplicate snapshots of the same content for the same thread
+        UniqueConstraint("thread_id", "content_hash", name="uq_snapshot_thread_content_hash"),
     )
 
 
