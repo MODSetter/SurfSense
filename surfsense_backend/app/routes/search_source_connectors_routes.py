@@ -1325,8 +1325,15 @@ async def _run_indexing_with_notifications(
                     "no " in error_or_warning_lower
                     and "found" in error_or_warning_lower
                 )
+                # Informational warnings - sync succeeded but some content couldn't be synced
+                # These are NOT errors, just notifications about API limitations or recommendations
+                is_info_warning = (
+                    "couldn't be synced" in error_or_warning_lower
+                    or "using legacy token" in error_or_warning_lower
+                    or "(api limitation)" in error_or_warning_lower
+                )
 
-                if is_duplicate_warning or is_empty_result:
+                if is_duplicate_warning or is_empty_result or is_info_warning:
                     # These are success cases - sync worked, just found nothing new
                     logger.info(f"Indexing completed successfully: {error_or_warning}")
                     # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
