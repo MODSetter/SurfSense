@@ -426,7 +426,7 @@ async def delete_snapshot(
 
 
 async def delete_affected_snapshots(
-    session: AsyncSession,
+    session: AsyncSession,  # noqa: ARG001 - kept for API compatibility
     thread_id: int,
     message_ids: list[int],
 ) -> int:
@@ -434,25 +434,27 @@ async def delete_affected_snapshots(
     Delete snapshots that contain any of the given message IDs.
 
     Called when messages are edited/deleted/regenerated.
-
-    Returns the number of deleted snapshots.
+    Uses independent session to work reliably in streaming response cleanup.
     """
     if not message_ids:
         return 0
 
-    # Use raw SQL for array overlap query
-    # The && operator checks if arrays have any elements in common
-    result = await session.execute(
-        delete(PublicChatSnapshot)
-        .where(PublicChatSnapshot.thread_id == thread_id)
-        .where(PublicChatSnapshot.message_ids.overlap(message_ids))
-        .returning(PublicChatSnapshot.id)
-    )
+    from sqlalchemy.dialects.postgresql import array
 
-    deleted_ids = result.scalars().all()
-    await session.commit()
+    from app.db import async_session_maker
 
-    return len(deleted_ids)
+    async with async_session_maker() as independent_session:
+        result = await independent_session.execute(
+            delete(PublicChatSnapshot)
+            .where(PublicChatSnapshot.thread_id == thread_id)
+            .where(PublicChatSnapshot.message_ids.op("&&")(array(message_ids)))
+            .returning(PublicChatSnapshot.id)
+        )
+
+        deleted_ids = result.scalars().all()
+        await independent_session.commit()
+
+        return len(deleted_ids)
 
 
 # =============================================================================

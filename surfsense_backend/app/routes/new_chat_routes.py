@@ -1273,6 +1273,8 @@ async def regenerate_response(
             .limit(2)
         )
         messages_to_delete = list(last_messages_result.scalars().all())
+        
+        message_ids_to_delete = [msg.id for msg in messages_to_delete]
 
         # Get search space for LLM config
         search_space_result = await session.execute(
@@ -1313,9 +1315,6 @@ async def regenerate_response(
                 # This ensures we don't lose data on streaming failures
                 if streaming_completed and messages_to_delete:
                     try:
-                        # Get message IDs before deletion for snapshot cleanup
-                        deleted_message_ids = [msg.id for msg in messages_to_delete]
-
                         for msg in messages_to_delete:
                             await session.delete(msg)
                         await session.commit()
@@ -1326,7 +1325,7 @@ async def regenerate_response(
                         )
 
                         await delete_affected_snapshots(
-                            session, thread_id, deleted_message_ids
+                            session, thread_id, message_ids_to_delete
                         )
                     except Exception as cleanup_error:
                         # Log but don't fail - the new messages are already streamed
