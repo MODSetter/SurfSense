@@ -227,6 +227,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 												connector.connector_type === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
 												connector.connector_type === "LUMA_CONNECTOR"
 											}
+											lastIndexedAt={connector.last_indexed_at}
 										/>
 									)}
 

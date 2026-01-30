@@ -165,6 +165,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 												config.connectorType === "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR" ||
 												config.connectorType === "LUMA_CONNECTOR"
 											}
+											lastIndexedAt={connector?.last_indexed_at}
 										/>
 									)}
 
