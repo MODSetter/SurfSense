@@ -217,7 +217,6 @@ async def list_threads(
                 visibility=thread.visibility,
                 created_by_id=thread.created_by_id,
                 is_own_thread=is_own_thread,
-                public_share_enabled=thread.public_share_enabled,
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
             )
@@ -319,7 +318,6 @@ async def search_threads(
                     thread.created_by_id == user.id
                     or (thread.created_by_id is None and is_search_space_owner)
                 ),
-                public_share_enabled=thread.public_share_enabled,
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
             )
