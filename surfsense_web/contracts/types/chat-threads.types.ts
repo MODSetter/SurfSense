@@ -6,7 +6,9 @@ import { z } from "zod";
 export const snapshotInfo = z.object({
 	id: z.number(),
 	share_token: z.string(),
+	public_url: z.string(),
 	created_at: z.string(),
+	message_count: z.number(),
 });
 
 /**
@@ -17,7 +19,7 @@ export const createSnapshotRequest = z.object({
 });
 
 export const createSnapshotResponse = z.object({
-	id: z.number(),
+	snapshot_id: z.number(),
 	share_token: z.string(),
 	public_url: z.string(),
 	is_new: z.boolean(),
