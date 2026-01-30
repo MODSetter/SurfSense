@@ -95,9 +95,6 @@ class NewChatThreadRead(NewChatThreadBase, IDModel):
     search_space_id: int
     visibility: ChatVisibility
     created_by_id: UUID | None = None
-    public_share_enabled: bool = False
-    public_share_token: str | None = None
-    clone_pending: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -137,7 +134,6 @@ class ThreadListItem(BaseModel):
     visibility: ChatVisibility
     created_by_id: UUID | None = None
     is_own_thread: bool = False
-    public_share_enabled: bool = False
     created_at: datetime = Field(alias="createdAt")
     updated_at: datetime = Field(alias="updatedAt")
 
@@ -211,22 +207,33 @@ class RegenerateRequest(BaseModel):
 
 
 # =============================================================================
-# Public Sharing Schemas
+# Public Chat Snapshot Schemas
 # =============================================================================
 
 
-class PublicShareToggleRequest(BaseModel):
-    """Request to enable/disable public sharing for a thread."""
+class SnapshotCreateResponse(BaseModel):
+    """Response after creating a public snapshot."""
 
-    enabled: bool
+    snapshot_id: int
+    share_token: str
+    public_url: str
+    is_new: bool  # False if existing snapshot returned (same content)
 
 
-class PublicShareToggleResponse(BaseModel):
-    """Response after toggling public sharing."""
+class SnapshotInfo(BaseModel):
+    """Info about a single snapshot."""
 
-    enabled: bool
-    public_url: str | None = None
-    share_token: str | None = None
+    id: int
+    share_token: str
+    public_url: str
+    created_at: datetime
+    message_count: int
+
+
+class SnapshotListResponse(BaseModel):
+    """List of snapshots for a thread."""
+
+    snapshots: list[SnapshotInfo]
 
 
 # =============================================================================
@@ -256,12 +263,8 @@ class PublicChatResponse(BaseModel):
     messages: list[PublicChatMessage]
 
 
-class CloneInitResponse(BaseModel):
+class CloneResponse(BaseModel):
+    """Response after cloning a public snapshot."""
+
     thread_id: int
     search_space_id: int
-    share_token: str
-
-
-class CompleteCloneResponse(BaseModel):
-    status: str
-    message_count: int

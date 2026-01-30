@@ -39,7 +39,7 @@ export const getPublicChatResponse = z.object({
 });
 
 /**
- * Clone public chat (init)
+ * Clone public chat
  */
 export const clonePublicChatRequest = z.object({
 	share_token: z.string(),
@@ -48,19 +48,6 @@ export const clonePublicChatRequest = z.object({
 export const clonePublicChatResponse = z.object({
 	thread_id: z.number(),
 	search_space_id: z.number(),
-	share_token: z.string(),
-});
-
-/**
- * Complete clone
- */
-export const completeCloneRequest = z.object({
-	thread_id: z.number(),
-});
-
-export const completeCloneResponse = z.object({
-	status: z.string(),
-	message_count: z.number(),
 });
 
 // Type exports
@@ -71,5 +58,3 @@ export type GetPublicChatRequest = z.infer<typeof getPublicChatRequest>;
 export type GetPublicChatResponse = z.infer<typeof getPublicChatResponse>;
 export type ClonePublicChatRequest = z.infer<typeof clonePublicChatRequest>;
 export type ClonePublicChatResponse = z.infer<typeof clonePublicChatResponse>;
-export type CompleteCloneRequest = z.infer<typeof completeCloneRequest>;
-export type CompleteCloneResponse = z.infer<typeof completeCloneResponse>;

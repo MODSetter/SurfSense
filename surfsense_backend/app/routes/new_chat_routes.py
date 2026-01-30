@@ -37,7 +37,6 @@ from app.db import (
     get_async_session,
 )
 from app.schemas.new_chat import (
-    CompleteCloneResponse,
     NewChatMessageAppend,
     NewChatMessageRead,
     NewChatRequest,
@@ -46,14 +45,13 @@ from app.schemas.new_chat import (
     NewChatThreadUpdate,
     NewChatThreadVisibilityUpdate,
     NewChatThreadWithMessages,
-    PublicShareToggleRequest,
-    PublicShareToggleResponse,
     RegenerateRequest,
+    SnapshotCreateResponse,
+    SnapshotListResponse,
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
 )
-from app.services.public_chat_service import toggle_public_share
 from app.tasks.chat.stream_new_chat import stream_new_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
@@ -219,7 +217,6 @@ async def list_threads(
                 visibility=thread.visibility,
                 created_by_id=thread.created_by_id,
                 is_own_thread=is_own_thread,
-                public_share_enabled=thread.public_share_enabled,
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
             )
@@ -321,7 +318,6 @@ async def search_threads(
                     thread.created_by_id == user.id
                     or (thread.created_by_id is None and is_search_space_owner)
                 ),
-                public_share_enabled=thread.public_share_enabled,
                 created_at=thread.created_at,
                 updated_at=thread.updated_at,
             )
@@ -670,66 +666,6 @@ async def delete_thread(
         ) from None
 
 
-@router.post(
-    "/threads/{thread_id}/complete-clone", response_model=CompleteCloneResponse
-)
-async def complete_clone(
-    thread_id: int,
-    session: AsyncSession = Depends(get_async_session),
-    user: User = Depends(current_active_user),
-):
-    """
-    Complete the cloning process for a thread.
-
-    Copies messages and podcasts from the source thread.
-    Sets clone_pending=False and needs_history_bootstrap=True when done.
-
-    Requires authentication and ownership of the thread.
-    """
-    from app.services.public_chat_service import complete_clone_content
-
-    try:
-        result = await session.execute(
-            select(NewChatThread).filter(NewChatThread.id == thread_id)
-        )
-        thread = result.scalars().first()
-
-        if not thread:
-            raise HTTPException(status_code=404, detail="Thread not found")
-
-        if thread.created_by_id != user.id:
-            raise HTTPException(status_code=403, detail="Not authorized")
-
-        if not thread.clone_pending:
-            raise HTTPException(status_code=400, detail="Clone already completed")
-
-        if not thread.cloned_from_thread_id:
-            raise HTTPException(
-                status_code=400, detail="No source thread to clone from"
-            )
-
-        message_count = await complete_clone_content(
-            session=session,
-            target_thread=thread,
-            source_thread_id=thread.cloned_from_thread_id,
-            target_search_space_id=thread.search_space_id,
-        )
-
-        return CompleteCloneResponse(
-            status="success",
-            message_count=message_count,
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        await session.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"An unexpected error occurred while completing clone: {e!s}",
-        ) from None
-
-
 @router.patch("/threads/{thread_id}/visibility", response_model=NewChatThreadRead)
 async def update_thread_visibility(
     thread_id: int,
@@ -795,30 +731,81 @@ async def update_thread_visibility(
         ) from None
 
 
-@router.patch(
-    "/threads/{thread_id}/public-share", response_model=PublicShareToggleResponse
-)
-async def update_thread_public_share(
+# =============================================================================
+# Snapshot Endpoints
+# =============================================================================
+
+
+@router.post("/threads/{thread_id}/snapshots", response_model=SnapshotCreateResponse)
+async def create_thread_snapshot(
     thread_id: int,
     request: Request,
-    toggle_request: PublicShareToggleRequest,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     """
-    Enable or disable public sharing for a thread.
+    Create a public snapshot of the thread.
 
-    Only the creator of the thread can manage public sharing.
-    When enabled, returns a public URL that anyone can use to view the chat.
+    Returns existing snapshot URL if content unchanged (deduplication).
+    Only the thread owner can create snapshots.
     """
+    from app.services.public_chat_service import create_snapshot
+
     base_url = str(request.base_url).rstrip("/")
-    return await toggle_public_share(
+    return await create_snapshot(
         session=session,
         thread_id=thread_id,
-        enabled=toggle_request.enabled,
         user=user,
         base_url=base_url,
     )
+
+
+@router.get("/threads/{thread_id}/snapshots", response_model=SnapshotListResponse)
+async def list_thread_snapshots(
+    thread_id: int,
+    request: Request,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    List all public snapshots for this thread.
+
+    Only the thread owner can view snapshots.
+    """
+    from app.services.public_chat_service import list_snapshots_for_thread
+
+    base_url = str(request.base_url).rstrip("/")
+    return SnapshotListResponse(
+        snapshots=await list_snapshots_for_thread(
+            session=session,
+            thread_id=thread_id,
+            user=user,
+            base_url=base_url,
+        )
+    )
+
+
+@router.delete("/threads/{thread_id}/snapshots/{snapshot_id}")
+async def delete_thread_snapshot(
+    thread_id: int,
+    snapshot_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Delete a specific snapshot.
+
+    Only the thread owner can delete snapshots.
+    """
+    from app.services.public_chat_service import delete_snapshot
+
+    await delete_snapshot(
+        session=session,
+        thread_id=thread_id,
+        snapshot_id=snapshot_id,
+        user=user,
+    )
+    return {"message": "Snapshot deleted successfully"}
 
 
 # =============================================================================
@@ -1286,6 +1273,8 @@ async def regenerate_response(
             .limit(2)
         )
         messages_to_delete = list(last_messages_result.scalars().all())
+        
+        message_ids_to_delete = [msg.id for msg in messages_to_delete]
 
         # Get search space for LLM config
         search_space_result = await session.execute(
@@ -1329,6 +1318,15 @@ async def regenerate_response(
                         for msg in messages_to_delete:
                             await session.delete(msg)
                         await session.commit()
+
+                        # Delete any public snapshots that contain the modified messages
+                        from app.services.public_chat_service import (
+                            delete_affected_snapshots,
+                        )
+
+                        await delete_affected_snapshots(
+                            session, thread_id, message_ids_to_delete
+                        )
                     except Exception as cleanup_error:
                         # Log but don't fail - the new messages are already streamed
                         print(

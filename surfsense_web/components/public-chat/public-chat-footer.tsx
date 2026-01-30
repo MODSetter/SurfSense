@@ -26,7 +26,7 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 				share_token: shareToken,
 			});
 
-			// Redirect to the new chat page (content will be loaded there)
+			// Redirect to the new chat page with cloned content
 			router.push(`/dashboard/${response.search_space_id}/new-chat/${response.thread_id}`);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : "Failed to copy chat";
