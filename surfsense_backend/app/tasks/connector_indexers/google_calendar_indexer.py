@@ -191,10 +191,10 @@ async def index_google_calendar_events(
                 )
             else:
                 calculated_start_date = datetime.now() - timedelta(
-                    days=30
-                )  # Use 30 days as default for calendar events
+                    days=365
+                )  # Use 365 days as default for calendar events (matches frontend)
                 logger.info(
-                    f"No last_indexed_at found, using {calculated_start_date.strftime('%Y-%m-%d')} (30 days ago) as start date"
+                    f"No last_indexed_at found, using {calculated_start_date.strftime('%Y-%m-%d')} (365 days ago) as start date"
                 )
 
             # Use calculated dates if not provided
