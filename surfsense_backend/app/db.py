@@ -418,6 +418,12 @@ class NewChatThread(BaseModel, TimestampMixin):
         nullable=True,
         index=True,
     )
+    cloned_from_snapshot_id = Column(
+        Integer,
+        ForeignKey("public_chat_snapshots.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     cloned_at = Column(
         TIMESTAMP(timezone=True),
         nullable=True,
@@ -443,6 +449,7 @@ class NewChatThread(BaseModel, TimestampMixin):
         "PublicChatSnapshot",
         back_populates="thread",
         cascade="all, delete-orphan",
+        foreign_keys="[PublicChatSnapshot.thread_id]",
     )
 
 
@@ -491,12 +498,6 @@ class PublicChatSnapshot(BaseModel, TimestampMixin):
     Each snapshot is a frozen copy of the chat at a specific point in time.
     The snapshot_data JSONB contains all messages and metadata needed to
     render the public chat without querying the original thread.
-
-    Key features:
-    - Immutable: Content never changes after creation
-    - Deduplication: content_hash prevents duplicate snapshots of same state
-    - Cascade delete: Deleted when parent thread is deleted
-    - Message tracking: message_ids array enables cascade delete on message edit
     """
 
     __tablename__ = "public_chat_snapshots"
@@ -517,36 +518,16 @@ class PublicChatSnapshot(BaseModel, TimestampMixin):
         index=True,
     )
 
-    # SHA-256 hash of message content for deduplication
-    # Same content = same hash = return existing snapshot instead of creating new
     content_hash = Column(
         String(64),
         nullable=False,
         index=True,
     )
 
-    # Immutable snapshot data - self-contained for rendering
-    # Structure:
-    # {
-    #   "version": 1,
-    #   "title": "Chat title",
-    #   "snapshot_at": "2026-01-29T12:00:00Z",
-    #   "author": { "display_name": "...", "avatar_url": "..." },
-    #   "messages": [
-    #     { "id": 123, "role": "user|assistant", "content": [...], "author": {...}, "created_at": "..." }
-    #   ],
-    #   "podcasts": [
-    #     { "original_id": 456, "title": "...", "transcript": "...", "file_path": "..." }
-    #   ]
-    # }
     snapshot_data = Column(JSONB, nullable=False)
 
-    # Array of message IDs included in this snapshot
-    # Used for cascade deletion when messages are edited/deleted
-    # GIN index enables fast array overlap queries
     message_ids = Column(ARRAY(Integer), nullable=False)
 
-    # Who created this snapshot
     created_by_user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("user.id", ondelete="SET NULL"),
@@ -555,7 +536,11 @@ class PublicChatSnapshot(BaseModel, TimestampMixin):
     )
 
     # Relationships
-    thread = relationship("NewChatThread", back_populates="snapshots")
+    thread = relationship(
+        "NewChatThread",
+        back_populates="snapshots",
+        foreign_keys="[PublicChatSnapshot.thread_id]",
+    )
     created_by = relationship("User")
 
     # Constraints

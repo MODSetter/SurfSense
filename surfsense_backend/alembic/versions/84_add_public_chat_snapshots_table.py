@@ -11,6 +11,7 @@ Changes:
    - public_share_enabled (replaced by snapshot existence)
    - clone_pending (single-phase clone)
 3. Drop related indexes
+4. Add cloned_from_snapshot_id to new_chat_threads (tracks source snapshot for clones)
 """
 
 from collections.abc import Sequence
@@ -105,11 +106,32 @@ def upgrade() -> None:
     op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS public_share_enabled")
     op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS public_share_token")
 
+    # 6. Add cloned_from_snapshot_id to new_chat_threads
+    op.execute(
+        """
+        ALTER TABLE new_chat_threads
+        ADD COLUMN IF NOT EXISTS cloned_from_snapshot_id INTEGER
+            REFERENCES public_chat_snapshots(id) ON DELETE SET NULL;
+        """
+    )
+
+    op.execute(
+        """
+        CREATE INDEX IF NOT EXISTS ix_new_chat_threads_cloned_from_snapshot_id
+        ON new_chat_threads(cloned_from_snapshot_id)
+        WHERE cloned_from_snapshot_id IS NOT NULL;
+        """
+    )
+
 
 def downgrade() -> None:
     """Restore deprecated columns and drop public_chat_snapshots table."""
 
-    # 1. Restore deprecated columns on new_chat_threads
+    # 1. Drop cloned_from_snapshot_id column and index
+    op.execute("DROP INDEX IF EXISTS ix_new_chat_threads_cloned_from_snapshot_id")
+    op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS cloned_from_snapshot_id")
+
+    # 2. Restore deprecated columns on new_chat_threads
     op.execute(
         """
         ALTER TABLE new_chat_threads

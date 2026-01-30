@@ -523,6 +523,7 @@ async def clone_from_snapshot(
         search_space_id=target_search_space_id,
         created_by_id=user.id,
         cloned_from_thread_id=snapshot.thread_id,
+        cloned_from_snapshot_id=snapshot.id,
         cloned_at=datetime.now(UTC),
         needs_history_bootstrap=True,
     )
