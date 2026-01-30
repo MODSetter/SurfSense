@@ -165,8 +165,8 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 				dataDir: dbName,
 				relaxedDurability: true,
 				extensions: {
-					// Enable debug mode in electricSync to see detailed sync logs
-					electric: electricSync({ debug: true }),
+					// Enable debug mode in electricSync only in development
+					electric: electricSync({ debug: process.env.NODE_ENV === "development" }),
 					live, // Enable live queries for real-time updates
 				},
 			});
@@ -341,26 +341,27 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 						console.log("[Electric] Where clause:", where, "Validated:", validatedWhere);
 
 						try {
-							// Debug: Test Electric SQL connection directly first
-							// Use validatedWhere to ensure proper URL encoding
-							const testUrl = `${electricUrl}/v1/shape?table=${table}&offset=-1${validatedWhere ? `&where=${encodeURIComponent(validatedWhere)}` : ""}`;
-							console.log("[Electric] Testing Electric SQL directly:", testUrl);
-							try {
-								const testResponse = await fetch(testUrl);
-								const testHeaders = {
-									handle: testResponse.headers.get("electric-handle"),
-									offset: testResponse.headers.get("electric-offset"),
-									upToDate: testResponse.headers.get("electric-up-to-date"),
-								};
-								console.log("[Electric] Direct Electric SQL response headers:", testHeaders);
-								const testData = await testResponse.json();
-								console.log(
-									"[Electric] Direct Electric SQL data count:",
-									Array.isArray(testData) ? testData.length : "not array",
-									testData
-								);
-							} catch (testErr) {
-								console.error("[Electric] Direct Electric SQL test failed:", testErr);
+							// Debug: Test Electric SQL connection directly first (DEV ONLY - skipped in production)
+							if (process.env.NODE_ENV === "development") {
+								const testUrl = `${electricUrl}/v1/shape?table=${table}&offset=-1${validatedWhere ? `&where=${encodeURIComponent(validatedWhere)}` : ""}`;
+								console.log("[Electric] Testing Electric SQL directly:", testUrl);
+								try {
+									const testResponse = await fetch(testUrl);
+									const testHeaders = {
+										handle: testResponse.headers.get("electric-handle"),
+										offset: testResponse.headers.get("electric-offset"),
+										upToDate: testResponse.headers.get("electric-up-to-date"),
+									};
+									console.log("[Electric] Direct Electric SQL response headers:", testHeaders);
+									const testData = await testResponse.json();
+									console.log(
+										"[Electric] Direct Electric SQL data count:",
+										Array.isArray(testData) ? testData.length : "not array",
+										testData
+									);
+								} catch (testErr) {
+									console.error("[Electric] Direct Electric SQL test failed:", testErr);
+								}
 							}
 
 							// Use PGlite's electric sync plugin to sync the shape
