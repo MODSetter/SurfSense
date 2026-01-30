@@ -8,7 +8,6 @@ Key concepts:
 - Single-phase clone reads directly from snapshot_data
 """
 
-import contextlib
 import hashlib
 import json
 import re
@@ -532,12 +531,34 @@ async def clone_from_snapshot(
 
     podcast_id_mapping: dict[int, int] = {}
 
+    # Check which authors from snapshot still exist in DB
+    author_ids_from_snapshot: set[UUID] = set()
     for msg_data in messages_data:
-        original_author_id = None
-        author_id_str = msg_data.get("author_id")
-        if author_id_str:
-            with contextlib.suppress(ValueError, TypeError):
-                original_author_id = UUID(author_id_str)
+        if author_str := msg_data.get("author_id"):
+            try:
+                author_ids_from_snapshot.add(UUID(author_str))
+            except (ValueError, TypeError):
+                pass
+
+    existing_authors: set[UUID] = set()
+    if author_ids_from_snapshot:
+        result = await session.execute(
+            select(User.id).where(User.id.in_(author_ids_from_snapshot))
+        )
+        existing_authors = {row[0] for row in result.fetchall()}
+
+    for msg_data in messages_data:
+        role = msg_data.get("role", "user")
+
+        # Use original author if exists, otherwise None
+        author_id = None
+        if author_str := msg_data.get("author_id"):
+            try:
+                parsed_id = UUID(author_str)
+                if parsed_id in existing_authors:
+                    author_id = parsed_id
+            except (ValueError, TypeError):
+                pass
 
         content = copy.deepcopy(msg_data.get("content", []))
 
@@ -574,9 +595,9 @@ async def clone_from_snapshot(
 
         new_message = NewChatMessage(
             thread_id=new_thread.id,
-            role=msg_data.get("role", "user"),
+            role=role,
             content=content,
-            author_id=original_author_id,
+            author_id=author_id,
         )
         session.add(new_message)
 
