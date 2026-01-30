@@ -2,6 +2,7 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertCircleIcon, MicIcon } from "lucide-react";
+import { useParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { Audio } from "@/components/tool-ui/audio";
@@ -172,20 +173,6 @@ function AudioLoadingState({ title }: { title: string }) {
 	);
 }
 
-/**
- * Get public share token from URL if in public view.
- * Returns null if not in a public view.
- */
-function getPublicShareToken(): string | null {
-	if (typeof window === "undefined") return null;
-	const match = window.location.pathname.match(/^\/public\/([^/]+)/);
-	return match ? match[1] : null;
-}
-
-/**
- * Podcast Player Component - Fetches audio and transcript
- * Automatically uses public endpoint when viewing a public chat snapshot.
- */
 function PodcastPlayer({
 	podcastId,
 	title,
@@ -197,6 +184,11 @@ function PodcastPlayer({
 	description: string;
 	durationMs?: number;
 }) {
+	const params = useParams();
+	const pathname = usePathname();
+	const isPublicRoute = pathname?.startsWith("/public/");
+	const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
+
 	const [audioSrc, setAudioSrc] = useState<string | null>(null);
 	const [transcript, setTranscript] = useState<PodcastTranscriptEntry[] | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
@@ -228,9 +220,6 @@ function PodcastPlayer({
 			const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
 			try {
-				// Check if we're in a public view
-				const shareToken = getPublicShareToken();
-
 				let audioBlob: Blob;
 				let rawPodcastDetails: unknown = null;
 
@@ -285,7 +274,7 @@ function PodcastPlayer({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [podcastId]);
+	}, [podcastId, shareToken]);
 
 	// Load podcast when component mounts
 	useEffect(() => {

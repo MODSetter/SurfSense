@@ -194,7 +194,7 @@ async def create_snapshot(
         author = await get_author_display(session, msg.author_id, user_cache)
         sanitized_content = sanitize_content_for_public(msg.content)
 
-        # Extract podcast references (keep original podcast_id unchanged)
+        # Extract podcast references and update status to "ready" for completed podcasts
         if isinstance(sanitized_content, list):
             for part in sanitized_content:
                 if (
@@ -205,13 +205,14 @@ async def create_snapshot(
                     result_data = part.get("result", {})
                     podcast_id = result_data.get("podcast_id")
                     if podcast_id and podcast_id not in podcast_ids_seen:
-              
                         podcast_info = await _get_podcast_for_snapshot(
                             session, podcast_id
                         )
                         if podcast_info:
                             podcasts_data.append(podcast_info)
                             podcast_ids_seen.add(podcast_id)
+                            # Update status to "ready" so frontend renders PodcastPlayer
+                            part["result"] = {**result_data, "status": "ready"}
 
 
         messages_data.append(
@@ -494,9 +495,12 @@ async def clone_from_snapshot(
     Copy messages and podcasts from source thread to target thread.
 
     Creates thread and copies messages from snapshot_data.
+    When encountering generate_podcast tool-calls, creates cloned podcast records
+    and updates the podcast_id references inline.
     Returns the new thread info.
     """
-    # Get snapshot
+    import copy
+
     snapshot = await get_snapshot_by_token(session, share_token)
 
     if not snapshot:
@@ -504,17 +508,15 @@ async def clone_from_snapshot(
             status_code=404, detail="Chat not found or no longer public"
         )
 
-    # Get user's default search space
     target_search_space_id = await get_user_default_search_space(session, user.id)
 
     if target_search_space_id is None:
         raise HTTPException(status_code=400, detail="No search space found for user")
 
-    # Get snapshot data
     data = snapshot.snapshot_data
     messages_data = data.get("messages", [])
+    podcasts_lookup = {p.get("original_id"): p for p in data.get("podcasts", [])}
 
-    # Create new thread
     new_thread = NewChatThread(
         title=data.get("title", "Cloned Chat"),
         archived=False,
@@ -526,22 +528,55 @@ async def clone_from_snapshot(
         needs_history_bootstrap=True,
     )
     session.add(new_thread)
-    await session.flush()  # Get thread ID
+    await session.flush()
 
-    # Copy messages from snapshot_data (preserve original authors)
+    podcast_id_mapping: dict[int, int] = {}
+
     for msg_data in messages_data:
-        # Parse original author_id if present
         original_author_id = None
         author_id_str = msg_data.get("author_id")
         if author_id_str:
             with contextlib.suppress(ValueError, TypeError):
                 original_author_id = UUID(author_id_str)
 
+        content = copy.deepcopy(msg_data.get("content", []))
+
+        if isinstance(content, list):
+            for part in content:
+                if (
+                    isinstance(part, dict)
+                    and part.get("type") == "tool-call"
+                    and part.get("toolName") == "generate_podcast"
+                ):
+                    result = part.get("result", {})
+                    old_podcast_id = result.get("podcast_id")
+
+                    if old_podcast_id and old_podcast_id not in podcast_id_mapping:
+                        podcast_info = podcasts_lookup.get(old_podcast_id)
+                        if podcast_info:
+                            new_podcast = Podcast(
+                                title=podcast_info.get("title", "Cloned Podcast"),
+                                podcast_transcript=podcast_info.get("transcript"),
+                                file_location=podcast_info.get("file_path"),
+                                status=PodcastStatus.READY,
+                                search_space_id=target_search_space_id,
+                                thread_id=new_thread.id,
+                            )
+                            session.add(new_podcast)
+                            await session.flush()
+                            podcast_id_mapping[old_podcast_id] = new_podcast.id
+
+                    if old_podcast_id and old_podcast_id in podcast_id_mapping:
+                        part["result"] = {
+                            **result,
+                            "podcast_id": podcast_id_mapping[old_podcast_id],
+                        }
+
         new_message = NewChatMessage(
             thread_id=new_thread.id,
             role=msg_data.get("role", "user"),
-            content=msg_data.get("content", []),
-            author_id=original_author_id, 
+            content=content,
+            author_id=original_author_id,
         )
         session.add(new_message)
 
