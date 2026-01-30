@@ -173,7 +173,18 @@ function AudioLoadingState({ title }: { title: string }) {
 }
 
 /**
- * Podcast Player Component - Fetches audio and transcript with authentication
+ * Get public share token from URL if in public view.
+ * Returns null if not in a public view.
+ */
+function getPublicShareToken(): string | null {
+	if (typeof window === "undefined") return null;
+	const match = window.location.pathname.match(/^\/public\/([^/]+)/);
+	return match ? match[1] : null;
+}
+
+/**
+ * Podcast Player Component - Fetches audio and transcript
+ * Automatically uses public endpoint when viewing a public chat snapshot.
  */
 function PodcastPlayer({
 	podcastId,
@@ -217,20 +228,37 @@ function PodcastPlayer({
 			const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
 
 			try {
-				// Fetch audio blob and podcast details in parallel
-				const [audioResponse, rawPodcastDetails] = await Promise.all([
-					authenticatedFetch(
-						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcastId}/audio`,
-						{ method: "GET", signal: controller.signal }
-					),
-					baseApiService.get<unknown>(`/api/v1/podcasts/${podcastId}`),
-				]);
+				// Check if we're in a public view
+				const shareToken = getPublicShareToken();
 
-				if (!audioResponse.ok) {
-					throw new Error(`Failed to load audio: ${audioResponse.status}`);
+				let audioBlob: Blob;
+				let rawPodcastDetails: unknown = null;
+
+				if (shareToken) {
+					// Public view - use public endpoints (baseApiService handles no-auth for /api/v1/public/)
+					const [blob, details] = await Promise.all([
+						baseApiService.getBlob(`/api/v1/public/${shareToken}/podcasts/${podcastId}/stream`),
+						baseApiService.get(`/api/v1/public/${shareToken}/podcasts/${podcastId}`),
+					]);
+					audioBlob = blob;
+					rawPodcastDetails = details;
+				} else {
+					// Authenticated view - fetch audio and details in parallel
+					const [audioResponse, details] = await Promise.all([
+						authenticatedFetch(
+							`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcastId}/audio`,
+							{ method: "GET", signal: controller.signal }
+						),
+						baseApiService.get<unknown>(`/api/v1/podcasts/${podcastId}`),
+					]);
+
+					if (!audioResponse.ok) {
+						throw new Error(`Failed to load audio: ${audioResponse.status}`);
+					}
+
+					audioBlob = await audioResponse.blob();
+					rawPodcastDetails = details;
 				}
-
-				const audioBlob = await audioResponse.blob();
 
 				// Create object URL from blob
 				const objectUrl = URL.createObjectURL(audioBlob);
@@ -238,9 +266,11 @@ function PodcastPlayer({
 				setAudioSrc(objectUrl);
 
 				// Parse and validate podcast details, then set transcript
-				const podcastDetails = parsePodcastDetails(rawPodcastDetails);
-				if (podcastDetails.podcast_transcript) {
-					setTranscript(podcastDetails.podcast_transcript);
+				if (rawPodcastDetails) {
+					const podcastDetails = parsePodcastDetails(rawPodcastDetails);
+					if (podcastDetails.podcast_transcript) {
+						setTranscript(podcastDetails.podcast_transcript);
+					}
 				}
 			} finally {
 				clearTimeout(timeoutId);

@@ -49,10 +49,35 @@ async def clone_public_chat(
     """
     Clone a public chat snapshot to the user's account.
 
-    Single-phase clone: creates thread and copies messages in one request.
+    Creates thread and copies messages.
     Requires authentication.
     """
     return await clone_from_snapshot(session, share_token, user)
+
+
+@router.get("/{share_token}/podcasts/{podcast_id}")
+async def get_public_podcast(
+    share_token: str,
+    podcast_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get podcast details from a public chat snapshot.
+
+    No authentication required - the share_token provides access.
+    Returns podcast info including transcript.
+    """
+    podcast_info = await get_snapshot_podcast(session, share_token, podcast_id)
+
+    if not podcast_info:
+        raise HTTPException(status_code=404, detail="Podcast not found")
+
+    return {
+        "id": podcast_info.get("original_id"),
+        "title": podcast_info.get("title"),
+        "status": "ready",
+        "podcast_transcript": podcast_info.get("transcript"),
+    }
 
 
 @router.get("/{share_token}/podcasts/{podcast_id}/stream")
