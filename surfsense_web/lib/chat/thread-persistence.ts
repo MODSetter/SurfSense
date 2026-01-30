@@ -24,9 +24,6 @@ export interface ThreadRecord {
 	created_at: string;
 	updated_at: string;
 	has_comments?: boolean;
-	public_share_enabled?: boolean;
-	public_share_token?: string | null;
-	clone_pending?: boolean;
 }
 
 export interface MessageRecord {
