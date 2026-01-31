@@ -582,14 +582,8 @@ async def get_slack_channels(
         # Import SlackHistory here to avoid circular imports
         from app.connectors.slack_history import SlackHistory
 
-        # Create Slack client and fetch channels
-        slack_client = SlackHistory(
-            session=session,
-            connector_id=connector_id,
-            credentials=credentials,
-        )
-        # Set the decrypted token directly
-        slack_client.set_token(bot_token)
+        # Create Slack client with direct token (simple pattern for quick operations)
+        slack_client = SlackHistory(token=bot_token)
 
         channels = await slack_client.get_all_channels(include_private=True)
 
