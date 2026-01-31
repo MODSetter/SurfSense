@@ -61,6 +61,7 @@ class DiscordConnector(commands.Bot):
             self.token = None
         self._bot_task = None  # Holds the async bot task
         self._is_running = False  # Flag to track if the bot is running
+        self._start_called_event = asyncio.Event()  # Event to signal when start() is called
 
         # Event to confirm bot is ready
         @self.event
@@ -226,6 +227,9 @@ class DiscordConnector(commands.Bot):
                 )
                 return
 
+            # Signal that we're about to call start() - this allows _wait_until_ready() to proceed
+            self._start_called_event.set()
+
             await self.start(self.token)
             logger.info("Discord bot started successfully.")
         except discord.LoginFailure:
@@ -260,6 +264,9 @@ class DiscordConnector(commands.Bot):
         else:
             logger.info("Bot is not running or already disconnected.")
 
+        # Reset the start event so the connector can be reused
+        self._start_called_event.clear()
+
     def set_token(self, token: str) -> None:
         """
         Set the discord bot token (for backward compatibility).
@@ -277,10 +284,16 @@ class DiscordConnector(commands.Bot):
         """Helper to wait until the bot is connected and ready."""
         logger.info("Waiting for the bot to be ready...")
 
-        # Give the event loop a chance to switch to the bot's startup task.
-        # This allows self.start() to begin initializing the client.
-        # Terrible solution, but necessary to avoid blocking the event loop.
-        await asyncio.sleep(1)  # Yield control to the event loop
+        # Wait for start_bot() to actually call self.start()
+        # This ensures we don't call wait_until_ready() before the client is initialized
+        try:
+            await asyncio.wait_for(self._start_called_event.wait(), timeout=30.0)
+            logger.info("Bot start() has been called, now waiting for ready state...")
+        except TimeoutError:
+            logger.error("start_bot() did not call start() within 30 seconds")
+            raise RuntimeError(
+                "Discord client failed to initialize - start() was never called"
+            )
 
         try:
             await asyncio.wait_for(self.wait_until_ready(), timeout=60.0)
