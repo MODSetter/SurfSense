@@ -240,7 +240,7 @@ class Config:
         chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
     )
 
-    # Reranker's Configuration | Pinecode, Cohere etc. Read more at https://github.com/AnswerDotAI/rerankers?tab=readme-ov-file#usage
+    # Reranker's Configuration | Pinecone, Cohere etc. Read more at https://github.com/AnswerDotAI/rerankers?tab=readme-ov-file#usage
     RERANKERS_ENABLED = os.getenv("RERANKERS_ENABLED", "FALSE").upper() == "TRUE"
     if RERANKERS_ENABLED:
         RERANKERS_MODEL_NAME = os.getenv("RERANKERS_MODEL_NAME")
