@@ -240,6 +240,10 @@ export const ConnectorIndicator: FC = () => {
 							...editingConnector,
 							config: connectorConfig || editingConnector.config,
 							name: editingConnector.name,
+							// Sync last_indexed_at with live data from Electric SQL for real-time updates
+							last_indexed_at:
+								(connectors as SearchSourceConnector[]).find((c) => c.id === editingConnector.id)
+									?.last_indexed_at ?? editingConnector.last_indexed_at,
 						}}
 						startDate={startDate}
 						endDate={endDate}
