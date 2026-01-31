@@ -20,6 +20,8 @@ import {
 	listGitHubRepositoriesResponse,
 	listGoogleDriveFoldersRequest,
 	listGoogleDriveFoldersResponse,
+	listSlackChannelsResponse,
+	type SlackChannel,
 	type UpdateConnectorRequest,
 	updateConnectorRequest,
 	updateConnectorResponse,
@@ -335,6 +337,22 @@ class ConnectorsApiService {
 			}
 		);
 	};
+
+	// =============================================================================
+	// Slack Connector Methods
+	// =============================================================================
+
+	/**
+	 * Get Slack channels with bot membership status
+	 */
+	getSlackChannels = async (connectorId: number) => {
+		return baseApiService.get(
+			`/api/v1/slack/connector/${connectorId}/channels`,
+			listSlackChannelsResponse
+		);
+	};
 }
+
+export type { SlackChannel };
 
 export const connectorsApiService = new ConnectorsApiService();

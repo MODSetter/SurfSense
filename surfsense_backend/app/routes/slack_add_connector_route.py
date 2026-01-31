@@ -6,6 +6,7 @@ Handles OAuth 2.0 authentication flow for Slack connector.
 
 import logging
 from datetime import UTC, datetime, timedelta
+from typing import Any
 from uuid import UUID
 
 import httpx
@@ -14,6 +15,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from app.config import config
 from app.db import (
@@ -516,4 +518,94 @@ async def refresh_slack_token(
         )
         raise HTTPException(
             status_code=500, detail=f"Failed to refresh Slack token: {e!s}"
+        ) from e
+
+
+@router.get("/slack/connector/{connector_id}/channels")
+async def get_slack_channels(
+    connector_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+) -> list[dict[str, Any]]:
+    """
+    Get list of Slack channels with bot membership status.
+
+    This endpoint fetches all channels the bot can see and indicates
+    whether the bot is a member of each channel (required for accessing messages).
+
+    Args:
+        connector_id: The Slack connector ID
+        session: Database session
+        user: Current authenticated user
+
+    Returns:
+        List of channels with id, name, is_private, and is_member fields
+    """
+    try:
+        # Get the connector and verify ownership
+        result = await session.execute(
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.connector_type == SearchSourceConnectorType.SLACK_CONNECTOR,
+            )
+        )
+        connector = result.scalar_one_or_none()
+
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Slack connector not found or access denied",
+            )
+
+        # Get credentials and decrypt bot token
+        credentials = SlackAuthCredentialsBase.from_dict(connector.config)
+        token_encryption = get_token_encryption()
+        is_encrypted = connector.config.get("_token_encrypted", False)
+
+        bot_token = credentials.bot_token
+        if is_encrypted and bot_token:
+            try:
+                bot_token = token_encryption.decrypt_token(bot_token)
+            except Exception as e:
+                logger.error(f"Failed to decrypt bot token: {e!s}")
+                raise HTTPException(
+                    status_code=500, detail="Failed to decrypt stored bot token"
+                ) from e
+
+        if not bot_token:
+            raise HTTPException(
+                status_code=400,
+                detail="No bot token available. Please re-authenticate.",
+            )
+
+        # Import SlackHistory here to avoid circular imports
+        from app.connectors.slack_history import SlackHistory
+
+        # Create Slack client and fetch channels
+        slack_client = SlackHistory(
+            session=session,
+            connector_id=connector_id,
+            credentials=credentials,
+        )
+        # Set the decrypted token directly
+        slack_client.set_token(bot_token)
+
+        channels = await slack_client.get_all_channels(include_private=True)
+
+        logger.info(
+            f"Fetched {len(channels)} channels for Slack connector {connector_id}"
+        )
+
+        return channels
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"Failed to get Slack channels for connector {connector_id}: {e!s}",
+            exc_info=True,
+        )
+        raise HTTPException(
+            status_code=500, detail=f"Failed to get Slack channels: {e!s}"
         ) from e
