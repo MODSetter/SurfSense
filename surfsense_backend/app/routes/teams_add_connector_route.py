@@ -420,11 +420,24 @@ async def refresh_teams_token(
 
     if token_response.status_code != 200:
         error_detail = token_response.text
+        error_code = ""
         try:
             error_json = token_response.json()
             error_detail = error_json.get("error_description", error_detail)
+            error_code = error_json.get("error", "")
         except Exception:
             pass
+        # Check if this is a token expiration/revocation error
+        error_lower = (error_detail + error_code).lower()
+        if (
+            "invalid_grant" in error_lower
+            or "expired" in error_lower
+            or "revoked" in error_lower
+        ):
+            raise HTTPException(
+                status_code=401,
+                detail="Microsoft Teams authentication failed. Please re-authenticate.",
+            )
         raise HTTPException(
             status_code=400, detail=f"Token refresh failed: {error_detail}"
         )

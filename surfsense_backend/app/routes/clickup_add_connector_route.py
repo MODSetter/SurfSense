@@ -417,6 +417,17 @@ async def refresh_clickup_token(
                 error_detail = error_json.get("error", error_detail)
             except Exception:
                 pass
+            # Check if this is a token expiration/revocation error
+            error_lower = error_detail.lower()
+            if (
+                "invalid_grant" in error_lower
+                or "expired" in error_lower
+                or "revoked" in error_lower
+            ):
+                raise HTTPException(
+                    status_code=401,
+                    detail="ClickUp authentication failed. Please re-authenticate.",
+                )
             raise HTTPException(
                 status_code=400, detail=f"Token refresh failed: {error_detail}"
             )

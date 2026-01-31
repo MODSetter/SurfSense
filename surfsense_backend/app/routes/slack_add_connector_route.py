@@ -418,6 +418,19 @@ async def refresh_slack_token(
                 error_detail = error_json.get("error", error_detail)
             except Exception:
                 pass
+            # Check if this is a token expiration/revocation error
+            error_lower = error_detail.lower()
+            if (
+                "invalid_grant" in error_lower
+                or "invalid_auth" in error_lower
+                or "token_revoked" in error_lower
+                or "expired" in error_lower
+                or "revoked" in error_lower
+            ):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Slack authentication failed. Please re-authenticate.",
+                )
             raise HTTPException(
                 status_code=400, detail=f"Token refresh failed: {error_detail}"
             )
@@ -427,6 +440,20 @@ async def refresh_slack_token(
         # Slack OAuth v2 returns success status in the JSON
         if not token_json.get("ok", False):
             error_msg = token_json.get("error", "Unknown error")
+            # Check if this is a token expiration/revocation error
+            error_lower = error_msg.lower()
+            if (
+                "invalid_grant" in error_lower
+                or "invalid_auth" in error_lower
+                or "invalid_refresh_token" in error_lower
+                or "token_revoked" in error_lower
+                or "expired" in error_lower
+                or "revoked" in error_lower
+            ):
+                raise HTTPException(
+                    status_code=401,
+                    detail="Slack authentication failed. Please re-authenticate.",
+                )
             raise HTTPException(
                 status_code=400, detail=f"Slack OAuth refresh error: {error_msg}"
             )
