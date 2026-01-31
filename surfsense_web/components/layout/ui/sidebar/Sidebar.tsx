@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderOpen, MessageSquare, PenSquare } from "lucide-react";
+import { FolderOpen, PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -122,26 +122,7 @@ export function Sidebar({
 
 			{/* Chat sections - fills available space */}
 			{isCollapsed ? (
-				<div className="flex-1 flex flex-col items-center gap-2 py-2 w-[60px]">
-					{(chats.length > 0 || sharedChats.length > 0) && (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-10 w-10"
-									onClick={() => onToggleCollapse?.()}
-								>
-									<MessageSquare className="h-4 w-4" />
-									<span className="sr-only">{t("chats")}</span>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent side="right">
-								{t("chats")} ({chats.length + sharedChats.length})
-							</TooltipContent>
-						</Tooltip>
-					)}
-				</div>
+				<div className="flex-1 w-[60px]" />
 			) : (
 				<div className="flex-1 flex flex-col gap-1 py-2 w-[240px] min-h-0 overflow-hidden">
 					{/* Shared Chats Section - takes half the space */}
