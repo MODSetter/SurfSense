@@ -1,6 +1,8 @@
 """Google Drive indexer using Surfsense file processors."""
 
 import logging
+import time
+from collections.abc import Awaitable, Callable
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -24,6 +26,12 @@ from app.tasks.connector_indexers.base import (
 )
 from app.utils.document_converters import generate_unique_identifier_hash
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
+
 logger = logging.getLogger(__name__)
 
 
@@ -38,6 +46,7 @@ async def index_google_drive_files(
     update_last_indexed: bool = True,
     max_files: int = 500,
     include_subfolders: bool = False,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index Google Drive files for a specific connector.
@@ -53,6 +62,7 @@ async def index_google_drive_files(
         update_last_indexed: Whether to update last_indexed_at timestamp
         max_files: Maximum number of files to index
         include_subfolders: Whether to recursively index files in subfolders
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple of (number_of_indexed_files, error_message)
@@ -147,6 +157,7 @@ async def index_google_drive_files(
                 log_entry=log_entry,
                 max_files=max_files,
                 include_subfolders=include_subfolders,
+                on_heartbeat_callback=on_heartbeat_callback,
             )
         else:
             logger.info(f"Using full scan for connector {connector_id}")
@@ -163,6 +174,7 @@ async def index_google_drive_files(
                 log_entry=log_entry,
                 max_files=max_files,
                 include_subfolders=include_subfolders,
+                on_heartbeat_callback=on_heartbeat_callback,
             )
 
         documents_indexed, documents_skipped = result
@@ -383,6 +395,7 @@ async def _index_full_scan(
     log_entry: any,
     max_files: int,
     include_subfolders: bool = False,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int]:
     """Perform full scan indexing of a folder."""
     await task_logger.log_task_progress(
@@ -399,10 +412,17 @@ async def _index_full_scan(
     documents_skipped = 0
     files_processed = 0
 
+    # Heartbeat tracking - update notification periodically to prevent appearing stuck
+    last_heartbeat_time = time.time()
+
     # Queue of folders to process: (folder_id, folder_name)
     folders_to_process = [(folder_id, folder_name)]
 
     while folders_to_process and files_processed < max_files:
+        # Check if it's time for a heartbeat update
+        if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+            await on_heartbeat_callback(documents_indexed)
+            last_heartbeat_time = time.time()
         current_folder_id, current_folder_name = folders_to_process.pop(0)
         logger.info(f"Processing folder: {current_folder_name} ({current_folder_id})")
         page_token = None
@@ -485,6 +505,7 @@ async def _index_with_delta_sync(
     log_entry: any,
     max_files: int,
     include_subfolders: bool = False,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int]:
     """Perform delta sync indexing using change tracking.
 
@@ -515,7 +536,14 @@ async def _index_with_delta_sync(
     documents_skipped = 0
     files_processed = 0
 
+    # Heartbeat tracking - update notification periodically to prevent appearing stuck
+    last_heartbeat_time = time.time()
+
     for change in changes:
+        # Check if it's time for a heartbeat update
+        if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+            await on_heartbeat_callback(documents_indexed)
+            last_heartbeat_time = time.time()
         if files_processed >= max_files:
             break
 

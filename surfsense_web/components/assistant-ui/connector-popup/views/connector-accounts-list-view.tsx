@@ -1,6 +1,5 @@
 "use client";
 
-import { differenceInDays, differenceInMinutes, format, isToday, isYesterday } from "date-fns";
 import { ArrowLeft, Plus, Server } from "lucide-react";
 import type { FC } from "react";
 import { Button } from "@/components/ui/button";
@@ -8,6 +7,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import { useConnectorStatus } from "../hooks/use-connector-status";
 import { getConnectorDisplayName } from "../tabs/all-connectors-tab";
@@ -30,38 +30,6 @@ interface ConnectorAccountsListViewProps {
 function isIndexableConnector(connectorType: string): boolean {
 	const nonIndexableTypes = ["MCP_CONNECTOR"];
 	return !nonIndexableTypes.includes(connectorType);
-}
-
-/**
- * Format last indexed date with contextual messages
- */
-function formatLastIndexedDate(dateString: string): string {
-	const date = new Date(dateString);
-	const now = new Date();
-	const minutesAgo = differenceInMinutes(now, date);
-	const daysAgo = differenceInDays(now, date);
-
-	if (minutesAgo < 1) {
-		return "Just now";
-	}
-
-	if (minutesAgo < 60) {
-		return `${minutesAgo} ${minutesAgo === 1 ? "minute" : "minutes"} ago`;
-	}
-
-	if (isToday(date)) {
-		return `Today at ${format(date, "h:mm a")}`;
-	}
-
-	if (isYesterday(date)) {
-		return `Yesterday at ${format(date, "h:mm a")}`;
-	}
-
-	if (daysAgo < 7) {
-		return `${daysAgo} ${daysAgo === 1 ? "day" : "days"} ago`;
-	}
-
-	return format(date, "MMM d, yyyy");
 }
 
 export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
@@ -215,7 +183,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											<p className="text-[10px] text-muted-foreground mt-1 whitespace-nowrap truncate">
 												{isIndexableConnector(connector.connector_type)
 													? connector.last_indexed_at
-														? `Last indexed: ${formatLastIndexedDate(connector.last_indexed_at)}`
+														? `Last indexed: ${formatRelativeDate(connector.last_indexed_at)}`
 														: "Never indexed"
 													: "Active"}
 											</p>

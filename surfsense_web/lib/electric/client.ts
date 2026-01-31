@@ -55,7 +55,8 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 // Version for sync state - increment this to force fresh sync when Electric config changes
 // v2: user-specific database architecture
 // v3: consistent cutoff date for sync+queries, visibility refresh support
-const SYNC_VERSION = 3;
+// v4: heartbeat-based stale notification detection with updated_at tracking
+const SYNC_VERSION = 4;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";

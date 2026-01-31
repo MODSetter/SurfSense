@@ -132,6 +132,15 @@ async def get_valid_credentials(
             await session.commit()
 
         except Exception as e:
+            error_str = str(e)
+            # Check if this is an invalid_grant error (token expired/revoked)
+            if (
+                "invalid_grant" in error_str.lower()
+                or "token has been expired or revoked" in error_str.lower()
+            ):
+                raise Exception(
+                    "Google Drive authentication failed. Please re-authenticate."
+                ) from e
             raise Exception(f"Failed to refresh Google OAuth credentials: {e!s}") from e
 
     return credentials

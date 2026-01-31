@@ -2,6 +2,8 @@
 Luma connector indexer.
 """
 
+import time
+from collections.abc import Awaitable, Callable
 from datetime import datetime, timedelta
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,6 +20,12 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 from .base import (
     check_document_by_unique_identifier,
@@ -37,6 +45,7 @@ async def index_luma_events(
     start_date: str | None = None,
     end_date: str | None = None,
     update_last_indexed: bool = True,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index Luma events.
@@ -50,6 +59,7 @@ async def index_luma_events(
         end_date: End date for indexing (YYYY-MM-DD format). Can be in the future to index upcoming events.
                   Defaults to today if not provided.
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -221,7 +231,14 @@ async def index_luma_events(
         documents_skipped = 0
         skipped_events = []
 
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+
         for event in events:
+            # Check if it's time for a heartbeat update
+            if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = time.time()
             try:
                 # Luma event structure fields - events have nested 'event' field
                 event_data = event.get("event", {})
