@@ -125,11 +125,12 @@ export function Sidebar({
 				<div className="flex-1 w-[60px]" />
 			) : (
 				<div className="flex-1 flex flex-col gap-1 py-2 w-[240px] min-h-0 overflow-hidden">
-					{/* Shared Chats Section - takes half the space */}
+					{/* Shared Chats Section - takes only space needed, max 50% */}
 					<SidebarSection
 						title={t("shared_chats")}
 						defaultOpen={true}
-						fillHeight={true}
+						fillHeight={false}
+						className="shrink-0 max-h-[50%] flex flex-col"
 						action={
 							onViewAllSharedChats ? (
 								<Tooltip>
@@ -151,9 +152,9 @@ export function Sidebar({
 						}
 					>
 						{sharedChats.length > 0 ? (
-							<div className="relative flex-1 min-h-0">
+							<div className="relative min-h-0 flex-1">
 								<div
-									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-8" : ""}`}
+									className={`flex flex-col gap-0.5 max-h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-8" : ""}`}
 								>
 									{sharedChats.slice(0, 20).map((chat) => (
 										<ChatListItem
@@ -177,7 +178,7 @@ export function Sidebar({
 						)}
 					</SidebarSection>
 
-					{/* Private Chats Section - takes half the space */}
+					{/* Private Chats Section - fills remaining space */}
 					<SidebarSection
 						title={t("chats")}
 						defaultOpen={true}
