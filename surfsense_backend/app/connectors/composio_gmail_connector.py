@@ -5,8 +5,14 @@ Provides Gmail specific methods for data retrieval and indexing via Composio.
 """
 
 import logging
+import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
+
+# Heartbeat configuration
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -427,6 +433,7 @@ async def index_composio_gmail(
     log_entry,
     update_last_indexed: bool = True,
     max_items: int = 1000,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str]:
     """Index Gmail messages via Composio with pagination and incremental processing."""
     try:
@@ -471,8 +478,16 @@ async def index_composio_gmail(
         total_documents_skipped = 0
         total_messages_fetched = 0
         result_size_estimate = None  # Will be set from first API response
+        last_heartbeat_time = time.time()
 
         while total_messages_fetched < max_items:
+            # Send heartbeat periodically to indicate task is still alive
+            if on_heartbeat_callback:
+                current_time = time.time()
+                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                    await on_heartbeat_callback(total_documents_indexed)
+                    last_heartbeat_time = current_time
+
             # Calculate how many messages to fetch in this batch
             remaining = max_items - total_messages_fetched
             current_batch_size = min(batch_size, remaining)

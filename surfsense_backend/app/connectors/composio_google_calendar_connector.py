@@ -5,8 +5,14 @@ Provides Google Calendar specific methods for data retrieval and indexing via Co
 """
 
 import logging
+import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
+
+# Heartbeat configuration
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -191,6 +197,7 @@ async def index_composio_google_calendar(
     log_entry,
     update_last_indexed: bool = True,
     max_items: int = 2500,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str]:
     """Index Google Calendar events via Composio."""
     try:
@@ -262,8 +269,15 @@ async def index_composio_google_calendar(
         duplicate_content_count = (
             0  # Track events skipped due to duplicate content_hash
         )
+        last_heartbeat_time = time.time()
 
         for event in events:
+            # Send heartbeat periodically to indicate task is still alive
+            if on_heartbeat_callback:
+                current_time = time.time()
+                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                    await on_heartbeat_callback(documents_indexed)
+                    last_heartbeat_time = current_time
             try:
                 # Handle both standard Google API and potential Composio variations
                 event_id = event.get("id", "") or event.get("eventId", "")

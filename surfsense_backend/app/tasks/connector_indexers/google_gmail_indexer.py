@@ -2,6 +2,8 @@
 Google Gmail connector indexer.
 """
 
+import time
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from google.oauth2.credentials import Credentials
@@ -23,6 +25,12 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
+
 from .base import (
     calculate_date_range,
     check_document_by_unique_identifier,
@@ -43,6 +51,7 @@ async def index_google_gmail_messages(
     end_date: str | None = None,
     update_last_indexed: bool = True,
     max_messages: int = 1000,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str]:
     """
     Index Gmail messages for a specific connector.
@@ -56,6 +65,7 @@ async def index_google_gmail_messages(
         end_date: End date for filtering messages (YYYY-MM-DD format)
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
         max_messages: Maximum number of messages to fetch (default: 100)
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple of (number_of_indexed_messages, status_message)
@@ -212,7 +222,15 @@ async def index_google_gmail_messages(
         documents_indexed = 0
         skipped_messages = []
         documents_skipped = 0
+
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+
         for message in messages:
+            # Check if it's time for a heartbeat update
+            if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = time.time()
             try:
                 # Extract message information
                 message_id = message.get("id", "")

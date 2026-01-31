@@ -3,6 +3,8 @@ Jira connector indexer.
 """
 
 import contextlib
+import time
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -19,6 +21,12 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds - update notification every 30 seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 from .base import (
     calculate_date_range,
@@ -39,6 +47,7 @@ async def index_jira_issues(
     start_date: str | None = None,
     end_date: str | None = None,
     update_last_indexed: bool = True,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index Jira issues and comments.
@@ -51,6 +60,7 @@ async def index_jira_issues(
         start_date: Start date for indexing (YYYY-MM-DD format)
         end_date: End date for indexing (YYYY-MM-DD format)
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -169,7 +179,14 @@ async def index_jira_issues(
         skipped_issues = []
         documents_skipped = 0
 
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+
         for issue in issues:
+            # Check if it's time for a heartbeat update
+            if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = time.time()
             try:
                 issue_id = issue.get("key")
                 issue_identifier = issue.get("key", "")

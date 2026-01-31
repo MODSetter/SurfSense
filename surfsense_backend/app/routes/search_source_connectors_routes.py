@@ -1137,6 +1137,7 @@ async def run_slack_indexing(
         end_date=end_date,
         indexing_function=index_slack_messages,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1150,6 +1151,7 @@ async def _run_indexing_with_notifications(
     indexing_function,
     update_timestamp_func=None,
     supports_retry_callback: bool = False,
+    supports_heartbeat_callback: bool = False,
 ):
     """
     Generic helper to run indexing with real-time notifications.
@@ -1164,11 +1166,13 @@ async def _run_indexing_with_notifications(
         indexing_function: Async function that performs the indexing
         update_timestamp_func: Optional function to update connector timestamp
         supports_retry_callback: Whether the indexing function supports on_retry_callback
+        supports_heartbeat_callback: Whether the indexing function supports on_heartbeat_callback
     """
+    from celery.exceptions import SoftTimeLimitExceeded
     from uuid import UUID
 
     notification = None
-    # Track indexed count for retry notifications
+    # Track indexed count for retry notifications and heartbeat
     current_indexed_count = 0
 
     try:
@@ -1227,6 +1231,27 @@ async def _run_indexing_with_notifications(
                     # Don't let notification errors break the indexing
                     logger.warning(f"Failed to update retry notification: {e}")
 
+        # Create heartbeat callback for connectors that support it
+        # This updates the notification periodically during long-running indexing loops
+        # to prevent the task from appearing stuck if the worker crashes
+        async def on_heartbeat_callback(indexed_count: int) -> None:
+            """Callback to update notification during indexing (heartbeat)."""
+            nonlocal notification, current_indexed_count
+            current_indexed_count = indexed_count
+            if notification:
+                try:
+                    await session.refresh(notification)
+                    await NotificationService.connector_indexing.notify_indexing_progress(
+                        session=session,
+                        notification=notification,
+                        indexed_count=indexed_count,
+                        stage="processing",
+                    )
+                    await session.commit()
+                except Exception as e:
+                    # Don't let notification errors break the indexing
+                    logger.warning(f"Failed to update heartbeat notification: {e}")
+
         # Build kwargs for indexing function
         indexing_kwargs = {
             "session": session,
@@ -1241,6 +1266,10 @@ async def _run_indexing_with_notifications(
         # Add retry callback for connectors that support it
         if supports_retry_callback:
             indexing_kwargs["on_retry_callback"] = on_retry_callback
+
+        # Add heartbeat callback for connectors that support it
+        if supports_heartbeat_callback:
+            indexing_kwargs["on_heartbeat_callback"] = on_heartbeat_callback
 
         # Run the indexing function
         # Some indexers return (indexed, error), others return (indexed, skipped, error)
@@ -1398,6 +1427,30 @@ async def _run_indexing_with_notifications(
                     await (
                         session.commit()
                     )  # Commit to ensure Electric SQL syncs the notification update
+    except SoftTimeLimitExceeded:
+        # Celery soft time limit was reached - task is about to be killed
+        # Gracefully save progress and mark as interrupted
+        logger.warning(
+            f"Soft time limit reached for connector {connector_id}. "
+            f"Saving partial progress: {current_indexed_count} items indexed."
+        )
+
+        if notification:
+            try:
+                await session.refresh(notification)
+                await NotificationService.connector_indexing.notify_indexing_completed(
+                    session=session,
+                    notification=notification,
+                    indexed_count=current_indexed_count,
+                    error_message="Time limit reached. Partial sync completed. Please run again for remaining items.",
+                    is_warning=True,  # Mark as warning since partial data was indexed
+                )
+                await session.commit()
+            except Exception as notif_error:
+                logger.error(f"Failed to update notification on soft timeout: {notif_error!s}")
+
+        # Re-raise so Celery knows the task was terminated
+        raise
     except Exception as e:
         logger.error(f"Error in indexing task: {e!s}", exc_info=True)
 
@@ -1409,7 +1462,7 @@ async def _run_indexing_with_notifications(
                 await NotificationService.connector_indexing.notify_indexing_completed(
                     session=session,
                     notification=notification,
-                    indexed_count=0,
+                    indexed_count=current_indexed_count,  # Use tracked count, not 0
                     error_message=str(e),
                     skipped_count=None,  # Unknown on exception
                 )
@@ -1439,6 +1492,7 @@ async def run_notion_indexing_with_new_session(
             indexing_function=index_notion_pages,
             update_timestamp_func=_update_connector_timestamp_by_id,
             supports_retry_callback=True,  # Notion connector supports retry notifications
+            supports_heartbeat_callback=True,  # Notion connector supports heartbeat notifications
         )
 
 
@@ -1471,6 +1525,7 @@ async def run_notion_indexing(
         indexing_function=index_notion_pages,
         update_timestamp_func=_update_connector_timestamp_by_id,
         supports_retry_callback=True,  # Notion connector supports retry notifications
+        supports_heartbeat_callback=True,  # Notion connector supports heartbeat notifications
     )
 
 
@@ -1521,6 +1576,7 @@ async def run_github_indexing(
         end_date=end_date,
         indexing_function=index_github_repos,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1571,6 +1627,7 @@ async def run_linear_indexing(
         end_date=end_date,
         indexing_function=index_linear_issues,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1620,6 +1677,7 @@ async def run_discord_indexing(
         end_date=end_date,
         indexing_function=index_discord_messages,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1670,6 +1728,7 @@ async def run_teams_indexing(
         end_date=end_date,
         indexing_function=index_teams_messages,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1720,6 +1779,7 @@ async def run_jira_indexing(
         end_date=end_date,
         indexing_function=index_jira_issues,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1772,6 +1832,7 @@ async def run_confluence_indexing(
         end_date=end_date,
         indexing_function=index_confluence_pages,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1822,6 +1883,7 @@ async def run_clickup_indexing(
         end_date=end_date,
         indexing_function=index_clickup_tasks,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1872,6 +1934,7 @@ async def run_airtable_indexing(
         end_date=end_date,
         indexing_function=index_airtable_records,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1924,6 +1987,7 @@ async def run_google_calendar_indexing(
         end_date=end_date,
         indexing_function=index_google_calendar_events,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -1998,6 +2062,7 @@ async def run_google_gmail_indexing(
         end_date=end_date,
         indexing_function=gmail_indexing_wrapper,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -2206,6 +2271,7 @@ async def run_luma_indexing(
         end_date=end_date,
         indexing_function=index_luma_events,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -2257,6 +2323,7 @@ async def run_elasticsearch_indexing(
         end_date=end_date,
         indexing_function=index_elasticsearch_documents,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -2306,6 +2373,7 @@ async def run_web_page_indexing(
         end_date=end_date,
         indexing_function=index_crawled_urls,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -2360,6 +2428,7 @@ async def run_bookstack_indexing(
         end_date=end_date,
         indexing_function=index_bookstack_pages,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -2412,6 +2481,7 @@ async def run_obsidian_indexing(
         end_date=end_date,
         indexing_function=index_obsidian_vault,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
@@ -2465,6 +2535,7 @@ async def run_composio_indexing(
         end_date=end_date,
         indexing_function=index_composio_connector,
         update_timestamp_func=_update_connector_timestamp_by_id,
+        supports_heartbeat_callback=True,
     )
 
 
