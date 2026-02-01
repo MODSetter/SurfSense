@@ -1,7 +1,7 @@
 """Add public_chat_snapshots table and remove deprecated columns from new_chat_threads
 
-Revision ID: 84
-Revises: 83
+Revision ID: 85
+Revises: 84
 Create Date: 2026-01-29
 
 Changes:
@@ -19,8 +19,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "84"
-down_revision: str | None = "83"
+revision: str = "85"
+down_revision: str | None = "84"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
