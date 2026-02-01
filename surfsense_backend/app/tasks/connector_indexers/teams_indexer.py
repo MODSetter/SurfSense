@@ -36,6 +36,7 @@ HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 # Heartbeat interval in seconds - update notification every 30 seconds
 HEARTBEAT_INTERVAL_SECONDS = 30
 
+
 async def index_teams_messages(
     session: AsyncSession,
     connector_id: int,

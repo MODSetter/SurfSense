@@ -36,6 +36,7 @@ HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 # Heartbeat interval in seconds
 HEARTBEAT_INTERVAL_SECONDS = 30
 
+
 async def index_luma_events(
     session: AsyncSession,
     connector_id: int,

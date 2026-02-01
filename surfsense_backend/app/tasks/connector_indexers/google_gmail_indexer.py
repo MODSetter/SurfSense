@@ -41,6 +41,7 @@ HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 # Heartbeat interval in seconds
 HEARTBEAT_INTERVAL_SECONDS = 30
 
+
 async def index_google_gmail_messages(
     session: AsyncSession,
     connector_id: int,

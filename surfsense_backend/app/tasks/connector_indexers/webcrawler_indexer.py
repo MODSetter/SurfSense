@@ -37,6 +37,7 @@ HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 # Heartbeat interval in seconds
 HEARTBEAT_INTERVAL_SECONDS = 30
 
+
 async def index_crawled_urls(
     session: AsyncSession,
     connector_id: int,

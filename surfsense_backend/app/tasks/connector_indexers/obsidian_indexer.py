@@ -43,6 +43,7 @@ HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 # Heartbeat interval in seconds
 HEARTBEAT_INTERVAL_SECONDS = 30
 
+
 def parse_frontmatter(content: str) -> tuple[dict | None, str]:
     """
     Parse YAML frontmatter from markdown content.
