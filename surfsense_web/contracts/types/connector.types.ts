@@ -222,6 +222,27 @@ export const listSlackChannelsRequest = z.object({
 
 export const listSlackChannelsResponse = z.array(slackChannel);
 
+/**
+ * Discord channel with indexing permission info
+ */
+export const discordChannel = z.object({
+	id: z.string(),
+	name: z.string(),
+	type: z.enum(["text", "announcement"]),
+	position: z.number(),
+	category_id: z.string().nullable().optional(),
+	can_index: z.boolean(),
+});
+
+/**
+ * List Discord channels
+ */
+export const listDiscordChannelsRequest = z.object({
+	connector_id: z.number(),
+});
+
+export const listDiscordChannelsResponse = z.array(discordChannel);
+
 // Inferred types
 export type SearchSourceConnectorType = z.infer<typeof searchSourceConnectorTypeEnum>;
 export type SearchSourceConnector = z.infer<typeof searchSourceConnector>;
@@ -245,3 +266,6 @@ export type GoogleDriveItem = z.infer<typeof googleDriveItem>;
 export type SlackChannel = z.infer<typeof slackChannel>;
 export type ListSlackChannelsRequest = z.infer<typeof listSlackChannelsRequest>;
 export type ListSlackChannelsResponse = z.infer<typeof listSlackChannelsResponse>;
+export type DiscordChannel = z.infer<typeof discordChannel>;
+export type ListDiscordChannelsRequest = z.infer<typeof listDiscordChannelsRequest>;
+export type ListDiscordChannelsResponse = z.infer<typeof listDiscordChannelsResponse>;
