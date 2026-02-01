@@ -19,10 +19,12 @@ Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search spa
 """
 
 import logging
+import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytz
+import redis
 from dateutil.parser import isoparse
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, ValidationError
@@ -77,6 +79,27 @@ from app.utils.rbac import check_permission
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+# Redis client for heartbeat tracking
+_heartbeat_redis_client: redis.Redis | None = None
+
+# Redis key TTL - notification is stale if no heartbeat in this time
+HEARTBEAT_TTL_SECONDS = 120  # 2 minutes
+
+
+def get_heartbeat_redis_client() -> redis.Redis:
+    """Get or create Redis client for heartbeat tracking."""
+    global _heartbeat_redis_client
+    if _heartbeat_redis_client is None:
+        redis_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+        _heartbeat_redis_client = redis.from_url(redis_url, decode_responses=True)
+    return _heartbeat_redis_client
+
+
+def _get_heartbeat_key(notification_id: int) -> str:
+    """Generate Redis key for notification heartbeat."""
+    return f"indexing:heartbeat:{notification_id}"
+
 
 router = APIRouter()
 
@@ -1200,6 +1223,16 @@ async def _run_indexing_with_notifications(
                 )
             )
 
+            # Set initial Redis heartbeat for stale detection
+            if notification:
+                try:
+                    heartbeat_key = _get_heartbeat_key(notification.id)
+                    get_heartbeat_redis_client().setex(
+                        heartbeat_key, HEARTBEAT_TTL_SECONDS, "0"
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to set initial Redis heartbeat: {e}")
+
         # Update notification to fetching stage
         if notification:
             await NotificationService.connector_indexing.notify_indexing_progress(
@@ -1241,6 +1274,17 @@ async def _run_indexing_with_notifications(
             current_indexed_count = indexed_count
             if notification:
                 try:
+                    # Set Redis heartbeat key with TTL (fast, for stale detection)
+                    heartbeat_key = _get_heartbeat_key(notification.id)
+                    get_heartbeat_redis_client().setex(
+                        heartbeat_key, HEARTBEAT_TTL_SECONDS, str(indexed_count)
+                    )
+                except Exception as e:
+                    # Don't let Redis errors break the indexing
+                    logger.warning(f"Failed to set Redis heartbeat: {e}")
+
+                try:
+                    # Still update DB notification for progress display
                     await session.refresh(notification)
                     await (
                         NotificationService.connector_indexing.notify_indexing_progress(
@@ -1473,6 +1517,14 @@ async def _run_indexing_with_notifications(
                 )
             except Exception as notif_error:
                 logger.error(f"Failed to update notification: {notif_error!s}")
+    finally:
+        # Clean up Redis heartbeat key when task completes (success or failure)
+        if notification:
+            try:
+                heartbeat_key = _get_heartbeat_key(notification.id)
+                get_heartbeat_redis_client().delete(heartbeat_key)
+            except Exception:
+                pass  # Ignore cleanup errors - key will expire anyway
 
 
 async def run_notion_indexing_with_new_session(
