@@ -27,12 +27,6 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
-# Type hint for heartbeat callback
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-
-# Heartbeat interval in seconds
-HEARTBEAT_INTERVAL_SECONDS = 30
-
 from .base import (
     build_document_metadata_string,
     check_document_by_unique_identifier,
@@ -43,6 +37,11 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 def parse_frontmatter(content: str) -> tuple[dict | None, str]:
     """
@@ -320,7 +319,10 @@ async def index_obsidian_vault(
 
         for file_info in files:
             # Check if it's time for a heartbeat update
-            if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
                 await on_heartbeat_callback(indexed_count)
                 last_heartbeat_time = time.time()
             try:

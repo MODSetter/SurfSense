@@ -20,12 +20,6 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
-# Type hint for heartbeat callback
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-
-# Heartbeat interval in seconds - update notification every 30 seconds
-HEARTBEAT_INTERVAL_SECONDS = 30
-
 from .base import (
     build_document_metadata_markdown,
     calculate_date_range,
@@ -37,6 +31,11 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds - update notification every 30 seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 async def index_slack_messages(
     session: AsyncSession,
@@ -187,7 +186,10 @@ async def index_slack_messages(
         # Process each channel
         for channel_obj in channels:
             # Check if it's time for a heartbeat update
-            if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
                 await on_heartbeat_callback(documents_indexed)
                 last_heartbeat_time = time.time()
             channel_id = channel_obj["id"]

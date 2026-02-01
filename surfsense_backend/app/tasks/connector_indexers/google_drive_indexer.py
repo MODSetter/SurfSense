@@ -420,7 +420,10 @@ async def _index_full_scan(
 
     while folders_to_process and files_processed < max_files:
         # Check if it's time for a heartbeat update
-        if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+        if (
+            on_heartbeat_callback
+            and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+        ):
             await on_heartbeat_callback(documents_indexed)
             last_heartbeat_time = time.time()
         current_folder_id, current_folder_name = folders_to_process.pop(0)
@@ -541,7 +544,10 @@ async def _index_with_delta_sync(
 
     for change in changes:
         # Check if it's time for a heartbeat update
-        if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+        if (
+            on_heartbeat_callback
+            and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+        ):
             await on_heartbeat_callback(documents_indexed)
             last_heartbeat_time = time.time()
         if files_processed >= max_files:

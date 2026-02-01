@@ -80,8 +80,8 @@ export const DiscordConfig: FC<DiscordConfigProps> = ({ connector }) => {
 				</div>
 				<div className="text-xs sm:text-sm">
 					<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-						The bot needs &quot;Read Message History&quot; permission to index channels.
-						Ask a server admin to grant this permission for channels shown below.
+						The bot needs &quot;Read Message History&quot; permission to index channels. Ask a
+						server admin to grant this permission for channels shown below.
 					</p>
 				</div>
 			</div>
@@ -122,7 +122,8 @@ export const DiscordConfig: FC<DiscordConfigProps> = ({ connector }) => {
 					</div>
 				) : channels.length === 0 && !error ? (
 					<div className="text-center py-8 text-sm text-muted-foreground">
-						No channels found. Make sure the bot has been added to your Discord server with proper permissions.
+						No channels found. Make sure the bot has been added to your Discord server with proper
+						permissions.
 					</div>
 				) : (
 					<div className="rounded-xl bg-slate-400/5 dark:bg-white/5 overflow-hidden">

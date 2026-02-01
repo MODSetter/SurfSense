@@ -136,8 +136,7 @@ export const SlackConfig: FC<SlackConfigProps> = ({ connector }) => {
 									<CheckCircle2 className="size-3.5 text-emerald-500" />
 									<span className="text-[11px] font-medium">Ready to index</span>
 									<span className="text-[10px] text-muted-foreground">
-										{channelsWithBot.length}{" "}
-										{channelsWithBot.length === 1 ? "channel" : "channels"}
+										{channelsWithBot.length} {channelsWithBot.length === 1 ? "channel" : "channels"}
 									</span>
 								</div>
 								<div className="flex flex-wrap gap-1.5">

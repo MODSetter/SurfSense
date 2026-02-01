@@ -305,7 +305,11 @@ async def index_discord_messages(
         try:
             for guild in guilds:
                 # Check if it's time for a heartbeat update
-                if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+                if (
+                    on_heartbeat_callback
+                    and (time.time() - last_heartbeat_time)
+                    >= HEARTBEAT_INTERVAL_SECONDS
+                ):
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = time.time()
                 guild_id = guild["id"]

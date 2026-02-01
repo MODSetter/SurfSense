@@ -10,10 +10,6 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
-# Heartbeat configuration
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-HEARTBEAT_INTERVAL_SECONDS = 30
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -31,6 +27,10 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+
+# Heartbeat configuration
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 logger = logging.getLogger(__name__)
 

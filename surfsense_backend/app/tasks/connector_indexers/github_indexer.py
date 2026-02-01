@@ -24,12 +24,6 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
-# Type hint for heartbeat callback
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-
-# Heartbeat interval in seconds - update notification every 30 seconds
-HEARTBEAT_INTERVAL_SECONDS = 30
-
 from .base import (
     check_document_by_unique_identifier,
     check_duplicate_document_by_hash,
@@ -37,6 +31,12 @@ from .base import (
     get_current_timestamp,
     logger,
 )
+
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds - update notification every 30 seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 # Maximum tokens for a single digest before splitting
 # Most LLMs can handle 128k+ tokens now, but we'll be conservative
@@ -184,7 +184,10 @@ async def index_github_repos(
 
         for repo_full_name in repo_full_names_to_index:
             # Check if it's time for a heartbeat update
-            if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
                 await on_heartbeat_callback(documents_indexed)
                 last_heartbeat_time = time.time()
             if not repo_full_name or not isinstance(repo_full_name, str):

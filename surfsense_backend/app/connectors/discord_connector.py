@@ -61,7 +61,9 @@ class DiscordConnector(commands.Bot):
             self.token = None
         self._bot_task = None  # Holds the async bot task
         self._is_running = False  # Flag to track if the bot is running
-        self._start_called_event = asyncio.Event()  # Event to signal when start() is called
+        self._start_called_event = (
+            asyncio.Event()
+        )  # Event to signal when start() is called
 
         # Event to confirm bot is ready
         @self.event
@@ -293,7 +295,7 @@ class DiscordConnector(commands.Bot):
             logger.error("start_bot() did not call start() within 30 seconds")
             raise RuntimeError(
                 "Discord client failed to initialize - start() was never called"
-            )
+            ) from None
 
         try:
             await asyncio.wait_for(self.wait_until_ready(), timeout=60.0)

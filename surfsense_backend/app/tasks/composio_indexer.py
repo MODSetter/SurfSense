@@ -12,9 +12,6 @@ import logging
 from collections.abc import Awaitable, Callable
 from importlib import import_module
 
-# Type alias for heartbeat callback function
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -25,6 +22,9 @@ from app.db import (
 )
 from app.services.composio_service import INDEXABLE_TOOLKITS, TOOLKIT_TO_INDEXER
 from app.services.task_logging_service import TaskLoggingService
+
+# Type alias for heartbeat callback function
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 
 # Set up logging
 logger = logging.getLogger(__name__)

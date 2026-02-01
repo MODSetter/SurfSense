@@ -21,17 +21,17 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
-# Type hint for heartbeat callback
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-
-# Heartbeat interval in seconds
-HEARTBEAT_INTERVAL_SECONDS = 30
-
 from .base import (
     check_document_by_unique_identifier,
     check_duplicate_document_by_hash,
     get_current_timestamp,
 )
+
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +186,11 @@ async def index_elasticsearch_documents(
                 fields=config.get("ELASTICSEARCH_FIELDS"),
             ):
                 # Check if it's time for a heartbeat update
-                if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+                if (
+                    on_heartbeat_callback
+                    and (time.time() - last_heartbeat_time)
+                    >= HEARTBEAT_INTERVAL_SECONDS
+                ):
                     await on_heartbeat_callback(documents_processed)
                     last_heartbeat_time = time.time()
 

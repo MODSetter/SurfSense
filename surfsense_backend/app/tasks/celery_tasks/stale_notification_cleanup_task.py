@@ -9,8 +9,7 @@ frontend from showing a perpetual "syncing" state.
 import logging
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import and_, update
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
@@ -42,12 +41,12 @@ def get_celery_session_maker():
 def cleanup_stale_indexing_notifications_task():
     """
     Check for stale connector indexing notifications and mark them as failed.
-    
+
     This task finds notifications that:
     - Have type = 'connector_indexing'
     - Have metadata.status = 'in_progress'
     - Have updated_at older than STALE_NOTIFICATION_TIMEOUT_MINUTES
-    
+
     And marks them as failed with an appropriate error message.
     """
     import asyncio
@@ -78,7 +77,8 @@ async def _cleanup_stale_notifications():
                 select(Notification).filter(
                     and_(
                         Notification.type == "connector_indexing",
-                        Notification.notification_metadata["status"].astext == "in_progress",
+                        Notification.notification_metadata["status"].astext
+                        == "in_progress",
                         Notification.updated_at < cutoff_time,
                     )
                 )
@@ -98,22 +98,28 @@ async def _cleanup_stale_notifications():
             for notification in stale_notifications:
                 try:
                     # Get current indexed count from metadata if available
-                    indexed_count = notification.notification_metadata.get("indexed_count", 0)
-                    connector_name = notification.notification_metadata.get("connector_name", "Unknown")
-                    
+                    indexed_count = notification.notification_metadata.get(
+                        "indexed_count", 0
+                    )
+                    connector_name = notification.notification_metadata.get(
+                        "connector_name", "Unknown"
+                    )
+
                     # Calculate how long it's been stale
                     stale_duration = datetime.now(UTC) - notification.updated_at
                     stale_minutes = int(stale_duration.total_seconds() / 60)
 
                     # Update notification metadata
                     notification.notification_metadata["status"] = "failed"
-                    notification.notification_metadata["completed_at"] = datetime.now(UTC).isoformat()
+                    notification.notification_metadata["completed_at"] = datetime.now(
+                        UTC
+                    ).isoformat()
                     notification.notification_metadata["error_message"] = (
                         f"Indexing task appears to have crashed or timed out. "
                         f"No activity detected for {stale_minutes} minutes. "
                         f"Please try syncing again."
                     )
-                    
+
                     # Flag the JSONB column as modified for SQLAlchemy to detect the change
                     flag_modified(notification, "notification_metadata")
 
@@ -138,4 +144,3 @@ async def _cleanup_stale_notifications():
         except Exception as e:
             logger.error(f"Error cleaning up stale notifications: {e!s}", exc_info=True)
             await session.rollback()
-

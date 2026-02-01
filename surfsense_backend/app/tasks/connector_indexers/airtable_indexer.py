@@ -20,12 +20,6 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
-# Type hint for heartbeat callback
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-
-# Heartbeat interval in seconds
-HEARTBEAT_INTERVAL_SECONDS = 30
-
 from .base import (
     calculate_date_range,
     check_document_by_unique_identifier,
@@ -36,6 +30,11 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 async def index_airtable_records(
     session: AsyncSession,
@@ -145,7 +144,11 @@ async def index_airtable_records(
             # Process each base
             for base in bases:
                 # Check if it's time for a heartbeat update
-                if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+                if (
+                    on_heartbeat_callback
+                    and (time.time() - last_heartbeat_time)
+                    >= HEARTBEAT_INTERVAL_SECONDS
+                ):
                     await on_heartbeat_callback(total_documents_indexed)
                     last_heartbeat_time = time.time()
                 base_id = base.get("id")
@@ -224,7 +227,11 @@ async def index_airtable_records(
                     # Process each record
                     for record in records:
                         # Check if it's time for a heartbeat update
-                        if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+                        if (
+                            on_heartbeat_callback
+                            and (time.time() - last_heartbeat_time)
+                            >= HEARTBEAT_INTERVAL_SECONDS
+                        ):
                             await on_heartbeat_callback(total_documents_indexed)
                             last_heartbeat_time = time.time()
 

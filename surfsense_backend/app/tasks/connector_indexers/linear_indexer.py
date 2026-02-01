@@ -21,12 +21,6 @@ from app.utils.document_converters import (
     generate_unique_identifier_hash,
 )
 
-# Type hint for heartbeat callback
-HeartbeatCallbackType = Callable[[int], Awaitable[None]]
-
-# Heartbeat interval in seconds - update notification every 30 seconds
-HEARTBEAT_INTERVAL_SECONDS = 30
-
 from .base import (
     calculate_date_range,
     check_document_by_unique_identifier,
@@ -37,6 +31,11 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds - update notification every 30 seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 async def index_linear_issues(
     session: AsyncSession,
@@ -210,7 +209,10 @@ async def index_linear_issues(
         # Process each issue
         for issue in issues:
             # Check if it's time for a heartbeat update
-            if on_heartbeat_callback and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS:
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
                 await on_heartbeat_callback(documents_indexed)
                 last_heartbeat_time = time.time()
 

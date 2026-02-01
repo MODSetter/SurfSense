@@ -22,4 +22,3 @@ export function formatRelativeDate(dateString: string): string {
 	if (daysAgo < 7) return `${daysAgo}d ago`;
 	return format(date, "MMM d, yyyy");
 }
-

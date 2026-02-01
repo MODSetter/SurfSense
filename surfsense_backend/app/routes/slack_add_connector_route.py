@@ -547,7 +547,8 @@ async def get_slack_channels(
             select(SearchSourceConnector).where(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.connector_type == SearchSourceConnectorType.SLACK_CONNECTOR,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.SLACK_CONNECTOR,
             )
         )
         connector = result.scalar_one_or_none()

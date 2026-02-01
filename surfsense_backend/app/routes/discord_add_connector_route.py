@@ -46,6 +46,11 @@ SCOPES = [
     "guilds.members.read",  # Read member information
 ]
 
+# Discord permission bits
+VIEW_CHANNEL = 1 << 10  # 1024
+READ_MESSAGE_HISTORY = 1 << 16  # 65536
+ADMINISTRATOR = 1 << 3  # 8
+
 # Initialize security utilities
 _state_manager = None
 _token_encryption = None
@@ -542,25 +547,25 @@ def _compute_channel_permissions(
 ) -> int:
     """
     Compute effective permissions for a channel based on role permissions and overwrites.
-    
+
     Discord permission computation follows this order (per official docs):
     1. Start with base permissions from roles
     2. Apply @everyone role overwrites (deny, then allow)
     3. Apply role-specific overwrites (deny, then allow)
     4. Apply member-specific overwrites (deny, then allow)
-    
+
     Args:
         base_permissions: Combined permissions from all bot roles
         bot_role_ids: Set of role IDs the bot has
         bot_user_id: The bot's user ID for member-specific overwrites
         channel_overwrites: List of permission overwrites for the channel
         guild_id: Guild ID (same as @everyone role ID)
-    
+
     Returns:
         Computed permission integer
     """
     permissions = base_permissions
-    
+
     # Permission overwrites are applied in order: @everyone, roles, member
     everyone_allow = 0
     everyone_deny = 0
@@ -568,13 +573,13 @@ def _compute_channel_permissions(
     role_deny = 0
     member_allow = 0
     member_deny = 0
-    
+
     for overwrite in channel_overwrites:
         overwrite_id = overwrite.get("id")
         overwrite_type = overwrite.get("type")  # 0 = role, 1 = member
         allow = int(overwrite.get("allow", 0))
         deny = int(overwrite.get("deny", 0))
-        
+
         if overwrite_type == 0:  # Role overwrite
             if overwrite_id == guild_id:  # @everyone role
                 everyone_allow = allow
@@ -582,11 +587,11 @@ def _compute_channel_permissions(
             elif overwrite_id in bot_role_ids:
                 role_allow |= allow
                 role_deny |= deny
-        elif overwrite_type == 1:  # Member overwrite
-            if bot_user_id and overwrite_id == bot_user_id:
-                member_allow = allow
-                member_deny = deny
-    
+        elif overwrite_type == 1 and bot_user_id and overwrite_id == bot_user_id:
+            # Member-specific overwrite for the bot
+            member_allow = allow
+            member_deny = deny
+
     # Apply in order per Discord docs:
     # 1. @everyone deny, then allow
     permissions &= ~everyone_deny
@@ -597,7 +602,7 @@ def _compute_channel_permissions(
     # 3. Member deny, then allow (applied LAST, highest priority)
     permissions &= ~member_deny
     permissions |= member_allow
-    
+
     return permissions
 
 
@@ -609,7 +614,7 @@ async def get_discord_channels(
 ):
     """
     Get list of Discord text channels for a connector with permission info.
-    
+
     Uses Discord's HTTP REST API directly instead of WebSocket bot connection.
     Computes effective permissions to determine if bot can read message history.
 
@@ -623,18 +628,14 @@ async def get_discord_channels(
     """
     from sqlalchemy import select
 
-    # Discord permission bits
-    VIEW_CHANNEL = 1 << 10  # 1024
-    READ_MESSAGE_HISTORY = 1 << 16  # 65536
-    ADMINISTRATOR = 1 << 3  # 8
-
     try:
         # Get connector and verify ownership
         result = await session.execute(
             select(SearchSourceConnector).where(
                 SearchSourceConnector.id == connector_id,
                 SearchSourceConnector.user_id == user.id,
-                SearchSourceConnector.connector_type == SearchSourceConnectorType.DISCORD_CONNECTOR,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.DISCORD_CONNECTOR,
             )
         )
         connector = result.scalar_one_or_none()
@@ -675,7 +676,7 @@ async def get_discord_channels(
             )
 
         headers = {"Authorization": f"Bot {bot_token}"}
-        
+
         async with httpx.AsyncClient() as client:
             # Fetch bot's user info to get bot user ID
             bot_user_response = await client.get(
@@ -683,55 +684,61 @@ async def get_discord_channels(
                 headers=headers,
                 timeout=30.0,
             )
-            
+
             if bot_user_response.status_code != 200:
-                logger.warning(f"Failed to fetch bot user info: {bot_user_response.text}")
+                logger.warning(
+                    f"Failed to fetch bot user info: {bot_user_response.text}"
+                )
                 bot_user_id = None
             else:
                 bot_user_id = bot_user_response.json().get("id")
-            
+
             # Fetch guild info to get roles
             guild_response = await client.get(
                 f"https://discord.com/api/v10/guilds/{guild_id}",
                 headers=headers,
                 timeout=30.0,
             )
-            
+
             if guild_response.status_code != 200:
                 raise HTTPException(
                     status_code=guild_response.status_code,
                     detail="Failed to fetch guild information",
                 )
-            
+
             guild_data = guild_response.json()
             guild_roles = {role["id"]: role for role in guild_data.get("roles", [])}
-            
+
             # Fetch bot's member info to get its roles
             bot_member_response = await client.get(
                 f"https://discord.com/api/v10/guilds/{guild_id}/members/{bot_user_id}",
                 headers=headers,
                 timeout=30.0,
             )
-            
+
             if bot_member_response.status_code != 200:
-                logger.warning(f"Failed to fetch bot member info: {bot_member_response.text}")
+                logger.warning(
+                    f"Failed to fetch bot member info: {bot_member_response.text}"
+                )
                 bot_role_ids = {guild_id}  # At minimum, bot has @everyone role
-                base_permissions = int(guild_roles.get(guild_id, {}).get("permissions", 0))
+                base_permissions = int(
+                    guild_roles.get(guild_id, {}).get("permissions", 0)
+                )
             else:
                 bot_member_data = bot_member_response.json()
                 bot_role_ids = set(bot_member_data.get("roles", []))
                 bot_role_ids.add(guild_id)  # @everyone role is always included
-                
+
                 # Compute base permissions from all bot roles
                 base_permissions = 0
                 for role_id in bot_role_ids:
                     if role_id in guild_roles:
                         role_perms = int(guild_roles[role_id].get("permissions", 0))
                         base_permissions |= role_perms
-            
+
             # Check if bot has administrator permission (bypasses all checks)
             is_admin = (base_permissions & ADMINISTRATOR) == ADMINISTRATOR
-            
+
             # Fetch channels
             channels_response = await client.get(
                 f"https://discord.com/api/v10/guilds/{guild_id}/channels",
@@ -767,7 +774,7 @@ async def get_discord_channels(
         # 0 = GUILD_TEXT, 2 = GUILD_VOICE, 4 = GUILD_CATEGORY, 5 = GUILD_ANNOUNCEMENT
         # We want text channels (type 0) and announcement channels (type 5)
         text_channel_types = {0, 5}
-        
+
         text_channels = []
         for ch in channels_data:
             if ch.get("type") in text_channel_types:
@@ -784,20 +791,24 @@ async def get_discord_channels(
                         channel_overwrites,
                         guild_id,
                     )
-                    
+
                     # Bot can index if it has both VIEW_CHANNEL and READ_MESSAGE_HISTORY
                     has_view = (effective_perms & VIEW_CHANNEL) == VIEW_CHANNEL
-                    has_read_history = (effective_perms & READ_MESSAGE_HISTORY) == READ_MESSAGE_HISTORY
+                    has_read_history = (
+                        effective_perms & READ_MESSAGE_HISTORY
+                    ) == READ_MESSAGE_HISTORY
                     can_index = has_view and has_read_history
-                
-                text_channels.append({
-                    "id": ch["id"],
-                    "name": ch["name"],
-                    "type": "text" if ch["type"] == 0 else "announcement",
-                    "position": ch.get("position", 0),
-                    "category_id": ch.get("parent_id"),
-                    "can_index": can_index,
-                })
+
+                text_channels.append(
+                    {
+                        "id": ch["id"],
+                        "name": ch["name"],
+                        "type": "text" if ch["type"] == 0 else "announcement",
+                        "position": ch.get("position", 0),
+                        "category_id": ch.get("parent_id"),
+                        "can_index": can_index,
+                    }
+                )
 
         # Sort by position
         text_channels.sort(key=lambda x: x["position"])

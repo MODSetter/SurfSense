@@ -1168,8 +1168,9 @@ async def _run_indexing_with_notifications(
         supports_retry_callback: Whether the indexing function supports on_retry_callback
         supports_heartbeat_callback: Whether the indexing function supports on_heartbeat_callback
     """
-    from celery.exceptions import SoftTimeLimitExceeded
     from uuid import UUID
+
+    from celery.exceptions import SoftTimeLimitExceeded
 
     notification = None
     # Track indexed count for retry notifications and heartbeat
@@ -1241,11 +1242,13 @@ async def _run_indexing_with_notifications(
             if notification:
                 try:
                     await session.refresh(notification)
-                    await NotificationService.connector_indexing.notify_indexing_progress(
-                        session=session,
-                        notification=notification,
-                        indexed_count=indexed_count,
-                        stage="processing",
+                    await (
+                        NotificationService.connector_indexing.notify_indexing_progress(
+                            session=session,
+                            notification=notification,
+                            indexed_count=indexed_count,
+                            stage="processing",
+                        )
                     )
                     await session.commit()
                 except Exception as e:
@@ -1447,7 +1450,9 @@ async def _run_indexing_with_notifications(
                 )
                 await session.commit()
             except Exception as notif_error:
-                logger.error(f"Failed to update notification on soft timeout: {notif_error!s}")
+                logger.error(
+                    f"Failed to update notification on soft timeout: {notif_error!s}"
+                )
 
         # Re-raise so Celery knows the task was terminated
         raise
