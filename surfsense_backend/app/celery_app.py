@@ -4,10 +4,24 @@ import os
 
 from celery import Celery
 from celery.schedules import crontab
+from celery.signals import worker_process_init
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+
+@worker_process_init.connect
+def init_worker(**kwargs):
+    """Initialize the LLM Router when a Celery worker process starts.
+
+    This ensures the Auto mode (LiteLLM Router) is available for background tasks
+    like document summarization.
+    """
+    from app.config import initialize_llm_router
+
+    initialize_llm_router()
+
 
 # Get Celery configuration from environment
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")

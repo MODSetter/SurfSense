@@ -8,6 +8,12 @@ from sqlalchemy.future import select
 
 from app.config import config
 from app.db import NewLLMConfig, SearchSpace
+from app.services.llm_router_service import (
+    AUTO_MODE_ID,
+    ChatLiteLLMRouter,
+    LLMRouterService,
+    is_auto_mode,
+)
 
 # Configure litellm to automatically drop unsupported parameters
 litellm.drop_params = True
@@ -23,15 +29,26 @@ class LLMRole:
 def get_global_llm_config(llm_config_id: int) -> dict | None:
     """
     Get a global LLM configuration by ID.
-    Global configs have negative IDs.
+    Global configs have negative IDs. ID 0 is reserved for Auto mode.
 
     Args:
-        llm_config_id: The ID of the global config (should be negative)
+        llm_config_id: The ID of the global config (should be negative or 0 for Auto)
 
     Returns:
         dict: Global config dictionary or None if not found
     """
-    if llm_config_id >= 0:
+    # Auto mode (ID 0) is handled separately via the router
+    if llm_config_id == AUTO_MODE_ID:
+        return {
+            "id": AUTO_MODE_ID,
+            "name": "Auto (Load Balanced)",
+            "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling",
+            "provider": "AUTO",
+            "model_name": "auto",
+            "is_auto_mode": True,
+        }
+
+    if llm_config_id > 0:
         return None
 
     for cfg in config.GLOBAL_LLM_CONFIGS:
@@ -77,7 +94,7 @@ async def validate_llm_config(
                 "GROQ": "groq",
                 "COHERE": "cohere",
                 "GOOGLE": "gemini",
-                "OLLAMA": "ollama",
+                "OLLAMA": "ollama_chat",
                 "MISTRAL": "mistral",
                 "AZURE_OPENAI": "azure",
                 "OPENROUTER": "openrouter",
@@ -145,11 +162,14 @@ async def validate_llm_config(
 
 async def get_search_space_llm_instance(
     session: AsyncSession, search_space_id: int, role: str
-) -> ChatLiteLLM | None:
+) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """
     Get a ChatLiteLLM instance for a specific search space and role.
 
     LLM preferences are stored at the search space level and shared by all members.
+
+    If Auto mode (ID 0) is configured, returns a ChatLiteLLMRouter that uses
+    LiteLLM Router for automatic load balancing across available providers.
 
     Args:
         session: Database session
@@ -157,7 +177,7 @@ async def get_search_space_llm_instance(
         role: LLM role ('agent' or 'document_summary')
 
     Returns:
-        ChatLiteLLM instance or None if not found
+        ChatLiteLLM or ChatLiteLLMRouter instance, or None if not found
     """
     try:
         # Get the search space with its LLM preferences
@@ -180,9 +200,27 @@ async def get_search_space_llm_instance(
             logger.error(f"Invalid LLM role: {role}")
             return None
 
-        if not llm_config_id:
+        if llm_config_id is None:
             logger.error(f"No {role} LLM configured for search space {search_space_id}")
             return None
+
+        # Check for Auto mode (ID 0) - use router for load balancing
+        if is_auto_mode(llm_config_id):
+            if not LLMRouterService.is_initialized():
+                logger.error(
+                    "Auto mode requested but LLM Router not initialized. "
+                    "Ensure global_llm_config.yaml exists with valid configs."
+                )
+                return None
+
+            try:
+                logger.debug(
+                    f"Using Auto mode (LLM Router) for search space {search_space_id}, role {role}"
+                )
+                return ChatLiteLLMRouter()
+            except Exception as e:
+                logger.error(f"Failed to create ChatLiteLLMRouter: {e}")
+                return None
 
         # Check if this is a global config (negative ID)
         if llm_config_id < 0:
@@ -203,7 +241,7 @@ async def get_search_space_llm_instance(
                     "GROQ": "groq",
                     "COHERE": "cohere",
                     "GOOGLE": "gemini",
-                    "OLLAMA": "ollama",
+                    "OLLAMA": "ollama_chat",
                     "MISTRAL": "mistral",
                     "AZURE_OPENAI": "azure",
                     "OPENROUTER": "openrouter",
@@ -273,7 +311,7 @@ async def get_search_space_llm_instance(
                 "GROQ": "groq",
                 "COHERE": "cohere",
                 "GOOGLE": "gemini",
-                "OLLAMA": "ollama",
+                "OLLAMA": "ollama_chat",
                 "MISTRAL": "mistral",
                 "AZURE_OPENAI": "azure",
                 "OPENROUTER": "openrouter",
@@ -328,14 +366,14 @@ async def get_search_space_llm_instance(
 
 async def get_agent_llm(
     session: AsyncSession, search_space_id: int
-) -> ChatLiteLLM | None:
+) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """Get the search space's agent LLM instance for chat operations."""
     return await get_search_space_llm_instance(session, search_space_id, LLMRole.AGENT)
 
 
 async def get_document_summary_llm(
     session: AsyncSession, search_space_id: int
-) -> ChatLiteLLM | None:
+) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """Get the search space's document summary LLM instance."""
     return await get_search_space_llm_instance(
         session, search_space_id, LLMRole.DOCUMENT_SUMMARY
@@ -345,7 +383,7 @@ async def get_document_summary_llm(
 # Backward-compatible alias (LLM preferences are now per-search-space, not per-user)
 async def get_user_long_context_llm(
     session: AsyncSession, user_id: str, search_space_id: int
-) -> ChatLiteLLM | None:
+) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """
     Deprecated: Use get_document_summary_llm instead.
     The user_id parameter is ignored as LLM preferences are now per-search-space.

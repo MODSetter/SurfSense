@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Bot, ChevronRight, Globe, User, X } from "lucide-react";
+import { AlertCircle, Bot, ChevronRight, Globe, Shuffle, User, X, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -62,9 +62,13 @@ export function ModelConfigSidebar({
 		return () => window.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
 
+	// Check if this is Auto mode
+	const isAutoMode = config && "is_auto_mode" in config && config.is_auto_mode;
+
 	// Get title based on mode
 	const getTitle = () => {
 		if (mode === "create") return "Add New Configuration";
+		if (isAutoMode) return "Auto Mode (Load Balanced)";
 		if (isGlobal) return "View Global Configuration";
 		return "Edit Configuration";
 	};
@@ -187,15 +191,37 @@ export function ModelConfigSidebar({
 						)}
 					>
 						{/* Header */}
-						<div className="flex items-center justify-between px-6 py-4 border-b border-border/50 bg-muted/20">
+						<div
+							className={cn(
+								"flex items-center justify-between px-6 py-4 border-b border-border/50",
+								isAutoMode ? "bg-gradient-to-r from-violet-500/10 to-purple-500/10" : "bg-muted/20"
+							)}
+						>
 							<div className="flex items-center gap-3">
-								<div className="flex items-center justify-center size-10 rounded-xl bg-primary/10">
-									<Bot className="size-5 text-primary" />
+								<div
+									className={cn(
+										"flex items-center justify-center size-10 rounded-xl",
+										isAutoMode ? "bg-gradient-to-br from-violet-500 to-purple-600" : "bg-primary/10"
+									)}
+								>
+									{isAutoMode ? (
+										<Shuffle className="size-5 text-white" />
+									) : (
+										<Bot className="size-5 text-primary" />
+									)}
 								</div>
 								<div>
 									<h2 className="text-base sm:text-lg font-semibold">{getTitle()}</h2>
 									<div className="flex items-center gap-2 mt-0.5">
-										{isGlobal ? (
+										{isAutoMode ? (
+											<Badge
+												variant="secondary"
+												className="gap-1 text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+											>
+												<Zap className="size-3" />
+												Recommended
+											</Badge>
+										) : isGlobal ? (
 											<Badge variant="secondary" className="gap-1 text-xs">
 												<Globe className="size-3" />
 												Global
@@ -206,7 +232,7 @@ export function ModelConfigSidebar({
 												Custom
 											</Badge>
 										) : null}
-										{config && (
+										{config && !isAutoMode && (
 											<span className="text-xs text-muted-foreground">{config.model_name}</span>
 										)}
 									</div>
@@ -226,8 +252,19 @@ export function ModelConfigSidebar({
 						{/* Content - use overflow-y-auto instead of ScrollArea for better compatibility */}
 						<div className="flex-1 overflow-y-auto">
 							<div className="p-6">
+								{/* Auto mode info banner */}
+								{isAutoMode && (
+									<Alert className="mb-6 border-violet-500/30 bg-violet-500/5">
+										<Shuffle className="size-4 text-violet-500" />
+										<AlertDescription className="text-sm text-violet-700 dark:text-violet-400">
+											Auto mode automatically distributes requests across all available LLM
+											providers to optimize performance and avoid rate limits.
+										</AlertDescription>
+									</Alert>
+								)}
+
 								{/* Global config notice */}
-								{isGlobal && mode !== "create" && (
+								{isGlobal && !isAutoMode && mode !== "create" && (
 									<Alert className="mb-6 border-amber-500/30 bg-amber-500/5">
 										<AlertCircle className="size-4 text-amber-500" />
 										<AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
@@ -247,6 +284,87 @@ export function ModelConfigSidebar({
 										mode="create"
 										submitLabel="Create & Use"
 									/>
+								) : isAutoMode && config ? (
+									// Special view for Auto mode
+									<div className="space-y-6">
+										{/* Auto Mode Features */}
+										<div className="space-y-4">
+											<div className="space-y-1.5">
+												<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+													How It Works
+												</div>
+												<p className="text-sm text-muted-foreground">{config.description}</p>
+											</div>
+
+											<div className="h-px bg-border/50" />
+
+											<div className="space-y-3">
+												<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+													Key Benefits
+												</div>
+												<div className="space-y-2">
+													<div className="flex items-start gap-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50">
+														<Zap className="size-4 text-violet-600 dark:text-violet-400 mt-0.5 shrink-0" />
+														<div>
+															<p className="text-sm font-medium text-violet-900 dark:text-violet-100">
+																Automatic Load Balancing
+															</p>
+															<p className="text-xs text-violet-700 dark:text-violet-300">
+																Distributes requests across all configured LLM providers
+															</p>
+														</div>
+													</div>
+													<div className="flex items-start gap-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50">
+														<Zap className="size-4 text-violet-600 dark:text-violet-400 mt-0.5 shrink-0" />
+														<div>
+															<p className="text-sm font-medium text-violet-900 dark:text-violet-100">
+																Rate Limit Protection
+															</p>
+															<p className="text-xs text-violet-700 dark:text-violet-300">
+																Automatically handles rate limits with cooldowns and retries
+															</p>
+														</div>
+													</div>
+													<div className="flex items-start gap-3 p-3 rounded-lg bg-violet-50 dark:bg-violet-900/20 border border-violet-200 dark:border-violet-800/50">
+														<Zap className="size-4 text-violet-600 dark:text-violet-400 mt-0.5 shrink-0" />
+														<div>
+															<p className="text-sm font-medium text-violet-900 dark:text-violet-100">
+																Automatic Failover
+															</p>
+															<p className="text-xs text-violet-700 dark:text-violet-300">
+																Falls back to other providers if one becomes unavailable
+															</p>
+														</div>
+													</div>
+												</div>
+											</div>
+										</div>
+
+										{/* Action Buttons */}
+										<div className="flex gap-3 pt-4 border-t border-border/50">
+											<Button
+												variant="outline"
+												className="flex-1"
+												onClick={() => onOpenChange(false)}
+											>
+												Close
+											</Button>
+											<Button
+												className="flex-1 gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+												onClick={handleUseGlobalConfig}
+												disabled={isSubmitting}
+											>
+												{isSubmitting ? (
+													<>Loading...</>
+												) : (
+													<>
+														<ChevronRight className="size-4" />
+														Use Auto Mode
+													</>
+												)}
+											</Button>
+										</div>
+									</div>
 								) : isGlobal && config ? (
 									// Read-only view for global configs
 									<div className="space-y-6">

@@ -2,8 +2,9 @@
 LLM configuration utilities for SurfSense agents.
 
 This module provides functions for loading LLM configurations from:
-1. YAML files (global configs with negative IDs)
-2. Database NewLLMConfig table (user-created configs with positive IDs)
+1. Auto mode (ID 0) - Uses LiteLLM Router for load balancing
+2. YAML files (global configs with negative IDs)
+3. Database NewLLMConfig table (user-created configs with positive IDs)
 
 It also provides utilities for creating ChatLiteLLM instances and
 managing prompt configurations.
@@ -17,6 +18,13 @@ from langchain_litellm import ChatLiteLLM
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.llm_router_service import (
+    AUTO_MODE_ID,
+    ChatLiteLLMRouter,
+    LLMRouterService,
+    is_auto_mode,
+)
+
 # Provider mapping for LiteLLM model string construction
 PROVIDER_MAP = {
     "OPENAI": "openai",
@@ -24,7 +32,7 @@ PROVIDER_MAP = {
     "GROQ": "groq",
     "COHERE": "cohere",
     "GOOGLE": "gemini",
-    "OLLAMA": "ollama",
+    "OLLAMA": "ollama_chat",
     "MISTRAL": "mistral",
     "AZURE_OPENAI": "azure",
     "OPENROUTER": "openrouter",
@@ -58,6 +66,7 @@ class AgentConfig:
     Complete configuration for the SurfSense agent.
 
     This combines LLM settings with prompt configuration from NewLLMConfig.
+    Supports Auto mode (ID 0) which uses LiteLLM Router for load balancing.
     """
 
     # LLM Model Settings
@@ -76,6 +85,32 @@ class AgentConfig:
     # Metadata
     config_id: int | None = None
     config_name: str | None = None
+
+    # Auto mode flag
+    is_auto_mode: bool = False
+
+    @classmethod
+    def from_auto_mode(cls) -> "AgentConfig":
+        """
+        Create an AgentConfig for Auto mode (LiteLLM Router load balancing).
+
+        Returns:
+            AgentConfig instance configured for Auto mode
+        """
+        return cls(
+            provider="AUTO",
+            model_name="auto",
+            api_key="",  # Not needed for router
+            api_base=None,
+            custom_provider=None,
+            litellm_params=None,
+            system_instructions=None,
+            use_default_system_instructions=True,
+            citations_enabled=True,
+            config_id=AUTO_MODE_ID,
+            config_name="Auto (Load Balanced)",
+            is_auto_mode=True,
+        )
 
     @classmethod
     def from_new_llm_config(cls, config) -> "AgentConfig":
@@ -102,6 +137,7 @@ class AgentConfig:
             citations_enabled=config.citations_enabled,
             config_id=config.id,
             config_name=config.name,
+            is_auto_mode=False,
         )
 
     @classmethod
@@ -138,6 +174,7 @@ class AgentConfig:
             citations_enabled=yaml_config.get("citations_enabled", True),
             config_id=yaml_config.get("id"),
             config_name=yaml_config.get("name"),
+            is_auto_mode=False,
         )
 
 
@@ -261,20 +298,28 @@ async def load_agent_config(
     search_space_id: int | None = None,
 ) -> "AgentConfig | None":
     """
-    Load an agent configuration, supporting both YAML (negative IDs) and database (positive IDs) configs.
+    Load an agent configuration, supporting Auto mode, YAML, and database configs.
 
     This is the main entry point for loading configurations:
+    - ID 0: Auto mode (uses LiteLLM Router for load balancing)
     - Negative IDs: Load from YAML file (global configs)
     - Positive IDs: Load from NewLLMConfig database table
 
     Args:
         session: AsyncSession for database access
-        config_id: The config ID (negative for YAML, positive for database)
+        config_id: The config ID (0 for Auto, negative for YAML, positive for database)
         search_space_id: Optional search space ID for context
 
     Returns:
         AgentConfig instance or None if not found
     """
+    # Auto mode (ID 0) - use LiteLLM Router
+    if is_auto_mode(config_id):
+        if not LLMRouterService.is_initialized():
+            print("Error: Auto mode requested but LLM Router not initialized")
+            return None
+        return AgentConfig.from_auto_mode()
+
     if config_id < 0:
         # Load from YAML (global configs have negative IDs)
         yaml_config = load_llm_config_from_yaml(config_id)
@@ -324,16 +369,30 @@ def create_chat_litellm_from_config(llm_config: dict) -> ChatLiteLLM | None:
 
 def create_chat_litellm_from_agent_config(
     agent_config: AgentConfig,
-) -> ChatLiteLLM | None:
+) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """
-    Create a ChatLiteLLM instance from an AgentConfig.
+    Create a ChatLiteLLM or ChatLiteLLMRouter instance from an AgentConfig.
+
+    For Auto mode configs, returns a ChatLiteLLMRouter that uses LiteLLM Router
+    for automatic load balancing across available providers.
 
     Args:
         agent_config: AgentConfig instance
 
     Returns:
-        ChatLiteLLM instance or None on error
+        ChatLiteLLM or ChatLiteLLMRouter instance, or None on error
     """
+    # Handle Auto mode - return ChatLiteLLMRouter
+    if agent_config.is_auto_mode:
+        if not LLMRouterService.is_initialized():
+            print("Error: Auto mode requested but LLM Router not initialized")
+            return None
+        try:
+            return ChatLiteLLMRouter()
+        except Exception as e:
+            print(f"Error creating ChatLiteLLMRouter: {e}")
+            return None
+
     # Build the model string
     if agent_config.custom_provider:
         model_string = f"{agent_config.custom_provider}/{agent_config.model_name}"

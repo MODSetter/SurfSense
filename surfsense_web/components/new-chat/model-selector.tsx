@@ -10,6 +10,7 @@ import {
 	Globe,
 	Plus,
 	Settings2,
+	Shuffle,
 	Sparkles,
 	User,
 	Zap,
@@ -43,8 +44,14 @@ import type {
 import { cn } from "@/lib/utils";
 
 // Provider icons mapping
-const getProviderIcon = (provider: string) => {
+const getProviderIcon = (provider: string, isAutoMode?: boolean) => {
 	const iconClass = "size-4";
+
+	// Special icon for Auto mode
+	if (isAutoMode || provider?.toUpperCase() === "AUTO") {
+		return <Shuffle className={cn(iconClass, "text-violet-500")} />;
+	}
+
 	switch (provider?.toUpperCase()) {
 		case "OPENAI":
 			return <Sparkles className={cn(iconClass, "text-emerald-500")} />;
@@ -90,13 +97,18 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 		const agentLlmId = preferences.agent_llm_id;
 		if (agentLlmId === null || agentLlmId === undefined) return null;
 
-		// Check if it's a global config (negative ID)
-		if (agentLlmId < 0) {
+		// Check if it's Auto mode (ID 0) or global config (negative ID)
+		if (agentLlmId <= 0) {
 			return globalConfigs?.find((c) => c.id === agentLlmId) ?? null;
 		}
 		// Otherwise, check user configs
 		return userConfigs?.find((c) => c.id === agentLlmId) ?? null;
 	}, [preferences, globalConfigs, userConfigs]);
+
+	// Check if current config is Auto mode
+	const isCurrentAutoMode = useMemo(() => {
+		return currentConfig && "is_auto_mode" in currentConfig && currentConfig.is_auto_mode;
+	}, [currentConfig]);
 
 	// Filter configs based on search
 	const filteredGlobalConfigs = useMemo(() => {
@@ -184,14 +196,23 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						</>
 					) : currentConfig ? (
 						<>
-							{getProviderIcon(currentConfig.provider)}
+							{getProviderIcon(currentConfig.provider, isCurrentAutoMode ?? false)}
 							<span className="max-w-[100px] md:max-w-[150px] truncate hidden md:inline">
 								{currentConfig.name}
 							</span>
-							<Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4 bg-muted/80">
-								{currentConfig.model_name.split("/").pop()?.slice(0, 10) ||
-									currentConfig.model_name.slice(0, 10)}
-							</Badge>
+							{isCurrentAutoMode ? (
+								<Badge
+									variant="secondary"
+									className="ml-1 text-[10px] px-1.5 py-0 h-4 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+								>
+									Balanced
+								</Badge>
+							) : (
+								<Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4 bg-muted/80">
+									{currentConfig.model_name.split("/").pop()?.slice(0, 10) ||
+										currentConfig.model_name.slice(0, 10)}
+								</Badge>
+							)}
 						</>
 					) : (
 						<>
@@ -246,6 +267,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 								</div>
 								{filteredGlobalConfigs.map((config) => {
 									const isSelected = currentConfig?.id === config.id;
+									const isAutoMode = "is_auto_mode" in config && config.is_auto_mode;
 									return (
 										<CommandItem
 											key={`global-${config.id}`}
@@ -254,22 +276,33 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 											className={cn(
 												"mx-2 rounded-lg mb-1 cursor-pointer group transition-all",
 												"hover:bg-accent/50",
-												isSelected && "bg-accent/80"
+												isSelected && "bg-accent/80",
+												isAutoMode && "border border-violet-200 dark:border-violet-800/50"
 											)}
 										>
 											<div className="flex items-center justify-between w-full gap-2">
 												<div className="flex items-center gap-3 min-w-0 flex-1">
-													<div className="shrink-0">{getProviderIcon(config.provider)}</div>
+													<div className="shrink-0">
+														{getProviderIcon(config.provider, isAutoMode)}
+													</div>
 													<div className="min-w-0 flex-1">
 														<div className="flex items-center gap-2">
 															<span className="font-medium truncate">{config.name}</span>
+															{isAutoMode && (
+																<Badge
+																	variant="secondary"
+																	className="text-[9px] px-1 py-0 h-3.5 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-0"
+																>
+																	Recommended
+																</Badge>
+															)}
 															{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
 														</div>
 														<div className="flex items-center gap-1.5 mt-0.5">
 															<span className="text-xs text-muted-foreground truncate">
-																{config.model_name}
+																{isAutoMode ? "Auto load balancing" : config.model_name}
 															</span>
-															{config.citations_enabled && (
+															{!isAutoMode && config.citations_enabled && (
 																<Badge
 																	variant="outline"
 																	className="text-[9px] px-1 py-0 h-3.5 bg-primary/10 text-primary border-primary/20"
@@ -280,14 +313,16 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 														</div>
 													</div>
 												</div>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
-													onClick={(e) => handleEditConfig(e, config, true)}
-												>
-													<Edit3 className="size-3.5 text-muted-foreground" />
-												</Button>
+												{!isAutoMode && (
+													<Button
+														variant="ghost"
+														size="icon"
+														className="size-7 shrink-0 rounded-md hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+														onClick={(e) => handleEditConfig(e, config, true)}
+													>
+														<Edit3 className="size-3.5 text-muted-foreground" />
+													</Button>
+												)}
 											</div>
 										</CommandItem>
 									);

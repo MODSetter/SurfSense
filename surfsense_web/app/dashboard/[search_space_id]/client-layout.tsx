@@ -46,7 +46,13 @@ export function DashboardClientLayout({
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
 	const isOnboardingComplete = useCallback(() => {
-		return !!(preferences.agent_llm_id && preferences.document_summary_llm_id);
+		// Check that both LLM IDs are set (including 0 for Auto mode)
+		return (
+			preferences.agent_llm_id !== null &&
+			preferences.agent_llm_id !== undefined &&
+			preferences.document_summary_llm_id !== null &&
+			preferences.document_summary_llm_id !== undefined
+		);
 	}, [preferences]);
 
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);

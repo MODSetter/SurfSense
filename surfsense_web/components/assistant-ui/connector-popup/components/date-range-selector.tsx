@@ -15,6 +15,7 @@ interface DateRangeSelectorProps {
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	allowFutureDates?: boolean; // Allow future dates for calendar connectors
+	lastIndexedAt?: string | null; // Last sync timestamp to show in default placeholder
 }
 
 export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
@@ -23,7 +24,21 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 	onStartDateChange,
 	onEndDateChange,
 	allowFutureDates = false,
+	lastIndexedAt,
 }) => {
+	// Get the placeholder text for start date based on whether connector was previously indexed
+	const getStartDatePlaceholder = () => {
+		if (lastIndexedAt) {
+			const date = new Date(lastIndexedAt);
+			const currentYear = new Date().getFullYear();
+			const indexedYear = date.getFullYear();
+			// Show year only if different from current year
+			const formatStr = indexedYear === currentYear ? "MMM d, HH:mm" : "MMM d, yyyy HH:mm";
+			const formattedDate = format(date, formatStr);
+			return `Since (${formattedDate})`;
+		}
+		return "Default (1 year ago)";
+	};
 	const handleLast30Days = () => {
 		const today = new Date();
 		onStartDateChange(subDays(today, 30));
@@ -73,7 +88,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 								)}
 							>
 								<CalendarIcon className="mr-2 h-4 w-4" />
-								{startDate ? format(startDate, "PPP") : "Default (1 year ago)"}
+								{startDate ? format(startDate, "PPP") : getStartDatePlaceholder()}
 							</Button>
 						</PopoverTrigger>
 						<PopoverContent className="w-auto p-0 z-[100]" align="start">

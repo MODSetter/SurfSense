@@ -856,11 +856,16 @@ class SearchSpace(BaseModel, TimestampMixin):
     )  # User's custom instructions
 
     # Search space-level LLM preferences (shared by all members)
-    # Note: These can be negative IDs for global configs (from YAML) or positive IDs for custom configs (from DB)
-    agent_llm_id = Column(Integer, nullable=True)  # For agent/chat operations
+    # Note: ID values:
+    #   - 0: Auto mode (uses LiteLLM Router for load balancing) - default for new search spaces
+    #   - Negative IDs: Global configs from YAML
+    #   - Positive IDs: Custom configs from DB (NewLLMConfig table)
+    agent_llm_id = Column(
+        Integer, nullable=True, default=0
+    )  # For agent/chat operations, defaults to Auto mode
     document_summary_llm_id = Column(
-        Integer, nullable=True
-    )  # For document summarization
+        Integer, nullable=True, default=0
+    )  # For document summarization, defaults to Auto mode
 
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False

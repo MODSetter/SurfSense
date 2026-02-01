@@ -11,7 +11,13 @@ def get_model_context_window(model_name: str) -> int:
     """Get the total context window size for a model (input + output tokens)."""
     try:
         model_info = get_model_info(model_name)
-        context_window = model_info.get("max_input_tokens", 4096)  # Default fallback
+        context_window = model_info.get("max_input_tokens")
+        # Handle case where key exists but value is None
+        if context_window is None:
+            print(
+                f"Warning: max_input_tokens is None for {model_name}, using default 4096 tokens."
+            )
+            return 4096  # Conservative fallback
         return context_window
     except Exception as e:
         print(

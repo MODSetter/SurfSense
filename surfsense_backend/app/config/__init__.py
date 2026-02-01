@@ -48,6 +48,63 @@ def load_global_llm_configs():
         return []
 
 
+def load_router_settings():
+    """
+    Load router settings for Auto mode from YAML file.
+    Falls back to default settings if not found.
+
+    Returns:
+        dict: Router settings dictionary
+    """
+    # Default router settings
+    default_settings = {
+        "routing_strategy": "usage-based-routing",
+        "num_retries": 3,
+        "allowed_fails": 3,
+        "cooldown_time": 60,
+    }
+
+    # Try main config file first
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    if not global_config_file.exists():
+        return default_settings
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            settings = data.get("router_settings", {})
+            # Merge with defaults
+            return {**default_settings, **settings}
+    except Exception as e:
+        print(f"Warning: Failed to load router settings: {e}")
+        return default_settings
+
+
+def initialize_llm_router():
+    """
+    Initialize the LLM Router service for Auto mode.
+    This should be called during application startup.
+    """
+    global_configs = load_global_llm_configs()
+    router_settings = load_router_settings()
+
+    if not global_configs:
+        print("Info: No global LLM configs found, Auto mode will not be available")
+        return
+
+    try:
+        from app.services.llm_router_service import LLMRouterService
+
+        LLMRouterService.initialize(global_configs, router_settings)
+        print(
+            f"Info: LLM Router initialized with {len(global_configs)} models "
+            f"(strategy: {router_settings.get('routing_strategy', 'usage-based-routing')})"
+        )
+    except Exception as e:
+        print(f"Warning: Failed to initialize LLM Router: {e}")
+
+
 class Config:
     # Check if ffmpeg is installed
     if not is_ffmpeg_installed():
@@ -155,6 +212,9 @@ class Config:
     # Load from global_llm_config.yaml if available
     # These can be used as default options for users
     GLOBAL_LLM_CONFIGS = load_global_llm_configs()
+
+    # Router settings for Auto mode (LiteLLM Router load balancing)
+    ROUTER_SETTINGS = load_router_settings()
 
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
