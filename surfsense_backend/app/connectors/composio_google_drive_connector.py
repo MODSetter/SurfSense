@@ -558,7 +558,9 @@ def generate_indexing_settings_hash(
         "include_subfolders": indexing_options.get("include_subfolders", True),
         "max_files_per_folder": indexing_options.get("max_files_per_folder", 100),
     }
-    return hashlib.md5(json.dumps(settings, sort_keys=True).encode(), usedforsecurity=False).hexdigest()
+    return hashlib.md5(
+        json.dumps(settings, sort_keys=True).encode(), usedforsecurity=False
+    ).hexdigest()
 
 
 async def index_composio_google_drive(
