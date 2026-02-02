@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
 interface DateRangeSelectorProps {
@@ -26,19 +27,10 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 	allowFutureDates = false,
 	lastIndexedAt,
 }) => {
-	// Get the placeholder text for start date based on whether connector was previously indexed
-	const getStartDatePlaceholder = () => {
-		if (lastIndexedAt) {
-			const date = new Date(lastIndexedAt);
-			const currentYear = new Date().getFullYear();
-			const indexedYear = date.getFullYear();
-			// Show year only if different from current year
-			const formatStr = indexedYear === currentYear ? "MMM d, HH:mm" : "MMM d, yyyy HH:mm";
-			const formattedDate = format(date, formatStr);
-			return `Since (${formattedDate})`;
-		}
-		return "Default (1 year ago)";
-	};
+	const startDatePlaceholder = lastIndexedAt
+		? `From ${formatRelativeDate(lastIndexedAt)}`
+		: "Default (1 year)";
+
 	const handleLast30Days = () => {
 		const today = new Date();
 		onStartDateChange(subDays(today, 30));
@@ -88,7 +80,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 								)}
 							>
 								<CalendarIcon className="mr-2 h-4 w-4" />
-								{startDate ? format(startDate, "PPP") : getStartDatePlaceholder()}
+								{startDate ? format(startDate, "PPP") : startDatePlaceholder}
 							</Button>
 						</PopoverTrigger>
 						<PopoverContent className="w-auto p-0 z-[100]" align="start">

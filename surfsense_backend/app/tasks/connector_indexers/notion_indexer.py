@@ -2,6 +2,7 @@
 Notion connector indexer.
 """
 
+import time
 from collections.abc import Awaitable, Callable
 from datetime import datetime
 
@@ -34,6 +35,13 @@ from .base import (
 # Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds) -> None
 RetryCallbackType = Callable[[str, int, int, float], Awaitable[None]]
 
+# Type alias for heartbeat callback
+# Signature: async callback(indexed_count) -> None
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds - update notification every 30 seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
+
 
 async def index_notion_pages(
     session: AsyncSession,
@@ -44,6 +52,7 @@ async def index_notion_pages(
     end_date: str | None = None,
     update_last_indexed: bool = True,
     on_retry_callback: RetryCallbackType | None = None,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index Notion pages from all accessible pages.
@@ -59,6 +68,8 @@ async def index_notion_pages(
         on_retry_callback: Optional callback for retry progress notifications.
             Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds)
             retry_reason is one of: 'rate_limit', 'server_error', 'timeout'
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
+            Called periodically with (indexed_count) to prevent task appearing stuck.
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -211,6 +222,9 @@ async def index_notion_pages(
         documents_skipped = 0
         skipped_pages = []
 
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+
         await task_logger.log_task_progress(
             log_entry,
             f"Starting to process {len(pages)} Notion pages",
@@ -219,6 +233,14 @@ async def index_notion_pages(
 
         # Process each page
         for page in pages:
+            # Check if it's time for a heartbeat update
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = time.time()
+
             try:
                 page_id = page.get("page_id")
                 page_title = page.get("title", f"Untitled page ({page_id})")

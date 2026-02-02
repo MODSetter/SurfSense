@@ -203,6 +203,46 @@ export const listGoogleDriveFoldersResponse = z.object({
 	items: z.array(googleDriveItem),
 });
 
+/**
+ * Slack channel with bot membership status
+ */
+export const slackChannel = z.object({
+	id: z.string(),
+	name: z.string(),
+	is_private: z.boolean(),
+	is_member: z.boolean(),
+});
+
+/**
+ * List Slack channels
+ */
+export const listSlackChannelsRequest = z.object({
+	connector_id: z.number(),
+});
+
+export const listSlackChannelsResponse = z.array(slackChannel);
+
+/**
+ * Discord channel with indexing permission info
+ */
+export const discordChannel = z.object({
+	id: z.string(),
+	name: z.string(),
+	type: z.enum(["text", "announcement"]),
+	position: z.number(),
+	category_id: z.string().nullable().optional(),
+	can_index: z.boolean(),
+});
+
+/**
+ * List Discord channels
+ */
+export const listDiscordChannelsRequest = z.object({
+	connector_id: z.number(),
+});
+
+export const listDiscordChannelsResponse = z.array(discordChannel);
+
 // Inferred types
 export type SearchSourceConnectorType = z.infer<typeof searchSourceConnectorTypeEnum>;
 export type SearchSourceConnector = z.infer<typeof searchSourceConnector>;
@@ -223,3 +263,9 @@ export type ListGitHubRepositoriesResponse = z.infer<typeof listGitHubRepositori
 export type ListGoogleDriveFoldersRequest = z.infer<typeof listGoogleDriveFoldersRequest>;
 export type ListGoogleDriveFoldersResponse = z.infer<typeof listGoogleDriveFoldersResponse>;
 export type GoogleDriveItem = z.infer<typeof googleDriveItem>;
+export type SlackChannel = z.infer<typeof slackChannel>;
+export type ListSlackChannelsRequest = z.infer<typeof listSlackChannelsRequest>;
+export type ListSlackChannelsResponse = z.infer<typeof listSlackChannelsResponse>;
+export type DiscordChannel = z.infer<typeof discordChannel>;
+export type ListDiscordChannelsRequest = z.infer<typeof listDiscordChannelsRequest>;
+export type ListDiscordChannelsResponse = z.infer<typeof listDiscordChannelsResponse>;

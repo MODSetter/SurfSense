@@ -252,12 +252,16 @@ class GoogleCalendarConnector:
             if dt_start.tzinfo is None:
                 dt_start = dt_start.replace(hour=0, minute=0, second=0, tzinfo=pytz.UTC)
             else:
-                dt_start = dt_start.astimezone(pytz.UTC).replace(hour=0, minute=0, second=0)
+                dt_start = dt_start.astimezone(pytz.UTC).replace(
+                    hour=0, minute=0, second=0
+                )
 
             if dt_end.tzinfo is None:
                 dt_end = dt_end.replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
             else:
-                dt_end = dt_end.astimezone(pytz.UTC).replace(hour=23, minute=59, second=59)
+                dt_end = dt_end.astimezone(pytz.UTC).replace(
+                    hour=23, minute=59, second=59
+                )
 
             if dt_start >= dt_end:
                 return [], (

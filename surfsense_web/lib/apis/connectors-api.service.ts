@@ -5,6 +5,7 @@ import {
 	type DeleteConnectorRequest,
 	deleteConnectorRequest,
 	deleteConnectorResponse,
+	type DiscordChannel,
 	type GetConnectorRequest,
 	type GetConnectorsRequest,
 	getConnectorRequest,
@@ -16,10 +17,13 @@ import {
 	indexConnectorResponse,
 	type ListGitHubRepositoriesRequest,
 	type ListGoogleDriveFoldersRequest,
+	listDiscordChannelsResponse,
 	listGitHubRepositoriesRequest,
 	listGitHubRepositoriesResponse,
 	listGoogleDriveFoldersRequest,
 	listGoogleDriveFoldersResponse,
+	listSlackChannelsResponse,
+	type SlackChannel,
 	type UpdateConnectorRequest,
 	updateConnectorRequest,
 	updateConnectorResponse,
@@ -335,6 +339,36 @@ class ConnectorsApiService {
 			}
 		);
 	};
+
+	// =============================================================================
+	// Slack Connector Methods
+	// =============================================================================
+
+	/**
+	 * Get Slack channels with bot membership status
+	 */
+	getSlackChannels = async (connectorId: number) => {
+		return baseApiService.get(
+			`/api/v1/slack/connector/${connectorId}/channels`,
+			listSlackChannelsResponse
+		);
+	};
+
+	// =============================================================================
+	// Discord Connector Methods
+	// =============================================================================
+
+	/**
+	 * Get Discord text channels for a connector
+	 */
+	getDiscordChannels = async (connectorId: number) => {
+		return baseApiService.get(
+			`/api/v1/discord/connector/${connectorId}/channels`,
+			listDiscordChannelsResponse
+		);
+	};
 }
+
+export type { SlackChannel, DiscordChannel };
 
 export const connectorsApiService = new ConnectorsApiService();

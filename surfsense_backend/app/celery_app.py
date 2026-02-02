@@ -79,6 +79,7 @@ celery_app = Celery(
         "app.tasks.celery_tasks.schedule_checker_task",
         "app.tasks.celery_tasks.blocknote_migration_tasks",
         "app.tasks.celery_tasks.document_reindex_tasks",
+        "app.tasks.celery_tasks.stale_notification_cleanup_task",
     ],
 )
 
@@ -119,6 +120,16 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(**schedule_params),
         "options": {
             "expires": 30,  # Task expires after 30 seconds if not picked up
+        },
+    },
+    # Cleanup stale connector indexing notifications every 5 minutes
+    # This detects tasks that crashed or timed out without proper cleanup
+    # and marks their notifications as failed so users don't see perpetual "syncing"
+    "cleanup-stale-indexing-notifications": {
+        "task": "cleanup_stale_indexing_notifications",
+        "schedule": crontab(minute="*/5"),  # Every 5 minutes
+        "options": {
+            "expires": 60,  # Task expires after 60 seconds if not picked up
         },
     },
 }

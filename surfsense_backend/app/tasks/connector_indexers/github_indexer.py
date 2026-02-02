@@ -5,6 +5,8 @@ This indexer processes entire repository digests in one pass, dramatically
 reducing LLM API calls compared to the previous file-by-file approach.
 """
 
+import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -30,6 +32,12 @@ from .base import (
     logger,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds - update notification every 30 seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
+
 # Maximum tokens for a single digest before splitting
 # Most LLMs can handle 128k+ tokens now, but we'll be conservative
 MAX_DIGEST_CHARS = 500_000  # ~125k tokens
@@ -43,6 +51,7 @@ async def index_github_repos(
     start_date: str | None = None,  # Ignored - GitHub indexes full repo snapshots
     end_date: str | None = None,  # Ignored - GitHub indexes full repo snapshots
     update_last_indexed: bool = True,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index GitHub repositories using gitingest for efficient processing.
@@ -62,6 +71,7 @@ async def index_github_repos(
         start_date: Ignored - kept for API compatibility
         end_date: Ignored - kept for API compatibility
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -168,7 +178,18 @@ async def index_github_repos(
             f"Starting gitingest indexing for {len(repo_full_names_to_index)} repositories."
         )
 
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+        documents_indexed = 0
+
         for repo_full_name in repo_full_names_to_index:
+            # Check if it's time for a heartbeat update
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = time.time()
             if not repo_full_name or not isinstance(repo_full_name, str):
                 logger.warning(f"Skipping invalid repository entry: {repo_full_name}")
                 continue

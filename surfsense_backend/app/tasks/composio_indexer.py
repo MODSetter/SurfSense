@@ -9,6 +9,7 @@ to avoid circular import issues with the connector_indexers package.
 """
 
 import logging
+from collections.abc import Awaitable, Callable
 from importlib import import_module
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -21,6 +22,9 @@ from app.db import (
 )
 from app.services.composio_service import INDEXABLE_TOOLKITS, TOOLKIT_TO_INDEXER
 from app.services.task_logging_service import TaskLoggingService
+
+# Type alias for heartbeat callback function
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -86,6 +90,7 @@ async def index_composio_connector(
     end_date: str | None = None,
     update_last_indexed: bool = True,
     max_items: int = 1000,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, str | None]:
     """
     Index content from a Composio connector.
@@ -102,6 +107,7 @@ async def index_composio_connector(
         end_date: End date for filtering (YYYY-MM-DD format)
         update_last_indexed: Whether to update the last_indexed_at timestamp
         max_items: Maximum number of items to fetch
+        on_heartbeat_callback: Optional callback to report progress for heartbeat updates
 
     Returns:
         Tuple of (number_of_indexed_items, number_of_skipped_items, error_message or None)
@@ -180,6 +186,7 @@ async def index_composio_connector(
             "log_entry": log_entry,
             "update_last_indexed": update_last_indexed,
             "max_items": max_items,
+            "on_heartbeat_callback": on_heartbeat_callback,
         }
 
         # Add date params for toolkits that support them
