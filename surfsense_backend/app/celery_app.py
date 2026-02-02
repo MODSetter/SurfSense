@@ -26,6 +26,7 @@ def init_worker(**kwargs):
 # Get Celery configuration from environment
 CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "surfsense")
 
 # Get schedule checker interval from environment
 # Format: "<number><unit>" where unit is 'm' (minutes) or 'h' (hours)
@@ -91,6 +92,9 @@ celery_app.conf.update(
     result_serializer="json",
     timezone="UTC",
     enable_utc=True,
+    task_default_queue=CELERY_TASK_DEFAULT_QUEUE,
+    task_default_exchange=CELERY_TASK_DEFAULT_QUEUE,
+    task_default_routing_key=CELERY_TASK_DEFAULT_QUEUE,
     # Task execution settings
     task_track_started=True,
     task_time_limit=28800,  # 8 hour hard limit

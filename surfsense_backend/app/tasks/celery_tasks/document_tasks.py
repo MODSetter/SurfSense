@@ -353,7 +353,9 @@ def process_file_upload_task(
         loop.run_until_complete(
             _process_file_upload(file_path, filename, search_space_id, user_id)
         )
-        logger.info(f"[process_file_upload] Task completed successfully for: {filename}")
+        logger.info(
+            f"[process_file_upload] Task completed successfully for: {filename}"
+        )
     except Exception as e:
         logger.error(
             f"[process_file_upload] Task failed for {filename}: {e}\n"
