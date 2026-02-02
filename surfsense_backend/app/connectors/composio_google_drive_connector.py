@@ -1258,6 +1258,7 @@ async def _process_single_drive_file(
         embedding=summary_embedding,
         chunks=chunks,
         updated_at=get_current_timestamp(),
+        created_by_id=user_id,
     )
     session.add(document)
 

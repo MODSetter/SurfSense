@@ -749,7 +749,18 @@ class Document(BaseModel, TimestampMixin):
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
+
+    # Track who created/uploaded this document
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,  # Nullable for backward compatibility with existing records
+        index=True,
+    )
+
+    # Relationships
     search_space = relationship("SearchSpace", back_populates="documents")
+    created_by = relationship("User", back_populates="documents")
     chunks = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
     )
@@ -1284,6 +1295,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Documents created/uploaded by this user
+        documents = relationship(
+            "Document",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # User memories for personalized AI responses
         memories = relationship(
             "UserMemory",
@@ -1338,6 +1356,13 @@ else:
         # Chat threads created by this user
         new_chat_threads = relationship(
             "NewChatThread",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
+        # Documents created/uploaded by this user
+        documents = relationship(
+            "Document",
             back_populates="created_by",
             passive_deletes=True,
         )

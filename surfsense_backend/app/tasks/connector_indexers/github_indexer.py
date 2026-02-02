@@ -426,6 +426,7 @@ async def _process_repository_digest(
         search_space_id=search_space_id,
         chunks=chunks_data,
         updated_at=get_current_timestamp(),
+        created_by_id=user_id,
     )
 
     session.add(document)

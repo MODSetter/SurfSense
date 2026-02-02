@@ -295,6 +295,7 @@ async def add_received_markdown_file_document(
                 unique_identifier_hash=primary_hash,
                 blocknote_document=blocknote_json,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
             )
 
             session.add(document)

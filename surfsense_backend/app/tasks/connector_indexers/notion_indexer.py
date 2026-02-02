@@ -470,6 +470,7 @@ async def index_notion_pages(
                     embedding=summary_embedding,
                     chunks=chunks,
                     updated_at=get_current_timestamp(),
+                    created_by_id=user_id,
                 )
 
                 session.add(document)

@@ -526,6 +526,7 @@ async def add_received_file_document_using_unstructured(
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
             )
 
             session.add(document)
@@ -665,6 +666,7 @@ async def add_received_file_document_using_llamacloud(
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
             )
 
             session.add(document)
@@ -829,6 +831,7 @@ async def add_received_file_document_using_docling(
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
             )
 
             session.add(document)
