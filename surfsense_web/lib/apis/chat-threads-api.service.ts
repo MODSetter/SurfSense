@@ -5,8 +5,12 @@ import {
 	createSnapshotResponse,
 	type DeleteSnapshotRequest,
 	deleteSnapshotRequest,
+	type ListSearchSpaceSnapshotsRequest,
+	type ListSearchSpaceSnapshotsResponse,
 	type ListSnapshotsRequest,
 	type ListSnapshotsResponse,
+	listSearchSpaceSnapshotsRequest,
+	listSearchSpaceSnapshotsResponse,
 	listSnapshotsRequest,
 	listSnapshotsResponse,
 } from "@/contracts/types/chat-threads.types";
@@ -61,6 +65,25 @@ class ChatThreadsApiService {
 
 		await baseApiService.delete(
 			`/api/v1/threads/${parsed.data.thread_id}/snapshots/${parsed.data.snapshot_id}`
+		);
+	};
+
+	/**
+	 * List all snapshots for a search space.
+	 */
+	listSearchSpaceSnapshots = async (
+		request: ListSearchSpaceSnapshotsRequest
+	): Promise<ListSearchSpaceSnapshotsResponse> => {
+		const parsed = listSearchSpaceSnapshotsRequest.safeParse(request);
+
+		if (!parsed.success) {
+			const errorMessage = parsed.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.get(
+			`/api/v1/searchspaces/${parsed.data.search_space_id}/snapshots`,
+			listSearchSpaceSnapshotsResponse
 		);
 	};
 }
