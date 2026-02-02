@@ -781,5 +781,10 @@
 			"comments": "评论",
 			"example_comment": "我们明天讨论这个！"
 		}
+	},
+	"public_chat": {
+		"not_found_title": "此对话已被删除。",
+		"click_here": "点击这里",
+		"sign_in_prompt": "登录 SurfSense 开始您自己的对话。"
 	}
 }

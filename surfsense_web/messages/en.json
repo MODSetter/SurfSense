@@ -796,5 +796,10 @@
 			"comments": "comments",
 			"example_comment": "Let's discuss this tomorrow!"
 		}
+	},
+	"public_chat": {
+		"not_found_title": "This chat has been deleted.",
+		"click_here": "Click here",
+		"sign_in_prompt": "to log in to SurfSense and start your own."
 	}
 }

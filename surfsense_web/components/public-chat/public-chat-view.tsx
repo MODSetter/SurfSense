@@ -10,6 +10,7 @@ import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { usePublicChat } from "@/hooks/use-public-chat";
 import { usePublicChatRuntime } from "@/hooks/use-public-chat-runtime";
 import { PublicChatFooter } from "./public-chat-footer";
+import { PublicChatNotFound } from "./public-chat-not-found";
 import { PublicThread } from "./public-thread";
 
 interface PublicChatViewProps {
@@ -32,17 +33,7 @@ export function PublicChatView({ shareToken }: PublicChatViewProps) {
 	}
 
 	if (error || !data) {
-		return (
-			<main className="min-h-screen bg-linear-to-b from-gray-50 to-gray-100 text-gray-900 dark:from-black dark:to-gray-900 dark:text-white overflow-x-hidden">
-				<Navbar />
-				<div className="flex h-screen flex-col items-center justify-center gap-4 px-4 text-center">
-					<h1 className="text-2xl font-semibold">Chat not found</h1>
-					<p className="text-muted-foreground">
-						This chat may have been removed or is no longer public.
-					</p>
-				</div>
-			</main>
-		);
+		return <PublicChatNotFound />;
 	}
 
 	return (
