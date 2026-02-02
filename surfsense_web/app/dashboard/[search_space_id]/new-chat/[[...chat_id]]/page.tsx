@@ -42,7 +42,6 @@ import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-
 import { Spinner } from "@/components/ui/spinner";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
-import { publicChatApiService } from "@/lib/apis/public-chat-api.service";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
@@ -142,8 +141,6 @@ export default function NewChatPage() {
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
-	const [isCompletingClone, setIsCompletingClone] = useState(false);
-	const [cloneError, setCloneError] = useState(false);
 	const [threadId, setThreadId] = useState<number | null>(null);
 	const [currentThread, setCurrentThread] = useState<ThreadRecord | null>(null);
 	const [messages, setMessages] = useState<ThreadMessageLike[]>([]);
@@ -332,42 +329,6 @@ export default function NewChatPage() {
 		initializeThread();
 	}, [initializeThread]);
 
-	// Handle clone completion when thread has clone_pending flag
-	useEffect(() => {
-		if (!currentThread?.clone_pending || isCompletingClone || cloneError) return;
-
-		const completeClone = async () => {
-			setIsCompletingClone(true);
-
-			try {
-				await publicChatApiService.completeClone({ thread_id: currentThread.id });
-
-				// Re-initialize thread to fetch cloned content using existing logic
-				await initializeThread();
-
-				// Invalidate threads query to update sidebar
-				queryClient.invalidateQueries({
-					predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "threads",
-				});
-			} catch (error) {
-				console.error("[NewChatPage] Failed to complete clone:", error);
-				toast.error("Failed to copy chat content. Please try again.");
-				setCloneError(true);
-			} finally {
-				setIsCompletingClone(false);
-			}
-		};
-
-		completeClone();
-	}, [
-		currentThread?.clone_pending,
-		currentThread?.id,
-		isCompletingClone,
-		cloneError,
-		initializeThread,
-		queryClient,
-	]);
-
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
 	const searchParams = useSearchParams();
 	const targetCommentIdParam = searchParams.get("commentId");
@@ -394,8 +355,6 @@ export default function NewChatPage() {
 			visibility: currentThread?.visibility ?? null,
 			hasComments: currentThread?.has_comments ?? false,
 			addingCommentToMessageId: null,
-			publicShareEnabled: currentThread?.public_share_enabled ?? false,
-			publicShareToken: currentThread?.public_share_token ?? null,
 		}));
 	}, [currentThread, setCurrentThreadState]);
 
@@ -1416,16 +1375,6 @@ export default function NewChatPage() {
 			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
 				<Spinner size="lg" />
 				<div className="text-sm text-muted-foreground">{t("loading_chat")}</div>
-			</div>
-		);
-	}
-
-	// Show loading state while completing clone
-	if (isCompletingClone) {
-		return (
-			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
-				<Spinner size="lg" />
-				<div className="text-sm text-muted-foreground">Copying chat content...</div>
 			</div>
 		);
 	}
