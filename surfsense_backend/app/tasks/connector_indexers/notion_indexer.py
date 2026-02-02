@@ -398,6 +398,7 @@ async def index_notion_pages(
                         }
                         existing_document.chunks = chunks
                         existing_document.updated_at = get_current_timestamp()
+                        existing_document.connector_id = connector_id
 
                         documents_indexed += 1
                         logger.info(f"Successfully updated Notion page: {page_title}")
@@ -471,6 +472,7 @@ async def index_notion_pages(
                     chunks=chunks,
                     updated_at=get_current_timestamp(),
                     created_by_id=user_id,
+                    connector_id=connector_id,
                 )
 
                 session.add(document)

@@ -524,9 +524,17 @@ async def delete_search_source_connector(
     user: User = Depends(current_active_user),
 ):
     """
-    Delete a search source connector.
+    Delete a search source connector and all its associated documents.
+
+    The deletion runs in background via Celery task. User is notified
+    via the notification system when complete (no polling required).
+
     Requires CONNECTORS_DELETE permission.
     """
+    from app.tasks.celery_tasks.connector_deletion_task import (
+        delete_connector_with_documents_task,
+    )
+
     try:
         # Get the connector first
         result = await session.execute(
@@ -548,7 +556,12 @@ async def delete_search_source_connector(
             "You don't have permission to delete this connector",
         )
 
-        # Delete any periodic schedule associated with this connector
+        # Store connector info before we queue the deletion task
+        connector_name = db_connector.name
+        connector_type = db_connector.connector_type.value
+        search_space_id = db_connector.search_space_id
+
+        # Delete any periodic schedule associated with this connector (lightweight, sync)
         if db_connector.periodic_indexing_enabled:
             success = delete_periodic_schedule(connector_id)
             if not success:
@@ -556,7 +569,7 @@ async def delete_search_source_connector(
                     f"Failed to delete periodic schedule for connector {connector_id}"
                 )
 
-        # For Composio connectors, also delete the connected account in Composio
+        # For Composio connectors, delete the connected account in Composio (lightweight API call, sync)
         composio_connector_types = [
             SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
             SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
@@ -588,16 +601,33 @@ async def delete_search_source_connector(
                         f"Error deleting Composio connected account {composio_connected_account_id}: {composio_error!s}"
                     )
 
-        await session.delete(db_connector)
-        await session.commit()
-        return {"message": "Search source connector deleted successfully"}
+        # Queue background task to delete documents and connector
+        # This handles potentially large document counts without blocking the API
+        delete_connector_with_documents_task.delay(
+            connector_id=connector_id,
+            user_id=str(user.id),
+            search_space_id=search_space_id,
+            connector_name=connector_name,
+            connector_type=connector_type,
+        )
+
+        logger.info(
+            f"Queued deletion task for connector {connector_id} ({connector_name})"
+        )
+
+        return {
+            "message": "Connector deletion started. You will be notified when complete.",
+            "status": "queued",
+            "connector_id": connector_id,
+            "connector_name": connector_name,
+        }
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to delete search source connector: {e!s}",
+            detail=f"Failed to start connector deletion: {e!s}",
         ) from e
 
 

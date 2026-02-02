@@ -767,6 +767,7 @@ async def _process_single_file(
             session=session,
             task_logger=task_logger,
             log_entry=log_entry,
+            connector_id=connector_id,
         )
 
         if error:

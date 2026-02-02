@@ -25,6 +25,7 @@ async def download_and_process_file(
     session: AsyncSession,
     task_logger: TaskLoggingService,
     log_entry: Log,
+    connector_id: int | None = None,
 ) -> tuple[Any, str | None, dict[str, Any] | None]:
     """
     Download Google Drive file and process using Surfsense file processors.
@@ -37,6 +38,7 @@ async def download_and_process_file(
         session: Database session
         task_logger: Task logging service
         log_entry: Log entry for tracking
+        connector_id: ID of the connector (for de-indexing support)
 
     Returns:
         Tuple of (Document object if successful, error message if failed, file metadata dict)
@@ -92,6 +94,9 @@ async def download_and_process_file(
                 "source_connector": "google_drive",
             },
         }
+        # Include connector_id for de-indexing support
+        if connector_id is not None:
+            connector_info["connector_id"] = connector_id
 
         # Add additional Drive metadata if available
         if "modifiedTime" in file:

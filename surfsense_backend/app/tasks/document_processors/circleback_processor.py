@@ -42,6 +42,7 @@ async def add_circleback_meeting_document(
     markdown_content: str,
     metadata: dict[str, Any],
     search_space_id: int,
+    connector_id: int | None = None,
 ) -> Document | None:
     """
     Process and store a Circleback meeting document.
@@ -53,6 +54,7 @@ async def add_circleback_meeting_document(
         markdown_content: Meeting content formatted as markdown
         metadata: Meeting metadata dictionary
         search_space_id: ID of the search space
+        connector_id: ID of the Circleback connector (for deletion support)
 
     Returns:
         Document object if successful, None if failed or duplicate
@@ -169,6 +171,9 @@ async def add_circleback_meeting_document(
             existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
+            # Ensure connector_id is set (backfill for documents created before this field)
+            if connector_id is not None:
+                existing_document.connector_id = connector_id
 
             await session.commit()
             await session.refresh(existing_document)
@@ -192,6 +197,7 @@ async def add_circleback_meeting_document(
                 content_needs_reindexing=False,
                 updated_at=get_current_timestamp(),
                 created_by_id=created_by_user_id,
+                connector_id=connector_id,
             )
 
             session.add(document)

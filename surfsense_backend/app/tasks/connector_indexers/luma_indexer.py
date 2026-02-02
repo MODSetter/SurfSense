@@ -477,6 +477,7 @@ async def index_luma_events(
                     chunks=chunks,
                     updated_at=get_current_timestamp(),
                     created_by_id=user_id,
+                    connector_id=connector_id,
                 )
 
                 session.add(document)

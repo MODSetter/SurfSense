@@ -293,6 +293,7 @@ async def index_elasticsearch_documents(
                         search_space_id=search_space_id,
                         updated_at=get_current_timestamp(),
                         created_by_id=user_id,
+                        connector_id=connector_id,
                     )
 
                     # Create chunks and attach to document (persist via relationship)
