@@ -501,3 +501,25 @@ async def update_llm_preferences(
         raise HTTPException(
             status_code=500, detail=f"Failed to update LLM preferences: {e!s}"
         ) from e
+
+
+@router.get("/searchspaces/{search_space_id}/snapshots")
+async def list_search_space_snapshots(
+    search_space_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    List all public chat snapshots for a search space.
+
+    Requires PUBLIC_SHARING_VIEW permission.
+    """
+    from app.schemas.new_chat import SearchSpaceSnapshotListResponse
+    from app.services.public_chat_service import list_snapshots_for_search_space
+
+    snapshots = await list_snapshots_for_search_space(
+        session=session,
+        search_space_id=search_space_id,
+        user=user,
+    )
+    return SearchSpaceSnapshotListResponse(snapshots=snapshots)
