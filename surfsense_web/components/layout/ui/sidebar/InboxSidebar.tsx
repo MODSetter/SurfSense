@@ -237,7 +237,7 @@ export function InboxSidebar({
 	const currentDataSource = activeTab === "mentions" ? mentions : status;
 	const { loading, loadingMore = false, hasMore = false, loadMore } = currentDataSource;
 
-	// Status tab includes: connector indexing, document processing, page limit exceeded
+	// Status tab includes: connector indexing, document processing, page limit exceeded, connector deletion
 	// Filter to only show status notification types
 	const statusItems = useMemo(
 		() =>
@@ -245,7 +245,8 @@ export function InboxSidebar({
 				(item) =>
 					item.type === "connector_indexing" ||
 					item.type === "document_processing" ||
-					item.type === "page_limit_exceeded"
+					item.type === "page_limit_exceeded" ||
+					item.type === "connector_deletion"
 			),
 		[status.items]
 	);

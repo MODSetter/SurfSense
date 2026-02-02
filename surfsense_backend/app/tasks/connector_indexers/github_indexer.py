@@ -220,6 +220,7 @@ async def index_github_repos(
                     user_id=user_id,
                     task_logger=task_logger,
                     log_entry=log_entry,
+                    connector_id=connector_id,
                 )
 
                 documents_processed += docs_created
@@ -292,6 +293,7 @@ async def _process_repository_digest(
     user_id: str,
     task_logger: TaskLoggingService,
     log_entry,
+    connector_id: int,
 ) -> int:
     """
     Process a repository digest and create documents.
@@ -426,6 +428,8 @@ async def _process_repository_digest(
         search_space_id=search_space_id,
         chunks=chunks_data,
         updated_at=get_current_timestamp(),
+        created_by_id=user_id,
+        connector_id=connector_id,
     )
 
     session.add(document)

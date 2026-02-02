@@ -8,10 +8,17 @@ and stores it as searchable documents in the database.
 import logging
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, DocumentType
+from app.db import (
+    Document,
+    DocumentType,
+    SearchSourceConnector,
+    SearchSourceConnectorType,
+    SearchSpace,
+)
 from app.services.llm_service import get_document_summary_llm
 from app.utils.document_converters import (
     create_document_chunks,
@@ -35,6 +42,7 @@ async def add_circleback_meeting_document(
     markdown_content: str,
     metadata: dict[str, Any],
     search_space_id: int,
+    connector_id: int | None = None,
 ) -> Document | None:
     """
     Process and store a Circleback meeting document.
@@ -46,6 +54,7 @@ async def add_circleback_meeting_document(
         markdown_content: Meeting content formatted as markdown
         metadata: Meeting metadata dictionary
         search_space_id: ID of the search space
+        connector_id: ID of the Circleback connector (for deletion support)
 
     Returns:
         Document object if successful, None if failed or duplicate
@@ -125,6 +134,30 @@ async def add_circleback_meeting_document(
             **metadata,
         }
 
+        # Fetch the user who set up the Circleback connector (preferred)
+        # or fall back to search space owner if no connector found
+        created_by_user_id = None
+
+        # Try to find the Circleback connector for this search space
+        connector_result = await session.execute(
+            select(SearchSourceConnector.user_id).where(
+                SearchSourceConnector.search_space_id == search_space_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.CIRCLEBACK_CONNECTOR,
+            )
+        )
+        connector_user = connector_result.scalar_one_or_none()
+
+        if connector_user:
+            # Use the user who set up the Circleback connector
+            created_by_user_id = connector_user
+        else:
+            # Fallback: use search space owner if no connector found
+            search_space_result = await session.execute(
+                select(SearchSpace.user_id).where(SearchSpace.id == search_space_id)
+            )
+            created_by_user_id = search_space_result.scalar_one_or_none()
+
         # Update or create document
         if existing_document:
             # Update existing document
@@ -138,6 +171,9 @@ async def add_circleback_meeting_document(
             existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
+            # Ensure connector_id is set (backfill for documents created before this field)
+            if connector_id is not None:
+                existing_document.connector_id = connector_id
 
             await session.commit()
             await session.refresh(existing_document)
@@ -160,6 +196,8 @@ async def add_circleback_meeting_document(
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
                 updated_at=get_current_timestamp(),
+                created_by_id=created_by_user_id,
+                connector_id=connector_id,
             )
 
             session.add(document)

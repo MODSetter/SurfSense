@@ -1,5 +1,6 @@
 from datetime import datetime
 from typing import TypeVar
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
@@ -51,6 +52,7 @@ class DocumentRead(BaseModel):
     created_at: datetime
     updated_at: datetime | None
     search_space_id: int
+    created_by_id: UUID | None = None  # User who created/uploaded this document
 
     model_config = ConfigDict(from_attributes=True)
 

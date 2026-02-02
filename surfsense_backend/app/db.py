@@ -751,7 +751,27 @@ class Document(BaseModel, TimestampMixin):
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
+
+    # Track who created/uploaded this document
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,  # Nullable for backward compatibility with existing records
+        index=True,
+    )
+
+    # Track which connector created this document (for cleanup on connector deletion)
+    connector_id = Column(
+        Integer,
+        ForeignKey("search_source_connectors.id", ondelete="SET NULL"),
+        nullable=True,  # Nullable for manually uploaded docs without connector
+        index=True,
+    )
+
+    # Relationships
     search_space = relationship("SearchSpace", back_populates="documents")
+    created_by = relationship("User", back_populates="documents")
+    connector = relationship("SearchSourceConnector", back_populates="documents")
     chunks = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
     )
@@ -979,6 +999,9 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
+
+    # Documents created by this connector (for cleanup on connector deletion)
+    documents = relationship("Document", back_populates="connector")
 
 
 class NewLLMConfig(BaseModel, TimestampMixin):
@@ -1286,6 +1309,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Documents created/uploaded by this user
+        documents = relationship(
+            "Document",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # User memories for personalized AI responses
         memories = relationship(
             "UserMemory",
@@ -1340,6 +1370,13 @@ else:
         # Chat threads created by this user
         new_chat_threads = relationship(
             "NewChatThread",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
+        # Documents created/uploaded by this user
+        documents = relationship(
+            "Document",
             back_populates="created_by",
             passive_deletes=True,
         )

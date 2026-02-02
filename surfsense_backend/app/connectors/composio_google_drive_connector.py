@@ -1248,7 +1248,6 @@ async def _process_single_drive_file(
             "file_name": file_name,
             "FILE_NAME": file_name,  # For compatibility
             "mime_type": mime_type,
-            "connector_id": connector_id,
             "toolkit_id": "googledrive",
             "source": "composio",
         },
@@ -1258,6 +1257,8 @@ async def _process_single_drive_file(
         embedding=summary_embedding,
         chunks=chunks,
         updated_at=get_current_timestamp(),
+        created_by_id=user_id,
+        connector_id=connector_id,
     )
     session.add(document)
 
