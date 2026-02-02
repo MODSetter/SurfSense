@@ -11,6 +11,7 @@ import {
 	Crown,
 	Edit2,
 	FileText,
+	Globe,
 	Hash,
 	Link2,
 	LinkIcon,
@@ -826,6 +827,12 @@ const CATEGORY_CONFIG: Record<
 		icon: Settings,
 		description: "Manage search space settings",
 		order: 10,
+	},
+	public_sharing: {
+		label: "Public Chat Sharing",
+		icon: Globe,
+		description: "Share chats publicly via links",
+		order: 11,
 	},
 };
 
