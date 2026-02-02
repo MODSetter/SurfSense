@@ -337,7 +337,9 @@ async def composio_callback(
             logger.info(
                 f"Updating existing Composio connector {existing_connector.id} with new connected_account_id {final_connected_account_id}"
             )
-            existing_config = existing_connector.config.copy() if existing_connector.config else {}
+            existing_config = (
+                existing_connector.config.copy() if existing_connector.config else {}
+            )
             existing_config.update(connector_config)
             existing_connector.config = existing_config
 

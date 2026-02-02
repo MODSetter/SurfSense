@@ -135,9 +135,7 @@ async def _delete_connector_async(
                     break
 
                 # Delete this batch (chunks are deleted via CASCADE)
-                await session.execute(
-                    delete(Document).where(Document.id.in_(doc_ids))
-                )
+                await session.execute(delete(Document).where(Document.id.in_(doc_ids)))
                 await session.commit()
 
                 total_deleted += len(doc_ids)
@@ -269,4 +267,3 @@ async def delete_documents_by_connector_id(
         total_deleted += len(doc_ids)
 
     return total_deleted
-

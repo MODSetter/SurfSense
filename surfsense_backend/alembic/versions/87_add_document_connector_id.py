@@ -72,7 +72,7 @@ def upgrade() -> None:
     # 4. Backfill existing documents with connector_id based on document_type matching
     # This maps document types to their corresponding connector types
     # Only backfills for documents in search spaces that have exactly one connector of that type
-    
+
     # Map of document_type -> connector_type for backfilling
     document_connector_mappings = [
         ("NOTION_CONNECTOR", "NOTION_CONNECTOR"),
@@ -168,4 +168,3 @@ def downgrade() -> None:
         END$$;
         """
     )
-
