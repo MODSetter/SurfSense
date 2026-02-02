@@ -25,12 +25,14 @@ from app.db import (
     ChatVisibility,
     NewChatMessage,
     NewChatThread,
+    Permission,
     Podcast,
     PodcastStatus,
     PublicChatSnapshot,
     SearchSpaceMembership,
     User,
 )
+from app.utils.rbac import check_permission
 
 UI_TOOLS = {
     "display_image",
@@ -177,11 +179,13 @@ async def create_snapshot(
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    if thread.created_by_id != user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only the creator of this chat can create public snapshots",
-        )
+    await check_permission(
+        session,
+        user,
+        thread.search_space_id,
+        Permission.PUBLIC_SHARING_CREATE.value,
+        "You don't have permission to create public share links",
+    )
 
     # Build snapshot data
     user_cache: dict[UUID, dict] = {}
@@ -412,11 +416,13 @@ async def delete_snapshot(
     if not snapshot:
         raise HTTPException(status_code=404, detail="Snapshot not found")
 
-    if snapshot.thread.created_by_id != user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only the creator can delete snapshots",
-        )
+    await check_permission(
+        session,
+        user,
+        snapshot.thread.search_space_id,
+        Permission.PUBLIC_SHARING_DELETE.value,
+        "You don't have permission to delete public share links",
+    )
 
     await session.delete(snapshot)
     await session.commit()
