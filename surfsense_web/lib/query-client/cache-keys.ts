@@ -82,7 +82,8 @@ export const cacheKeys = {
 	publicChat: {
 		byToken: (shareToken: string) => ["public-chat", shareToken] as const,
 	},
-	snapshots: {
-		bySearchSpace: (searchSpaceId: number) => ["snapshots", "search-space", searchSpaceId] as const,
+	publicChatSnapshots: {
+		bySearchSpace: (searchSpaceId: number) =>
+			["public-chat-snapshots", "search-space", searchSpaceId] as const,
 	},
 };

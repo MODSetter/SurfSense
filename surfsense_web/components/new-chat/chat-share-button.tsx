@@ -5,7 +5,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { Globe, User, Users } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createSnapshotMutationAtom } from "@/atoms/chat/chat-thread-mutation.atoms";
+import { createPublicChatSnapshotMutationAtom } from "@/atoms/chat/chat-thread-mutation.atoms";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { Button } from "@/components/ui/button";
@@ -54,7 +54,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 	// Snapshot creation mutation
 	const { mutateAsync: createSnapshot, isPending: isCreatingSnapshot } = useAtomValue(
-		createSnapshotMutationAtom
+		createPublicChatSnapshotMutationAtom
 	);
 
 	// Permission check for public sharing

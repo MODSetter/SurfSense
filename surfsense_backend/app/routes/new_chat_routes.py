@@ -45,9 +45,9 @@ from app.schemas.new_chat import (
     NewChatThreadUpdate,
     NewChatThreadVisibilityUpdate,
     NewChatThreadWithMessages,
+    PublicChatSnapshotCreateResponse,
+    PublicChatSnapshotListResponse,
     RegenerateRequest,
-    SnapshotCreateResponse,
-    SnapshotListResponse,
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
@@ -736,7 +736,7 @@ async def update_thread_visibility(
 # =============================================================================
 
 
-@router.post("/threads/{thread_id}/snapshots", response_model=SnapshotCreateResponse)
+@router.post("/threads/{thread_id}/snapshots", response_model=PublicChatSnapshotCreateResponse)
 async def create_thread_snapshot(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -756,7 +756,7 @@ async def create_thread_snapshot(
     )
 
 
-@router.get("/threads/{thread_id}/snapshots", response_model=SnapshotListResponse)
+@router.get("/threads/{thread_id}/snapshots", response_model=PublicChatSnapshotListResponse)
 async def list_thread_snapshots(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -769,7 +769,7 @@ async def list_thread_snapshots(
     """
     from app.services.public_chat_service import list_snapshots_for_thread
 
-    return SnapshotListResponse(
+    return PublicChatSnapshotListResponse(
         snapshots=await list_snapshots_for_thread(
             session=session,
             thread_id=thread_id,

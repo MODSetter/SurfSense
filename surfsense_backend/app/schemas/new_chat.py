@@ -211,17 +211,17 @@ class RegenerateRequest(BaseModel):
 # =============================================================================
 
 
-class SnapshotCreateResponse(BaseModel):
-    """Response after creating a public snapshot."""
+class PublicChatSnapshotCreateResponse(BaseModel):
+    """Response after creating a public chat snapshot."""
 
     snapshot_id: int
     share_token: str
     public_url: str
-    is_new: bool  # False if existing snapshot returned (same content)
+    is_new: bool
 
 
-class SnapshotInfo(BaseModel):
-    """Info about a single snapshot."""
+class PublicChatSnapshotInfo(BaseModel):
+    """Info about a single public chat snapshot."""
 
     id: int
     share_token: str
@@ -230,14 +230,14 @@ class SnapshotInfo(BaseModel):
     message_count: int
 
 
-class SnapshotListResponse(BaseModel):
-    """List of snapshots for a thread."""
+class PublicChatSnapshotListResponse(BaseModel):
+    """List of public chat snapshots for a thread."""
 
-    snapshots: list[SnapshotInfo]
+    snapshots: list[PublicChatSnapshotInfo]
 
 
-class SearchSpaceSnapshotInfo(BaseModel):
-    """Snapshot info with thread context for search space listing."""
+class PublicChatSnapshotDetail(BaseModel):
+    """Public chat snapshot with thread context."""
 
     id: int
     share_token: str
@@ -248,10 +248,10 @@ class SearchSpaceSnapshotInfo(BaseModel):
     thread_title: str
 
 
-class SearchSpaceSnapshotListResponse(BaseModel):
-    """List of all snapshots in a search space."""
+class PublicChatSnapshotsBySpaceResponse(BaseModel):
+    """List of public chat snapshots for a search space."""
 
-    snapshots: list[SearchSpaceSnapshotInfo]
+    snapshots: list[PublicChatSnapshotDetail]
 
 
 # =============================================================================

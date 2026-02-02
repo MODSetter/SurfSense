@@ -514,7 +514,7 @@ async def list_search_space_snapshots(
 
     Requires PUBLIC_SHARING_VIEW permission.
     """
-    from app.schemas.new_chat import SearchSpaceSnapshotListResponse
+    from app.schemas.new_chat import PublicChatSnapshotsBySpaceResponse
     from app.services.public_chat_service import list_snapshots_for_search_space
 
     snapshots = await list_snapshots_for_search_space(
@@ -522,4 +522,4 @@ async def list_search_space_snapshots(
         search_space_id=search_space_id,
         user=user,
     )
-    return SearchSpaceSnapshotListResponse(snapshots=snapshots)
+    return PublicChatSnapshotsBySpaceResponse(snapshots=snapshots)
