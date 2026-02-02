@@ -123,4 +123,3 @@ def downgrade() -> None:
         END$$;
         """
     )
-
