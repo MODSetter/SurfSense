@@ -6,6 +6,7 @@ import {
 	Brain,
 	ChevronRight,
 	FileText,
+	Globe,
 	type LucideIcon,
 	Menu,
 	MessageSquare,
@@ -16,6 +17,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
+import { PublicChatSnapshotsManager } from "@/components/public-chat-snapshots/public-chat-snapshots-manager";
 import { GeneralSettingsManager } from "@/components/settings/general-settings-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
@@ -55,6 +57,12 @@ const settingsNavItems: SettingsNavItem[] = [
 		labelKey: "nav_system_instructions",
 		descriptionKey: "nav_system_instructions_desc",
 		icon: MessageSquare,
+	},
+	{
+		id: "public-links",
+		labelKey: "nav_public_links",
+		descriptionKey: "nav_public_links_desc",
+		icon: Globe,
 	},
 ];
 
@@ -276,6 +284,9 @@ function SettingsContent({
 							{activeSection === "models" && <ModelConfigManager searchSpaceId={searchSpaceId} />}
 							{activeSection === "roles" && <LLMRoleManager searchSpaceId={searchSpaceId} />}
 							{activeSection === "prompts" && <PromptConfigManager searchSpaceId={searchSpaceId} />}
+							{activeSection === "public-links" && (
+								<PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />
+							)}
 						</motion.div>
 					</AnimatePresence>
 				</div>

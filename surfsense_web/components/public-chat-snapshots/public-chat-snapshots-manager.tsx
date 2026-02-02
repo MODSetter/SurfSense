@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Globe, Info } from "lucide-react";
+import { AlertCircle, Globe, Info } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deletePublicChatSnapshotMutationAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-mutation.atoms";
@@ -23,7 +23,7 @@ export function PublicChatSnapshotsManager({
 	const [deletingId, setDeletingId] = useState<number | undefined>();
 
 	// Data fetching
-	const { data: snapshotsData, isLoading, refetch } = useAtomValue(publicChatSnapshotsAtom);
+	const { data: snapshotsData, isLoading, isError, refetch } = useAtomValue(publicChatSnapshotsAtom);
 
 	// Permissions
 	const { data: access } = useAtomValue(myAccessAtom);
@@ -81,6 +81,18 @@ export function PublicChatSnapshotsManager({
 					</CardContent>
 				</Card>
 			</div>
+		);
+	}
+
+	// Error state
+	if (isError) {
+		return (
+			<Alert variant="destructive">
+				<AlertCircle className="h-4 w-4" />
+				<AlertDescription>
+					Failed to load public chat links. Please try again later.
+				</AlertDescription>
+			</Alert>
 		);
 	}
 
