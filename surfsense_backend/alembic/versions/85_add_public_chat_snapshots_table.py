@@ -103,7 +103,9 @@ def upgrade() -> None:
 
     # 5. Drop deprecated columns from new_chat_threads
     op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS clone_pending")
-    op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS public_share_enabled")
+    op.execute(
+        "ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS public_share_enabled"
+    )
     op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS public_share_token")
 
     # 6. Add cloned_from_snapshot_id to new_chat_threads
@@ -129,7 +131,9 @@ def downgrade() -> None:
 
     # 1. Drop cloned_from_snapshot_id column and index
     op.execute("DROP INDEX IF EXISTS ix_new_chat_threads_cloned_from_snapshot_id")
-    op.execute("ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS cloned_from_snapshot_id")
+    op.execute(
+        "ALTER TABLE new_chat_threads DROP COLUMN IF EXISTS cloned_from_snapshot_id"
+    )
 
     # 2. Restore deprecated columns on new_chat_threads
     op.execute(

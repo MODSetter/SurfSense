@@ -867,9 +867,7 @@ class PageLimitNotificationHandler(BaseNotificationHandler):
     def __init__(self):
         super().__init__("page_limit_exceeded")
 
-    def _generate_operation_id(
-        self, document_name: str, search_space_id: int
-    ) -> str:
+    def _generate_operation_id(self, document_name: str, search_space_id: int) -> str:
         """
         Generate a unique operation ID for a page limit exceeded notification.
 
@@ -915,9 +913,11 @@ class PageLimitNotificationHandler(BaseNotificationHandler):
             Notification: The created notification
         """
         operation_id = self._generate_operation_id(document_name, search_space_id)
-        
+
         # Truncate document name for title if too long
-        display_name = document_name[:40] + "..." if len(document_name) > 40 else document_name
+        display_name = (
+            document_name[:40] + "..." if len(document_name) > 40 else document_name
+        )
         title = f"Page limit exceeded: {display_name}"
         message = f"This document has ~{pages_to_add} page(s) but you've used {pages_used}/{pages_limit} pages. Upgrade to process more documents."
 

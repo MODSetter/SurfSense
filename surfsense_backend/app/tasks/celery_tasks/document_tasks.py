@@ -418,7 +418,11 @@ async def _process_file_upload(
             page_limit_error: PageLimitExceededError | None = None
             if isinstance(e, PageLimitExceededError):
                 page_limit_error = e
-            elif isinstance(e, HTTPException) and e.__cause__ and isinstance(e.__cause__, PageLimitExceededError):
+            elif (
+                isinstance(e, HTTPException)
+                and e.__cause__
+                and isinstance(e.__cause__, PageLimitExceededError)
+            ):
                 # HTTPException wraps the original PageLimitExceededError
                 page_limit_error = e.__cause__
             elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
@@ -432,14 +436,12 @@ async def _process_file_upload(
                 try:
                     # First, mark the processing notification as failed
                     await session.refresh(notification)
-                    await (
-                        NotificationService.document_processing.notify_processing_completed(
-                            session=session,
-                            notification=notification,
-                            error_message="Page limit exceeded",
-                        )
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message="Page limit exceeded",
                     )
-                    
+
                     # Then create a separate page_limit_exceeded notification for better UX
                     await NotificationService.page_limit.notify_page_limit_exceeded(
                         session=session,
@@ -460,12 +462,10 @@ async def _process_file_upload(
                 error_message = str(e.detail)
                 try:
                     await session.refresh(notification)
-                    await (
-                        NotificationService.document_processing.notify_processing_completed(
-                            session=session,
-                            notification=notification,
-                            error_message=error_message,
-                        )
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=error_message,
                     )
                 except Exception as notif_error:
                     logger.error(
@@ -477,12 +477,10 @@ async def _process_file_upload(
                 try:
                     # Refresh notification to ensure it's not stale after any rollback
                     await session.refresh(notification)
-                    await (
-                        NotificationService.document_processing.notify_processing_completed(
-                            session=session,
-                            notification=notification,
-                            error_message=error_message,
-                        )
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=error_message,
                     )
                 except Exception as notif_error:
                     logger.error(
