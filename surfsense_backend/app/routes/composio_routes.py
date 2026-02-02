@@ -20,6 +20,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import config
 from app.db import (
@@ -330,10 +331,17 @@ async def composio_callback(
                     )
 
             # Update existing connector with new connected_account_id
+            # IMPORTANT: Merge new credentials with existing config to preserve
+            # user settings like selected_folders, selected_files, indexing_options,
+            # drive_page_token, etc. that would otherwise be wiped on reconnection.
             logger.info(
                 f"Updating existing Composio connector {existing_connector.id} with new connected_account_id {final_connected_account_id}"
             )
-            existing_connector.config = connector_config
+            existing_config = existing_connector.config.copy() if existing_connector.config else {}
+            existing_config.update(connector_config)
+            existing_connector.config = existing_config
+
+            flag_modified(existing_connector, "config")
             await session.commit()
             await session.refresh(existing_connector)
 
