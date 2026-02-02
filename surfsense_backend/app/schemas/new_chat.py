@@ -236,6 +236,24 @@ class SnapshotListResponse(BaseModel):
     snapshots: list[SnapshotInfo]
 
 
+class SearchSpaceSnapshotInfo(BaseModel):
+    """Snapshot info with thread context for search space listing."""
+
+    id: int
+    share_token: str
+    public_url: str
+    created_at: datetime
+    message_count: int
+    thread_id: int
+    thread_title: str
+
+
+class SearchSpaceSnapshotListResponse(BaseModel):
+    """List of all snapshots in a search space."""
+
+    snapshots: list[SearchSpaceSnapshotInfo]
+
+
 # =============================================================================
 # Public Chat View Schemas (for unauthenticated access)
 # =============================================================================

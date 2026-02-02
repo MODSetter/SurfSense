@@ -161,7 +161,6 @@ async def create_snapshot(
     session: AsyncSession,
     thread_id: int,
     user: User,
-    base_url: str,
 ) -> dict:
     """
     Create a public snapshot of a chat thread.
@@ -169,6 +168,9 @@ async def create_snapshot(
     Returns existing snapshot if content unchanged (same hash).
     Returns new snapshot with unique URL if content changed.
     """
+    from app.config import config
+
+    frontend_url = (config.NEXT_FRONTEND_URL or "").rstrip("/")
     result = await session.execute(
         select(NewChatThread)
         .options(selectinload(NewChatThread.messages))
@@ -250,7 +252,7 @@ async def create_snapshot(
         return {
             "snapshot_id": existing.id,
             "share_token": existing.share_token,
-            "public_url": f"{base_url}/public/{existing.share_token}",
+            "public_url": f"{frontend_url}/public/{existing.share_token}",
             "is_new": False,
         }
 
@@ -283,7 +285,7 @@ async def create_snapshot(
     return {
         "snapshot_id": snapshot.id,
         "share_token": snapshot.share_token,
-        "public_url": f"{base_url}/public/{snapshot.share_token}",
+        "public_url": f"{frontend_url}/public/{snapshot.share_token}",
         "is_new": True,
     }
 
@@ -352,10 +354,10 @@ async def list_snapshots_for_thread(
     session: AsyncSession,
     thread_id: int,
     user: User,
-    base_url: str,
 ) -> list[dict]:
     """List all public snapshots for a thread."""
-    # Verify ownership
+    from app.config import config
+
     result = await session.execute(
         select(NewChatThread).filter(NewChatThread.id == thread_id)
     )
@@ -370,7 +372,6 @@ async def list_snapshots_for_thread(
             detail="Only the creator can view snapshots",
         )
 
-    # Get snapshots
     result = await session.execute(
         select(PublicChatSnapshot)
         .filter(PublicChatSnapshot.thread_id == thread_id)
@@ -378,13 +379,63 @@ async def list_snapshots_for_thread(
     )
     snapshots = result.scalars().all()
 
+    frontend_url = (config.NEXT_FRONTEND_URL or "").rstrip("/")
+
     return [
         {
             "id": s.id,
             "share_token": s.share_token,
-            "public_url": f"{base_url}/public/{s.share_token}",
+            "public_url": f"{frontend_url}/public/{s.share_token}",
             "created_at": s.created_at.isoformat() if s.created_at else None,
             "message_count": len(s.message_ids) if s.message_ids else 0,
+        }
+        for s in snapshots
+    ]
+
+
+async def list_snapshots_for_search_space(
+    session: AsyncSession,
+    search_space_id: int,
+    user: User,
+) -> list[dict]:
+    """List all public snapshots for a search space."""
+    from app.config import config
+
+    await check_permission(
+        session,
+        user,
+        search_space_id,
+        Permission.PUBLIC_SHARING_VIEW.value,
+        "You don't have permission to view public share links",
+    )
+
+    result = await session.execute(
+        select(PublicChatSnapshot)
+        .join(NewChatThread, PublicChatSnapshot.thread_id == NewChatThread.id)
+        .filter(NewChatThread.search_space_id == search_space_id)
+        .order_by(PublicChatSnapshot.created_at.desc())
+    )
+    snapshots = result.scalars().all()
+
+    snapshot_thread_ids = [s.thread_id for s in snapshots]
+    thread_result = await session.execute(
+        select(NewChatThread.id, NewChatThread.title).filter(
+            NewChatThread.id.in_(snapshot_thread_ids)
+        )
+    )
+    thread_titles = {row[0]: row[1] for row in thread_result.fetchall()}
+
+    frontend_url = (config.NEXT_FRONTEND_URL or "").rstrip("/")
+
+    return [
+        {
+            "id": s.id,
+            "share_token": s.share_token,
+            "public_url": f"{frontend_url}/public/{s.share_token}",
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "message_count": len(s.message_ids) if s.message_ids else 0,
+            "thread_id": s.thread_id,
+            "thread_title": thread_titles.get(s.thread_id, "Untitled"),
         }
         for s in snapshots
     ]

@@ -739,7 +739,6 @@ async def update_thread_visibility(
 @router.post("/threads/{thread_id}/snapshots", response_model=SnapshotCreateResponse)
 async def create_thread_snapshot(
     thread_id: int,
-    request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -747,23 +746,19 @@ async def create_thread_snapshot(
     Create a public snapshot of the thread.
 
     Returns existing snapshot URL if content unchanged (deduplication).
-    Only the thread owner can create snapshots.
     """
     from app.services.public_chat_service import create_snapshot
 
-    base_url = str(request.base_url).rstrip("/")
     return await create_snapshot(
         session=session,
         thread_id=thread_id,
         user=user,
-        base_url=base_url,
     )
 
 
 @router.get("/threads/{thread_id}/snapshots", response_model=SnapshotListResponse)
 async def list_thread_snapshots(
     thread_id: int,
-    request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -774,13 +769,11 @@ async def list_thread_snapshots(
     """
     from app.services.public_chat_service import list_snapshots_for_thread
 
-    base_url = str(request.base_url).rstrip("/")
     return SnapshotListResponse(
         snapshots=await list_snapshots_for_thread(
             session=session,
             thread_id=thread_id,
             user=user,
-            base_url=base_url,
         )
     )
 
