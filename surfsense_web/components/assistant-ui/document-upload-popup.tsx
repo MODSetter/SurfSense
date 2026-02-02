@@ -1,7 +1,8 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Upload } from "lucide-react";
+import { AlertTriangle, Settings, Upload } from "lucide-react";
+import Link from "next/link";
 import {
 	createContext,
 	type FC,
@@ -11,8 +12,14 @@ import {
 	useRef,
 	useState,
 } from "react";
+import {
+	globalNewLLMConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 // Context for opening the dialog from anywhere
@@ -84,12 +91,32 @@ const DocumentUploadPopupContent: FC<{
 	onOpenChange: (open: boolean) => void;
 }> = ({ isOpen, onOpenChange }) => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const { data: preferences = {}, isFetching: preferencesLoading } =
+		useAtomValue(llmPreferencesAtom);
+	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
+		useAtomValue(globalNewLLMConfigsAtom);
 
 	if (!searchSpaceId) return null;
 
 	const handleSuccess = () => {
 		onOpenChange(false);
 	};
+
+	// Check if document summary LLM is properly configured
+	// - If ID is 0 (Auto mode), we need global configs to be available
+	// - If ID is positive (user config) or negative (specific global config), it's configured
+	// - If ID is null/undefined, it's not configured
+	const docSummaryLlmId = preferences.document_summary_llm_id;
+	const isAutoMode = docSummaryLlmId === 0;
+	const hasGlobalConfigs = globalConfigs.length > 0;
+
+	const hasDocumentSummaryLLM =
+		docSummaryLlmId !== null &&
+		docSummaryLlmId !== undefined &&
+		// If it's Auto mode, we need global configs to actually be available
+		(!isAutoMode || hasGlobalConfigs);
+
+	const isLoading = preferencesLoading || globalConfigsLoading;
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -118,7 +145,27 @@ const DocumentUploadPopupContent: FC<{
 
 					{/* Content */}
 					<div className="px-4 sm:px-12 pb-4 sm:pb-16">
-						<DocumentUploadTab searchSpaceId={searchSpaceId} onSuccess={handleSuccess} />
+						{!isLoading && !hasDocumentSummaryLLM ? (
+							<Alert variant="destructive" className="mb-4">
+								<AlertTriangle className="h-4 w-4" />
+								<AlertTitle>LLM Configuration Required</AlertTitle>
+								<AlertDescription className="mt-2">
+									<p className="mb-3">
+										{isAutoMode && !hasGlobalConfigs
+											? "Auto mode is selected but no global LLM configurations are available. Please configure a custom LLM in Settings to process and summarize your uploaded documents."
+											: "You need to configure a Document Summary LLM before uploading files. This LLM is used to process and summarize your uploaded documents."}
+									</p>
+									<Button asChild size="sm" variant="outline">
+										<Link href={`/dashboard/${searchSpaceId}/settings`}>
+											<Settings className="mr-2 h-4 w-4" />
+											Go to Settings
+										</Link>
+									</Button>
+								</AlertDescription>
+							</Alert>
+						) : (
+							<DocumentUploadTab searchSpaceId={searchSpaceId} onSuccess={handleSuccess} />
+						)}
 					</div>
 				</div>
 
