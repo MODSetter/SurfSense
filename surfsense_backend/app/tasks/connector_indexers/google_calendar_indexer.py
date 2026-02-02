@@ -217,6 +217,20 @@ async def index_google_calendar_events(
             start_date_str = start_date
             end_date_str = end_date
 
+        # FIX: Ensure end_date is at least 1 day after start_date to avoid
+        # "start_date must be strictly before end_date" errors when dates are the same
+        # (e.g., when last_indexed_at is today)
+        if start_date_str == end_date_str:
+            logger.info(
+                f"Start date ({start_date_str}) equals end date ({end_date_str}), "
+                "adjusting end date to next day to ensure valid date range"
+            )
+            # Parse end_date and add 1 day
+            end_dt = datetime.strptime(end_date_str, "%Y-%m-%d")
+            end_dt = end_dt + timedelta(days=1)
+            end_date_str = end_dt.strftime("%Y-%m-%d")
+            logger.info(f"Adjusted end date to {end_date_str}")
+
         await task_logger.log_task_progress(
             log_entry,
             f"Fetching Google Calendar events from {start_date_str} to {end_date_str}",

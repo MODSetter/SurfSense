@@ -196,13 +196,44 @@ async def index_notion_pages(
                     "Recommend reconnecting with OAuth."
                 )
         except Exception as e:
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Failed to get Notion pages for connector {connector_id}",
-                str(e),
-                {"error_type": "PageFetchError"},
+            error_str = str(e)
+            # Check if this is an unsupported block type error (transcription, ai_block, etc.)
+            # These are known Notion API limitations and should be logged as warnings, not errors
+            unsupported_block_errors = [
+                "transcription is not supported",
+                "ai_block is not supported",
+                "is not supported via the API",
+            ]
+            is_unsupported_block_error = any(
+                err in error_str.lower() for err in unsupported_block_errors
             )
-            logger.error(f"Error fetching Notion pages: {e!s}", exc_info=True)
+
+            if is_unsupported_block_error:
+                # Log as warning since this is a known Notion API limitation
+                logger.warning(
+                    f"Notion API limitation for connector {connector_id}: {error_str}. "
+                    "This is a known issue with Notion AI blocks (transcription, ai_block) "
+                    "that are not accessible via the Notion API."
+                )
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to get Notion pages: Notion API limitation",
+                    f"{error_str} - This page contains Notion AI content (transcription/ai_block) that cannot be accessed via the API.",
+                    {"error_type": "UnsupportedBlockType", "is_known_limitation": True},
+                )
+            else:
+                # Log as error for other failures
+                logger.error(
+                    f"Error fetching Notion pages for connector {connector_id}: {error_str}",
+                    exc_info=True,
+                )
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Failed to get Notion pages for connector {connector_id}",
+                    str(e),
+                    {"error_type": "PageFetchError"},
+                )
+
             await notion_client.close()
             return 0, f"Failed to get Notion pages: {e!s}"
 
