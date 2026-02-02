@@ -2,6 +2,8 @@
 Microsoft Teams connector indexer.
 """
 
+import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -28,6 +30,12 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds - update notification every 30 seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
+
 
 async def index_teams_messages(
     session: AsyncSession,
@@ -37,6 +45,7 @@ async def index_teams_messages(
     start_date: str | None = None,
     end_date: str | None = None,
     update_last_indexed: bool = True,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index Microsoft Teams messages from all accessible teams and channels.
@@ -49,6 +58,8 @@ async def index_teams_messages(
         start_date: Start date for indexing (YYYY-MM-DD format)
         end_date: End date for indexing (YYYY-MM-DD format)
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
+            Called periodically with (indexed_count) to prevent task appearing stuck.
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -161,6 +172,9 @@ async def index_teams_messages(
         documents_skipped = 0
         skipped_channels = []
 
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+
         await task_logger.log_task_progress(
             log_entry,
             f"Starting to process {len(teams)} Teams",
@@ -185,6 +199,14 @@ async def index_teams_messages(
 
         # Process each team
         for team in teams:
+            # Check if it's time for a heartbeat update
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = time.time()
+
             team_id = team.get("id")
             team_name = team.get("displayName", "Unknown Team")
 

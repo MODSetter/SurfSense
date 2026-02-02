@@ -4,6 +4,8 @@ Elasticsearch indexer for SurfSense
 
 import json
 import logging
+import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -25,6 +27,12 @@ from .base import (
     get_current_timestamp,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
+
 logger = logging.getLogger(__name__)
 
 
@@ -36,6 +44,7 @@ async def index_elasticsearch_documents(
     start_date: str,
     end_date: str,
     update_last_indexed: bool = True,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index documents from Elasticsearch into SurfSense
@@ -48,6 +57,7 @@ async def index_elasticsearch_documents(
         start_date: Start date for indexing (not used for Elasticsearch, kept for compatibility)
         end_date: End date for indexing (not used for Elasticsearch, kept for compatibility)
         update_last_indexed: Whether to update the last indexed timestamp
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple of (number of documents processed, error message if any)
@@ -155,6 +165,9 @@ async def index_elasticsearch_documents(
 
         documents_processed = 0
 
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+
         try:
             await task_logger.log_task_progress(
                 log_entry,
@@ -172,6 +185,15 @@ async def index_elasticsearch_documents(
                 size=min(max_documents, 100),  # Scroll in batches
                 fields=config.get("ELASTICSEARCH_FIELDS"),
             ):
+                # Check if it's time for a heartbeat update
+                if (
+                    on_heartbeat_callback
+                    and (time.time() - last_heartbeat_time)
+                    >= HEARTBEAT_INTERVAL_SECONDS
+                ):
+                    await on_heartbeat_callback(documents_processed)
+                    last_heartbeat_time = time.time()
+
                 if documents_processed >= max_documents:
                     break
 

@@ -9,6 +9,8 @@ import json
 import logging
 import os
 import tempfile
+import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -28,6 +30,10 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+
+# Heartbeat configuration
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 logger = logging.getLogger(__name__)
 
@@ -552,7 +558,9 @@ def generate_indexing_settings_hash(
         "include_subfolders": indexing_options.get("include_subfolders", True),
         "max_files_per_folder": indexing_options.get("max_files_per_folder", 100),
     }
-    return hashlib.md5(json.dumps(settings, sort_keys=True).encode()).hexdigest()
+    return hashlib.md5(
+        json.dumps(settings, sort_keys=True).encode(), usedforsecurity=False
+    ).hexdigest()
 
 
 async def index_composio_google_drive(
@@ -565,6 +573,7 @@ async def index_composio_google_drive(
     log_entry,
     update_last_indexed: bool = True,
     max_items: int = 1000,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, str | None]:
     """Index Google Drive files via Composio with delta sync support.
 
@@ -652,6 +661,7 @@ async def index_composio_google_drive(
                 max_items=max_items,
                 task_logger=task_logger,
                 log_entry=log_entry,
+                on_heartbeat_callback=on_heartbeat_callback,
             )
         else:
             logger.info(
@@ -684,6 +694,7 @@ async def index_composio_google_drive(
                 max_items=max_items,
                 task_logger=task_logger,
                 log_entry=log_entry,
+                on_heartbeat_callback=on_heartbeat_callback,
             )
 
         # Get new page token for next sync (always update after successful sync)
@@ -765,6 +776,7 @@ async def _index_composio_drive_delta_sync(
     max_items: int,
     task_logger: TaskLoggingService,
     log_entry,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, list[str]]:
     """Index Google Drive files using delta sync (only changed files).
 
@@ -774,6 +786,7 @@ async def _index_composio_drive_delta_sync(
     documents_indexed = 0
     documents_skipped = 0
     processing_errors = []
+    last_heartbeat_time = time.time()
 
     # Fetch all changes with pagination
     all_changes = []
@@ -804,6 +817,13 @@ async def _index_composio_drive_delta_sync(
     logger.info(f"Processing {len(all_changes)} changes from delta sync")
 
     for change in all_changes[:max_items]:
+        # Send heartbeat periodically to indicate task is still alive
+        if on_heartbeat_callback:
+            current_time = time.time()
+            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = current_time
+
         try:
             # Handle removed files
             is_removed = change.get("removed", False)
@@ -886,11 +906,13 @@ async def _index_composio_drive_full_scan(
     max_items: int,
     task_logger: TaskLoggingService,
     log_entry,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, list[str]]:
     """Index Google Drive files using full scan (first sync or when no delta token)."""
     documents_indexed = 0
     documents_skipped = 0
     processing_errors = []
+    last_heartbeat_time = time.time()
 
     all_files = []
 
@@ -1001,6 +1023,13 @@ async def _index_composio_drive_full_scan(
     )
 
     for file_info in all_files:
+        # Send heartbeat periodically to indicate task is still alive
+        if on_heartbeat_callback:
+            current_time = time.time()
+            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = current_time
+
         try:
             # Handle both standard Google API and potential Composio variations
             file_id = file_info.get("id", "") or file_info.get("fileId", "")

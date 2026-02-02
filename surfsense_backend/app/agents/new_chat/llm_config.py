@@ -32,7 +32,7 @@ PROVIDER_MAP = {
     "GROQ": "groq",
     "COHERE": "cohere",
     "GOOGLE": "gemini",
-    "OLLAMA": "ollama",
+    "OLLAMA": "ollama_chat",
     "MISTRAL": "mistral",
     "AZURE_OPENAI": "azure",
     "OPENROUTER": "openrouter",
