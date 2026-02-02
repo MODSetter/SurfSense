@@ -323,6 +323,28 @@ def process_file_upload_task(
         user_id: ID of the user
     """
     import asyncio
+    import os
+    import traceback
+
+    logger.info(
+        f"[process_file_upload] Task started - file: {filename}, "
+        f"search_space_id: {search_space_id}, user_id: {user_id}"
+    )
+    logger.info(f"[process_file_upload] File path: {file_path}")
+
+    # Check if file exists and is accessible
+    if not os.path.exists(file_path):
+        logger.error(
+            f"[process_file_upload] File does not exist: {file_path}. "
+            "The temp file may have been cleaned up before the task ran."
+        )
+        return
+
+    try:
+        file_size = os.path.getsize(file_path)
+        logger.info(f"[process_file_upload] File size: {file_size} bytes")
+    except Exception as e:
+        logger.warning(f"[process_file_upload] Could not get file size: {e}")
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -331,6 +353,13 @@ def process_file_upload_task(
         loop.run_until_complete(
             _process_file_upload(file_path, filename, search_space_id, user_id)
         )
+        logger.info(f"[process_file_upload] Task completed successfully for: {filename}")
+    except Exception as e:
+        logger.error(
+            f"[process_file_upload] Task failed for {filename}: {e}\n"
+            f"Traceback:\n{traceback.format_exc()}"
+        )
+        raise
     finally:
         loop.close()
 
@@ -343,16 +372,22 @@ async def _process_file_upload(
 
     from app.tasks.document_processors.file_processors import process_file_in_background
 
+    logger.info(f"[_process_file_upload] Starting async processing for: {filename}")
+
     async with get_celery_session_maker()() as session:
+        logger.info(f"[_process_file_upload] Database session created for: {filename}")
         task_logger = TaskLoggingService(session, search_space_id)
 
         # Get file size for notification metadata
         try:
             file_size = os.path.getsize(file_path)
-        except Exception:
+            logger.info(f"[_process_file_upload] File size: {file_size} bytes")
+        except Exception as e:
+            logger.warning(f"[_process_file_upload] Could not get file size: {e}")
             file_size = None
 
         # Create notification for document processing
+        logger.info(f"[_process_file_upload] Creating notification for: {filename}")
         notification = (
             await NotificationService.document_processing.notify_processing_started(
                 session=session,
@@ -362,6 +397,9 @@ async def _process_file_upload(
                 search_space_id=search_space_id,
                 file_size=file_size,
             )
+        )
+        logger.info(
+            f"[_process_file_upload] Notification created with ID: {notification.id if notification else 'None'}"
         )
 
         log_entry = await task_logger.log_task_start(

@@ -39,7 +39,7 @@ backend_pid=$!
 sleep 5
 
 echo "Starting Celery Worker..."
-celery -A app.celery_app worker --loglevel=info &
+celery -A app.celery_app worker --loglevel=info --autoscale=64,4 &
 celery_worker_pid=$!
 
 # Wait a bit for worker to initialize

@@ -122,8 +122,52 @@ global_llm_configs:
     use_default_system_instructions: false
     citations_enabled: true
 
-  # Example: Groq - Fast inference
+  # Example: Azure OpenAI GPT-4o
+  # IMPORTANT: For Azure deployments, always include 'base_model' in litellm_params
+  # to enable accurate token counting, cost tracking, and max token limits
   - id: -5
+    name: "Global Azure GPT-4o"
+    description: "Azure OpenAI GPT-4o deployment"
+    provider: "AZURE"
+    # model_name format for Azure: azure/<your-deployment-name>
+    model_name: "azure/gpt-4o-deployment"
+    api_key: "your-azure-api-key-here"
+    api_base: "https://your-resource.openai.azure.com"
+    api_version: "2024-02-15-preview"  # Azure API version
+    rpm: 1000
+    tpm: 150000
+    litellm_params:
+      temperature: 0.7
+      max_tokens: 4000
+      # REQUIRED for Azure: Specify the underlying OpenAI model
+      # This fixes "Could not identify azure model" warnings
+      # Common base_model values: gpt-4, gpt-4-turbo, gpt-4o, gpt-4o-mini, gpt-3.5-turbo
+      base_model: "gpt-4o"
+    system_instructions: ""
+    use_default_system_instructions: true
+    citations_enabled: true
+
+  # Example: Azure OpenAI GPT-4 Turbo
+  - id: -6
+    name: "Global Azure GPT-4 Turbo"
+    description: "Azure OpenAI GPT-4 Turbo deployment"
+    provider: "AZURE"
+    model_name: "azure/gpt-4-turbo-deployment"
+    api_key: "your-azure-api-key-here"
+    api_base: "https://your-resource.openai.azure.com"
+    api_version: "2024-02-15-preview"
+    rpm: 500
+    tpm: 100000
+    litellm_params:
+      temperature: 0.7
+      max_tokens: 4000
+      base_model: "gpt-4-turbo"  # Maps to gpt-4-turbo-preview
+    system_instructions: ""
+    use_default_system_instructions: true
+    citations_enabled: true
+
+  # Example: Groq - Fast inference
+  - id: -7
     name: "Global Groq Llama 3"
     description: "Ultra-fast Llama 3 70B via Groq"
     provider: "GROQ"
@@ -150,3 +194,11 @@ global_llm_configs:
 # - All standard LiteLLM providers are supported
 # - rpm/tpm: Optional rate limits for load balancing (requests/tokens per minute)
 #   These help the router distribute load evenly and avoid rate limit errors
+#
+# AZURE-SPECIFIC NOTES:
+# - Always add 'base_model' in litellm_params for Azure deployments
+# - This fixes "Could not identify azure model 'X'" warnings
+# - base_model should match the underlying OpenAI model (e.g., gpt-4o, gpt-4-turbo, gpt-3.5-turbo)
+# - model_name format: "azure/<your-deployment-name>"
+# - api_version: Use a recent Azure API version (e.g., "2024-02-15-preview")
+# - See: https://docs.litellm.ai/docs/proxy/cost_tracking#spend-tracking-for-azure-openai-models
