@@ -81,7 +81,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 ### 📊 **先进的 RAG 技术**
 - 支持 100+ 种大语言模型
 - 支持 6000+ 种嵌入模型
-- 支持所有主流重排序器（Pinecode、Cohere、Flashrank 等）
+- 支持所有主流重排序器（Pinecone、Cohere、Flashrank 等）
 - 使用层次化索引（2 层 RAG 设置）
 - 利用混合搜索（语义搜索 + 全文搜索，结合倒数排名融合）
 
