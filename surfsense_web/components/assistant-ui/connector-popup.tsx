@@ -1,12 +1,19 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { Cable } from "lucide-react";
+import { AlertTriangle, Cable, Settings } from "lucide-react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { FC } from "react";
+import {
+	globalNewLLMConfigsAtom,
+	llmPreferencesAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
@@ -34,6 +41,26 @@ export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const searchParams = useSearchParams();
 	const { data: currentUser } = useAtomValue(currentUserAtom);
+	const { data: preferences = {}, isFetching: preferencesLoading } =
+		useAtomValue(llmPreferencesAtom);
+	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
+		useAtomValue(globalNewLLMConfigsAtom);
+
+	// Check if document summary LLM is properly configured
+	// - If ID is 0 (Auto mode), we need global configs to be available
+	// - If ID is positive (user config) or negative (specific global config), it's configured
+	// - If ID is null/undefined, it's not configured
+	const docSummaryLlmId = preferences.document_summary_llm_id;
+	const isAutoMode = docSummaryLlmId === 0;
+	const hasGlobalConfigs = globalConfigs.length > 0;
+
+	const hasDocumentSummaryLLM =
+		docSummaryLlmId !== null &&
+		docSummaryLlmId !== undefined &&
+		// If it's Auto mode, we need global configs to actually be available
+		(!isAutoMode || hasGlobalConfigs);
+
+	const llmConfigLoading = preferencesLoading || globalConfigsLoading;
 
 	// Fetch document type counts using Electric SQL + PGlite for real-time updates
 	const { documentTypeCounts, loading: documentTypesLoading } = useDocumentsElectric(searchSpaceId);
@@ -240,6 +267,10 @@ export const ConnectorIndicator: FC = () => {
 							...editingConnector,
 							config: connectorConfig || editingConnector.config,
 							name: editingConnector.name,
+							// Sync last_indexed_at with live data from Electric SQL for real-time updates
+							last_indexed_at:
+								(connectors as SearchSourceConnector[]).find((c) => c.id === editingConnector.id)
+									?.last_indexed_at ?? editingConnector.last_indexed_at,
 						}}
 						startDate={startDate}
 						endDate={endDate}
@@ -325,6 +356,27 @@ export const ConnectorIndicator: FC = () => {
 						<div className="flex-1 min-h-0 relative overflow-hidden">
 							<div className="h-full overflow-y-auto" onScroll={handleScroll}>
 								<div className="px-4 sm:px-12 py-4 sm:py-8 pb-12 sm:pb-16">
+									{/* LLM Configuration Warning */}
+									{!llmConfigLoading && !hasDocumentSummaryLLM && (
+										<Alert variant="destructive" className="mb-6">
+											<AlertTriangle className="h-4 w-4" />
+											<AlertTitle>LLM Configuration Required</AlertTitle>
+											<AlertDescription className="mt-2">
+												<p className="mb-3">
+													{isAutoMode && !hasGlobalConfigs
+														? "Auto mode is selected but no global LLM configurations are available. Please configure a custom LLM in Settings to process and summarize documents from your connected sources."
+														: "You need to configure a Document Summary LLM before adding connectors. This LLM is used to process and summarize documents from your connected sources."}
+												</p>
+												<Button asChild size="sm" variant="outline">
+													<Link href={`/dashboard/${searchSpaceId}/settings`}>
+														<Settings className="mr-2 h-4 w-4" />
+														Go to Settings
+													</Link>
+												</Button>
+											</AlertDescription>
+										</Alert>
+									)}
+
 									<TabsContent value="all" className="m-0">
 										<AllConnectorsTab
 											searchQuery={searchQuery}
@@ -334,10 +386,12 @@ export const ConnectorIndicator: FC = () => {
 											allConnectors={connectors}
 											documentTypeCounts={documentTypeCounts}
 											indexingConnectorIds={indexingConnectorIds}
-											onConnectOAuth={handleConnectOAuth}
-											onConnectNonOAuth={handleConnectNonOAuth}
-											onCreateWebcrawler={handleCreateWebcrawler}
-											onCreateYouTubeCrawler={handleCreateYouTubeCrawler}
+											onConnectOAuth={hasDocumentSummaryLLM ? handleConnectOAuth : () => {}}
+											onConnectNonOAuth={hasDocumentSummaryLLM ? handleConnectNonOAuth : () => {}}
+											onCreateWebcrawler={hasDocumentSummaryLLM ? handleCreateWebcrawler : () => {}}
+											onCreateYouTubeCrawler={
+												hasDocumentSummaryLLM ? handleCreateYouTubeCrawler : () => {}
+											}
 											onManage={handleStartEdit}
 											onViewAccountsList={handleViewAccountsList}
 										/>

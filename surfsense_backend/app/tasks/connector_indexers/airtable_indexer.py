@@ -2,6 +2,9 @@
 Airtable connector indexer.
 """
 
+import time
+from collections.abc import Awaitable, Callable
+
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +30,12 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
+
 
 async def index_airtable_records(
     session: AsyncSession,
@@ -37,6 +46,7 @@ async def index_airtable_records(
     end_date: str | None = None,
     max_records: int = 2500,
     update_last_indexed: bool = True,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index Airtable records for a given connector.
@@ -50,6 +60,7 @@ async def index_airtable_records(
         end_date: End date for filtering records (YYYY-MM-DD)
         max_records: Maximum number of records to fetch per table
         update_last_indexed: Whether to update the last_indexed_at timestamp
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple of (number_of_documents_processed, error_message)
@@ -127,8 +138,20 @@ async def index_airtable_records(
 
             logger.info(f"Found {len(bases)} Airtable bases to process")
 
+            # Heartbeat tracking - update notification periodically to prevent appearing stuck
+            last_heartbeat_time = time.time()
+            total_documents_indexed = 0
+
             # Process each base
             for base in bases:
+                # Check if it's time for a heartbeat update
+                if (
+                    on_heartbeat_callback
+                    and (time.time() - last_heartbeat_time)
+                    >= HEARTBEAT_INTERVAL_SECONDS
+                ):
+                    await on_heartbeat_callback(total_documents_indexed)
+                    last_heartbeat_time = time.time()
                 base_id = base.get("id")
                 base_name = base.get("name", "Unknown Base")
 
@@ -204,6 +227,15 @@ async def index_airtable_records(
                     documents_skipped = 0
                     # Process each record
                     for record in records:
+                        # Check if it's time for a heartbeat update
+                        if (
+                            on_heartbeat_callback
+                            and (time.time() - last_heartbeat_time)
+                            >= HEARTBEAT_INTERVAL_SECONDS
+                        ):
+                            await on_heartbeat_callback(total_documents_indexed)
+                            last_heartbeat_time = time.time()
+
                         try:
                             # Generate markdown content
                             markdown_content = (

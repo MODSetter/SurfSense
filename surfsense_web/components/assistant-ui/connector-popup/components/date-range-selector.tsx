@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 
 interface DateRangeSelectorProps {
@@ -15,6 +16,7 @@ interface DateRangeSelectorProps {
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	allowFutureDates?: boolean; // Allow future dates for calendar connectors
+	lastIndexedAt?: string | null; // Last sync timestamp to show in default placeholder
 }
 
 export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
@@ -23,7 +25,12 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 	onStartDateChange,
 	onEndDateChange,
 	allowFutureDates = false,
+	lastIndexedAt,
 }) => {
+	const startDatePlaceholder = lastIndexedAt
+		? `From ${formatRelativeDate(lastIndexedAt)}`
+		: "Default (1 year)";
+
 	const handleLast30Days = () => {
 		const today = new Date();
 		onStartDateChange(subDays(today, 30));
@@ -73,7 +80,7 @@ export const DateRangeSelector: FC<DateRangeSelectorProps> = ({
 								)}
 							>
 								<CalendarIcon className="mr-2 h-4 w-4" />
-								{startDate ? format(startDate, "PPP") : "Default (1 year ago)"}
+								{startDate ? format(startDate, "PPP") : startDatePlaceholder}
 							</Button>
 						</PopoverTrigger>
 						<PopoverContent className="w-auto p-0 z-[100]" align="start">

@@ -414,29 +414,78 @@ async def _process_file_upload(
 
             from app.services.page_limit_service import PageLimitExceededError
 
-            # For page limit errors, use the detailed message from the exception
+            # Check if this is a page limit error (either direct or wrapped in HTTPException)
+            page_limit_error: PageLimitExceededError | None = None
             if isinstance(e, PageLimitExceededError):
-                error_message = str(e)
+                page_limit_error = e
+            elif (
+                isinstance(e, HTTPException)
+                and e.__cause__
+                and isinstance(e.__cause__, PageLimitExceededError)
+            ):
+                # HTTPException wraps the original PageLimitExceededError
+                page_limit_error = e.__cause__
             elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
-                error_message = str(e.detail)
-            else:
-                error_message = str(e)[:100]
+                # Fallback: HTTPException with page limit message but no cause
+                page_limit_error = None  # We don't have the details
 
-            # Update notification on failure - wrapped in try-except to ensure it doesn't fail silently
-            try:
-                # Refresh notification to ensure it's not stale after any rollback
-                await session.refresh(notification)
-                await (
-                    NotificationService.document_processing.notify_processing_completed(
+            # For page limit errors, create a dedicated page_limit_exceeded notification
+            if page_limit_error is not None:
+                error_message = str(page_limit_error)
+                # Create a dedicated page limit exceeded notification
+                try:
+                    # First, mark the processing notification as failed
+                    await session.refresh(notification)
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message="Page limit exceeded",
+                    )
+
+                    # Then create a separate page_limit_exceeded notification for better UX
+                    await NotificationService.page_limit.notify_page_limit_exceeded(
+                        session=session,
+                        user_id=UUID(user_id),
+                        document_name=filename,
+                        document_type="FILE",
+                        search_space_id=search_space_id,
+                        pages_used=page_limit_error.pages_used,
+                        pages_limit=page_limit_error.pages_limit,
+                        pages_to_add=page_limit_error.pages_to_add,
+                    )
+                except Exception as notif_error:
+                    logger.error(
+                        f"Failed to create page limit notification: {notif_error!s}"
+                    )
+            elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
+                # HTTPException with page limit message but no detailed cause
+                error_message = str(e.detail)
+                try:
+                    await session.refresh(notification)
+                    await NotificationService.document_processing.notify_processing_completed(
                         session=session,
                         notification=notification,
                         error_message=error_message,
                     )
-                )
-            except Exception as notif_error:
-                logger.error(
-                    f"Failed to update notification on failure: {notif_error!s}"
-                )
+                except Exception as notif_error:
+                    logger.error(
+                        f"Failed to update notification on failure: {notif_error!s}"
+                    )
+            else:
+                error_message = str(e)[:100]
+                # Update notification on failure - wrapped in try-except to ensure it doesn't fail silently
+                try:
+                    # Refresh notification to ensure it's not stale after any rollback
+                    await session.refresh(notification)
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=error_message,
+                    )
+                except Exception as notif_error:
+                    logger.error(
+                        f"Failed to update notification on failure: {notif_error!s}"
+                    )
 
             await task_logger.log_task_failure(
                 log_entry,

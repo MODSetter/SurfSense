@@ -2,11 +2,11 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Inbox, LogOut, SquareLibrary, Trash2 } from "lucide-react";
+import { AlertTriangle, Inbox, LogOut, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
@@ -21,6 +21,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
@@ -135,6 +136,54 @@ export function LayoutDataProvider({
 
 	// Combined unread count for nav badge (mentions take priority for visibility)
 	const totalUnreadCount = mentionUnreadCount + statusUnreadCount;
+
+	// Track seen notification IDs to detect new page_limit_exceeded notifications
+	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
+	const isInitialLoad = useRef(true);
+
+	// Effect to show toast for new page_limit_exceeded notifications
+	useEffect(() => {
+		if (statusLoading) return;
+
+		// Get page_limit_exceeded notifications
+		const pageLimitNotifications = statusItems.filter(
+			(item) => item.type === "page_limit_exceeded"
+		);
+
+		// On initial load, just mark all as seen without showing toasts
+		if (isInitialLoad.current) {
+			for (const notification of pageLimitNotifications) {
+				seenPageLimitNotifications.current.add(notification.id);
+			}
+			isInitialLoad.current = false;
+			return;
+		}
+
+		// Find new notifications (not yet seen)
+		const newNotifications = pageLimitNotifications.filter(
+			(notification) => !seenPageLimitNotifications.current.has(notification.id)
+		);
+
+		// Show toast for each new page_limit_exceeded notification
+		for (const notification of newNotifications) {
+			seenPageLimitNotifications.current.add(notification.id);
+
+			// Extract metadata for navigation
+			const actionUrl = isPageLimitExceededMetadata(notification.metadata)
+				? notification.metadata.action_url
+				: `/dashboard/${searchSpaceId}/more-pages`;
+
+			toast.error(notification.title, {
+				description: notification.message,
+				duration: 8000,
+				icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
+				action: {
+					label: "View Plans",
+					onClick: () => router.push(actionUrl),
+				},
+			});
+		}
+	}, [statusItems, statusLoading, searchSpaceId, router]);
 
 	// Unified mark as read that delegates to the correct hook
 	const markAsRead = useCallback(

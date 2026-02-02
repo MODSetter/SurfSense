@@ -20,7 +20,11 @@ depends_on: str | Sequence[str] | None = None
 def upgrade() -> None:
     op.execute(
         """
-        CREATE TYPE podcast_status AS ENUM ('pending', 'generating', 'ready', 'failed');
+        DO $$ BEGIN
+            CREATE TYPE podcast_status AS ENUM ('pending', 'generating', 'ready', 'failed');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
         """
     )
 

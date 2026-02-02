@@ -861,6 +861,97 @@ class MentionNotificationHandler(BaseNotificationHandler):
             raise
 
 
+class PageLimitNotificationHandler(BaseNotificationHandler):
+    """Handler for page limit exceeded notifications."""
+
+    def __init__(self):
+        super().__init__("page_limit_exceeded")
+
+    def _generate_operation_id(self, document_name: str, search_space_id: int) -> str:
+        """
+        Generate a unique operation ID for a page limit exceeded notification.
+
+        Args:
+            document_name: Name of the document that triggered the limit
+            search_space_id: Search space ID
+
+        Returns:
+            Unique operation ID string
+        """
+        import hashlib
+
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S_%f")
+        # Create a short hash of document name to ensure uniqueness
+        doc_hash = hashlib.md5(document_name.encode()).hexdigest()[:8]
+        return f"page_limit_{search_space_id}_{timestamp}_{doc_hash}"
+
+    async def notify_page_limit_exceeded(
+        self,
+        session: AsyncSession,
+        user_id: UUID,
+        document_name: str,
+        document_type: str,
+        search_space_id: int,
+        pages_used: int,
+        pages_limit: int,
+        pages_to_add: int,
+    ) -> Notification:
+        """
+        Create notification when a document exceeds the user's page limit.
+
+        Args:
+            session: Database session
+            user_id: User ID
+            document_name: Name of the document that triggered the limit
+            document_type: Type of document (FILE, YOUTUBE_VIDEO, etc.)
+            search_space_id: Search space ID
+            pages_used: Current number of pages used
+            pages_limit: User's page limit
+            pages_to_add: Number of pages the document would add
+
+        Returns:
+            Notification: The created notification
+        """
+        operation_id = self._generate_operation_id(document_name, search_space_id)
+
+        # Truncate document name for title if too long
+        display_name = (
+            document_name[:40] + "..." if len(document_name) > 40 else document_name
+        )
+        title = f"Page limit exceeded: {display_name}"
+        message = f"This document has ~{pages_to_add} page(s) but you've used {pages_used}/{pages_limit} pages. Upgrade to process more documents."
+
+        metadata = {
+            "operation_id": operation_id,
+            "document_name": document_name,
+            "document_type": document_type,
+            "pages_used": pages_used,
+            "pages_limit": pages_limit,
+            "pages_to_add": pages_to_add,
+            "status": "failed",
+            "error_type": "page_limit_exceeded",
+            # Navigation target for frontend
+            "action_url": f"/dashboard/{search_space_id}/more-pages",
+            "action_label": "Upgrade Plan",
+        }
+
+        notification = Notification(
+            user_id=user_id,
+            search_space_id=search_space_id,
+            type=self.notification_type,
+            title=title,
+            message=message,
+            notification_metadata=metadata,
+        )
+        session.add(notification)
+        await session.commit()
+        await session.refresh(notification)
+        logger.info(
+            f"Created page_limit_exceeded notification {notification.id} for user {user_id}"
+        )
+        return notification
+
+
 class NotificationService:
     """Service for creating and managing notifications that sync via Electric SQL."""
 
@@ -868,6 +959,7 @@ class NotificationService:
     connector_indexing = ConnectorIndexingNotificationHandler()
     document_processing = DocumentProcessingNotificationHandler()
     mention = MentionNotificationHandler()
+    page_limit = PageLimitNotificationHandler()
 
     @staticmethod
     async def create_notification(

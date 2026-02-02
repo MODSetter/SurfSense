@@ -2,6 +2,8 @@
 Webcrawler connector indexer.
 """
 
+import time
+from collections.abc import Awaitable, Callable
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
@@ -29,6 +31,12 @@ from .base import (
     update_connector_last_indexed,
 )
 
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
+
 
 async def index_crawled_urls(
     session: AsyncSession,
@@ -38,6 +46,7 @@ async def index_crawled_urls(
     start_date: str | None = None,
     end_date: str | None = None,
     update_last_indexed: bool = True,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index web page URLs.
@@ -50,6 +59,7 @@ async def index_crawled_urls(
         start_date: Start date for filtering (YYYY-MM-DD format) - optional
         end_date: End date for filtering (YYYY-MM-DD format) - optional
         update_last_indexed: Whether to update the last_indexed_at timestamp (default: True)
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -140,7 +150,17 @@ async def index_crawled_urls(
         documents_skipped = 0
         failed_urls = []
 
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+
         for idx, url in enumerate(urls, 1):
+            # Check if it's time for a heartbeat update
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = time.time()
             try:
                 logger.info(f"Processing URL {idx}/{len(urls)}: {url}")
 

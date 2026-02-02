@@ -26,7 +26,7 @@ class BaseApiService {
 	noAuthEndpoints: string[] = ["/auth/jwt/login", "/auth/register", "/auth/refresh"];
 
 	// Prefixes that don't require auth (checked with startsWith)
-	noAuthPrefixes: string[] = ["/api/v1/public/", "/api/v1/podcasts/"];
+	noAuthPrefixes: string[] = ["/api/v1/public/"];
 
 	// Use a getter to always read fresh token from localStorage
 	// This ensures the token is always up-to-date after login/logout

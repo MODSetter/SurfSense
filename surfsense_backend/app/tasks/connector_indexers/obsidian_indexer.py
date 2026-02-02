@@ -7,6 +7,8 @@ This connector is only available in self-hosted mode.
 
 import os
 import re
+import time
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -34,6 +36,12 @@ from .base import (
     logger,
     update_connector_last_indexed,
 )
+
+# Type hint for heartbeat callback
+HeartbeatCallbackType = Callable[[int], Awaitable[None]]
+
+# Heartbeat interval in seconds
+HEARTBEAT_INTERVAL_SECONDS = 30
 
 
 def parse_frontmatter(content: str) -> tuple[dict | None, str]:
@@ -152,6 +160,7 @@ async def index_obsidian_vault(
     start_date: str | None = None,
     end_date: str | None = None,
     update_last_indexed: bool = True,
+    on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
     Index notes from a local Obsidian vault.
@@ -167,6 +176,7 @@ async def index_obsidian_vault(
         start_date: Start date for filtering (YYYY-MM-DD format) - optional
         end_date: End date for filtering (YYYY-MM-DD format) - optional
         update_last_indexed: Whether to update the last_indexed_at timestamp
+        on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
         Tuple containing (number of documents indexed, error message or None)
@@ -305,7 +315,17 @@ async def index_obsidian_vault(
         indexed_count = 0
         skipped_count = 0
 
+        # Heartbeat tracking - update notification periodically to prevent appearing stuck
+        last_heartbeat_time = time.time()
+
         for file_info in files:
+            # Check if it's time for a heartbeat update
+            if (
+                on_heartbeat_callback
+                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
+            ):
+                await on_heartbeat_callback(indexed_count)
+                last_heartbeat_time = time.time()
             try:
                 file_path = file_info["path"]
                 relative_path = file_info["relative_path"]

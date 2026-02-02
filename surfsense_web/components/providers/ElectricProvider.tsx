@@ -1,6 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
@@ -18,15 +19,8 @@ interface ElectricProviderProps {
 }
 
 /**
- * ElectricProvider initializes the Electric SQL client with user-specific PGlite database
- * and provides it to children via context.
- *
- * KEY BEHAVIORS:
- * 1. Single initialization point - only this provider creates the Electric client
- * 2. Creates user-specific database (isolated per user)
- * 3. Cleans up other users' databases on login
- * 4. Re-initializes when user changes
- * 5. Provides client via context - hooks should use useElectricClient()
+ * Initializes user-specific PGlite database with Electric SQL sync.
+ * Handles user isolation, cleanup, and re-initialization on user change.
  */
 export function ElectricProvider({ children }: ElectricProviderProps) {
 	const [electricClient, setElectricClient] = useState<ElectricClient | null>(null);
@@ -38,15 +32,13 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 	} = useAtomValue(currentUserAtom);
 	const previousUserIdRef = useRef<string | null>(null);
 	const initializingRef = useRef(false);
+	const pathname = usePathname();
 
 	useEffect(() => {
-		// Skip on server side
 		if (typeof window === "undefined") return;
 
-		// If no user is logged in, don't initialize Electric
-		// The app can still function without real-time sync for non-authenticated pages
+		// No user logged in - cleanup if previous user existed
 		if (!isUserLoaded || !user?.id) {
-			// If we had a previous user and now logged out, cleanup
 			if (previousUserIdRef.current && isElectricInitialized()) {
 				console.log("[ElectricProvider] User logged out, cleaning up...");
 				cleanupElectric().then(() => {
@@ -59,25 +51,17 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 
 		const userId = String(user.id);
 
-		// If already initialized for THIS user, skip
-		if (electricClient && previousUserIdRef.current === userId) {
+		// Skip if already initialized for this user or currently initializing
+		if ((electricClient && previousUserIdRef.current === userId) || initializingRef.current) {
 			return;
 		}
 
-		// Prevent concurrent initialization attempts
-		if (initializingRef.current) {
-			return;
-		}
-
-		// User changed or first initialization
 		initializingRef.current = true;
 		let mounted = true;
 
 		async function init() {
 			try {
 				console.log(`[ElectricProvider] Initializing for user: ${userId}`);
-
-				// If different user was previously initialized, cleanup will happen inside initElectric
 				const client = await initElectric(userId);
 
 				if (mounted) {
@@ -90,7 +74,6 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 				console.error("[ElectricProvider] Failed to initialize:", err);
 				if (mounted) {
 					setError(err instanceof Error ? err : new Error("Failed to initialize Electric SQL"));
-					// Set client to null so hooks know initialization failed
 					setElectricClient(null);
 				}
 			} finally {
@@ -101,38 +84,33 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 		}
 
 		init();
-
 		return () => {
 			mounted = false;
 		};
 	}, [user?.id, isUserLoaded, electricClient]);
 
-	// Check if user is authenticated first (has bearer token)
-	// This prevents showing loading screen for unauthenticated users on homepage
 	const hasToken = typeof window !== "undefined" && !!getBearerToken();
 
-	// Determine if we should show loading
-	const shouldShowLoading = hasToken && isUserLoaded && !!user?.id && !electricClient && !error;
+	// Only block UI on dashboard routes; public pages render immediately
+	const requiresElectricLoading = pathname?.startsWith("/dashboard");
+	const shouldShowLoading =
+		hasToken && isUserLoaded && !!user?.id && !electricClient && !error && requiresElectricLoading;
 
-	// Use global loading hook with ownership tracking - prevents flash during transitions
 	useGlobalLoadingEffect(shouldShowLoading);
 
-	// For non-authenticated pages (like landing page), render immediately with null context
-	// Also render immediately if user query failed (e.g., token expired)
+	// Render immediately for unauthenticated users or failed user queries
 	if (!hasToken || !isUserLoaded || !user?.id || isUserError) {
 		return <ElectricContext.Provider value={null}>{children}</ElectricContext.Provider>;
 	}
 
-	// Return children with null context while initializing - the global provider handles the loading UI
+	// Render with null context while initializing
 	if (!electricClient && !error) {
 		return <ElectricContext.Provider value={null}>{children}</ElectricContext.Provider>;
 	}
 
-	// If there's an error, still render but warn
 	if (error) {
 		console.warn("[ElectricProvider] Initialization failed, sync may not work:", error.message);
 	}
 
-	// Provide the Electric client to children
 	return <ElectricContext.Provider value={electricClient}>{children}</ElectricContext.Provider>;
 }

@@ -3,6 +3,7 @@ import {
 	createConnectorRequest,
 	createConnectorResponse,
 	type DeleteConnectorRequest,
+	type DiscordChannel,
 	deleteConnectorRequest,
 	deleteConnectorResponse,
 	type GetConnectorRequest,
@@ -16,10 +17,13 @@ import {
 	indexConnectorResponse,
 	type ListGitHubRepositoriesRequest,
 	type ListGoogleDriveFoldersRequest,
+	listDiscordChannelsResponse,
 	listGitHubRepositoriesRequest,
 	listGitHubRepositoriesResponse,
 	listGoogleDriveFoldersRequest,
 	listGoogleDriveFoldersResponse,
+	listSlackChannelsResponse,
+	type SlackChannel,
 	type UpdateConnectorRequest,
 	updateConnectorRequest,
 	updateConnectorResponse,
@@ -49,12 +53,14 @@ class ConnectorsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		// Transform query params to be string values
+		// Transform query params to be string values, filtering out undefined/null
 		const transformedQueryParams = parsedRequest.data.queryParams
 			? Object.fromEntries(
-					Object.entries(parsedRequest.data.queryParams).map(([k, v]) => {
-						return [k, String(v)];
-					})
+					Object.entries(parsedRequest.data.queryParams)
+						.filter(([_, v]) => v !== undefined && v !== null)
+						.map(([k, v]) => {
+							return [k, String(v)];
+						})
 				)
 			: undefined;
 
@@ -102,11 +108,13 @@ class ConnectorsApiService {
 
 		const { data, queryParams } = parsedRequest.data;
 
-		// Transform query params to be string values
+		// Transform query params to be string values, filtering out undefined/null
 		const transformedQueryParams = Object.fromEntries(
-			Object.entries(queryParams).map(([k, v]) => {
-				return [k, String(v)];
-			})
+			Object.entries(queryParams)
+				.filter(([_, v]) => v !== undefined && v !== null)
+				.map(([k, v]) => {
+					return [k, String(v)];
+				})
 		);
 
 		const queryString = new URLSearchParams(transformedQueryParams).toString();
@@ -174,11 +182,13 @@ class ConnectorsApiService {
 
 		const { connector_id, queryParams, body } = parsedRequest.data;
 
-		// Transform query params to be string values
+		// Transform query params to be string values, filtering out undefined/null
 		const transformedQueryParams = Object.fromEntries(
-			Object.entries(queryParams).map(([k, v]) => {
-				return [k, String(v)];
-			})
+			Object.entries(queryParams)
+				.filter(([_, v]) => v !== undefined && v !== null)
+				.map(([k, v]) => {
+					return [k, String(v)];
+				})
 		);
 
 		const queryString = new URLSearchParams(transformedQueryParams).toString();
@@ -329,6 +339,36 @@ class ConnectorsApiService {
 			}
 		);
 	};
+
+	// =============================================================================
+	// Slack Connector Methods
+	// =============================================================================
+
+	/**
+	 * Get Slack channels with bot membership status
+	 */
+	getSlackChannels = async (connectorId: number) => {
+		return baseApiService.get(
+			`/api/v1/slack/connector/${connectorId}/channels`,
+			listSlackChannelsResponse
+		);
+	};
+
+	// =============================================================================
+	// Discord Connector Methods
+	// =============================================================================
+
+	/**
+	 * Get Discord text channels for a connector
+	 */
+	getDiscordChannels = async (connectorId: number) => {
+		return baseApiService.get(
+			`/api/v1/discord/connector/${connectorId}/channels`,
+			listDiscordChannelsResponse
+		);
+	};
 }
+
+export type { SlackChannel, DiscordChannel };
 
 export const connectorsApiService = new ConnectorsApiService();

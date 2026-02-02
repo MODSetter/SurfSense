@@ -246,15 +246,22 @@ class GoogleCalendarConnector:
             dt_start = isoparse(start_date)
             dt_end = isoparse(end_date)
 
+            # Set start to beginning of day (00:00:00) and end to end of day (23:59:59)
+            # This ensures same-date queries work (e.g., start=2026-01-23, end=2026-01-23)
+            # and matches the Composio connector behavior
             if dt_start.tzinfo is None:
-                dt_start = dt_start.replace(tzinfo=pytz.UTC)
+                dt_start = dt_start.replace(hour=0, minute=0, second=0, tzinfo=pytz.UTC)
             else:
-                dt_start = dt_start.astimezone(pytz.UTC)
+                dt_start = dt_start.astimezone(pytz.UTC).replace(
+                    hour=0, minute=0, second=0
+                )
 
             if dt_end.tzinfo is None:
-                dt_end = dt_end.replace(tzinfo=pytz.UTC)
+                dt_end = dt_end.replace(hour=23, minute=59, second=59, tzinfo=pytz.UTC)
             else:
-                dt_end = dt_end.astimezone(pytz.UTC)
+                dt_end = dt_end.astimezone(pytz.UTC).replace(
+                    hour=23, minute=59, second=59
+                )
 
             if dt_start >= dt_end:
                 return [], (
