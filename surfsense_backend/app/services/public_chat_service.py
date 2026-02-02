@@ -8,6 +8,7 @@ Key concepts:
 - Single-phase clone reads directly from snapshot_data
 """
 
+import contextlib
 import hashlib
 import json
 import re
@@ -213,7 +214,6 @@ async def create_snapshot(
                             # Update status to "ready" so frontend renders PodcastPlayer
                             part["result"] = {**result_data, "status": "ready"}
 
-
         messages_data.append(
             {
                 "id": msg.id,
@@ -314,9 +314,7 @@ async def get_snapshot_by_token(
 ) -> PublicChatSnapshot | None:
     """Get a snapshot by its share token."""
     result = await session.execute(
-        select(PublicChatSnapshot).filter(
-            PublicChatSnapshot.share_token == share_token
-        )
+        select(PublicChatSnapshot).filter(PublicChatSnapshot.share_token == share_token)
     )
     return result.scalars().first()
 
@@ -426,7 +424,7 @@ async def delete_snapshot(
 
 
 async def delete_affected_snapshots(
-    session: AsyncSession,  # noqa: ARG001 - kept for API compatibility
+    session: AsyncSession,
     thread_id: int,
     message_ids: list[int],
 ) -> int:
@@ -538,10 +536,8 @@ async def clone_from_snapshot(
     author_ids_from_snapshot: set[UUID] = set()
     for msg_data in messages_data:
         if author_str := msg_data.get("author_id"):
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 author_ids_from_snapshot.add(UUID(author_str))
-            except (ValueError, TypeError):
-                pass
 
     existing_authors: set[UUID] = set()
     if author_ids_from_snapshot:

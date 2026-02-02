@@ -389,7 +389,9 @@ export const ConnectorIndicator: FC = () => {
 											onConnectOAuth={hasDocumentSummaryLLM ? handleConnectOAuth : () => {}}
 											onConnectNonOAuth={hasDocumentSummaryLLM ? handleConnectNonOAuth : () => {}}
 											onCreateWebcrawler={hasDocumentSummaryLLM ? handleCreateWebcrawler : () => {}}
-											onCreateYouTubeCrawler={hasDocumentSummaryLLM ? handleCreateYouTubeCrawler : () => {}}
+											onCreateYouTubeCrawler={
+												hasDocumentSummaryLLM ? handleCreateYouTubeCrawler : () => {}
+											}
 											onManage={handleStartEdit}
 											onViewAccountsList={handleViewAccountsList}
 										/>

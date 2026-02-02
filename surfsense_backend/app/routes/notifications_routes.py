@@ -22,7 +22,9 @@ router = APIRouter(prefix="/notifications", tags=["notifications"])
 SYNC_WINDOW_DAYS = 14
 
 # Valid notification types - must match frontend InboxItemTypeEnum
-NotificationType = Literal["connector_indexing", "document_processing", "new_mention", "page_limit_exceeded"]
+NotificationType = Literal[
+    "connector_indexing", "document_processing", "new_mention", "page_limit_exceeded"
+]
 
 
 class NotificationResponse(BaseModel):

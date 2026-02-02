@@ -61,21 +61,23 @@ async def get_global_new_llm_configs(
         # Only include Auto mode if there are actual global configs to route to
         # Auto mode requires at least one global config with valid API key
         if global_configs and len(global_configs) > 0:
-            safe_configs.append({
-                "id": 0,
-                "name": "Auto (Load Balanced)",
-                "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling. Recommended for most users.",
-                "provider": "AUTO",
-                "custom_provider": None,
-                "model_name": "auto",
-                "api_base": None,
-                "litellm_params": {},
-                "system_instructions": "",
-                "use_default_system_instructions": True,
-                "citations_enabled": True,
-                "is_global": True,
-                "is_auto_mode": True,
-            })
+            safe_configs.append(
+                {
+                    "id": 0,
+                    "name": "Auto (Load Balanced)",
+                    "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling. Recommended for most users.",
+                    "provider": "AUTO",
+                    "custom_provider": None,
+                    "model_name": "auto",
+                    "api_base": None,
+                    "litellm_params": {},
+                    "system_instructions": "",
+                    "use_default_system_instructions": True,
+                    "citations_enabled": True,
+                    "is_global": True,
+                    "is_auto_mode": True,
+                }
+            )
 
         # Add individual global configs
         for cfg in global_configs:

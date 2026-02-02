@@ -546,7 +546,9 @@ class PublicChatSnapshot(BaseModel, TimestampMixin):
     # Constraints
     __table_args__ = (
         # Prevent duplicate snapshots of the same content for the same thread
-        UniqueConstraint("thread_id", "content_hash", name="uq_snapshot_thread_content_hash"),
+        UniqueConstraint(
+            "thread_id", "content_hash", name="uq_snapshot_thread_content_hash"
+        ),
     )
 
 

@@ -1273,7 +1273,7 @@ async def regenerate_response(
             .limit(2)
         )
         messages_to_delete = list(last_messages_result.scalars().all())
-        
+
         message_ids_to_delete = [msg.id for msg in messages_to_delete]
 
         # Get search space for LLM config
