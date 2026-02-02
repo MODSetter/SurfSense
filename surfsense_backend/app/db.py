@@ -257,6 +257,11 @@ class Permission(str, Enum):
     SETTINGS_UPDATE = "settings:update"
     SETTINGS_DELETE = "settings:delete"  # Delete the entire search space
 
+    # Public Sharing
+    PUBLIC_SHARING_VIEW = "public_sharing:view"
+    PUBLIC_SHARING_CREATE = "public_sharing:create"
+    PUBLIC_SHARING_DELETE = "public_sharing:delete"
+
     # Full access wildcard
     FULL_ACCESS = "*"
 
@@ -299,6 +304,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.ROLES_READ.value,
         # Settings (view only, no update or delete)
         Permission.SETTINGS_VIEW.value,
+        # Public Sharing (can create and view, no delete)
+        Permission.PUBLIC_SHARING_VIEW.value,
+        Permission.PUBLIC_SHARING_CREATE.value,
     ],
     "Viewer": [
         # Documents (read only)
@@ -322,6 +330,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.ROLES_READ.value,
         # Settings (view only)
         Permission.SETTINGS_VIEW.value,
+        # Public Sharing (view only)
+        Permission.PUBLIC_SHARING_VIEW.value,
     ],
 }
 
