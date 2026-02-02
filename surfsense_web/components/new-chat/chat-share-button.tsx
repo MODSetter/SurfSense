@@ -5,7 +5,7 @@ import { useAtomValue, useSetAtom } from "jotai";
 import { Globe, User, Users } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createPublicChatSnapshotMutationAtom } from "@/atoms/chat/chat-thread-mutation.atoms";
+import { createPublicChatSnapshotMutationAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-mutation.atoms";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { Button } from "@/components/ui/button";

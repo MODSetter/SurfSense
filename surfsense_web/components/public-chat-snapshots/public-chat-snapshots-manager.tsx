@@ -23,7 +23,7 @@ export function PublicChatSnapshotsManager({
 	const [deletingId, setDeletingId] = useState<number | undefined>();
 
 	// Data fetching
-	const { data: snapshotsData, isLoading, isError, refetch } = useAtomValue(publicChatSnapshotsAtom);
+	const { data: snapshotsData, isLoading, isError } = useAtomValue(publicChatSnapshotsAtom);
 
 	// Permissions
 	const { data: access } = useAtomValue(myAccessAtom);
@@ -57,14 +57,13 @@ export function PublicChatSnapshotsManager({
 					thread_id: snapshot.thread_id,
 					snapshot_id: snapshot.id,
 				});
-				await refetch();
 			} catch (error) {
 				console.error("Failed to delete snapshot:", error);
 			} finally {
 				setDeletingId(undefined);
 			}
 		},
-		[deleteSnapshot, refetch]
+		[deleteSnapshot]
 	);
 
 	// Loading state
