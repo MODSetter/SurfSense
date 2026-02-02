@@ -9,6 +9,7 @@ export const inboxItemTypeEnum = z.enum([
 	"connector_indexing",
 	"document_processing",
 	"new_mention",
+	"page_limit_exceeded",
 ]);
 
 /**
@@ -89,6 +90,21 @@ export const newMentionMetadata = z.object({
 });
 
 /**
+ * Page limit exceeded metadata schema
+ */
+export const pageLimitExceededMetadata = baseInboxItemMetadata.extend({
+	document_name: z.string(),
+	document_type: z.string(),
+	pages_used: z.number(),
+	pages_limit: z.number(),
+	pages_to_add: z.number(),
+	error_type: z.literal("page_limit_exceeded"),
+	// Navigation target for frontend
+	action_url: z.string(),
+	action_label: z.string(),
+});
+
+/**
  * Union of all inbox item metadata types
  * Use this when the inbox item type is unknown
  */
@@ -96,6 +112,7 @@ export const inboxItemMetadata = z.union([
 	connectorIndexingMetadata,
 	documentProcessingMetadata,
 	newMentionMetadata,
+	pageLimitExceededMetadata,
 	baseInboxItemMetadata,
 ]);
 
@@ -131,6 +148,11 @@ export const documentProcessingInboxItem = inboxItem.extend({
 export const newMentionInboxItem = inboxItem.extend({
 	type: z.literal("new_mention"),
 	metadata: newMentionMetadata,
+});
+
+export const pageLimitExceededInboxItem = inboxItem.extend({
+	type: z.literal("page_limit_exceeded"),
+	metadata: pageLimitExceededMetadata,
 });
 
 // =============================================================================
@@ -230,12 +252,26 @@ export function isNewMentionMetadata(metadata: unknown): metadata is NewMentionM
 }
 
 /**
+ * Type guard for PageLimitExceededMetadata
+ */
+export function isPageLimitExceededMetadata(
+	metadata: unknown
+): metadata is PageLimitExceededMetadata {
+	return pageLimitExceededMetadata.safeParse(metadata).success;
+}
+
+/**
  * Safe metadata parser - returns typed metadata or null
  */
 export function parseInboxItemMetadata(
 	type: InboxItemTypeEnum,
 	metadata: unknown
-): ConnectorIndexingMetadata | DocumentProcessingMetadata | NewMentionMetadata | null {
+):
+	| ConnectorIndexingMetadata
+	| DocumentProcessingMetadata
+	| NewMentionMetadata
+	| PageLimitExceededMetadata
+	| null {
 	switch (type) {
 		case "connector_indexing": {
 			const result = connectorIndexingMetadata.safeParse(metadata);
@@ -247,6 +283,10 @@ export function parseInboxItemMetadata(
 		}
 		case "new_mention": {
 			const result = newMentionMetadata.safeParse(metadata);
+			return result.success ? result.data : null;
+		}
+		case "page_limit_exceeded": {
+			const result = pageLimitExceededMetadata.safeParse(metadata);
 			return result.success ? result.data : null;
 		}
 		default:
@@ -265,11 +305,13 @@ export type BaseInboxItemMetadata = z.infer<typeof baseInboxItemMetadata>;
 export type ConnectorIndexingMetadata = z.infer<typeof connectorIndexingMetadata>;
 export type DocumentProcessingMetadata = z.infer<typeof documentProcessingMetadata>;
 export type NewMentionMetadata = z.infer<typeof newMentionMetadata>;
+export type PageLimitExceededMetadata = z.infer<typeof pageLimitExceededMetadata>;
 export type InboxItemMetadata = z.infer<typeof inboxItemMetadata>;
 export type InboxItem = z.infer<typeof inboxItem>;
 export type ConnectorIndexingInboxItem = z.infer<typeof connectorIndexingInboxItem>;
 export type DocumentProcessingInboxItem = z.infer<typeof documentProcessingInboxItem>;
 export type NewMentionInboxItem = z.infer<typeof newMentionInboxItem>;
+export type PageLimitExceededInboxItem = z.infer<typeof pageLimitExceededInboxItem>;
 
 // API Request/Response types
 export type GetNotificationsRequest = z.infer<typeof getNotificationsRequest>;

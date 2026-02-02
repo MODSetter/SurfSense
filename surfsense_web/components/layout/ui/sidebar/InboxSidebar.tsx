@@ -3,6 +3,7 @@
 import { useAtom } from "jotai";
 import {
 	AlertCircle,
+	AlertTriangle,
 	AtSign,
 	BellDot,
 	Check,
@@ -44,7 +45,11 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { isConnectorIndexingMetadata, isNewMentionMetadata } from "@/contracts/types/inbox.types";
+import {
+	isConnectorIndexingMetadata,
+	isNewMentionMetadata,
+	isPageLimitExceededMetadata,
+} from "@/contracts/types/inbox.types";
 import type { InboxItem } from "@/hooks/use-inbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -232,12 +237,15 @@ export function InboxSidebar({
 	const currentDataSource = activeTab === "mentions" ? mentions : status;
 	const { loading, loadingMore = false, hasMore = false, loadMore } = currentDataSource;
 
-	// Status tab includes: connector indexing, document processing
+	// Status tab includes: connector indexing, document processing, page limit exceeded
 	// Filter to only show status notification types
 	const statusItems = useMemo(
 		() =>
 			status.items.filter(
-				(item) => item.type === "connector_indexing" || item.type === "document_processing"
+				(item) =>
+					item.type === "connector_indexing" ||
+					item.type === "document_processing" ||
+					item.type === "page_limit_exceeded"
 			),
 		[status.items]
 	);
@@ -359,6 +367,16 @@ export function InboxSidebar({
 						router.push(url);
 					}
 				}
+			} else if (item.type === "page_limit_exceeded") {
+				// Navigate to the upgrade/more-pages page
+				if (isPageLimitExceededMetadata(item.metadata)) {
+					const actionUrl = item.metadata.action_url;
+					if (actionUrl) {
+						onOpenChange(false);
+						onCloseMobileSidebar?.();
+						router.push(actionUrl);
+					}
+				}
 			}
 		},
 		[markAsRead, router, onOpenChange, onCloseMobileSidebar, setTargetCommentId]
@@ -416,6 +434,15 @@ export function InboxSidebar({
 						{getInitials(null, null)}
 					</AvatarFallback>
 				</Avatar>
+			);
+		}
+
+		// For page limit exceeded, show a warning icon with amber/orange color
+		if (item.type === "page_limit_exceeded") {
+			return (
+				<div className="h-8 w-8 flex items-center justify-center rounded-full bg-amber-500/10">
+					<AlertTriangle className="h-4 w-4 text-amber-500" />
+				</div>
 			);
 		}
 

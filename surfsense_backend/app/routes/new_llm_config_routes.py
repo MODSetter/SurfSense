@@ -56,10 +56,12 @@ async def get_global_new_llm_configs(
     """
     try:
         global_configs = config.GLOBAL_LLM_CONFIGS
+        safe_configs = []
 
-        # Start with Auto mode as the first option (recommended default)
-        safe_configs = [
-            {
+        # Only include Auto mode if there are actual global configs to route to
+        # Auto mode requires at least one global config with valid API key
+        if global_configs and len(global_configs) > 0:
+            safe_configs.append({
                 "id": 0,
                 "name": "Auto (Load Balanced)",
                 "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling. Recommended for most users.",
@@ -73,8 +75,7 @@ async def get_global_new_llm_configs(
                 "citations_enabled": True,
                 "is_global": True,
                 "is_auto_mode": True,
-            }
-        ]
+            })
 
         # Add individual global configs
         for cfg in global_configs:
