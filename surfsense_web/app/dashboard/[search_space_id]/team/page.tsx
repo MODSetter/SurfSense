@@ -207,7 +207,15 @@ export default function TeamManagementPage() {
 	);
 
 	const handleUpdateRole = useCallback(
-		async (roleId: number, data: { name?: string; description?: string | null; permissions?: string[]; is_default?: boolean }): Promise<Role> => {
+		async (
+			roleId: number,
+			data: {
+				name?: string;
+				description?: string | null;
+				permissions?: string[];
+				is_default?: boolean;
+			}
+		): Promise<Role> => {
 			const request: UpdateRoleRequest = {
 				search_space_id: searchSpaceId,
 				role_id: roleId,
@@ -961,7 +969,15 @@ function RolesTab({
 	roles: Role[];
 	groupedPermissions: Record<string, PermissionWithDescription[]>;
 	loading: boolean;
-	onUpdateRole: (roleId: number, data: { name?: string; description?: string | null; permissions?: string[]; is_default?: boolean }) => Promise<Role>;
+	onUpdateRole: (
+		roleId: number,
+		data: {
+			name?: string;
+			description?: string | null;
+			permissions?: string[];
+			is_default?: boolean;
+		}
+	) => Promise<Role>;
 	onDeleteRole: (roleId: number) => Promise<boolean>;
 	onCreateRole: (data: CreateRoleRequest["data"]) => Promise<Role>;
 	canUpdate: boolean;
@@ -1006,18 +1022,19 @@ function RolesTab({
 			)}
 
 			{/* Edit Role Form */}
-			{editingRoleId !== null && (() => {
-				const roleToEdit = roles.find((r) => r.id === editingRoleId);
-				if (!roleToEdit) return null;
-				return (
-					<EditRoleSection
-						role={roleToEdit}
-						groupedPermissions={groupedPermissions}
-						onUpdateRole={onUpdateRole}
-						onCancel={() => setEditingRoleId(null)}
-					/>
-				);
-			})()}
+			{editingRoleId !== null &&
+				(() => {
+					const roleToEdit = roles.find((r) => r.id === editingRoleId);
+					if (!roleToEdit) return null;
+					return (
+						<EditRoleSection
+							role={roleToEdit}
+							groupedPermissions={groupedPermissions}
+							onUpdateRole={onUpdateRole}
+							onCancel={() => setEditingRoleId(null)}
+						/>
+					);
+				})()}
 
 			{/* Roles Grid */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1077,14 +1094,9 @@ function RolesTab({
 													<MoreHorizontal className="h-4 w-4" />
 												</Button>
 											</DropdownMenuTrigger>
-											<DropdownMenuContent
-												align="end"
-												onCloseAutoFocus={(e) => e.preventDefault()}
-											>
+											<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
 												{canUpdate && (
-													<DropdownMenuItem
-														onClick={() => setEditingRoleId(role.id)}
-													>
+													<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
 														<Edit2 className="h-4 w-4 mr-2" />
 														Edit Role
 													</DropdownMenuItem>
@@ -2058,7 +2070,15 @@ function EditRoleSection({
 }: {
 	role: Role;
 	groupedPermissions: Record<string, PermissionWithDescription[]>;
-	onUpdateRole: (roleId: number, data: { name?: string; description?: string | null; permissions?: string[]; is_default?: boolean }) => Promise<Role>;
+	onUpdateRole: (
+		roleId: number,
+		data: {
+			name?: string;
+			description?: string | null;
+			permissions?: string[];
+			is_default?: boolean;
+		}
+	) => Promise<Role>;
 	onCancel: () => void;
 }) {
 	const [saving, setSaving] = useState(false);

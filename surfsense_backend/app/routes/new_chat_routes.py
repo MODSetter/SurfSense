@@ -736,7 +736,9 @@ async def update_thread_visibility(
 # =============================================================================
 
 
-@router.post("/threads/{thread_id}/snapshots", response_model=PublicChatSnapshotCreateResponse)
+@router.post(
+    "/threads/{thread_id}/snapshots", response_model=PublicChatSnapshotCreateResponse
+)
 async def create_thread_snapshot(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -756,7 +758,9 @@ async def create_thread_snapshot(
     )
 
 
-@router.get("/threads/{thread_id}/snapshots", response_model=PublicChatSnapshotListResponse)
+@router.get(
+    "/threads/{thread_id}/snapshots", response_model=PublicChatSnapshotListResponse
+)
 async def list_thread_snapshots(
     thread_id: int,
     session: AsyncSession = Depends(get_async_session),
