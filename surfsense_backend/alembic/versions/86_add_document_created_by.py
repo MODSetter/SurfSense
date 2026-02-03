@@ -83,9 +83,9 @@ def upgrade() -> None:
     # 4. Backfill existing documents with search space owner's user_id
     # Process in batches with progress indicator
     print("Step 4/4: Backfilling created_by_id for existing documents...")
-    
+
     connection = op.get_bind()
-    
+
     # Get total count of documents that need backfilling
     result = connection.execute(
         sa.text("""
@@ -93,19 +93,19 @@ def upgrade() -> None:
         """)
     )
     total_count = result.scalar()
-    
+
     if total_count == 0:
         print("  No documents need backfilling. Skipping.")
         return
-    
+
     print(f"  Total documents to backfill: {total_count:,}")
-    
+
     processed = 0
     batch_num = 0
-    
+
     while processed < total_count:
         batch_num += 1
-        
+
         # Update a batch of documents using a subquery to limit the update
         # We use ctid (tuple identifier) for efficient batching in PostgreSQL
         result = connection.execute(
@@ -121,21 +121,23 @@ def upgrade() -> None:
                     LIMIT :batch_size
                 )
             """),
-            {"batch_size": BATCH_SIZE}
+            {"batch_size": BATCH_SIZE},
         )
-        
+
         rows_updated = result.rowcount
         if rows_updated == 0:
             # No more rows to update
             break
-            
+
         processed += rows_updated
         progress_pct = min(100.0, (processed / total_count) * 100)
-        
+
         # Print progress with carriage return for in-place update
-        sys.stdout.write(f"\r  Progress: {processed:,}/{total_count:,} documents ({progress_pct:.1f}%) - Batch {batch_num}")
+        sys.stdout.write(
+            f"\r  Progress: {processed:,}/{total_count:,} documents ({progress_pct:.1f}%) - Batch {batch_num}"
+        )
         sys.stdout.flush()
-    
+
     # Final newline after progress
     print()
     print(f"  Done: Backfilled {processed:,} documents.")

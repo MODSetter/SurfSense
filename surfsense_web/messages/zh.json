@@ -716,6 +716,8 @@
 		"nav_role_assignments_desc": "为代理角色分配配置",
 		"nav_system_instructions": "系统指令",
 		"nav_system_instructions_desc": "搜索空间级别的 AI 指令",
+		"nav_public_links": "公开聊天链接",
+		"nav_public_links_desc": "管理公开分享的聊天链接",
 		"general_name_label": "名称",
 		"general_name_placeholder": "输入搜索空间名称",
 		"general_name_description": "您的搜索空间的唯一名称。",
@@ -779,5 +781,10 @@
 			"comments": "评论",
 			"example_comment": "我们明天讨论这个！"
 		}
+	},
+	"public_chat": {
+		"not_found_title": "此对话已被删除。",
+		"click_here": "点击这里",
+		"sign_in_prompt": "登录 SurfSense 开始您自己的对话。"
 	}
 }
