@@ -33,7 +33,7 @@ interface PricingProps {
 export function Pricing({
 	plans,
 	title = "Simple, Transparent Pricing",
-	description = "Choose the plan that works for you\nAll plans include access to our platform, lead generation tools, and dedicated support.",
+	description = "Choose the plan that works for you\nAll plans include access to our SurfSense AI workspace and community support.",
 }: PricingProps) {
 	const [isMonthly, setIsMonthly] = useState(true);
 	const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -69,7 +69,7 @@ export function Pricing({
 	};
 
 	return (
-		<div className="container py-20">
+		<div className="container mx-auto py-20">
 			<div className="text-center space-y-4 mb-12">
 				<h2 className="text-4xl font-bold tracking-tight sm:text-5xl">{title}</h2>
 				<p className="text-muted-foreground text-lg whitespace-pre-line">{description}</p>

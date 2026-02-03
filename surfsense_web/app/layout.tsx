@@ -101,7 +101,7 @@ export default function RootLayout({
 								attribute="class"
 								enableSystem
 								disableTransitionOnChange
-								defaultTheme="light"
+								defaultTheme="system"
 							>
 								<RootProvider>
 									<ReactQueryClientProvider>
