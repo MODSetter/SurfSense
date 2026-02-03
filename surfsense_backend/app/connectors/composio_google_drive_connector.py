@@ -399,7 +399,9 @@ async def _extract_text_with_etl(
     from logging import ERROR, getLogger
 
     etl_service = config.ETL_SERVICE
-    logger.debug(f"[_extract_text_with_etl] START - file_path={file_path}, file_name={file_name}, etl_service={etl_service}")
+    logger.debug(
+        f"[_extract_text_with_etl] START - file_path={file_path}, file_name={file_name}, etl_service={etl_service}"
+    )
 
     try:
         if etl_service == "UNSTRUCTURED":
@@ -419,10 +421,14 @@ async def _extract_text_with_etl(
             )
 
             docs = await loader.aload()
-            logger.debug(f"[_extract_text_with_etl] UNSTRUCTURED loaded {len(docs) if docs else 0} docs")
+            logger.debug(
+                f"[_extract_text_with_etl] UNSTRUCTURED loaded {len(docs) if docs else 0} docs"
+            )
             if docs:
                 result = await convert_document_to_markdown(docs)
-                logger.debug(f"[_extract_text_with_etl] UNSTRUCTURED result: {len(result) if result else 0} chars")
+                logger.debug(
+                    f"[_extract_text_with_etl] UNSTRUCTURED result: {len(result) if result else 0} chars"
+                )
                 return result
             logger.debug("[_extract_text_with_etl] UNSTRUCTURED returned no docs")
             return None
@@ -447,12 +453,18 @@ async def _extract_text_with_etl(
             markdown_documents = await result.aget_markdown_documents(
                 split_by_page=False
             )
-            logger.debug(f"[_extract_text_with_etl] LLAMACLOUD got {len(markdown_documents) if markdown_documents else 0} markdown docs")
+            logger.debug(
+                f"[_extract_text_with_etl] LLAMACLOUD got {len(markdown_documents) if markdown_documents else 0} markdown docs"
+            )
             if markdown_documents:
                 text = markdown_documents[0].text
-                logger.debug(f"[_extract_text_with_etl] LLAMACLOUD result: {len(text) if text else 0} chars")
+                logger.debug(
+                    f"[_extract_text_with_etl] LLAMACLOUD result: {len(text) if text else 0} chars"
+                )
                 return text
-            logger.debug("[_extract_text_with_etl] LLAMACLOUD returned no markdown docs")
+            logger.debug(
+                "[_extract_text_with_etl] LLAMACLOUD returned no markdown docs"
+            )
             return None
 
         elif etl_service == "DOCLING":
@@ -480,20 +492,29 @@ async def _extract_text_with_etl(
                     result = await docling_service.process_document(
                         file_path, file_name
                     )
-                    logger.debug(f"[_extract_text_with_etl] DOCLING result keys: {list(result.keys()) if result else 'None'}")
+                    logger.debug(
+                        f"[_extract_text_with_etl] DOCLING result keys: {list(result.keys()) if result else 'None'}"
+                    )
                 finally:
                     pdfminer_logger.setLevel(original_level)
 
             content = result.get("content")
-            logger.debug(f"[_extract_text_with_etl] DOCLING content: {len(content) if content else 0} chars")
+            logger.debug(
+                f"[_extract_text_with_etl] DOCLING content: {len(content) if content else 0} chars"
+            )
             return content
         else:
-            logger.warning(f"[_extract_text_with_etl] Unknown ETL service: {etl_service}")
+            logger.warning(
+                f"[_extract_text_with_etl] Unknown ETL service: {etl_service}"
+            )
             return None
 
     except Exception as e:
-        logger.error(f"[_extract_text_with_etl] ETL extraction EXCEPTION for {file_name}: {e!s}")
+        logger.error(
+            f"[_extract_text_with_etl] ETL extraction EXCEPTION for {file_name}: {e!s}"
+        )
         import traceback
+
         logger.error(f"[_extract_text_with_etl] Traceback: {traceback.format_exc()}")
         return None
 

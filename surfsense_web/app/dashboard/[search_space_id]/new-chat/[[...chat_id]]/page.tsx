@@ -390,7 +390,7 @@ export default function NewChatPage() {
 		}
 		setIsRunning(false);
 	}, []);
-	
+
 	// Handle new message from user
 	const onNew = useCallback(
 		async (message: AppendMessage) => {
@@ -1357,14 +1357,11 @@ export default function NewChatPage() {
 	);
 
 	// Handle reloading/refreshing the last AI response
-	const onReload = useCallback(
-		async () => {
-			// parentId is the ID of the message to reload from (the user message)
-			// We call regenerate without a query to use the same query
-			await handleRegenerate(null);
-		},
-		[handleRegenerate]
-	);
+	const onReload = useCallback(async () => {
+		// parentId is the ID of the message to reload from (the user message)
+		// We call regenerate without a query to use the same query
+		await handleRegenerate(null);
+	}, [handleRegenerate]);
 
 	// Create external store runtime with attachment support
 	const runtime = useExternalStoreRuntime({

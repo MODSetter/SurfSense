@@ -417,8 +417,8 @@ export const DocumentMentionPicker = forwardRef<
 							<Skeleton className="h-[16px] w-24" />
 						</div>
 						{["a", "b", "c", "d", "e"].map((id, i) => (
-							<div 
-								key={id} 
+							<div
+								key={id}
 								className={cn(
 									"w-full flex items-center gap-2 px-3 py-2 text-left rounded-md",
 									i >= 3 && "hidden sm:flex"
@@ -428,7 +428,7 @@ export const DocumentMentionPicker = forwardRef<
 									<Skeleton className="h-4 w-4" />
 								</span>
 								<span className="flex-1 text-sm">
-									<Skeleton className="h-[20px]" style={{ width: `${60 + (i * 7) % 30}%` }} />
+									<Skeleton className="h-[20px]" style={{ width: `${60 + ((i * 7) % 30)}%` }} />
 								</span>
 							</div>
 						))}
