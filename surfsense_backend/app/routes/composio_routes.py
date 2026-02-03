@@ -42,10 +42,6 @@ from app.utils.connector_naming import (
 )
 from app.utils.oauth_security import OAuthStateManager
 
-# Note: We no longer use check_duplicate_connector for Composio connectors because
-# Composio generates a new connected_account_id each time, even for the same Google account.
-# Instead, we check for existing connectors by type/space/user and update them.
-
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
@@ -256,11 +252,6 @@ async def composio_callback(
             "connectedAccountId"
         ) or query_params.get("connected_account_id")
 
-        # DEBUG: Log query parameter received
-        logger.info(
-            f"DEBUG: Callback received - connectedAccountId: {query_params.get('connectedAccountId')}, connected_account_id: {query_params.get('connected_account_id')}, using: {final_connected_account_id}"
-        )
-
         # If we still don't have a connected_account_id, warn but continue
         # (the connector will be created but indexing won't work until updated)
         if not final_connected_account_id:
@@ -272,6 +263,9 @@ async def composio_callback(
             logger.info(
                 f"Successfully got connected_account_id: {final_connected_account_id}"
             )
+
+        # Build entity_id for Composio API calls (same format as used in initiate)
+        entity_id = f"surfsense_{user_id}"
 
         # Build connector config
         connector_config = {
@@ -290,20 +284,51 @@ async def composio_callback(
             )
         connector_type = SearchSourceConnectorType(connector_type_str)
 
-        # Check for existing connector of the same type for this user/space
-        # When reconnecting, Composio gives a new connected_account_id, so we need to
-        # check by connector_type, user_id, and search_space_id instead of connected_account_id
+        # Get the base name for this connector type (e.g., "Google Drive", "Gmail")
+        base_name = get_base_name_for_type(connector_type)
+
+        # FIRST: Get the email for this connected account
+        # This is needed to determine if it's a reconnection (same email) or new account
+        email = None
+        try:
+            email = await service.get_connected_account_email(
+                connected_account_id=final_connected_account_id,
+                entity_id=entity_id,
+                toolkit_id=toolkit_id,
+            )
+            if email:
+                logger.info(f"Retrieved email {email} for {toolkit_id} connector")
+        except Exception as email_error:
+            logger.warning(f"Could not get email for connector: {email_error!s}")
+
+        # Generate the connector name (with email if available)
+        # Format: "Gmail (Composio) - john@gmail.com" or "Gmail (Composio) 1" if no email
+        if email:
+            connector_name = f"{base_name} (Composio) - {email}"
+        else:
+            # Fallback to generic naming if email not available
+            count = await count_connectors_of_type(
+                session, connector_type, space_id, user_id
+            )
+            if count == 0:
+                connector_name = f"{base_name} (Composio) 1"
+            else:
+                connector_name = f"{base_name} (Composio) {count + 1}"
+
+        # Check if a connector with this SAME name already exists (reconnection case)
+        # This allows multiple accounts (different emails) while supporting reconnection
         existing_connector_result = await session.execute(
             select(SearchSourceConnector).where(
                 SearchSourceConnector.connector_type == connector_type,
                 SearchSourceConnector.search_space_id == space_id,
                 SearchSourceConnector.user_id == user_id,
+                SearchSourceConnector.name == connector_name,
             )
         )
         existing_connector = existing_connector_result.scalars().first()
 
         if existing_connector:
-            # Delete the old Composio connected account before updating
+            # This is a RECONNECTION of the same account - update existing connector
             old_connected_account_id = existing_connector.config.get(
                 "composio_connected_account_id"
             )
@@ -320,22 +345,16 @@ async def composio_callback(
                             f"Deleted old Composio connected account {old_connected_account_id} "
                             f"before updating connector {existing_connector.id}"
                         )
-                    else:
-                        logger.warning(
-                            f"Failed to delete old Composio connected account {old_connected_account_id}"
-                        )
                 except Exception as delete_error:
-                    # Log but don't fail - the old account may already be deleted
                     logger.warning(
                         f"Error deleting old Composio connected account {old_connected_account_id}: {delete_error!s}"
                     )
 
             # Update existing connector with new connected_account_id
-            # IMPORTANT: Merge new credentials with existing config to preserve
-            # user settings like selected_folders, selected_files, indexing_options,
-            # drive_page_token, etc. that would otherwise be wiped on reconnection.
+            # Merge new credentials with existing config to preserve user settings
             logger.info(
-                f"Updating existing Composio connector {existing_connector.id} with new connected_account_id {final_connected_account_id}"
+                f"Reconnecting existing Composio connector {existing_connector.id} ({connector_name}) "
+                f"with new connected_account_id {final_connected_account_id}"
             )
             existing_config = (
                 existing_connector.config.copy() if existing_connector.config else {}
@@ -347,28 +366,16 @@ async def composio_callback(
             await session.commit()
             await session.refresh(existing_connector)
 
-            # Get the frontend connector ID based on toolkit_id
             frontend_connector_id = TOOLKIT_TO_FRONTEND_CONNECTOR_ID.get(
                 toolkit_id, "composio-connector"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={existing_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={existing_connector.id}&view=configure"
             )
 
+        # This is a NEW account - create a new connector
         try:
-            # Count existing connectors of this type to determine the number
-            count = await count_connectors_of_type(
-                session, connector_type, space_id, user_id
-            )
-
-            # Generate base name (e.g., "Gmail", "Google Drive")
-            base_name = get_base_name_for_type(connector_type)
-
-            # Format: "Gmail (Composio) 1", "Gmail (Composio) 2", etc.
-            if count == 0:
-                connector_name = f"{base_name} (Composio) 1"
-            else:
-                connector_name = f"{base_name} (Composio) {count + 1}"
+            logger.info(f"Creating new Composio connector: {connector_name}")
 
             db_connector = SearchSourceConnector(
                 name=connector_name,
@@ -392,7 +399,7 @@ async def composio_callback(
                 toolkit_id, "composio-connector"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={db_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector={frontend_connector_id}&connectorId={db_connector.id}&view=configure"
             )
 
         except IntegrityError as e:

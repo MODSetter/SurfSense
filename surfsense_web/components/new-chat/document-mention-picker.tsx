@@ -1,6 +1,6 @@
 "use client";
 
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import {
 	forwardRef,
 	useCallback,
@@ -14,6 +14,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface DocumentMentionPickerRef {
 	selectHighlighted: () => void;
@@ -77,8 +78,6 @@ export const DocumentMentionPicker = forwardRef<
 	},
 	ref
 ) {
-	const queryClient = useQueryClient();
-
 	// Debounced search value to minimize API calls and prevent race conditions
 	const search = externalSearch;
 	const debouncedSearch = useDebounced(search, DEBOUNCE_MS);
@@ -105,32 +104,6 @@ export const DocumentMentionPicker = forwardRef<
 	const isSearchValid = debouncedSearch.trim().length >= MIN_SEARCH_LENGTH;
 	const shouldSearch = debouncedSearch.trim().length > 0;
 	const isSingleCharSearch = debouncedSearch.trim().length === 1;
-
-	// Prefetch initial data on mount for instant display when picker opens
-	useEffect(() => {
-		if (!searchSpaceId) return;
-
-		const prefetchParams = {
-			search_space_id: searchSpaceId,
-			page: 0,
-			page_size: PAGE_SIZE,
-		};
-
-		queryClient.prefetchQuery({
-			queryKey: ["document-titles", prefetchParams],
-			queryFn: () => documentsApiService.searchDocumentTitles({ queryParams: prefetchParams }),
-			staleTime: 60 * 1000,
-		});
-
-		queryClient.prefetchQuery({
-			queryKey: ["surfsense-docs-mention", "", false],
-			queryFn: () =>
-				documentsApiService.getSurfsenseDocs({
-					queryParams: { page: 0, page_size: PAGE_SIZE },
-				}),
-			staleTime: 3 * 60 * 1000,
-		});
-	}, [searchSpaceId, queryClient]);
 
 	// Reset pagination state when search query or search space changes.
 	// Documents are not cleared to maintain visual continuity during fetches.
@@ -439,8 +412,26 @@ export const DocumentMentionPicker = forwardRef<
 				onScroll={handleScroll}
 			>
 				{actualLoading ? (
-					<div className="flex items-center justify-center py-4">
-						<div className="animate-spin h-5 w-5 border-2 border-primary border-t-transparent rounded-full" />
+					<div className="py-1 px-2">
+						<div className="px-3 py-2">
+							<Skeleton className="h-[16px] w-24" />
+						</div>
+						{["a", "b", "c", "d", "e"].map((id, i) => (
+							<div
+								key={id}
+								className={cn(
+									"w-full flex items-center gap-2 px-3 py-2 text-left rounded-md",
+									i >= 3 && "hidden sm:flex"
+								)}
+							>
+								<span className="shrink-0">
+									<Skeleton className="h-4 w-4" />
+								</span>
+								<span className="flex-1 text-sm">
+									<Skeleton className="h-[20px]" style={{ width: `${60 + ((i * 7) % 30)}%` }} />
+								</span>
+							</div>
+						))}
 					</div>
 				) : actualDocuments.length > 0 ? (
 					<div className="py-1 px-2">
