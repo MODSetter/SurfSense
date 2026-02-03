@@ -3,10 +3,11 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Globe, User, Users } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { createSnapshotMutationAtom } from "@/atoms/chat/chat-thread-mutation.atoms";
 import { currentThreadAtom, setThreadVisibilityAtom } from "@/atoms/chat/current-thread.atom";
+import { myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { createPublicChatSnapshotMutationAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -53,8 +54,16 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 	// Snapshot creation mutation
 	const { mutateAsync: createSnapshot, isPending: isCreatingSnapshot } = useAtomValue(
-		createSnapshotMutationAtom
+		createPublicChatSnapshotMutationAtom
 	);
+
+	// Permission check for public sharing
+	const { data: access } = useAtomValue(myAccessAtom);
+	const canCreatePublicLink = useMemo(() => {
+		if (!access) return false;
+		if (access.is_owner) return true;
+		return access.permissions?.includes("public_sharing:create") ?? false;
+	}, [access]);
 
 	// Use Jotai visibility if available (synced from chat page), otherwise fall back to thread prop
 	const currentVisibility = currentThreadState.visibility ?? thread?.visibility ?? "PRIVATE";
@@ -183,35 +192,39 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 						);
 					})}
 
-					{/* Divider */}
-					<div className="border-t border-border my-1" />
+					{canCreatePublicLink && (
+						<>
+							{/* Divider */}
+							<div className="border-t border-border my-1" />
 
-					{/* Public Link Option */}
-					<button
-						type="button"
-						onClick={handleCreatePublicLink}
-						disabled={isCreatingSnapshot}
-						className={cn(
-							"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-							"hover:bg-accent/50 cursor-pointer",
-							"focus:outline-none",
-							"disabled:opacity-50 disabled:cursor-not-allowed"
-						)}
-					>
-						<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted">
-							<Globe className="size-4 block text-muted-foreground" />
-						</div>
-						<div className="flex-1 text-left min-w-0">
-							<div className="flex items-center gap-1.5">
-								<span className="text-sm font-medium">
-									{isCreatingSnapshot ? "Creating link..." : "Create public link"}
-								</span>
-							</div>
-							<p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-								Creates a shareable snapshot of this chat
-							</p>
-						</div>
-					</button>
+							{/* Public Link Option */}
+							<button
+								type="button"
+								onClick={handleCreatePublicLink}
+								disabled={isCreatingSnapshot}
+								className={cn(
+									"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
+									"hover:bg-accent/50 cursor-pointer",
+									"focus:outline-none",
+									"disabled:opacity-50 disabled:cursor-not-allowed"
+								)}
+							>
+								<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted">
+									<Globe className="size-4 block text-muted-foreground" />
+								</div>
+								<div className="flex-1 text-left min-w-0">
+									<div className="flex items-center gap-1.5">
+										<span className="text-sm font-medium">
+											{isCreatingSnapshot ? "Creating link..." : "Create public link"}
+										</span>
+									</div>
+									<p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+										Creates a shareable snapshot of this chat
+									</p>
+								</div>
+							</button>
+						</>
+					)}
 				</div>
 			</PopoverContent>
 		</Popover>

@@ -32,8 +32,6 @@ dependencies = [
     "en-core-web-sm@https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "static-ffmpeg>=2.13",
     "tavily-python>=0.3.2",
-    "unstructured-client>=0.30.0",
-    "unstructured[all-docs]>=0.16.25",
     "uvicorn[standard]>=0.34.0",
     "validators>=0.34.0",
     "youtube-transcript-api>=1.0.3",
@@ -45,7 +43,6 @@ dependencies = [
     "firecrawl-py>=4.9.0",
     "boto3>=1.35.0",
     "langchain-community>=0.3.31",
-    "langchain-unstructured>=1.0.0",
     "litellm>=1.80.10",
     "langchain-litellm>=0.3.5",
     "fake-useragent>=2.2.0",
@@ -62,6 +59,9 @@ dependencies = [
     "deepagents>=0.3.8",
     "langchain>=1.2.6",
     "langgraph>=1.0.5",
+    "unstructured[all-docs]>=0.18.31",
+    "unstructured-client>=0.42.3",
+    "langchain-unstructured>=1.0.1",
 ]
 
 [dependency-groups]

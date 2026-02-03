@@ -91,7 +91,10 @@ def get_heartbeat_redis_client() -> redis.Redis:
     """Get or create Redis client for heartbeat tracking."""
     global _heartbeat_redis_client
     if _heartbeat_redis_client is None:
-        redis_url = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+        redis_url = os.getenv(
+            "REDIS_APP_URL",
+            os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+        )
         _heartbeat_redis_client = redis.from_url(redis_url, decode_responses=True)
     return _heartbeat_redis_client
 

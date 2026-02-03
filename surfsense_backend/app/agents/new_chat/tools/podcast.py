@@ -21,8 +21,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Podcast, PodcastStatus
 
 # Redis connection for tracking active podcast tasks
-# Uses the same Redis instance as Celery
-REDIS_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+# Defaults to the Celery broker when REDIS_APP_URL is not set
+REDIS_URL = os.getenv(
+    "REDIS_APP_URL",
+    os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+)
 _redis_client: redis.Redis | None = None
 
 

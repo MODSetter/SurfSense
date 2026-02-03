@@ -11,6 +11,7 @@ import {
 	Crown,
 	Edit2,
 	FileText,
+	Globe,
 	Hash,
 	Link2,
 	LinkIcon,
@@ -206,7 +207,15 @@ export default function TeamManagementPage() {
 	);
 
 	const handleUpdateRole = useCallback(
-		async (roleId: number, data: { permissions?: string[] }): Promise<Role> => {
+		async (
+			roleId: number,
+			data: {
+				name?: string;
+				description?: string | null;
+				permissions?: string[];
+				is_default?: boolean;
+			}
+		): Promise<Role> => {
 			const request: UpdateRoleRequest = {
 				search_space_id: searchSpaceId,
 				role_id: roleId,
@@ -827,6 +836,12 @@ const CATEGORY_CONFIG: Record<
 		description: "Manage search space settings",
 		order: 10,
 	},
+	public_sharing: {
+		label: "Public Chat Sharing",
+		icon: Globe,
+		description: "Share chats publicly via links",
+		order: 11,
+	},
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -944,7 +959,7 @@ function RolesTab({
 	roles,
 	groupedPermissions,
 	loading,
-	onUpdateRole: _onUpdateRole,
+	onUpdateRole,
 	onDeleteRole,
 	onCreateRole,
 	canUpdate,
@@ -954,7 +969,15 @@ function RolesTab({
 	roles: Role[];
 	groupedPermissions: Record<string, PermissionWithDescription[]>;
 	loading: boolean;
-	onUpdateRole: (roleId: number, data: { permissions?: string[] }) => Promise<Role>;
+	onUpdateRole: (
+		roleId: number,
+		data: {
+			name?: string;
+			description?: string | null;
+			permissions?: string[];
+			is_default?: boolean;
+		}
+	) => Promise<Role>;
 	onDeleteRole: (roleId: number) => Promise<boolean>;
 	onCreateRole: (data: CreateRoleRequest["data"]) => Promise<Role>;
 	canUpdate: boolean;
@@ -962,6 +985,7 @@ function RolesTab({
 	canCreate: boolean;
 }) {
 	const [showCreateRole, setShowCreateRole] = useState(false);
+	const [editingRoleId, setEditingRoleId] = useState<number | null>(null);
 
 	if (loading) {
 		return (
@@ -996,6 +1020,21 @@ function RolesTab({
 					onCancel={() => setShowCreateRole(false)}
 				/>
 			)}
+
+			{/* Edit Role Form */}
+			{editingRoleId !== null &&
+				(() => {
+					const roleToEdit = roles.find((r) => r.id === editingRoleId);
+					if (!roleToEdit) return null;
+					return (
+						<EditRoleSection
+							role={roleToEdit}
+							groupedPermissions={groupedPermissions}
+							onUpdateRole={onUpdateRole}
+							onCancel={() => setEditingRoleId(null)}
+						/>
+					);
+				})()}
 
 			{/* Roles Grid */}
 			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1055,13 +1094,9 @@ function RolesTab({
 													<MoreHorizontal className="h-4 w-4" />
 												</Button>
 											</DropdownMenuTrigger>
-											<DropdownMenuContent align="end">
+											<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
 												{canUpdate && (
-													<DropdownMenuItem
-														onClick={() => {
-															// TODO: Implement edit role dialog/modal
-														}}
-													>
+													<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
 														<Edit2 className="h-4 w-4 mr-2" />
 														Edit Role
 													</DropdownMenuItem>
@@ -2017,6 +2052,374 @@ function CreateRoleSection({
 								<>
 									<Check className="h-4 w-4 mr-2" />
 									Create Role
+								</>
+							)}
+						</Button>
+					</div>
+				</CardContent>
+			</Card>
+		</motion.div>
+	);
+}
+
+function EditRoleSection({
+	role,
+	groupedPermissions,
+	onUpdateRole,
+	onCancel,
+}: {
+	role: Role;
+	groupedPermissions: Record<string, PermissionWithDescription[]>;
+	onUpdateRole: (
+		roleId: number,
+		data: {
+			name?: string;
+			description?: string | null;
+			permissions?: string[];
+			is_default?: boolean;
+		}
+	) => Promise<Role>;
+	onCancel: () => void;
+}) {
+	const [saving, setSaving] = useState(false);
+	const [name, setName] = useState(role.name);
+	const [description, setDescription] = useState(role.description || "");
+	const [selectedPermissions, setSelectedPermissions] = useState<string[]>(role.permissions);
+	const [isDefault, setIsDefault] = useState(role.is_default);
+	const [expandedCategories, setExpandedCategories] = useState<string[]>([]);
+
+	// Sort categories by order
+	const sortedCategories = useMemo(() => {
+		return Object.keys(groupedPermissions).sort((a, b) => {
+			const orderA = CATEGORY_CONFIG[a]?.order ?? 99;
+			const orderB = CATEGORY_CONFIG[b]?.order ?? 99;
+			return orderA - orderB;
+		});
+	}, [groupedPermissions]);
+
+	const handleSave = async () => {
+		if (!name.trim()) {
+			toast.error("Please enter a role name");
+			return;
+		}
+
+		setSaving(true);
+		try {
+			await onUpdateRole(role.id, {
+				name: name.trim(),
+				description: description.trim() || null,
+				permissions: selectedPermissions,
+				is_default: isDefault,
+			});
+			toast.success("Role updated successfully");
+			onCancel();
+		} catch (error) {
+			console.error("Failed to update role:", error);
+			toast.error("Failed to update role");
+		} finally {
+			setSaving(false);
+		}
+	};
+
+	const togglePermission = useCallback((perm: string) => {
+		setSelectedPermissions((prev) =>
+			prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
+		);
+	}, []);
+
+	const toggleCategory = useCallback(
+		(category: string) => {
+			const categoryPerms = groupedPermissions[category]?.map((p) => p.value) || [];
+			const allSelected = categoryPerms.every((p) => selectedPermissions.includes(p));
+
+			if (allSelected) {
+				setSelectedPermissions((prev) => prev.filter((p) => !categoryPerms.includes(p)));
+			} else {
+				setSelectedPermissions((prev) => [...new Set([...prev, ...categoryPerms])]);
+			}
+		},
+		[groupedPermissions, selectedPermissions]
+	);
+
+	const toggleCategoryExpanded = useCallback((category: string) => {
+		setExpandedCategories((prev) =>
+			prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
+		);
+	}, []);
+
+	const getCategoryStats = useCallback(
+		(category: string) => {
+			const perms = groupedPermissions[category] || [];
+			const selected = perms.filter((p) => selectedPermissions.includes(p.value)).length;
+			return { selected, total: perms.length, allSelected: selected === perms.length };
+		},
+		[groupedPermissions, selectedPermissions]
+	);
+
+	return (
+		<motion.div
+			initial={{ opacity: 0, y: -10 }}
+			animate={{ opacity: 1, y: 0 }}
+			exit={{ opacity: 0, y: -10 }}
+			className="mb-6"
+		>
+			<Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
+				<CardHeader className="pb-4">
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-3">
+							<div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+								<Edit2 className="h-5 w-5 text-primary" />
+							</div>
+							<div>
+								<CardTitle className="text-lg">Edit Role</CardTitle>
+								<CardDescription className="text-sm">
+									Modify permissions for "{role.name}"
+								</CardDescription>
+							</div>
+						</div>
+						<Button variant="ghost" size="icon" onClick={onCancel}>
+							<Trash2 className="h-4 w-4" />
+						</Button>
+					</div>
+				</CardHeader>
+				<CardContent className="space-y-6">
+					{/* Role Details */}
+					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+						<div className="space-y-2">
+							<Label htmlFor="edit-role-name">Role Name *</Label>
+							<Input
+								id="edit-role-name"
+								placeholder="e.g., Content Manager"
+								value={name}
+								onChange={(e) => setName(e.target.value)}
+							/>
+						</div>
+						<div className="space-y-2">
+							<Label htmlFor="edit-role-description">Description</Label>
+							<Input
+								id="edit-role-description"
+								placeholder="Brief description of this role"
+								value={description}
+								onChange={(e) => setDescription(e.target.value)}
+							/>
+						</div>
+					</div>
+
+					{/* Default Role Checkbox */}
+					<div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+						<Checkbox
+							id="edit-is-default"
+							checked={isDefault}
+							onCheckedChange={(checked) => setIsDefault(checked === true)}
+						/>
+						<div className="flex-1">
+							<Label htmlFor="edit-is-default" className="cursor-pointer font-medium">
+								Set as default role
+							</Label>
+							<p className="text-xs text-muted-foreground">
+								New members without a specific role will be assigned this role
+							</p>
+						</div>
+					</div>
+
+					{/* Permissions Section */}
+					<div className="space-y-3">
+						<div className="flex items-center justify-between">
+							<Label className="text-sm font-medium">
+								Permissions ({selectedPermissions.length} selected)
+							</Label>
+							<Button
+								type="button"
+								variant="ghost"
+								size="sm"
+								className="text-xs h-7"
+								onClick={() =>
+									setExpandedCategories(
+										expandedCategories.length === sortedCategories.length ? [] : sortedCategories
+									)
+								}
+							>
+								{expandedCategories.length === sortedCategories.length
+									? "Collapse All"
+									: "Expand All"}
+							</Button>
+						</div>
+
+						<div className="space-y-2">
+							{sortedCategories.map((category) => {
+								const config = CATEGORY_CONFIG[category] || {
+									label: category,
+									icon: FileText,
+									description: "",
+									order: 99,
+								};
+								const IconComponent = config.icon;
+								const stats = getCategoryStats(category);
+								const isExpanded = expandedCategories.includes(category);
+								const perms = groupedPermissions[category] || [];
+
+								return (
+									<div key={category} className="rounded-lg border bg-card overflow-hidden">
+										{/* Category Header */}
+										<div
+											className={cn(
+												"flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors",
+												stats.allSelected && "bg-primary/5"
+											)}
+											onClick={() => toggleCategoryExpanded(category)}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													toggleCategoryExpanded(category);
+												}
+											}}
+											tabIndex={0}
+											role="button"
+										>
+											<div className="flex items-center gap-3">
+												<div
+													className={cn(
+														"h-8 w-8 rounded-lg flex items-center justify-center",
+														stats.selected > 0 ? "bg-primary/10" : "bg-muted"
+													)}
+												>
+													<IconComponent
+														className={cn(
+															"h-4 w-4",
+															stats.selected > 0 ? "text-primary" : "text-muted-foreground"
+														)}
+													/>
+												</div>
+												<div>
+													<div className="flex items-center gap-2">
+														<span className="font-medium text-sm">{config.label}</span>
+														<Badge
+															variant={stats.selected > 0 ? "default" : "secondary"}
+															className="text-xs h-5"
+														>
+															{stats.selected}/{stats.total}
+														</Badge>
+													</div>
+													<p className="text-xs text-muted-foreground hidden md:block">
+														{config.description}
+													</p>
+												</div>
+											</div>
+											<div className="flex items-center gap-2">
+												<Checkbox
+													checked={stats.allSelected}
+													onCheckedChange={() => toggleCategory(category)}
+													onClick={(e) => e.stopPropagation()}
+													aria-label={`Select all ${config.label} permissions`}
+												/>
+												<motion.div
+													animate={{ rotate: isExpanded ? 180 : 0 }}
+													transition={{ duration: 0.2 }}
+												>
+													<svg
+														className="h-4 w-4 text-muted-foreground"
+														fill="none"
+														viewBox="0 0 24 24"
+														stroke="currentColor"
+													>
+														<path
+															strokeLinecap="round"
+															strokeLinejoin="round"
+															strokeWidth={2}
+															d="M19 9l-7 7-7-7"
+														/>
+													</svg>
+												</motion.div>
+											</div>
+										</div>
+
+										{/* Permissions List */}
+										{isExpanded && (
+											<motion.div
+												initial={{ height: 0, opacity: 0 }}
+												animate={{ height: "auto", opacity: 1 }}
+												exit={{ height: 0, opacity: 0 }}
+												transition={{ duration: 0.2 }}
+												className="border-t"
+											>
+												<div className="p-3 space-y-1">
+													{perms.map((perm) => {
+														const action = perm.value.split(":")[1];
+														const actionConfig = ACTION_DISPLAY[action] || {
+															label: action,
+															color: "text-gray-600 bg-gray-500/10",
+														};
+														const isSelected = selectedPermissions.includes(perm.value);
+
+														return (
+															<div
+																key={perm.value}
+																className={cn(
+																	"flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors",
+																	isSelected
+																		? "bg-primary/10 hover:bg-primary/15"
+																		: "hover:bg-muted/50"
+																)}
+																onClick={() => togglePermission(perm.value)}
+																onKeyDown={(e) => {
+																	if (e.key === "Enter" || e.key === " ") {
+																		e.preventDefault();
+																		togglePermission(perm.value);
+																	}
+																}}
+																tabIndex={0}
+																role="checkbox"
+																aria-checked={isSelected}
+															>
+																<div className="flex items-center gap-3 flex-1 min-w-0">
+																	<Checkbox
+																		checked={isSelected}
+																		onCheckedChange={() => togglePermission(perm.value)}
+																		onClick={(e) => e.stopPropagation()}
+																	/>
+																	<div className="flex-1 min-w-0">
+																		<div className="flex items-center gap-2">
+																			<span
+																				className={cn(
+																					"text-xs font-medium px-2 py-0.5 rounded",
+																					actionConfig.color
+																				)}
+																			>
+																				{actionConfig.label}
+																			</span>
+																		</div>
+																		<p className="text-xs text-muted-foreground mt-0.5 truncate">
+																			{perm.description}
+																		</p>
+																	</div>
+																</div>
+															</div>
+														);
+													})}
+												</div>
+											</motion.div>
+										)}
+									</div>
+								);
+							})}
+						</div>
+					</div>
+
+					{/* Actions */}
+					<div className="flex items-center justify-end gap-3 pt-4 border-t">
+						<Button variant="outline" onClick={onCancel}>
+							Cancel
+						</Button>
+						<Button onClick={handleSave} disabled={saving || !name.trim()}>
+							{saving ? (
+								<>
+									<Spinner size="sm" className="mr-2" />
+									Saving...
+								</>
+							) : (
+								<>
+									<Check className="h-4 w-4 mr-2" />
+									Save Changes
 								</>
 							)}
 						</Button>
