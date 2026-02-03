@@ -449,8 +449,11 @@ class ComposioService:
         """
         try:
             # Composio uses snake_case for parameters
+            # IMPORTANT: Include 'fields' to ensure mimeType is returned in the response
+            # Without this, Google Drive API may not include mimeType for some files
             params = {
                 "page_size": min(page_size, 100),
+                "fields": "files(id,name,mimeType,modifiedTime,createdTime),nextPageToken",
             }
             if folder_id:
                 # List contents of a specific folder (exclude shortcuts - we don't have access to them)
@@ -498,7 +501,11 @@ class ComposioService:
             return [], None, str(e)
 
     async def get_drive_file_content(
-        self, connected_account_id: str, entity_id: str, file_id: str
+        self,
+        connected_account_id: str,
+        entity_id: str,
+        file_id: str,
+        original_mime_type: str | None = None,
     ) -> tuple[bytes | None, str | None]:
         """
         Download file content from Google Drive via Composio.
@@ -507,10 +514,13 @@ class ComposioService:
         to a local directory, and the local file path is provided in the response.
         Response includes: file_path, file_name, size fields.
 
+        For Google Workspace files (Docs, Sheets, Slides), exports to PDF format.
+
         Args:
             connected_account_id: Composio connected account ID.
             entity_id: The entity/user ID that owns the connected account.
             file_id: Google Drive file ID.
+            original_mime_type: Original MIME type of the file (used to detect Google Workspace files).
 
         Returns:
             Tuple of (file content bytes, error message).
@@ -518,10 +528,19 @@ class ComposioService:
         from pathlib import Path
 
         try:
+            params = {"file_id": file_id}
+
+            # For Google Workspace files, explicitly export as PDF
+            # This ensures consistent behavior and proper binary detection
+            if original_mime_type and original_mime_type.startswith(
+                "application/vnd.google-apps."
+            ):
+                params["mime_type"] = "application/pdf"
+
             result = await self.execute_tool(
                 connected_account_id=connected_account_id,
                 tool_name="GOOGLEDRIVE_DOWNLOAD_FILE",
-                params={"file_id": file_id},
+                params=params,
                 entity_id=entity_id,
             )
 
@@ -649,6 +668,60 @@ class ComposioService:
 
         except Exception as e:
             logger.error(f"Failed to get Drive file content: {e!s}")
+            return None, str(e)
+
+    async def get_file_metadata(
+        self, connected_account_id: str, entity_id: str, file_id: str
+    ) -> tuple[dict[str, Any] | None, str | None]:
+        """
+        Get metadata for a specific file from Google Drive.
+
+        Args:
+            connected_account_id: Composio connected account ID.
+            entity_id: The entity/user ID that owns the connected account.
+            file_id: The ID of the file to get metadata for.
+
+        Returns:
+            Tuple of (metadata dict, error message).
+        """
+        try:
+            result = await self.execute_tool(
+                connected_account_id=connected_account_id,
+                tool_name="GOOGLEDRIVE_GET_FILE_METADATA",
+                params={
+                    "file_id": file_id,
+                    "fields": "id,name,mimeType,modifiedTime,createdTime,size",
+                },
+                entity_id=entity_id,
+            )
+
+            if not result.get("success"):
+                return None, result.get("error", "Unknown error")
+
+            data = result.get("data", {})
+
+            # Handle nested response structure
+            if isinstance(data, dict):
+                inner_data = data.get("data", data)
+                if isinstance(inner_data, dict):
+                    # Extract metadata fields with fallbacks for camelCase/snake_case
+                    metadata = {
+                        "id": inner_data.get("id") or file_id,
+                        "name": inner_data.get("name", ""),
+                        "mimeType": inner_data.get("mimeType")
+                        or inner_data.get("mime_type", ""),
+                        "modifiedTime": inner_data.get("modifiedTime")
+                        or inner_data.get("modified_time", ""),
+                        "createdTime": inner_data.get("createdTime")
+                        or inner_data.get("created_time", ""),
+                        "size": inner_data.get("size", ""),
+                    }
+                    return metadata, None
+
+            return None, "Could not extract metadata from response"
+
+        except Exception as e:
+            logger.error(f"Failed to get file metadata: {e!s}")
             return None, str(e)
 
     async def get_drive_start_page_token(
