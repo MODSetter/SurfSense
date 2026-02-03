@@ -166,8 +166,8 @@ async def _delete_connector_async(
                 user_id=UUID(user_id),
                 search_space_id=search_space_id,
                 type="connector_deletion",
-                title=f"{connector_name} Removed",
-                message=f"Connector and {total_deleted} {doc_text} have been removed from your knowledge base.",
+                title=f"{connector_name} removed",
+                message=f"Cleanup complete. {total_deleted} {doc_text} removed.",
                 notification_metadata={
                     "connector_id": connector_id,
                     "connector_name": connector_name,
