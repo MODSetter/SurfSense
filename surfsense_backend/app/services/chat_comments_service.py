@@ -5,7 +5,7 @@ Service layer for chat comments and mentions.
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -101,6 +101,37 @@ async def process_mentions(
         mentions_map[user_id] = mention.id
 
     return mentions_map
+
+
+async def get_comment_thread_participants(
+    session: AsyncSession,
+    parent_comment_id: int,
+    exclude_user_ids: set[UUID],
+) -> list[UUID]:
+    """
+    Get all unique authors in a comment thread (parent + replies), excluding specified users.
+
+    Args:
+        session: Database session
+        parent_comment_id: ID of the parent comment
+        exclude_user_ids: Set of user IDs to exclude (e.g., replier, mentioned users)
+
+    Returns:
+        List of user UUIDs who have participated in the thread
+    """
+    query = select(ChatComment.author_id).where(
+        or_(
+            ChatComment.id == parent_comment_id,
+            ChatComment.parent_id == parent_comment_id,
+        ),
+        ChatComment.author_id.isnot(None),
+    )
+
+    if exclude_user_ids:
+        query = query.where(ChatComment.author_id.notin_(exclude_user_ids))
+
+    result = await session.execute(query.distinct())
+    return [row[0] for row in result.fetchall()]
 
 
 async def get_comments_for_message(
