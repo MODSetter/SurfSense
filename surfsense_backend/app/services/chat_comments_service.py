@@ -467,6 +467,28 @@ async def create_reply(
             search_space_id=search_space_id,
         )
 
+    # Notify thread participants (excluding replier and mentioned users)
+    exclude_ids = {user.id, *mentions_map.keys()}
+    participants = await get_comment_thread_participants(
+        session, comment_id, exclude_ids
+    )
+    for participant_id in participants:
+        await NotificationService.comment_reply.notify_comment_reply(
+            session=session,
+            user_id=participant_id,
+            reply_id=reply.id,
+            parent_comment_id=comment_id,
+            message_id=parent_comment.message_id,
+            thread_id=thread.id,
+            thread_title=thread.title or "Untitled thread",
+            author_id=str(user.id),
+            author_name=author_name,
+            author_avatar_url=user.avatar_url,
+            author_email=user.email,
+            content_preview=content_preview[:200],
+            search_space_id=search_space_id,
+        )
+
     author = AuthorResponse(
         id=user.id,
         display_name=user.display_name,
