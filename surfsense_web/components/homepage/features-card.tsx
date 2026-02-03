@@ -61,7 +61,7 @@ export function FeaturesCards() {
 
 						<CardContent>
 							<p className="text-sm">
-								Choose from 100+ leading LLMs and seamlessly call any model on demand.
+								Choose from 100+ leading LLMs, seamlessly calling any model on demand. Even run on-prem with local LLMs like vLLM and Ollama.
 							</p>
 						</CardContent>
 					</Card>

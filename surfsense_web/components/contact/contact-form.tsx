@@ -20,7 +20,10 @@ export function ContactFormGridWithDetails() {
 					Contact
 				</h2>
 				<p className="mt-8 max-w-lg text-center text-base text-neutral-600 dark:text-neutral-400">
-					We'd love to hear from you. Schedule a meeting or send us an email.
+					We'd love to hear from you!
+				</p>
+				<p className="mt-4 max-w-lg text-center text-base text-neutral-600 dark:text-neutral-400">
+					Schedule a meeting with our Head of Product, Eric Lammertsma, or send us an email.
 				</p>
 
 				<div className="mt-10 flex flex-col items-center gap-6">
