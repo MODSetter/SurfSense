@@ -1,7 +1,7 @@
 """Add public_sharing permissions to existing roles
 
-Revision ID: 86
-Revises: 85
+Revision ID: 90
+Revises: 89
 Create Date: 2026-02-02
 
 """
@@ -10,8 +10,8 @@ from sqlalchemy import text
 
 from alembic import op
 
-revision = "86"
-down_revision = "85"
+revision = "90"
+down_revision = "89"
 branch_labels = None
 depends_on = None
 
