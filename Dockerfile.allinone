@@ -239,6 +239,7 @@ ENV POSTGRES_DB=surfsense
 ENV DATABASE_URL=postgresql+asyncpg://surfsense:surfsense@localhost:5432/surfsense
 ENV CELERY_BROKER_URL=redis://localhost:6379/0
 ENV CELERY_RESULT_BACKEND=redis://localhost:6379/0
+ENV CELERY_TASK_DEFAULT_QUEUE=surfsense
 ENV PYTHONPATH=/app/backend
 ENV NEXT_FRONTEND_URL=http://localhost:3000
 ENV AUTH_TYPE=LOCAL

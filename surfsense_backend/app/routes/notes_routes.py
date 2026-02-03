@@ -76,6 +76,7 @@ async def create_note(
         document_metadata={"NOTE": True},
         embedding=None,  # Will be generated on first reindex
         updated_at=datetime.now(UTC),
+        created_by_id=user.id,  # Track who created this note
     )
 
     session.add(document)
@@ -93,6 +94,7 @@ async def create_note(
         search_space_id=document.search_space_id,
         created_at=document.created_at,
         updated_at=document.updated_at,
+        created_by_id=document.created_by_id,
     )
 
 
