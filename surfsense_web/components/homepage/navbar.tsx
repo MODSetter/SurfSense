@@ -60,7 +60,10 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					: "bg-transparent border border-transparent"
 			)}
 		>
-			<Link href="/" className="flex flex-1 flex-row items-center gap-0.5 hover:opacity-80 transition-opacity">
+			<Link
+				href="/"
+				className="flex flex-1 flex-row items-center gap-0.5 hover:opacity-80 transition-opacity"
+			>
 				<Logo className="h-8 w-8 rounded-md" />
 				<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 			</Link>
@@ -138,7 +141,10 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 			)}
 		>
 			<div className="flex w-full flex-row items-center justify-between">
-				<Link href="/" className="flex flex-row items-center gap-2 hover:opacity-80 transition-opacity">
+				<Link
+					href="/"
+					className="flex flex-row items-center gap-2 hover:opacity-80 transition-opacity"
+				>
 					<Logo className="h-8 w-8 rounded-md" />
 					<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 				</Link>

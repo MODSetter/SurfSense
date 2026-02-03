@@ -10,11 +10,11 @@ import {
 	useRef,
 	useState,
 } from "react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export interface DocumentMentionPickerRef {
 	selectHighlighted: () => void;

@@ -41,6 +41,7 @@ import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
@@ -64,7 +65,6 @@ import {
 	trackChatMessageSent,
 	trackChatResponseReceived,
 } from "@/lib/posthog/events";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
 
 /**
  * Extract thinking steps from message content
