@@ -7,6 +7,7 @@ import { documentTypeEnum } from "./document.types";
  */
 export const inboxItemTypeEnum = z.enum([
 	"connector_indexing",
+	"connector_deletion",
 	"document_processing",
 	"new_mention",
 	"page_limit_exceeded",
@@ -61,6 +62,17 @@ export const connectorIndexingMetadata = baseInboxItemMetadata.extend({
 });
 
 /**
+ * Connector deletion metadata schema
+ */
+export const connectorDeletionMetadata = baseInboxItemMetadata.extend({
+	connector_id: z.number(),
+	connector_name: z.string(),
+	connector_type: z.string(),
+	documents_deleted: z.number(),
+	error: z.string().optional(),
+});
+
+/**
  * Document processing metadata schema
  */
 export const documentProcessingMetadata = baseInboxItemMetadata.extend({
@@ -110,6 +122,7 @@ export const pageLimitExceededMetadata = baseInboxItemMetadata.extend({
  */
 export const inboxItemMetadata = z.union([
 	connectorIndexingMetadata,
+	connectorDeletionMetadata,
 	documentProcessingMetadata,
 	newMentionMetadata,
 	pageLimitExceededMetadata,
@@ -138,6 +151,11 @@ export const inboxItem = z.object({
 export const connectorIndexingInboxItem = inboxItem.extend({
 	type: z.literal("connector_indexing"),
 	metadata: connectorIndexingMetadata,
+});
+
+export const connectorDeletionInboxItem = inboxItem.extend({
+	type: z.literal("connector_deletion"),
+	metadata: connectorDeletionMetadata,
 });
 
 export const documentProcessingInboxItem = inboxItem.extend({
@@ -236,6 +254,15 @@ export function isConnectorIndexingMetadata(
 }
 
 /**
+ * Type guard for ConnectorDeletionMetadata
+ */
+export function isConnectorDeletionMetadata(
+	metadata: unknown
+): metadata is ConnectorDeletionMetadata {
+	return connectorDeletionMetadata.safeParse(metadata).success;
+}
+
+/**
  * Type guard for DocumentProcessingMetadata
  */
 export function isDocumentProcessingMetadata(
@@ -268,6 +295,7 @@ export function parseInboxItemMetadata(
 	metadata: unknown
 ):
 	| ConnectorIndexingMetadata
+	| ConnectorDeletionMetadata
 	| DocumentProcessingMetadata
 	| NewMentionMetadata
 	| PageLimitExceededMetadata
@@ -275,6 +303,10 @@ export function parseInboxItemMetadata(
 	switch (type) {
 		case "connector_indexing": {
 			const result = connectorIndexingMetadata.safeParse(metadata);
+			return result.success ? result.data : null;
+		}
+		case "connector_deletion": {
+			const result = connectorDeletionMetadata.safeParse(metadata);
 			return result.success ? result.data : null;
 		}
 		case "document_processing": {
@@ -303,12 +335,14 @@ export type InboxItemStatusEnum = z.infer<typeof inboxItemStatusEnum>;
 export type DocumentProcessingStageEnum = z.infer<typeof documentProcessingStageEnum>;
 export type BaseInboxItemMetadata = z.infer<typeof baseInboxItemMetadata>;
 export type ConnectorIndexingMetadata = z.infer<typeof connectorIndexingMetadata>;
+export type ConnectorDeletionMetadata = z.infer<typeof connectorDeletionMetadata>;
 export type DocumentProcessingMetadata = z.infer<typeof documentProcessingMetadata>;
 export type NewMentionMetadata = z.infer<typeof newMentionMetadata>;
 export type PageLimitExceededMetadata = z.infer<typeof pageLimitExceededMetadata>;
 export type InboxItemMetadata = z.infer<typeof inboxItemMetadata>;
 export type InboxItem = z.infer<typeof inboxItem>;
 export type ConnectorIndexingInboxItem = z.infer<typeof connectorIndexingInboxItem>;
+export type ConnectorDeletionInboxItem = z.infer<typeof connectorDeletionInboxItem>;
 export type DocumentProcessingInboxItem = z.infer<typeof documentProcessingInboxItem>;
 export type NewMentionInboxItem = z.infer<typeof newMentionInboxItem>;
 export type PageLimitExceededInboxItem = z.infer<typeof pageLimitExceededInboxItem>;

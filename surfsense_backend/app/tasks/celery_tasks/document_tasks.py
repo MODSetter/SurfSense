@@ -545,6 +545,7 @@ def process_circleback_meeting_task(
     markdown_content: str,
     metadata: dict,
     search_space_id: int,
+    connector_id: int | None = None,
 ):
     """
     Celery task to process Circleback meeting webhook data.
@@ -555,6 +556,7 @@ def process_circleback_meeting_task(
         markdown_content: Meeting content formatted as markdown
         metadata: Meeting metadata dictionary
         search_space_id: ID of the search space
+        connector_id: ID of the Circleback connector (for deletion support)
     """
     import asyncio
 
@@ -569,6 +571,7 @@ def process_circleback_meeting_task(
                 markdown_content,
                 metadata,
                 search_space_id,
+                connector_id,
             )
         )
     finally:
@@ -581,6 +584,7 @@ async def _process_circleback_meeting(
     markdown_content: str,
     metadata: dict,
     search_space_id: int,
+    connector_id: int | None = None,
 ):
     """Process Circleback meeting with new session."""
     from app.tasks.document_processors.circleback_processor import (
@@ -637,6 +641,7 @@ async def _process_circleback_meeting(
                 markdown_content=markdown_content,
                 metadata=metadata,
                 search_space_id=search_space_id,
+                connector_id=connector_id,
             )
 
             if result:

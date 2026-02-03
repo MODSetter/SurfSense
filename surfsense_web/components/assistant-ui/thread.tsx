@@ -65,6 +65,16 @@ import type { Document } from "@/contracts/types/document.types";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
 import { cn } from "@/lib/utils";
 
+/** Placeholder texts that cycle in new chats when input is empty */
+const CYCLING_PLACEHOLDERS = [
+	"Ask SurfSense anything or @mention docs.",
+	"Generate a podcast from marketing tips in the company handbook.",
+	"Sum up our vacation policy from Drive.",
+	"Give me a brief overview of the most urgent tickets in Jira and Linear.",
+	"Create a concise table of today's top ten emails and calendar events.",
+	"Check if this week's Slack messages reference any GitHub issues.",
+];
+
 interface ThreadProps {
 	messageThinkingSteps?: Map<string, ThinkingStep[]>;
 	header?: React.ReactNode;
@@ -227,6 +237,30 @@ const Composer: FC = () => {
 
 	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+
+	// Cycling placeholder state - only cycles in new chats
+	const [placeholderIndex, setPlaceholderIndex] = useState(0);
+
+	// Cycle through placeholders every 4 seconds when thread is empty (new chat)
+	useEffect(() => {
+		// Only cycle when thread is empty (new chat)
+		if (!isThreadEmpty) {
+			// Reset to first placeholder when chat becomes active
+			setPlaceholderIndex(0);
+			return;
+		}
+
+		const intervalId = setInterval(() => {
+			setPlaceholderIndex((prev) => (prev + 1) % CYCLING_PLACEHOLDERS.length);
+		}, 6000);
+
+		return () => clearInterval(intervalId);
+	}, [isThreadEmpty]);
+
+	// Compute current placeholder - only cycle in new chats
+	const currentPlaceholder = isThreadEmpty
+		? CYCLING_PLACEHOLDERS[placeholderIndex]
+		: CYCLING_PLACEHOLDERS[0];
 
 	// Live collaboration state
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -410,7 +444,7 @@ const Composer: FC = () => {
 				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
-						placeholder="Ask SurfSense or @mention docs"
+						placeholder={currentPlaceholder}
 						onMentionTrigger={handleMentionTrigger}
 						onMentionClose={handleMentionClose}
 						onChange={handleEditorChange}

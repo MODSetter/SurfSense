@@ -357,6 +357,7 @@ async def add_youtube_video_document(
                 unique_identifier_hash=unique_identifier_hash,
                 blocknote_document=blocknote_json,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
             )
 
             session.add(document)

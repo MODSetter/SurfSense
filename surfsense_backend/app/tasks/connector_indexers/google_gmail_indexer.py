@@ -413,7 +413,6 @@ async def index_google_gmail_messages(
                         "subject": subject,
                         "sender": sender,
                         "date": date_str,
-                        "connector_id": connector_id,
                     },
                     content=summary_content,
                     content_hash=content_hash,
@@ -421,6 +420,8 @@ async def index_google_gmail_messages(
                     embedding=summary_embedding,
                     chunks=chunks,
                     updated_at=get_current_timestamp(),
+                    created_by_id=user_id,
+                    connector_id=connector_id,
                 )
                 session.add(document)
                 documents_indexed += 1

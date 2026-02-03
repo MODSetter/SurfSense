@@ -127,7 +127,12 @@ async def get_valid_credentials(
                     )
                 creds_dict["_token_encrypted"] = True
 
-            connector.config = creds_dict
+            # IMPORTANT: Merge new credentials with existing config to preserve
+            # user settings like selected_folders, selected_files, indexing_options,
+            # folder_tokens, etc. that would otherwise be wiped on token refresh.
+            existing_config = connector.config.copy() if connector.config else {}
+            existing_config.update(creds_dict)
+            connector.config = existing_config
             flag_modified(connector, "config")
             await session.commit()
 

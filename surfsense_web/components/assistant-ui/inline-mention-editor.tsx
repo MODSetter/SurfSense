@@ -536,10 +536,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					role="textbox"
 					aria-multiline="true"
 				/>
-				{/* Placeholder */}
+				{/* Placeholder with fade animation on change */}
 				{isEmpty && (
 					<div
-						className="absolute top-0 left-0 pointer-events-none text-muted-foreground text-sm"
+						key={placeholder}
+						className="absolute top-0 left-0 pointer-events-none text-muted-foreground text-sm animate-in fade-in duration-1000"
 						aria-hidden="true"
 					>
 						{placeholder}
