@@ -15,17 +15,6 @@ from app.config import config
 logger = logging.getLogger(__name__)
 
 
-# Mapping of toolkit IDs to their Composio auth config IDs
-# These use Composio's managed OAuth (no custom credentials needed)
-COMPOSIO_TOOLKIT_AUTH_CONFIGS = {
-    "googledrive": "default",  # Uses Composio's managed Google OAuth
-    "gmail": "default",
-    "googlecalendar": "default",
-    "slack": "default",
-    "notion": "default",
-    "github": "default",
-}
-
 # Mapping of toolkit IDs to their display names
 COMPOSIO_TOOLKIT_NAMES = {
     "googledrive": "Google Drive",
@@ -233,134 +222,6 @@ class ComposioService:
         except Exception as e:
             logger.error(f"Failed to initiate Composio connection: {e!s}")
             raise
-
-    async def get_connected_account(
-        self, connected_account_id: str
-    ) -> dict[str, Any] | None:
-        """
-        Get details of a connected account.
-
-        Args:
-            connected_account_id: The Composio connected account ID.
-
-        Returns:
-            Connected account details or None if not found.
-        """
-        try:
-            # Pass connected_account_id as positional argument (not keyword)
-            account = self.client.connected_accounts.get(connected_account_id)
-            return {
-                "id": account.id,
-                "status": getattr(account, "status", None),
-                "toolkit": getattr(account, "toolkit", None),
-                "user_id": getattr(account, "user_id", None),
-            }
-        except Exception as e:
-            logger.error(
-                f"Failed to get connected account {connected_account_id}: {e!s}"
-            )
-            return None
-
-    async def list_all_connections(self) -> list[dict[str, Any]]:
-        """
-        List ALL connected accounts (for debugging).
-
-        Returns:
-            List of all connected account details.
-        """
-        try:
-            accounts_response = self.client.connected_accounts.list()
-
-            if hasattr(accounts_response, "items"):
-                accounts = accounts_response.items
-            elif hasattr(accounts_response, "__iter__"):
-                accounts = accounts_response
-            else:
-                logger.warning(
-                    f"Unexpected accounts response type: {type(accounts_response)}"
-                )
-                return []
-
-            result = []
-            for acc in accounts:
-                toolkit_raw = getattr(acc, "toolkit", None)
-                toolkit_info = None
-                if toolkit_raw:
-                    if isinstance(toolkit_raw, str):
-                        toolkit_info = toolkit_raw
-                    elif hasattr(toolkit_raw, "slug"):
-                        toolkit_info = toolkit_raw.slug
-                    elif hasattr(toolkit_raw, "name"):
-                        toolkit_info = toolkit_raw.name
-                    else:
-                        toolkit_info = str(toolkit_raw)
-
-                result.append(
-                    {
-                        "id": acc.id,
-                        "status": getattr(acc, "status", None),
-                        "toolkit": toolkit_info,
-                        "user_id": getattr(acc, "user_id", None),
-                    }
-                )
-
-            return result
-        except Exception as e:
-            logger.error(f"Failed to list all connections: {e!s}")
-            return []
-
-    async def list_user_connections(self, user_id: str) -> list[dict[str, Any]]:
-        """
-        List all connected accounts for a user.
-
-        Args:
-            user_id: The user's unique identifier.
-
-        Returns:
-            List of connected account details.
-        """
-        try:
-            accounts_response = self.client.connected_accounts.list(user_id=user_id)
-
-            # Handle paginated response (may have .items attribute) or direct list
-            if hasattr(accounts_response, "items"):
-                accounts = accounts_response.items
-            elif hasattr(accounts_response, "__iter__"):
-                accounts = accounts_response
-            else:
-                logger.warning(
-                    f"Unexpected accounts response type: {type(accounts_response)}"
-                )
-                return []
-
-            result = []
-            for acc in accounts:
-                # Extract toolkit info - might be string or object
-                toolkit_raw = getattr(acc, "toolkit", None)
-                toolkit_info = None
-                if toolkit_raw:
-                    if isinstance(toolkit_raw, str):
-                        toolkit_info = toolkit_raw
-                    elif hasattr(toolkit_raw, "slug"):
-                        toolkit_info = toolkit_raw.slug
-                    elif hasattr(toolkit_raw, "name"):
-                        toolkit_info = toolkit_raw.name
-                    else:
-                        toolkit_info = toolkit_raw
-
-                result.append(
-                    {
-                        "id": acc.id,
-                        "status": getattr(acc, "status", None),
-                        "toolkit": toolkit_info,
-                    }
-                )
-
-            logger.info(f"Found {len(result)} connections for user {user_id}: {result}")
-            return result
-        except Exception as e:
-            logger.error(f"Failed to list connections for user {user_id}: {e!s}")
-            return []
 
     async def delete_connected_account(self, connected_account_id: str) -> bool:
         """
@@ -1017,6 +878,178 @@ class ComposioService:
         except Exception as e:
             logger.error(f"Failed to list Calendar events: {e!s}")
             return [], str(e)
+
+    # ===== User Info Methods =====
+
+    async def get_connected_account_email(
+        self,
+        connected_account_id: str,
+        entity_id: str,
+        toolkit_id: str,
+    ) -> str | None:
+        """
+        Get the email address associated with a connected account.
+
+        Uses toolkit-specific API calls:
+        - Google Drive: List files and extract owner email
+        - Gmail: Get user profile
+        - Google Calendar: List events and extract organizer/creator email
+
+        Args:
+            connected_account_id: Composio connected account ID.
+            entity_id: The entity/user ID that owns the connected account.
+            toolkit_id: The toolkit identifier (googledrive, gmail, googlecalendar).
+
+        Returns:
+            Email address string or None if not available.
+        """
+        try:
+            email = await self._extract_email_for_toolkit(
+                connected_account_id, entity_id, toolkit_id
+            )
+
+            if email:
+                logger.info(f"Retrieved email {email} for {toolkit_id} connector")
+            else:
+                logger.warning(f"Could not retrieve email for {toolkit_id} connector")
+
+            return email
+
+        except Exception as e:
+            logger.error(f"Failed to get email for {toolkit_id} connector: {e!s}")
+            return None
+
+    async def _extract_email_for_toolkit(
+        self,
+        connected_account_id: str,
+        entity_id: str,
+        toolkit_id: str,
+    ) -> str | None:
+        """Extract email based on toolkit type."""
+        if toolkit_id == "googledrive":
+            return await self._get_drive_owner_email(connected_account_id, entity_id)
+        elif toolkit_id == "gmail":
+            return await self._get_gmail_profile_email(connected_account_id, entity_id)
+        elif toolkit_id == "googlecalendar":
+            return await self._get_calendar_user_email(connected_account_id, entity_id)
+        return None
+
+    async def _get_drive_owner_email(
+        self, connected_account_id: str, entity_id: str
+    ) -> str | None:
+        """Get email from Google Drive file owner where me=True."""
+        # List files owned by the user and find one where owner.me=True
+        result = await self.execute_tool(
+            connected_account_id=connected_account_id,
+            tool_name="GOOGLEDRIVE_LIST_FILES",
+            params={
+                "page_size": 10,
+                "fields": "files(owners)",
+                "q": "'me' in owners",  # Only files owned by current user
+            },
+            entity_id=entity_id,
+        )
+
+        if not result.get("success"):
+            return None
+
+        data = result.get("data", {})
+        if not isinstance(data, dict):
+            return None
+
+        files = data.get("files") or data.get("data", {}).get("files", [])
+        for file in files:
+            owners = file.get("owners", [])
+            for owner in owners:
+                # Only return email if this is the current user (me=True)
+                if owner.get("me") and owner.get("emailAddress"):
+                    return owner.get("emailAddress")
+
+        return None
+
+    async def _get_gmail_profile_email(
+        self, connected_account_id: str, entity_id: str
+    ) -> str | None:
+        """Get email from Gmail profile."""
+        result = await self.execute_tool(
+            connected_account_id=connected_account_id,
+            tool_name="GMAIL_GET_PROFILE",
+            params={},
+            entity_id=entity_id,
+        )
+
+        if not result.get("success"):
+            return None
+
+        data = result.get("data", {})
+        if not isinstance(data, dict):
+            return None
+
+        return data.get("emailAddress") or data.get("data", {}).get("emailAddress")
+
+    async def _get_calendar_user_email(
+        self, connected_account_id: str, entity_id: str
+    ) -> str | None:
+        """Get email from Google Calendar primary calendar or event organizer/creator."""
+        # Method 1: Get primary calendar - the "summary" field is the user's email
+        result = await self.execute_tool(
+            connected_account_id=connected_account_id,
+            tool_name="GOOGLECALENDAR_GET_CALENDAR",
+            params={"calendar_id": "primary"},
+            entity_id=entity_id,
+        )
+
+        if result.get("success"):
+            data = result.get("data", {})
+            if isinstance(data, dict):
+                # Handle nested structure: data['data']['calendar_data']['summary']
+                calendar_data = (
+                    data.get("data", {}).get("calendar_data", {})
+                    if isinstance(data.get("data"), dict)
+                    else {}
+                )
+                summary = (
+                    calendar_data.get("summary")
+                    or calendar_data.get("id")
+                    or data.get("data", {}).get("summary")
+                    or data.get("summary")
+                )
+                if summary and "@" in summary:
+                    return summary
+
+        # Method 2: Fallback - list events to get calendar summary (owner's email)
+        result = await self.execute_tool(
+            connected_account_id=connected_account_id,
+            tool_name="GOOGLECALENDAR_EVENTS_LIST",
+            params={"max_results": 20},
+            entity_id=entity_id,
+        )
+
+        if not result.get("success"):
+            return None
+
+        data = result.get("data", {})
+        if not isinstance(data, dict):
+            return None
+
+        # The events list response contains 'summary' which is the calendar owner's email
+        nested_data = data.get("data", {}) if isinstance(data.get("data"), dict) else {}
+        summary = nested_data.get("summary") or data.get("summary")
+        if summary and "@" in summary:
+            return summary
+
+        # Method 3: Check event organizers/creators
+        items = nested_data.get("items", []) or data.get("items", [])
+        for event in items:
+            organizer = event.get("organizer", {})
+            if organizer.get("self"):
+                return organizer.get("email")
+
+            creator = event.get("creator", {})
+            if creator.get("self"):
+                return creator.get("email")
+
+        return None
 
 
 # Singleton instance

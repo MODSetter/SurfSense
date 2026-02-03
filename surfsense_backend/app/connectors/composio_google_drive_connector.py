@@ -4,6 +4,7 @@ Composio Google Drive Connector Module.
 Provides Google Drive specific methods for data retrieval and indexing via Composio.
 """
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -321,14 +322,6 @@ async def _process_file_content(
     # Check if this is a binary file based on extension or MIME type
     is_binary = _is_binary_file(file_name, mime_type)
 
-    # Content-based binary detection as fallback
-    # This catches PDFs and other binary files even if MIME type is missing/incorrect
-    if not is_binary and content:
-        has_pdf_magic = content[:4] == b"%PDF"
-        has_null_bytes = b"\x00" in content[:1000]
-        if has_pdf_magic or has_null_bytes:
-            is_binary = True
-
     if is_binary:
         # Use ETL service for binary files (PDF, Office docs, etc.)
         temp_file_path = None
@@ -363,10 +356,8 @@ async def _process_file_content(
         finally:
             # Cleanup temp file
             if temp_file_path and os.path.exists(temp_file_path):
-                try:
+                with contextlib.suppress(Exception):
                     os.unlink(temp_file_path)
-                except Exception:
-                    pass
     else:
         # Text file - try to decode as UTF-8
         try:
