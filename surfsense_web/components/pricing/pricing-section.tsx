@@ -11,7 +11,7 @@ const demoPlans = [
 		billingText: "Includes 30 day PRO trial",
 		features: [
 			"Open source on GitHub",
-			"Upload and chat with 1,000+ pages of content",
+			"Upload and chat with 300+ pages of content",
 			"Connects with 8 popular sources, like Drive and Notion.",
 			"Includes limited access to ChatGPT, Claude, and DeepSeek models",
 			"Supports 100+ more LLMs, including Gemini, Llama and many more.",
@@ -33,7 +33,7 @@ const demoPlans = [
 		billingText: "billed annually",
 		features: [
 			"Everything in Free",
-			"Upload and chat with up to 20,000+ pages of content",
+			"Upload and chat with 5,000+ pages of content",
 			"Connects with 15+ external sources, like Slack and Airtable.",
 			"Includes extended access to ChatGPT, Claude, and DeepSeek models",
 			"Collaboration and commenting features",
@@ -49,10 +49,10 @@ const demoPlans = [
 	},
 	{
 		name: "ENTERPRISE",
-		price: "1000",
-		yearlyPrice: "1000",
-		period: "month",
-		billingText: "billed annually",
+		price: "Contact Us",
+		yearlyPrice: "Contact Us",
+		period: "",
+		billingText: "",
 		features: [
 			"Everything in Pro",
 			"Connect and chat with virtually unlimited pages of content",
