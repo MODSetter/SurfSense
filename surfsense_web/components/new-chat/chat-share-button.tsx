@@ -257,8 +257,8 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					</TooltipTrigger>
 					<TooltipContent>
 						{snapshotCount === 1
-							? "This chat has a public link - Click to manage"
-							: `This chat has ${snapshotCount} public links - Click to manage`}
+							? "This chat has a public link"
+							: `This chat has ${snapshotCount} public links`}
 					</TooltipContent>
 				</Tooltip>
 			)}
