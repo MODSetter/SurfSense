@@ -4,7 +4,6 @@ import { useSetAtom } from "jotai";
 import {
 	CircleAlert,
 	CircleX,
-	Columns3,
 	FilePlus2,
 	FileType,
 	ListFilter,
@@ -31,11 +30,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
-import type { ColumnVisibility } from "./types";
 
 export function DocumentsFilters({
 	typeCounts: typeCountsRecord,
@@ -45,8 +42,6 @@ export function DocumentsFilters({
 	onBulkDelete,
 	onToggleType,
 	activeTypes,
-	columnVisibility,
-	onToggleColumn,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	selectedIds: Set<number>;
@@ -55,8 +50,6 @@ export function DocumentsFilters({
 	onBulkDelete: () => Promise<void>;
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
-	columnVisibility: ColumnVisibility;
-	onToggleColumn: (id: keyof ColumnVisibility, checked: boolean) => void;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -252,57 +245,7 @@ export function DocumentsFilters({
 					</PopoverContent>
 				</Popover>
 
-					{/* View/Columns Popover */}
-					<Popover>
-						<PopoverTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								className="h-9 gap-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
-							>
-								<Columns3 size={14} className="text-muted-foreground" />
-								<span className="hidden sm:inline">View</span>
-							</Button>
-						</PopoverTrigger>
-						<PopoverContent className="w-36 !p-0 overflow-hidden" align="end">
-							<div className="px-2.5 pt-3 pb-2">
-								<div className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground">
-									Toggle columns
-								</div>
-								<div className="space-y-0.5">
-									{(
-										[
-											["document_type", "Source"],
-											["created_by", "User"],
-											["created_at", "Created"],
-										] as Array<[keyof ColumnVisibility, string]>
-									).map(([key, label], i) => (
-										<button
-											key={key}
-											type="button"
-											className="flex w-full items-center gap-2 py-1 px-2.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer text-left"
-											onClick={() => onToggleColumn(key, !columnVisibility[key])}
-										>
-											<Checkbox
-												id={`${id}-col-${i}`}
-												checked={columnVisibility[key]}
-												onCheckedChange={(checked: boolean) => onToggleColumn(key, !!checked)}
-												className="h-3.5 w-3.5 flex-shrink-0 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-											/>
-											<Label
-												htmlFor={`${id}-col-${i}`}
-												className="flex flex-1 items-center gap-2 font-normal text-xs cursor-pointer min-w-0"
-											>
-												<span className="truncate min-w-0">{label}</span>
-											</Label>
-										</button>
-									))}
-								</div>
-							</div>
-						</PopoverContent>
-					</Popover>
-
-					{/* Bulk Delete Button - positioned next to View on mobile */}
+					{/* Bulk Delete Button */}
 					{selectedIds.size > 0 && (
 						<AlertDialog>
 							<AlertDialogTrigger asChild>

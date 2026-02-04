@@ -28,6 +28,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { DocumentTypeChip } from "./DocumentTypeIcon";
+import { RowActions } from "./RowActions";
 import type { ColumnVisibility, Document } from "./types";
 
 export type SortKey = keyof Pick<Document, "title" | "document_type" | "created_at">;
@@ -142,6 +143,8 @@ export function DocumentsTableShell({
 	sortKey,
 	sortDesc,
 	onSortChange,
+	deleteDocument,
+	searchSpaceId,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -153,6 +156,8 @@ export function DocumentsTableShell({
 	sortKey: SortKey;
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
+	deleteDocument: (id: number) => Promise<boolean>;
+	searchSpaceId: string;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
@@ -273,7 +278,7 @@ export function DocumentsTableShell({
 						<Table className="table-fixed w-full">
 							<TableHeader>
 								<TableRow className="hover:bg-transparent border-b border-border/40">
-									<TableHead className="w-8 px-0 text-center border-r border-border/40">
+									<TableHead className="w-8 px-0 text-center">
 										<div className="flex items-center justify-center h-full">
 											<Skeleton className="h-4 w-4 rounded" />
 										</div>
@@ -296,6 +301,9 @@ export function DocumentsTableShell({
 											<Skeleton className="h-3 w-16" />
 										</TableHead>
 									)}
+									<TableHead className="w-10">
+										<span className="sr-only">Actions</span>
+									</TableHead>
 								</TableRow>
 							</TableHeader>
 						</Table>
@@ -307,7 +315,7 @@ export function DocumentsTableShell({
 											key={`skeleton-${index}`}
 											className="border-b border-border/40 hover:bg-transparent"
 										>
-											<TableCell className="w-8 px-0 py-2.5 text-center border-r border-border/40">
+											<TableCell className="w-8 px-0 py-2.5 text-center">
 												<div className="flex items-center justify-center h-full">
 													<Skeleton className="h-4 w-4 rounded" />
 												</div>
@@ -333,6 +341,9 @@ export function DocumentsTableShell({
 													<Skeleton className="h-4 w-20" />
 												</TableCell>
 											)}
+											<TableCell className="w-10 py-2.5 text-center">
+												<Skeleton className="h-6 w-6 mx-auto rounded" />
+											</TableCell>
 										</TableRow>
 									))}
 								</TableBody>
@@ -406,7 +417,7 @@ export function DocumentsTableShell({
 						<Table className="table-fixed w-full">
 							<TableHeader>
 								<TableRow className="hover:bg-transparent border-b border-border/40">
-									<TableHead className="w-8 px-0 text-center border-r border-border/40">
+									<TableHead className="w-8 px-0 text-center">
 										<div className="flex items-center justify-center h-full">
 											<Checkbox
 												checked={allSelectedOnPage || (someSelectedOnPage && "indeterminate")}
@@ -461,6 +472,9 @@ export function DocumentsTableShell({
 											</SortableHeader>
 										</TableHead>
 									)}
+									<TableHead className="w-10">
+										<span className="sr-only">Actions</span>
+									</TableHead>
 								</TableRow>
 							</TableHeader>
 						</Table>
@@ -488,7 +502,7 @@ export function DocumentsTableShell({
 														: "hover:bg-muted/30"
 												}`}
 											>
-												<TableCell className="w-8 px-0 py-2.5 text-center border-r border-border/40">
+												<TableCell className="w-8 px-0 py-2.5 text-center">
 													<div className="flex items-center justify-center h-full">
 														<Checkbox
 															checked={isSelected}
@@ -549,6 +563,13 @@ export function DocumentsTableShell({
 														</Tooltip>
 													</TableCell>
 												)}
+												<TableCell className="w-10 py-2.5 text-center">
+													<RowActions
+														document={doc}
+														deleteDocument={deleteDocument}
+														searchSpaceId={searchSpaceId}
+													/>
+												</TableCell>
 											</motion.tr>
 										);
 									})}
@@ -626,6 +647,11 @@ export function DocumentsTableShell({
 												)}
 											</div>
 										</div>
+										<RowActions
+											document={doc}
+											deleteDocument={deleteDocument}
+											searchSpaceId={searchSpaceId}
+										/>
 									</div>
 								</motion.div>
 							);

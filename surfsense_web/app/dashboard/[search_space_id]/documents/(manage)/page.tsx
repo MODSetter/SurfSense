@@ -138,10 +138,6 @@ export default function DocumentsTable() {
 		setPageIndex(0);
 	};
 
-	const onToggleColumn = (id: keyof ColumnVisibility, checked: boolean) => {
-		setColumnVisibility((prev) => ({ ...prev, [id]: checked }));
-	};
-
 	const [isRefreshing, setIsRefreshing] = useState(false);
 
 	const refreshCurrentView = useCallback(async () => {
@@ -193,6 +189,23 @@ export default function DocumentsTable() {
 		}
 	};
 
+	// Single document delete handler for RowActions
+	const handleDeleteDocument = useCallback(async (id: number): Promise<boolean> => {
+		try {
+			await deleteDocumentMutation({ id });
+			toast.success(t("delete_success") || "Document deleted");
+			// If in search mode, refetch search results to reflect deletion
+			if (isSearchMode) {
+				await refetchSearch();
+			}
+			// Real-time mode: Electric will sync the deletion automatically
+			return true;
+		} catch (e) {
+			console.error("Error deleting document:", e);
+			return false;
+		}
+	}, [deleteDocumentMutation, isSearchMode, refetchSearch, t]);
+
 	const handleSortChange = useCallback((key: SortKey) => {
 		setSortKey((currentKey) => {
 			if (currentKey === key) {
@@ -237,8 +250,6 @@ export default function DocumentsTable() {
 				onBulkDelete={onBulkDelete}
 				onToggleType={onToggleType}
 				activeTypes={activeTypes}
-				columnVisibility={columnVisibility}
-				onToggleColumn={onToggleColumn}
 			/>
 
 			{/* Table */}
@@ -253,6 +264,8 @@ export default function DocumentsTable() {
 				sortKey={sortKey}
 				sortDesc={sortDesc}
 				onSortChange={handleSortChange}
+				deleteDocument={handleDeleteDocument}
+				searchSpaceId={String(searchSpaceId)}
 			/>
 
 			{/* Pagination */}
