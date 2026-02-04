@@ -370,14 +370,14 @@ export function InboxSidebar({
 				if (isCommentReplyMetadata(item.metadata)) {
 					const searchSpaceId = item.search_space_id;
 					const threadId = item.metadata.thread_id;
-					const commentId = item.metadata.parent_comment_id;
+					const replyId = item.metadata.reply_id;
 
 					if (searchSpaceId && threadId) {
-						if (commentId) {
-							setTargetCommentId(commentId);
+						if (replyId) {
+							setTargetCommentId(replyId);
 						}
-						const url = commentId
-							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
+						const url = replyId
+							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${replyId}`
 							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
 						onOpenChange(false);
 						onCloseMobileSidebar?.();
