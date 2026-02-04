@@ -164,6 +164,7 @@ class IncentiveTaskType(str, Enum):
 
     GITHUB_STAR = "GITHUB_STAR"
     REDDIT_FOLLOW = "REDDIT_FOLLOW"
+    DISCORD_JOIN = "DISCORD_JOIN"
     # Future tasks can be added here:
     # GITHUB_ISSUE = "GITHUB_ISSUE"
     # SOCIAL_SHARE = "SOCIAL_SHARE"
@@ -184,6 +185,12 @@ INCENTIVE_TASKS_CONFIG = {
         "description": "Join the SurfSense community on Reddit",
         "pages_reward": 100,
         "action_url": "https://www.reddit.com/r/SurfSense/",
+    },
+    IncentiveTaskType.DISCORD_JOIN: {
+        "title": "Join our Discord",
+        "description": "Join the SurfSense community on Discord",
+        "pages_reward": 100,
+        "action_url": "https://discord.gg/ejRNvftDp9",
     },
     # Future tasks can be configured here:
     # IncentiveTaskType.GITHUB_ISSUE: {
