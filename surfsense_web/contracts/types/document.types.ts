@@ -42,6 +42,8 @@ export const document = z.object({
 	created_at: z.string(),
 	updated_at: z.string().nullable(),
 	search_space_id: z.number(),
+	created_by_id: z.string().nullable().optional(),
+	created_by_name: z.string().nullable().optional(),
 });
 
 export const extensionDocumentContent = z.object({

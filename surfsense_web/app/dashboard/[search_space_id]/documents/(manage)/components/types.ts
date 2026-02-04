@@ -4,8 +4,9 @@ export type Document = {
 	id: number;
 	title: string;
 	document_type: DocumentType;
-	document_metadata: any;
-	content: string;
+	// Optional: Only needed when viewing document details (lazy loaded)
+	document_metadata?: any;
+	content?: string;
 	created_at: string;
 	search_space_id: number;
 	created_by_id?: string | null;

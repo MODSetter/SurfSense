@@ -19,7 +19,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
-import { useDocumentsElectric } from "@/hooks/use-documents-electric";
+import { useDocuments } from "@/hooks/use-documents";
 import { useInbox } from "@/hooks/use-inbox";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
@@ -63,7 +63,9 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 	const llmConfigLoading = preferencesLoading || globalConfigsLoading;
 
 	// Fetch document type counts using Electric SQL + PGlite for real-time updates
-	const { documentTypeCounts, loading: documentTypesLoading } = useDocumentsElectric(searchSpaceId);
+	const { typeCounts: documentTypeCounts, loading: documentTypesLoading } = useDocuments(
+		searchSpaceId ? Number(searchSpaceId) : null
+	);
 
 	// Fetch notifications to detect indexing failures
 	const { inboxItems = [] } = useInbox(

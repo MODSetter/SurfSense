@@ -1,15 +1,21 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import {Calendar, ChevronDown, ChevronUp, FileText, FileX, Network, Plus, User } from "lucide-react";
+import { Calendar, ChevronDown, ChevronUp, FileText, FileX, Loader2, Network, Plus, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
-import { DocumentViewer } from "@/components/document-viewer";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
 	Table,
@@ -20,6 +26,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { DocumentTypeChip } from "./DocumentTypeIcon";
 import type { ColumnVisibility, Document } from "./types";
 
@@ -153,6 +160,42 @@ export function DocumentsTableShell({
 	// State for metadata viewer (opened via Ctrl/Cmd+Click)
 	const [metadataDoc, setMetadataDoc] = useState<Document | null>(null);
 
+	// State for lazy document content viewer
+	// Real-time documents don't sync content - we fetch on-demand when viewing
+	const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
+	const [viewingContent, setViewingContent] = useState<string>("");
+	const [viewingLoading, setViewingLoading] = useState(false);
+
+	// Fetch document content on-demand when viewer is opened
+	const handleViewDocument = useCallback(async (doc: Document) => {
+		setViewingDoc(doc);
+
+		// If content is already available (from API/search), use it directly
+		if (doc.content) {
+			setViewingContent(doc.content);
+			return;
+		}
+
+		// Otherwise, fetch from API (lazy loading for real-time synced documents)
+		setViewingLoading(true);
+		try {
+			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
+			setViewingContent(fullDoc.content);
+		} catch (err) {
+			console.error("[DocumentsTableShell] Failed to fetch document content:", err);
+			setViewingContent("Failed to load document content.");
+		} finally {
+			setViewingLoading(false);
+		}
+	}, []);
+
+	// Close document viewer
+	const handleCloseViewer = useCallback(() => {
+		setViewingDoc(null);
+		setViewingContent("");
+		setViewingLoading(false);
+	}, []);
+
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
 		[documents, sortKey, sortDesc]
@@ -185,7 +228,7 @@ export function DocumentsTableShell({
 
 	return (
 		<motion.div
-			className="rounded-lg border border-border/30 bg-background overflow-hidden"
+			className="rounded-lg border border-border/40 bg-background overflow-hidden"
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
@@ -196,22 +239,22 @@ export function DocumentsTableShell({
 					<div className="hidden md:flex md:flex-col">
 						<Table className="table-fixed w-full">
 							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/30">
-									<TableHead className="w-8 px-0 text-center border-r border-border/30">
+								<TableRow className="hover:bg-transparent border-b border-border/40">
+									<TableHead className="w-8 px-0 text-center border-r border-border/40">
 										<div className="flex items-center justify-center h-full">
 											<Skeleton className="h-4 w-4 rounded" />
 										</div>
 									</TableHead>
-									<TableHead className="w-[35%] max-w-0 border-r border-border/30">
+									<TableHead className="w-[35%] max-w-0 border-r border-border/40">
 										<Skeleton className="h-3 w-20" />
 									</TableHead>
 									{columnVisibility.document_type && (
-										<TableHead className="w-[20%] min-w-[120px] max-w-[200px] border-r border-border/30">
+										<TableHead className="w-[20%] min-w-[120px] max-w-[200px] border-r border-border/40">
 											<Skeleton className="h-3 w-14" />
 										</TableHead>
 									)}
 									{columnVisibility.created_by && (
-										<TableHead className="w-36 border-r border-border/30">
+										<TableHead className="w-36 border-r border-border/40">
 											<Skeleton className="h-3 w-10" />
 										</TableHead>
 									)}
@@ -229,26 +272,26 @@ export function DocumentsTableShell({
 									{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent, index) => (
 										<TableRow
 											key={`skeleton-${index}`}
-											className="border-b border-border/30 hover:bg-transparent"
+											className="border-b border-border/40 hover:bg-transparent"
 										>
-											<TableCell className="w-8 px-0 py-2.5 text-center border-r border-border/30">
+											<TableCell className="w-8 px-0 py-2.5 text-center border-r border-border/40">
 												<div className="flex items-center justify-center h-full">
 													<Skeleton className="h-4 w-4 rounded" />
 												</div>
 											</TableCell>
-											<TableCell className="w-[35%] py-2.5 max-w-0 border-r border-border/30">
+											<TableCell className="w-[35%] py-2.5 max-w-0 border-r border-border/40">
 												<Skeleton
 													className="h-4"
 													style={{ width: `${widthPercent}%` }}
 												/>
 											</TableCell>
 											{columnVisibility.document_type && (
-												<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/30 overflow-hidden">
+												<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/40 overflow-hidden">
 													<Skeleton className="h-5 w-24 rounded" />
 												</TableCell>
 											)}
 											{columnVisibility.created_by && (
-												<TableCell className="w-36 py-2.5 truncate border-r border-border/30">
+												<TableCell className="w-36 py-2.5 truncate border-r border-border/40">
 													<Skeleton className="h-4 w-20" />
 												</TableCell>
 											)}
@@ -329,8 +372,8 @@ export function DocumentsTableShell({
 						{/* Fixed Header */}
 						<Table className="table-fixed w-full">
 							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/30">
-									<TableHead className="w-8 px-0 text-center border-r border-border/30">
+								<TableRow className="hover:bg-transparent border-b border-border/40">
+									<TableHead className="w-8 px-0 text-center border-r border-border/40">
 										<div className="flex items-center justify-center h-full">
 											<Checkbox
 												checked={allSelectedOnPage || (someSelectedOnPage && "indeterminate")}
@@ -340,7 +383,7 @@ export function DocumentsTableShell({
 											/>
 										</div>
 									</TableHead>
-									<TableHead className="w-[35%] border-r border-border/30">
+									<TableHead className="w-[35%] border-r border-border/40">
 										<SortableHeader
 											sortKey="title"
 											currentSortKey={sortKey}
@@ -352,7 +395,7 @@ export function DocumentsTableShell({
 										</SortableHeader>
 									</TableHead>
 									{columnVisibility.document_type && (
-										<TableHead className="w-[20%] min-w-[120px] max-w-[200px] border-r border-border/30">
+										<TableHead className="w-[20%] min-w-[120px] max-w-[200px] border-r border-border/40">
 											<SortableHeader
 												sortKey="document_type"
 												currentSortKey={sortKey}
@@ -365,7 +408,7 @@ export function DocumentsTableShell({
 										</TableHead>
 									)}
 									{columnVisibility.created_by && (
-										<TableHead className="w-36 border-r border-border/30">
+										<TableHead className="w-36 border-r border-border/40">
 											<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
 												<User size={14} className="opacity-60 text-muted-foreground" />
 												User
@@ -406,13 +449,13 @@ export function DocumentsTableShell({
 														delay: index * 0.02,
 													},
 												}}
-												className={`border-b border-border/30 transition-colors ${
+												className={`border-b border-border/40 transition-colors ${
 													isSelected
 														? "bg-primary/5 hover:bg-primary/8"
 														: "hover:bg-muted/30"
 												}`}
 											>
-												<TableCell className="w-8 px-0 py-2.5 text-center border-r border-border/30">
+												<TableCell className="w-8 px-0 py-2.5 text-center border-r border-border/40">
 													<div className="flex items-center justify-center h-full">
 														<Checkbox
 															checked={isSelected}
@@ -422,42 +465,42 @@ export function DocumentsTableShell({
 														/>
 													</div>
 												</TableCell>
-												<TableCell className="w-[35%] py-2.5 max-w-0 border-r border-border/30">
-													<DocumentViewer
-														title={doc.title}
-														content={doc.content}
-														trigger={
-															<button
-																type="button"
-																className="block w-full text-left text-sm text-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 p-0 truncate"
-																onClick={(e) => {
-																	// Ctrl (Win/Linux) or Cmd (Mac) + Click opens metadata
-																	if (e.ctrlKey || e.metaKey) {
-																		e.preventDefault();
-																		e.stopPropagation();
-																		setMetadataDoc(doc);
-																	}
-																}}
-																onKeyDown={(e) => {
-																	// Ctrl/Cmd + Enter opens metadata
-																	if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-																		e.preventDefault();
-																		setMetadataDoc(doc);
-																	}
-																}}
-															>
-																<TruncatedText text={title} className="truncate block" />
-															</button>
-														}
-													/>
+												<TableCell className="w-[35%] py-2.5 max-w-0 border-r border-border/40">
+													<button
+														type="button"
+														className="block w-full text-left text-sm text-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 p-0 truncate"
+														onClick={(e) => {
+															// Ctrl (Win/Linux) or Cmd (Mac) + Click opens metadata
+															if (e.ctrlKey || e.metaKey) {
+																e.preventDefault();
+																e.stopPropagation();
+																setMetadataDoc(doc);
+															} else {
+																// Normal click opens document viewer (lazy loads content)
+																handleViewDocument(doc);
+															}
+														}}
+														onKeyDown={(e) => {
+															// Ctrl/Cmd + Enter opens metadata
+															if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+																e.preventDefault();
+																setMetadataDoc(doc);
+															} else if (e.key === "Enter") {
+																// Enter opens document viewer
+																handleViewDocument(doc);
+															}
+														}}
+													>
+														<TruncatedText text={title} className="truncate block" />
+													</button>
 												</TableCell>
 												{columnVisibility.document_type && (
-													<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/30 overflow-hidden">
+													<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/40 overflow-hidden">
 														<DocumentTypeChip type={doc.document_type} />
 													</TableCell>
 												)}
 												{columnVisibility.created_by && (
-													<TableCell className="w-36 py-2.5 text-sm text-foreground truncate border-r border-border/30">
+													<TableCell className="w-36 py-2.5 text-sm text-foreground truncate border-r border-border/40">
 														{doc.created_by_name || "—"}
 													</TableCell>
 												)}
@@ -482,7 +525,7 @@ export function DocumentsTableShell({
 					</div>
 
 					{/* Mobile Card View - Notion Style */}
-					<div className="md:hidden divide-y divide-border/30 h-[50vh] overflow-auto">
+					<div className="md:hidden divide-y divide-border/40 h-[50vh] overflow-auto">
 						{sorted.map((doc, index) => {
 							const isSelected = selectedIds.has(doc.id);
 							return (
@@ -502,33 +545,33 @@ export function DocumentsTableShell({
 											className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
 										/>
 										<div className="flex-1 min-w-0 space-y-1.5">
-											<DocumentViewer
-												title={doc.title}
-												content={doc.content}
-												trigger={
-													<button
-														type="button"
-														className="text-left text-sm text-foreground hover:text-foreground transition-colors cursor-pointer truncate block w-full bg-transparent border-0 p-0"
-														onClick={(e) => {
-															// Ctrl (Win/Linux) or Cmd (Mac) + Click opens metadata
-															if (e.ctrlKey || e.metaKey) {
-																e.preventDefault();
-																e.stopPropagation();
-																setMetadataDoc(doc);
-															}
-														}}
-														onKeyDown={(e) => {
-															// Ctrl/Cmd + Enter opens metadata
-															if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-																e.preventDefault();
-																setMetadataDoc(doc);
-															}
-														}}
-													>
-														{doc.title}
-													</button>
-												}
-											/>
+											<button
+												type="button"
+												className="text-left text-sm text-foreground hover:text-foreground transition-colors cursor-pointer truncate block w-full bg-transparent border-0 p-0"
+												onClick={(e) => {
+													// Ctrl (Win/Linux) or Cmd (Mac) + Click opens metadata
+													if (e.ctrlKey || e.metaKey) {
+														e.preventDefault();
+														e.stopPropagation();
+														setMetadataDoc(doc);
+													} else {
+														// Normal click opens document viewer (lazy loads content)
+														handleViewDocument(doc);
+													}
+												}}
+												onKeyDown={(e) => {
+													// Ctrl/Cmd + Enter opens metadata
+													if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+														e.preventDefault();
+														setMetadataDoc(doc);
+													} else if (e.key === "Enter") {
+														// Enter opens document viewer
+														handleViewDocument(doc);
+													}
+												}}
+											>
+												{doc.title}
+											</button>
 											<div className="flex flex-wrap items-center gap-2">
 												<DocumentTypeChip type={doc.document_type} />
 												{columnVisibility.created_by && doc.created_by_name && (
@@ -567,6 +610,24 @@ export function DocumentsTableShell({
 					if (!open) setMetadataDoc(null);
 				}}
 			/>
+
+			{/* Document Content Viewer - lazy loads content on-demand */}
+			<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
+				<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+					<DialogHeader>
+						<DialogTitle>{viewingDoc?.title}</DialogTitle>
+					</DialogHeader>
+					<div className="mt-4">
+						{viewingLoading ? (
+							<div className="flex items-center justify-center py-12">
+								<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+							</div>
+						) : (
+							<MarkdownViewer content={viewingContent} />
+						)}
+					</div>
+				</DialogContent>
+			</Dialog>
 		</motion.div>
 	);
 }

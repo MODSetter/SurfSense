@@ -70,7 +70,9 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 // v5: fixed duplicate key errors (root cause: unstable cutoff dates in use-inbox.ts)
 //     - added onMustRefetch handler for server-side refetch scenarios
 //     - fixed getSyncCutoffDate to use stable midnight UTC timestamps
-const SYNC_VERSION = 5;
+// v6: real-time documents table - added title and created_by_id columns for live document display
+// v7: removed use-documents-electric.ts - consolidated to single documents sync to prevent conflicts
+const SYNC_VERSION = 7;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";
@@ -235,12 +237,14 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 			`);
 
 			// Create the documents table schema in PGlite
-			// Only sync minimal fields needed for type counts: id, document_type, search_space_id
+			// Sync columns needed for real-time table display (lightweight - no content/metadata)
 			await db.exec(`
 				CREATE TABLE IF NOT EXISTS documents (
 					id INTEGER PRIMARY KEY,
 					search_space_id INTEGER NOT NULL,
 					document_type TEXT NOT NULL,
+					title TEXT NOT NULL DEFAULT '',
+					created_by_id TEXT,
 					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 				);
 				

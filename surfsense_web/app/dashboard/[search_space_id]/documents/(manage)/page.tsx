@@ -8,8 +8,8 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useDocuments } from "@/hooks/use-documents";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { DocumentsFilters } from "./components/DocumentsFilters";
@@ -43,21 +43,20 @@ export default function DocumentsTable() {
 	const [sortKey, setSortKey] = useState<SortKey>("created_at");
 	const [sortDesc, setSortDesc] = useState(true);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-	const { data: rawTypeCounts } = useAtomValue(documentTypeCountsAtom);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
-	// Build query parameters for fetching documents
-	const queryParams = useMemo(
-		() => ({
-			search_space_id: searchSpaceId,
-			page: pageIndex,
-			page_size: PAGE_SIZE,
-			...(activeTypes.length > 0 && { document_types: activeTypes }),
-		}),
-		[searchSpaceId, pageIndex, activeTypes]
-	);
+	// REAL-TIME: Use Electric SQL hook for live document updates (when not searching)
+	const {
+		documents: realtimeDocuments,
+		typeCounts: realtimeTypeCounts,
+		loading: realtimeLoading,
+		error: realtimeError,
+	} = useDocuments(searchSpaceId, activeTypes);
 
-	// Build search query parameters
+	// Check if we're in search mode
+	const isSearchMode = !!debouncedSearch.trim();
+
+	// Build search query parameters (only used when searching)
 	const searchQueryParams = useMemo(
 		() => ({
 			search_space_id: searchSpaceId,
@@ -69,20 +68,7 @@ export default function DocumentsTable() {
 		[searchSpaceId, pageIndex, activeTypes, debouncedSearch]
 	);
 
-	// Use query for fetching documents
-	const {
-		data: documentsResponse,
-		isLoading: isDocumentsLoading,
-		refetch: refetchDocuments,
-		error: documentsError,
-	} = useQuery({
-		queryKey: cacheKeys.documents.globalQueryParams(queryParams),
-		queryFn: () => documentsApiService.getDocuments({ queryParams }),
-		staleTime: 3 * 60 * 1000, // 3 minutes
-		enabled: !!searchSpaceId && !debouncedSearch.trim(),
-	});
-
-	// Use query for searching documents
+	// API search query (only enabled when searching - Electric doesn't do full-text search)
 	const {
 		data: searchResponse,
 		isLoading: isSearchLoading,
@@ -91,73 +77,59 @@ export default function DocumentsTable() {
 	} = useQuery({
 		queryKey: cacheKeys.documents.globalQueryParams(searchQueryParams),
 		queryFn: () => documentsApiService.searchDocuments({ queryParams: searchQueryParams }),
-		staleTime: 3 * 60 * 1000, // 3 minutes
-		enabled: !!searchSpaceId && !!debouncedSearch.trim(),
+		staleTime: 30 * 1000, // 30 seconds for search (shorter since it's on-demand)
+		enabled: !!searchSpaceId && isSearchMode,
 	});
 
-	// Determine if we should show SurfSense docs (when no type filter or SURFSENSE_DOCS is selected)
-	const showSurfsenseDocs =
-		activeTypes.length === 0 || activeTypes.includes("SURFSENSE_DOCS" as DocumentTypeEnum);
+	// Client-side sorting for real-time documents
+	const sortedRealtimeDocuments = useMemo(() => {
+		const docs = [...realtimeDocuments];
+		docs.sort((a, b) => {
+			const av = a[sortKey] ?? "";
+			const bv = b[sortKey] ?? "";
+			let cmp: number;
+			if (sortKey === "created_at") {
+				cmp = new Date(av as string).getTime() - new Date(bv as string).getTime();
+			} else {
+				cmp = String(av).localeCompare(String(bv));
+			}
+			return sortDesc ? -cmp : cmp;
+		});
+		return docs;
+	}, [realtimeDocuments, sortKey, sortDesc]);
 
-	// Use query for fetching SurfSense docs
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const { data: surfsenseDocsResponse } = useQuery({
-		queryKey: ["surfsense-docs", debouncedSearch, pageIndex, PAGE_SIZE],
-		queryFn: () =>
-			documentsApiService.getSurfsenseDocs({
-				queryParams: {
-					page: pageIndex,
-					page_size: PAGE_SIZE,
-					title: debouncedSearch.trim() || undefined,
-				},
-			}),
-		staleTime: 3 * 60 * 1000, // 3 minutes
-		enabled: showSurfsenseDocs,
-	});
+	// Client-side pagination for real-time documents
+	const paginatedRealtimeDocuments = useMemo(() => {
+		const start = pageIndex * PAGE_SIZE;
+		const end = start + PAGE_SIZE;
+		return sortedRealtimeDocuments.slice(start, end);
+	}, [sortedRealtimeDocuments, pageIndex]);
 
-	// Transform SurfSense docs to match the Document type
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const surfsenseDocsAsDocuments = useMemo(() => {
-		if (!surfsenseDocsResponse?.items) return [];
-		return surfsenseDocsResponse.items.map((doc) => ({
-			id: doc.id,
-			title: doc.title,
-			document_type: "SURFSENSE_DOCS",
-			document_metadata: { source: doc.source },
-			content: doc.content,
-			created_at: new Date().toISOString(),
-			search_space_id: -1, // Special value for global docs
-		}));
-	}, [surfsenseDocsResponse]);
+	// Determine what to display based on search mode
+	const displayDocs = isSearchMode
+		? (searchResponse?.items || []).map((item) => ({
+				id: item.id,
+				search_space_id: item.search_space_id,
+				document_type: item.document_type,
+				title: item.title,
+				created_by_id: item.created_by_id ?? null,
+				created_by_name: item.created_by_name ?? null,
+				created_at: item.created_at,
+			}))
+		: paginatedRealtimeDocuments;
 
-	// Merge type counts with SURFSENSE_DOCS count
-	// eslint-disable-next-line @typescript-eslint/no-unused-vars
-	const typeCounts = useMemo(() => {
-		const counts = { ...(rawTypeCounts || {}) };
-		if (surfsenseDocsResponse?.total) {
-			counts.SURFSENSE_DOCS = surfsenseDocsResponse.total;
-		}
-		return counts;
-	}, [rawTypeCounts, surfsenseDocsResponse?.total]);
+	const displayTotal = isSearchMode
+		? searchResponse?.total || 0
+		: sortedRealtimeDocuments.length;
 
-	// Extract documents and total based on search state
-	const documents = debouncedSearch.trim()
-		? searchResponse?.items || []
-		: documentsResponse?.items || [];
-	const total = debouncedSearch.trim() ? searchResponse?.total || 0 : documentsResponse?.total || 0;
+	const loading = isSearchMode ? isSearchLoading : realtimeLoading;
+	const error = isSearchMode ? searchError : realtimeError;
 
-	const loading = debouncedSearch.trim() ? isSearchLoading : isDocumentsLoading;
-	const error = debouncedSearch.trim() ? searchError : documentsError;
-
-	// Display results directly
-	const displayDocs = documents;
-	const displayTotal = total;
 	const pageEnd = Math.min((pageIndex + 1) * PAGE_SIZE, displayTotal);
 
 	const onToggleType = (type: DocumentTypeEnum, checked: boolean) => {
 		setActiveTypes((prev) => {
 			if (checked) {
-				// Only add if not already in the array
 				return prev.includes(type) ? prev : [...prev, type];
 			} else {
 				return prev.filter((t) => t !== type);
@@ -176,16 +148,15 @@ export default function DocumentsTable() {
 		if (isRefreshing) return;
 		setIsRefreshing(true);
 		try {
-			if (debouncedSearch.trim()) {
+			if (isSearchMode) {
 				await refetchSearch();
-			} else {
-				await refetchDocuments();
 			}
+			// Real-time view doesn't need manual refresh - Electric handles it
 			toast.success(t("refresh_success") || "Documents refreshed");
 		} finally {
 			setIsRefreshing(false);
 		}
-	}, [debouncedSearch, refetchSearch, refetchDocuments, t, isRefreshing]);
+	}, [isSearchMode, refetchSearch, t, isRefreshing]);
 
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
@@ -208,7 +179,13 @@ export default function DocumentsTable() {
 			if (okCount === selectedIds.size)
 				toast.success(t("delete_success_count", { count: okCount }));
 			else toast.error(t("delete_partial_failed"));
-			// Note: No need to call refreshCurrentView() - the mutation already updates the cache
+			
+			// If in search mode, refetch search results to reflect deletion
+			if (isSearchMode) {
+				await refetchSearch();
+			}
+			// Real-time mode: Electric will sync the deletion automatically
+			
 			setSelectedIds(new Set());
 		} catch (e) {
 			console.error(e);
@@ -226,6 +203,12 @@ export default function DocumentsTable() {
 			return key;
 		});
 	}, []);
+
+	// Reset page when search changes (type filter already resets via onToggleType)
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Intentionally reset page on search change
+	useEffect(() => {
+		setPageIndex(0);
+	}, [debouncedSearch]);
 
 	useEffect(() => {
 		const mq = window.matchMedia("(max-width: 768px)");
@@ -245,9 +228,9 @@ export default function DocumentsTable() {
 			transition={{ duration: 0.3 }}
 			className="w-full max-w-7xl mx-auto px-6 pt-17 pb-6 space-y-6 min-h-[calc(100vh-64px)]"
 		>
-			{/* Filters */}
+			{/* Filters - use real-time type counts */}
 			<DocumentsFilters
-				typeCounts={rawTypeCounts ?? {}}
+				typeCounts={realtimeTypeCounts}
 				selectedIds={selectedIds}
 				onSearch={setSearch}
 				searchValue={search}
