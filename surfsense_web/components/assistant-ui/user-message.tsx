@@ -4,7 +4,6 @@ import { FileText, PencilIcon } from "lucide-react";
 import { type FC, useState } from "react";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
-import { BranchPicker } from "@/components/assistant-ui/branch-picker";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
 interface AuthorMetadata {
@@ -95,24 +94,47 @@ export const UserMessage: FC = () => {
 					</div>
 				)}
 			</div>
-
-			<BranchPicker className="aui-user-branch-picker -mr-1 col-span-full col-start-1 row-start-3 justify-end" />
 		</MessagePrimitive.Root>
 	);
 };
 
 const UserActionBar: FC = () => {
+	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	
+	// Get current message ID
+	const currentMessageId = useAssistantState(({ message }) => message?.id);
+	
+	// Find the last user message ID in the thread (computed once, memoized by selector)
+	const lastUserMessageId = useAssistantState(({ thread }) => {
+		const messages = thread.messages;
+		for (let i = messages.length - 1; i >= 0; i--) {
+			if (messages[i].role === "user") {
+				return messages[i].id;
+			}
+		}
+		return null;
+	});
+
+	// Simple comparison - no iteration needed per message
+	const isLastUserMessage = currentMessageId === lastUserMessageId;
+	
+	// Show edit button only on the last user message and when thread is not running
+	const canEdit = isLastUserMessage && !isThreadRunning;
+
 	return (
 		<ActionBarPrimitive.Root
 			hideWhenRunning
 			autohide="not-last"
 			className="aui-user-action-bar-root flex flex-col items-end"
 		>
-			<ActionBarPrimitive.Edit asChild>
-				<TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4">
-					<PencilIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.Edit>
+			{/* Only allow editing the last user message */}
+			{canEdit && (
+				<ActionBarPrimitive.Edit asChild>
+					<TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4">
+						<PencilIcon />
+					</TooltipIconButton>
+				</ActionBarPrimitive.Edit>
+			)}
 		</ActionBarPrimitive.Root>
 	);
 };
