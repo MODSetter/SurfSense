@@ -128,7 +128,7 @@ async def get_comment_thread_participants(
     )
 
     if exclude_user_ids:
-        query = query.where(ChatComment.author_id.notin_(exclude_user_ids))
+        query = query.where(ChatComment.author_id.notin_(list(exclude_user_ids)))
 
     result = await session.execute(query.distinct())
     return [row[0] for row in result.fetchall()]
@@ -468,11 +468,14 @@ async def create_reply(
         )
 
     # Notify thread participants (excluding replier and mentioned users)
-    exclude_ids = {user.id, *mentions_map.keys()}
+    mentioned_user_ids = set(mentions_map.keys())
+    exclude_ids = {user.id} | mentioned_user_ids
     participants = await get_comment_thread_participants(
         session, comment_id, exclude_ids
     )
     for participant_id in participants:
+        if participant_id in mentioned_user_ids:
+            continue
         await NotificationService.comment_reply.notify_comment_reply(
             session=session,
             user_id=participant_id,
