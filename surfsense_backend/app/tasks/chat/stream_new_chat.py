@@ -1224,9 +1224,6 @@ async def stream_new_chat(
 
         # Only generate title on the first response (no prior assistant messages)
         if assistant_message_count == 0:
-            print(f"[stream_new_chat] First response - generating title for thread {chat_id}")
-            print(f"[stream_new_chat] Query length: {len(user_query)}, Response length: {len(accumulated_text)}")
-
             generated_title = None
             try:
                 # Generate title using the same LLM
@@ -1234,39 +1231,23 @@ async def stream_new_chat(
                 # Truncate inputs to avoid context length issues
                 truncated_query = user_query[:500]
                 truncated_response = accumulated_text[:1000]
-                print(f"[stream_new_chat] Calling LLM for title generation...")
                 title_result = await title_chain.ainvoke({
                     "user_query": truncated_query,
                     "assistant_response": truncated_response,
                 })
-                print(f"[stream_new_chat] LLM title result type: {type(title_result)}")
-                print(f"[stream_new_chat] LLM title result: {title_result}")
 
                 # Extract and clean the title
                 if title_result and hasattr(title_result, "content"):
                     raw_title = title_result.content.strip()
-                    print(f"[stream_new_chat] Raw title content: '{raw_title}' (len={len(raw_title)})")
-
-                    # Validate the title (1-6 words, reasonable length)
+                    # Validate the title (reasonable length)
                     if raw_title and len(raw_title) <= 100:
                         # Remove any quotes or extra formatting
                         generated_title = raw_title.strip('"\'')
-                        print(f"[stream_new_chat] After stripping quotes: '{generated_title}'")
-                    else:
-                        print(f"[stream_new_chat] Title validation failed: empty={not raw_title}, len={len(raw_title)}")
-                        generated_title = None
-                else:
-                    print(f"[stream_new_chat] No content attribute on result")
-            except Exception as title_error:
-                print(f"[stream_new_chat] Title generation failed: {title_error}")
-                import traceback
-                traceback.print_exc()
+            except Exception:
                 generated_title = None
 
             # Only update if LLM succeeded (keep truncated prompt title as fallback)
             if generated_title:
-                print(f"[stream_new_chat] Using LLM-generated title: '{generated_title}'")
-
                 # Fetch thread and update title
                 thread_result = await session.execute(
                     select(NewChatThread).filter(NewChatThread.id == chat_id)
@@ -1280,8 +1261,6 @@ async def stream_new_chat(
                     yield streaming_service.format_thread_title_update(
                         chat_id, generated_title
                     )
-            else:
-                print(f"[stream_new_chat] LLM title generation failed, keeping truncated prompt title")
 
         # Finish the step and message
         yield streaming_service.format_finish_step()
