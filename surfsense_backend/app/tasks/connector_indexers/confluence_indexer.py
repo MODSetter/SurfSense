@@ -307,7 +307,7 @@ async def index_confluence_pages(
                         chunks = await create_document_chunks(full_content)
 
                         # Update existing document
-                        existing_document.title = f"Confluence - {page_title}"
+                        existing_document.title = page_title
                         existing_document.content = summary_content
                         existing_document.content_hash = content_hash
                         existing_document.embedding = summary_embedding
@@ -387,7 +387,7 @@ async def index_confluence_pages(
                 logger.info(f"Creating new document for page {page_title}")
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"Confluence - {page_title}",
+                    title=page_title,
                     document_type=DocumentType.CONFLUENCE_CONNECTOR,
                     document_metadata={
                         "page_id": page_id,

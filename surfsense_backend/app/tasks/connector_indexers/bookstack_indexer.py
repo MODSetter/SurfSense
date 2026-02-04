@@ -317,7 +317,7 @@ async def index_bookstack_pages(
                         chunks = await create_document_chunks(full_content)
 
                         # Update existing document
-                        existing_document.title = f"BookStack - {page_name}"
+                        existing_document.title = page_name
                         existing_document.content = summary_content
                         existing_document.content_hash = content_hash
                         existing_document.embedding = summary_embedding
@@ -387,7 +387,7 @@ async def index_bookstack_pages(
                 logger.info(f"Creating new document for page {page_name}")
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"BookStack - {page_name}",
+                    title=page_name,
                     document_type=DocumentType.BOOKSTACK_CONNECTOR,
                     document_metadata=doc_metadata,
                     content=summary_content,

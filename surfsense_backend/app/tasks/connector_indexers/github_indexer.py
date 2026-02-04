@@ -418,7 +418,7 @@ async def _process_repository_digest(
     }
 
     document = Document(
-        title=f"GitHub Repository: {repo_full_name}",
+        title=repo_full_name,
         document_type=DocumentType.GITHUB_CONNECTOR,
         document_metadata=doc_metadata,
         content=summary_text,

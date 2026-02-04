@@ -361,7 +361,7 @@ async def index_luma_events(
                         chunks = await create_document_chunks(event_markdown)
 
                         # Update existing document
-                        existing_document.title = f"Luma Event - {event_name}"
+                        existing_document.title = event_name
                         existing_document.content = summary_content
                         existing_document.content_hash = content_hash
                         existing_document.embedding = summary_embedding
@@ -455,7 +455,7 @@ async def index_luma_events(
 
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"Luma Event - {event_name}",
+                    title=event_name,
                     document_type=DocumentType.LUMA_CONNECTOR,
                     document_metadata={
                         "event_id": event_id,

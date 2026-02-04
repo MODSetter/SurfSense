@@ -327,9 +327,7 @@ async def index_airtable_records(
                                     )
 
                                     # Update existing document
-                                    existing_document.title = (
-                                        f"Airtable Record: {record_id}"
-                                    )
+                                    existing_document.title = record_id
                                     existing_document.content = summary_content
                                     existing_document.content_hash = content_hash
                                     existing_document.embedding = summary_embedding
@@ -405,7 +403,7 @@ async def index_airtable_records(
                             )
                             document = Document(
                                 search_space_id=search_space_id,
-                                title=f"Airtable Record: {record_id}",
+                                title=record_id,
                                 document_type=DocumentType.AIRTABLE_CONNECTOR,
                                 document_metadata={
                                     "record_id": record_id,

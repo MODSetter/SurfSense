@@ -507,7 +507,7 @@ async def index_discord_messages(
                             # Create and store new document
                             document = Document(
                                 search_space_id=search_space_id,
-                                title=f"Discord - {guild_name}#{channel_name}",
+                                title=f"{guild_name}#{channel_name}",
                                 document_type=DocumentType.DISCORD_CONNECTOR,
                                 document_metadata={
                                     "guild_name": guild_name,

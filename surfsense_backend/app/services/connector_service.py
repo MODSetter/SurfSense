@@ -982,7 +982,7 @@ class ConnectorService:
         def _title_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             channel_name = metadata.get("channel_name", "Unknown Channel")
             message_date = metadata.get("start_date", "")
-            title = f"Slack: {channel_name}"
+            title = channel_name
             if message_date:
                 title += f" ({message_date})"
             return title
@@ -1056,7 +1056,7 @@ class ConnectorService:
         def _title_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             page_title = metadata.get("page_title", "Untitled Page")
             indexed_at = metadata.get("indexed_at", "")
-            title = f"Notion: {page_title}"
+            title = page_title
             if indexed_at:
                 title += f" (indexed: {indexed_at})"
             return title
@@ -1366,9 +1366,9 @@ class ConnectorService:
             issue_title = metadata.get("issue_title", "Untitled Issue")
             issue_state = metadata.get("state", "")
             title = (
-                f"Linear: {issue_identifier} - {issue_title}"
+                f"{issue_identifier} - {issue_title}"
                 if issue_identifier
-                else f"Linear: {issue_title}"
+                else issue_title
             )
             if issue_state:
                 title += f" ({issue_state})"
@@ -1466,9 +1466,9 @@ class ConnectorService:
             issue_title = metadata.get("issue_title", "Untitled Issue")
             status = metadata.get("status", "")
             title = (
-                f"Jira: {issue_key} - {issue_title}"
+                f"{issue_key} - {issue_title}"
                 if issue_key
-                else f"Jira: {issue_title}"
+                else issue_title
             )
             if status:
                 title += f" ({status})"
@@ -1570,7 +1570,7 @@ class ConnectorService:
         def _title_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             event_summary = metadata.get("event_summary", "Untitled Event")
             start_time = metadata.get("start_time", "")
-            title = f"Calendar: {event_summary}"
+            title = event_summary
             if start_time:
                 title += f" ({start_time})"
             return title
@@ -1675,7 +1675,7 @@ class ConnectorService:
 
         def _title_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             record_id = metadata.get("record_id", "")
-            return f"Airtable Record: {record_id}" if record_id else "Airtable Record"
+            return record_id if record_id else "Airtable Record"
 
         def _description_fn(
             _chunk: dict[str, Any], _doc_info: dict[str, Any], metadata: dict[str, Any]
@@ -1952,7 +1952,7 @@ class ConnectorService:
         def _title_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             page_title = metadata.get("page_title", "Untitled Page")
             space_key = metadata.get("space_key", "")
-            title = f"Confluence: {page_title}"
+            title = page_title
             if space_key:
                 title += f" ({space_key})"
             return title
@@ -2238,7 +2238,7 @@ class ConnectorService:
         def _title_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             channel_name = metadata.get("channel_name", "Unknown Channel")
             message_date = metadata.get("start_date", "")
-            title = f"Discord: {channel_name}"
+            title = channel_name
             if message_date:
                 title += f" ({message_date})"
             return title
@@ -2314,7 +2314,7 @@ class ConnectorService:
             team_name = metadata.get("team_name", "Unknown Team")
             channel_name = metadata.get("channel_name", "Unknown Channel")
             message_date = metadata.get("start_date", "")
-            title = f"Teams: {team_name} - {channel_name}"
+            title = f"{team_name} - {channel_name}"
             if message_date:
                 title += f" ({message_date})"
             return title
@@ -2388,9 +2388,9 @@ class ConnectorService:
             event_name = metadata.get("event_name", "Untitled Event")
             start_time = metadata.get("start_time", "")
             return (
-                f"Luma: {event_name} ({start_time})"
+                f"{event_name} ({start_time})"
                 if start_time
-                else f"Luma: {event_name}"
+                else event_name
             )
 
         def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
@@ -2651,7 +2651,7 @@ class ConnectorService:
 
         def _title_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             page_name = metadata.get("page_name", "Untitled Page")
-            return f"BookStack: {page_name}"
+            return page_name
 
         def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             page_slug = metadata.get("page_slug", "")

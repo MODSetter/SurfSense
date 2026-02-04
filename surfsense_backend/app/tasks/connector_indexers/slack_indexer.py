@@ -373,7 +373,7 @@ async def index_slack_messages(
                     # Create and store new document
                     document = Document(
                         search_space_id=search_space_id,
-                        title=f"Slack - {channel_name}",
+                        title=channel_name,
                         document_type=DocumentType.SLACK_CONNECTOR,
                         document_metadata={
                             "channel_name": channel_name,

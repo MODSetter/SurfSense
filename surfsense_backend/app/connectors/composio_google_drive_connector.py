@@ -1276,7 +1276,7 @@ async def _process_single_drive_file(
 
         chunks = await create_document_chunks(markdown_content)
 
-        existing_document.title = f"Drive: {file_name}"
+        existing_document.title = file_name
         existing_document.content = summary_content
         existing_document.content_hash = content_hash
         existing_document.embedding = summary_embedding
@@ -1329,7 +1329,7 @@ async def _process_single_drive_file(
 
     document = Document(
         search_space_id=search_space_id,
-        title=f"Drive: {file_name}",
+        title=file_name,
         document_type=DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"]),
         document_metadata={
             "file_id": file_id,

@@ -410,7 +410,7 @@ async def index_teams_messages(
                             # Create and store new document
                             document = Document(
                                 search_space_id=search_space_id,
-                                title=f"Teams - {team_name} - {channel_name}",
+                                title=f"{team_name} - {channel_name}",
                                 document_type=DocumentType.TEAMS_CONNECTOR,
                                 document_metadata={
                                     "team_name": team_name,

@@ -346,7 +346,7 @@ async def index_composio_google_calendar(
 
                     chunks = await create_document_chunks(markdown_content)
 
-                    existing_document.title = f"Calendar: {summary}"
+                    existing_document.title = summary
                     existing_document.content = summary_content
                     existing_document.content_hash = content_hash
                     existing_document.embedding = summary_embedding
@@ -422,7 +422,7 @@ async def index_composio_google_calendar(
 
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"Calendar: {summary}",
+                    title=summary,
                     document_type=DocumentType(
                         TOOLKIT_TO_DOCUMENT_TYPE["googlecalendar"]
                     ),

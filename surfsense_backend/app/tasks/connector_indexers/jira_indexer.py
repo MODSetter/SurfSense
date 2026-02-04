@@ -282,9 +282,7 @@ async def index_jira_issues(
                         chunks = await create_document_chunks(issue_content)
 
                         # Update existing document
-                        existing_document.title = (
-                            f"Jira - {issue_identifier}: {issue_title}"
-                        )
+                        existing_document.title = f"{issue_identifier}: {issue_title}"
                         existing_document.content = summary_content
                         existing_document.content_hash = content_hash
                         existing_document.embedding = summary_embedding
@@ -364,7 +362,7 @@ async def index_jira_issues(
                 )
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"Jira - {issue_identifier}: {issue_title}",
+                    title=f"{issue_identifier}: {issue_title}",
                     document_type=DocumentType.JIRA_CONNECTOR,
                     document_metadata={
                         "issue_id": issue_id,

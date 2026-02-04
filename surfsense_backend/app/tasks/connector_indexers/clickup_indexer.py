@@ -299,7 +299,7 @@ async def index_clickup_tasks(
                             chunks = await create_document_chunks(task_content)
 
                             # Update existing document
-                            existing_document.title = f"Task - {task_name}"
+                            existing_document.title = task_name
                             existing_document.content = summary_content
                             existing_document.content_hash = content_hash
                             existing_document.embedding = summary_embedding
@@ -376,7 +376,7 @@ async def index_clickup_tasks(
 
                     document = Document(
                         search_space_id=search_space_id,
-                        title=f"Task - {task_name}",
+                        title=task_name,
                         document_type=DocumentType.CLICKUP_CONNECTOR,
                         document_metadata={
                             "task_id": task_id,

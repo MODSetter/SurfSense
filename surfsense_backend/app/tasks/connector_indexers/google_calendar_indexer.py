@@ -396,7 +396,7 @@ async def index_google_calendar_events(
                         chunks = await create_document_chunks(event_markdown)
 
                         # Update existing document
-                        existing_document.title = f"Calendar Event - {event_summary}"
+                        existing_document.title = event_summary
                         existing_document.content = summary_content
                         existing_document.content_hash = content_hash
                         existing_document.embedding = summary_embedding
@@ -482,7 +482,7 @@ async def index_google_calendar_events(
 
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"Calendar Event - {event_summary}",
+                    title=event_summary,
                     document_type=DocumentType.GOOGLE_CALENDAR_CONNECTOR,
                     document_metadata={
                         "event_id": event_id,

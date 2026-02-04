@@ -319,7 +319,7 @@ async def _process_gmail_message_batch(
 
                 chunks = await create_document_chunks(markdown_content)
 
-                existing_document.title = f"Gmail: {subject}"
+                existing_document.title = subject
                 existing_document.content = summary_content
                 existing_document.content_hash = content_hash
                 existing_document.embedding = summary_embedding
@@ -375,7 +375,7 @@ async def _process_gmail_message_batch(
 
             document = Document(
                 search_space_id=search_space_id,
-                title=f"Gmail: {subject}",
+                title=subject,
                 document_type=DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["gmail"]),
                 document_metadata={
                     "message_id": message_id,

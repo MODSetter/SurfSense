@@ -387,7 +387,7 @@ async def index_notion_pages(
                         chunks = await create_document_chunks(markdown_content)
 
                         # Update existing document
-                        existing_document.title = f"Notion - {page_title}"
+                        existing_document.title = page_title
                         existing_document.content = summary_content
                         existing_document.content_hash = content_hash
                         existing_document.embedding = summary_embedding
@@ -458,7 +458,7 @@ async def index_notion_pages(
                 # Create and store new document
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"Notion - {page_title}",
+                    title=page_title,
                     document_type=DocumentType.NOTION_CONNECTOR,
                     document_metadata={
                         "page_title": page_title,

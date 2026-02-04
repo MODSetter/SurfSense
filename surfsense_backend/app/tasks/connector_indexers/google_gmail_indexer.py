@@ -332,7 +332,7 @@ async def index_google_gmail_messages(
                         chunks = await create_document_chunks(markdown_content)
 
                         # Update existing document
-                        existing_document.title = f"Gmail: {subject}"
+                        existing_document.title = subject
                         existing_document.content = summary_content
                         existing_document.content_hash = content_hash
                         existing_document.embedding = summary_embedding
@@ -405,7 +405,7 @@ async def index_google_gmail_messages(
                 logger.info(f"Creating new document for Gmail message: {subject}")
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"Gmail: {subject}",
+                    title=subject,
                     document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
                     document_metadata={
                         "message_id": message_id,
