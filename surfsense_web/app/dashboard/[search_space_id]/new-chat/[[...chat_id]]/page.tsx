@@ -437,7 +437,10 @@ export default function NewChatPage() {
 			let isNewThread = false;
 			if (!currentThreadId) {
 				try {
-					const newThread = await createThread(searchSpaceId, "New Chat");
+					// Create thread with truncated prompt as initial title
+					const initialTitle =
+						userQuery.trim().slice(0, 100) + (userQuery.trim().length > 100 ? "..." : "");
+					const newThread = await createThread(searchSpaceId, initialTitle);
 					currentThreadId = newThread.id;
 					setThreadId(currentThreadId);
 					// Set currentThread so ChatHeader can show share button immediately
@@ -822,6 +825,22 @@ export default function NewChatPage() {
 													const newMap = new Map(prev);
 													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
 													return newMap;
+												});
+											}
+											break;
+										}
+
+										case "data-thread-title-update": {
+											// Handle thread title update from LLM-generated title
+											const titleData = parsed.data as { threadId: number; title: string };
+											if (titleData?.title && titleData?.threadId === currentThreadId) {
+												// Update current thread state with new title
+												setCurrentThread((prev) =>
+													prev ? { ...prev, title: titleData.title } : prev
+												);
+												// Invalidate thread list to refresh sidebar
+												queryClient.invalidateQueries({
+													queryKey: ["threads", String(searchSpaceId)],
 												});
 											}
 											break;

@@ -104,3 +104,33 @@ SUMMARY_PROMPT = (
 SUMMARY_PROMPT_TEMPLATE = PromptTemplate(
     input_variables=["document"], template=SUMMARY_PROMPT
 )
+
+# =============================================================================
+# Chat Title Generation Prompt
+# =============================================================================
+
+TITLE_GENERATION_PROMPT = """Generate a concise, descriptive title for the following conversation.
+
+<rules>
+- The title MUST be between 1 and 6 words
+- The title MUST be on a single line
+- Capture the main topic or intent of the conversation
+- Do NOT use quotes, punctuation, or formatting
+- Do NOT include words like "Chat about" or "Discussion of"
+- Return ONLY the title, nothing else
+</rules>
+
+<user_query>
+{user_query}
+</user_query>
+
+<assistant_response>
+{assistant_response}
+</assistant_response>
+
+Title:"""
+
+TITLE_GENERATION_PROMPT_TEMPLATE = PromptTemplate(
+    input_variables=["user_query", "assistant_response"],
+    template=TITLE_GENERATION_PROMPT,
+)
