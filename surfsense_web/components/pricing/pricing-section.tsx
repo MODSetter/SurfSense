@@ -49,9 +49,10 @@ const demoPlans = [
 	},
 	{
 		name: "ENTERPRISE",
-		price: "Contact Us",
-		yearlyPrice: "Contact Us",
-		period: "",
+		price: "1000",
+		yearlyPrice: "1000",
+		period: "month",
+		billingText: "billed annually",
 		features: [
 			"Everything in Pro",
 			"Connect and chat with virtually unlimited pages of content",
