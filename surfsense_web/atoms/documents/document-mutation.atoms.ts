@@ -95,7 +95,7 @@ export const deleteDocumentMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: (_, request: DeleteDocumentRequest) => {
-			toast.success("Document deleted successfully");
+			// Note: Toast is handled by the caller (page.tsx onBulkDelete) to show count info
 			queryClient.setQueryData(
 				cacheKeys.documents.globalQueryParams(documentsQueryParams),
 				(oldData: GetDocumentsResponse | undefined) => {

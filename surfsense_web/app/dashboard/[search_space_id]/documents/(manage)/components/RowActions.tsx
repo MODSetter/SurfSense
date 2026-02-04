@@ -31,12 +31,10 @@ const NON_DELETABLE_DOCUMENT_TYPES = ["SURFSENSE_DOCS"] as const;
 export function RowActions({
 	document,
 	deleteDocument,
-	refreshDocuments,
 	searchSpaceId,
 }: {
 	document: Document;
 	deleteDocument: (id: number) => Promise<boolean>;
-	refreshDocuments: () => Promise<void>;
 	searchSpaceId: string;
 }) {
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -55,9 +53,9 @@ export function RowActions({
 		setIsDeleting(true);
 		try {
 			const ok = await deleteDocument(document.id);
-			if (ok) toast.success("Document deleted successfully");
-			else toast.error("Failed to delete document");
-			await refreshDocuments();
+			if (!ok) toast.error("Failed to delete document");
+			// Note: Success toast is handled by the mutation atom's onSuccess callback
+			// Cache is updated optimistically by the mutation, no need to refresh
 		} catch (error) {
 			console.error("Error deleting document:", error);
 			toast.error("Failed to delete document");

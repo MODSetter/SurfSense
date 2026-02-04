@@ -187,20 +187,6 @@ export default function DocumentsTable() {
 		}
 	}, [debouncedSearch, refetchSearch, refetchDocuments, t, isRefreshing]);
 
-	// Create a delete function for single document deletion
-	const deleteDocument = useCallback(
-		async (id: number) => {
-			try {
-				await deleteDocumentMutation({ id });
-				return true;
-			} catch (error) {
-				console.error("Failed to delete document:", error);
-				return false;
-			}
-		},
-		[deleteDocumentMutation]
-	);
-
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
 			toast.error(t("no_rows_selected"));
@@ -222,8 +208,7 @@ export default function DocumentsTable() {
 			if (okCount === selectedIds.size)
 				toast.success(t("delete_success_count", { count: okCount }));
 			else toast.error(t("delete_partial_failed"));
-			// Refetch the current page with appropriate method
-			await refreshCurrentView();
+			// Note: No need to call refreshCurrentView() - the mutation already updates the cache
 			setSelectedIds(new Set());
 		} catch (e) {
 			console.error(e);
@@ -282,7 +267,6 @@ export default function DocumentsTable() {
 				selectedIds={selectedIds}
 				setSelectedIds={setSelectedIds}
 				columnVisibility={columnVisibility}
-				deleteDocument={deleteDocument}
 				sortKey={sortKey}
 				sortDesc={sortDesc}
 				onSortChange={handleSortChange}

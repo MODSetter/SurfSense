@@ -3,7 +3,6 @@
 import { formatDistanceToNow } from "date-fns";
 import { Calendar, ChevronDown, ChevronUp, FileText, FileX, Link2, Plus, User } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, { useRef, useState, useEffect } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -22,7 +21,6 @@ import {
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { DocumentTypeChip } from "./DocumentTypeIcon";
-import { RowActions } from "./RowActions";
 import type { ColumnVisibility, Document } from "./types";
 
 export type SortKey = keyof Pick<Document, "title" | "document_type" | "created_at">;
@@ -134,7 +132,6 @@ export function DocumentsTableShell({
 	selectedIds,
 	setSelectedIds,
 	columnVisibility,
-	deleteDocument,
 	sortKey,
 	sortDesc,
 	onSortChange,
@@ -146,14 +143,11 @@ export function DocumentsTableShell({
 	selectedIds: Set<number>;
 	setSelectedIds: (update: Set<number>) => void;
 	columnVisibility: ColumnVisibility;
-	deleteDocument: (id: number) => Promise<boolean>;
 	sortKey: SortKey;
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
 }) {
 	const t = useTranslations("documents");
-	const params = useParams();
-	const searchSpaceId = params.search_space_id;
 	const { openDialog } = useDocumentUploadDialog();
 
 	// State for metadata viewer (opened via Ctrl/Cmd+Click)
@@ -222,13 +216,10 @@ export function DocumentsTableShell({
 										</TableHead>
 									)}
 									{columnVisibility.created_at && (
-										<TableHead className="w-32 border-r border-border/30">
+										<TableHead className="w-32">
 											<Skeleton className="h-3 w-16" />
 										</TableHead>
 									)}
-									<TableHead className="w-10 text-center">
-										<span className="sr-only">Actions</span>
-									</TableHead>
 								</TableRow>
 							</TableHeader>
 						</Table>
@@ -262,15 +253,10 @@ export function DocumentsTableShell({
 												</TableCell>
 											)}
 											{columnVisibility.created_at && (
-												<TableCell className="w-32 py-2.5 border-r border-border/30">
+												<TableCell className="w-32 py-2.5">
 													<Skeleton className="h-4 w-20" />
 												</TableCell>
 											)}
-											<TableCell className="w-10 py-2.5 px-0">
-												<div className="flex justify-center">
-													<Skeleton className="h-7 w-7 rounded" />
-												</div>
-											</TableCell>
 										</TableRow>
 									))}
 								</TableBody>
@@ -387,7 +373,7 @@ export function DocumentsTableShell({
 										</TableHead>
 									)}
 									{columnVisibility.created_at && (
-										<TableHead className="w-32 border-r border-border/30">
+										<TableHead className="w-32">
 											<SortableHeader
 												sortKey="created_at"
 												currentSortKey={sortKey}
@@ -399,9 +385,6 @@ export function DocumentsTableShell({
 											</SortableHeader>
 										</TableHead>
 									)}
-									<TableHead className="w-10 text-center">
-										<span className="sr-only">Actions</span>
-									</TableHead>
 								</TableRow>
 							</TableHeader>
 						</Table>
@@ -479,7 +462,7 @@ export function DocumentsTableShell({
 													</TableCell>
 												)}
 												{columnVisibility.created_at && (
-													<TableCell className="w-32 py-2.5 text-sm text-foreground border-r border-border/30">
+													<TableCell className="w-32 py-2.5 text-sm text-foreground">
 														<Tooltip>
 															<TooltipTrigger asChild>
 																<span className="cursor-default">{formatRelativeDate(doc.created_at)}</span>
@@ -490,18 +473,6 @@ export function DocumentsTableShell({
 														</Tooltip>
 													</TableCell>
 												)}
-												<TableCell className="w-10 py-2.5 px-0">
-													<div className="flex justify-center">
-														<RowActions
-															document={doc}
-															deleteDocument={deleteDocument}
-															refreshDocuments={async () => {
-																await onRefresh();
-															}}
-															searchSpaceId={searchSpaceId as string}
-														/>
-													</div>
-												</TableCell>
 											</motion.tr>
 										);
 									})}
@@ -579,14 +550,6 @@ export function DocumentsTableShell({
 												)}
 											</div>
 										</div>
-										<RowActions
-											document={doc}
-											deleteDocument={deleteDocument}
-											refreshDocuments={async () => {
-												await onRefresh();
-											}}
-											searchSpaceId={searchSpaceId as string}
-										/>
 									</div>
 								</motion.div>
 							);
