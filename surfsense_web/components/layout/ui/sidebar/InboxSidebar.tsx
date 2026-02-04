@@ -46,6 +46,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
+	isCommentReplyMetadata,
 	isConnectorIndexingMetadata,
 	isNewMentionMetadata,
 	isPageLimitExceededMetadata,
@@ -347,19 +348,33 @@ export function InboxSidebar({
 			}
 
 			if (item.type === "new_mention") {
-				// Use type guard for safe metadata access
 				if (isNewMentionMetadata(item.metadata)) {
 					const searchSpaceId = item.search_space_id;
 					const threadId = item.metadata.thread_id;
 					const commentId = item.metadata.comment_id;
 
 					if (searchSpaceId && threadId) {
-						// Pre-set target comment ID before navigation
-						// This also ensures comments panel is not collapsed
 						if (commentId) {
 							setTargetCommentId(commentId);
 						}
+						const url = commentId
+							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
+							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
+						onOpenChange(false);
+						onCloseMobileSidebar?.();
+						router.push(url);
+					}
+				}
+			} else if (item.type === "comment_reply") {
+				if (isCommentReplyMetadata(item.metadata)) {
+					const searchSpaceId = item.search_space_id;
+					const threadId = item.metadata.thread_id;
+					const commentId = item.metadata.parent_comment_id;
 
+					if (searchSpaceId && threadId) {
+						if (commentId) {
+							setTargetCommentId(commentId);
+						}
 						const url = commentId
 							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
 							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
@@ -411,24 +426,29 @@ export function InboxSidebar({
 	};
 
 	const getStatusIcon = (item: InboxItem) => {
-		// For mentions, show the author's avatar with initials fallback
-		if (item.type === "new_mention") {
-			// Use type guard for safe metadata access
-			if (isNewMentionMetadata(item.metadata)) {
-				const authorName = item.metadata.author_name;
-				const avatarUrl = item.metadata.author_avatar_url;
-				const authorEmail = item.metadata.author_email;
+		// For mentions and comment replies, show the author's avatar
+		if (item.type === "new_mention" || item.type === "comment_reply") {
+			const metadata =
+				item.type === "new_mention"
+					? isNewMentionMetadata(item.metadata)
+						? item.metadata
+						: null
+					: isCommentReplyMetadata(item.metadata)
+						? item.metadata
+						: null;
 
+			if (metadata) {
 				return (
 					<Avatar className="h-8 w-8">
-						{avatarUrl && <AvatarImage src={avatarUrl} alt={authorName || "User"} />}
+						{metadata.author_avatar_url && (
+							<AvatarImage src={metadata.author_avatar_url} alt={metadata.author_name || "User"} />
+						)}
 						<AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-							{getInitials(authorName, authorEmail)}
+							{getInitials(metadata.author_name, metadata.author_email)}
 						</AvatarFallback>
 					</Avatar>
 				);
 			}
-			// Fallback for invalid metadata
 			return (
 				<Avatar className="h-8 w-8">
 					<AvatarFallback className="text-[10px] bg-primary/10 text-primary">
