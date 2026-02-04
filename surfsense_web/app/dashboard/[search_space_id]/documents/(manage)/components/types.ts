@@ -8,11 +8,12 @@ export type Document = {
 	content: string;
 	created_at: string;
 	search_space_id: number;
+	created_by_id?: string | null;
+	created_by_name?: string | null;
 };
 
 export type ColumnVisibility = {
-	title: boolean;
 	document_type: boolean;
-	content: boolean;
+	created_by: boolean;
 	created_at: boolean;
 };

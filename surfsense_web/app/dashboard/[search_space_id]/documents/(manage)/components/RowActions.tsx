@@ -1,11 +1,10 @@
 "use client";
 
-import { FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -43,7 +42,6 @@ export function RowActions({
 	searchSpaceId: string;
 }) {
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-	const [isMetadataOpen, setIsMetadataOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const router = useRouter();
 
@@ -104,29 +102,6 @@ export function RowActions({
 					</Tooltip>
 				)}
 
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<motion.div
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.95 }}
-							transition={{ type: "spring", stiffness: 400, damping: 17 }}
-						>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-								onClick={() => setIsMetadataOpen(true)}
-							>
-								<FileText className="h-4 w-4" />
-								<span className="sr-only">View Metadata</span>
-							</Button>
-						</motion.div>
-					</TooltipTrigger>
-					<TooltipContent side="top">
-						<p>View Metadata</p>
-					</TooltipContent>
-				</Tooltip>
-
 				{isDeletable && (
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -170,10 +145,6 @@ export function RowActions({
 								<span>Edit</span>
 							</DropdownMenuItem>
 						)}
-						<DropdownMenuItem onClick={() => setIsMetadataOpen(true)}>
-							<FileText className="mr-2 h-4 w-4" />
-							<span>Metadata</span>
-						</DropdownMenuItem>
 						{isDeletable && (
 							<DropdownMenuItem
 								onClick={() => setIsDeleteOpen(true)}
@@ -186,13 +157,6 @@ export function RowActions({
 					</DropdownMenuContent>
 				</DropdownMenu>
 			</div>
-
-			<JsonMetadataViewer
-				title={document.title}
-				metadata={document.document_metadata}
-				open={isMetadataOpen}
-				onOpenChange={setIsMetadataOpen}
-			/>
 
 			<AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
 				<AlertDialogContent>

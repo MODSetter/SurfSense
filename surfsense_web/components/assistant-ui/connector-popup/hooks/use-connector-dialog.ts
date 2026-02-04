@@ -1,8 +1,9 @@
 import { format } from "date-fns";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import {
 	createConnectorMutationAtom,
 	deleteConnectorMutationAtom,
@@ -49,7 +50,8 @@ export const useConnectorDialog = () => {
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
 	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
-	const [isOpen, setIsOpen] = useState(false);
+	// Use global atom for dialog open state so it can be controlled from anywhere
+	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
 	const [activeTab, setActiveTab] = useState("all");
 	const [connectingId, setConnectingId] = useState<string | null>(null);
 	const [isScrolled, setIsScrolled] = useState(false);

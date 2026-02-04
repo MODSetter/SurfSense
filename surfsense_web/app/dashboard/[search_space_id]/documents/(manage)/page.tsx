@@ -2,22 +2,19 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { RefreshCw, SquarePlus, Upload } from "lucide-react";
 import { motion } from "motion/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
-import { Button } from "@/components/ui/button";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { DocumentsFilters } from "./components/DocumentsFilters";
 import { DocumentsTableShell, type SortKey } from "./components/DocumentsTableShell";
-import { PaginationControls } from "./components/PaginationControls";
+import { PAGE_SIZE, PaginationControls } from "./components/PaginationControls";
 import type { ColumnVisibility } from "./components/types";
 
 function useDebounced<T>(value: T, delay = 250) {
@@ -31,29 +28,20 @@ function useDebounced<T>(value: T, delay = 250) {
 
 export default function DocumentsTable() {
 	const t = useTranslations("documents");
-	const id = useId();
 	const params = useParams();
-	const router = useRouter();
 	const searchSpaceId = Number(params.search_space_id);
-	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
-
-	const handleNewNote = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/editor/new`);
-	}, [router, searchSpaceId]);
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-		title: true,
 		document_type: true,
-		content: true,
+		created_by: true,
 		created_at: true,
 	});
 	const [pageIndex, setPageIndex] = useState(0);
-	const [pageSize, setPageSize] = useState(50);
-	const [sortKey, setSortKey] = useState<SortKey>("title");
-	const [sortDesc, setSortDesc] = useState(false);
+	const [sortKey, setSortKey] = useState<SortKey>("created_at");
+	const [sortDesc, setSortDesc] = useState(true);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const { data: rawTypeCounts } = useAtomValue(documentTypeCountsAtom);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
@@ -63,10 +51,10 @@ export default function DocumentsTable() {
 		() => ({
 			search_space_id: searchSpaceId,
 			page: pageIndex,
-			page_size: pageSize,
+			page_size: PAGE_SIZE,
 			...(activeTypes.length > 0 && { document_types: activeTypes }),
 		}),
-		[searchSpaceId, pageIndex, pageSize, activeTypes]
+		[searchSpaceId, pageIndex, activeTypes]
 	);
 
 	// Build search query parameters
@@ -74,11 +62,11 @@ export default function DocumentsTable() {
 		() => ({
 			search_space_id: searchSpaceId,
 			page: pageIndex,
-			page_size: pageSize,
+			page_size: PAGE_SIZE,
 			title: debouncedSearch.trim(),
 			...(activeTypes.length > 0 && { document_types: activeTypes }),
 		}),
-		[searchSpaceId, pageIndex, pageSize, activeTypes, debouncedSearch]
+		[searchSpaceId, pageIndex, activeTypes, debouncedSearch]
 	);
 
 	// Use query for fetching documents
@@ -112,17 +100,14 @@ export default function DocumentsTable() {
 		activeTypes.length === 0 || activeTypes.includes("SURFSENSE_DOCS" as DocumentTypeEnum);
 
 	// Use query for fetching SurfSense docs
-	const {
-		data: surfsenseDocsResponse,
-		isLoading: isSurfsenseDocsLoading,
-		refetch: refetchSurfsenseDocs,
-	} = useQuery({
-		queryKey: ["surfsense-docs", debouncedSearch, pageIndex, pageSize],
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const { data: surfsenseDocsResponse } = useQuery({
+		queryKey: ["surfsense-docs", debouncedSearch, pageIndex, PAGE_SIZE],
 		queryFn: () =>
 			documentsApiService.getSurfsenseDocs({
 				queryParams: {
 					page: pageIndex,
-					page_size: pageSize,
+					page_size: PAGE_SIZE,
 					title: debouncedSearch.trim() || undefined,
 				},
 			}),
@@ -131,7 +116,8 @@ export default function DocumentsTable() {
 	});
 
 	// Transform SurfSense docs to match the Document type
-	const surfsenseDocsAsDocuments: Document[] = useMemo(() => {
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
+	const surfsenseDocsAsDocuments = useMemo(() => {
 		if (!surfsenseDocsResponse?.items) return [];
 		return surfsenseDocsResponse.items.map((doc) => ({
 			id: doc.id,
@@ -145,6 +131,7 @@ export default function DocumentsTable() {
 	}, [surfsenseDocsResponse]);
 
 	// Merge type counts with SURFSENSE_DOCS count
+	// eslint-disable-next-line @typescript-eslint/no-unused-vars
 	const typeCounts = useMemo(() => {
 		const counts = { ...(rawTypeCounts || {}) };
 		if (surfsenseDocsResponse?.total) {
@@ -165,11 +152,17 @@ export default function DocumentsTable() {
 	// Display results directly
 	const displayDocs = documents;
 	const displayTotal = total;
-	const pageStart = pageIndex * pageSize;
-	const pageEnd = Math.min(pageStart + pageSize, displayTotal);
+	const pageEnd = Math.min((pageIndex + 1) * PAGE_SIZE, displayTotal);
 
 	const onToggleType = (type: DocumentTypeEnum, checked: boolean) => {
-		setActiveTypes((prev) => (checked ? [...prev, type] : prev.filter((t) => t !== type)));
+		setActiveTypes((prev) => {
+			if (checked) {
+				// Only add if not already in the array
+				return prev.includes(type) ? prev : [...prev, type];
+			} else {
+				return prev.filter((t) => t !== type);
+			}
+		});
 		setPageIndex(0);
 	};
 
@@ -238,10 +231,21 @@ export default function DocumentsTable() {
 		}
 	};
 
+	const handleSortChange = useCallback((key: SortKey) => {
+		setSortKey((currentKey) => {
+			if (currentKey === key) {
+				setSortDesc((v) => !v);
+				return currentKey;
+			}
+			setSortDesc(false);
+			return key;
+		});
+	}, []);
+
 	useEffect(() => {
 		const mq = window.matchMedia("(max-width: 768px)");
 		const apply = (isSmall: boolean) => {
-			setColumnVisibility((prev) => ({ ...prev, content: !isSmall, created_at: !isSmall }));
+			setColumnVisibility((prev) => ({ ...prev, created_by: !isSmall, created_at: !isSmall }));
 		};
 		apply(mq.matches);
 		const onChange = (e: MediaQueryListEvent) => apply(e.matches);
@@ -254,34 +258,9 @@ export default function DocumentsTable() {
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ duration: 0.3 }}
-			className="w-full px-6 py-4 space-y-6 min-h-[calc(100vh-64px)]"
+			className="w-full max-w-7xl mx-auto px-6 pt-17 pb-6 space-y-6 min-h-[calc(100vh-64px)]"
 		>
-			<motion.div
-				className="flex items-center justify-between"
-				initial={{ opacity: 0, y: 10 }}
-				animate={{ opacity: 1, y: 0 }}
-				transition={{ delay: 0.1 }}
-			>
-				<div>
-					<h2 className="text-xl md:text-2xl font-bold tracking-tight">{t("title")}</h2>
-					<p className="text-xs md:text-sm text-muted-foreground">{t("subtitle")}</p>
-				</div>
-				<div className="flex items-center gap-2">
-					<Button onClick={openUploadDialog} variant="default" size="sm">
-						<Upload className="w-4 h-4 mr-2" />
-						{t("upload_documents")}
-					</Button>
-					<Button onClick={handleNewNote} variant="outline" size="sm">
-						<SquarePlus className="w-4 h-4 mr-2" />
-						{t("create_shared_note")}
-					</Button>
-					<Button onClick={refreshCurrentView} variant="outline" size="sm" disabled={isRefreshing}>
-						<RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
-						{t("refresh")}
-					</Button>
-				</div>
-			</motion.div>
-
+			{/* Filters */}
 			<DocumentsFilters
 				typeCounts={rawTypeCounts ?? {}}
 				selectedIds={selectedIds}
@@ -294,6 +273,7 @@ export default function DocumentsTable() {
 				onToggleColumn={onToggleColumn}
 			/>
 
+			{/* Table */}
 			<DocumentsTableShell
 				documents={displayDocs}
 				loading={!!loading}
@@ -305,30 +285,19 @@ export default function DocumentsTable() {
 				deleteDocument={deleteDocument}
 				sortKey={sortKey}
 				sortDesc={sortDesc}
-				onSortChange={(key) => {
-					if (sortKey === key) setSortDesc((v) => !v);
-					else {
-						setSortKey(key);
-						setSortDesc(false);
-					}
-				}}
+				onSortChange={handleSortChange}
 			/>
 
+			{/* Pagination */}
 			<PaginationControls
 				pageIndex={pageIndex}
-				pageSize={pageSize}
 				total={displayTotal}
-				onPageSizeChange={(s) => {
-					setPageSize(s);
-					setPageIndex(0);
-				}}
 				onFirst={() => setPageIndex(0)}
 				onPrev={() => setPageIndex((i) => Math.max(0, i - 1))}
 				onNext={() => setPageIndex((i) => (pageEnd < displayTotal ? i + 1 : i))}
-				onLast={() => setPageIndex(Math.max(0, Math.ceil(displayTotal / pageSize) - 1))}
+				onLast={() => setPageIndex(Math.max(0, Math.ceil(displayTotal / PAGE_SIZE) - 1))}
 				canPrev={pageIndex > 0}
 				canNext={pageEnd < displayTotal}
-				id={id}
 			/>
 		</motion.div>
 	);

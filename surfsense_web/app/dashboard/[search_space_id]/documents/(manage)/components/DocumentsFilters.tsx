@@ -1,9 +1,20 @@
 "use client";
 
-import { CircleAlert, CircleX, Columns3, Filter, ListFilter, Trash } from "lucide-react";
-import { AnimatePresence, motion, type Variants } from "motion/react";
+import { useSetAtom } from "jotai";
+import {
+	CircleAlert,
+	CircleX,
+	Columns3,
+	FilePlus2,
+	FileType,
+	SlidersHorizontal,
+	Trash,
+} from "lucide-react";
+import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import React, { useMemo, useRef } from "react";
+import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -17,24 +28,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-	DropdownMenu,
-	DropdownMenuCheckboxItem,
-	DropdownMenuContent,
-	DropdownMenuLabel,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
 import type { ColumnVisibility } from "./types";
-
-const fadeInScale: Variants = {
-	hidden: { opacity: 0, scale: 0.95 },
-	visible: { opacity: 1, scale: 1, transition: { type: "spring", stiffness: 300, damping: 30 } },
-	exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
-};
 
 export function DocumentsFilters({
 	typeCounts: typeCountsRecord,
@@ -61,6 +60,10 @@ export function DocumentsFilters({
 	const id = React.useId();
 	const inputRef = useRef<HTMLInputElement>(null);
 
+	// Dialog hooks for action buttons
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
+	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+
 	const uniqueTypes = useMemo(() => {
 		return Object.keys(typeCountsRecord).sort() as DocumentTypeEnum[];
 	}, [typeCountsRecord]);
@@ -75,14 +78,41 @@ export function DocumentsFilters({
 
 	return (
 		<motion.div
-			className="flex flex-wrap items-center justify-start gap-3 w-full"
+			className="flex flex-col gap-4"
 			initial={{ opacity: 0, y: 10 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }}
 		>
-			<div className="flex items-center gap-3 flex-wrap w-full sm:w-auto">
+			{/* Main toolbar row */}
+			<div className="flex flex-wrap items-center gap-3">
+				{/* Action Buttons - Left Side */}
+				<div className="flex items-center gap-2">
+					<Button
+						onClick={openUploadDialog}
+						variant="outline"
+						size="sm"
+						className="h-9 gap-2 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
+					>
+						<FilePlus2 size={16} />
+						<span>Upload documents</span>
+					</Button>
+					<Button
+						onClick={() => setConnectorDialogOpen(true)}
+						variant="outline"
+						size="sm"
+						className="h-9 gap-2 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
+					>
+						<SlidersHorizontal size={16} />
+						<span>Manage connectors</span>
+					</Button>
+				</div>
+
+				{/* Spacer */}
+				<div className="flex-1" />
+
+				{/* Search Input */}
 				<motion.div
-					className="relative w-full sm:w-auto"
+					className="relative w-[180px]"
 					initial={{ opacity: 0, y: -10 }}
 					animate={{ opacity: 1, y: 0 }}
 					transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -90,183 +120,199 @@ export function DocumentsFilters({
 					<Input
 						id={`${id}-input`}
 						ref={inputRef}
-						className="peer w-full sm:min-w-60 ps-9"
+						className="peer h-9 w-full pl-3 pr-9 text-sm bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
-						placeholder={t("filter_placeholder")}
+						placeholder="Filter by title"
 						type="text"
 						aria-label={t("filter_placeholder")}
 					/>
-					<motion.div
-						className="pointer-events-none absolute inset-y-0 start-0 flex items-center justify-center ps-3 text-muted-foreground/80 peer-disabled:opacity-50"
-						initial={{ scale: 0.8 }}
-						animate={{ scale: 1 }}
-						transition={{ delay: 0.1 }}
-					>
-						<ListFilter size={16} strokeWidth={2} aria-hidden="true" />
-					</motion.div>
 					{Boolean(searchValue) && (
 						<motion.button
-							className="absolute inset-y-0 end-0 flex h-full w-9 items-center justify-center rounded-e-lg text-muted-foreground/80 outline-offset-2 transition-colors hover:text-foreground focus:z-10 focus-visible:outline focus-visible:outline-ring/70"
+							className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center rounded-r-md text-muted-foreground/60 hover:text-foreground transition-colors"
 							aria-label="Clear filter"
 							onClick={() => {
 								onSearch("");
 								inputRef.current?.focus();
 							}}
-							initial={{ opacity: 0, rotate: -90 }}
-							animate={{ opacity: 1, rotate: 0 }}
-							exit={{ opacity: 0, rotate: 90 }}
+							initial={{ opacity: 0, scale: 0.8 }}
+							animate={{ opacity: 1, scale: 1 }}
+							exit={{ opacity: 0, scale: 0.8 }}
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 						>
-							<CircleX size={16} strokeWidth={2} aria-hidden="true" />
+							<CircleX size={14} strokeWidth={2} aria-hidden="true" />
 						</motion.button>
 					)}
 				</motion.div>
 
-				<Popover>
-					<PopoverTrigger asChild>
-						<motion.div
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							transition={{ type: "spring", stiffness: 400, damping: 17 }}
-						>
-							<Button variant="outline">
-								<Filter
-									className="-ms-1 me-2 opacity-60"
-									size={16}
-									strokeWidth={2}
-									aria-hidden="true"
-								/>
-								Type
+				{/* Filter Buttons Group */}
+				<div className="flex items-center gap-2 flex-wrap">
+					{/* Type Filter */}
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								className="h-9 gap-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
+							>
+								<FileType size={14} className="text-muted-foreground" />
+								<span className="hidden sm:inline">Type</span>
 								{activeTypes.length > 0 && (
-									<motion.span
-										initial={{ scale: 0.8 }}
-										animate={{ scale: 1 }}
-										className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 text-[0.625rem] font-medium text-muted-foreground/70"
-									>
+									<span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
 										{activeTypes.length}
-									</motion.span>
+									</span>
 								)}
 							</Button>
-						</motion.div>
-					</PopoverTrigger>
-					<PopoverContent className="min-w-36 p-3" align="start">
-						<motion.div initial="hidden" animate="visible" exit="exit" variants={fadeInScale}>
-							<div className="space-y-3">
-								<div className="text-xs font-medium text-muted-foreground">Filters</div>
-								<div className="space-y-3">
-									<AnimatePresence>
-										{uniqueTypes.map((value: DocumentTypeEnum, i) => (
-											<motion.div
-												key={value}
-												className="flex items-center gap-2"
-												initial={{ opacity: 0, y: -5 }}
-												animate={{ opacity: 1, y: 0 }}
-												exit={{ opacity: 0, y: 5 }}
-												transition={{ delay: i * 0.05 }}
+						</PopoverTrigger>
+						<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
+							<div className="px-2.5 pt-3">
+								<div className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground">
+									Filter by source
+								</div>
+								<div className="space-y-0.5 max-h-[300px] overflow-y-auto overflow-x-hidden">
+									{uniqueTypes.map((value: DocumentTypeEnum, i) => (
+										<button
+											key={value}
+											type="button"
+											className="flex w-full items-center gap-2 py-1 px-2.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer text-left"
+											onClick={() => onToggleType(value, !activeTypes.includes(value))}
+										>
+											<Checkbox
+												id={`${id}-${i}`}
+												checked={activeTypes.includes(value)}
+												onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
+												className="h-3.5 w-3.5 flex-shrink-0 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+											/>
+											<Label
+												htmlFor={`${id}-${i}`}
+												className="flex flex-1 items-center gap-2 font-normal text-xs cursor-pointer min-w-0"
 											>
-												<Checkbox
-													id={`${id}-${i}`}
-													checked={activeTypes.includes(value)}
-													onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
-												/>
-												<Label
-													htmlFor={`${id}-${i}`}
-													className="flex grow justify-between gap-2 font-normal"
-												>
-													{value}{" "}
-													<span className="ms-2 text-xs text-muted-foreground">
-														{typeCounts.get(value)}
-													</span>
-												</Label>
-											</motion.div>
-										))}
-									</AnimatePresence>
+												<span className="opacity-60 flex-shrink-0">{getDocumentTypeIcon(value)}</span>
+												<span className="truncate min-w-0">{getDocumentTypeLabel(value)}</span>
+												<span className="text-[10px] text-muted-foreground/70 tabular-nums flex-shrink-0 ml-auto">
+													{typeCounts.get(value)}
+												</span>
+											</Label>
+										</button>
+									))}
+								</div>
+								{activeTypes.length > 0 && (
+									<div className="mt-1 pt-1 pb-1 border-t border-border/50 pb-1">
+										<Button
+											variant="ghost"
+											size="sm"
+											className="w-full h-6 text-[11px]"
+											onClick={() => {
+												activeTypes.forEach((t) => {
+													onToggleType(t, false);
+												});
+											}}
+										>
+											Clear filters
+										</Button>
+									</div>
+								)}
+							</div>
+						</PopoverContent>
+					</Popover>
+
+					{/* View/Columns Popover */}
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								className="h-9 gap-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
+							>
+								<Columns3 size={14} className="text-muted-foreground" />
+								<span className="hidden sm:inline">View</span>
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className="w-36 !p-0 overflow-hidden" align="end">
+							<div className="px-2.5 pt-3 pb-2">
+								<div className="mb-1.5 px-1 text-[11px] font-medium text-muted-foreground">
+									Toggle columns
+								</div>
+								<div className="space-y-0.5">
+									{(
+										[
+											["document_type", "Source"],
+											["created_by", "User"],
+											["created_at", "Created"],
+										] as Array<[keyof ColumnVisibility, string]>
+									).map(([key, label], i) => (
+										<button
+											key={key}
+											type="button"
+											className="flex w-full items-center gap-2 py-1 px-2.5 rounded-md hover:bg-muted/50 transition-colors cursor-pointer text-left"
+											onClick={() => onToggleColumn(key, !columnVisibility[key])}
+										>
+											<Checkbox
+												id={`${id}-col-${i}`}
+												checked={columnVisibility[key]}
+												onCheckedChange={(checked: boolean) => onToggleColumn(key, !!checked)}
+												className="h-3.5 w-3.5 flex-shrink-0 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+											/>
+											<Label
+												htmlFor={`${id}-col-${i}`}
+												className="flex flex-1 items-center gap-2 font-normal text-xs cursor-pointer min-w-0"
+											>
+												<span className="truncate min-w-0">{label}</span>
+											</Label>
+										</button>
+									))}
 								</div>
 							</div>
-						</motion.div>
-					</PopoverContent>
-				</Popover>
+						</PopoverContent>
+					</Popover>
+				</div>
 
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<motion.div
-							whileHover={{ scale: 1.05 }}
-							whileTap={{ scale: 0.95 }}
-							transition={{ type: "spring", stiffness: 400, damping: 17 }}
-						>
-							<Button variant="outline">
-								<Columns3
-									className="-ms-1 me-2 opacity-60"
-									size={16}
-									strokeWidth={2}
-									aria-hidden="true"
-								/>
-								View
-							</Button>
-						</motion.div>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuLabel>Toggle columns</DropdownMenuLabel>
-						{(
-							[
-								["title", "Title"],
-								["document_type", "Type"],
-								["content", "Content"],
-								["created_at", "Created At"],
-							] as Array<[keyof ColumnVisibility, string]>
-						).map(([key, label]) => (
-							<DropdownMenuCheckboxItem
-								key={key}
-								className="capitalize"
-								checked={columnVisibility[key]}
-								onCheckedChange={(v) => onToggleColumn(key, !!v)}
-								onSelect={(e) => e.preventDefault()}
-							>
-								{label}
-							</DropdownMenuCheckboxItem>
-						))}
-					</DropdownMenuContent>
-				</DropdownMenu>
-			</div>
-
-			<div className="flex items-center gap-3 w-full sm:w-auto sm:ml-auto">
+				{/* Bulk Delete Button */}
 				{selectedIds.size > 0 && (
 					<AlertDialog>
 						<AlertDialogTrigger asChild>
-							<Button className="w-full sm:w-auto" variant="outline">
-								<Trash
-									className="-ms-1 me-2 opacity-60"
-									size={16}
-									strokeWidth={2}
-									aria-hidden="true"
-								/>
-								Delete
-								<span className="-me-1 ms-3 inline-flex h-5 max-h-full items-center rounded border border-border bg-background px-1 text-[0.625rem] font-medium text-muted-foreground/70">
-									{selectedIds.size}
-								</span>
-							</Button>
+							<motion.div
+								initial={{ opacity: 0, scale: 0.9 }}
+								animate={{ opacity: 1, scale: 1 }}
+								exit={{ opacity: 0, scale: 0.9 }}
+							>
+								<Button
+									variant="destructive"
+									size="sm"
+									className="h-9 gap-2"
+								>
+									<Trash size={14} />
+									Delete
+									<span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive-foreground/20 text-[10px] font-medium">
+										{selectedIds.size}
+									</span>
+								</Button>
+							</motion.div>
 						</AlertDialogTrigger>
-						<AlertDialogContent>
-							<div className="flex flex-col gap-2 max-sm:items-center sm:flex-row sm:gap-4">
+						<AlertDialogContent className="max-w-md">
+							<div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
 								<div
-									className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border"
+									className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive"
 									aria-hidden="true"
 								>
-									<CircleAlert className="opacity-80" size={16} strokeWidth={2} />
+									<CircleAlert size={18} strokeWidth={2} />
 								</div>
-								<AlertDialogHeader>
-									<AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+								<AlertDialogHeader className="flex-1">
+									<AlertDialogTitle>Delete {selectedIds.size} document{selectedIds.size !== 1 ? "s" : ""}?</AlertDialogTitle>
 									<AlertDialogDescription>
-										This action cannot be undone. This will permanently delete {selectedIds.size}{" "}
-										selected {selectedIds.size === 1 ? "row" : "rows"}.
+										This action cannot be undone. This will permanently delete the selected {selectedIds.size === 1 ? "document" : "documents"} from your search space.
 									</AlertDialogDescription>
 								</AlertDialogHeader>
 							</div>
 							<AlertDialogFooter>
 								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction onClick={onBulkDelete}>Delete</AlertDialogAction>
+								<AlertDialogAction
+									onClick={onBulkDelete}
+									className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+								>
+									Delete
+								</AlertDialogAction>
 							</AlertDialogFooter>
 						</AlertDialogContent>
 					</AlertDialog>

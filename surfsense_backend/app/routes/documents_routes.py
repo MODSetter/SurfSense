@@ -211,7 +211,11 @@ async def read_documents(
                 Permission.DOCUMENTS_READ.value,
                 "You don't have permission to read documents in this search space",
             )
-            query = select(Document).filter(Document.search_space_id == search_space_id)
+            query = (
+                select(Document)
+                .options(selectinload(Document.created_by))
+                .filter(Document.search_space_id == search_space_id)
+            )
             count_query = (
                 select(func.count())
                 .select_from(Document)
@@ -221,6 +225,7 @@ async def read_documents(
             # Get documents from all search spaces user has membership in
             query = (
                 select(Document)
+                .options(selectinload(Document.created_by))
                 .join(SearchSpace)
                 .join(SearchSpaceMembership)
                 .filter(SearchSpaceMembership.user_id == user.id)
@@ -261,6 +266,11 @@ async def read_documents(
         # Convert database objects to API-friendly format
         api_documents = []
         for doc in db_documents:
+            # Get user name (display_name or email fallback)
+            created_by_name = None
+            if doc.created_by:
+                created_by_name = doc.created_by.display_name or doc.created_by.email
+            
             api_documents.append(
                 DocumentRead(
                     id=doc.id,
@@ -273,6 +283,8 @@ async def read_documents(
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
                     search_space_id=doc.search_space_id,
+                    created_by_id=doc.created_by_id,
+                    created_by_name=created_by_name,
                 )
             )
 
@@ -341,7 +353,11 @@ async def search_documents(
                 Permission.DOCUMENTS_READ.value,
                 "You don't have permission to read documents in this search space",
             )
-            query = select(Document).filter(Document.search_space_id == search_space_id)
+            query = (
+                select(Document)
+                .options(selectinload(Document.created_by))
+                .filter(Document.search_space_id == search_space_id)
+            )
             count_query = (
                 select(func.count())
                 .select_from(Document)
@@ -351,6 +367,7 @@ async def search_documents(
             # Get documents from all search spaces user has membership in
             query = (
                 select(Document)
+                .options(selectinload(Document.created_by))
                 .join(SearchSpace)
                 .join(SearchSpaceMembership)
                 .filter(SearchSpaceMembership.user_id == user.id)
@@ -395,6 +412,11 @@ async def search_documents(
         # Convert database objects to API-friendly format
         api_documents = []
         for doc in db_documents:
+            # Get user name (display_name or email fallback)
+            created_by_name = None
+            if doc.created_by:
+                created_by_name = doc.created_by.display_name or doc.created_by.email
+            
             api_documents.append(
                 DocumentRead(
                     id=doc.id,
@@ -407,6 +429,8 @@ async def search_documents(
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
                     search_space_id=doc.search_space_id,
+                    created_by_id=doc.created_by_id,
+                    created_by_name=created_by_name,
                 )
             )
 
