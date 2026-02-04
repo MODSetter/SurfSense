@@ -9,6 +9,8 @@
  * as it may prevent the sed replacement from working correctly.
  */
 
+import packageJson from "../package.json";
+
 // Auth type: "LOCAL" for email/password, "GOOGLE" for OAuth
 // Placeholder: __NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__
 export const AUTH_TYPE = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "GOOGLE";
@@ -27,6 +29,10 @@ export const ETL_SERVICE = process.env.NEXT_PUBLIC_ETL_SERVICE || "DOCLING";
 // cloud: Only cloud-based connectors available
 // Placeholder: __NEXT_PUBLIC_DEPLOYMENT_MODE__
 export const DEPLOYMENT_MODE = process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted";
+
+// App version - defaults to package.json version
+// Can be overridden at build time with NEXT_PUBLIC_APP_VERSION for full git tag version
+export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || packageJson.version;
 
 // Helper to check if local auth is enabled
 export const isLocalAuth = () => AUTH_TYPE === "LOCAL";
