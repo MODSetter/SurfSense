@@ -206,7 +206,7 @@ export function DocumentsTableShell({
 										<Skeleton className="h-3 w-20" />
 									</TableHead>
 									{columnVisibility.document_type && (
-										<TableHead className="w-44 border-r border-border/30">
+										<TableHead className="w-[20%] min-w-[120px] max-w-[200px] border-r border-border/30">
 											<Skeleton className="h-3 w-14" />
 										</TableHead>
 									)}
@@ -243,7 +243,7 @@ export function DocumentsTableShell({
 												/>
 											</TableCell>
 											{columnVisibility.document_type && (
-												<TableCell className="w-44 py-2.5 border-r border-border/30">
+												<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/30 overflow-hidden">
 													<Skeleton className="h-5 w-24 rounded" />
 												</TableCell>
 											)}
@@ -352,7 +352,7 @@ export function DocumentsTableShell({
 										</SortableHeader>
 									</TableHead>
 									{columnVisibility.document_type && (
-										<TableHead className="w-44 border-r border-border/30">
+										<TableHead className="w-[20%] min-w-[120px] max-w-[200px] border-r border-border/30">
 											<SortableHeader
 												sortKey="document_type"
 												currentSortKey={sortKey}
@@ -452,7 +452,7 @@ export function DocumentsTableShell({
 													/>
 												</TableCell>
 												{columnVisibility.document_type && (
-													<TableCell className="w-44 py-2.5 border-r border-border/30">
+													<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/30 overflow-hidden">
 														<DocumentTypeChip type={doc.document_type} />
 													</TableCell>
 												)}
