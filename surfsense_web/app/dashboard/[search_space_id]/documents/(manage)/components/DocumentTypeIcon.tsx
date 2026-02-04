@@ -4,8 +4,8 @@ import type React from "react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
-export function getDocumentTypeIcon(type: string): React.ReactNode {
-	return getConnectorIcon(type);
+export function getDocumentTypeIcon(type: string, className?: string): React.ReactNode {
+	return getConnectorIcon(type, className);
 }
 
 export function getDocumentTypeLabel(type: string): string {
@@ -18,7 +18,7 @@ export function getDocumentTypeLabel(type: string): string {
 const MAX_LABEL_LENGTH = 28;
 
 export function DocumentTypeChip({ type, className }: { type: string; className?: string }) {
-	const icon = getDocumentTypeIcon(type);
+	const icon = getDocumentTypeIcon(type, "h-4 w-4");
 	const fullLabel = getDocumentTypeLabel(type);
 	const truncatedLabel = fullLabel.length > MAX_LABEL_LENGTH 
 		? `${fullLabel.slice(0, MAX_LABEL_LENGTH)}...` 
@@ -27,9 +27,9 @@ export function DocumentTypeChip({ type, className }: { type: string; className?
 
 	const chip = (
 		<span
-			className={`inline-flex items-center gap-1.5 rounded-md border border-border/50 bg-muted/30 px-2 py-0.5 text-xs font-medium text-muted-foreground ${className ?? ""}`}
+			className={`inline-flex items-center gap-1.5 rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground ${className ?? ""}`}
 		>
-			<span className="opacity-70 flex-shrink-0">{icon}</span>
+			<span className="opacity-80 flex-shrink-0">{icon}</span>
 			<span className="truncate">{truncatedLabel}</span>
 		</span>
 	);

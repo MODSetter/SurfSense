@@ -1,7 +1,6 @@
 "use client";
 
 import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -21,7 +20,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Document } from "./types";
 
 // Only FILE and NOTE document types can be edited
@@ -74,88 +72,93 @@ export function RowActions({
 	};
 
 	return (
-		<div className="flex items-center justify-end gap-1">
+		<>
 			{/* Desktop Actions */}
-			<div className="hidden md:flex items-center gap-1">
-				{isEditable && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<motion.div
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.95 }}
-								transition={{ type: "spring", stiffness: 400, damping: 17 }}
-							>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-									onClick={handleEdit}
-								>
-									<Pencil className="h-4 w-4" />
-									<span className="sr-only">Edit Document</span>
-								</Button>
-							</motion.div>
-						</TooltipTrigger>
-						<TooltipContent side="top">
-							<p>Edit Document</p>
-						</TooltipContent>
-					</Tooltip>
-				)}
-
-				{isDeletable && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<motion.div
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.95 }}
-								transition={{ type: "spring", stiffness: 400, damping: 17 }}
-							>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-									onClick={() => setIsDeleteOpen(true)}
-									disabled={isDeleting}
-								>
-									<Trash2 className="h-4 w-4" />
-									<span className="sr-only">Delete</span>
-								</Button>
-							</motion.div>
-						</TooltipTrigger>
-						<TooltipContent side="top">
-							<p>Delete</p>
-						</TooltipContent>
-					</Tooltip>
-				)}
-			</div>
-
-			{/* Mobile Actions Dropdown */}
-			<div className="flex md:hidden">
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-							<MoreHorizontal className="h-4 w-4" />
-							<span className="sr-only">Open menu</span>
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-40">
-						{isEditable && (
+			<div className="hidden md:inline-flex items-center justify-center">
+				{isEditable ? (
+					// Editable documents: show 3-dot dropdown with edit + delete
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80">
+								<MoreHorizontal className="h-4 w-4" />
+								<span className="sr-only">Open menu</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-40">
 							<DropdownMenuItem onClick={handleEdit}>
 								<Pencil className="mr-2 h-4 w-4" />
 								<span>Edit</span>
 							</DropdownMenuItem>
-						)}
-						{isDeletable && (
-							<DropdownMenuItem
-								onClick={() => setIsDeleteOpen(true)}
-								className="text-destructive focus:text-destructive"
-							>
-								<Trash2 className="mr-2 h-4 w-4" />
-								<span>Delete</span>
+							{isDeletable && (
+								<DropdownMenuItem
+									onClick={() => setIsDeleteOpen(true)}
+									className="text-destructive focus:text-destructive"
+								>
+									<Trash2 className="mr-2 h-4 w-4" />
+									<span>Delete</span>
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				) : (
+					// Non-editable documents: show only delete button directly
+					isDeletable && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+							onClick={() => setIsDeleteOpen(true)}
+							disabled={isDeleting}
+						>
+							<Trash2 className="h-4 w-4" />
+							<span className="sr-only">Delete</span>
+						</Button>
+					)
+				)}
+			</div>
+
+			{/* Mobile Actions Dropdown */}
+			<div className="inline-flex md:hidden items-center justify-center">
+				{isEditable ? (
+					// Editable documents: show 3-dot dropdown
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+								<MoreHorizontal className="h-4 w-4" />
+								<span className="sr-only">Open menu</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-40">
+							<DropdownMenuItem onClick={handleEdit}>
+								<Pencil className="mr-2 h-4 w-4" />
+								<span>Edit</span>
 							</DropdownMenuItem>
-						)}
-					</DropdownMenuContent>
-				</DropdownMenu>
+							{isDeletable && (
+								<DropdownMenuItem
+									onClick={() => setIsDeleteOpen(true)}
+									className="text-destructive focus:text-destructive"
+								>
+									<Trash2 className="mr-2 h-4 w-4" />
+									<span>Delete</span>
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				) : (
+					// Non-editable documents: show only delete button directly
+					isDeletable && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+							onClick={() => setIsDeleteOpen(true)}
+							disabled={isDeleting}
+						>
+							<Trash2 className="h-4 w-4" />
+							<span className="sr-only">Delete</span>
+						</Button>
+					)
+				)}
 			</div>
 
 			<AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
@@ -178,6 +181,6 @@ export function RowActions({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		</div>
+		</>
 	);
 }
