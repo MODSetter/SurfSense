@@ -179,6 +179,18 @@ export const LLM_MODELS: LLMModel[] = [
 
 	// Google (Gemini)
 	{
+		value: "gemini-3-flash-preview",
+		label: "Gemini 3 Flash",
+		provider: "GOOGLE",
+		contextWindow: "1M",
+	},
+	{
+		value: "gemini-3-pro-preview",
+		label: "Gemini 3 Pro",
+		provider: "GOOGLE",
+		contextWindow: "1M",
+	},
+	{
 		value: "gemini-2.5-flash",
 		label: "Gemini 2.5 Flash",
 		provider: "GOOGLE",
