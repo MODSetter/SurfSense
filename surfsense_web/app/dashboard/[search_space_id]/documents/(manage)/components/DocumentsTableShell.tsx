@@ -158,13 +158,46 @@ export function DocumentsTableShell({
 	const { openDialog } = useDocumentUploadDialog();
 
 	// State for metadata viewer (opened via Ctrl/Cmd+Click)
+	// Real-time documents don't sync metadata - we fetch on-demand when viewing
 	const [metadataDoc, setMetadataDoc] = useState<Document | null>(null);
+	const [metadataContent, setMetadataContent] = useState<any>(null);
+	const [metadataLoading, setMetadataLoading] = useState(false);
 
 	// State for lazy document content viewer
 	// Real-time documents don't sync content - we fetch on-demand when viewing
 	const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
 	const [viewingContent, setViewingContent] = useState<string>("");
 	const [viewingLoading, setViewingLoading] = useState(false);
+
+	// Fetch document metadata on-demand when metadata viewer is opened
+	const handleViewMetadata = useCallback(async (doc: Document) => {
+		setMetadataDoc(doc);
+
+		// If metadata is already available (from API/search), use it directly
+		if (doc.document_metadata) {
+			setMetadataContent(doc.document_metadata);
+			return;
+		}
+
+		// Otherwise, fetch from API (lazy loading for real-time synced documents)
+		setMetadataLoading(true);
+		try {
+			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
+			setMetadataContent(fullDoc.document_metadata);
+		} catch (err) {
+			console.error("[DocumentsTableShell] Failed to fetch document metadata:", err);
+			setMetadataContent(null);
+		} finally {
+			setMetadataLoading(false);
+		}
+	}, []);
+
+	// Close metadata viewer
+	const handleCloseMetadata = useCallback(() => {
+		setMetadataDoc(null);
+		setMetadataContent(null);
+		setMetadataLoading(false);
+	}, []);
 
 	// Fetch document content on-demand when viewer is opened
 	const handleViewDocument = useCallback(async (doc: Document) => {
@@ -474,7 +507,7 @@ export function DocumentsTableShell({
 															if (e.ctrlKey || e.metaKey) {
 																e.preventDefault();
 																e.stopPropagation();
-																setMetadataDoc(doc);
+																handleViewMetadata(doc);
 															} else {
 																// Normal click opens document viewer (lazy loads content)
 																handleViewDocument(doc);
@@ -484,7 +517,7 @@ export function DocumentsTableShell({
 															// Ctrl/Cmd + Enter opens metadata
 															if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
 																e.preventDefault();
-																setMetadataDoc(doc);
+																handleViewMetadata(doc);
 															} else if (e.key === "Enter") {
 																// Enter opens document viewer
 																handleViewDocument(doc);
@@ -553,7 +586,7 @@ export function DocumentsTableShell({
 													if (e.ctrlKey || e.metaKey) {
 														e.preventDefault();
 														e.stopPropagation();
-														setMetadataDoc(doc);
+														handleViewMetadata(doc);
 													} else {
 														// Normal click opens document viewer (lazy loads content)
 														handleViewDocument(doc);
@@ -563,7 +596,7 @@ export function DocumentsTableShell({
 													// Ctrl/Cmd + Enter opens metadata
 													if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
 														e.preventDefault();
-														setMetadataDoc(doc);
+														handleViewMetadata(doc);
 													} else if (e.key === "Enter") {
 														// Enter opens document viewer
 														handleViewDocument(doc);
@@ -602,12 +635,14 @@ export function DocumentsTableShell({
 			)}
 
 			{/* Metadata Viewer - opened via Ctrl/Cmd+Click on document title */}
+			{/* Lazy loads metadata from API for real-time synced documents */}
 			<JsonMetadataViewer
 				title={metadataDoc?.title ?? ""}
-				metadata={metadataDoc?.document_metadata}
+				metadata={metadataContent}
+				loading={metadataLoading}
 				open={!!metadataDoc}
 				onOpenChange={(open) => {
-					if (!open) setMetadataDoc(null);
+					if (!open) handleCloseMetadata();
 				}}
 			/>
 
