@@ -1,9 +1,16 @@
 # Epic 2: Smart Monitoring & Alerts (Giám sát & Cảnh báo Thông minh)
 
-**Trạng thái:** 📋 ĐÃ LÊN KẾ HOẠCH (PLANNED)  
-**Giai đoạn:** Phase 2  
-**Thời gian:** 2 tuần  
+**Trạng thái:** 🚧 ĐANG TRIỂN KHAI (IN PROGRESS)
+**Giai đoạn:** Phase 2
+**Thời gian:** 2 tuần
 **Mức độ ưu tiên:** P0 (Nghiêm trọng - Risk Protection)
+
+**Tiến độ:**
+- ✅ Extension UI: 90% hoàn thành (WatchlistPanel, AlertConfigModal, WhaleActivityFeed, SafetyScoreDisplay)
+- ✅ Extension Widgets: 100% hoàn thành (WatchlistWidget, AlertWidget, WhaleActivityWidget)
+- ✅ Web Tool UIs: 100% hoàn thành (WatchlistDisplayToolUI, AlertConfigurationToolUI, WhaleActivityToolUI)
+- ⏳ Backend APIs: 0% (DexScreener integration, real-time data chưa implement)
+- ⏳ Browser Notifications: 0% (cần backend)
 
 ---
 

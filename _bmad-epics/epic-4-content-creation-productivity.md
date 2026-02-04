@@ -1,9 +1,21 @@
 # Epic 4: Content Creation & Productivity (Tạo Nội dung & Hiệu suất)
 
-**Trạng thái:** 📋 ĐÃ LÊN KẾ HOẠCH (PLANNED)  
-**Giai đoạn:** Phase 4  
-**Thời gian:** 2 tuần  
+**Trạng thái:** 🚧 ĐANG TRIỂN KHAI (IN PROGRESS)
+**Giai đoạn:** Phase 4
+**Thời gian:** 2 tuần
 **Mức độ ưu tiên:** P2 (Trung bình - Nên có (Nice to Have))
+
+**Tiến độ:**
+- ✅ Story 4.1 (Chart Capture): UI hoàn thành (ChartCapturePanel, ChartCaptureWidget, AnnotationTools)
+- ✅ Story 4.2 (Thread Generator): UI hoàn thành (ThreadGeneratorPanel, ThreadGeneratorWidget)
+- ✅ Story 4.3 (Quick Actions): UI hoàn thành (Context menu in background/index.ts, useContextAction hook)
+- ✅ Story 4.4 (Smart Notifications): UI hoàn thành (NotificationSettingsPanel, NotificationsList)
+- ✅ Story 4.5 (Keyboard Shortcuts): UI hoàn thành (4 shortcuts: Analyze, Watchlist, Capture, Portfolio)
+- ⏳ Backend APIs: 0% (AI thread generation chưa implement)
+
+**Frontend UI: 100% ✅**
+
+**Lưu ý:** Đây là Extension-only features (không có trên Web Dashboard)
 
 ---
 

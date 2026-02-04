@@ -290,6 +290,11 @@ Traders hiện đang đối mặt với **Quá tải Thông tin** và **Quy trì
 
 ##### Feature Responsibility Matrix
 
+> **Strategy Update (2026-02-04):** Extension = Full Features
+>
+> Extension không chỉ là "Quick Actions" mà là **full-featured crypto co-pilot** với đầy đủ tính năng.
+> Web Dashboard là nơi quản lý settings và xem analytics chi tiết.
+
 | Feature | Extension | Frontend Dashboard | Sync Method |
 |---------|-----------|-------------------|-------------|
 | **Model Selection** | 📖 Read-only dropdown | ✏️ Full selector | Backend API |
@@ -297,15 +302,37 @@ Traders hiện đang đối mặt với **Quá tải Thông tin** và **Quy trì
 | **Chat** | ✅ Full chat UI | ✅ Full chat UI | Backend API |
 | **Connectors** | 📖 Use only | ✏️ Setup & manage | Backend API |
 | **Documents** | 👁️ View in chat | ✏️ Full management | Backend API |
-| **Watchlist** | ✏️ Add/Remove | ✏️ Full management | Plasmo Storage + API |
-| **Alerts** | ✏️ Configure basic | ✏️ Full management | Backend API |
+| **Watchlist** | ✅ Full management | ✅ Full management | Backend API |
+| **Alerts** | ✅ Full management | ✅ Full management | Backend API |
+| **Token Analysis** | ✅ Full analysis | ✅ Full analysis (via AI chat) | Backend API |
+| **Whale Activity** | ✅ Full tracking | ✅ Full tracking (via AI chat) | Backend API |
+| **Trading Suggestions** | ✅ Full suggestions | ✅ Full suggestions (via AI chat) | Backend API |
+| **Portfolio Tracker** | ✅ Full tracking | ✅ Full tracking | Backend API |
+| **Chart Capture** | ✅ Full capture + annotations | ❌ N/A (Extension-only) | Local |
+| **Thread Generator** | ✅ Full generation | ❌ N/A (Extension-only) | Local |
+| **Context Detection** | ✅ Auto-detect tokens | ❌ N/A (Extension-only) | Local |
+| **Floating Button** | ✅ Quick access | ❌ N/A (Extension-only) | Local |
 | **Settings** | 📖 Quick settings | ✏️ Full settings | Backend API |
+| **Analytics** | 👁️ Basic stats | ✅ Full analytics | Backend API |
 
 **Legend:**
-- ✅ Full feature
+- ✅ Full feature (create, edit, delete, view)
 - ✏️ Full control (create, edit, delete)
 - 📖 Read-only (view/select only)
 - 👁️ View only
+- ❌ N/A (Not applicable)
+
+**Extension-only Features:**
+- Chart Capture with Annotations (cần truy cập DOM của trang)
+- AI Thread Generator (tối ưu cho workflow trên browser)
+- Context Detection (cần content script)
+- Floating Quick Action Button (cần inject vào trang)
+
+**Web Dashboard Focus:**
+- Full Settings Management
+- Detailed Analytics & Reports
+- Connector Setup & Configuration
+- Document Management
 
 #### Web Dashboard (Secondary - Existing)
 *   **[FR-UI-01] Chat Management:** Xem lịch sử chat, manage search spaces.

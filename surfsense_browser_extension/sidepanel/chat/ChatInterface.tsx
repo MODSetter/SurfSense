@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePageContext } from "../context/PageContextProvider";
 import { TokenInfoCard } from "../dexscreener/TokenInfoCard";
 import { QuickCapture } from "./QuickCapture";
@@ -22,6 +22,8 @@ import { SafetyScoreDisplay } from "../crypto/SafetyScoreDisplay";
 import { WatchlistPanel } from "../crypto/WatchlistPanel";
 import { AlertConfigModal } from "../crypto/AlertConfigModal";
 import { DetectedTokensList } from "../components/DetectedTokensList";
+import { useContextAction, getMessageForAction } from "../hooks/useContextAction";
+import { useKeyboardShortcuts, getMessageForKeyboardAction } from "../hooks/useKeyboardShortcuts";
 import type { WatchlistItem } from "../widgets";
 import type { TokenData } from "../context/PageContextProvider";
 
@@ -78,8 +80,38 @@ export function ChatInterface() {
     const [watchlistTokens, setWatchlistTokens] = useState(MOCK_WATCHLIST_TOKENS);
     const [isInWatchlist, setIsInWatchlist] = useState(false);
 
+    // Context menu action hook
+    const { pendingAction, clearAction } = useContextAction();
+
+    // Keyboard shortcuts hook
+    const { pendingAction: pendingKeyboardAction, clearAction: clearKeyboardAction } = useKeyboardShortcuts();
+
     // Mock user data - in production, this would come from auth context
     const userName = "Crypto Trader";
+
+    // Handle context menu actions
+    useEffect(() => {
+        if (pendingAction) {
+            const message = getMessageForAction(pendingAction);
+            if (message) {
+                // Auto-send the message
+                handleSendMessage(message);
+            }
+            clearAction();
+        }
+    }, [pendingAction, clearAction]);
+
+    // Handle keyboard shortcut actions
+    useEffect(() => {
+        if (pendingKeyboardAction) {
+            const message = getMessageForKeyboardAction(pendingKeyboardAction);
+            if (message) {
+                // Auto-send the message
+                handleSendMessage(message);
+            }
+            clearKeyboardAction();
+        }
+    }, [pendingKeyboardAction, clearKeyboardAction]);
 
     const handleSendMessage = async (content: string, attachments?: AttachedFile[]) => {
         console.log("Sending message:", content, attachments);

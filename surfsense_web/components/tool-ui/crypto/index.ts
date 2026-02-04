@@ -128,3 +128,12 @@ export {
     type LiveTokenDataArgs,
     type LiveTokenDataResult,
 } from "./live-token-data";
+
+// Trading Suggestion - displays AI-powered entry/exit suggestions
+export {
+    TradingSuggestionToolUI,
+    TradingSuggestionArgsSchema,
+    TradingSuggestionResultSchema,
+    type TradingSuggestionArgs,
+    type TradingSuggestionResult,
+} from "./trading-suggestion";

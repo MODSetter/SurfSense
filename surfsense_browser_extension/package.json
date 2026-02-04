@@ -68,13 +68,44 @@
 		],
 		"name": "SurfSense",
 		"description": "Extension to collect Browsing History for SurfSense.",
-		"version": "0.0.3"
+		"version": "0.0.3",
+		"commands": {
+			"analyze-token": {
+				"suggested_key": {
+					"default": "Ctrl+Shift+A",
+					"mac": "Command+Shift+A"
+				},
+				"description": "Analyze current token"
+			},
+			"add-watchlist": {
+				"suggested_key": {
+					"default": "Ctrl+Shift+W",
+					"mac": "Command+Shift+W"
+				},
+				"description": "Add token to watchlist"
+			},
+			"capture-page": {
+				"suggested_key": {
+					"default": "Ctrl+Shift+E",
+					"mac": "Command+Shift+E"
+				},
+				"description": "Capture current page"
+			},
+			"show-portfolio": {
+				"suggested_key": {
+					"default": "Ctrl+Shift+P",
+					"mac": "Command+Shift+P"
+				},
+				"description": "Show portfolio"
+			}
+		}
 	},
 	"permissions": [
 		"storage",
 		"scripting",
 		"unlimitedStorage",
 		"activeTab",
-		"sidePanel"
+		"sidePanel",
+		"contextMenus"
 	]
 }

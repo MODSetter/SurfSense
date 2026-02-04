@@ -1220,3 +1220,67 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 - `lib/services/dexscreener-api.ts` (new)
 - `sidepanel/chat/ChatInterface.tsx`
 - `contents/floating-button.tsx`
+
+---
+
+## 📋 Backlog: Extension vs Web Sync
+
+### Extension Widgets Còn Thiếu (cần thêm để sync với Web)
+
+| Widget | Web Component | Priority | Mô tả |
+|--------|---------------|----------|-------|
+| `TrendingTokensWidget` | `TrendingTokensToolUI` | P1 | Hiển thị tokens đang trending |
+| `HolderAnalysisWidget` | `HolderAnalysisToolUI` | P1 | Phân tích holder distribution |
+| `MarketOverviewWidget` | `MarketOverviewToolUI` | P2 | Tổng quan thị trường (BTC, ETH, SOL) |
+| `LiveTokenPriceWidget` | `LiveTokenPriceToolUI` | P1 | Giá token real-time |
+| `LiveTokenDataWidget` | `LiveTokenDataToolUI` | P1 | Dữ liệu token chi tiết real-time |
+| `UserProfileWidget` | `UserProfileToolUI` | P2 | Hiển thị profile đầu tư của user |
+
+**Files cần tạo:**
+- `sidepanel/widgets/TrendingTokensWidget.tsx` (new)
+- `sidepanel/widgets/HolderAnalysisWidget.tsx` (new)
+- `sidepanel/widgets/MarketOverviewWidget.tsx` (new)
+- `sidepanel/widgets/LiveTokenPriceWidget.tsx` (new)
+- `sidepanel/widgets/LiveTokenDataWidget.tsx` (new)
+- `sidepanel/widgets/UserProfileWidget.tsx` (new)
+
+### Web Tool UIs Còn Thiếu (cần thêm để sync với Extension)
+
+| Tool UI | Extension Component | Priority | Mô tả |
+|---------|---------------------|----------|-------|
+| `TradingSuggestionToolUI` | `TradingSuggestionWidget` | P1 | Gợi ý entry/exit points |
+
+**Files cần tạo:**
+- `surfsense_web/components/tool-ui/crypto/trading-suggestion.tsx` (new)
+
+---
+
+## 🔴 Critical Blockers
+
+### 1. Backend Authentication (Story 1.0)
+- **Status:** ❌ Chưa bắt đầu
+- **Impact:** Blocks tất cả sync features
+- **Required:**
+  - JWT token management
+  - OAuth (Google) integration
+  - Chrome Identity API wrapper
+  - User session management
+
+### 2. DexScreener API Integration
+- **Status:** ❌ Chưa bắt đầu
+- **Impact:** Tất cả token data đang là mock
+- **Required:**
+  - API service với rate limiting
+  - Caching layer (30s TTL)
+  - Error handling với retry logic
+  - Real-time price updates
+
+### 3. Backend APIs
+- **Status:** ❌ Chưa bắt đầu
+- **Impact:** Extension không thể sync với Web
+- **Required:**
+  - `/api/settings` - Settings sync
+  - `/api/chat/messages` - Chat history sync
+  - `/api/capture` - Page capture
+  - `/api/watchlist` - Watchlist sync
+  - `/api/alerts` - Alerts sync
