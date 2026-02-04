@@ -36,6 +36,7 @@ interface MobileSidebarProps {
 	pageUsage?: PageUsage;
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
+	isLoadingChats?: boolean;
 }
 
 export function MobileSidebarTrigger({ onClick }: { onClick: () => void }) {
@@ -76,6 +77,7 @@ export function MobileSidebar({
 	pageUsage,
 	theme,
 	setTheme,
+	isLoadingChats = false,
 }: MobileSidebarProps) {
 	const handleSearchSpaceSelect = (id: number) => {
 		onSearchSpaceSelect(id);
@@ -155,6 +157,7 @@ export function MobileSidebar({
 						theme={theme}
 						setTheme={setTheme}
 						className="w-full border-none"
+						isLoadingChats={isLoadingChats}
 					/>
 				</div>
 			</SheetContent>

@@ -3,6 +3,7 @@
 import { FolderOpen, PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
@@ -13,6 +14,15 @@ import { SidebarCollapseButton } from "./SidebarCollapseButton";
 import { SidebarHeader } from "./SidebarHeader";
 import { SidebarSection } from "./SidebarSection";
 import { SidebarUserProfile } from "./SidebarUserProfile";
+
+function ChatListItemSkeleton() {
+	return (
+		<div className="flex w-full items-center gap-2 rounded-md p-2">
+			<Skeleton className="h-4 w-4 shrink-0 rounded" />
+			<Skeleton className="h-4 w-full max-w-[180px]" />
+		</div>
+	);
+}
 
 interface SidebarProps {
 	searchSpace: SearchSpace | null;
@@ -38,6 +48,7 @@ interface SidebarProps {
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	className?: string;
+	isLoadingChats?: boolean;
 }
 
 export function Sidebar({
@@ -64,6 +75,7 @@ export function Sidebar({
 	theme,
 	setTheme,
 	className,
+	isLoadingChats = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
 
@@ -151,7 +163,15 @@ export function Sidebar({
 							) : undefined
 						}
 					>
-						{sharedChats.length > 0 ? (
+						{isLoadingChats ? (
+							<div className="flex flex-col gap-0.5">
+								<ChatListItemSkeleton />
+								<ChatListItemSkeleton />
+								<ChatListItemSkeleton />
+								<ChatListItemSkeleton />
+								<ChatListItemSkeleton />
+							</div>
+						) : sharedChats.length > 0 ? (
 							<div className="relative min-h-0 flex-1">
 								<div
 									className={`flex flex-col gap-0.5 max-h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-8" : ""}`}
@@ -203,7 +223,15 @@ export function Sidebar({
 							) : undefined
 						}
 					>
-						{chats.length > 0 ? (
+						{isLoadingChats ? (
+							<div className="flex flex-col gap-0.5">
+								<ChatListItemSkeleton />
+								<ChatListItemSkeleton />
+								<ChatListItemSkeleton />
+								<ChatListItemSkeleton />
+								<ChatListItemSkeleton />
+							</div>
+						) : chats.length > 0 ? (
 							<div className="relative flex-1 min-h-0">
 								<div
 									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-8" : ""}`}
