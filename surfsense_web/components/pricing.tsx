@@ -17,6 +17,7 @@ interface PricingPlan {
 	price: string;
 	yearlyPrice: string;
 	period: string;
+	billingText?: string;
 	features: string[];
 	description: string;
 	buttonText: string;
@@ -35,7 +36,7 @@ export function Pricing({
 	title = "Simple, Transparent Pricing",
 	description = "Choose the plan that works for you\nAll plans include access to our SurfSense AI workspace and community support.",
 }: PricingProps) {
-	const [isMonthly, setIsMonthly] = useState(true);
+	const [isMonthly, setIsMonthly] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 768px)");
 	const switchRef = useRef<HTMLButtonElement>(null);
 
@@ -183,7 +184,7 @@ export function Pricing({
 							</div>
 
 							<p className="text-xs leading-5 text-muted-foreground">
-								{isNaN(Number(plan.price)) ? "" : isMonthly ? "billed monthly" : "billed annually"}
+								{plan.billingText ?? (isNaN(Number(plan.price)) ? "" : isMonthly ? "billed monthly" : "billed annually")}
 							</p>
 
 							<ul className="mt-5 gap-2 flex flex-col">
