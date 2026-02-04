@@ -6,8 +6,6 @@ import { documentsApiService } from "@/lib/apis/documents-api.service";
 import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
 
-const PAGE_SIZE = 100;
-
 // Stable empty array to prevent infinite re-renders when no typeFilter is provided
 const EMPTY_TYPE_FILTER: DocumentTypeEnum[] = [];
 
@@ -165,7 +163,7 @@ export function useDocuments(
 					queryParams: {
 						search_space_id: spaceId,
 						page: 0,
-						page_size: PAGE_SIZE,
+						page_size: -1, // Fetch all documents
 						...(currentTypeFilter.length > 0 && { document_types: currentTypeFilter }),
 					},
 				});
