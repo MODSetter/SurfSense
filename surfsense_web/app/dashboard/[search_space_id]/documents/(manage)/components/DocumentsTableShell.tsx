@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Calendar, ChevronDown, ChevronUp, FileText, FileX, Link2, Plus, User } from "lucide-react";
+import {Calendar, ChevronDown, ChevronUp, FileText, FileX, Network, Plus, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import React, { useRef, useState, useEffect } from "react";
@@ -358,7 +358,7 @@ export function DocumentsTableShell({
 												currentSortKey={sortKey}
 												sortDesc={sortDesc}
 												onSort={onSortHeader}
-												icon={<Link2 size={14} className="text-muted-foreground" />}
+												icon={<Network size={14} className="text-muted-foreground" />}
 											>
 												Source
 											</SortableHeader>
