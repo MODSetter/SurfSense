@@ -42,7 +42,7 @@ function StatusIndicator({ status }: { status?: DocumentStatus }) {
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<div className="flex items-center justify-center">
-							<Clock className="h-5 w-5 text-muted-foreground" />
+							<Clock className="h-5 w-5 text-muted-foreground/60" />
 						</div>
 					</TooltipTrigger>
 					<TooltipContent side="top">Pending - waiting to be synced</TooltipContent>
