@@ -1,17 +1,21 @@
 """
 Microsoft Teams connector indexer.
+
+Implements 2-phase document status updates for real-time UI feedback:
+- Phase 1: Create all documents with 'pending' status (visible in UI immediately)
+- Phase 2: Process each document: pending → processing → ready/failed
 """
 
 import time
 from collections.abc import Awaitable, Callable
-from datetime import UTC
+from datetime import UTC, datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
 from app.connectors.teams_history import TeamsHistory
-from app.db import Document, DocumentType, SearchSourceConnectorType
+from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
@@ -27,6 +31,7 @@ from .base import (
     get_connector_by_id,
     get_current_timestamp,
     logger,
+    safe_set_chunks,
     update_connector_last_indexed,
 )
 
@@ -49,6 +54,10 @@ async def index_teams_messages(
 ) -> tuple[int, str | None]:
     """
     Index Microsoft Teams messages from all accessible teams and channels.
+
+    Implements 2-phase document status updates for real-time UI feedback:
+    - Phase 1: Create all documents with 'pending' status (visible in UI immediately)
+    - Phase 2: Process each document: pending → processing → ready/failed
 
     Args:
         session: Database session
@@ -165,11 +174,16 @@ async def index_teams_messages(
                 f"No Teams found for connector {connector_id}",
                 {"teams_found": 0},
             )
-            return 0, "No Teams found"
+            # CRITICAL: Update timestamp even when no teams found so Electric SQL syncs
+            await update_connector_last_indexed(session, connector, update_last_indexed)
+            await session.commit()
+            return 0, None  # Return None (not error) when no items found
 
         # Track the number of documents indexed
         documents_indexed = 0
         documents_skipped = 0
+        documents_failed = 0
+        duplicate_content_count = 0
         skipped_channels = []
 
         # Heartbeat tracking - update notification periodically to prevent appearing stuck
@@ -182,8 +196,6 @@ async def index_teams_messages(
         )
 
         # Convert date strings to datetime objects for filtering
-        from datetime import datetime
-
         start_datetime = None
         end_datetime = None
         if start_date_str:
@@ -197,16 +209,14 @@ async def index_teams_messages(
                 hour=23, minute=59, second=59, tzinfo=UTC
             )
 
-        # Process each team
-        for team in teams:
-            # Check if it's time for a heartbeat update
-            if (
-                on_heartbeat_callback
-                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
-            ):
-                await on_heartbeat_callback(documents_indexed)
-                last_heartbeat_time = time.time()
+        # =======================================================================
+        # PHASE 1: Collect all messages and create pending documents
+        # This makes ALL documents visible in the UI immediately with pending status
+        # =======================================================================
+        messages_to_process = []  # List of dicts with document and message data
+        new_documents_created = False
 
+        for team in teams:
             team_id = team.get("id")
             team_name = team.get("displayName", "Unknown Team")
 
@@ -239,7 +249,6 @@ async def index_teams_messages(
                                 channel_name,
                                 team_name,
                             )
-                            documents_skipped += 1
                             continue
 
                         # Process each message
@@ -322,60 +331,27 @@ async def index_teams_messages(
                             if existing_document:
                                 # Document exists - check if content has changed
                                 if existing_document.content_hash == content_hash:
-                                    logger.info(
-                                        "Document for Teams message %s in channel %s unchanged. Skipping.",
-                                        message_id,
-                                        channel_name,
-                                    )
+                                    # Ensure status is ready (might have been stuck in processing/pending)
+                                    if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                                        existing_document.status = DocumentStatus.ready()
                                     documents_skipped += 1
                                     continue
-                                else:
-                                    # Content has changed - update the existing document
-                                    logger.info(
-                                        "Content changed for Teams message %s in channel %s. Updating document.",
-                                        message_id,
-                                        channel_name,
-                                    )
 
-                                    # Update chunks and embedding
-                                    chunks = await create_document_chunks(
-                                        combined_document_string
-                                    )
-                                    doc_embedding = (
-                                        config.embedding_model_instance.embed(
-                                            combined_document_string
-                                        )
-                                    )
-
-                                    # Update existing document
-                                    existing_document.content = combined_document_string
-                                    existing_document.content_hash = content_hash
-                                    existing_document.embedding = doc_embedding
-                                    existing_document.document_metadata = {
-                                        "team_name": team_name,
-                                        "team_id": team_id,
-                                        "channel_name": channel_name,
-                                        "channel_id": channel_id,
-                                        "start_date": start_date_str,
-                                        "end_date": end_date_str,
-                                        "message_count": len(messages),
-                                        "indexed_at": datetime.now().strftime(
-                                            "%Y-%m-%d %H:%M:%S"
-                                        ),
-                                    }
-
-                                    # Delete old chunks and add new ones
-                                    existing_document.chunks = chunks
-                                    existing_document.updated_at = (
-                                        get_current_timestamp()
-                                    )
-
-                                    documents_indexed += 1
-                                    logger.info(
-                                        "Successfully updated Teams message %s",
-                                        message_id,
-                                    )
-                                    continue
+                                # Queue existing document for update (will be set to processing in Phase 2)
+                                messages_to_process.append({
+                                    'document': existing_document,
+                                    'is_new': False,
+                                    'combined_document_string': combined_document_string,
+                                    'content_hash': content_hash,
+                                    'team_name': team_name,
+                                    'team_id': team_id,
+                                    'channel_name': channel_name,
+                                    'channel_id': channel_id,
+                                    'message_id': message_id,
+                                    'start_date': start_date_str,
+                                    'end_date': end_date_str,
+                                })
+                                continue
 
                             # Document doesn't exist by unique_identifier_hash
                             # Check if a document with the same content_hash exists (from another connector)
@@ -395,19 +371,11 @@ async def index_teams_messages(
                                     duplicate_by_content.id,
                                     duplicate_by_content.document_type,
                                 )
+                                duplicate_content_count += 1
                                 documents_skipped += 1
                                 continue
 
-                            # Document doesn't exist - create new one
-                            # Process chunks
-                            chunks = await create_document_chunks(
-                                combined_document_string
-                            )
-                            doc_embedding = config.embedding_model_instance.embed(
-                                combined_document_string
-                            )
-
-                            # Create and store new document
+                            # Create new document with PENDING status (visible in UI immediately)
                             document = Document(
                                 search_space_id=search_space_id,
                                 title=f"{team_name} - {channel_name}",
@@ -417,40 +385,34 @@ async def index_teams_messages(
                                     "team_id": team_id,
                                     "channel_name": channel_name,
                                     "channel_id": channel_id,
-                                    "start_date": start_date_str,
-                                    "end_date": end_date_str,
-                                    "message_count": len(messages),
-                                    "indexed_at": datetime.now().strftime(
-                                        "%Y-%m-%d %H:%M:%S"
-                                    ),
+                                    "connector_id": connector_id,
                                 },
-                                content=combined_document_string,
-                                embedding=doc_embedding,
-                                chunks=chunks,
-                                content_hash=content_hash,
+                                content="Pending...",  # Placeholder until processed
+                                content_hash=unique_identifier_hash,  # Temporary unique value - updated when ready
                                 unique_identifier_hash=unique_identifier_hash,
+                                embedding=None,
+                                chunks=[],  # Empty at creation - safe for async
+                                status=DocumentStatus.pending(),  # Pending until processing starts
                                 updated_at=get_current_timestamp(),
                                 created_by_id=user_id,
                                 connector_id=connector_id,
                             )
-
                             session.add(document)
-                            documents_indexed += 1
+                            new_documents_created = True
 
-                            # Batch commit every 10 documents
-                            if documents_indexed % 10 == 0:
-                                logger.info(
-                                    "Committing batch: %s Teams messages processed so far",
-                                    documents_indexed,
-                                )
-                                await session.commit()
-
-                        logger.info(
-                            "Successfully indexed channel %s in team %s with %s messages",
-                            channel_name,
-                            team_name,
-                            len(messages),
-                        )
+                            messages_to_process.append({
+                                'document': document,
+                                'is_new': True,
+                                'combined_document_string': combined_document_string,
+                                'content_hash': content_hash,
+                                'team_name': team_name,
+                                'team_id': team_id,
+                                'channel_name': channel_name,
+                                'channel_id': channel_id,
+                                'message_id': message_id,
+                                'start_date': start_date_str,
+                                'end_date': end_date_str,
+                            })
 
                     except Exception as e:
                         logger.error(
@@ -462,54 +424,141 @@ async def index_teams_messages(
                         skipped_channels.append(
                             f"{team_name}/{channel_name} (processing error)"
                         )
-                        documents_skipped += 1
                         continue
 
             except Exception as e:
                 logger.error("Error processing team %s: %s", team_name, str(e))
                 continue
 
-        # Update the last_indexed_at timestamp for the connector only if requested
-        # and if we successfully indexed at least one document
-        total_processed = documents_indexed
-        if total_processed > 0:
-            await update_connector_last_indexed(session, connector, update_last_indexed)
+        # Commit all pending documents - they all appear in UI now
+        if new_documents_created:
+            logger.info(f"Phase 1: Committing {len([m for m in messages_to_process if m['is_new']])} pending documents")
+            await session.commit()
+
+        # =======================================================================
+        # PHASE 2: Process each document one by one
+        # Each document transitions: pending → processing → ready/failed
+        # =======================================================================
+        logger.info(f"Phase 2: Processing {len(messages_to_process)} documents")
+
+        for item in messages_to_process:
+            # Send heartbeat periodically
+            if on_heartbeat_callback:
+                current_time = time.time()
+                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                    await on_heartbeat_callback(documents_indexed)
+                    last_heartbeat_time = current_time
+
+            document = item['document']
+            try:
+                # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
+                document.status = DocumentStatus.processing()
+                await session.commit()
+
+                # Heavy processing (embeddings, chunks)
+                chunks = await create_document_chunks(item['combined_document_string'])
+                doc_embedding = config.embedding_model_instance.embed(
+                    item['combined_document_string']
+                )
+
+                # Update document to READY with actual content
+                document.title = f"{item['team_name']} - {item['channel_name']}"
+                document.content = item['combined_document_string']
+                document.content_hash = item['content_hash']
+                document.embedding = doc_embedding
+                document.document_metadata = {
+                    "team_name": item['team_name'],
+                    "team_id": item['team_id'],
+                    "channel_name": item['channel_name'],
+                    "channel_id": item['channel_id'],
+                    "start_date": item['start_date'],
+                    "end_date": item['end_date'],
+                    "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "connector_id": connector_id,
+                }
+                safe_set_chunks(document, chunks)
+                document.updated_at = get_current_timestamp()
+                document.status = DocumentStatus.ready()
+
+                documents_indexed += 1
+
+                # Batch commit every 10 documents (for ready status updates)
+                if documents_indexed % 10 == 0:
+                    logger.info(
+                        "Committing batch: %s Teams messages processed so far",
+                        documents_indexed,
+                    )
+                    await session.commit()
+
+            except Exception as e:
+                logger.error(f"Error processing Teams message: {e!s}", exc_info=True)
+                # Mark document as failed with reason (visible in UI)
+                try:
+                    document.status = DocumentStatus.failed(str(e))
+                    document.updated_at = get_current_timestamp()
+                except Exception as status_error:
+                    logger.error(f"Failed to update document status to failed: {status_error}")
+                documents_failed += 1
+                continue
+
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit for any remaining documents not yet committed in batches
         logger.info(
             "Final commit: Total %s Teams messages processed", documents_indexed
         )
-        await session.commit()
+        try:
+            await session.commit()
+            logger.info(
+                "Successfully committed all Teams document changes to database"
+            )
+        except Exception as e:
+            # Handle any remaining integrity errors gracefully (race conditions, etc.)
+            if (
+                "duplicate key value violates unique constraint" in str(e).lower()
+                or "uniqueviolationerror" in str(e).lower()
+            ):
+                logger.warning(
+                    f"Duplicate content_hash detected during final commit. "
+                    f"Rolling back and continuing. Error: {e!s}"
+                )
+                await session.rollback()
+            else:
+                raise
 
-        # Prepare result message
-        result_message = None
+        # Build warning message if there were issues
+        warning_parts = []
+        if duplicate_content_count > 0:
+            warning_parts.append(f"{duplicate_content_count} duplicate")
+        if documents_failed > 0:
+            warning_parts.append(f"{documents_failed} failed")
         if skipped_channels:
-            result_message = f"Processed {total_processed} messages. Skipped {len(skipped_channels)} channels: {', '.join(skipped_channels)}"
-        else:
-            result_message = f"Processed {total_processed} messages."
+            warning_parts.append(f"{len(skipped_channels)} channels skipped")
+        warning_message = ", ".join(warning_parts) if warning_parts else None
 
         # Log success
         await task_logger.log_task_success(
             log_entry,
             f"Successfully completed Teams indexing for connector {connector_id}",
             {
-                "messages_processed": total_processed,
                 "documents_indexed": documents_indexed,
                 "documents_skipped": documents_skipped,
+                "documents_failed": documents_failed,
+                "duplicate_content_count": duplicate_content_count,
                 "skipped_channels_count": len(skipped_channels),
-                "result_message": result_message,
             },
         )
 
         logger.info(
-            "Teams indexing completed: %s new messages, %s skipped",
+            "Teams indexing completed: %s ready, %s skipped, %s failed "
+            "(%s duplicate content)",
             documents_indexed,
             documents_skipped,
+            documents_failed,
+            duplicate_content_count,
         )
-        return (
-            total_processed,
-            None,
-        )  # Return None on success (result_message is for logging only)
+        return documents_indexed, warning_message
 
     except SQLAlchemyError as db_error:
         await session.rollback()
