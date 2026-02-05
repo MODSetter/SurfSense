@@ -9,7 +9,6 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
 import { useParams, useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -39,9 +38,10 @@ import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
@@ -53,12 +53,10 @@ import {
 } from "@/lib/chat/podcast-state";
 import {
 	appendMessage,
-	type ChatVisibility,
 	createThread,
 	getRegenerateUrl,
 	getThreadFull,
 	getThreadMessages,
-	type MessageRecord,
 	type ThreadRecord,
 } from "@/lib/chat/thread-persistence";
 import {
@@ -137,7 +135,6 @@ interface ThinkingStepData {
 }
 
 export default function NewChatPage() {
-	const t = useTranslations("dashboard");
 	const params = useParams();
 	const queryClient = useQueryClient();
 	const [isInitializing, setIsInitializing] = useState(true);
@@ -329,6 +326,33 @@ export default function NewChatPage() {
 		initializeThread();
 	}, [initializeThread]);
 
+	// Prefetch document titles for @ mention picker
+	// Runs when user lands on page so data is ready when they type @
+	useEffect(() => {
+		if (!searchSpaceId) return;
+
+		const prefetchParams = {
+			search_space_id: searchSpaceId,
+			page: 0,
+			page_size: 20,
+		};
+
+		queryClient.prefetchQuery({
+			queryKey: ["document-titles", prefetchParams],
+			queryFn: () => documentsApiService.searchDocumentTitles({ queryParams: prefetchParams }),
+			staleTime: 60 * 1000,
+		});
+
+		queryClient.prefetchQuery({
+			queryKey: ["surfsense-docs-mention", "", false],
+			queryFn: () =>
+				documentsApiService.getSurfsenseDocs({
+					queryParams: { page: 0, page_size: 20 },
+				}),
+			staleTime: 3 * 60 * 1000,
+		});
+	}, [searchSpaceId, queryClient]);
+
 	// Handle scroll to comment from URL query params (e.g., from inbox item click)
 	const searchParams = useSearchParams();
 	const targetCommentIdParam = searchParams.get("commentId");
@@ -366,19 +390,6 @@ export default function NewChatPage() {
 		}
 		setIsRunning(false);
 	}, []);
-
-	// Handle visibility change from ChatShareButton
-	const handleVisibilityChange = useCallback(
-		(newVisibility: ChatVisibility) => {
-			setCurrentThread((prev) => (prev ? { ...prev, visibility: newVisibility } : null));
-			// Refetch all thread queries so sidebar reflects the change immediately
-			// Use predicate to match any query that starts with "threads"
-			queryClient.refetchQueries({
-				predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] === "threads",
-			});
-		},
-		[queryClient]
-	);
 
 	// Handle new message from user
 	const onNew = useCallback(
@@ -426,7 +437,10 @@ export default function NewChatPage() {
 			let isNewThread = false;
 			if (!currentThreadId) {
 				try {
-					const newThread = await createThread(searchSpaceId, "New Chat");
+					// Create thread with truncated prompt as initial title
+					const initialTitle =
+						userQuery.trim().slice(0, 100) + (userQuery.trim().length > 100 ? "..." : "");
+					const newThread = await createThread(searchSpaceId, initialTitle);
 					currentThreadId = newThread.id;
 					setThreadId(currentThreadId);
 					// Set currentThread so ChatHeader can show share button immediately
@@ -811,6 +825,26 @@ export default function NewChatPage() {
 													const newMap = new Map(prev);
 													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
 													return newMap;
+												});
+											}
+											break;
+										}
+
+										case "data-thread-title-update": {
+											// Handle thread title update from LLM-generated title
+											const titleData = parsed.data as { threadId: number; title: string };
+											if (titleData?.title && titleData?.threadId === currentThreadId) {
+												// Update current thread state with new title
+												setCurrentThread((prev) =>
+													prev ? { ...prev, title: titleData.title } : prev
+												);
+												// Invalidate thread list to refresh sidebar
+												queryClient.invalidateQueries({
+													queryKey: ["threads", String(searchSpaceId)],
+												});
+												// Invalidate thread detail for breadcrumb update
+												queryClient.invalidateQueries({
+													queryKey: ["threads", String(searchSpaceId), "detail", String(titleData.threadId)],
 												});
 											}
 											break;
@@ -1346,14 +1380,11 @@ export default function NewChatPage() {
 	);
 
 	// Handle reloading/refreshing the last AI response
-	const onReload = useCallback(
-		async (parentId: string | null) => {
-			// parentId is the ID of the message to reload from (the user message)
-			// We call regenerate without a query to use the same query
-			await handleRegenerate(null);
-		},
-		[handleRegenerate]
-	);
+	const onReload = useCallback(async () => {
+		// parentId is the ID of the message to reload from (the user message)
+		// We call regenerate without a query to use the same query
+		await handleRegenerate(null);
+	}, [handleRegenerate]);
 
 	// Create external store runtime with attachment support
 	const runtime = useExternalStoreRuntime({
@@ -1372,9 +1403,39 @@ export default function NewChatPage() {
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
 		return (
-			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
-				<Spinner size="lg" />
-				<div className="text-sm text-muted-foreground">{t("loading_chat")}</div>
+			<div className="flex h-[calc(100vh-64px)] flex-col bg-background px-4">
+				<div className="mx-auto w-full max-w-[44rem] flex flex-1 flex-col gap-6 py-8">
+					{/* User message */}
+					<div className="flex justify-end">
+						<Skeleton className="h-12 w-56 rounded-2xl" />
+					</div>
+
+					{/* Assistant message */}
+					<div className="flex flex-col gap-2">
+						<Skeleton className="h-4 w-full" />
+						<Skeleton className="h-4 w-[85%]" />
+						<Skeleton className="h-4 w-[70%]" />
+					</div>
+
+					{/* User message */}
+					<div className="flex justify-end">
+						<Skeleton className="h-12 w-40 rounded-2xl" />
+					</div>
+
+					{/* Assistant message */}
+					<div className="flex flex-col gap-2">
+						<Skeleton className="h-4 w-full" />
+						<Skeleton className="h-4 w-[90%]" />
+						<Skeleton className="h-4 w-[60%]" />
+					</div>
+				</div>
+
+				{/* Input bar */}
+				<div className="sticky bottom-0 pb-6 bg-background">
+					<div className="mx-auto w-full max-w-[44rem]">
+						<Skeleton className="h-24 w-full rounded-2xl" />
+					</div>
+				</div>
 			</div>
 		);
 	}

@@ -4,6 +4,11 @@
 
 const REDIRECT_PATH_KEY = "surfsense_redirect_path";
 const BEARER_TOKEN_KEY = "surfsense_bearer_token";
+const REFRESH_TOKEN_KEY = "surfsense_refresh_token";
+
+// Flag to prevent multiple simultaneous refresh attempts
+let isRefreshing = false;
+let refreshPromise: Promise<string | null> | null = null;
 
 /**
  * Saves the current path and redirects to login page
@@ -21,8 +26,9 @@ export function handleUnauthorized(): void {
 		localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
 	}
 
-	// Clear the token
+	// Clear both tokens
 	localStorage.removeItem(BEARER_TOKEN_KEY);
+	localStorage.removeItem(REFRESH_TOKEN_KEY);
 
 	// Redirect to home page (which has login options)
 	window.location.href = "/login";
@@ -67,6 +73,71 @@ export function clearBearerToken(): void {
 }
 
 /**
+ * Gets the refresh token from localStorage
+ */
+export function getRefreshToken(): string | null {
+	if (typeof window === "undefined") return null;
+	return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * Sets the refresh token in localStorage
+ */
+export function setRefreshToken(token: string): void {
+	if (typeof window === "undefined") return;
+	localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+/**
+ * Clears the refresh token from localStorage
+ */
+export function clearRefreshToken(): void {
+	if (typeof window === "undefined") return;
+	localStorage.removeItem(REFRESH_TOKEN_KEY);
+}
+
+/**
+ * Clears all auth tokens from localStorage
+ */
+export function clearAllTokens(): void {
+	clearBearerToken();
+	clearRefreshToken();
+}
+
+/**
+ * Logout the current user by revoking the refresh token and clearing localStorage.
+ * Returns true if logout was successful (or tokens were cleared), false otherwise.
+ */
+export async function logout(): Promise<boolean> {
+	const refreshToken = getRefreshToken();
+
+	// Call backend to revoke the refresh token
+	if (refreshToken) {
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const response = await fetch(`${backendUrl}/auth/jwt/revoke`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ refresh_token: refreshToken }),
+			});
+
+			if (!response.ok) {
+				console.warn("Failed to revoke refresh token:", response.status, await response.text());
+			}
+		} catch (error) {
+			console.warn("Failed to revoke refresh token on server:", error);
+			// Continue to clear local tokens even if server call fails
+		}
+	}
+
+	// Clear all tokens from localStorage
+	clearAllTokens();
+	return true;
+}
+
+/**
  * Checks if the user is authenticated (has a token)
  */
 export function isAuthenticated(): boolean {
@@ -106,14 +177,67 @@ export function getAuthHeaders(additionalHeaders?: Record<string, string>): Reco
 }
 
 /**
- * Authenticated fetch wrapper that handles 401 responses uniformly
- * Automatically redirects to login on 401 and saves the current path
+ * Attempts to refresh the access token using the stored refresh token.
+ * Returns the new access token if successful, null otherwise.
+ * Exported for use by API services.
+ */
+export async function refreshAccessToken(): Promise<string | null> {
+	// If already refreshing, wait for that request to complete
+	if (isRefreshing && refreshPromise) {
+		return refreshPromise;
+	}
+
+	const currentRefreshToken = getRefreshToken();
+	if (!currentRefreshToken) {
+		return null;
+	}
+
+	isRefreshing = true;
+	refreshPromise = (async () => {
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const response = await fetch(`${backendUrl}/auth/jwt/refresh`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ refresh_token: currentRefreshToken }),
+			});
+
+			if (!response.ok) {
+				// Refresh failed, clear tokens
+				clearAllTokens();
+				return null;
+			}
+
+			const data = await response.json();
+			if (data.access_token && data.refresh_token) {
+				setBearerToken(data.access_token);
+				setRefreshToken(data.refresh_token);
+				return data.access_token;
+			}
+			return null;
+		} catch {
+			return null;
+		} finally {
+			isRefreshing = false;
+			refreshPromise = null;
+		}
+	})();
+
+	return refreshPromise;
+}
+
+/**
+ * Authenticated fetch wrapper that handles 401 responses uniformly.
+ * On 401, attempts to refresh the token and retry the request.
+ * If refresh fails, redirects to login and saves the current path.
  */
 export async function authenticatedFetch(
 	url: string,
-	options?: RequestInit & { skipAuthRedirect?: boolean }
+	options?: RequestInit & { skipAuthRedirect?: boolean; skipRefresh?: boolean }
 ): Promise<Response> {
-	const { skipAuthRedirect = false, ...fetchOptions } = options || {};
+	const { skipAuthRedirect = false, skipRefresh = false, ...fetchOptions } = options || {};
 
 	const headers = getAuthHeaders(fetchOptions.headers as Record<string, string>);
 
@@ -124,6 +248,23 @@ export async function authenticatedFetch(
 
 	// Handle 401 Unauthorized
 	if (response.status === 401 && !skipAuthRedirect) {
+		// Try to refresh the token (unless skipRefresh is set to prevent infinite loops)
+		if (!skipRefresh) {
+			const newToken = await refreshAccessToken();
+			if (newToken) {
+				// Retry the original request with the new token
+				const retryHeaders = {
+					...(fetchOptions.headers as Record<string, string>),
+					Authorization: `Bearer ${newToken}`,
+				};
+				return fetch(url, {
+					...fetchOptions,
+					headers: retryHeaders,
+				});
+			}
+		}
+
+		// Refresh failed or was skipped, redirect to login
 		handleUnauthorized();
 		throw new Error("Unauthorized: Redirecting to login page");
 	}

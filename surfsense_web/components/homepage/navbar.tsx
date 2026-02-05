@@ -19,10 +19,9 @@ export const Navbar = () => {
 	const [isScrolled, setIsScrolled] = useState(false);
 
 	const navItems = [
-		{ name: "Contact Us", link: "/contact" },
 		{ name: "Pricing", link: "/pricing" },
+		{ name: "Contact\u00A0Us", link: "/contact" },
 		{ name: "Changelog", link: "/changelog" },
-		// { name: "Sign In", link: "/login" },
 		{ name: "Docs", link: "/docs" },
 	];
 
@@ -61,10 +60,13 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 					: "bg-transparent border border-transparent"
 			)}
 		>
-			<div className="flex flex-1 flex-row items-center gap-0.5">
+			<Link
+				href="/"
+				className="flex flex-1 flex-row items-center gap-0.5 hover:opacity-80 transition-opacity"
+			>
 				<Logo className="h-8 w-8 rounded-md" />
 				<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
-			</div>
+			</Link>
 			<div className="hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-zinc-600 transition duration-200 hover:text-zinc-800 lg:flex lg:space-x-2">
 				{navItems.map((navItem: any, idx: number) => (
 					<Link
@@ -139,10 +141,13 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 			)}
 		>
 			<div className="flex w-full flex-row items-center justify-between">
-				<div className="flex flex-row items-center gap-2">
+				<Link
+					href="/"
+					className="flex flex-row items-center gap-2 hover:opacity-80 transition-opacity"
+				>
 					<Logo className="h-8 w-8 rounded-md" />
 					<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
-				</div>
+				</Link>
 				<button
 					type="button"
 					onClick={() => setOpen(!open)}

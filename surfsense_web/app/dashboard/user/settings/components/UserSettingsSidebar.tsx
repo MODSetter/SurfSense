@@ -5,6 +5,7 @@ import { ArrowLeft, ChevronRight, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { APP_VERSION } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 
 export interface SettingsNavItem {
@@ -148,6 +149,11 @@ export function UserSettingsSidebar({
 						);
 					})}
 				</nav>
+
+				{/* Version display */}
+				<div className="mt-auto border-t px-6 py-3">
+					<p className="text-xs text-muted-foreground/50">v{APP_VERSION}</p>
+				</div>
 			</aside>
 		</>
 	);

@@ -164,6 +164,7 @@ class IncentiveTaskType(str, Enum):
 
     GITHUB_STAR = "GITHUB_STAR"
     REDDIT_FOLLOW = "REDDIT_FOLLOW"
+    DISCORD_JOIN = "DISCORD_JOIN"
     # Future tasks can be added here:
     # GITHUB_ISSUE = "GITHUB_ISSUE"
     # SOCIAL_SHARE = "SOCIAL_SHARE"
@@ -184,6 +185,12 @@ INCENTIVE_TASKS_CONFIG = {
         "description": "Join the SurfSense community on Reddit",
         "pages_reward": 100,
         "action_url": "https://www.reddit.com/r/SurfSense/",
+    },
+    IncentiveTaskType.DISCORD_JOIN: {
+        "title": "Join our Discord",
+        "description": "Join the SurfSense community on Discord",
+        "pages_reward": 100,
+        "action_url": "https://discord.gg/ejRNvftDp9",
     },
     # Future tasks can be configured here:
     # IncentiveTaskType.GITHUB_ISSUE: {
@@ -257,6 +264,11 @@ class Permission(str, Enum):
     SETTINGS_UPDATE = "settings:update"
     SETTINGS_DELETE = "settings:delete"  # Delete the entire search space
 
+    # Public Sharing
+    PUBLIC_SHARING_VIEW = "public_sharing:view"
+    PUBLIC_SHARING_CREATE = "public_sharing:create"
+    PUBLIC_SHARING_DELETE = "public_sharing:delete"
+
     # Full access wildcard
     FULL_ACCESS = "*"
 
@@ -299,6 +311,9 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.ROLES_READ.value,
         # Settings (view only, no update or delete)
         Permission.SETTINGS_VIEW.value,
+        # Public Sharing (can create and view, no delete)
+        Permission.PUBLIC_SHARING_VIEW.value,
+        Permission.PUBLIC_SHARING_CREATE.value,
     ],
     "Viewer": [
         # Documents (read only)
@@ -322,6 +337,8 @@ DEFAULT_ROLE_PERMISSIONS = {
         Permission.ROLES_READ.value,
         # Settings (view only)
         Permission.SETTINGS_VIEW.value,
+        # Public Sharing (view only)
+        Permission.PUBLIC_SHARING_VIEW.value,
     ],
 }
 
@@ -751,7 +768,27 @@ class Document(BaseModel, TimestampMixin):
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
+
+    # Track who created/uploaded this document
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="SET NULL"),
+        nullable=True,  # Nullable for backward compatibility with existing records
+        index=True,
+    )
+
+    # Track which connector created this document (for cleanup on connector deletion)
+    connector_id = Column(
+        Integer,
+        ForeignKey("search_source_connectors.id", ondelete="SET NULL"),
+        nullable=True,  # Nullable for manually uploaded docs without connector
+        index=True,
+    )
+
+    # Relationships
     search_space = relationship("SearchSpace", back_populates="documents")
+    created_by = relationship("User", back_populates="documents")
+    connector = relationship("SearchSourceConnector", back_populates="documents")
     chunks = relationship(
         "Chunk", back_populates="document", cascade="all, delete-orphan"
     )
@@ -979,6 +1016,9 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
+
+    # Documents created by this connector (for cleanup on connector deletion)
+    documents = relationship("Document", back_populates="connector")
 
 
 class NewLLMConfig(BaseModel, TimestampMixin):
@@ -1286,6 +1326,13 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Documents created/uploaded by this user
+        documents = relationship(
+            "Document",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # User memories for personalized AI responses
         memories = relationship(
             "UserMemory",
@@ -1313,6 +1360,13 @@ if config.AUTH_TYPE == "GOOGLE":
         # User profile from OAuth
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
+
+        # Refresh tokens for this user
+        refresh_tokens = relationship(
+            "RefreshToken",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
 
 else:
 
@@ -1344,6 +1398,13 @@ else:
             passive_deletes=True,
         )
 
+        # Documents created/uploaded by this user
+        documents = relationship(
+            "Document",
+            back_populates="created_by",
+            passive_deletes=True,
+        )
+
         # User memories for personalized AI responses
         memories = relationship(
             "UserMemory",
@@ -1371,6 +1432,43 @@ else:
         # User profile (can be set manually for non-OAuth users)
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
+
+        # Refresh tokens for this user
+        refresh_tokens = relationship(
+            "RefreshToken",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+
+
+class RefreshToken(Base, TimestampMixin):
+    """
+    Stores refresh tokens for user session management.
+    Each row represents one device/session.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user = relationship("User", back_populates="refresh_tokens")
+    token_hash = Column(String(256), unique=True, nullable=False, index=True)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False, index=True)
+    is_revoked = Column(Boolean, default=False, nullable=False)
+    family_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+
+    @property
+    def is_expired(self) -> bool:
+        return datetime.now(UTC) >= self.expires_at
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.is_expired and not self.is_revoked
 
 
 engine = create_async_engine(DATABASE_URL)

@@ -45,9 +45,9 @@ from app.schemas.new_chat import (
     NewChatThreadUpdate,
     NewChatThreadVisibilityUpdate,
     NewChatThreadWithMessages,
+    PublicChatSnapshotCreateResponse,
+    PublicChatSnapshotListResponse,
     RegenerateRequest,
-    SnapshotCreateResponse,
-    SnapshotListResponse,
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
@@ -736,10 +736,11 @@ async def update_thread_visibility(
 # =============================================================================
 
 
-@router.post("/threads/{thread_id}/snapshots", response_model=SnapshotCreateResponse)
+@router.post(
+    "/threads/{thread_id}/snapshots", response_model=PublicChatSnapshotCreateResponse
+)
 async def create_thread_snapshot(
     thread_id: int,
-    request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -747,23 +748,21 @@ async def create_thread_snapshot(
     Create a public snapshot of the thread.
 
     Returns existing snapshot URL if content unchanged (deduplication).
-    Only the thread owner can create snapshots.
     """
     from app.services.public_chat_service import create_snapshot
 
-    base_url = str(request.base_url).rstrip("/")
     return await create_snapshot(
         session=session,
         thread_id=thread_id,
         user=user,
-        base_url=base_url,
     )
 
 
-@router.get("/threads/{thread_id}/snapshots", response_model=SnapshotListResponse)
+@router.get(
+    "/threads/{thread_id}/snapshots", response_model=PublicChatSnapshotListResponse
+)
 async def list_thread_snapshots(
     thread_id: int,
-    request: Request,
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -774,13 +773,11 @@ async def list_thread_snapshots(
     """
     from app.services.public_chat_service import list_snapshots_for_thread
 
-    base_url = str(request.base_url).rstrip("/")
-    return SnapshotListResponse(
+    return PublicChatSnapshotListResponse(
         snapshots=await list_snapshots_for_thread(
             session=session,
             thread_id=thread_id,
             user=user,
-            base_url=base_url,
         )
     )
 
@@ -889,30 +886,8 @@ async def append_message(
         # Update thread's updated_at timestamp
         thread.updated_at = datetime.now(UTC)
 
-        # Auto-generate title from first user message if title is still default
-        if thread.title == "New Chat" and role_str == "user":
-            # Extract text content for title
-            content = message.content
-            if isinstance(content, str):
-                title_text = content
-            elif isinstance(content, list):
-                # Find first text content
-                title_text = ""
-                for part in content:
-                    if isinstance(part, dict) and part.get("type") == "text":
-                        title_text = part.get("text", "")
-                        break
-                    elif isinstance(part, str):
-                        title_text = part
-                        break
-            else:
-                title_text = str(content)
-
-            # Truncate title
-            if title_text:
-                thread.title = title_text[:100] + (
-                    "..." if len(title_text) > 100 else ""
-                )
+        # Note: Title generation now happens in stream_new_chat.py after the first response
+        # using LLM to generate a descriptive title (with truncation as fallback)
 
         await session.commit()
         await session.refresh(db_message)

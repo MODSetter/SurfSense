@@ -4,25 +4,47 @@ import { Pricing } from "@/components/pricing";
 
 const demoPlans = [
 	{
-		name: "COMMUNITY",
+		name: "FREE",
 		price: "0",
 		yearlyPrice: "0",
-		period: "forever",
+		period: "",
+		billingText: "Includes 30 day PRO trial",
 		features: [
-			"Supports 100+ LLMs",
-			"Supports local Ollama or vLLM setups",
-			"6000+ Embedding Models",
+			"Open source on GitHub",
+			"Upload and chat with 300+ pages of content",
+			"Connects with 8 popular sources, like Drive and Notion.",
+			"Includes limited access to ChatGPT, Claude, and DeepSeek models",
+			"Supports 100+ more LLMs, including Gemini, Llama and many more.",
 			"50+ File extensions supported.",
-			"Podcasts support with local TTS providers.",
-			"Connects with 15+ external sources.",
+			"Generate podcasts in seconds.",
 			"Cross-Browser Extension for dynamic webpages including authenticated content",
-			"Role-based access permissions",
-			"Collaboration and multiplayer features",
-			"Upcoming: Note Management",
+			"Community support on Discord",
 		],
-		description: "Open source version with powerful features",
+		description: "Powerful features with some limitations",
 		buttonText: "Get Started",
-		href: "/docs",
+		href: "/",
+		isPopular: false,
+	},
+	{
+		name: "PRO",
+		price: "10",
+		yearlyPrice: "10",
+		period: "user / month",
+		billingText: "billed annually",
+		features: [
+			"Everything in Free",
+			"Upload and chat with 5,000+ pages of content",
+			"Connects with 15+ external sources, like Slack and Airtable.",
+			"Includes extended access to ChatGPT, Claude, and DeepSeek models",
+			"Collaboration and commenting features",
+			"Shared BYOK (Bring Your Own Key)",
+			"Team and role management",
+			"Planned: Centralized billing",
+			"Priority support",
+		],
+		description: "The AIknowledge base for individuals and teams",
+		buttonText: "Upgrade",
+		href: "/contact",
 		isPopular: true,
 	},
 	{
@@ -30,15 +52,21 @@ const demoPlans = [
 		price: "Contact Us",
 		yearlyPrice: "Contact Us",
 		period: "",
+		billingText: "",
 		features: [
-			"Everything in Community",
-			"Priority Support",
-			"Advanced security features",
-			"Audit logs and compliance",
-			"SSO, OIDC & SAML",
-			"SLA guarantee",
+			"Everything in Pro",
+			"Connect and chat with virtually unlimited pages of content",
+			"Limit models and/or providers",
+			"On-prem or VPC deployment",
+			"Planned: Audit logs and compliance",
+			"Planned: SSO, OIDC & SAML",
+			"Planned: Role-based access control (RBAC)",
+			"White-glove setup and deployment",
+			"Monthly managed updates and maintenance",
+			"SLA commitments",
+			"Dedicated support",
 		],
-		description: "For large organizations with specific needs",
+		description: "Customized setup for large organizations",
 		buttonText: "Contact Sales",
 		href: "/contact",
 		isPopular: false,
@@ -47,7 +75,7 @@ const demoPlans = [
 
 function PricingBasic() {
 	return (
-		<Pricing plans={demoPlans} title="SurfSense Pricing" description="Choose that works for you" />
+		<Pricing plans={demoPlans} title="SurfSense Pricing" description="Choose what works for you" />
 	);
 }
 

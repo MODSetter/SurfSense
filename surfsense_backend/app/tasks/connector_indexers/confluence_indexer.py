@@ -402,6 +402,8 @@ async def index_confluence_pages(
                     embedding=summary_embedding,
                     chunks=chunks,
                     updated_at=get_current_timestamp(),
+                    created_by_id=user_id,
+                    connector_id=connector_id,
                 )
 
                 session.add(document)

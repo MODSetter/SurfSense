@@ -9,8 +9,12 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db import SearchSourceConnector, SearchSourceConnectorType, get_async_session
 
 logger = logging.getLogger(__name__)
 
@@ -212,6 +216,7 @@ def format_circleback_meeting_to_markdown(payload: CirclebackWebhookPayload) -> 
 async def receive_circleback_webhook(
     search_space_id: int,
     payload: CirclebackWebhookPayload,
+    session: AsyncSession = Depends(get_async_session),
 ):
     """
     Receive and process a Circleback webhook.
@@ -223,6 +228,7 @@ async def receive_circleback_webhook(
     Args:
         search_space_id: The ID of the search space to save the document to
         payload: The Circleback webhook payload containing meeting data
+        session: Database session for looking up the connector
 
     Returns:
         Success message with document details
@@ -235,6 +241,26 @@ async def receive_circleback_webhook(
         logger.info(
             f"Received Circleback webhook for meeting {payload.id} in search space {search_space_id}"
         )
+
+        # Look up the Circleback connector for this search space
+        connector_result = await session.execute(
+            select(SearchSourceConnector.id).where(
+                SearchSourceConnector.search_space_id == search_space_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.CIRCLEBACK_CONNECTOR,
+            )
+        )
+        connector_id = connector_result.scalar_one_or_none()
+
+        if connector_id:
+            logger.info(
+                f"Found Circleback connector {connector_id} for search space {search_space_id}"
+            )
+        else:
+            logger.warning(
+                f"No Circleback connector found for search space {search_space_id}. "
+                "Document will be created without connector_id."
+            )
 
         # Convert to markdown
         markdown_content = format_circleback_meeting_to_markdown(payload)
@@ -264,6 +290,7 @@ async def receive_circleback_webhook(
             markdown_content=markdown_content,
             metadata=meeting_metadata,
             search_space_id=search_space_id,
+            connector_id=connector_id,
         )
 
         logger.info(

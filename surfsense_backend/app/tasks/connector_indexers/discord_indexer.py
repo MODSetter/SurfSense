@@ -527,6 +527,8 @@ async def index_discord_messages(
                                 content_hash=content_hash,
                                 unique_identifier_hash=unique_identifier_hash,
                                 updated_at=get_current_timestamp(),
+                                created_by_id=user_id,
+                                connector_id=connector_id,
                             )
 
                             session.add(document)

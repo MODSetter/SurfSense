@@ -1,7 +1,8 @@
 "use client";
 
-import { Check, ChevronUp, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
+import { Check, ChevronUp, Languages, Laptop, Loader2, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -124,6 +125,7 @@ export function SidebarUserProfile({
 }: SidebarUserProfileProps) {
 	const t = useTranslations("sidebar");
 	const { locale, setLocale } = useLocaleContext();
+	const [isLoggingOut, setIsLoggingOut] = useState(false);
 	const bgColor = stringToColor(user.email);
 	const initials = getInitials(user.email);
 	const displayName = user.name || user.email.split("@")[0];
@@ -134,6 +136,16 @@ export function SidebarUserProfile({
 
 	const handleThemeChange = (newTheme: "light" | "dark" | "system") => {
 		setTheme?.(newTheme);
+	};
+
+	const handleLogout = async () => {
+		if (isLoggingOut || !onLogout) return;
+		setIsLoggingOut(true);
+		try {
+			await onLogout();
+		} finally {
+			setIsLoggingOut(false);
+		}
 	};
 
 	// Collapsed view - just show avatar with dropdown
@@ -242,9 +254,13 @@ export function SidebarUserProfile({
 
 						<DropdownMenuSeparator />
 
-						<DropdownMenuItem onClick={onLogout}>
-							<LogOut className="mr-2 h-4 w-4" />
-							{t("logout")}
+						<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+							{isLoggingOut ? (
+								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+							) : (
+								<LogOut className="mr-2 h-4 w-4" />
+							)}
+							{isLoggingOut ? t("loggingOut") : t("logout")}
 						</DropdownMenuItem>
 					</DropdownMenuContent>
 				</DropdownMenu>
@@ -360,9 +376,13 @@ export function SidebarUserProfile({
 
 					<DropdownMenuSeparator />
 
-					<DropdownMenuItem onClick={onLogout}>
-						<LogOut className="mr-2 h-4 w-4" />
-						{t("logout")}
+					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+						{isLoggingOut ? (
+							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
+						) : (
+							<LogOut className="mr-2 h-4 w-4" />
+						)}
+						{isLoggingOut ? t("loggingOut") : t("logout")}
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>

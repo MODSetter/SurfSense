@@ -4,7 +4,6 @@ import { useAtom } from "jotai";
 import {
 	AlertCircle,
 	AlertTriangle,
-	AtSign,
 	BellDot,
 	Check,
 	CheckCheck,
@@ -15,6 +14,7 @@ import {
 	Inbox,
 	LayoutGrid,
 	ListFilter,
+	MessageSquare,
 	Search,
 	X,
 } from "lucide-react";
@@ -46,6 +46,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
+	isCommentReplyMetadata,
 	isConnectorIndexingMetadata,
 	isNewMentionMetadata,
 	isPageLimitExceededMetadata,
@@ -133,7 +134,7 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 	);
 }
 
-type InboxTab = "mentions" | "status";
+type InboxTab = "comments" | "status";
 type InboxFilter = "all" | "unread";
 
 // Tab-specific data source with independent pagination
@@ -186,7 +187,7 @@ export function InboxSidebar({
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
 	const [searchQuery, setSearchQuery] = useState("");
-	const [activeTab, setActiveTab] = useState<InboxTab>("mentions");
+	const [activeTab, setActiveTab] = useState<InboxTab>("comments");
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
 	const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
 	const [mounted, setMounted] = useState(false);
@@ -233,19 +234,25 @@ export function InboxSidebar({
 		}
 	}, [activeTab]);
 
-	// Get current tab's data source - each tab has independent data and pagination
-	const currentDataSource = activeTab === "mentions" ? mentions : status;
-	const { loading, loadingMore = false, hasMore = false, loadMore } = currentDataSource;
+	// Both tabs now derive items from status (all types), so use status for pagination
+	const { loading, loadingMore = false, hasMore = false, loadMore } = status;
 
-	// Status tab includes: connector indexing, document processing, page limit exceeded
-	// Filter to only show status notification types
+	// Comments tab: mentions and comment replies
+	const commentsItems = useMemo(
+		() =>
+			status.items.filter((item) => item.type === "new_mention" || item.type === "comment_reply"),
+		[status.items]
+	);
+
+	// Status tab: connector indexing, document processing, page limit exceeded, connector deletion
 	const statusItems = useMemo(
 		() =>
 			status.items.filter(
 				(item) =>
 					item.type === "connector_indexing" ||
 					item.type === "document_processing" ||
-					item.type === "page_limit_exceeded"
+					item.type === "page_limit_exceeded" ||
+					item.type === "connector_deletion"
 			),
 		[status.items]
 	);
@@ -269,8 +276,8 @@ export function InboxSidebar({
 		}));
 	}, [statusItems]);
 
-	// Get items for current tab - mentions use their source directly, status uses filtered items
-	const displayItems = activeTab === "mentions" ? mentions.items : statusItems;
+	// Get items for current tab
+	const displayItems = activeTab === "comments" ? commentsItems : statusItems;
 
 	// Filter items based on filter type, connector filter, and search query
 	const filteredItems = useMemo(() => {
@@ -333,9 +340,15 @@ export function InboxSidebar({
 		return () => observer.disconnect();
 	}, [loadMore, hasMore, loadingMore, open, searchQuery]);
 
-	// Use unread counts from data sources (more accurate than client-side counting)
-	const unreadMentionsCount = mentions.unreadCount;
-	const unreadStatusCount = status.unreadCount;
+	// Unread counts derived from filtered items
+	const unreadCommentsCount = useMemo(
+		() => commentsItems.filter((item) => !item.read).length,
+		[commentsItems]
+	);
+	const unreadStatusCount = useMemo(
+		() => statusItems.filter((item) => !item.read).length,
+		[statusItems]
+	);
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
@@ -346,21 +359,35 @@ export function InboxSidebar({
 			}
 
 			if (item.type === "new_mention") {
-				// Use type guard for safe metadata access
 				if (isNewMentionMetadata(item.metadata)) {
 					const searchSpaceId = item.search_space_id;
 					const threadId = item.metadata.thread_id;
 					const commentId = item.metadata.comment_id;
 
 					if (searchSpaceId && threadId) {
-						// Pre-set target comment ID before navigation
-						// This also ensures comments panel is not collapsed
 						if (commentId) {
 							setTargetCommentId(commentId);
 						}
-
 						const url = commentId
 							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${commentId}`
+							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
+						onOpenChange(false);
+						onCloseMobileSidebar?.();
+						router.push(url);
+					}
+				}
+			} else if (item.type === "comment_reply") {
+				if (isCommentReplyMetadata(item.metadata)) {
+					const searchSpaceId = item.search_space_id;
+					const threadId = item.metadata.thread_id;
+					const replyId = item.metadata.reply_id;
+
+					if (searchSpaceId && threadId) {
+						if (replyId) {
+							setTargetCommentId(replyId);
+						}
+						const url = replyId
+							? `/dashboard/${searchSpaceId}/new-chat/${threadId}?commentId=${replyId}`
 							: `/dashboard/${searchSpaceId}/new-chat/${threadId}`;
 						onOpenChange(false);
 						onCloseMobileSidebar?.();
@@ -410,24 +437,29 @@ export function InboxSidebar({
 	};
 
 	const getStatusIcon = (item: InboxItem) => {
-		// For mentions, show the author's avatar with initials fallback
-		if (item.type === "new_mention") {
-			// Use type guard for safe metadata access
-			if (isNewMentionMetadata(item.metadata)) {
-				const authorName = item.metadata.author_name;
-				const avatarUrl = item.metadata.author_avatar_url;
-				const authorEmail = item.metadata.author_email;
+		// For mentions and comment replies, show the author's avatar
+		if (item.type === "new_mention" || item.type === "comment_reply") {
+			const metadata =
+				item.type === "new_mention"
+					? isNewMentionMetadata(item.metadata)
+						? item.metadata
+						: null
+					: isCommentReplyMetadata(item.metadata)
+						? item.metadata
+						: null;
 
+			if (metadata) {
 				return (
 					<Avatar className="h-8 w-8">
-						{avatarUrl && <AvatarImage src={avatarUrl} alt={authorName || "User"} />}
+						{metadata.author_avatar_url && (
+							<AvatarImage src={metadata.author_avatar_url} alt={metadata.author_name || "User"} />
+						)}
 						<AvatarFallback className="text-[10px] bg-primary/10 text-primary">
-							{getInitials(authorName, authorEmail)}
+							{getInitials(metadata.author_name, metadata.author_email)}
 						</AvatarFallback>
 					</Avatar>
 				);
 			}
-			// Fallback for invalid metadata
 			return (
 				<Avatar className="h-8 w-8">
 					<AvatarFallback className="text-[10px] bg-primary/10 text-primary">
@@ -480,10 +512,10 @@ export function InboxSidebar({
 	};
 
 	const getEmptyStateMessage = () => {
-		if (activeTab === "mentions") {
+		if (activeTab === "comments") {
 			return {
-				title: t("no_mentions") || "No mentions",
-				hint: t("no_mentions_hint") || "You'll see mentions from others here",
+				title: t("no_comments") || "No comments",
+				hint: t("no_comments_hint") || "You'll see mentions and replies here",
 			};
 		}
 		return {
@@ -822,14 +854,14 @@ export function InboxSidebar({
 			>
 				<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
 					<TabsTrigger
-						value="mentions"
+						value="comments"
 						className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 					>
 						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
-							<AtSign className="h-4 w-4" />
-							<span>{t("mentions") || "Mentions"}</span>
+							<MessageSquare className="h-4 w-4" />
+							<span>{t("comments") || "Comments"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-								{formatInboxCount(unreadMentionsCount)}
+								{formatInboxCount(unreadCommentsCount)}
 							</span>
 						</span>
 					</TabsTrigger>
@@ -931,8 +963,8 @@ export function InboxSidebar({
 					</div>
 				) : (
 					<div className="text-center py-8">
-						{activeTab === "mentions" ? (
-							<AtSign className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+						{activeTab === "comments" ? (
+							<MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 						) : (
 							<History className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 						)}

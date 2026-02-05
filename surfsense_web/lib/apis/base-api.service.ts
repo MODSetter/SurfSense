@@ -1,5 +1,5 @@
 import type { ZodType } from "zod";
-import { getBearerToken, handleUnauthorized } from "../auth-utils";
+import { getBearerToken, handleUnauthorized, refreshAccessToken } from "../auth-utils";
 import { AppError, AuthenticationError, AuthorizationError, NotFoundError } from "../error";
 
 enum ResponseType {
@@ -17,6 +17,7 @@ export type RequestOptions = {
 	signal?: AbortSignal;
 	body?: any;
 	responseType?: ResponseType;
+	_isRetry?: boolean; // Internal flag to prevent infinite retry loops
 	// Add more options as needed
 };
 
@@ -135,8 +136,23 @@ class BaseApiService {
 					throw new AppError("Failed to parse response", response.status, response.statusText);
 				}
 
-				// Handle 401 first before other error handling - ensures token is cleared and user redirected
+				// Handle 401 - try to refresh token first (only once)
 				if (response.status === 401) {
+					if (!options?._isRetry) {
+						const newToken = await refreshAccessToken();
+						if (newToken) {
+							// Retry the request with the new token
+							return this.request(url, responseSchema, {
+								...mergedOptions,
+								headers: {
+									...mergedOptions.headers,
+									Authorization: `Bearer ${newToken}`,
+								},
+								_isRetry: true,
+							} as RequestOptions & { responseType?: R });
+						}
+					}
+					// Refresh failed or retry failed, redirect to login
 					handleUnauthorized();
 					throw new AuthenticationError(
 						typeof data === "object" && "detail" in data

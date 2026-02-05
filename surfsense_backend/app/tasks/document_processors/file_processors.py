@@ -526,6 +526,8 @@ async def add_received_file_document_using_unstructured(
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
+                connector_id=connector.get("connector_id") if connector else None,
             )
 
             session.add(document)
@@ -665,6 +667,8 @@ async def add_received_file_document_using_llamacloud(
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
+                connector_id=connector.get("connector_id") if connector else None,
             )
 
             session.add(document)
@@ -829,6 +833,8 @@ async def add_received_file_document_using_docling(
                 blocknote_document=blocknote_json,
                 content_needs_reindexing=False,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
+                connector_id=connector.get("connector_id") if connector else None,
             )
 
             session.add(document)
@@ -849,7 +855,7 @@ async def add_received_file_document_using_docling(
 async def _update_document_from_connector(
     document: Document | None, connector: dict | None, session: AsyncSession
 ) -> None:
-    """Helper to update document type and metadata from connector info."""
+    """Helper to update document type, metadata, and connector_id from connector info."""
     if document and connector:
         if "type" in connector:
             document.document_type = connector["type"]
@@ -861,6 +867,9 @@ async def _update_document_from_connector(
                 # Expand existing metadata with connector metadata
                 merged = {**document.document_metadata, **connector["metadata"]}
                 document.document_metadata = merged
+        # Set connector_id if provided for de-indexing support
+        if "connector_id" in connector:
+            document.connector_id = connector["connector_id"]
         await session.commit()
 
 
