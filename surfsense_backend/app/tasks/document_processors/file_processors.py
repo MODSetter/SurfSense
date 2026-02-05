@@ -17,7 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config as app_config
-from app.db import Document, DocumentType, Log, Notification
+from app.db import Document, DocumentStatus, DocumentType, Log, Notification
 from app.services.llm_service import get_user_long_context_llm
 from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
@@ -499,6 +499,7 @@ async def add_received_file_document_using_unstructured(
             existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
+            existing_document.status = DocumentStatus.ready()  # Mark as ready
 
             await session.commit()
             await session.refresh(existing_document)
@@ -528,6 +529,7 @@ async def add_received_file_document_using_unstructured(
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
                 connector_id=connector.get("connector_id") if connector else None,
+                status=DocumentStatus.ready(),  # Mark as ready
             )
 
             session.add(document)
@@ -640,6 +642,7 @@ async def add_received_file_document_using_llamacloud(
             existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
+            existing_document.status = DocumentStatus.ready()  # Mark as ready
 
             await session.commit()
             await session.refresh(existing_document)
@@ -669,6 +672,7 @@ async def add_received_file_document_using_llamacloud(
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
                 connector_id=connector.get("connector_id") if connector else None,
+                status=DocumentStatus.ready(),  # Mark as ready
             )
 
             session.add(document)
@@ -806,6 +810,7 @@ async def add_received_file_document_using_docling(
             existing_document.blocknote_document = blocknote_json
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
+            existing_document.status = DocumentStatus.ready()  # Mark as ready
 
             await session.commit()
             await session.refresh(existing_document)
@@ -835,6 +840,7 @@ async def add_received_file_document_using_docling(
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
                 connector_id=connector.get("connector_id") if connector else None,
+                status=DocumentStatus.ready(),  # Mark as ready
             )
 
             session.add(document)

@@ -7,7 +7,7 @@ import logging
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Document, DocumentType
+from app.db import Document, DocumentStatus, DocumentType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
@@ -270,6 +270,7 @@ async def add_received_markdown_file_document(
             existing_document.chunks = chunks
             existing_document.blocknote_document = blocknote_json
             existing_document.updated_at = get_current_timestamp()
+            existing_document.status = DocumentStatus.ready()  # Mark as ready
 
             await session.commit()
             await session.refresh(existing_document)
@@ -297,6 +298,7 @@ async def add_received_markdown_file_document(
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
                 connector_id=connector.get("connector_id") if connector else None,
+                status=DocumentStatus.ready(),  # Mark as ready
             )
 
             session.add(document)

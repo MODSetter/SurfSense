@@ -2127,6 +2127,7 @@ async def run_google_gmail_indexing(
         start_date: str | None,
         end_date: str | None,
         update_last_indexed: bool,
+        on_heartbeat_callback=None,
     ) -> tuple[int, str | None]:
         # Use a reasonable default for max_messages
         max_messages = 1000
@@ -2139,6 +2140,7 @@ async def run_google_gmail_indexing(
             end_date=end_date,
             update_last_indexed=update_last_indexed,
             max_messages=max_messages,
+            on_heartbeat_callback=on_heartbeat_callback,
         )
         # index_google_gmail_messages returns (int, str) but we need (int, str | None)
         return indexed_count, error_message if error_message else None
