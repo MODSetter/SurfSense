@@ -71,6 +71,14 @@ class AirtableHistoryConnector:
 
             config_data = connector.config.copy()
 
+            # Check if access_token exists before processing
+            raw_access_token = config_data.get("access_token")
+            if not raw_access_token:
+                raise ValueError(
+                    "Airtable access token not found. "
+                    "Please reconnect your Airtable account."
+                )
+
             # Decrypt credentials if they are encrypted
             token_encrypted = config_data.get("_token_encrypted", False)
             if token_encrypted and config.SECRET_KEY:
@@ -97,6 +105,14 @@ class AirtableHistoryConnector:
                     raise ValueError(
                         f"Failed to decrypt Airtable credentials: {e!s}"
                     ) from e
+
+            # Final validation after decryption
+            final_token = config_data.get("access_token")
+            if not final_token or (isinstance(final_token, str) and not final_token.strip()):
+                raise ValueError(
+                    "Airtable access token is invalid or empty. "
+                    "Please reconnect your Airtable account."
+                )
 
             try:
                 self._credentials = AirtableAuthCredentialsBase.from_dict(config_data)
