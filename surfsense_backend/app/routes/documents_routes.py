@@ -19,6 +19,7 @@ from app.db import (
 from app.schemas import (
     DocumentRead,
     DocumentsCreate,
+    DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,
     DocumentUpdate,
@@ -271,6 +272,14 @@ async def read_documents(
             if doc.created_by:
                 created_by_name = doc.created_by.display_name or doc.created_by.email
             
+            # Parse status from JSONB
+            status_data = None
+            if hasattr(doc, 'status') and doc.status:
+                status_data = DocumentStatusSchema(
+                    state=doc.status.get("state", "ready"),
+                    reason=doc.status.get("reason"),
+                )
+            
             api_documents.append(
                 DocumentRead(
                     id=doc.id,
@@ -285,6 +294,7 @@ async def read_documents(
                     search_space_id=doc.search_space_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
+                    status=status_data,
                 )
             )
 
@@ -417,6 +427,14 @@ async def search_documents(
             if doc.created_by:
                 created_by_name = doc.created_by.display_name or doc.created_by.email
             
+            # Parse status from JSONB
+            status_data = None
+            if hasattr(doc, 'status') and doc.status:
+                status_data = DocumentStatusSchema(
+                    state=doc.status.get("state", "ready"),
+                    reason=doc.status.get("reason"),
+                )
+            
             api_documents.append(
                 DocumentRead(
                     id=doc.id,
@@ -431,6 +449,7 @@ async def search_documents(
                     search_space_id=doc.search_space_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
+                    status=status_data,
                 )
             )
 
@@ -806,6 +825,7 @@ async def delete_document(
     """
     Delete a document.
     Requires DOCUMENTS_DELETE permission for the search space.
+    Documents in "processing" state cannot be deleted.
     """
     try:
         result = await session.execute(
@@ -816,6 +836,14 @@ async def delete_document(
         if not document:
             raise HTTPException(
                 status_code=404, detail=f"Document with id {document_id} not found"
+            )
+
+        # Check if document is pending or currently being processed
+        doc_state = document.status.get("state") if document.status else None
+        if doc_state in ("pending", "processing"):
+            raise HTTPException(
+                status_code=409,  # Conflict
+                detail="Cannot delete document while it is pending or being processed. Please wait for processing to complete.",
             )
 
         # Check permission for the search space

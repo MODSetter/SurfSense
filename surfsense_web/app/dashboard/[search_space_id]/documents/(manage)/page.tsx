@@ -38,6 +38,7 @@ export default function DocumentsTable() {
 		document_type: true,
 		created_by: true,
 		created_at: true,
+		status: true,
 	});
 	const [pageIndex, setPageIndex] = useState(0);
 	const [sortKey, setSortKey] = useState<SortKey>("created_at");
@@ -115,6 +116,7 @@ export default function DocumentsTable() {
 				created_by_id: item.created_by_id ?? null,
 				created_by_name: item.created_by_name ?? null,
 				created_at: item.created_at,
+				status: (item as { status?: { state: "ready" | "pending" | "processing" | "failed"; reason?: string } }).status ?? { state: "ready" as const },
 			}))
 		: paginatedRealtimeDocuments;
 
@@ -159,10 +161,35 @@ export default function DocumentsTable() {
 			toast.error(t("no_rows_selected"));
 			return;
 		}
+
+		// Filter out pending/processing documents - they cannot be deleted
+		// For real-time mode, use sortedRealtimeDocuments (which has status)
+		// For search mode, use searchResponse items (need to safely access status)
+		const allDocs = isSearchMode 
+			? (searchResponse?.items || []).map(item => ({
+				id: item.id,
+				status: (item as { status?: { state: string } }).status,
+			}))
+			: sortedRealtimeDocuments.map(doc => ({ id: doc.id, status: doc.status }));
+		
+		const selectedDocs = allDocs.filter((doc) => selectedIds.has(doc.id));
+		const deletableIds = selectedDocs
+			.filter((doc) => doc.status?.state !== "pending" && doc.status?.state !== "processing")
+			.map((doc) => doc.id);
+		const inProgressCount = selectedIds.size - deletableIds.length;
+
+		if (inProgressCount > 0) {
+			toast.warning(`${inProgressCount} document(s) are pending or processing and cannot be deleted.`);
+		}
+
+		if (deletableIds.length === 0) {
+			return;
+		}
+
 		try {
 			// Delete documents one by one using the mutation
 			const results = await Promise.all(
-				Array.from(selectedIds).map(async (id) => {
+				deletableIds.map(async (id) => {
 					try {
 						await deleteDocumentMutation({ id });
 						return true;
@@ -172,7 +199,7 @@ export default function DocumentsTable() {
 				})
 			);
 			const okCount = results.filter((r) => r === true).length;
-			if (okCount === selectedIds.size)
+			if (okCount === deletableIds.length)
 				toast.success(t("delete_success_count", { count: okCount }));
 			else toast.error(t("delete_partial_failed"));
 			

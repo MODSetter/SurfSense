@@ -16,13 +16,14 @@ from sqlalchemy.orm import selectinload
 
 from app.config import config
 from app.connectors.composio_connector import ComposioConnector
-from app.db import Document, DocumentType
+from app.db import Document, DocumentStatus, DocumentType
 from app.services.composio_service import TOOLKIT_TO_DOCUMENT_TYPE
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     calculate_date_range,
     check_duplicate_document_by_hash,
+    safe_set_chunks,
 )
 from app.utils.document_converters import (
     create_document_chunks,
@@ -266,18 +267,18 @@ async def index_composio_google_calendar(
 
         documents_indexed = 0
         documents_skipped = 0
-        duplicate_content_count = (
-            0  # Track events skipped due to duplicate content_hash
-        )
+        documents_failed = 0  # Track events that failed processing
+        duplicate_content_count = 0  # Track events skipped due to duplicate content_hash
         last_heartbeat_time = time.time()
 
+        # =======================================================================
+        # PHASE 1: Analyze all events, create pending documents
+        # This makes ALL documents visible in the UI immediately with pending status
+        # =======================================================================
+        events_to_process = []  # List of dicts with document and event data
+        new_documents_created = False
+
         for event in events:
-            # Send heartbeat periodically to indicate task is still alive
-            if on_heartbeat_callback:
-                current_time = time.time()
-                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
-                    await on_heartbeat_callback(documents_indexed)
-                    last_heartbeat_time = current_time
             try:
                 # Handle both standard Google API and potential Composio variations
                 event_id = event.get("id", "") or event.get("eventId", "")
@@ -315,61 +316,24 @@ async def index_composio_google_calendar(
 
                 if existing_document:
                     if existing_document.content_hash == content_hash:
+                        # Ensure status is ready (might have been stuck in processing/pending)
+                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                            existing_document.status = DocumentStatus.ready()
                         documents_skipped += 1
                         continue
 
-                    # Update existing
-                    user_llm = await get_user_long_context_llm(
-                        session, user_id, search_space_id
-                    )
-
-                    if user_llm:
-                        document_metadata = {
-                            "event_id": event_id,
-                            "summary": summary,
-                            "start_time": start_time,
-                            "document_type": "Google Calendar Event (Composio)",
-                        }
-                        (
-                            summary_content,
-                            summary_embedding,
-                        ) = await generate_document_summary(
-                            markdown_content, user_llm, document_metadata
-                        )
-                    else:
-                        summary_content = f"Calendar: {summary}\n\nStart: {start_time}\nEnd: {end_time}"
-                        if location:
-                            summary_content += f"\nLocation: {location}"
-                        summary_embedding = config.embedding_model_instance.embed(
-                            summary_content
-                        )
-
-                    chunks = await create_document_chunks(markdown_content)
-
-                    existing_document.title = summary
-                    existing_document.content = summary_content
-                    existing_document.content_hash = content_hash
-                    existing_document.embedding = summary_embedding
-                    existing_document.document_metadata = {
-                        "event_id": event_id,
-                        "summary": summary,
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "location": location,
-                        "connector_id": connector_id,
-                        "source": "composio",
-                    }
-                    existing_document.chunks = chunks
-                    existing_document.updated_at = get_current_timestamp()
-
-                    documents_indexed += 1
-
-                    # Batch commit every 10 documents
-                    if documents_indexed % 10 == 0:
-                        logger.info(
-                            f"Committing batch: {documents_indexed} Google Calendar events processed so far"
-                        )
-                        await session.commit()
+                    # Queue existing document for update (will be set to processing in Phase 2)
+                    events_to_process.append({
+                        'document': existing_document,
+                        'is_new': False,
+                        'markdown_content': markdown_content,
+                        'content_hash': content_hash,
+                        'event_id': event_id,
+                        'summary': summary,
+                        'start_time': start_time,
+                        'end_time': end_time,
+                        'location': location,
+                    })
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -380,46 +344,16 @@ async def index_composio_google_calendar(
                     )
 
                 if duplicate_by_content:
-                    # A document with the same content already exists (likely from standard connector)
                     logger.info(
                         f"Event {summary} already indexed by another connector "
                         f"(existing document ID: {duplicate_by_content.id}, "
-                        f"type: {duplicate_by_content.document_type}). Skipping to avoid duplicate content."
+                        f"type: {duplicate_by_content.document_type}). Skipping."
                     )
                     duplicate_content_count += 1
                     documents_skipped += 1
                     continue
 
-                # Create new document
-                user_llm = await get_user_long_context_llm(
-                    session, user_id, search_space_id
-                )
-
-                if user_llm:
-                    document_metadata = {
-                        "event_id": event_id,
-                        "summary": summary,
-                        "start_time": start_time,
-                        "document_type": "Google Calendar Event (Composio)",
-                    }
-                    (
-                        summary_content,
-                        summary_embedding,
-                    ) = await generate_document_summary(
-                        markdown_content, user_llm, document_metadata
-                    )
-                else:
-                    summary_content = (
-                        f"Calendar: {summary}\n\nStart: {start_time}\nEnd: {end_time}"
-                    )
-                    if location:
-                        summary_content += f"\nLocation: {location}"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
-
-                chunks = await create_document_chunks(markdown_content)
-
+                # Create new document with PENDING status (visible in UI immediately)
                 document = Document(
                     search_space_id=search_space_id,
                     title=summary,
@@ -436,19 +370,107 @@ async def index_composio_google_calendar(
                         "toolkit_id": "googlecalendar",
                         "source": "composio",
                     },
-                    content=summary_content,
-                    content_hash=content_hash,
+                    content="Pending...",  # Placeholder until processed
+                    content_hash=unique_identifier_hash,  # Temporary unique value - updated when ready
                     unique_identifier_hash=unique_identifier_hash,
-                    embedding=summary_embedding,
-                    chunks=chunks,
+                    embedding=None,
+                    chunks=[],  # Empty at creation - safe for async
+                    status=DocumentStatus.pending(),  # Pending until processing starts
                     updated_at=get_current_timestamp(),
                     created_by_id=user_id,
                     connector_id=connector_id,
                 )
                 session.add(document)
+                new_documents_created = True
+
+                events_to_process.append({
+                    'document': document,
+                    'is_new': True,
+                    'markdown_content': markdown_content,
+                    'content_hash': content_hash,
+                    'event_id': event_id,
+                    'summary': summary,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'location': location,
+                })
+
+            except Exception as e:
+                logger.error(f"Error in Phase 1 for event: {e!s}", exc_info=True)
+                documents_failed += 1
+                continue
+
+        # Commit all pending documents - they all appear in UI now
+        if new_documents_created:
+            logger.info(f"Phase 1: Committing {len([e for e in events_to_process if e['is_new']])} pending documents")
+            await session.commit()
+
+        # =======================================================================
+        # PHASE 2: Process each document one by one
+        # Each document transitions: pending → processing → ready/failed
+        # =======================================================================
+        logger.info(f"Phase 2: Processing {len(events_to_process)} documents")
+
+        for item in events_to_process:
+            # Send heartbeat periodically
+            if on_heartbeat_callback:
+                current_time = time.time()
+                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                    await on_heartbeat_callback(documents_indexed)
+                    last_heartbeat_time = current_time
+
+            document = item['document']
+            try:
+                # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
+                document.status = DocumentStatus.processing()
+                await session.commit()
+
+                # Heavy processing (LLM, embeddings, chunks)
+                user_llm = await get_user_long_context_llm(
+                    session, user_id, search_space_id
+                )
+
+                if user_llm:
+                    document_metadata_for_summary = {
+                        "event_id": item['event_id'],
+                        "summary": item['summary'],
+                        "start_time": item['start_time'],
+                        "document_type": "Google Calendar Event (Composio)",
+                    }
+                    summary_content, summary_embedding = await generate_document_summary(
+                        item['markdown_content'], user_llm, document_metadata_for_summary
+                    )
+                else:
+                    summary_content = f"Calendar: {item['summary']}\n\nStart: {item['start_time']}\nEnd: {item['end_time']}"
+                    if item['location']:
+                        summary_content += f"\nLocation: {item['location']}"
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
+
+                chunks = await create_document_chunks(item['markdown_content'])
+
+                # Update document to READY with actual content
+                document.title = item['summary']
+                document.content = summary_content
+                document.content_hash = item['content_hash']
+                document.embedding = summary_embedding
+                document.document_metadata = {
+                    "event_id": item['event_id'],
+                    "summary": item['summary'],
+                    "start_time": item['start_time'],
+                    "end_time": item['end_time'],
+                    "location": item['location'],
+                    "connector_id": connector_id,
+                    "source": "composio",
+                }
+                safe_set_chunks(document, chunks)
+                document.updated_at = get_current_timestamp()
+                document.status = DocumentStatus.ready()
+
                 documents_indexed += 1
 
-                # Batch commit every 10 documents
+                # Batch commit every 10 documents (for ready status updates)
                 if documents_indexed % 10 == 0:
                     logger.info(
                         f"Committing batch: {documents_indexed} Google Calendar events processed so far"
@@ -457,7 +479,13 @@ async def index_composio_google_calendar(
 
             except Exception as e:
                 logger.error(f"Error processing Calendar event: {e!s}", exc_info=True)
-                documents_skipped += 1
+                # Mark document as failed with reason (visible in UI)
+                try:
+                    document.status = DocumentStatus.failed(str(e))
+                    document.updated_at = get_current_timestamp()
+                except Exception as status_error:
+                    logger.error(f"Failed to update document status to failed: {status_error}")
+                documents_failed += 1
                 continue
 
         # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
@@ -490,10 +518,13 @@ async def index_composio_google_calendar(
             else:
                 raise
 
-        # Build warning message if duplicates were found
-        warning_message = None
+        # Build warning message if there were issues
+        warning_parts = []
         if duplicate_content_count > 0:
-            warning_message = f"{duplicate_content_count} skipped (duplicate)"
+            warning_parts.append(f"{duplicate_content_count} duplicate")
+        if documents_failed > 0:
+            warning_parts.append(f"{documents_failed} failed")
+        warning_message = ", ".join(warning_parts) if warning_parts else None
 
         await task_logger.log_task_success(
             log_entry,
@@ -501,13 +532,15 @@ async def index_composio_google_calendar(
             {
                 "documents_indexed": documents_indexed,
                 "documents_skipped": documents_skipped,
+                "documents_failed": documents_failed,
                 "duplicate_content_count": duplicate_content_count,
             },
         )
 
         logger.info(
-            f"Composio Google Calendar indexing completed: {documents_indexed} new events, {documents_skipped} skipped "
-            f"({duplicate_content_count} due to duplicate content from other connectors)"
+            f"Composio Google Calendar indexing completed: {documents_indexed} ready, "
+            f"{documents_skipped} skipped, {documents_failed} failed "
+            f"({duplicate_content_count} duplicate content)"
         )
         return documents_indexed, warning_message
 

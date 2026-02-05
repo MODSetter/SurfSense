@@ -72,7 +72,9 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 //     - fixed getSyncCutoffDate to use stable midnight UTC timestamps
 // v6: real-time documents table - added title and created_by_id columns for live document display
 // v7: removed use-documents-electric.ts - consolidated to single documents sync to prevent conflicts
-const SYNC_VERSION = 7;
+// v8: added status column for real-time document processing status (ready/processing/failed)
+// v9: added pending state for accurate document queue visibility
+const SYNC_VERSION = 11;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";
@@ -245,12 +247,14 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 					document_type TEXT NOT NULL,
 					title TEXT NOT NULL DEFAULT '',
 					created_by_id TEXT,
-					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+					status JSONB DEFAULT '{"state": "ready"}'::jsonb
 				);
 				
 				CREATE INDEX IF NOT EXISTS idx_documents_search_space_id ON documents(search_space_id);
 				CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(document_type);
 				CREATE INDEX IF NOT EXISTS idx_documents_search_space_type ON documents(search_space_id, document_type);
+				CREATE INDEX IF NOT EXISTS idx_documents_status ON documents((status->>'state'));
 			`);
 
 			await db.exec(`

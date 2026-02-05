@@ -9,6 +9,12 @@ import { useElectricClient } from "@/lib/electric/context";
 // Stable empty array to prevent infinite re-renders when no typeFilter is provided
 const EMPTY_TYPE_FILTER: DocumentTypeEnum[] = [];
 
+// Document status type (matches backend DocumentStatus JSONB)
+export interface DocumentStatusType {
+	state: "ready" | "pending" | "processing" | "failed";
+	reason?: string;
+}
+
 // Document from Electric sync (lightweight table columns - NO content/metadata)
 interface DocumentElectric {
 	id: number;
@@ -17,6 +23,7 @@ interface DocumentElectric {
 	title: string;
 	created_by_id: string | null;
 	created_at: string;
+	status: DocumentStatusType | null;
 }
 
 // Document for display (with resolved user name)
@@ -28,6 +35,7 @@ export interface DocumentDisplay {
 	created_by_id: string | null;
 	created_by_name: string | null;
 	created_at: string;
+	status: DocumentStatusType;
 }
 
 /**
@@ -117,6 +125,7 @@ export function useDocuments(
 			created_by_id?: string | null;
 			created_by_name?: string | null;
 			created_at: string;
+			status?: DocumentStatusType | null;
 		}): DocumentDisplay => ({
 			id: item.id,
 			search_space_id: item.search_space_id,
@@ -125,6 +134,7 @@ export function useDocuments(
 			created_by_id: item.created_by_id ?? null,
 			created_by_name: item.created_by_name ?? null,
 			created_at: item.created_at,
+			status: item.status ?? { state: "ready" },
 		}),
 		[]
 	);
@@ -136,6 +146,7 @@ export function useDocuments(
 			created_by_name: doc.created_by_id
 				? userCacheRef.current.get(doc.created_by_id) ?? null
 				: null,
+			status: doc.status ?? { state: "ready" },
 		}),
 		[]
 	);
@@ -221,7 +232,7 @@ export function useDocuments(
 				const handle = await client.syncShape({
 					table: "documents",
 					where: `search_space_id = ${spaceId}`,
-					columns: ["id", "document_type", "search_space_id", "title", "created_by_id", "created_at"],
+					columns: ["id", "document_type", "search_space_id", "title", "created_by_id", "created_at", "status"],
 					primaryKey: ["id"],
 				});
 
@@ -259,7 +270,7 @@ export function useDocuments(
 					return;
 				}
 
-				let query = `SELECT id, document_type, search_space_id, title, created_by_id, created_at
+				let query = `SELECT id, document_type, search_space_id, title, created_by_id, created_at, status
 					FROM documents 
 					WHERE search_space_id = $1`;
 

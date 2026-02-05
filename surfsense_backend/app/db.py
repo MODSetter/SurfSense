@@ -100,6 +100,80 @@ class PodcastStatus(str, Enum):
     FAILED = "failed"
 
 
+class DocumentStatus:
+    """
+    Helper class for document processing status (stored as JSONB).
+    
+    Status values:
+    - {"state": "ready"} - Document is fully processed and searchable
+    - {"state": "pending"} - Document is queued, waiting to be processed
+    - {"state": "processing"} - Document is currently being processed (only 1 at a time)
+    - {"state": "failed", "reason": "..."} - Processing failed with reason
+    
+    Usage:
+        document.status = DocumentStatus.pending()
+        document.status = DocumentStatus.processing()
+        document.status = DocumentStatus.ready()
+        document.status = DocumentStatus.failed("LLM rate limit exceeded")
+    """
+    
+    # State constants
+    READY = "ready"
+    PENDING = "pending"
+    PROCESSING = "processing"
+    FAILED = "failed"
+    
+    @staticmethod
+    def ready() -> dict:
+        """Return status dict for a ready/searchable document."""
+        return {"state": DocumentStatus.READY}
+    
+    @staticmethod
+    def pending() -> dict:
+        """Return status dict for a document waiting to be processed."""
+        return {"state": DocumentStatus.PENDING}
+    
+    @staticmethod
+    def processing() -> dict:
+        """Return status dict for a document being processed."""
+        return {"state": DocumentStatus.PROCESSING}
+    
+    @staticmethod
+    def failed(reason: str, **extra_details) -> dict:
+        """
+        Return status dict for a failed document.
+        
+        Args:
+            reason: Human-readable failure reason
+            **extra_details: Optional additional details (duplicate_of, error_code, etc.)
+        """
+        status = {"state": DocumentStatus.FAILED, "reason": reason[:500]}  # Truncate long reasons
+        if extra_details:
+            status.update(extra_details)
+        return status
+    
+    @staticmethod
+    def get_state(status: dict | None) -> str | None:
+        """Extract state from status dict, returns None if invalid."""
+        if status is None:
+            return None
+        return status.get("state") if isinstance(status, dict) else None
+    
+    @staticmethod
+    def is_state(status: dict | None, state: str) -> bool:
+        """Check if status matches a given state."""
+        return DocumentStatus.get_state(status) == state
+    
+    @staticmethod
+    def get_failure_reason(status: dict | None) -> str | None:
+        """Extract failure reason from status dict."""
+        if status is None or not isinstance(status, dict):
+            return None
+        if status.get("state") == DocumentStatus.FAILED:
+            return status.get("reason")
+        return None
+
+
 class LiteLLMProvider(str, Enum):
     """
     Enum for LLM providers supported by LiteLLM.
@@ -782,6 +856,17 @@ class Document(BaseModel, TimestampMixin):
         Integer,
         ForeignKey("search_source_connectors.id", ondelete="SET NULL"),
         nullable=True,  # Nullable for manually uploaded docs without connector
+        index=True,
+    )
+
+    # Processing status for real-time visibility (JSONB)
+    # Format: {"state": "ready"} or {"state": "processing"} or {"state": "failed", "reason": "..."}
+    # Default to {"state": "ready"} for backward compatibility with existing documents
+    status = Column(
+        JSONB,
+        nullable=False,
+        default=DocumentStatus.ready,
+        server_default=text("'{\"state\": \"ready\"}'::jsonb"),
         index=True,
     )
 

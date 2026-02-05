@@ -45,9 +45,16 @@ export function RowActions({
 		document.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
 	);
 
-	const isDeletable = !NON_DELETABLE_DOCUMENT_TYPES.includes(
+	// Documents in "pending" or "processing" state should show disabled delete
+	const isBeingProcessed = document.status?.state === "pending" || document.status?.state === "processing";
+
+	// SURFSENSE_DOCS are system-managed and should not show delete at all
+	const shouldShowDelete = !NON_DELETABLE_DOCUMENT_TYPES.includes(
 		document.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
 	);
+
+	// Delete is disabled while processing
+	const isDeleteDisabled = isBeingProcessed;
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
@@ -87,10 +94,11 @@ export function RowActions({
 								<Pencil className="mr-2 h-4 w-4" />
 								<span>Edit</span>
 							</DropdownMenuItem>
-							{isDeletable && (
+							{shouldShowDelete && (
 								<DropdownMenuItem
-									onClick={() => setIsDeleteOpen(true)}
-									className="text-destructive focus:text-destructive"
+									onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
+									disabled={isDeleteDisabled}
+									className={isDeleteDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : "text-destructive focus:text-destructive"}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
 									<span>Delete</span>
@@ -100,13 +108,13 @@ export function RowActions({
 					</DropdownMenu>
 				) : (
 					// Non-editable documents: show only delete button directly
-					isDeletable && (
+					shouldShowDelete && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-							onClick={() => setIsDeleteOpen(true)}
-							disabled={isDeleting}
+							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+							onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
+							disabled={isDeleting || isDeleteDisabled}
 						>
 							<Trash2 className="h-4 w-4" />
 							<span className="sr-only">Delete</span>
@@ -131,10 +139,11 @@ export function RowActions({
 								<Pencil className="mr-2 h-4 w-4" />
 								<span>Edit</span>
 							</DropdownMenuItem>
-							{isDeletable && (
+							{shouldShowDelete && (
 								<DropdownMenuItem
-									onClick={() => setIsDeleteOpen(true)}
-									className="text-destructive focus:text-destructive"
+									onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
+									disabled={isDeleteDisabled}
+									className={isDeleteDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : "text-destructive focus:text-destructive"}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
 									<span>Delete</span>
@@ -144,13 +153,13 @@ export function RowActions({
 					</DropdownMenu>
 				) : (
 					// Non-editable documents: show only delete button directly
-					isDeletable && (
+					shouldShowDelete && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-							onClick={() => setIsDeleteOpen(true)}
-							disabled={isDeleting}
+							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+							onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
+							disabled={isDeleting || isDeleteDisabled}
 						>
 							<Trash2 className="h-4 w-4" />
 							<span className="sr-only">Delete</span>

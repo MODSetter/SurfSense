@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Calendar, ChevronDown, ChevronUp, FileText, FileX, Loader2, Network, Plus, User } from "lucide-react";
+import { AlertCircle, Calendar, CheckCircle2, ChevronDown, ChevronUp, Clock, FileText, FileX, Loader2, Network, Plus, User } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import React, { useRef, useState, useEffect, useCallback } from "react";
@@ -17,6 +17,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	Table,
 	TableBody,
@@ -29,7 +30,61 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { DocumentTypeChip } from "./DocumentTypeIcon";
 import { RowActions } from "./RowActions";
-import type { ColumnVisibility, Document } from "./types";
+import type { ColumnVisibility, Document, DocumentStatus } from "./types";
+
+// Status indicator component for document processing status
+function StatusIndicator({ status }: { status?: DocumentStatus }) {
+	const state = status?.state ?? "ready";
+	
+	switch (state) {
+		case "pending":
+			return (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<div className="flex items-center justify-center">
+							<Clock className="h-5 w-5 text-muted-foreground" />
+						</div>
+					</TooltipTrigger>
+					<TooltipContent side="top">Pending - waiting to be processed</TooltipContent>
+				</Tooltip>
+			);
+		case "processing":
+			return (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<div className="flex items-center justify-center">
+							<Spinner size="sm" className="text-primary" />
+						</div>
+					</TooltipTrigger>
+					<TooltipContent side="top">Processing...</TooltipContent>
+				</Tooltip>
+			);
+		case "failed":
+			return (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<div className="flex items-center justify-center">
+							<AlertCircle className="h-5 w-5 text-destructive" />
+						</div>
+					</TooltipTrigger>
+					<TooltipContent side="top" className="max-w-xs">
+						{status?.reason || "Processing failed"}
+					</TooltipContent>
+				</Tooltip>
+			);
+		case "ready":
+			return (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<div className="flex items-center justify-center">
+							<CheckCircle2 className="h-5 w-5 text-muted-foreground/60" />
+						</div>
+					</TooltipTrigger>
+					<TooltipContent side="top">Ready</TooltipContent>
+				</Tooltip>
+			);
+	}
+}
 
 export type SortKey = keyof Pick<Document, "title" | "document_type" | "created_at">;
 
@@ -460,7 +515,7 @@ export function DocumentsTableShell({
 										</TableHead>
 									)}
 									{columnVisibility.created_at && (
-										<TableHead className="w-32">
+										<TableHead className="w-32 border-r border-border/40">
 											<SortableHeader
 												sortKey="created_at"
 												currentSortKey={sortKey}
@@ -470,6 +525,13 @@ export function DocumentsTableShell({
 											>
 												Created
 											</SortableHeader>
+										</TableHead>
+									)}
+									{columnVisibility.status && (
+										<TableHead className="w-20 text-center">
+											<span className="text-sm font-medium text-muted-foreground/70">
+												Status
+											</span>
 										</TableHead>
 									)}
 									<TableHead className="w-10">
@@ -552,7 +614,7 @@ export function DocumentsTableShell({
 													</TableCell>
 												)}
 												{columnVisibility.created_at && (
-													<TableCell className="w-32 py-2.5 text-sm text-foreground">
+													<TableCell className="w-32 py-2.5 text-sm text-foreground border-r border-border/40">
 														<Tooltip>
 															<TooltipTrigger asChild>
 																<span className="cursor-default">{formatRelativeDate(doc.created_at)}</span>
@@ -561,6 +623,11 @@ export function DocumentsTableShell({
 																{formatAbsoluteDate(doc.created_at)}
 															</TooltipContent>
 														</Tooltip>
+													</TableCell>
+												)}
+												{columnVisibility.status && (
+													<TableCell className="w-20 py-2.5 text-center">
+														<StatusIndicator status={doc.status} />
 													</TableCell>
 												)}
 												<TableCell className="w-10 py-2.5 text-center">
@@ -647,11 +714,14 @@ export function DocumentsTableShell({
 												)}
 											</div>
 										</div>
-										<RowActions
-											document={doc}
-											deleteDocument={deleteDocument}
-											searchSpaceId={searchSpaceId}
-										/>
+										<div className="flex items-center gap-2">
+											{columnVisibility.status && <StatusIndicator status={doc.status} />}
+											<RowActions
+												document={doc}
+												deleteDocument={deleteDocument}
+												searchSpaceId={searchSpaceId}
+											/>
+										</div>
 									</div>
 								</motion.div>
 							);

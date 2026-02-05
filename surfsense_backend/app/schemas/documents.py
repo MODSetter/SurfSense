@@ -41,6 +41,12 @@ class DocumentUpdate(DocumentBase):
     pass
 
 
+class DocumentStatusSchema(BaseModel):
+    """Document processing status."""
+    state: str  # "ready", "processing", "failed"
+    reason: str | None = None
+
+
 class DocumentRead(BaseModel):
     id: int
     title: str
@@ -54,6 +60,7 @@ class DocumentRead(BaseModel):
     search_space_id: int
     created_by_id: UUID | None = None  # User who created/uploaded this document
     created_by_name: str | None = None  # Display name or email of the user who created this document
+    status: DocumentStatusSchema | None = None  # Processing status (ready, processing, failed)
 
     model_config = ConfigDict(from_attributes=True)
 
