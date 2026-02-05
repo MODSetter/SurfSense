@@ -685,6 +685,7 @@
 		"dark": "深色",
 		"system": "系统",
 		"logout": "退出登录",
+		"loggingOut": "正在退出...",
 		"inbox": "收件箱",
 		"search_inbox": "搜索收件箱",
 		"mark_all_read": "全部标记为已读",

@@ -255,6 +255,14 @@ class Config:
     # OAuth JWT
     SECRET_KEY = os.getenv("SECRET_KEY")
 
+    # JWT Token Lifetimes
+    ACCESS_TOKEN_LIFETIME_SECONDS = int(
+        os.getenv("ACCESS_TOKEN_LIFETIME_SECONDS", str(24 * 60 * 60))  # 1 day
+    )
+    REFRESH_TOKEN_LIFETIME_SECONDS = int(
+        os.getenv("REFRESH_TOKEN_LIFETIME_SECONDS", str(14 * 24 * 60 * 60))  # 2 weeks
+    )
+
     # ETL Service
     ETL_SERVICE = os.getenv("ETL_SERVICE")
 

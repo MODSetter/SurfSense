@@ -23,16 +23,19 @@ from app.db import (
     get_default_roles_config,
     get_user_db,
 )
+from app.utils.refresh_tokens import create_refresh_token
 
 logger = logging.getLogger(__name__)
 
 
 class BearerResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 
 SECRET = config.SECRET_KEY
+
 
 if config.AUTH_TYPE == "GOOGLE":
     from httpx_oauth.clients.google import GoogleOAuth2
@@ -183,7 +186,10 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 
 
 def get_jwt_strategy() -> JWTStrategy[models.UP, models.ID]:
-    return JWTStrategy(secret=SECRET, lifetime_seconds=3600 * 24)
+    return JWTStrategy(
+        secret=SECRET,
+        lifetime_seconds=config.ACCESS_TOKEN_LIFETIME_SECONDS,
+    )
 
 
 # # COOKIE AUTH | Uncomment if you want to use cookie auth.
@@ -209,9 +215,30 @@ def get_jwt_strategy() -> JWTStrategy[models.UP, models.ID]:
 # BEARER AUTH CODE.
 class CustomBearerTransport(BearerTransport):
     async def get_login_response(self, token: str) -> Response:
-        bearer_response = BearerResponse(access_token=token, token_type="bearer")
-        redirect_url = f"{config.NEXT_FRONTEND_URL}/auth/callback?token={bearer_response.access_token}"
+        import jwt
+
+        # Decode JWT to get user_id for refresh token creation
+        try:
+            payload = jwt.decode(token, SECRET, algorithms=["HS256"], options={"verify_aud": False})
+            user_id = uuid.UUID(payload.get("sub"))
+            refresh_token = await create_refresh_token(user_id)
+        except Exception as e:
+            logger.error(f"Failed to create refresh token: {e}")
+            # Fall back to response without refresh token
+            refresh_token = ""
+
+        bearer_response = BearerResponse(
+            access_token=token,
+            refresh_token=refresh_token,
+            token_type="bearer",
+        )
+
         if config.AUTH_TYPE == "GOOGLE":
+            redirect_url = (
+                f"{config.NEXT_FRONTEND_URL}/auth/callback"
+                f"?token={bearer_response.access_token}"
+                f"&refresh_token={bearer_response.refresh_token}"
+            )
             return RedirectResponse(redirect_url, status_code=302)
         else:
             return JSONResponse(bearer_response.model_dump())
