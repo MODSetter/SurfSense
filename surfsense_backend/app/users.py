@@ -23,7 +23,6 @@ from app.db import (
     get_default_roles_config,
     get_user_db,
 )
-from app.utils.auth_cookies import set_refresh_token_cookie
 from app.utils.refresh_tokens import create_refresh_token
 
 logger = logging.getLogger(__name__)
@@ -238,16 +237,11 @@ class CustomBearerTransport(BearerTransport):
             redirect_url = (
                 f"{config.NEXT_FRONTEND_URL}/auth/callback"
                 f"?token={bearer_response.access_token}"
+                f"&refresh_token={bearer_response.refresh_token}"
             )
-            response = RedirectResponse(redirect_url, status_code=302)
+            return RedirectResponse(redirect_url, status_code=302)
         else:
-            response = JSONResponse(bearer_response.model_dump())
-
-        # Set refresh token as HTTP-only cookie
-        if refresh_token:
-            set_refresh_token_cookie(response, refresh_token)
-
-        return response
+            return JSONResponse(bearer_response.model_dump())
 
 
 bearer_transport = CustomBearerTransport(tokenUrl="auth/jwt/login")

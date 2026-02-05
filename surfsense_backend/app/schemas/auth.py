@@ -3,12 +3,24 @@
 from pydantic import BaseModel
 
 
+class RefreshTokenRequest(BaseModel):
+    """Request body for token refresh endpoint."""
+
+    refresh_token: str
+
+
 class RefreshTokenResponse(BaseModel):
     """Response from token refresh endpoint."""
 
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
+
+
+class LogoutRequest(BaseModel):
+    """Request body for logout endpoint (current device)."""
+
+    refresh_token: str
 
 
 class LogoutResponse(BaseModel):
