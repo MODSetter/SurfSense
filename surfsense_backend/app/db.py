@@ -1444,16 +1444,12 @@ else:
 class RefreshToken(Base, TimestampMixin):
     """
     Stores refresh tokens for user session management.
-
-    Refresh tokens are long-lived tokens (2 weeks) used to obtain new
-    access tokens without requiring re-authentication.
+    Each row represents one device/session.
     """
 
     __tablename__ = "refresh_tokens"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-
-    # User relationship
     user_id = Column(
         UUID(as_uuid=True),
         ForeignKey("user.id", ondelete="CASCADE"),
@@ -1461,27 +1457,17 @@ class RefreshToken(Base, TimestampMixin):
         index=True,
     )
     user = relationship("User", back_populates="refresh_tokens")
-
-    # Token hash (stored hashed, not plaintext)
     token_hash = Column(String(256), unique=True, nullable=False, index=True)
-
-    # Token expiration
     expires_at = Column(TIMESTAMP(timezone=True), nullable=False, index=True)
-
-    # Revocation flag
     is_revoked = Column(Boolean, default=False, nullable=False)
-
-    # Token family for rotation tracking (detect reuse attacks)
     family_id = Column(UUID(as_uuid=True), nullable=False, index=True)
 
     @property
     def is_expired(self) -> bool:
-        """Check if the token has expired."""
         return datetime.now(UTC) >= self.expires_at
 
     @property
     def is_valid(self) -> bool:
-        """Check if the token is valid (not expired and not revoked)."""
         return not self.is_expired and not self.is_revoked
 
 
