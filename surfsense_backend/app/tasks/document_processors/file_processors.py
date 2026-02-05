@@ -33,6 +33,7 @@ from .base import (
     check_document_by_unique_identifier,
     check_duplicate_document,
     get_current_timestamp,
+    safe_set_chunks,
 )
 from .markdown_processor import add_received_markdown_file_document
 
@@ -1612,3 +1613,316 @@ async def process_file_in_background(
 
         logging.error(f"Error processing file in background: {error_message}")
         raise  # Re-raise so the wrapper can also handle it
+
+
+async def process_file_in_background_with_document(
+    document: Document,
+    file_path: str,
+    filename: str,
+    search_space_id: int,
+    user_id: str,
+    session: AsyncSession,
+    task_logger: TaskLoggingService,
+    log_entry: Log,
+    connector: dict | None = None,
+    notification: Notification | None = None,
+) -> Document | None:
+    """
+    Process file and update existing pending document (2-phase pattern).
+    
+    This function is Phase 2 of the real-time document status updates:
+    - Phase 1 (API): Created document with pending status
+    - Phase 2 (this): Process file and update document to ready/failed
+    
+    The document already exists with pending status. This function:
+    1. Parses the file content (markdown, audio, or ETL services)
+    2. Updates the document with content, embeddings, and chunks
+    3. Sets status to 'ready' on success
+    
+    Args:
+        document: Existing document with pending status
+        file_path: Path to the uploaded file
+        filename: Original filename
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        session: Database session
+        task_logger: Task logging service
+        log_entry: Log entry for this task
+        connector: Optional connector info for Google Drive files
+        notification: Optional notification for progress updates
+    
+    Returns:
+        Updated Document object if successful, None if duplicate content detected
+    """
+    import os
+
+    from app.config import config as app_config
+    from app.services.llm_service import get_user_long_context_llm
+    from app.utils.blocknote_converter import convert_markdown_to_blocknote
+
+    try:
+        markdown_content = None
+        etl_service = None
+
+        # ===== STEP 1: Parse file content based on type =====
+        
+        # Check if the file is a markdown or text file
+        if filename.lower().endswith((".md", ".markdown", ".txt")):
+            # Update notification: parsing stage
+            if notification:
+                await NotificationService.document_processing.notify_processing_progress(
+                    session, notification, stage="parsing", stage_message="Reading file"
+                )
+
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Processing markdown/text file: {filename}",
+                {"file_type": "markdown", "processing_stage": "reading_file"},
+            )
+
+            # Read markdown content directly
+            with open(file_path, encoding="utf-8") as f:
+                markdown_content = f.read()
+            etl_service = "MARKDOWN"
+
+            # Clean up temp file
+            with contextlib.suppress(Exception):
+                os.unlink(file_path)
+
+        # Check if the file is an audio file
+        elif filename.lower().endswith(
+            (".mp3", ".mp4", ".mpeg", ".mpga", ".m4a", ".wav", ".webm")
+        ):
+            # Update notification: parsing stage (transcription)
+            if notification:
+                await NotificationService.document_processing.notify_processing_progress(
+                    session, notification, stage="parsing", stage_message="Transcribing audio"
+                )
+
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Processing audio file for transcription: {filename}",
+                {"file_type": "audio", "processing_stage": "starting_transcription"},
+            )
+
+            # Transcribe audio
+            stt_service_type = (
+                "local"
+                if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/")
+                else "external"
+            )
+
+            if stt_service_type == "local":
+                from app.services.stt_service import stt_service
+
+                result = stt_service.transcribe_file(file_path)
+                transcribed_text = result.get("text", "")
+                if not transcribed_text:
+                    raise ValueError("Transcription returned empty text")
+                markdown_content = f"# Transcription of {filename}\n\n{transcribed_text}"
+            else:
+                with open(file_path, "rb") as audio_file:
+                    transcription_kwargs = {
+                        "model": app_config.STT_SERVICE,
+                        "file": audio_file,
+                        "api_key": app_config.STT_SERVICE_API_KEY,
+                    }
+                    if app_config.STT_SERVICE_API_BASE:
+                        transcription_kwargs["api_base"] = app_config.STT_SERVICE_API_BASE
+                    transcription_response = await atranscription(**transcription_kwargs)
+                    transcribed_text = transcription_response.get("text", "")
+                    if not transcribed_text:
+                        raise ValueError("Transcription returned empty text")
+                markdown_content = f"# Transcription of {filename}\n\n{transcribed_text}"
+
+            etl_service = "AUDIO_TRANSCRIPTION"
+            # Clean up temp file
+            with contextlib.suppress(Exception):
+                os.unlink(file_path)
+
+        else:
+            # Document files - use ETL service
+            from app.services.page_limit_service import PageLimitExceededError, PageLimitService
+
+            page_limit_service = PageLimitService(session)
+
+            # Estimate page count
+            try:
+                estimated_pages = page_limit_service.estimate_pages_before_processing(file_path)
+            except Exception:
+                file_size = os.path.getsize(file_path)
+                estimated_pages = max(1, file_size // (80 * 1024))
+
+            # Check page limit
+            await page_limit_service.check_page_limit(user_id, estimated_pages)
+
+            if app_config.ETL_SERVICE == "UNSTRUCTURED":
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="parsing", stage_message="Extracting content"
+                    )
+
+                from langchain_unstructured import UnstructuredLoader
+
+                loader = UnstructuredLoader(
+                    file_path, mode="elements", post_processors=[], languages=["eng"],
+                    include_orig_elements=False, include_metadata=False, strategy="auto"
+                )
+                docs = await loader.aload()
+                markdown_content = await convert_document_to_markdown(docs)
+                actual_pages = page_limit_service.estimate_pages_from_elements(docs)
+                final_page_count = max(estimated_pages, actual_pages)
+                etl_service = "UNSTRUCTURED"
+
+                # Update page usage
+                await page_limit_service.update_page_usage(user_id, final_page_count, allow_exceed=True)
+
+            elif app_config.ETL_SERVICE == "LLAMACLOUD":
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="parsing", stage_message="Extracting content"
+                    )
+
+                result = await parse_with_llamacloud_retry(
+                    file_path=file_path, estimated_pages=estimated_pages,
+                    task_logger=task_logger, log_entry=log_entry
+                )
+                markdown_documents = await result.aget_markdown_documents(split_by_page=False)
+                if not markdown_documents:
+                    raise RuntimeError(f"LlamaCloud parsing returned no documents: {filename}")
+                markdown_content = markdown_documents[0].text
+                etl_service = "LLAMACLOUD"
+
+                # Update page usage
+                await page_limit_service.update_page_usage(user_id, estimated_pages, allow_exceed=True)
+
+            elif app_config.ETL_SERVICE == "DOCLING":
+                if notification:
+                    await NotificationService.document_processing.notify_processing_progress(
+                        session, notification, stage="parsing", stage_message="Extracting content"
+                    )
+
+                # Suppress logging during Docling import
+                getLogger("docling.pipeline.base_pipeline").setLevel(ERROR)
+                getLogger("docling.document_converter").setLevel(ERROR)
+                getLogger("docling_core.transforms.chunker.hierarchical_chunker").setLevel(ERROR)
+
+                from docling.document_converter import DocumentConverter
+
+                converter = DocumentConverter()
+                result = converter.convert(file_path)
+                markdown_content = result.document.export_to_markdown()
+                etl_service = "DOCLING"
+
+                # Update page usage
+                await page_limit_service.update_page_usage(user_id, estimated_pages, allow_exceed=True)
+
+            else:
+                raise RuntimeError(f"Unknown ETL_SERVICE: {app_config.ETL_SERVICE}")
+
+            # Clean up temp file
+            with contextlib.suppress(Exception):
+                os.unlink(file_path)
+
+        if not markdown_content:
+            raise RuntimeError(f"Failed to extract content from file: {filename}")
+
+        # ===== STEP 2: Check for duplicate content =====
+        content_hash = generate_content_hash(markdown_content, search_space_id)
+        
+        existing_by_content = await check_duplicate_document(session, content_hash)
+        if existing_by_content and existing_by_content.id != document.id:
+            # Duplicate content found - mark this document as failed
+            logging.info(
+                f"Duplicate content detected for {filename}, "
+                f"matches document {existing_by_content.id}"
+            )
+            return None
+
+        # ===== STEP 3: Generate embeddings and chunks =====
+        if notification:
+            await NotificationService.document_processing.notify_processing_progress(
+                session, notification, stage="chunking"
+            )
+
+        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
+        
+        if user_llm:
+            document_metadata = {
+                "file_name": filename,
+                "etl_service": etl_service,
+                "document_type": "File Document",
+            }
+            summary_content, summary_embedding = await generate_document_summary(
+                markdown_content, user_llm, document_metadata
+            )
+        else:
+            # Fallback: use truncated content as summary
+            summary_content = markdown_content[:4000]
+            from app.config import config
+
+            summary_embedding = config.embedding_model_instance.embed(summary_content)
+
+        chunks = await create_document_chunks(markdown_content)
+
+        # Convert to BlockNote for editing
+        blocknote_json = await convert_markdown_to_blocknote(markdown_content)
+
+        # ===== STEP 4: Update document to READY =====
+        from sqlalchemy.orm.attributes import flag_modified
+
+        document.title = filename
+        document.content = summary_content
+        document.content_hash = content_hash
+        document.embedding = summary_embedding
+        document.document_metadata = {
+            "FILE_NAME": filename,
+            "ETL_SERVICE": etl_service or "UNKNOWN",
+            **(document.document_metadata or {}),
+        }
+        flag_modified(document, "document_metadata")
+        
+        # Use safe_set_chunks to avoid async issues
+        safe_set_chunks(document, chunks)
+        
+        document.blocknote_document = blocknote_json
+        document.content_needs_reindexing = False
+        document.updated_at = get_current_timestamp()
+        document.status = DocumentStatus.ready()  # Shows checkmark in UI
+
+        await session.commit()
+        await session.refresh(document)
+
+        await task_logger.log_task_success(
+            log_entry,
+            f"Successfully processed file: {filename}",
+            {
+                "document_id": document.id,
+                "content_hash": content_hash,
+                "file_type": etl_service,
+                "chunks_count": len(chunks),
+            },
+        )
+
+        return document
+
+    except Exception as e:
+        await session.rollback()
+
+        from app.services.page_limit_service import PageLimitExceededError
+
+        if isinstance(e, PageLimitExceededError):
+            error_message = str(e)
+        elif isinstance(e, HTTPException) and "page limit" in str(e.detail).lower():
+            error_message = str(e.detail)
+        else:
+            error_message = f"Failed to process file: {filename}"
+
+        await task_logger.log_task_failure(
+            log_entry,
+            error_message,
+            str(e),
+            {"error_type": type(e).__name__, "filename": filename, "document_id": document.id},
+        )
+        logging.error(f"Error processing file with document: {error_message}")
+        raise
