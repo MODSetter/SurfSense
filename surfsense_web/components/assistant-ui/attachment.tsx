@@ -351,14 +351,14 @@ export const ComposerAddAttachment: FC = () => {
 						<PlusIcon className="aui-attachment-add-icon size-5 stroke-[1.5px]" />
 					</TooltipIconButton>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="start" className="w-48 bg-background border-border">
+				<DropdownMenuContent align="start" className="w-72 bg-background border-border">
 					<DropdownMenuItem onSelect={handleChatAttachment} className="cursor-pointer">
 						<Paperclip className="size-4" />
-						<span>Add attachment</span>
+						<span>Add attachment to this chat</span>
 					</DropdownMenuItem>
 					<DropdownMenuItem onClick={handleFileUpload} className="cursor-pointer">
 						<Upload className="size-4" />
-						<span>Upload Documents</span>
+						<span>Upload documents to Search Space</span>
 					</DropdownMenuItem>
 				</DropdownMenuContent>
 			</DropdownMenu>
