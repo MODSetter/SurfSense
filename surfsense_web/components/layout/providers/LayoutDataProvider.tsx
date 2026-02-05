@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Inbox, LogOut, SquareLibrary, Trash2 } from "lucide-react";
+import { AlertTriangle, Inbox, LogOut, PencilIcon, SquareLibrary, Trash2 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -21,6 +21,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
@@ -206,6 +207,12 @@ export function LayoutDataProvider({
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
 	const [chatToDelete, setChatToDelete] = useState<{ id: number; name: string } | null>(null);
 	const [isDeletingChat, setIsDeletingChat] = useState(false);
+
+	// Rename dialog state
+	const [showRenameChatDialog, setShowRenameChatDialog] = useState(false);
+	const [chatToRename, setChatToRename] = useState<{ id: number; name: string } | null>(null);
+	const [newChatTitle, setNewChatTitle] = useState("");
+	const [isRenamingChat, setIsRenamingChat] = useState(false);
 
 	// Delete/Leave search space dialog state
 	const [showDeleteSearchSpaceDialog, setShowDeleteSearchSpaceDialog] = useState(false);
@@ -421,6 +428,12 @@ export function LayoutDataProvider({
 		setShowDeleteChatDialog(true);
 	}, []);
 
+	const handleChatRename = useCallback((chat: ChatItem) => {
+		setChatToRename({ id: chat.id, name: chat.name });
+		setNewChatTitle(chat.name);
+		setShowRenameChatDialog(true);
+	}, []);
+
 	const handleChatArchive = useCallback(
 		async (chat: ChatItem) => {
 			const newArchivedState = !chat.archived;
@@ -501,6 +514,29 @@ export function LayoutDataProvider({
 		}
 	}, [chatToDelete, queryClient, searchSpaceId, router, currentChatId]);
 
+	// Rename handler
+	const confirmRenameChat = useCallback(async () => {
+		if (!chatToRename || !newChatTitle.trim()) return;
+		setIsRenamingChat(true);
+		try {
+			await updateThread(chatToRename.id, { title: newChatTitle.trim() });
+			toast.success(tSidebar("chat_renamed") || "Chat renamed");
+			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
+			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
+			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
+			// Invalidate thread detail for breadcrumb update
+			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId, "detail", String(chatToRename.id)] });
+		} catch (error) {
+			console.error("Error renaming thread:", error);
+			toast.error(tSidebar("error_renaming_chat") || "Failed to rename chat");
+		} finally {
+			setIsRenamingChat(false);
+			setShowRenameChatDialog(false);
+			setChatToRename(null);
+			setNewChatTitle("");
+		}
+	}, [chatToRename, newChatTitle, queryClient, searchSpaceId, tSidebar]);
+
 	// Page usage
 	const pageUsage = user
 		? {
@@ -529,6 +565,7 @@ export function LayoutDataProvider({
 				activeChatId={currentChatId}
 				onNewChat={handleNewChat}
 				onChatSelect={handleChatSelect}
+				onChatRename={handleChatRename}
 				onChatDelete={handleChatDelete}
 				onChatArchive={handleChatArchive}
 				onViewAllSharedChats={handleViewAllSharedChats}
@@ -613,6 +650,57 @@ export function LayoutDataProvider({
 								<>
 									<Trash2 className="h-4 w-4" />
 									{tCommon("delete")}
+								</>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			{/* Rename Chat Dialog */}
+			<Dialog open={showRenameChatDialog} onOpenChange={setShowRenameChatDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<PencilIcon className="h-5 w-5" />
+							<span>{tSidebar("rename_chat") || "Rename Chat"}</span>
+						</DialogTitle>
+						<DialogDescription>
+							{tSidebar("rename_chat_description") || "Enter a new name for this conversation."}
+						</DialogDescription>
+					</DialogHeader>
+					<Input
+						value={newChatTitle}
+						onChange={(e) => setNewChatTitle(e.target.value)}
+						placeholder={tSidebar("chat_title_placeholder") || "Chat title"}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" && !isRenamingChat && newChatTitle.trim()) {
+								confirmRenameChat();
+							}
+						}}
+					/>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowRenameChatDialog(false)}
+							disabled={isRenamingChat}
+						>
+							{tCommon("cancel")}
+						</Button>
+						<Button
+							onClick={confirmRenameChat}
+							disabled={isRenamingChat || !newChatTitle.trim()}
+							className="gap-2"
+						>
+							{isRenamingChat ? (
+								<>
+									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									{tSidebar("renaming") || "Renaming..."}
+								</>
+							) : (
+								<>
+									<PencilIcon className="h-4 w-4" />
+									{tSidebar("rename") || "Rename"}
 								</>
 							)}
 						</Button>

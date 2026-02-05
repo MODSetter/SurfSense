@@ -479,6 +479,31 @@ class VercelStreamingService:
             },
         )
 
+    def format_thread_title_update(self, thread_id: int, title: str) -> str:
+        """
+        Format a thread title update notification (SurfSense specific).
+
+        This is sent after the first response in a thread to update the
+        auto-generated title based on the conversation content.
+
+        Args:
+            thread_id: The ID of the thread being updated
+            title: The new title for the thread
+
+        Returns:
+            str: SSE formatted thread title update data part
+
+        Example output:
+            data: {"type":"data-thread-title-update","data":{"threadId":123,"title":"New Title"}}
+        """
+        return self.format_data(
+            "thread-title-update",
+            {
+                "threadId": thread_id,
+                "title": title,
+            },
+        )
+
     # =========================================================================
     # Error Part
     # =========================================================================
