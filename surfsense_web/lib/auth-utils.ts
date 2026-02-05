@@ -179,8 +179,9 @@ export function getAuthHeaders(additionalHeaders?: Record<string, string>): Reco
 /**
  * Attempts to refresh the access token using the stored refresh token.
  * Returns the new access token if successful, null otherwise.
+ * Exported for use by API services.
  */
-async function refreshAccessToken(): Promise<string | null> {
+export async function refreshAccessToken(): Promise<string | null> {
 	// If already refreshing, wait for that request to complete
 	if (isRefreshing && refreshPromise) {
 		return refreshPromise;
