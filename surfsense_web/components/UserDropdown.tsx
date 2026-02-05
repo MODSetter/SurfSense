@@ -1,7 +1,8 @@
 "use client";
 
-import { BadgeCheck, LogOut } from "lucide-react";
+import { BadgeCheck, Loader2, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +14,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { logout } from "@/lib/auth-utils";
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 
@@ -26,8 +28,11 @@ export function UserDropdown({
 	};
 }) {
 	const router = useRouter();
+	const [isLoggingOut, setIsLoggingOut] = useState(false);
 
 	const handleLogout = async () => {
+		if (isLoggingOut) return;
+		setIsLoggingOut(true);
 		try {
 			// Track logout event and reset PostHog identity
 			trackLogout();
@@ -41,15 +46,17 @@ export function UserDropdown({
 				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
 			}
 
+			// Revoke refresh token on server and clear all tokens from localStorage
+			await logout();
+
 			if (typeof window !== "undefined") {
-				localStorage.removeItem("surfsense_bearer_token");
 				window.location.href = "/";
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);
-			// Optionally, provide user feedback
+			// Even if there's an error, try to clear tokens and redirect
+			await logout();
 			if (typeof window !== "undefined") {
-				localStorage.removeItem("surfsense_bearer_token");
 				window.location.href = "/";
 			}
 		}
@@ -85,9 +92,17 @@ export function UserDropdown({
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
 				<DropdownMenuSeparator />
-				<DropdownMenuItem onClick={handleLogout} className="text-xs md:text-sm">
-					<LogOut className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
-					Log out
+				<DropdownMenuItem
+					onClick={handleLogout}
+					className="text-xs md:text-sm"
+					disabled={isLoggingOut}
+				>
+					{isLoggingOut ? (
+						<Loader2 className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
+					) : (
+						<LogOut className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
+					)}
+					{isLoggingOut ? "Logging out..." : "Log out"}
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>

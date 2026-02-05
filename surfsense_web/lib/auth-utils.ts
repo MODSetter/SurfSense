@@ -105,6 +105,39 @@ export function clearAllTokens(): void {
 }
 
 /**
+ * Logout the current user by revoking the refresh token and clearing localStorage.
+ * Returns true if logout was successful (or tokens were cleared), false otherwise.
+ */
+export async function logout(): Promise<boolean> {
+	const refreshToken = getRefreshToken();
+
+	// Call backend to revoke the refresh token
+	if (refreshToken) {
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const response = await fetch(`${backendUrl}/auth/jwt/revoke`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ refresh_token: refreshToken }),
+			});
+
+			if (!response.ok) {
+				console.warn("Failed to revoke refresh token:", response.status, await response.text());
+			}
+		} catch (error) {
+			console.warn("Failed to revoke refresh token on server:", error);
+			// Continue to clear local tokens even if server call fails
+		}
+	}
+
+	// Clear all tokens from localStorage
+	clearAllTokens();
+	return true;
+}
+
+/**
  * Checks if the user is authenticated (has a token)
  */
 export function isAuthenticated(): boolean {
@@ -161,7 +194,7 @@ async function refreshAccessToken(): Promise<string | null> {
 	isRefreshing = true;
 	refreshPromise = (async () => {
 		try {
-			const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "";
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 			const response = await fetch(`${backendUrl}/auth/jwt/refresh`, {
 				method: "POST",
 				headers: {

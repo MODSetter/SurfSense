@@ -25,6 +25,7 @@ import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
+import { logout } from "@/lib/auth-utils";
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
@@ -464,12 +465,15 @@ export function LayoutDataProvider({
 				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
 			}
 
+			// Revoke refresh token on server and clear all tokens from localStorage
+			await logout();
+
 			if (typeof window !== "undefined") {
-				localStorage.removeItem("surfsense_bearer_token");
 				router.push("/");
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);
+			await logout();
 			router.push("/");
 		}
 	}, [router]);

@@ -693,6 +693,7 @@
 		"dark": "Dark",
 		"system": "System",
 		"logout": "Logout",
+		"loggingOut": "Logging out...",
 		"inbox": "Inbox",
 		"search_inbox": "Search inbox",
 		"mark_all_read": "Mark all as read",

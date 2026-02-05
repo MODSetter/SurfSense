@@ -68,13 +68,17 @@ async def refresh_access_token(request: RefreshTokenRequest):
     )
 
 
-@router.post("/logout", response_model=LogoutResponse)
-async def logout(request: LogoutRequest):
+@router.post("/revoke", response_model=LogoutResponse)
+async def revoke_token(request: LogoutRequest):
     """
     Logout current device by revoking the provided refresh token.
+    Does not require authentication - just the refresh token.
     """
-    await revoke_refresh_token(request.refresh_token)
-    logger.info("User logged out from current device")
+    revoked = await revoke_refresh_token(request.refresh_token)
+    if revoked:
+        logger.info("User logged out from current device - token revoked")
+    else:
+        logger.warning("Logout called but no matching token found to revoke")
     return LogoutResponse()
 
 
