@@ -188,20 +188,29 @@ export default function DocumentsTable() {
 
 		try {
 			// Delete documents one by one using the mutation
+			// Track 409 conflicts separately (document started processing after UI loaded)
+			let conflictCount = 0;
 			const results = await Promise.all(
 				deletableIds.map(async (id) => {
 					try {
 						await deleteDocumentMutation({ id });
 						return true;
-					} catch {
+					} catch (error: unknown) {
+						const status = (error as { response?: { status?: number } })?.response?.status 
+							?? (error as { status?: number })?.status;
+						if (status === 409) conflictCount++;
 						return false;
 					}
 				})
 			);
 			const okCount = results.filter((r) => r === true).length;
-			if (okCount === deletableIds.length)
+			if (okCount === deletableIds.length) {
 				toast.success(t("delete_success_count", { count: okCount }));
-			else toast.error(t("delete_partial_failed"));
+			} else if (conflictCount > 0) {
+				toast.error(`${conflictCount} document(s) started processing. Please try again later.`);
+			} else {
+				toast.error(t("delete_partial_failed"));
+			}
 			
 			// If in search mode, refetch search results to reflect deletion
 			if (isSearchMode) {

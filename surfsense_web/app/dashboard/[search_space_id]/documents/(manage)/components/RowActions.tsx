@@ -63,9 +63,16 @@ export function RowActions({
 			if (!ok) toast.error("Failed to delete document");
 			// Note: Success toast is handled by the mutation atom's onSuccess callback
 			// Cache is updated optimistically by the mutation, no need to refresh
-		} catch (error) {
+		} catch (error: unknown) {
 			console.error("Error deleting document:", error);
-			toast.error("Failed to delete document");
+			// Check for 409 Conflict (document started processing after UI loaded)
+			const status = (error as { response?: { status?: number } })?.response?.status 
+				?? (error as { status?: number })?.status;
+			if (status === 409) {
+				toast.error("Document is now being processed. Please try again later.");
+			} else {
+				toast.error("Failed to delete document");
+			}
 		} finally {
 			setIsDeleting(false);
 			setIsDeleteOpen(false);

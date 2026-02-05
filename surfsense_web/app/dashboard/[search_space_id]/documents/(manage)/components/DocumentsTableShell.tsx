@@ -294,13 +294,22 @@ export function DocumentsTableShell({
 		[documents, sortKey, sortDesc]
 	);
 
-	const allSelectedOnPage = sorted.length > 0 && sorted.every((d) => selectedIds.has(d.id));
-	const someSelectedOnPage = sorted.some((d) => selectedIds.has(d.id)) && !allSelectedOnPage;
+	// Helper: check if document can be selected (not processing/pending)
+	const isSelectable = (doc: Document) => {
+		const state = doc.status?.state;
+		return state !== "pending" && state !== "processing";
+	};
+
+	// Only consider selectable documents for "select all" logic
+	const selectableDocs = sorted.filter(isSelectable);
+	const allSelectedOnPage = selectableDocs.length > 0 && selectableDocs.every((d) => selectedIds.has(d.id));
+	const someSelectedOnPage = selectableDocs.some((d) => selectedIds.has(d.id)) && !allSelectedOnPage;
 
 	const toggleAll = (checked: boolean) => {
 		const next = new Set(selectedIds);
 		if (checked)
-			sorted.forEach((d) => {
+			// Only select documents that are not processing/pending
+			selectableDocs.forEach((d) => {
 				next.add(d.id);
 			});
 		else
@@ -547,6 +556,7 @@ export function DocumentsTableShell({
 									{sorted.map((doc, index) => {
 										const title = doc.title;
 										const isSelected = selectedIds.has(doc.id);
+										const canSelect = isSelectable(doc);
 										return (
 											<motion.tr
 												key={doc.id}
@@ -568,9 +578,10 @@ export function DocumentsTableShell({
 													<div className="flex items-center justify-center h-full">
 														<Checkbox
 															checked={isSelected}
-															onCheckedChange={(v) => toggleOne(doc.id, !!v)}
-															aria-label="Select row"
-															className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+															onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
+															disabled={!canSelect}
+															aria-label={canSelect ? "Select row" : "Cannot select while processing"}
+															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
 														/>
 													</div>
 												</TableCell>
@@ -649,6 +660,7 @@ export function DocumentsTableShell({
 					<div className="md:hidden divide-y divide-border/40 h-[50vh] overflow-auto">
 						{sorted.map((doc, index) => {
 							const isSelected = selectedIds.has(doc.id);
+							const canSelect = isSelectable(doc);
 							return (
 								<motion.div
 									key={doc.id}
@@ -661,9 +673,10 @@ export function DocumentsTableShell({
 									<div className="flex items-center gap-3">
 										<Checkbox
 											checked={isSelected}
-											onCheckedChange={(v) => toggleOne(doc.id, !!v)}
-											aria-label="Select row"
-											className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+											onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
+											disabled={!canSelect}
+											aria-label={canSelect ? "Select row" : "Cannot select while processing"}
+											className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
 										/>
 										<div className="flex-1 min-w-0 space-y-1.5">
 											<button
