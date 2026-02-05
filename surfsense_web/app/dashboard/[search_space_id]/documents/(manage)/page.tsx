@@ -140,22 +140,6 @@ export default function DocumentsTable() {
 		setPageIndex(0);
 	};
 
-	const [isRefreshing, setIsRefreshing] = useState(false);
-
-	const refreshCurrentView = useCallback(async () => {
-		if (isRefreshing) return;
-		setIsRefreshing(true);
-		try {
-			if (isSearchMode) {
-				await refetchSearch();
-			}
-			// Real-time view doesn't need manual refresh - Electric handles it
-			toast.success(t("refresh_success") || "Documents refreshed");
-		} finally {
-			setIsRefreshing(false);
-		}
-	}, [isSearchMode, refetchSearch, t, isRefreshing]);
-
 	const onBulkDelete = async () => {
 		if (selectedIds.size === 0) {
 			toast.error(t("no_rows_selected"));
@@ -293,7 +277,6 @@ export default function DocumentsTable() {
 				documents={displayDocs}
 				loading={!!loading}
 				error={!!error}
-				onRefresh={refreshCurrentView}
 				selectedIds={selectedIds}
 				setSelectedIds={setSelectedIds}
 				columnVisibility={columnVisibility}

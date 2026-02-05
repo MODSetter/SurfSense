@@ -45,7 +45,7 @@ function StatusIndicator({ status }: { status?: DocumentStatus }) {
 							<Clock className="h-5 w-5 text-muted-foreground" />
 						</div>
 					</TooltipTrigger>
-					<TooltipContent side="top">Pending - waiting to be processed</TooltipContent>
+					<TooltipContent side="top">Pending - waiting to be synced</TooltipContent>
 				</Tooltip>
 			);
 		case "processing":
@@ -191,7 +191,6 @@ export function DocumentsTableShell({
 	documents,
 	loading,
 	error,
-	onRefresh,
 	selectedIds,
 	setSelectedIds,
 	columnVisibility,
@@ -204,7 +203,6 @@ export function DocumentsTableShell({
 	documents: Document[];
 	loading: boolean;
 	error: boolean;
-	onRefresh: () => Promise<void>;
 	selectedIds: Set<number>;
 	setSelectedIds: (update: Set<number>) => void;
 	columnVisibility: ColumnVisibility;
@@ -361,8 +359,13 @@ export function DocumentsTableShell({
 										</TableHead>
 									)}
 									{columnVisibility.created_at && (
-										<TableHead className="w-32">
+										<TableHead className="w-32 border-r border-border/40">
 											<Skeleton className="h-3 w-16" />
+										</TableHead>
+									)}
+									{columnVisibility.status && (
+										<TableHead className="w-20 text-center">
+											<Skeleton className="h-3 w-12 mx-auto" />
 										</TableHead>
 									)}
 									<TableHead className="w-10">
@@ -401,8 +404,13 @@ export function DocumentsTableShell({
 												</TableCell>
 											)}
 											{columnVisibility.created_at && (
-												<TableCell className="w-32 py-2.5">
+												<TableCell className="w-32 py-2.5 border-r border-border/40">
 													<Skeleton className="h-4 w-20" />
+												</TableCell>
+											)}
+											{columnVisibility.status && (
+												<TableCell className="w-20 py-2.5 text-center">
+													<Skeleton className="h-5 w-5 mx-auto rounded-full" />
 												</TableCell>
 											)}
 											<TableCell className="w-10 py-2.5 text-center">
@@ -435,23 +443,26 @@ export function DocumentsTableShell({
 											)}
 										</div>
 									</div>
-									<Skeleton className="h-7 w-7 rounded" />
+									<div className="flex items-center gap-2">
+										{columnVisibility.status && (
+											<Skeleton className="h-5 w-5 rounded-full" />
+										)}
+										<Skeleton className="h-7 w-7 rounded" />
+									</div>
 								</div>
 							</div>
 						))}
 					</div>
 				</>
 			) : error ? (
-				<div className="flex h-[400px] w-full items-center justify-center">
+				<div className="flex h-[50vh] w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-3">
+						<AlertCircle className="h-8 w-8 text-destructive/60" />
 						<p className="text-sm text-destructive">{t("error_loading")}</p>
-						<Button variant="outline" size="sm" onClick={() => onRefresh()}>
-							{t("retry")}
-						</Button>
 					</div>
 				</div>
 			) : sorted.length === 0 ? (
-				<div className="flex h-[400px] w-full items-center justify-center">
+				<div className="flex h-[50vh] w-full items-center justify-center">
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}

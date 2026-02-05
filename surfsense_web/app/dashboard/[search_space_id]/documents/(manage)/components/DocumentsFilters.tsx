@@ -226,7 +226,7 @@ export function DocumentsFilters({
 								)}
 							</div>
 							{activeTypes.length > 0 && (
-								<div className="px-3 pt-1.5 border-t border-border/50">
+								<div className="px-3 pt-1.5 pb-1.5 border-t border-border/50">
 									<Button
 										variant="ghost"
 										size="sm"
