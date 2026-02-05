@@ -110,7 +110,6 @@ export function LayoutDataProvider({
 	// This ensures each tab has independent pagination and data loading
 	const userId = user?.id ? String(user.id) : null;
 
-	// Mentions: Only fetch "new_mention" type notifications
 	const {
 		inboxItems: mentionItems,
 		unreadCount: mentionUnreadCount,
@@ -122,11 +121,9 @@ export function LayoutDataProvider({
 		markAllAsRead: markAllMentionsAsRead,
 	} = useInbox(userId, Number(searchSpaceId) || null, "new_mention");
 
-	// Status: Fetch all types (will be filtered client-side to status types)
-	// We pass null to get all, then InboxSidebar filters to status types
 	const {
 		inboxItems: statusItems,
-		unreadCount: statusUnreadCount,
+		unreadCount: allUnreadCount,
 		loading: statusLoading,
 		loadingMore: statusLoadingMore,
 		hasMore: statusHasMore,
@@ -135,8 +132,8 @@ export function LayoutDataProvider({
 		markAllAsRead: markAllStatusAsRead,
 	} = useInbox(userId, Number(searchSpaceId) || null, null);
 
-	// Combined unread count for nav badge (mentions take priority for visibility)
-	const totalUnreadCount = mentionUnreadCount + statusUnreadCount;
+	const totalUnreadCount = allUnreadCount;
+	const statusOnlyUnreadCount = Math.max(0, allUnreadCount - mentionUnreadCount);
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -598,7 +595,7 @@ export function LayoutDataProvider({
 					},
 					status: {
 						items: statusItems,
-						unreadCount: statusUnreadCount,
+						unreadCount: statusOnlyUnreadCount,
 						loading: statusLoading,
 						loadingMore: statusLoadingMore,
 						hasMore: statusHasMore,

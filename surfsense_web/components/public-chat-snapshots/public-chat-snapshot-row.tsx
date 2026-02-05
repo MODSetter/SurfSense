@@ -38,6 +38,13 @@ export function PublicChatSnapshotRow({
 						{snapshot.message_count}
 					</span>
 				</div>
+				<input
+					type="text"
+					readOnly
+					value={snapshot.public_url}
+					className="mt-2 w-full text-xs text-muted-foreground bg-muted/50 border rounded px-2 py-1 select-all focus:outline-none focus:ring-1 focus:ring-ring"
+					onClick={(e) => (e.target as HTMLInputElement).select()}
+				/>
 			</div>
 			<div className="flex items-center gap-2">
 				<Button

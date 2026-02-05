@@ -366,11 +366,14 @@ async def list_snapshots_for_thread(
     if not thread:
         raise HTTPException(status_code=404, detail="Thread not found")
 
-    if thread.created_by_id != user.id:
-        raise HTTPException(
-            status_code=403,
-            detail="Only the creator can view snapshots",
-        )
+    # Check permission to view public share links
+    await check_permission(
+        session,
+        user,
+        thread.search_space_id,
+        Permission.PUBLIC_SHARING_VIEW.value,
+        "You don't have permission to view public share links",
+    )
 
     result = await session.execute(
         select(PublicChatSnapshot)
