@@ -119,7 +119,7 @@ export function RowActions({
 						<Button
 							variant="ghost"
 							size="icon"
-							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
 							onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
 							disabled={isDeleting || isDeleteDisabled}
 						>
@@ -164,7 +164,7 @@ export function RowActions({
 						<Button
 							variant="ghost"
 							size="icon"
-							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground/50 cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
 							onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
 							disabled={isDeleting || isDeleteDisabled}
 						>

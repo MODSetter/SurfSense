@@ -56,7 +56,7 @@ function StatusIndicator({ status }: { status?: DocumentStatus }) {
 							<Spinner size="sm" className="text-primary" />
 						</div>
 					</TooltipTrigger>
-					<TooltipContent side="top">Processing...</TooltipContent>
+					<TooltipContent side="top">Syncing</TooltipContent>
 				</Tooltip>
 			);
 		case "failed":
