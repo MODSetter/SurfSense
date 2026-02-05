@@ -53,7 +53,8 @@ export function RowActions({
 		document.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
 	);
 
-	// Delete is disabled while processing
+	// Edit and Delete are disabled while processing
+	const isEditDisabled = isBeingProcessed;
 	const isDeleteDisabled = isBeingProcessed;
 
 	const handleDelete = async () => {
@@ -97,7 +98,11 @@ export function RowActions({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-40">
-							<DropdownMenuItem onClick={handleEdit}>
+							<DropdownMenuItem
+								onClick={() => !isEditDisabled && handleEdit()}
+								disabled={isEditDisabled}
+								className={isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""}
+							>
 								<Pencil className="mr-2 h-4 w-4" />
 								<span>Edit</span>
 							</DropdownMenuItem>
@@ -142,7 +147,11 @@ export function RowActions({
 							</Button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" className="w-40">
-							<DropdownMenuItem onClick={handleEdit}>
+							<DropdownMenuItem
+								onClick={() => !isEditDisabled && handleEdit()}
+								disabled={isEditDisabled}
+								className={isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""}
+							>
 								<Pencil className="mr-2 h-4 w-4" />
 								<span>Edit</span>
 							</DropdownMenuItem>
