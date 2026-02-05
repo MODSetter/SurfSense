@@ -219,7 +219,7 @@ class CustomBearerTransport(BearerTransport):
 
         # Decode JWT to get user_id for refresh token creation
         try:
-            payload = jwt.decode(token, SECRET, algorithms=["HS256"])
+            payload = jwt.decode(token, SECRET, algorithms=["HS256"], options={"verify_aud": False})
             user_id = uuid.UUID(payload.get("sub"))
             refresh_token = await create_refresh_token(user_id)
         except Exception as e:
