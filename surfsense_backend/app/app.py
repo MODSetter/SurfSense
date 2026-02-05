@@ -12,6 +12,7 @@ from app.agents.new_chat.checkpointer import (
 from app.config import config, initialize_llm_router
 from app.db import User, create_db_and_tables, get_async_session
 from app.routes import router as crud_router
+from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
@@ -110,6 +111,9 @@ app.include_router(
     prefix="/users",
     tags=["users"],
 )
+
+# Include custom auth routes (refresh token, logout)
+app.include_router(auth_router)
 
 if config.AUTH_TYPE == "GOOGLE":
     from fastapi.responses import RedirectResponse

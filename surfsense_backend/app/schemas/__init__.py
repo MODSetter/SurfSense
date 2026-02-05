@@ -1,3 +1,4 @@
+from .auth import LogoutAllResponse, LogoutResponse, RefreshTokenResponse
 from .base import IDModel, TimestampModel
 from .chunks import ChunkBase, ChunkCreate, ChunkRead, ChunkUpdate
 from .documents import (
@@ -117,6 +118,9 @@ __all__ = [
     "LogFilter",
     "LogRead",
     "LogUpdate",
+    # Auth schemas
+    "LogoutAllResponse",
+    "LogoutResponse",
     # Search source connector schemas
     "MCPConnectorCreate",
     "MCPConnectorRead",
@@ -146,6 +150,7 @@ __all__ = [
     "PodcastCreate",
     "PodcastRead",
     "PodcastUpdate",
+    "RefreshTokenResponse",
     "RoleCreate",
     "RoleRead",
     "RoleUpdate",
