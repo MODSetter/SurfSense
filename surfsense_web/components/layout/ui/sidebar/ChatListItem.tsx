@@ -1,6 +1,6 @@
 "use client";
 
-import { ArchiveIcon, MessageSquare, MoreHorizontal, RotateCcwIcon, Trash2 } from "lucide-react";
+import { ArchiveIcon, MessageSquare, MoreHorizontal, PencilIcon, RotateCcwIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +17,7 @@ interface ChatListItemProps {
 	isActive?: boolean;
 	archived?: boolean;
 	onClick?: () => void;
+	onRename?: () => void;
 	onArchive?: () => void;
 	onDelete?: () => void;
 }
@@ -26,6 +27,7 @@ export function ChatListItem({
 	isActive,
 	archived,
 	onClick,
+	onRename,
 	onArchive,
 	onDelete,
 }: ChatListItemProps) {
@@ -57,15 +59,26 @@ export function ChatListItem({
 							<span className="sr-only">{t("more_options")}</span>
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" side="right">
-						{onArchive && (
-							<DropdownMenuItem
-								onClick={(e) => {
-									e.stopPropagation();
-									onArchive();
-								}}
-							>
-								{archived ? (
+				<DropdownMenuContent align="end" side="right">
+					{onRename && (
+						<DropdownMenuItem
+							onClick={(e) => {
+								e.stopPropagation();
+								onRename();
+							}}
+						>
+							<PencilIcon className="mr-2 h-4 w-4" />
+							<span>{t("rename") || "Rename"}</span>
+						</DropdownMenuItem>
+					)}
+					{onArchive && (
+						<DropdownMenuItem
+							onClick={(e) => {
+								e.stopPropagation();
+								onArchive();
+							}}
+						>
+							{archived ? (
 									<>
 										<RotateCcwIcon className="mr-2 h-4 w-4" />
 										<span>{t("unarchive") || "Restore"}</span>

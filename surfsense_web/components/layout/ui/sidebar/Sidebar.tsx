@@ -35,6 +35,7 @@ interface SidebarProps {
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
+	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllSharedChats?: () => void;
@@ -62,6 +63,7 @@ export function Sidebar({
 	activeChatId,
 	onNewChat,
 	onChatSelect,
+	onChatRename,
 	onChatDelete,
 	onChatArchive,
 	onViewAllSharedChats,
@@ -183,6 +185,7 @@ export function Sidebar({
 											isActive={chat.id === activeChatId}
 											archived={chat.archived}
 											onClick={() => onChatSelect(chat)}
+											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}
 											onDelete={() => onChatDelete?.(chat)}
 										/>
@@ -243,6 +246,7 @@ export function Sidebar({
 											isActive={chat.id === activeChatId}
 											archived={chat.archived}
 											onClick={() => onChatSelect(chat)}
+											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}
 											onDelete={() => onChatDelete?.(chat)}
 										/>

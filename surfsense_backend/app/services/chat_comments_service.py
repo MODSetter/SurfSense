@@ -5,7 +5,7 @@ Service layer for chat comments and mentions.
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -101,6 +101,37 @@ async def process_mentions(
         mentions_map[user_id] = mention.id
 
     return mentions_map
+
+
+async def get_comment_thread_participants(
+    session: AsyncSession,
+    parent_comment_id: int,
+    exclude_user_ids: set[UUID],
+) -> list[UUID]:
+    """
+    Get all unique authors in a comment thread (parent + replies), excluding specified users.
+
+    Args:
+        session: Database session
+        parent_comment_id: ID of the parent comment
+        exclude_user_ids: Set of user IDs to exclude (e.g., replier, mentioned users)
+
+    Returns:
+        List of user UUIDs who have participated in the thread
+    """
+    query = select(ChatComment.author_id).where(
+        or_(
+            ChatComment.id == parent_comment_id,
+            ChatComment.parent_id == parent_comment_id,
+        ),
+        ChatComment.author_id.isnot(None),
+    )
+
+    if exclude_user_ids:
+        query = query.where(ChatComment.author_id.notin_(list(exclude_user_ids)))
+
+    result = await session.execute(query.distinct())
+    return [row[0] for row in result.fetchall()]
 
 
 async def get_comments_for_message(
@@ -425,6 +456,31 @@ async def create_reply(
             mentioned_user_id=mentioned_user_id,
             mention_id=mention_id,
             comment_id=reply.id,
+            message_id=parent_comment.message_id,
+            thread_id=thread.id,
+            thread_title=thread.title or "Untitled thread",
+            author_id=str(user.id),
+            author_name=author_name,
+            author_avatar_url=user.avatar_url,
+            author_email=user.email,
+            content_preview=content_preview[:200],
+            search_space_id=search_space_id,
+        )
+
+    # Notify thread participants (excluding replier and mentioned users)
+    mentioned_user_ids = set(mentions_map.keys())
+    exclude_ids = {user.id} | mentioned_user_ids
+    participants = await get_comment_thread_participants(
+        session, comment_id, exclude_ids
+    )
+    for participant_id in participants:
+        if participant_id in mentioned_user_ids:
+            continue
+        await NotificationService.comment_reply.notify_comment_reply(
+            session=session,
+            user_id=participant_id,
+            reply_id=reply.id,
+            parent_comment_id=comment_id,
             message_id=parent_comment.message_id,
             thread_id=thread.id,
             thread_title=thread.title or "Untitled thread",

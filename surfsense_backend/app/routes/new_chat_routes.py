@@ -886,30 +886,8 @@ async def append_message(
         # Update thread's updated_at timestamp
         thread.updated_at = datetime.now(UTC)
 
-        # Auto-generate title from first user message if title is still default
-        if thread.title == "New Chat" and role_str == "user":
-            # Extract text content for title
-            content = message.content
-            if isinstance(content, str):
-                title_text = content
-            elif isinstance(content, list):
-                # Find first text content
-                title_text = ""
-                for part in content:
-                    if isinstance(part, dict) and part.get("type") == "text":
-                        title_text = part.get("text", "")
-                        break
-                    elif isinstance(part, str):
-                        title_text = part
-                        break
-            else:
-                title_text = str(content)
-
-            # Truncate title
-            if title_text:
-                thread.title = title_text[:100] + (
-                    "..." if len(title_text) > 100 else ""
-                )
+        # Note: Title generation now happens in stream_new_chat.py after the first response
+        # using LLM to generate a descriptive title (with truncation as fallback)
 
         await session.commit()
         await session.refresh(db_message)

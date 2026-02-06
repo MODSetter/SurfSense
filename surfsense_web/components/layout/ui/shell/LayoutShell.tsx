@@ -54,6 +54,7 @@ interface LayoutShellProps {
 	activeChatId?: number | null;
 	onNewChat: () => void;
 	onChatSelect: (chat: ChatItem) => void;
+	onChatRename?: (chat: ChatItem) => void;
 	onChatDelete?: (chat: ChatItem) => void;
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllSharedChats?: () => void;
@@ -91,6 +92,7 @@ export function LayoutShell({
 	activeChatId,
 	onNewChat,
 	onChatSelect,
+	onChatRename,
 	onChatDelete,
 	onChatArchive,
 	onViewAllSharedChats,
@@ -149,6 +151,7 @@ export function LayoutShell({
 							activeChatId={activeChatId}
 							onNewChat={onNewChat}
 							onChatSelect={onChatSelect}
+							onChatRename={onChatRename}
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
 							onViewAllSharedChats={onViewAllSharedChats}
@@ -218,6 +221,7 @@ export function LayoutShell({
 							activeChatId={activeChatId}
 							onNewChat={onNewChat}
 							onChatSelect={onChatSelect}
+							onChatRename={onChatRename}
 							onChatDelete={onChatDelete}
 							onChatArchive={onChatArchive}
 							onViewAllSharedChats={onViewAllSharedChats}

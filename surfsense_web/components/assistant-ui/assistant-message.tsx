@@ -4,20 +4,19 @@ import {
 	ErrorPrimitive,
 	MessagePrimitive,
 	useAssistantState,
+	useMessage,
 } from "@assistant-ui/react";
-import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
 	addingCommentToMessageIdAtom,
-	clearTargetCommentIdAtom,
 	commentsCollapsedAtom,
 	commentsEnabledAtom,
 	targetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { BranchPicker } from "@/components/assistant-ui/branch-picker";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
 	ThinkingStepsContext,
@@ -84,7 +83,6 @@ const AssistantMessageInner: FC = () => {
 			</div>
 
 			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
-				<BranchPicker />
 				<AssistantActionBar />
 			</div>
 		</>
@@ -126,7 +124,6 @@ export const AssistantMessage: FC = () => {
 
 	// Target comment navigation - read target from global atom
 	const targetCommentId = useAtomValue(targetCommentIdAtom);
-	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 
 	// Check if target comment belongs to this message (including replies)
 	const hasTargetComment = useMemo(() => {
@@ -263,6 +260,8 @@ export const AssistantMessage: FC = () => {
 };
 
 const AssistantActionBar: FC = () => {
+	const { isLast } = useMessage();
+
 	return (
 		<ActionBarPrimitive.Root
 			hideWhenRunning
@@ -285,11 +284,14 @@ const AssistantActionBar: FC = () => {
 					<DownloadIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.ExportMarkdown>
-			<ActionBarPrimitive.Reload asChild>
-				<TooltipIconButton tooltip="Refresh">
-					<RefreshCwIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.Reload>
+			{/* Only allow regenerating the last assistant message */}
+			{isLast && (
+				<ActionBarPrimitive.Reload asChild>
+					<TooltipIconButton tooltip="Refresh">
+						<RefreshCwIcon />
+					</TooltipIconButton>
+				</ActionBarPrimitive.Reload>
+			)}
 		</ActionBarPrimitive.Root>
 	);
 };

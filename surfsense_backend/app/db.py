@@ -1449,6 +1449,13 @@ if config.AUTH_TYPE == "GOOGLE":
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
 
+        # Refresh tokens for this user
+        refresh_tokens = relationship(
+            "RefreshToken",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+
 else:
 
     class User(SQLAlchemyBaseUserTableUUID, Base):
@@ -1513,6 +1520,43 @@ else:
         # User profile (can be set manually for non-OAuth users)
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
+
+        # Refresh tokens for this user
+        refresh_tokens = relationship(
+            "RefreshToken",
+            back_populates="user",
+            cascade="all, delete-orphan",
+        )
+
+
+class RefreshToken(Base, TimestampMixin):
+    """
+    Stores refresh tokens for user session management.
+    Each row represents one device/session.
+    """
+
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user = relationship("User", back_populates="refresh_tokens")
+    token_hash = Column(String(256), unique=True, nullable=False, index=True)
+    expires_at = Column(TIMESTAMP(timezone=True), nullable=False, index=True)
+    is_revoked = Column(Boolean, default=False, nullable=False)
+    family_id = Column(UUID(as_uuid=True), nullable=False, index=True)
+
+    @property
+    def is_expired(self) -> bool:
+        return datetime.now(UTC) >= self.expires_at
+
+    @property
+    def is_valid(self) -> bool:
+        return not self.is_expired and not self.is_revoked
 
 
 engine = create_async_engine(DATABASE_URL)

@@ -87,6 +87,14 @@ class ConfluenceHistoryConnector:
 
             if is_oauth:
                 # OAuth 2.0 authentication
+                # Check if access_token exists before processing
+                raw_access_token = config_data.get("access_token")
+                if not raw_access_token:
+                    raise ValueError(
+                        "Confluence access token not found. "
+                        "Please reconnect your Confluence account."
+                    )
+
                 # Decrypt credentials if they are encrypted
                 token_encrypted = config_data.get("_token_encrypted", False)
                 if token_encrypted and config.SECRET_KEY:
@@ -117,6 +125,14 @@ class ConfluenceHistoryConnector:
                         raise ValueError(
                             f"Failed to decrypt Confluence credentials: {e!s}"
                         ) from e
+
+                # Final validation after decryption
+                final_token = config_data.get("access_token")
+                if not final_token or (isinstance(final_token, str) and not final_token.strip()):
+                    raise ValueError(
+                        "Confluence access token is invalid or empty. "
+                        "Please reconnect your Confluence account."
+                    )
 
                 try:
                     self._credentials = AtlassianAuthCredentialsBase.from_dict(

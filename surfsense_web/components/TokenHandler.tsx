@@ -3,7 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import { useGlobalLoadingEffect } from "@/hooks/use-global-loading";
-import { getAndClearRedirectPath, setBearerToken } from "@/lib/auth-utils";
+import { getAndClearRedirectPath, setBearerToken, setRefreshToken } from "@/lib/auth-utils";
 import { trackLoginSuccess } from "@/lib/posthog/events";
 
 interface TokenHandlerProps {
@@ -35,8 +35,9 @@ const TokenHandler = ({
 		// Only run on client-side
 		if (typeof window === "undefined") return;
 
-		// Get token from URL parameters
+		// Get tokens from URL parameters
 		const token = searchParams.get(tokenParamName);
+		const refreshToken = searchParams.get("refresh_token");
 
 		if (token) {
 			try {
@@ -50,9 +51,14 @@ const TokenHandler = ({
 				// Clear the flag for future logins
 				sessionStorage.removeItem("login_success_tracked");
 
-				// Store token in localStorage using both methods for compatibility
+				// Store access token in localStorage using both methods for compatibility
 				localStorage.setItem(storageKey, token);
 				setBearerToken(token);
+
+				// Store refresh token if provided
+				if (refreshToken) {
+					setRefreshToken(refreshToken);
+				}
 
 				// Check if there's a saved redirect path from before the auth flow
 				const savedRedirectPath = getAndClearRedirectPath();
