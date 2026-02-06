@@ -64,7 +64,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 				href="/"
 				className="flex flex-1 flex-row items-center gap-0.5 hover:opacity-80 transition-opacity"
 			>
-				<Logo className="h-8 w-8 rounded-md" />
+				<Logo className="h-8 w-8 rounded-md" disableLink />
 				<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 			</Link>
 			<div className="hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-zinc-600 transition duration-200 hover:text-zinc-800 lg:flex lg:space-x-2">
@@ -145,7 +145,7 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 					href="/"
 					className="flex flex-row items-center gap-2 hover:opacity-80 transition-opacity"
 				>
-					<Logo className="h-8 w-8 rounded-md" />
+					<Logo className="h-8 w-8 rounded-md" disableLink />
 					<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
 				</Link>
 				<button

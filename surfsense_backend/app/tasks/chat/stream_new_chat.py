@@ -27,12 +27,12 @@ from app.agents.new_chat.llm_config import (
     load_llm_config_from_yaml,
 )
 from app.db import Document, SurfsenseDocsDocument
+from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
 from app.schemas.new_chat import ChatAttachment
 from app.services.chat_session_state_service import (
     clear_ai_responding,
     set_ai_responding,
 )
-from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
@@ -1211,8 +1211,9 @@ async def stream_new_chat(
 
         # Generate LLM title for new chats after first response
         # Check if this is the first assistant response by counting existing assistant messages
-        from app.db import NewChatMessage, NewChatThread
         from sqlalchemy import func
+
+        from app.db import NewChatMessage, NewChatThread
 
         assistant_count_result = await session.execute(
             select(func.count(NewChatMessage.id)).filter(
@@ -1231,10 +1232,12 @@ async def stream_new_chat(
                 # Truncate inputs to avoid context length issues
                 truncated_query = user_query[:500]
                 truncated_response = accumulated_text[:1000]
-                title_result = await title_chain.ainvoke({
-                    "user_query": truncated_query,
-                    "assistant_response": truncated_response,
-                })
+                title_result = await title_chain.ainvoke(
+                    {
+                        "user_query": truncated_query,
+                        "assistant_response": truncated_response,
+                    }
+                )
 
                 # Extract and clean the title
                 if title_result and hasattr(title_result, "content"):
@@ -1242,7 +1245,7 @@ async def stream_new_chat(
                     # Validate the title (reasonable length)
                     if raw_title and len(raw_title) <= 100:
                         # Remove any quotes or extra formatting
-                        generated_title = raw_title.strip('"\'')
+                        generated_title = raw_title.strip("\"'")
             except Exception:
                 generated_title = None
 

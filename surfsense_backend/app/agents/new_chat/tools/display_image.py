@@ -82,13 +82,19 @@ def create_display_image_tool():
 
         domain = extract_domain(src)
 
-        # Determine aspect ratio based on common image sources
-        ratio = "16:9"  # Default
-        if "unsplash.com" in src or "pexels.com" in src:
+        # Determine aspect ratio based on image source
+        # AI-generated images should use "auto" to preserve their native ratio
+        is_generated = "/image-generations/" in src
+        if is_generated:
+            ratio = "auto"
+            domain = "ai-generated"
+        elif "unsplash.com" in src or "pexels.com" in src:
             ratio = "16:9"
         elif (
             "imgur.com" in src or "github.com" in src or "githubusercontent.com" in src
         ):
+            ratio = "auto"
+        else:
             ratio = "auto"
 
         return {

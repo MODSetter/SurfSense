@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLinkIcon, ImageIcon } from "lucide-react";
+import { ExternalLinkIcon, ImageIcon, SparklesIcon } from "lucide-react";
 import NextImage from "next/image";
 import { Component, type ReactNode, useState } from "react";
 import { z } from "zod";
@@ -25,7 +25,7 @@ const SerializableImageSchema = z.object({
 	id: z.string(),
 	assetId: z.string(),
 	src: z.string(),
-	alt: z.string().nullish(), // Made optional - will use fallback if missing
+	alt: z.string().nullish(),
 	title: z.string().nullish(),
 	description: z.string().nullish(),
 	href: z.string().nullish(),
@@ -49,7 +49,7 @@ export interface ImageProps {
 	id: string;
 	assetId: string;
 	src: string;
-	alt?: string; // Optional with default fallback
+	alt?: string;
 	title?: string;
 	description?: string;
 	href?: string;
@@ -71,10 +71,8 @@ export function parseSerializableImage(result: unknown): SerializableImage & { a
 	if (!parsed.success) {
 		console.warn("Invalid image data:", parsed.error.issues);
 
-		// Try to extract basic info and return a fallback object
 		const obj = (result && typeof result === "object" ? result : {}) as Record<string, unknown>;
 
-		// If we have at least id, assetId, and src, we can still render the image
 		if (
 			typeof obj.id === "string" &&
 			typeof obj.assetId === "string" &&
@@ -89,7 +87,7 @@ export function parseSerializableImage(result: unknown): SerializableImage & { a
 				description: typeof obj.description === "string" ? obj.description : undefined,
 				href: typeof obj.href === "string" ? obj.href : undefined,
 				domain: typeof obj.domain === "string" ? obj.domain : undefined,
-				ratio: undefined, // Use default ratio
+				ratio: undefined,
 				source: undefined,
 			};
 		}
@@ -97,7 +95,6 @@ export function parseSerializableImage(result: unknown): SerializableImage & { a
 		throw new Error(`Invalid image: ${parsed.error.issues.map((i) => i.message).join(", ")}`);
 	}
 
-	// Provide fallback for alt if it's null/undefined
 	return {
 		...parsed.data,
 		alt: parsed.data.alt ?? "Image",
@@ -105,7 +102,7 @@ export function parseSerializableImage(result: unknown): SerializableImage & { a
 }
 
 /**
- * Get aspect ratio class based on ratio prop
+ * Get aspect ratio class based on ratio prop (used for fixed-ratio images only)
  */
 function getAspectRatioClass(ratio?: AspectRatio): string {
 	switch (ratio) {
@@ -119,7 +116,6 @@ function getAspectRatioClass(ratio?: AspectRatio): string {
 			return "aspect-[9/16]";
 		case "21:9":
 			return "aspect-[21/9]";
-		case "auto":
 		default:
 			return "aspect-[4/3]";
 	}
@@ -150,7 +146,7 @@ export class ImageErrorBoundary extends Component<
 		if (this.state.hasError) {
 			return (
 				<Card className="w-full max-w-md overflow-hidden">
-					<div className="aspect-[4/3] bg-muted flex items-center justify-center">
+					<div className="aspect-square bg-muted flex items-center justify-center">
 						<div className="flex flex-col items-center gap-2 text-muted-foreground">
 							<ImageIcon className="size-8" />
 							<p className="text-sm">Failed to load image</p>
@@ -167,10 +163,10 @@ export class ImageErrorBoundary extends Component<
 /**
  * Loading skeleton for Image
  */
-export function ImageSkeleton({ maxWidth = "420px" }: { maxWidth?: string }) {
+export function ImageSkeleton({ maxWidth = "512px" }: { maxWidth?: string }) {
 	return (
 		<Card className="w-full overflow-hidden animate-pulse" style={{ maxWidth }}>
-			<div className="aspect-[4/3] bg-muted flex items-center justify-center">
+			<div className="aspect-square bg-muted flex items-center justify-center">
 				<ImageIcon className="size-12 text-muted-foreground/30" />
 			</div>
 		</Card>
@@ -183,7 +179,7 @@ export function ImageSkeleton({ maxWidth = "420px" }: { maxWidth?: string }) {
 export function ImageLoading({ title = "Loading image..." }: { title?: string }) {
 	return (
 		<Card className="w-full max-w-md overflow-hidden">
-			<div className="aspect-[4/3] bg-muted flex items-center justify-center">
+			<div className="aspect-square bg-muted flex items-center justify-center">
 				<div className="flex flex-col items-center gap-3">
 					<Spinner size="lg" className="text-muted-foreground" />
 					<p className="text-muted-foreground text-sm">{title}</p>
@@ -197,7 +193,9 @@ export function ImageLoading({ title = "Loading image..." }: { title?: string })
  * Image Component
  *
  * Display images with metadata and attribution.
- * Features hover overlay with title and source attribution.
+ * - For "auto" ratio: renders the image at natural dimensions (no cropping)
+ * - For fixed ratios: uses a fixed aspect container with object-cover
+ * - Features hover overlay with title, description, and source attribution.
  */
 export function Image({
 	id,
@@ -207,16 +205,18 @@ export function Image({
 	description,
 	href,
 	domain,
-	ratio = "4:3",
+	ratio = "auto",
 	fit = "cover",
 	source,
-	maxWidth = "420px",
+	maxWidth = "512px",
 	className,
 }: ImageProps) {
 	const [isHovered, setIsHovered] = useState(false);
 	const [imageError, setImageError] = useState(false);
-	const aspectRatioClass = getAspectRatioClass(ratio);
+	const [imageLoaded, setImageLoaded] = useState(false);
 	const displayDomain = domain || source?.label;
+	const isGenerated = domain === "ai-generated";
+	const isAutoRatio = !ratio || ratio === "auto";
 
 	const handleClick = () => {
 		const targetUrl = href || source?.url || src;
@@ -228,7 +228,7 @@ export function Image({
 	if (imageError) {
 		return (
 			<Card id={id} className={cn("w-full overflow-hidden", className)} style={{ maxWidth }}>
-				<div className={cn("bg-muted flex items-center justify-center", aspectRatioClass)}>
+				<div className="aspect-square bg-muted flex items-center justify-center">
 					<div className="flex flex-col items-center gap-2 text-muted-foreground">
 						<ImageIcon className="size-8" />
 						<p className="text-sm">Image not available</p>
@@ -243,6 +243,7 @@ export function Image({
 			id={id}
 			className={cn(
 				"group w-full overflow-hidden cursor-pointer transition-shadow duration-200 hover:shadow-lg",
+				isGenerated && "ring-1 ring-primary/10",
 				className
 			)}
 			style={{ maxWidth }}
@@ -258,71 +259,98 @@ export function Image({
 			role="button"
 			tabIndex={0}
 		>
-			<div className={cn("relative w-full overflow-hidden bg-muted", aspectRatioClass)}>
-				{/* Image */}
-				<NextImage
-					src={src}
-					alt={alt}
-					fill
-					className={cn(
-						"transition-transform duration-300",
-						fit === "cover" ? "object-cover" : "object-contain",
-						isHovered && "scale-105"
-					)}
-					unoptimized
-					onError={() => setImageError(true)}
-				/>
+			<div className="relative w-full overflow-hidden bg-muted">
+				{isAutoRatio ? (
+					/* Auto ratio: image renders at natural dimensions, no cropping */
+					<>
+						{!imageLoaded && (
+							<div className="aspect-square flex items-center justify-center">
+								<Spinner size="lg" className="text-muted-foreground" />
+							</div>
+						)}
+						{/* eslint-disable-next-line @next/next/no-img-element */}
+						<img
+							src={src}
+							alt={alt}
+							className={cn(
+								"w-full h-auto transition-transform duration-300",
+								isHovered && "scale-[1.02]",
+								!imageLoaded && "hidden"
+							)}
+							onLoad={() => setImageLoaded(true)}
+							onError={() => setImageError(true)}
+						/>
+					</>
+				) : (
+					/* Fixed ratio: constrained aspect container with fill */
+					<div className={getAspectRatioClass(ratio)}>
+						<NextImage
+							src={src}
+							alt={alt}
+							fill
+							className={cn(
+								"transition-transform duration-300",
+								fit === "cover" ? "object-cover" : "object-contain",
+								isHovered && "scale-105"
+							)}
+							unoptimized
+							onError={() => setImageError(true)}
+						/>
+					</div>
+				)}
 
-				{/* Hover overlay - appears on hover */}
+				{/* Hover overlay */}
 				<div
 					className={cn(
-						"absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent",
+						"absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent",
 						"transition-opacity duration-200",
 						isHovered ? "opacity-100" : "opacity-0"
 					)}
 				>
-					{/* Content at bottom */}
-					<div className="absolute bottom-0 left-0 right-0 p-4">
-						{/* Title */}
+					<div className="absolute bottom-0 left-0 right-0 p-3">
 						{title && (
-							<h3 className="font-semibold text-white text-base leading-tight line-clamp-2 mb-1">
+							<h3 className="font-semibold text-white text-sm leading-tight line-clamp-2 mb-0.5">
 								{title}
 							</h3>
 						)}
-
-						{/* Description */}
 						{description && (
-							<p className="text-white/80 text-sm line-clamp-2 mb-2">{description}</p>
+							<p className="text-white/80 text-xs line-clamp-2 mb-1.5">{description}</p>
 						)}
-
-						{/* Source attribution */}
 						{displayDomain && (
 							<div className="flex items-center gap-1.5">
-								{source?.iconUrl ? (
+								{isGenerated ? (
+									<SparklesIcon className="size-3.5 text-white/70" />
+								) : source?.iconUrl ? (
 									<NextImage
 										src={source.iconUrl}
 										alt={source.label}
-										width={16}
-										height={16}
+										width={14}
+										height={14}
 										className="rounded"
 										unoptimized
 									/>
 								) : (
-									<ExternalLinkIcon className="size-4 text-white/70" />
+									<ExternalLinkIcon className="size-3.5 text-white/70" />
 								)}
-								<span className="text-white/70 text-sm">{displayDomain}</span>
+								<span className="text-white/70 text-xs">{displayDomain}</span>
 							</div>
 						)}
 					</div>
 				</div>
 
-				{/* Always visible domain badge (bottom right, shown when NOT hovered) */}
+				{/* Badge when not hovered */}
 				{displayDomain && !isHovered && (
 					<div className="absolute bottom-2 right-2">
 						<Badge
 							variant="secondary"
-							className="bg-black/60 text-white border-0 text-xs backdrop-blur-sm"
+							className={cn(
+								"border-0 text-xs backdrop-blur-sm",
+								isGenerated
+									? "bg-primary/80 text-primary-foreground"
+									: "bg-black/60 text-white"
+							)}
 						>
+							{isGenerated && <SparklesIcon className="size-3 mr-1" />}
 							{displayDomain}
 						</Badge>
 					</div>

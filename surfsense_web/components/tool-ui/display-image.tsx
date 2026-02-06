@@ -88,7 +88,7 @@ function ImageCancelledState({ src }: { src: string }) {
 function ParsedImage({ result }: { result: unknown }) {
 	const image = parseSerializableImage(result);
 
-	return <Image {...image} maxWidth="420px" />;
+	return <Image {...image} maxWidth="512px" />;
 }
 
 /**
