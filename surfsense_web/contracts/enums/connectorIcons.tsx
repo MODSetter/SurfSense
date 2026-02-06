@@ -92,7 +92,7 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 		case "FILE":
 			return <File {...iconProps} />;
 		case "GOOGLE_DRIVE_FILE":
-			return <File {...iconProps} />;
+			return <Image src="/connectors/google-drive.svg" alt="Google Drive" {...imgProps} />;
 		case "COMPOSIO_GOOGLE_DRIVE_CONNECTOR":
 			return <Image src="/connectors/google-drive.svg" alt="Google Drive" {...imgProps} />;
 		case "COMPOSIO_GMAIL_CONNECTOR":

@@ -17,13 +17,6 @@ from collections.abc import Sequence
 
 from alembic import context, op
 
-# Get Electric SQL user credentials from env.py configuration
-_config = context.config
-ELECTRIC_DB_USER = _config.get_main_option("electric_db_user", "electric")
-ELECTRIC_DB_PASSWORD = _config.get_main_option(
-    "electric_db_password", "electric_password"
-)
-
 # revision identifiers, used by Alembic.
 revision: str = "66"
 down_revision: str | None = "65"
@@ -31,8 +24,21 @@ branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 
+def _get_electric_credentials() -> tuple[str, str]:
+    """Get Electric SQL credentials from Alembic config.
+
+    Must be called inside upgrade()/downgrade(), not at module level,
+    because context.config is only available during migration execution.
+    """
+    _config = context.config
+    user = _config.get_main_option("electric_db_user", "electric")
+    password = _config.get_main_option("electric_db_password", "electric_password")
+    return user, password
+
+
 def upgrade() -> None:
     """Upgrade schema - add notifications table and Electric SQL replication."""
+    electric_db_user, electric_db_password = _get_electric_credentials()
     # Create notifications table
     op.execute(
         """
@@ -74,8 +80,8 @@ def upgrade() -> None:
         f"""
         DO $$
         BEGIN
-            IF NOT EXISTS (SELECT FROM pg_user WHERE usename = '{ELECTRIC_DB_USER}') THEN
-                CREATE USER {ELECTRIC_DB_USER} WITH REPLICATION PASSWORD '{ELECTRIC_DB_PASSWORD}';
+            IF NOT EXISTS (SELECT FROM pg_user WHERE usename = '{electric_db_user}') THEN
+                CREATE USER {electric_db_user} WITH REPLICATION PASSWORD '{electric_db_password}';
             END IF;
         END
         $$;
@@ -89,19 +95,19 @@ def upgrade() -> None:
         DECLARE
             db_name TEXT := current_database();
         BEGIN
-            EXECUTE format('GRANT CONNECT ON DATABASE %I TO {ELECTRIC_DB_USER}', db_name);
+            EXECUTE format('GRANT CONNECT ON DATABASE %I TO {electric_db_user}', db_name);
         END
         $$;
         """
     )
-    op.execute(f"GRANT USAGE ON SCHEMA public TO {ELECTRIC_DB_USER};")
-    op.execute(f"GRANT SELECT ON ALL TABLES IN SCHEMA public TO {ELECTRIC_DB_USER};")
-    op.execute(f"GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {ELECTRIC_DB_USER};")
+    op.execute(f"GRANT USAGE ON SCHEMA public TO {electric_db_user};")
+    op.execute(f"GRANT SELECT ON ALL TABLES IN SCHEMA public TO {electric_db_user};")
+    op.execute(f"GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO {electric_db_user};")
     op.execute(
-        f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {ELECTRIC_DB_USER};"
+        f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO {electric_db_user};"
     )
     op.execute(
-        f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {ELECTRIC_DB_USER};"
+        f"ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO {electric_db_user};"
     )
 
     # Create the publication if not exists

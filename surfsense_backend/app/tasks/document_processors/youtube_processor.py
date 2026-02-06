@@ -1,5 +1,9 @@
 """
 YouTube video document processor.
+
+Implements 2-phase document status updates for real-time UI feedback:
+- Phase 1: Create document with 'pending' status (visible in UI immediately)
+- Phase 2: Process document: pending → processing → ready/failed
 """
 
 import logging
@@ -12,7 +16,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_transcript_api import YouTubeTranscriptApi
 
-from app.db import Document, DocumentType
+from app.db import Document, DocumentStatus, DocumentType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
@@ -26,6 +30,7 @@ from app.utils.proxy_config import get_requests_proxies
 from .base import (
     check_document_by_unique_identifier,
     get_current_timestamp,
+    safe_set_chunks,
 )
 
 
@@ -61,6 +66,10 @@ async def add_youtube_video_document(
     """
     Process a YouTube video URL, extract transcripts, and store as a document.
 
+    Implements 2-phase document status updates for real-time UI feedback:
+    - Phase 1: Create document with 'pending' status (visible in UI immediately)
+    - Phase 2: Process document: pending → processing → ready/failed
+
     Args:
         session: Database session for storing the document
         url: YouTube video URL (supports standard, shortened, and embed formats)
@@ -85,15 +94,18 @@ async def add_youtube_video_document(
         metadata={"url": url, "user_id": str(user_id)},
     )
 
+    document = None
+    video_id = None
+    is_new_document = False
+
     try:
-        # Extract video ID from URL
+        # Extract video ID from URL (lightweight operation)
         await task_logger.log_task_progress(
             log_entry,
             f"Extracting video ID from URL: {url}",
             {"stage": "video_id_extraction"},
         )
 
-        # Get video ID
         video_id = get_youtube_video_id(url)
         if not video_id:
             raise ValueError(f"Could not extract video ID from URL: {url}")
@@ -104,13 +116,87 @@ async def add_youtube_video_document(
             {"stage": "video_id_extracted", "video_id": video_id},
         )
 
-        # Get video metadata
+        # Generate unique identifier hash for this YouTube video
+        unique_identifier_hash = generate_unique_identifier_hash(
+            DocumentType.YOUTUBE_VIDEO, video_id, search_space_id
+        )
+
+        # Check if document with this unique identifier already exists
+        await task_logger.log_task_progress(
+            log_entry,
+            f"Checking for existing video: {video_id}",
+            {"stage": "duplicate_check", "video_id": video_id},
+        )
+
+        existing_document = await check_document_by_unique_identifier(
+            session, unique_identifier_hash
+        )
+
+        # =======================================================================
+        # PHASE 1: Create pending document or prepare existing for update
+        # =======================================================================
+        if existing_document:
+            document = existing_document
+            is_new_document = False
+            # Check if already being processed
+            if DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PENDING
+            ):
+                logging.info(
+                    f"YouTube video {video_id} already pending. Returning existing."
+                )
+                return existing_document
+            if DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PROCESSING
+            ):
+                logging.info(
+                    f"YouTube video {video_id} already processing. Returning existing."
+                )
+                return existing_document
+        else:
+            # Create new document with PENDING status (visible in UI immediately)
+            await task_logger.log_task_progress(
+                log_entry,
+                f"Creating pending document for video: {video_id}",
+                {"stage": "pending_document_creation"},
+            )
+
+            document = Document(
+                title=f"YouTube Video: {video_id}",  # Placeholder title
+                document_type=DocumentType.YOUTUBE_VIDEO,
+                document_metadata={
+                    "url": url,
+                    "video_id": video_id,
+                },
+                content="Processing video...",  # Placeholder content
+                content_hash=unique_identifier_hash,  # Temporary unique value
+                unique_identifier_hash=unique_identifier_hash,
+                embedding=None,
+                chunks=[],  # Empty at creation
+                status=DocumentStatus.pending(),  # PENDING status - visible in UI
+                search_space_id=search_space_id,
+                updated_at=get_current_timestamp(),
+                created_by_id=user_id,
+            )
+            session.add(document)
+            await session.commit()  # Document visible in UI now with pending status!
+            is_new_document = True
+
+            logging.info(f"Created pending document for YouTube video {video_id}")
+
+        # =======================================================================
+        # PHASE 2: Set to PROCESSING and do heavy work
+        # =======================================================================
+        document.status = DocumentStatus.processing()
+        await session.commit()  # UI shows "processing" status
+
         await task_logger.log_task_progress(
             log_entry,
             f"Fetching video metadata for: {video_id}",
             {"stage": "metadata_fetch"},
         )
 
+        # Fetch video metadata
         params = {
             "format": "json",
             "url": f"https://www.youtube.com/watch?v={video_id}",
@@ -129,6 +215,10 @@ async def add_youtube_video_document(
             ) as response,
         ):
             video_data = await response.json()
+
+        # Update title immediately for better UX (user sees actual title sooner)
+        document.title = video_data.get("title", f"YouTube Video: {video_id}")
+        await session.commit()
 
         await task_logger.log_task_progress(
             log_entry,
@@ -219,53 +309,28 @@ async def add_youtube_video_document(
         document_parts.append("</DOCUMENT>")
         combined_document_string = "\n".join(document_parts)
 
-        # Generate unique identifier hash for this YouTube video
-        unique_identifier_hash = generate_unique_identifier_hash(
-            DocumentType.YOUTUBE_VIDEO, video_id, search_space_id
-        )
-
         # Generate content hash
         content_hash = generate_content_hash(combined_document_string, search_space_id)
 
-        # Check if document with this unique identifier already exists
-        await task_logger.log_task_progress(
-            log_entry,
-            f"Checking for existing video: {video_id}",
-            {"stage": "duplicate_check", "video_id": video_id},
-        )
+        # For existing documents, check if content has changed
+        if not is_new_document and existing_document.content_hash == content_hash:
+            await task_logger.log_task_success(
+                log_entry,
+                f"YouTube video document unchanged: {video_data.get('title', 'YouTube Video')}",
+                {
+                    "duplicate_detected": True,
+                    "existing_document_id": existing_document.id,
+                    "video_id": video_id,
+                },
+            )
+            logging.info(
+                f"Document for YouTube video {video_id} unchanged. Marking as ready."
+            )
+            document.status = DocumentStatus.ready()
+            await session.commit()
+            return document
 
-        existing_document = await check_document_by_unique_identifier(
-            session, unique_identifier_hash
-        )
-
-        if existing_document:
-            # Document exists - check if content has changed
-            if existing_document.content_hash == content_hash:
-                await task_logger.log_task_success(
-                    log_entry,
-                    f"YouTube video document unchanged: {video_data.get('title', 'YouTube Video')}",
-                    {
-                        "duplicate_detected": True,
-                        "existing_document_id": existing_document.id,
-                        "video_id": video_id,
-                    },
-                )
-                logging.info(
-                    f"Document for YouTube video {video_id} unchanged. Skipping."
-                )
-                return existing_document
-            else:
-                # Content has changed - update the existing document
-                logging.info(
-                    f"Content changed for YouTube video {video_id}. Updating document."
-                )
-                await task_logger.log_task_progress(
-                    log_entry,
-                    f"Updating YouTube video document: {video_data.get('title', 'YouTube Video')}",
-                    {"stage": "document_update", "video_id": video_id},
-                )
-
-        # Get LLM for summary generation (needed for both create and update)
+        # Get LLM for summary generation
         await task_logger.log_task_progress(
             log_entry,
             f"Preparing for summary generation: {video_data.get('title', 'YouTube Video')}",
@@ -287,7 +352,7 @@ async def add_youtube_video_document(
         )
 
         # Generate summary with metadata
-        document_metadata = {
+        document_metadata_for_summary = {
             "url": url,
             "video_id": video_id,
             "title": video_data.get("title", "YouTube Video"),
@@ -297,7 +362,7 @@ async def add_youtube_video_document(
             "has_transcript": "No captions available" not in transcript_text,
         }
         summary_content, summary_embedding = await generate_document_summary(
-            combined_document_string, user_llm, document_metadata
+            combined_document_string, user_llm, document_metadata_for_summary
         )
 
         # Process chunks
@@ -319,65 +384,33 @@ async def add_youtube_video_document(
 
         chunks = await create_document_chunks(combined_document_string)
 
-        # Update or create document
-        if existing_document:
-            # Update existing document
-            await task_logger.log_task_progress(
-                log_entry,
-                f"Updating YouTube video document in database: {video_data.get('title', 'YouTube Video')}",
-                {"stage": "document_update", "chunks_count": len(chunks)},
-            )
+        # =======================================================================
+        # PHASE 3: Update document to READY with all content
+        # =======================================================================
+        await task_logger.log_task_progress(
+            log_entry,
+            f"Finalizing document: {video_data.get('title', 'YouTube Video')}",
+            {"stage": "document_finalization", "chunks_count": len(chunks)},
+        )
 
-            existing_document.title = video_data.get("title", "YouTube Video")
-            existing_document.content = summary_content
-            existing_document.content_hash = content_hash
-            existing_document.embedding = summary_embedding
-            existing_document.document_metadata = {
-                "url": url,
-                "video_id": video_id,
-                "video_title": video_data.get("title", "YouTube Video"),
-                "author": video_data.get("author_name", "Unknown"),
-                "thumbnail": video_data.get("thumbnail_url", ""),
-            }
-            existing_document.chunks = chunks
-            existing_document.blocknote_document = blocknote_json
-            existing_document.updated_at = get_current_timestamp()
+        document.title = video_data.get("title", "YouTube Video")
+        document.content = summary_content
+        document.content_hash = content_hash
+        document.embedding = summary_embedding
+        document.document_metadata = {
+            "url": url,
+            "video_id": video_id,
+            "video_title": video_data.get("title", "YouTube Video"),
+            "author": video_data.get("author_name", "Unknown"),
+            "thumbnail": video_data.get("thumbnail_url", ""),
+        }
+        safe_set_chunks(document, chunks)
+        document.blocknote_document = blocknote_json
+        document.status = DocumentStatus.ready()  # READY status - fully processed
+        document.updated_at = get_current_timestamp()
 
-            await session.commit()
-            await session.refresh(existing_document)
-            document = existing_document
-        else:
-            # Create new document
-            await task_logger.log_task_progress(
-                log_entry,
-                f"Creating YouTube video document in database: {video_data.get('title', 'YouTube Video')}",
-                {"stage": "document_creation", "chunks_count": len(chunks)},
-            )
-
-            document = Document(
-                title=video_data.get("title", "YouTube Video"),
-                document_type=DocumentType.YOUTUBE_VIDEO,
-                document_metadata={
-                    "url": url,
-                    "video_id": video_id,
-                    "video_title": video_data.get("title", "YouTube Video"),
-                    "author": video_data.get("author_name", "Unknown"),
-                    "thumbnail": video_data.get("thumbnail_url", ""),
-                },
-                content=summary_content,
-                embedding=summary_embedding,
-                chunks=chunks,
-                search_space_id=search_space_id,
-                content_hash=content_hash,
-                unique_identifier_hash=unique_identifier_hash,
-                blocknote_document=blocknote_json,
-                updated_at=get_current_timestamp(),
-                created_by_id=user_id,
-            )
-
-            session.add(document)
-            await session.commit()
-            await session.refresh(document)
+        await session.commit()
+        await session.refresh(document)
 
         # Log success
         await task_logger.log_task_success(
@@ -395,27 +428,51 @@ async def add_youtube_video_document(
         )
 
         return document
+
     except SQLAlchemyError as db_error:
-        await session.rollback()
+        # Mark document as failed if it exists
+        if document:
+            try:
+                document.status = DocumentStatus.failed(
+                    f"Database error: {str(db_error)[:150]}"
+                )
+                document.updated_at = get_current_timestamp()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+        else:
+            await session.rollback()
+
         await task_logger.log_task_failure(
             log_entry,
             f"Database error while processing YouTube video: {url}",
             str(db_error),
             {
                 "error_type": "SQLAlchemyError",
-                "video_id": video_id if "video_id" in locals() else None,
+                "video_id": video_id,
             },
         )
         raise db_error
+
     except Exception as e:
-        await session.rollback()
+        # Mark document as failed if it exists
+        if document:
+            try:
+                document.status = DocumentStatus.failed(str(e)[:200])
+                document.updated_at = get_current_timestamp()
+                await session.commit()
+            except Exception:
+                await session.rollback()
+        else:
+            await session.rollback()
+
         await task_logger.log_task_failure(
             log_entry,
             f"Failed to process YouTube video: {url}",
             str(e),
             {
                 "error_type": type(e).__name__,
-                "video_id": video_id if "video_id" in locals() else None,
+                "video_id": video_id,
             },
         )
         logging.error(f"Failed to process YouTube video: {e!s}")

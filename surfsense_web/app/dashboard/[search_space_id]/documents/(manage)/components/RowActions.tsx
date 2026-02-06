@@ -1,11 +1,9 @@
 "use client";
 
-import { FileText, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
-import { motion } from "motion/react";
+import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -22,7 +20,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { Document } from "./types";
 
 // Only FILE and NOTE document types can be edited
@@ -34,16 +31,13 @@ const NON_DELETABLE_DOCUMENT_TYPES = ["SURFSENSE_DOCS"] as const;
 export function RowActions({
 	document,
 	deleteDocument,
-	refreshDocuments,
 	searchSpaceId,
 }: {
 	document: Document;
 	deleteDocument: (id: number) => Promise<boolean>;
-	refreshDocuments: () => Promise<void>;
 	searchSpaceId: string;
 }) {
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-	const [isMetadataOpen, setIsMetadataOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const router = useRouter();
 
@@ -51,20 +45,37 @@ export function RowActions({
 		document.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
 	);
 
-	const isDeletable = !NON_DELETABLE_DOCUMENT_TYPES.includes(
+	// Documents in "pending" or "processing" state should show disabled delete
+	const isBeingProcessed =
+		document.status?.state === "pending" || document.status?.state === "processing";
+
+	// SURFSENSE_DOCS are system-managed and should not show delete at all
+	const shouldShowDelete = !NON_DELETABLE_DOCUMENT_TYPES.includes(
 		document.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
 	);
+
+	// Edit and Delete are disabled while processing
+	const isEditDisabled = isBeingProcessed;
+	const isDeleteDisabled = isBeingProcessed;
 
 	const handleDelete = async () => {
 		setIsDeleting(true);
 		try {
 			const ok = await deleteDocument(document.id);
-			if (ok) toast.success("Document deleted successfully");
-			else toast.error("Failed to delete document");
-			await refreshDocuments();
-		} catch (error) {
+			if (!ok) toast.error("Failed to delete document");
+			// Note: Success toast is handled by the mutation atom's onSuccess callback
+			// Cache is updated optimistically by the mutation, no need to refresh
+		} catch (error: unknown) {
 			console.error("Error deleting document:", error);
-			toast.error("Failed to delete document");
+			// Check for 409 Conflict (document started processing after UI loaded)
+			const status =
+				(error as { response?: { status?: number } })?.response?.status ??
+				(error as { status?: number })?.status;
+			if (status === 409) {
+				toast.error("Document is now being processed. Please try again later.");
+			} else {
+				toast.error("Failed to delete document");
+			}
 		} finally {
 			setIsDeleting(false);
 			setIsDeleteOpen(false);
@@ -76,123 +87,120 @@ export function RowActions({
 	};
 
 	return (
-		<div className="flex items-center justify-end gap-1">
+		<>
 			{/* Desktop Actions */}
-			<div className="hidden md:flex items-center gap-1">
-				{isEditable && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<motion.div
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.95 }}
-								transition={{ type: "spring", stiffness: 400, damping: 17 }}
-							>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-									onClick={handleEdit}
-								>
-									<Pencil className="h-4 w-4" />
-									<span className="sr-only">Edit Document</span>
-								</Button>
-							</motion.div>
-						</TooltipTrigger>
-						<TooltipContent side="top">
-							<p>Edit Document</p>
-						</TooltipContent>
-					</Tooltip>
-				)}
-
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<motion.div
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.95 }}
-							transition={{ type: "spring", stiffness: 400, damping: 17 }}
-						>
+			<div className="hidden md:inline-flex items-center justify-center">
+				{isEditable ? (
+					// Editable documents: show 3-dot dropdown with edit + delete
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
 							<Button
 								variant="ghost"
 								size="icon"
 								className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
-								onClick={() => setIsMetadataOpen(true)}
 							>
-								<FileText className="h-4 w-4" />
-								<span className="sr-only">View Metadata</span>
+								<MoreHorizontal className="h-4 w-4" />
+								<span className="sr-only">Open menu</span>
 							</Button>
-						</motion.div>
-					</TooltipTrigger>
-					<TooltipContent side="top">
-						<p>View Metadata</p>
-					</TooltipContent>
-				</Tooltip>
-
-				{isDeletable && (
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<motion.div
-								whileHover={{ scale: 1.1 }}
-								whileTap={{ scale: 0.95 }}
-								transition={{ type: "spring", stiffness: 400, damping: 17 }}
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-40">
+							<DropdownMenuItem
+								onClick={() => !isEditDisabled && handleEdit()}
+								disabled={isEditDisabled}
+								className={
+									isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""
+								}
 							>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-									onClick={() => setIsDeleteOpen(true)}
-									disabled={isDeleting}
+								<Pencil className="mr-2 h-4 w-4" />
+								<span>Edit</span>
+							</DropdownMenuItem>
+							{shouldShowDelete && (
+								<DropdownMenuItem
+									onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
+									disabled={isDeleteDisabled}
+									className={
+										isDeleteDisabled
+											? "text-muted-foreground cursor-not-allowed opacity-50"
+											: "text-destructive focus:text-destructive"
+									}
 								>
-									<Trash2 className="h-4 w-4" />
-									<span className="sr-only">Delete</span>
-								</Button>
-							</motion.div>
-						</TooltipTrigger>
-						<TooltipContent side="top">
-							<p>Delete</p>
-						</TooltipContent>
-					</Tooltip>
+									<Trash2 className="mr-2 h-4 w-4" />
+									<span>Delete</span>
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				) : (
+					// Non-editable documents: show only delete button directly
+					shouldShowDelete && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+							onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
+							disabled={isDeleting || isDeleteDisabled}
+						>
+							<Trash2 className="h-4 w-4" />
+							<span className="sr-only">Delete</span>
+						</Button>
+					)
 				)}
 			</div>
 
 			{/* Mobile Actions Dropdown */}
-			<div className="flex md:hidden">
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-							<MoreHorizontal className="h-4 w-4" />
-							<span className="sr-only">Open menu</span>
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" className="w-40">
-						{isEditable && (
-							<DropdownMenuItem onClick={handleEdit}>
+			<div className="inline-flex md:hidden items-center justify-center">
+				{isEditable ? (
+					// Editable documents: show 3-dot dropdown
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+								<MoreHorizontal className="h-4 w-4" />
+								<span className="sr-only">Open menu</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="end" className="w-40">
+							<DropdownMenuItem
+								onClick={() => !isEditDisabled && handleEdit()}
+								disabled={isEditDisabled}
+								className={
+									isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""
+								}
+							>
 								<Pencil className="mr-2 h-4 w-4" />
 								<span>Edit</span>
 							</DropdownMenuItem>
-						)}
-						<DropdownMenuItem onClick={() => setIsMetadataOpen(true)}>
-							<FileText className="mr-2 h-4 w-4" />
-							<span>Metadata</span>
-						</DropdownMenuItem>
-						{isDeletable && (
-							<DropdownMenuItem
-								onClick={() => setIsDeleteOpen(true)}
-								className="text-destructive focus:text-destructive"
-							>
-								<Trash2 className="mr-2 h-4 w-4" />
-								<span>Delete</span>
-							</DropdownMenuItem>
-						)}
-					</DropdownMenuContent>
-				</DropdownMenu>
+							{shouldShowDelete && (
+								<DropdownMenuItem
+									onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
+									disabled={isDeleteDisabled}
+									className={
+										isDeleteDisabled
+											? "text-muted-foreground cursor-not-allowed opacity-50"
+											: "text-destructive focus:text-destructive"
+									}
+								>
+									<Trash2 className="mr-2 h-4 w-4" />
+									<span>Delete</span>
+								</DropdownMenuItem>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
+				) : (
+					// Non-editable documents: show only delete button directly
+					shouldShowDelete && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+							onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
+							disabled={isDeleting || isDeleteDisabled}
+						>
+							<Trash2 className="h-4 w-4" />
+							<span className="sr-only">Delete</span>
+						</Button>
+					)
+				)}
 			</div>
-
-			<JsonMetadataViewer
-				title={document.title}
-				metadata={document.document_metadata}
-				open={isMetadataOpen}
-				onOpenChange={setIsMetadataOpen}
-			/>
 
 			<AlertDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
 				<AlertDialogContent>
@@ -214,6 +222,6 @@ export function RowActions({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>
-		</div>
+		</>
 	);
 }

@@ -21,10 +21,14 @@ from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import config
 from app.connectors.composio_connector import ComposioConnector
-from app.db import Document, DocumentType, Log
+from app.db import Document, DocumentStatus, DocumentType, Log
 from app.services.composio_service import TOOLKIT_TO_DOCUMENT_TYPE
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
+from app.tasks.connector_indexers.base import (
+    check_duplicate_document_by_hash,
+    safe_set_chunks,
+)
 from app.utils.document_converters import (
     create_document_chunks,
     generate_content_hash,
@@ -537,22 +541,6 @@ async def check_document_by_unique_identifier(
     return existing_doc_result.scalars().first()
 
 
-async def check_document_by_content_hash(
-    session: AsyncSession, content_hash: str
-) -> Document | None:
-    """Check if a document with the given content hash already exists.
-
-    This is used to prevent duplicate content from being indexed, regardless
-    of which connector originally indexed it.
-    """
-    from sqlalchemy.future import select
-
-    existing_doc_result = await session.execute(
-        select(Document).where(Document.content_hash == content_hash)
-    )
-    return existing_doc_result.scalars().first()
-
-
 async def check_document_by_google_drive_file_id(
     session: AsyncSession, file_id: str, search_space_id: int
 ) -> Document | None:
@@ -843,14 +831,16 @@ async def _index_composio_drive_delta_sync(
     log_entry,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, list[str]]:
-    """Index Google Drive files using delta sync (only changed files).
+    """Index Google Drive files using delta sync with real-time document status updates.
 
     Uses GOOGLEDRIVE_LIST_CHANGES to fetch only files that changed since last sync.
     Handles: new files, modified files, and deleted files.
     """
     documents_indexed = 0
     documents_skipped = 0
+    documents_failed = 0
     processing_errors = []
+    duplicate_content_count = 0
     last_heartbeat_time = time.time()
 
     # Fetch all changes with pagination
@@ -881,14 +871,13 @@ async def _index_composio_drive_delta_sync(
 
     logger.info(f"Processing {len(all_changes)} changes from delta sync")
 
-    for change in all_changes[:max_items]:
-        # Send heartbeat periodically to indicate task is still alive
-        if on_heartbeat_callback:
-            current_time = time.time()
-            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
-                await on_heartbeat_callback(documents_indexed)
-                last_heartbeat_time = current_time
+    # =======================================================================
+    # PHASE 1: Analyze all changes, handle deletions, create pending documents
+    # =======================================================================
+    files_to_process = []
+    new_documents_created = False
 
+    for change in all_changes[:max_items]:
         try:
             # Handle removed files
             is_removed = change.get("removed", False)
@@ -899,9 +888,8 @@ async def _index_composio_drive_delta_sync(
                 documents_skipped += 1
                 continue
 
-            # Check if file was trashed or removed
+            # Check if file was trashed or removed - handle deletions immediately
             if is_removed or file_info.get("trashed", False):
-                # Remove document from database
                 document_type = DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"])
                 unique_identifier_hash = generate_unique_identifier_hash(
                     document_type, f"drive_{file_id}", search_space_id
@@ -923,37 +911,233 @@ async def _index_composio_drive_delta_sync(
             if mime_type == "application/vnd.google-apps.folder":
                 continue
 
-            # Process the file
-            indexed, skipped, errors = await _process_single_drive_file(
-                session=session,
-                composio_connector=composio_connector,
-                file_id=file_id,
-                file_name=file_name,
-                mime_type=mime_type,
-                connector_id=connector_id,
-                search_space_id=search_space_id,
-                user_id=user_id,
-                task_logger=task_logger,
-                log_entry=log_entry,
+            # Check for existing document by file ID (from any connector)
+            existing_by_file_id = await check_document_by_google_drive_file_id(
+                session, file_id, search_space_id
             )
 
-            documents_indexed += indexed
-            documents_skipped += skipped
-            processing_errors.extend(errors)
+            # Generate unique identifier hash
+            document_type = DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"])
+            unique_identifier_hash = generate_unique_identifier_hash(
+                document_type, f"drive_{file_id}", search_space_id
+            )
+
+            # Check if document exists by unique identifier
+            existing_document = await check_document_by_unique_identifier(
+                session, unique_identifier_hash
+            )
+
+            if existing_by_file_id and not existing_document:
+                # File already indexed by different connector - skip
+                logger.info(
+                    f"Skipping file {file_name} (file_id={file_id}): already indexed "
+                    f"by {existing_by_file_id.document_type.value}"
+                )
+                documents_skipped += 1
+                continue
+
+            if existing_document:
+                # Queue existing document for update
+                files_to_process.append(
+                    {
+                        "document": existing_document,
+                        "is_new": False,
+                        "file_id": file_id,
+                        "file_name": file_name,
+                        "mime_type": mime_type,
+                    }
+                )
+                continue
+
+            # Create new document with PENDING status
+            document = Document(
+                search_space_id=search_space_id,
+                title=file_name,
+                document_type=DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"]),
+                document_metadata={
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "FILE_NAME": file_name,
+                    "mime_type": mime_type,
+                    "connector_id": connector_id,
+                    "toolkit_id": "googledrive",
+                    "source": "composio",
+                },
+                content="Pending...",
+                content_hash=unique_identifier_hash,
+                unique_identifier_hash=unique_identifier_hash,
+                embedding=None,
+                chunks=[],
+                status=DocumentStatus.pending(),
+                updated_at=get_current_timestamp(),
+                created_by_id=user_id,
+                connector_id=connector_id,
+            )
+            session.add(document)
+            new_documents_created = True
+
+            files_to_process.append(
+                {
+                    "document": document,
+                    "is_new": True,
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "mime_type": mime_type,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error in Phase 1 for change: {e!s}", exc_info=True)
+            documents_skipped += 1
+            continue
+
+    # Commit all pending documents - they all appear in UI now
+    if new_documents_created:
+        logger.info(
+            f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents"
+        )
+        await session.commit()
+
+    # =======================================================================
+    # PHASE 2: Process each document one by one
+    # =======================================================================
+    logger.info(f"Phase 2: Processing {len(files_to_process)} documents")
+
+    for item in files_to_process:
+        # Send heartbeat periodically
+        if on_heartbeat_callback:
+            current_time = time.time()
+            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = current_time
+
+        document = item["document"]
+        try:
+            # Set to PROCESSING and commit
+            document.status = DocumentStatus.processing()
+            await session.commit()
+
+            # Get file content
+            content, content_error = await composio_connector.get_drive_file_content(
+                item["file_id"], original_mime_type=item["mime_type"]
+            )
+
+            if content_error or not content:
+                logger.warning(
+                    f"Could not get content for file {item['file_name']}: {content_error}"
+                )
+                markdown_content = f"# {item['file_name']}\n\n"
+                markdown_content += f"**File ID:** {item['file_id']}\n"
+                markdown_content += f"**Type:** {item['mime_type']}\n"
+            elif isinstance(content, dict):
+                error_msg = f"Unexpected dict content format for file {item['file_name']}: {list(content.keys())}"
+                logger.error(error_msg)
+                processing_errors.append(error_msg)
+                markdown_content = f"# {item['file_name']}\n\n"
+                markdown_content += f"**File ID:** {item['file_id']}\n"
+                markdown_content += f"**Type:** {item['mime_type']}\n"
+            else:
+                markdown_content = await _process_file_content(
+                    content=content,
+                    file_name=item["file_name"],
+                    file_id=item["file_id"],
+                    mime_type=item["mime_type"],
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    session=session,
+                    task_logger=task_logger,
+                    log_entry=log_entry,
+                    processing_errors=processing_errors,
+                )
+
+            content_hash = generate_content_hash(markdown_content, search_space_id)
+
+            # For existing documents, check if content changed
+            if not item["is_new"] and document.content_hash == content_hash:
+                if not DocumentStatus.is_state(document.status, DocumentStatus.READY):
+                    document.status = DocumentStatus.ready()
+                documents_skipped += 1
+                continue
+
+            # Check for duplicate content hash (for new documents)
+            if item["is_new"]:
+                with session.no_autoflush:
+                    duplicate_by_content = await check_duplicate_document_by_hash(
+                        session, content_hash
+                    )
+                if duplicate_by_content:
+                    logger.info(
+                        f"File {item['file_name']} already indexed by another connector. Skipping."
+                    )
+                    await session.delete(document)
+                    duplicate_content_count += 1
+                    documents_skipped += 1
+                    continue
+
+            # Heavy processing (LLM, embeddings, chunks)
+            user_llm = await get_user_long_context_llm(
+                session, user_id, search_space_id
+            )
+
+            if user_llm:
+                document_metadata_for_summary = {
+                    "file_id": item["file_id"],
+                    "file_name": item["file_name"],
+                    "mime_type": item["mime_type"],
+                    "document_type": "Google Drive File (Composio)",
+                }
+                summary_content, summary_embedding = await generate_document_summary(
+                    markdown_content, user_llm, document_metadata_for_summary
+                )
+            else:
+                summary_content = f"Google Drive File: {item['file_name']}\n\nType: {item['mime_type']}"
+                summary_embedding = config.embedding_model_instance.embed(
+                    summary_content
+                )
+
+            chunks = await create_document_chunks(markdown_content)
+
+            # Update document to READY
+            document.title = item["file_name"]
+            document.content = summary_content
+            document.content_hash = content_hash
+            document.embedding = summary_embedding
+            document.document_metadata = {
+                "file_id": item["file_id"],
+                "file_name": item["file_name"],
+                "FILE_NAME": item["file_name"],
+                "mime_type": item["mime_type"],
+                "connector_id": connector_id,
+                "source": "composio",
+            }
+            safe_set_chunks(document, chunks)
+            document.updated_at = get_current_timestamp()
+            document.status = DocumentStatus.ready()
+
+            documents_indexed += 1
 
             # Batch commit every 10 documents
-            if documents_indexed > 0 and documents_indexed % 10 == 0:
+            if documents_indexed % 10 == 0:
                 await session.commit()
                 logger.info(f"Committed batch: {documents_indexed} changes processed")
 
         except Exception as e:
-            error_msg = f"Error processing change for file {file_id}: {e!s}"
+            error_msg = f"Error processing change for file {item['file_id']}: {e!s}"
             logger.error(error_msg, exc_info=True)
             processing_errors.append(error_msg)
-            documents_skipped += 1
+            try:
+                document.status = DocumentStatus.failed(str(e))
+                document.updated_at = get_current_timestamp()
+            except Exception as status_error:
+                logger.error(
+                    f"Failed to update document status to failed: {status_error}"
+                )
+            documents_failed += 1
+            continue
 
     logger.info(
-        f"Delta sync complete: {documents_indexed} indexed, {documents_skipped} skipped"
+        f"Delta sync complete: {documents_indexed} indexed, {documents_skipped} skipped, "
+        f"{documents_failed} failed ({duplicate_content_count} duplicate content)"
     )
     return documents_indexed, documents_skipped, processing_errors
 
@@ -973,10 +1157,12 @@ async def _index_composio_drive_full_scan(
     log_entry,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, list[str]]:
-    """Index Google Drive files using full scan (first sync or when no delta token)."""
+    """Index Google Drive files using full scan with real-time document status updates."""
     documents_indexed = 0
     documents_skipped = 0
+    documents_failed = 0
     processing_errors = []
+    duplicate_content_count = 0
     last_heartbeat_time = time.time()
 
     all_files = []
@@ -1108,14 +1294,14 @@ async def _index_composio_drive_full_scan(
         f"Found {len(all_files)} Google Drive files to index via Composio (full scan)"
     )
 
-    for file_info in all_files:
-        # Send heartbeat periodically to indicate task is still alive
-        if on_heartbeat_callback:
-            current_time = time.time()
-            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
-                await on_heartbeat_callback(documents_indexed)
-                last_heartbeat_time = current_time
+    # =======================================================================
+    # PHASE 1: Analyze all files, create pending documents
+    # This makes ALL documents visible in the UI immediately with pending status
+    # =======================================================================
+    files_to_process = []  # List of dicts with document and file data
+    new_documents_created = False
 
+    for file_info in all_files:
         try:
             # Handle both standard Google API and potential Composio variations
             file_id = file_info.get("id", "") or file_info.get("fileId", "")
@@ -1132,225 +1318,240 @@ async def _index_composio_drive_full_scan(
             if mime_type == "application/vnd.google-apps.folder":
                 continue
 
-            # Process the file
-            indexed, skipped, errors = await _process_single_drive_file(
-                session=session,
-                composio_connector=composio_connector,
-                file_id=file_id,
-                file_name=file_name,
-                mime_type=mime_type,
-                connector_id=connector_id,
-                search_space_id=search_space_id,
-                user_id=user_id,
-                task_logger=task_logger,
-                log_entry=log_entry,
+            # ========== EARLY DUPLICATE CHECK BY FILE ID ==========
+            existing_by_file_id = await check_document_by_google_drive_file_id(
+                session, file_id, search_space_id
+            )
+            if existing_by_file_id:
+                logger.info(
+                    f"Skipping file {file_name} (file_id={file_id}): already indexed "
+                    f"by {existing_by_file_id.document_type.value}"
+                )
+                documents_skipped += 1
+                continue
+
+            # Generate unique identifier hash
+            document_type = DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"])
+            unique_identifier_hash = generate_unique_identifier_hash(
+                document_type, f"drive_{file_id}", search_space_id
             )
 
-            documents_indexed += indexed
-            documents_skipped += skipped
-            processing_errors.extend(errors)
+            # Check if document exists by unique identifier
+            existing_document = await check_document_by_unique_identifier(
+                session, unique_identifier_hash
+            )
+
+            if existing_document:
+                # Queue existing document for update (will be set to processing in Phase 2)
+                files_to_process.append(
+                    {
+                        "document": existing_document,
+                        "is_new": False,
+                        "file_id": file_id,
+                        "file_name": file_name,
+                        "mime_type": mime_type,
+                    }
+                )
+                continue
+
+            # Create new document with PENDING status (visible in UI immediately)
+            document = Document(
+                search_space_id=search_space_id,
+                title=file_name,
+                document_type=DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"]),
+                document_metadata={
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "FILE_NAME": file_name,
+                    "mime_type": mime_type,
+                    "connector_id": connector_id,
+                    "toolkit_id": "googledrive",
+                    "source": "composio",
+                },
+                content="Pending...",  # Placeholder until processed
+                content_hash=unique_identifier_hash,  # Temporary unique value - updated when ready
+                unique_identifier_hash=unique_identifier_hash,
+                embedding=None,
+                chunks=[],  # Empty at creation - safe for async
+                status=DocumentStatus.pending(),  # Pending until processing starts
+                updated_at=get_current_timestamp(),
+                created_by_id=user_id,
+                connector_id=connector_id,
+            )
+            session.add(document)
+            new_documents_created = True
+
+            files_to_process.append(
+                {
+                    "document": document,
+                    "is_new": True,
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "mime_type": mime_type,
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error in Phase 1 for file: {e!s}", exc_info=True)
+            documents_skipped += 1
+            continue
+
+    # Commit all pending documents - they all appear in UI now
+    if new_documents_created:
+        logger.info(
+            f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents"
+        )
+        await session.commit()
+
+    # =======================================================================
+    # PHASE 2: Process each document one by one
+    # Each document transitions: pending → processing → ready/failed
+    # =======================================================================
+    logger.info(f"Phase 2: Processing {len(files_to_process)} documents")
+
+    for item in files_to_process:
+        # Send heartbeat periodically
+        if on_heartbeat_callback:
+            current_time = time.time()
+            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = current_time
+
+        document = item["document"]
+        try:
+            # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
+            document.status = DocumentStatus.processing()
+            await session.commit()
+
+            # Get file content (pass mime_type for Google Workspace export handling)
+            content, content_error = await composio_connector.get_drive_file_content(
+                item["file_id"], original_mime_type=item["mime_type"]
+            )
+
+            if content_error or not content:
+                logger.warning(
+                    f"Could not get content for file {item['file_name']}: {content_error}"
+                )
+                markdown_content = f"# {item['file_name']}\n\n"
+                markdown_content += f"**File ID:** {item['file_id']}\n"
+                markdown_content += f"**Type:** {item['mime_type']}\n"
+            elif isinstance(content, dict):
+                error_msg = f"Unexpected dict content format for file {item['file_name']}: {list(content.keys())}"
+                logger.error(error_msg)
+                processing_errors.append(error_msg)
+                markdown_content = f"# {item['file_name']}\n\n"
+                markdown_content += f"**File ID:** {item['file_id']}\n"
+                markdown_content += f"**Type:** {item['mime_type']}\n"
+            else:
+                # Process content based on file type
+                markdown_content = await _process_file_content(
+                    content=content,
+                    file_name=item["file_name"],
+                    file_id=item["file_id"],
+                    mime_type=item["mime_type"],
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                    session=session,
+                    task_logger=task_logger,
+                    log_entry=log_entry,
+                    processing_errors=processing_errors,
+                )
+
+            content_hash = generate_content_hash(markdown_content, search_space_id)
+
+            # For existing documents, check if content changed
+            if not item["is_new"] and document.content_hash == content_hash:
+                # Ensure status is ready
+                if not DocumentStatus.is_state(document.status, DocumentStatus.READY):
+                    document.status = DocumentStatus.ready()
+                documents_skipped += 1
+                continue
+
+            # Check for duplicate content hash (for new documents)
+            if item["is_new"]:
+                with session.no_autoflush:
+                    duplicate_by_content = await check_duplicate_document_by_hash(
+                        session, content_hash
+                    )
+                if duplicate_by_content:
+                    logger.info(
+                        f"File {item['file_name']} already indexed by another connector. Skipping."
+                    )
+                    # Remove the pending document we created
+                    await session.delete(document)
+                    duplicate_content_count += 1
+                    documents_skipped += 1
+                    continue
+
+            # Heavy processing (LLM, embeddings, chunks)
+            user_llm = await get_user_long_context_llm(
+                session, user_id, search_space_id
+            )
+
+            if user_llm:
+                document_metadata_for_summary = {
+                    "file_id": item["file_id"],
+                    "file_name": item["file_name"],
+                    "mime_type": item["mime_type"],
+                    "document_type": "Google Drive File (Composio)",
+                }
+                summary_content, summary_embedding = await generate_document_summary(
+                    markdown_content, user_llm, document_metadata_for_summary
+                )
+            else:
+                summary_content = f"Google Drive File: {item['file_name']}\n\nType: {item['mime_type']}"
+                summary_embedding = config.embedding_model_instance.embed(
+                    summary_content
+                )
+
+            chunks = await create_document_chunks(markdown_content)
+
+            # Update document to READY with actual content
+            document.title = item["file_name"]
+            document.content = summary_content
+            document.content_hash = content_hash
+            document.embedding = summary_embedding
+            document.document_metadata = {
+                "file_id": item["file_id"],
+                "file_name": item["file_name"],
+                "FILE_NAME": item["file_name"],
+                "mime_type": item["mime_type"],
+                "connector_id": connector_id,
+                "source": "composio",
+            }
+            safe_set_chunks(document, chunks)
+            document.updated_at = get_current_timestamp()
+            document.status = DocumentStatus.ready()
+
+            documents_indexed += 1
 
             # Batch commit every 10 documents
-            if documents_indexed > 0 and documents_indexed % 10 == 0:
+            if documents_indexed % 10 == 0:
                 logger.info(
                     f"Committing batch: {documents_indexed} Google Drive files processed so far"
                 )
                 await session.commit()
 
         except Exception as e:
-            error_msg = f"Error processing Drive file {file_name or 'unknown'}: {e!s}"
+            error_msg = f"Error processing Drive file {item['file_name']}: {e!s}"
             logger.error(error_msg, exc_info=True)
             processing_errors.append(error_msg)
-            documents_skipped += 1
+            # Mark document as failed with reason (visible in UI)
+            try:
+                document.status = DocumentStatus.failed(str(e))
+                document.updated_at = get_current_timestamp()
+            except Exception as status_error:
+                logger.error(
+                    f"Failed to update document status to failed: {status_error}"
+                )
+            documents_failed += 1
+            continue
 
     logger.info(
-        f"Full scan complete: {documents_indexed} indexed, {documents_skipped} skipped"
+        f"Full scan complete: {documents_indexed} indexed, {documents_skipped} skipped, "
+        f"{documents_failed} failed ({duplicate_content_count} duplicate content)"
     )
     return documents_indexed, documents_skipped, processing_errors
-
-
-async def _process_single_drive_file(
-    session: AsyncSession,
-    composio_connector: ComposioGoogleDriveConnector,
-    file_id: str,
-    file_name: str,
-    mime_type: str,
-    connector_id: int,
-    search_space_id: int,
-    user_id: str,
-    task_logger: TaskLoggingService,
-    log_entry,
-) -> tuple[int, int, list[str]]:
-    """Process a single Google Drive file for indexing.
-
-    Returns:
-        Tuple of (documents_indexed, documents_skipped, processing_errors)
-    """
-    processing_errors = []
-
-    # ========== EARLY DUPLICATE CHECK BY FILE ID ==========
-    # Check if this Google Drive file was already indexed by ANY connector
-    # This happens BEFORE download/ETL to save expensive API calls
-    existing_by_file_id = await check_document_by_google_drive_file_id(
-        session, file_id, search_space_id
-    )
-    if existing_by_file_id:
-        logger.info(
-            f"Skipping file {file_name} (file_id={file_id}): already indexed "
-            f"by {existing_by_file_id.document_type.value} as '{existing_by_file_id.title}' "
-            f"(saved download & ETL cost)"
-        )
-        return 0, 1, processing_errors  # Skip - NO download, NO ETL!
-    # ======================================================
-
-    # Generate unique identifier hash
-    document_type = DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"])
-    unique_identifier_hash = generate_unique_identifier_hash(
-        document_type, f"drive_{file_id}", search_space_id
-    )
-
-    # Check if document exists by unique identifier (same connector, same file)
-    existing_document = await check_document_by_unique_identifier(
-        session, unique_identifier_hash
-    )
-
-    # Get file content (pass mime_type for Google Workspace export handling)
-    content, content_error = await composio_connector.get_drive_file_content(
-        file_id, original_mime_type=mime_type
-    )
-
-    if content_error or not content:
-        logger.warning(f"Could not get content for file {file_name}: {content_error}")
-        # Use metadata as content fallback
-        markdown_content = f"# {file_name}\n\n"
-        markdown_content += f"**File ID:** {file_id}\n"
-        markdown_content += f"**Type:** {mime_type}\n"
-    elif isinstance(content, dict):
-        # Safety check: if content is still a dict, log error and use fallback
-        error_msg = f"Unexpected dict content format for file {file_name}: {list(content.keys())}"
-        logger.error(error_msg)
-        processing_errors.append(error_msg)
-        markdown_content = f"# {file_name}\n\n"
-        markdown_content += f"**File ID:** {file_id}\n"
-        markdown_content += f"**Type:** {mime_type}\n"
-    else:
-        # Process content based on file type
-        markdown_content = await _process_file_content(
-            content=content,
-            file_name=file_name,
-            file_id=file_id,
-            mime_type=mime_type,
-            search_space_id=search_space_id,
-            user_id=user_id,
-            session=session,
-            task_logger=task_logger,
-            log_entry=log_entry,
-            processing_errors=processing_errors,
-        )
-
-    content_hash = generate_content_hash(markdown_content, search_space_id)
-
-    if existing_document:
-        if existing_document.content_hash == content_hash:
-            return 0, 1, processing_errors  # Skipped - unchanged
-
-        # Update existing document
-        user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
-
-        if user_llm:
-            document_metadata = {
-                "file_id": file_id,
-                "file_name": file_name,
-                "mime_type": mime_type,
-                "document_type": "Google Drive File (Composio)",
-            }
-            (
-                summary_content,
-                summary_embedding,
-            ) = await generate_document_summary(
-                markdown_content, user_llm, document_metadata
-            )
-        else:
-            summary_content = f"Google Drive File: {file_name}\n\nType: {mime_type}"
-            summary_embedding = config.embedding_model_instance.embed(summary_content)
-
-        chunks = await create_document_chunks(markdown_content)
-
-        existing_document.title = f"Drive: {file_name}"
-        existing_document.content = summary_content
-        existing_document.content_hash = content_hash
-        existing_document.embedding = summary_embedding
-        existing_document.document_metadata = {
-            "file_id": file_id,
-            "file_name": file_name,
-            "FILE_NAME": file_name,  # For compatibility
-            "mime_type": mime_type,
-            "connector_id": connector_id,
-            "source": "composio",
-        }
-        existing_document.chunks = chunks
-        existing_document.updated_at = get_current_timestamp()
-
-        return 1, 0, processing_errors  # Indexed - updated
-
-    # Check if content_hash already exists (from any connector)
-    # This prevents duplicate content and avoids IntegrityError on unique constraint
-    existing_by_content_hash = await check_document_by_content_hash(
-        session, content_hash
-    )
-    if existing_by_content_hash:
-        logger.info(
-            f"Skipping file {file_name} (file_id={file_id}): identical content "
-            f"already indexed as '{existing_by_content_hash.title}'"
-        )
-        return 0, 1, processing_errors  # Skipped - duplicate content
-
-    # Create new document
-    user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
-
-    if user_llm:
-        document_metadata = {
-            "file_id": file_id,
-            "file_name": file_name,
-            "mime_type": mime_type,
-            "document_type": "Google Drive File (Composio)",
-        }
-        (
-            summary_content,
-            summary_embedding,
-        ) = await generate_document_summary(
-            markdown_content, user_llm, document_metadata
-        )
-    else:
-        summary_content = f"Google Drive File: {file_name}\n\nType: {mime_type}"
-        summary_embedding = config.embedding_model_instance.embed(summary_content)
-
-    chunks = await create_document_chunks(markdown_content)
-
-    document = Document(
-        search_space_id=search_space_id,
-        title=f"Drive: {file_name}",
-        document_type=DocumentType(TOOLKIT_TO_DOCUMENT_TYPE["googledrive"]),
-        document_metadata={
-            "file_id": file_id,
-            "file_name": file_name,
-            "FILE_NAME": file_name,  # For compatibility
-            "mime_type": mime_type,
-            "toolkit_id": "googledrive",
-            "source": "composio",
-        },
-        content=summary_content,
-        content_hash=content_hash,
-        unique_identifier_hash=unique_identifier_hash,
-        embedding=summary_embedding,
-        chunks=chunks,
-        updated_at=get_current_timestamp(),
-        created_by_id=user_id,
-        connector_id=connector_id,
-    )
-    session.add(document)
-
-    return 1, 0, processing_errors  # Indexed - new
 
 
 async def _fetch_folder_files_recursively(

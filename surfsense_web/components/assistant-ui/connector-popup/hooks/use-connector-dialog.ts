@@ -1,8 +1,9 @@
 import { format } from "date-fns";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import {
 	createConnectorMutationAtom,
 	deleteConnectorMutationAtom,
@@ -49,7 +50,8 @@ export const useConnectorDialog = () => {
 	const { mutateAsync: deleteConnector } = useAtomValue(deleteConnectorMutationAtom);
 	const { mutateAsync: createConnector } = useAtomValue(createConnectorMutationAtom);
 
-	const [isOpen, setIsOpen] = useState(false);
+	// Use global atom for dialog open state so it can be controlled from anywhere
+	const [isOpen, setIsOpen] = useAtom(connectorDialogOpenAtom);
 	const [activeTab, setActiveTab] = useState("all");
 	const [connectingId, setConnectingId] = useState<string | null>(null);
 	const [isScrolled, setIsScrolled] = useState(false);
@@ -293,6 +295,7 @@ export const useConnectorDialog = () => {
 		connectingConnectorType,
 		viewingAccountsType,
 		viewingMCPList,
+		setIsOpen,
 	]);
 
 	// Detect OAuth success / Failure and transition to config view
@@ -345,9 +348,10 @@ export const useConnectorDialog = () => {
 
 						// If we found the connector, find the matching OAuth/Composio connector by type
 						if (newConnector) {
+							const connectorType = newConnector.connector_type;
 							oauthConnector =
-								OAUTH_CONNECTORS.find((c) => c.connectorType === newConnector!.connector_type) ||
-								COMPOSIO_CONNECTORS.find((c) => c.connectorType === newConnector!.connector_type);
+								OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+								COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
 						}
 					}
 
@@ -358,8 +362,9 @@ export const useConnectorDialog = () => {
 							COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
 
 						if (oauthConnector) {
+							const oauthConnectorType = oauthConnector.connectorType;
 							newConnector = result.data.find(
-								(c: SearchSourceConnector) => c.connector_type === oauthConnector!.connectorType
+								(c: SearchSourceConnector) => c.connector_type === oauthConnectorType
 							);
 						}
 					}
@@ -399,7 +404,7 @@ export const useConnectorDialog = () => {
 			// Invalid query params - log but don't crash
 			console.warn("Invalid connector popup query params in OAuth success handler:", error);
 		}
-	}, [searchParams, searchSpaceId, refetchAllConnectors]);
+	}, [searchParams, searchSpaceId, refetchAllConnectors, setIsOpen]);
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(
@@ -514,7 +519,7 @@ export const useConnectorDialog = () => {
 		} finally {
 			setConnectingId(null);
 		}
-	}, [searchSpaceId, createConnector, refetchAllConnectors]);
+	}, [searchSpaceId, createConnector, refetchAllConnectors, setIsOpen]);
 
 	// Handle connecting non-OAuth connectors (like Tavily API)
 	const handleConnectNonOAuth = useCallback(
@@ -677,12 +682,8 @@ export const useConnectorDialog = () => {
 								const successMessage =
 									currentConnectorType === "MCP_CONNECTOR"
 										? `${connector.name} added successfully`
-										: `${connectorTitle} connected and indexing started!`;
-								toast.success(successMessage, {
-									description: periodicEnabledForIndexing
-										? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutesForIndexing)}.`
-										: "You can continue working while we sync your data.",
-								});
+										: `${connectorTitle} connected and syncing started!`;
+								toast.success(successMessage);
 
 								const url = new URL(window.location.href);
 								url.searchParams.delete("modal");
@@ -782,7 +783,6 @@ export const useConnectorDialog = () => {
 			updateConnector,
 			indexConnector,
 			router,
-			getFrequencyLabel,
 		]
 	);
 
@@ -1010,11 +1010,7 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-				toast.success(`${indexingConfig.connectorTitle} indexing started`, {
-					description: periodicEnabled
-						? `Periodic sync enabled every ${getFrequencyLabel(frequencyMinutes)}.`
-						: "You can continue working while we sync your data.",
-				});
+				toast.success(`${indexingConfig.connectorTitle} indexing started`);
 
 				// Update URL - the effect will handle closing the modal and clearing state
 				const url = new URL(window.location.href);
@@ -1045,7 +1041,6 @@ export const useConnectorDialog = () => {
 			updateConnector,
 			periodicEnabled,
 			frequencyMinutes,
-			getFrequencyLabel,
 			router,
 			indexingConnectorConfig,
 		]
@@ -1426,9 +1421,7 @@ export const useConnectorDialog = () => {
 						end_date: endDateStr,
 					},
 				});
-				toast.success("Indexing started", {
-					description: "You can continue working while we sync your data.",
-				});
+				toast.success("Indexing started");
 
 				// Invalidate queries to refresh data
 				queryClient.invalidateQueries({
@@ -1445,7 +1438,7 @@ export const useConnectorDialog = () => {
 				}
 			}
 		},
-		[searchSpaceId, indexConnector, queryClient]
+		[searchSpaceId, indexConnector]
 	);
 
 	// Handle going back from edit view
@@ -1527,7 +1520,7 @@ export const useConnectorDialog = () => {
 				}
 			}
 		},
-		[activeTab, isStartingIndexing, isDisconnecting, isSaving, isCreatingConnector]
+		[activeTab, isStartingIndexing, isDisconnecting, isSaving, isCreatingConnector, setIsOpen]
 	);
 
 	// Handle tab change

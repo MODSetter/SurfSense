@@ -537,6 +537,304 @@ async def _process_file_upload(
             raise
 
 
+@celery_app.task(name="process_file_upload_with_document", bind=True)
+def process_file_upload_with_document_task(
+    self,
+    document_id: int,
+    temp_path: str,
+    filename: str,
+    search_space_id: int,
+    user_id: str,
+):
+    """
+    Celery task to process uploaded file with existing pending document.
+
+    This task is used by the 2-phase document upload flow:
+    - Phase 1 (API): Creates pending document (visible in UI immediately)
+    - Phase 2 (this task): Updates document status: pending → processing → ready/failed
+
+    Args:
+        document_id: ID of the pending document created in Phase 1
+        temp_path: Path to the uploaded file
+        filename: Original filename
+        search_space_id: ID of the search space
+        user_id: ID of the user
+    """
+    import asyncio
+    import os
+    import traceback
+
+    logger.info(
+        f"[process_file_upload_with_document] Task started - document_id: {document_id}, "
+        f"file: {filename}, search_space_id: {search_space_id}"
+    )
+
+    # Check if file exists and is accessible
+    if not os.path.exists(temp_path):
+        logger.error(
+            f"[process_file_upload_with_document] File does not exist: {temp_path}. "
+            "The temp file may have been cleaned up before the task ran."
+        )
+        # Mark document as failed since file is missing
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(
+                _mark_document_failed(
+                    document_id,
+                    "File not found - temp file may have been cleaned up",
+                )
+            )
+        finally:
+            loop.close()
+        return
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        loop.run_until_complete(
+            _process_file_with_document(
+                document_id, temp_path, filename, search_space_id, user_id
+            )
+        )
+        logger.info(
+            f"[process_file_upload_with_document] Task completed successfully for: {filename}"
+        )
+    except Exception as e:
+        logger.error(
+            f"[process_file_upload_with_document] Task failed for {filename}: {e}\n"
+            f"Traceback:\n{traceback.format_exc()}"
+        )
+        raise
+    finally:
+        loop.close()
+
+
+async def _mark_document_failed(document_id: int, reason: str):
+    """Mark a document as failed when task cannot proceed."""
+    from app.db import Document, DocumentStatus
+    from app.tasks.document_processors.base import get_current_timestamp
+
+    async with get_celery_session_maker()() as session:
+        document = await session.get(Document, document_id)
+        if document:
+            document.status = DocumentStatus.failed(reason)
+            document.updated_at = get_current_timestamp()
+            await session.commit()
+            logger.info(f"Marked document {document_id} as failed: {reason}")
+
+
+async def _process_file_with_document(
+    document_id: int,
+    temp_path: str,
+    filename: str,
+    search_space_id: int,
+    user_id: str,
+):
+    """
+    Process file and update existing pending document status.
+
+    This function implements Phase 2 of the 2-phase document upload:
+    - Sets document status to 'processing' (shows spinner in UI)
+    - Processes the file (parsing, embedding, chunking)
+    - Updates document to 'ready' on success or 'failed' on error
+    """
+    import os
+
+    from app.db import Document, DocumentStatus
+    from app.tasks.document_processors.base import get_current_timestamp
+    from app.tasks.document_processors.file_processors import (
+        process_file_in_background_with_document,
+    )
+
+    logger.info(
+        f"[_process_file_with_document] Starting async processing for: {filename}"
+    )
+
+    async with get_celery_session_maker()() as session:
+        logger.info(
+            f"[_process_file_with_document] Database session created for: {filename}"
+        )
+        task_logger = TaskLoggingService(session, search_space_id)
+
+        # Get the document
+        document = await session.get(Document, document_id)
+        if not document:
+            logger.error(f"Document {document_id} not found")
+            return
+
+        # Get file size for notification metadata
+        try:
+            file_size = os.path.getsize(temp_path)
+            logger.info(f"[_process_file_with_document] File size: {file_size} bytes")
+        except Exception as e:
+            logger.warning(
+                f"[_process_file_with_document] Could not get file size: {e}"
+            )
+            file_size = None
+
+        # Create notification for document processing
+        logger.info(
+            f"[_process_file_with_document] Creating notification for: {filename}"
+        )
+        notification = (
+            await NotificationService.document_processing.notify_processing_started(
+                session=session,
+                user_id=UUID(user_id),
+                document_type="FILE",
+                document_name=filename,
+                search_space_id=search_space_id,
+                file_size=file_size,
+            )
+        )
+
+        log_entry = await task_logger.log_task_start(
+            task_name="process_file_upload_with_document",
+            source="document_processor",
+            message=f"Starting file processing for: {filename} (document_id: {document_id})",
+            metadata={
+                "document_type": "FILE",
+                "document_id": document_id,
+                "filename": filename,
+                "file_path": temp_path,
+                "user_id": user_id,
+            },
+        )
+
+        try:
+            # Set status to PROCESSING (shows spinner in UI via ElectricSQL)
+            document.status = DocumentStatus.processing()
+            await session.commit()
+            logger.info(
+                f"[_process_file_with_document] Document {document_id} status set to 'processing'"
+            )
+
+            # Process the file and update document
+            result = await process_file_in_background_with_document(
+                document=document,
+                file_path=temp_path,
+                filename=filename,
+                search_space_id=search_space_id,
+                user_id=user_id,
+                session=session,
+                task_logger=task_logger,
+                log_entry=log_entry,
+                notification=notification,
+            )
+
+            # Update notification on success
+            if result:
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        document_id=result.id,
+                        chunks_count=None,
+                    )
+                )
+                logger.info(
+                    f"[_process_file_with_document] Successfully processed document {document_id}"
+                )
+            else:
+                # Duplicate detected - mark as failed
+                document.status = DocumentStatus.failed("Duplicate content detected")
+                document.updated_at = get_current_timestamp()
+                await session.commit()
+                await (
+                    NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message="Document already exists (duplicate)",
+                    )
+                )
+
+        except Exception as e:
+            # Import here to avoid circular dependencies
+            from fastapi import HTTPException
+
+            from app.services.page_limit_service import PageLimitExceededError
+
+            # Check if this is a page limit error
+            page_limit_error: PageLimitExceededError | None = None
+            if isinstance(e, PageLimitExceededError):
+                page_limit_error = e
+            elif (
+                isinstance(e, HTTPException)
+                and e.__cause__
+                and isinstance(e.__cause__, PageLimitExceededError)
+            ):
+                page_limit_error = e.__cause__
+
+            # Mark document as failed (shows error in UI via ElectricSQL)
+            error_message = str(e)[:500]
+            document.status = DocumentStatus.failed(error_message)
+            document.updated_at = get_current_timestamp()
+            await session.commit()
+            logger.info(
+                f"[_process_file_with_document] Document {document_id} marked as failed: {error_message[:100]}"
+            )
+
+            # Handle page limit errors with dedicated notification
+            if page_limit_error is not None:
+                try:
+                    await session.refresh(notification)
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message="Page limit exceeded",
+                    )
+                    await NotificationService.page_limit.notify_page_limit_exceeded(
+                        session=session,
+                        user_id=UUID(user_id),
+                        document_name=filename,
+                        document_type="FILE",
+                        search_space_id=search_space_id,
+                        pages_used=page_limit_error.pages_used,
+                        pages_limit=page_limit_error.pages_limit,
+                        pages_to_add=page_limit_error.pages_to_add,
+                    )
+                except Exception as notif_error:
+                    logger.error(
+                        f"Failed to create page limit notification: {notif_error!s}"
+                    )
+            else:
+                # Update notification on failure
+                try:
+                    await session.refresh(notification)
+                    await NotificationService.document_processing.notify_processing_completed(
+                        session=session,
+                        notification=notification,
+                        error_message=str(e)[:100],
+                    )
+                except Exception as notif_error:
+                    logger.error(
+                        f"Failed to update notification on failure: {notif_error!s}"
+                    )
+
+            await task_logger.log_task_failure(
+                log_entry,
+                error_message[:100],
+                str(e),
+                {"error_type": type(e).__name__, "document_id": document_id},
+            )
+            logger.error(f"Error processing file {filename}: {e!s}")
+            raise
+
+        finally:
+            # Clean up temp file
+            if os.path.exists(temp_path):
+                try:
+                    os.unlink(temp_path)
+                    logger.info(
+                        f"[_process_file_with_document] Cleaned up temp file: {temp_path}"
+                    )
+                except Exception as cleanup_error:
+                    logger.warning(
+                        f"[_process_file_with_document] Failed to clean up temp file: {cleanup_error}"
+                    )
+
+
 @celery_app.task(name="process_circleback_meeting", bind=True)
 def process_circleback_meeting_task(
     self,

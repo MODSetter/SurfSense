@@ -230,6 +230,14 @@ async def delete_note(
     if not document:
         raise HTTPException(status_code=404, detail="Note not found")
 
+    # Check if note is pending or currently being processed
+    doc_state = document.status.get("state") if document.status else None
+    if doc_state in ("pending", "processing"):
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot delete note while it is pending or being processed. Please wait for processing to complete.",
+        )
+
     # Delete document (chunks will be cascade deleted)
     await session.delete(document)
     await session.commit()

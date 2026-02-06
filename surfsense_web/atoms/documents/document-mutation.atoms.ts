@@ -48,7 +48,7 @@ export const uploadDocumentMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: () => {
-			toast.success("Files uploaded for processing");
+			// Note: Toast notification is handled by the caller (DocumentUploadTab) to use i18n
 			// Invalidate logs summary to show new processing tasks immediately on documents page
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.logs.summary(searchSpaceId ?? undefined),
@@ -95,7 +95,7 @@ export const deleteDocumentMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: (_, request: DeleteDocumentRequest) => {
-			toast.success("Document deleted successfully");
+			// Note: Toast is handled by the caller (page.tsx onBulkDelete) to show count info
 			queryClient.setQueryData(
 				cacheKeys.documents.globalQueryParams(documentsQueryParams),
 				(oldData: GetDocumentsResponse | undefined) => {

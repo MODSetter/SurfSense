@@ -1,4 +1,4 @@
-import { FileJson } from "lucide-react";
+import { FileJson, Loader2 } from "lucide-react";
 import React from "react";
 import { defaultStyles, JsonView } from "react-json-view-lite";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ interface JsonMetadataViewerProps {
 	trigger?: React.ReactNode;
 	open?: boolean;
 	onOpenChange?: (open: boolean) => void;
+	loading?: boolean;
 }
 
 export function JsonMetadataViewer({
@@ -25,6 +26,7 @@ export function JsonMetadataViewer({
 	trigger,
 	open,
 	onOpenChange,
+	loading,
 }: JsonMetadataViewerProps) {
 	// Ensure metadata is a valid object
 	const jsonData = React.useMemo(() => {
@@ -54,7 +56,13 @@ export function JsonMetadataViewer({
 						</DialogTitle>
 					</DialogHeader>
 					<div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-muted/30 rounded-md text-xs sm:text-sm">
-						<JsonView data={jsonData} style={defaultStyles} />
+						{loading ? (
+							<div className="flex items-center justify-center py-12">
+								<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+							</div>
+						) : (
+							<JsonView data={jsonData} style={defaultStyles} />
+						)}
 					</div>
 				</DialogContent>
 			</Dialog>

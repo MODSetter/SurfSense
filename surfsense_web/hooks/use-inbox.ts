@@ -38,10 +38,14 @@ function deduplicateAndSort(items: InboxItem[]): InboxItem[] {
 
 /**
  * Calculate the cutoff date for sync window
+ * IMPORTANT: Rounds to the start of the day (midnight UTC) to ensure stable values
+ * across re-renders. Without this, millisecond differences cause multiple syncs!
  */
 function getSyncCutoffDate(): string {
 	const cutoff = new Date();
 	cutoff.setDate(cutoff.getDate() - SYNC_WINDOW_DAYS);
+	// Round to start of day to prevent millisecond differences causing duplicate syncs
+	cutoff.setUTCHours(0, 0, 0, 0);
 	return cutoff.toISOString();
 }
 

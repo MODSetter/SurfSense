@@ -74,6 +74,7 @@ interface LayoutShellProps {
 	className?: string;
 	// Inbox props
 	inbox?: InboxProps;
+	isLoadingChats?: boolean;
 }
 
 export function LayoutShell({
@@ -110,6 +111,7 @@ export function LayoutShell({
 	children,
 	className,
 	inbox,
+	isLoadingChats = false,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -162,6 +164,7 @@ export function LayoutShell({
 							pageUsage={pageUsage}
 							theme={theme}
 							setTheme={setTheme}
+							isLoadingChats={isLoadingChats}
 						/>
 
 						<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
@@ -232,6 +235,7 @@ export function LayoutShell({
 							theme={theme}
 							setTheme={setTheme}
 							className="hidden md:flex border-r shrink-0"
+							isLoadingChats={isLoadingChats}
 						/>
 
 						{/* Docked Inbox Sidebar - renders as flex sibling between sidebar and content */}

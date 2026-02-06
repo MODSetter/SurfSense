@@ -19,6 +19,7 @@ from app.db import (
 from app.schemas import (
     DocumentRead,
     DocumentsCreate,
+    DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,
     DocumentUpdate,
@@ -112,9 +113,23 @@ async def create_documents_file_upload(
     user: User = Depends(current_active_user),
 ):
     """
-    Upload files as documents.
+    Upload files as documents with real-time status tracking.
+
+    Implements 2-phase document status updates for real-time UI feedback:
+    - Phase 1: Create all documents with 'pending' status (visible in UI immediately via ElectricSQL)
+    - Phase 2: Celery processes each file: pending → processing → ready/failed
+
     Requires DOCUMENTS_CREATE permission.
     """
+    from datetime import datetime
+
+    from app.db import DocumentStatus
+    from app.tasks.document_processors.base import (
+        check_document_by_unique_identifier,
+        get_current_timestamp,
+    )
+    from app.utils.document_converters import generate_unique_identifier_hash
+
     try:
         # Check permission
         await check_permission(
@@ -128,38 +143,105 @@ async def create_documents_file_upload(
         if not files:
             raise HTTPException(status_code=400, detail="No files provided")
 
+        created_documents: list[Document] = []
+        files_to_process: list[
+            tuple[Document, str, str]
+        ] = []  # (document, temp_path, filename)
+        skipped_duplicates = 0
+
+        # ===== PHASE 1: Create pending documents for all files =====
+        # This makes ALL documents visible in the UI immediately with pending status
         for file in files:
             try:
-                # Save file to a temporary location to avoid stream issues
                 import os
                 import tempfile
 
-                # Create temp file
+                # Save file to temp location
                 with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=os.path.splitext(file.filename)[1]
+                    delete=False, suffix=os.path.splitext(file.filename or "")[1]
                 ) as temp_file:
                     temp_path = temp_file.name
 
-                # Write uploaded file to temp file
                 content = await file.read()
                 with open(temp_path, "wb") as f:
                     f.write(content)
 
-                from app.tasks.celery_tasks.document_tasks import (
-                    process_file_upload_task,
+                file_size = len(content)
+
+                # Generate unique identifier for deduplication check
+                unique_identifier_hash = generate_unique_identifier_hash(
+                    DocumentType.FILE, file.filename or "unknown", search_space_id
                 )
 
-                process_file_upload_task.delay(
-                    temp_path, file.filename, search_space_id, str(user.id)
+                # Check if document already exists (by unique identifier)
+                existing = await check_document_by_unique_identifier(
+                    session, unique_identifier_hash
                 )
+                if existing:
+                    # Clean up temp file for duplicates
+                    os.unlink(temp_path)
+                    skipped_duplicates += 1
+                    continue
+
+                # Create pending document (visible immediately in UI via ElectricSQL)
+                document = Document(
+                    search_space_id=search_space_id,
+                    title=file.filename or "Uploaded File",
+                    document_type=DocumentType.FILE,
+                    document_metadata={
+                        "FILE_NAME": file.filename,
+                        "file_size": file_size,
+                        "upload_time": datetime.now().isoformat(),
+                    },
+                    content="Processing...",  # Placeholder until processed
+                    content_hash=unique_identifier_hash,  # Temporary, updated when ready
+                    unique_identifier_hash=unique_identifier_hash,
+                    embedding=None,
+                    status=DocumentStatus.pending(),  # Shows "pending" in UI
+                    updated_at=get_current_timestamp(),
+                    created_by_id=str(user.id),
+                )
+                session.add(document)
+                created_documents.append(document)
+                files_to_process.append(
+                    (document, temp_path, file.filename or "unknown")
+                )
+
             except Exception as e:
                 raise HTTPException(
                     status_code=422,
                     detail=f"Failed to process file {file.filename}: {e!s}",
                 ) from e
 
-        await session.commit()
-        return {"message": "Files uploaded for processing"}
+        # Commit all pending documents - they appear in UI immediately via ElectricSQL
+        if created_documents:
+            await session.commit()
+            # Refresh to get generated IDs
+            for doc in created_documents:
+                await session.refresh(doc)
+
+        # ===== PHASE 2: Dispatch Celery tasks for each file =====
+        # Each task will update document status: pending → processing → ready/failed
+        from app.tasks.celery_tasks.document_tasks import (
+            process_file_upload_with_document_task,
+        )
+
+        for document, temp_path, filename in files_to_process:
+            process_file_upload_with_document_task.delay(
+                document_id=document.id,
+                temp_path=temp_path,
+                filename=filename,
+                search_space_id=search_space_id,
+                user_id=str(user.id),
+            )
+
+        return {
+            "message": "Files uploaded for processing",
+            "document_ids": [doc.id for doc in created_documents],
+            "total_files": len(files),
+            "pending_files": len(files_to_process),
+            "skipped_duplicates": skipped_duplicates,
+        }
     except HTTPException:
         raise
     except Exception as e:
@@ -211,7 +293,11 @@ async def read_documents(
                 Permission.DOCUMENTS_READ.value,
                 "You don't have permission to read documents in this search space",
             )
-            query = select(Document).filter(Document.search_space_id == search_space_id)
+            query = (
+                select(Document)
+                .options(selectinload(Document.created_by))
+                .filter(Document.search_space_id == search_space_id)
+            )
             count_query = (
                 select(func.count())
                 .select_from(Document)
@@ -221,6 +307,7 @@ async def read_documents(
             # Get documents from all search spaces user has membership in
             query = (
                 select(Document)
+                .options(selectinload(Document.created_by))
                 .join(SearchSpace)
                 .join(SearchSpaceMembership)
                 .filter(SearchSpaceMembership.user_id == user.id)
@@ -261,6 +348,19 @@ async def read_documents(
         # Convert database objects to API-friendly format
         api_documents = []
         for doc in db_documents:
+            # Get user name (display_name or email fallback)
+            created_by_name = None
+            if doc.created_by:
+                created_by_name = doc.created_by.display_name or doc.created_by.email
+
+            # Parse status from JSONB
+            status_data = None
+            if hasattr(doc, "status") and doc.status:
+                status_data = DocumentStatusSchema(
+                    state=doc.status.get("state", "ready"),
+                    reason=doc.status.get("reason"),
+                )
+
             api_documents.append(
                 DocumentRead(
                     id=doc.id,
@@ -273,6 +373,9 @@ async def read_documents(
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
                     search_space_id=doc.search_space_id,
+                    created_by_id=doc.created_by_id,
+                    created_by_name=created_by_name,
+                    status=status_data,
                 )
             )
 
@@ -341,7 +444,11 @@ async def search_documents(
                 Permission.DOCUMENTS_READ.value,
                 "You don't have permission to read documents in this search space",
             )
-            query = select(Document).filter(Document.search_space_id == search_space_id)
+            query = (
+                select(Document)
+                .options(selectinload(Document.created_by))
+                .filter(Document.search_space_id == search_space_id)
+            )
             count_query = (
                 select(func.count())
                 .select_from(Document)
@@ -351,6 +458,7 @@ async def search_documents(
             # Get documents from all search spaces user has membership in
             query = (
                 select(Document)
+                .options(selectinload(Document.created_by))
                 .join(SearchSpace)
                 .join(SearchSpaceMembership)
                 .filter(SearchSpaceMembership.user_id == user.id)
@@ -395,6 +503,19 @@ async def search_documents(
         # Convert database objects to API-friendly format
         api_documents = []
         for doc in db_documents:
+            # Get user name (display_name or email fallback)
+            created_by_name = None
+            if doc.created_by:
+                created_by_name = doc.created_by.display_name or doc.created_by.email
+
+            # Parse status from JSONB
+            status_data = None
+            if hasattr(doc, "status") and doc.status:
+                status_data = DocumentStatusSchema(
+                    state=doc.status.get("state", "ready"),
+                    reason=doc.status.get("reason"),
+                )
+
             api_documents.append(
                 DocumentRead(
                     id=doc.id,
@@ -407,6 +528,9 @@ async def search_documents(
                     created_at=doc.created_at,
                     updated_at=doc.updated_at,
                     search_space_id=doc.search_space_id,
+                    created_by_id=doc.created_by_id,
+                    created_by_name=created_by_name,
+                    status=status_data,
                 )
             )
 
@@ -782,6 +906,7 @@ async def delete_document(
     """
     Delete a document.
     Requires DOCUMENTS_DELETE permission for the search space.
+    Documents in "processing" state cannot be deleted.
     """
     try:
         result = await session.execute(
@@ -792,6 +917,14 @@ async def delete_document(
         if not document:
             raise HTTPException(
                 status_code=404, detail=f"Document with id {document_id} not found"
+            )
+
+        # Check if document is pending or currently being processed
+        doc_state = document.status.get("state") if document.status else None
+        if doc_state in ("pending", "processing"):
+            raise HTTPException(
+                status_code=409,  # Conflict
+                detail="Cannot delete document while it is pending or being processed. Please wait for processing to complete.",
             )
 
         # Check permission for the search space

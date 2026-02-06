@@ -1,5 +1,9 @@
 """
 Google Gmail connector indexer.
+
+Implements 2-phase document status updates for real-time UI feedback:
+- Phase 1: Create all documents with 'pending' status (visible in UI immediately)
+- Phase 2: Process each document: pending → processing → ready/failed
 """
 
 import time
@@ -13,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.connectors.google_gmail_connector import GoogleGmailConnector
 from app.db import (
     Document,
+    DocumentStatus,
     DocumentType,
     SearchSourceConnectorType,
 )
@@ -32,6 +37,7 @@ from .base import (
     get_connector_by_id,
     get_current_timestamp,
     logger,
+    safe_set_chunks,
     update_connector_last_indexed,
 )
 
@@ -220,20 +226,23 @@ async def index_google_gmail_messages(
         logger.info(f"Found {len(messages)} Google gmail messages to index")
 
         documents_indexed = 0
-        skipped_messages = []
         documents_skipped = 0
+        documents_failed = 0  # Track messages that failed processing
+        duplicate_content_count = (
+            0  # Track messages skipped due to duplicate content_hash
+        )
 
         # Heartbeat tracking - update notification periodically to prevent appearing stuck
         last_heartbeat_time = time.time()
 
+        # =======================================================================
+        # PHASE 1: Analyze all messages, create pending documents
+        # This makes ALL documents visible in the UI immediately with pending status
+        # =======================================================================
+        messages_to_process = []  # List of dicts with document and message data
+        new_documents_created = False
+
         for message in messages:
-            # Check if it's time for a heartbeat update
-            if (
-                on_heartbeat_callback
-                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
-            ):
-                await on_heartbeat_callback(documents_indexed)
-                last_heartbeat_time = time.time()
             try:
                 # Extract message information
                 message_id = message.get("id", "")
@@ -259,7 +268,6 @@ async def index_google_gmail_messages(
 
                 if not message_id:
                     logger.warning(f"Skipping message with missing ID: {subject}")
-                    skipped_messages.append(f"{subject} (missing ID)")
                     documents_skipped += 1
                     continue
 
@@ -268,7 +276,6 @@ async def index_google_gmail_messages(
 
                 if not markdown_content.strip():
                     logger.warning(f"Skipping message with no content: {subject}")
-                    skipped_messages.append(f"{subject} (no content)")
                     documents_skipped += 1
                     continue
 
@@ -288,68 +295,29 @@ async def index_google_gmail_messages(
                 if existing_document:
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
-                        logger.info(
-                            f"Document for Gmail message {subject} unchanged. Skipping."
-                        )
+                        # Ensure status is ready (might have been stuck in processing/pending)
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
+                            existing_document.status = DocumentStatus.ready()
                         documents_skipped += 1
                         continue
-                    else:
-                        # Content has changed - update the existing document
-                        logger.info(
-                            f"Content changed for Gmail message {subject}. Updating document."
-                        )
 
-                        # Generate summary with metadata
-                        user_llm = await get_user_long_context_llm(
-                            session, user_id, search_space_id
-                        )
-
-                        if user_llm:
-                            document_metadata = {
-                                "message_id": message_id,
-                                "thread_id": thread_id,
-                                "subject": subject,
-                                "sender": sender,
-                                "date": date_str,
-                                "document_type": "Gmail Message",
-                                "connector_type": "Google Gmail",
-                            }
-                            (
-                                summary_content,
-                                summary_embedding,
-                            ) = await generate_document_summary(
-                                markdown_content, user_llm, document_metadata
-                            )
-                        else:
-                            summary_content = f"Google Gmail Message: {subject}\n\n"
-                            summary_content += f"Sender: {sender}\n"
-                            summary_content += f"Date: {date_str}\n"
-                            summary_embedding = config.embedding_model_instance.embed(
-                                summary_content
-                            )
-
-                        # Process chunks
-                        chunks = await create_document_chunks(markdown_content)
-
-                        # Update existing document
-                        existing_document.title = f"Gmail: {subject}"
-                        existing_document.content = summary_content
-                        existing_document.content_hash = content_hash
-                        existing_document.embedding = summary_embedding
-                        existing_document.document_metadata = {
+                    # Queue existing document for update (will be set to processing in Phase 2)
+                    messages_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "markdown_content": markdown_content,
+                            "content_hash": content_hash,
                             "message_id": message_id,
                             "thread_id": thread_id,
                             "subject": subject,
                             "sender": sender,
-                            "date": date_str,
-                            "connector_id": connector_id,
+                            "date_str": date_str,
                         }
-                        existing_document.chunks = chunks
-                        existing_document.updated_at = get_current_timestamp()
-
-                        documents_indexed += 1
-                        logger.info(f"Successfully updated Gmail message {subject}")
-                        continue
+                    )
+                    continue
 
                 # Document doesn't exist by unique_identifier_hash
                 # Check if a document with the same content_hash exists (from another connector)
@@ -364,48 +332,14 @@ async def index_google_gmail_messages(
                         f"(existing document ID: {duplicate_by_content.id}, "
                         f"type: {duplicate_by_content.document_type}). Skipping."
                     )
+                    duplicate_content_count += 1
                     documents_skipped += 1
                     continue
 
-                # Document doesn't exist - create new one
-                # Generate summary with metadata
-                user_llm = await get_user_long_context_llm(
-                    session, user_id, search_space_id
-                )
-
-                if user_llm:
-                    document_metadata = {
-                        "message_id": message_id,
-                        "thread_id": thread_id,
-                        "subject": subject,
-                        "sender": sender,
-                        "date": date_str,
-                        "document_type": "Gmail Message",
-                        "connector_type": "Google Gmail",
-                    }
-                    (
-                        summary_content,
-                        summary_embedding,
-                    ) = await generate_document_summary(
-                        markdown_content, user_llm, document_metadata
-                    )
-                else:
-                    # Fallback to simple summary if no LLM configured
-                    summary_content = f"Google Gmail Message: {subject}\n\n"
-                    summary_content += f"Sender: {sender}\n"
-                    summary_content += f"Date: {date_str}\n"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
-
-                # Process chunks
-                chunks = await create_document_chunks(markdown_content)
-
-                # Create and store new document
-                logger.info(f"Creating new document for Gmail message: {subject}")
+                # Create new document with PENDING status (visible in UI immediately)
                 document = Document(
                     search_space_id=search_space_id,
-                    title=f"Gmail: {subject}",
+                    title=subject,
                     document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
                     document_metadata={
                         "message_id": message_id,
@@ -413,21 +347,120 @@ async def index_google_gmail_messages(
                         "subject": subject,
                         "sender": sender,
                         "date": date_str,
+                        "connector_id": connector_id,
                     },
-                    content=summary_content,
-                    content_hash=content_hash,
+                    content="Pending...",  # Placeholder until processed
+                    content_hash=unique_identifier_hash,  # Temporary unique value - updated when ready
                     unique_identifier_hash=unique_identifier_hash,
-                    embedding=summary_embedding,
-                    chunks=chunks,
+                    embedding=None,
+                    chunks=[],  # Empty at creation - safe for async
+                    status=DocumentStatus.pending(),  # Pending until processing starts
                     updated_at=get_current_timestamp(),
                     created_by_id=user_id,
                     connector_id=connector_id,
                 )
                 session.add(document)
-                documents_indexed += 1
-                logger.info(f"Successfully indexed new email {summary_content}")
+                new_documents_created = True
 
-                # Batch commit every 10 documents
+                messages_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "markdown_content": markdown_content,
+                        "content_hash": content_hash,
+                        "message_id": message_id,
+                        "thread_id": thread_id,
+                        "subject": subject,
+                        "sender": sender,
+                        "date_str": date_str,
+                    }
+                )
+
+            except Exception as e:
+                logger.error(f"Error in Phase 1 for message: {e!s}", exc_info=True)
+                documents_failed += 1
+                continue
+
+        # Commit all pending documents - they all appear in UI now
+        if new_documents_created:
+            logger.info(
+                f"Phase 1: Committing {len([m for m in messages_to_process if m['is_new']])} pending documents"
+            )
+            await session.commit()
+
+        # =======================================================================
+        # PHASE 2: Process each document one by one
+        # Each document transitions: pending → processing → ready/failed
+        # =======================================================================
+        logger.info(f"Phase 2: Processing {len(messages_to_process)} documents")
+
+        for item in messages_to_process:
+            # Send heartbeat periodically
+            if on_heartbeat_callback:
+                current_time = time.time()
+                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                    await on_heartbeat_callback(documents_indexed)
+                    last_heartbeat_time = current_time
+
+            document = item["document"]
+            try:
+                # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
+                document.status = DocumentStatus.processing()
+                await session.commit()
+
+                # Heavy processing (LLM, embeddings, chunks)
+                user_llm = await get_user_long_context_llm(
+                    session, user_id, search_space_id
+                )
+
+                if user_llm:
+                    document_metadata_for_summary = {
+                        "message_id": item["message_id"],
+                        "thread_id": item["thread_id"],
+                        "subject": item["subject"],
+                        "sender": item["sender"],
+                        "date": item["date_str"],
+                        "document_type": "Gmail Message",
+                        "connector_type": "Google Gmail",
+                    }
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        item["markdown_content"],
+                        user_llm,
+                        document_metadata_for_summary,
+                    )
+                else:
+                    summary_content = f"Google Gmail Message: {item['subject']}\n\n"
+                    summary_content += f"Sender: {item['sender']}\n"
+                    summary_content += f"Date: {item['date_str']}\n"
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_content
+                    )
+
+                chunks = await create_document_chunks(item["markdown_content"])
+
+                # Update document to READY with actual content
+                document.title = item["subject"]
+                document.content = summary_content
+                document.content_hash = item["content_hash"]
+                document.embedding = summary_embedding
+                document.document_metadata = {
+                    "message_id": item["message_id"],
+                    "thread_id": item["thread_id"],
+                    "subject": item["subject"],
+                    "sender": item["sender"],
+                    "date": item["date_str"],
+                    "connector_id": connector_id,
+                }
+                safe_set_chunks(document, chunks)
+                document.updated_at = get_current_timestamp()
+                document.status = DocumentStatus.ready()
+
+                documents_indexed += 1
+
+                # Batch commit every 10 documents (for ready status updates)
                 if documents_indexed % 10 == 0:
                     logger.info(
                         f"Committing batch: {documents_indexed} Gmail messages processed so far"
@@ -435,45 +468,76 @@ async def index_google_gmail_messages(
                     await session.commit()
 
             except Exception as e:
-                logger.error(
-                    f"Error processing the email {message_id}: {e!s}",
-                    exc_info=True,
-                )
-                skipped_messages.append(f"{subject} (processing error)")
-                documents_skipped += 1
-                continue  # Skip this message and continue with others
+                logger.error(f"Error processing Gmail message: {e!s}", exc_info=True)
+                # Mark document as failed with reason (visible in UI)
+                try:
+                    document.status = DocumentStatus.failed(str(e))
+                    document.updated_at = get_current_timestamp()
+                except Exception as status_error:
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
+                documents_failed += 1
+                continue
 
-        # Update the last_indexed_at timestamp for the connector only if requested
-        total_processed = documents_indexed
-        if total_processed > 0:
-            await update_connector_last_indexed(session, connector, update_last_indexed)
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit for any remaining documents not yet committed in batches
         logger.info(f"Final commit: Total {documents_indexed} Gmail messages processed")
-        await session.commit()
-        logger.info(
-            "Successfully committed all Google gmail document changes to database"
-        )
+        try:
+            await session.commit()
+            logger.info(
+                "Successfully committed all Google Gmail document changes to database"
+            )
+        except Exception as e:
+            # Handle any remaining integrity errors gracefully (race conditions, etc.)
+            if (
+                "duplicate key value violates unique constraint" in str(e).lower()
+                or "uniqueviolationerror" in str(e).lower()
+            ):
+                logger.warning(
+                    f"Duplicate content_hash detected during final commit. "
+                    f"This may occur if the same message was indexed by multiple connectors. "
+                    f"Rolling back and continuing. Error: {e!s}"
+                )
+                await session.rollback()
+                # Don't fail the entire task - some documents may have been successfully indexed
+            else:
+                raise
+
+        # Build warning message if there were issues
+        warning_parts = []
+        if duplicate_content_count > 0:
+            warning_parts.append(f"{duplicate_content_count} duplicate")
+        if documents_failed > 0:
+            warning_parts.append(f"{documents_failed} failed")
+        warning_message = ", ".join(warning_parts) if warning_parts else None
+
+        total_processed = documents_indexed
 
         # Log success
         await task_logger.log_task_success(
             log_entry,
-            f"Successfully completed Google gmail indexing for connector {connector_id}",
+            f"Successfully completed Google Gmail indexing for connector {connector_id}",
             {
                 "events_processed": total_processed,
                 "documents_indexed": documents_indexed,
                 "documents_skipped": documents_skipped,
-                "skipped_messages_count": len(skipped_messages),
+                "documents_failed": documents_failed,
+                "duplicate_content_count": duplicate_content_count,
             },
         )
 
         logger.info(
-            f"Google gmail indexing completed: {documents_indexed} new emails, {documents_skipped} skipped"
+            f"Google Gmail indexing completed: {documents_indexed} ready, "
+            f"{documents_skipped} skipped, {documents_failed} failed "
+            f"({duplicate_content_count} duplicate content)"
         )
         return (
             total_processed,
-            None,
-        )  # Return None as the error message to indicate success
+            warning_message,
+        )  # Return warning_message (None on success)
 
     except SQLAlchemyError as db_error:
         await session.rollback()
