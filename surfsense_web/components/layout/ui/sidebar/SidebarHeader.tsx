@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, Logs, Settings, Users } from "lucide-react";
+import { ChevronsUpDown, Settings, Users } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -55,10 +55,6 @@ export function SidebarHeader({
 					<DropdownMenuItem onClick={onManageMembers}>
 						<Users className="mr-2 h-4 w-4" />
 						{t("manage_members")}
-					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => router.push(`/dashboard/${searchSpaceId}/logs`)}>
-						<Logs className="mr-2 h-4 w-4" />
-						{t("logs")}
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem onClick={onSettings}>
