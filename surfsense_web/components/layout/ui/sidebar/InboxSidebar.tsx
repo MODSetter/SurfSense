@@ -15,7 +15,6 @@ import {
 	Inbox,
 	LayoutGrid,
 	ListFilter,
-	Loader2,
 	MessageSquare,
 	Search,
 	X,
@@ -43,6 +42,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -928,12 +928,39 @@ export function InboxSidebar({
 
 		<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 			{(isSearchMode ? isSearchLoading : loading) ? (
-				<div className="flex items-center justify-center py-8">
-					{isSearchMode ? (
-						<Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-					) : (
-						<Spinner size="md" className="text-muted-foreground" />
-					)}
+				<div className="space-y-2">
+					{activeTab === "comments"
+						? /* Comments skeleton: avatar + two-line text + time */
+							[85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
+								<div
+									key={`skeleton-comment-${i}`}
+									className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+								>
+									<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+									<div className="flex-1 min-w-0 space-y-2">
+										<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+										<Skeleton className="h-2.5 w-[70%] rounded" />
+									</div>
+									<Skeleton className="h-3 w-6 shrink-0 rounded" />
+								</div>
+							))
+						: /* Status skeleton: status icon circle + two-line text + time */
+							[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+								<div
+									key={`skeleton-status-${i}`}
+									className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+								>
+									<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+									<div className="flex-1 min-w-0 space-y-2">
+										<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+										<Skeleton className="h-2.5 w-[60%] rounded" />
+									</div>
+									<div className="flex items-center gap-1.5 shrink-0">
+										<Skeleton className="h-3 w-6 rounded" />
+										<Skeleton className="h-2 w-2 rounded-full" />
+									</div>
+								</div>
+							))}
 				</div>
 			) : filteredItems.length > 0 ? (
 				<div className="space-y-2">
@@ -999,6 +1026,39 @@ export function InboxSidebar({
 					{/* Fallback trigger at the very end if less than 5 items and not searching */}
 					{!isSearchMode && filteredItems.length < 5 && hasMore && (
 						<div ref={prefetchTriggerRef} className="h-1" />
+					)}
+					{/* Loading more skeletons at the bottom during infinite scroll */}
+					{loadingMore && (
+						activeTab === "comments"
+							? [80, 60, 90].map((titleWidth, i) => (
+								<div
+									key={`loading-more-comment-${i}`}
+									className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+								>
+									<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+									<div className="flex-1 min-w-0 space-y-2">
+										<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+										<Skeleton className="h-2.5 w-[70%] rounded" />
+									</div>
+									<Skeleton className="h-3 w-6 shrink-0 rounded" />
+								</div>
+							))
+							: [70, 85, 55].map((titleWidth, i) => (
+								<div
+									key={`loading-more-status-${i}`}
+									className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+								>
+									<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+									<div className="flex-1 min-w-0 space-y-2">
+										<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+										<Skeleton className="h-2.5 w-[60%] rounded" />
+									</div>
+									<div className="flex items-center gap-1.5 shrink-0">
+										<Skeleton className="h-3 w-6 rounded" />
+										<Skeleton className="h-2 w-2 rounded-full" />
+									</div>
+								</div>
+							))
 					)}
 					</div>
 			) : isSearchMode ? (

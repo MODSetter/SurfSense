@@ -27,6 +27,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -303,8 +304,16 @@ export function AllPrivateChatsSidebar({
 
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{isLoading ? (
-								<div className="flex items-center justify-center py-8">
-									<Spinner size="md" className="text-muted-foreground" />
+								<div className="space-y-1">
+									{[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+										<div
+											key={`skeleton-${i}`}
+											className="flex items-center gap-2 rounded-md px-2 py-1.5"
+										>
+											<Skeleton className="h-4 w-4 shrink-0 rounded" />
+											<Skeleton className="h-4 rounded" style={{ width: `${titleWidth}%` }} />
+										</div>
+									))}
 								</div>
 							) : error ? (
 								<div className="text-center py-8 text-sm text-destructive">
