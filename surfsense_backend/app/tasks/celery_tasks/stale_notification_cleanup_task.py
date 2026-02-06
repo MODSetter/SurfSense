@@ -45,9 +45,8 @@ _redis_client: redis.Redis | None = None
 
 # Error messages shown to users when tasks are interrupted
 STALE_SYNC_ERROR_MESSAGE = "Sync was interrupted unexpectedly. Please retry."
-STALE_PROCESSING_ERROR_MESSAGE = (
-    "Syncing was interrupted unexpectedly. Please retry."
-)
+STALE_PROCESSING_ERROR_MESSAGE = "Syncing was interrupted unexpectedly. Please retry."
+
 
 def get_redis_client() -> redis.Redis:
     """Get or create Redis client for heartbeat checking."""
@@ -310,9 +309,7 @@ async def _cleanup_stale_document_processing_notifications():
             in_progress_rows = result.fetchall()
 
             if not in_progress_rows:
-                logger.debug(
-                    "No in-progress document processing notifications found"
-                )
+                logger.debug("No in-progress document processing notifications found")
                 return
 
             # Check which ones are missing heartbeat keys in Redis
@@ -389,9 +386,7 @@ async def _cleanup_stale_document_processing_notifications():
             await session.rollback()
 
 
-async def _cleanup_stuck_non_connector_documents(
-    session, document_ids: list[int]
-):
+async def _cleanup_stuck_non_connector_documents(session, document_ids: list[int]):
     """
     Mark specific non-connector documents stuck in pending/processing as failed.
 

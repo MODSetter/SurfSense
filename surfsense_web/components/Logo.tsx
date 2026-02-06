@@ -4,7 +4,13 @@ import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
-export const Logo = ({ className, disableLink = false }: { className?: string; disableLink?: boolean }) => {
+export const Logo = ({
+	className,
+	disableLink = false,
+}: {
+	className?: string;
+	disableLink?: boolean;
+}) => {
 	const image = (
 		<Image
 			src="/icon-128.svg"

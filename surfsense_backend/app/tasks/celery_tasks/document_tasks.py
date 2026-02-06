@@ -1005,9 +1005,7 @@ async def _process_circleback_meeting(
 
             # Start Redis heartbeat for stale task detection
             _start_heartbeat(notification.id)
-            heartbeat_task = asyncio.create_task(
-                _run_heartbeat_loop(notification.id)
-            )
+            heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification.id))
 
         log_entry = await task_logger.log_task_start(
             task_name="process_circleback_meeting",

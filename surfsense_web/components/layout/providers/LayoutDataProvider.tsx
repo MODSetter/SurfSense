@@ -526,7 +526,9 @@ export function LayoutDataProvider({
 			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
 			// Invalidate thread detail for breadcrumb update
-			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId, "detail", String(chatToRename.id)] });
+			queryClient.invalidateQueries({
+				queryKey: ["threads", searchSpaceId, "detail", String(chatToRename.id)],
+			});
 		} catch (error) {
 			console.error("Error renaming thread:", error);
 			toast.error(tSidebar("error_renaming_chat") || "Failed to rename chat");

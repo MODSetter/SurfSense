@@ -155,7 +155,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					<TooltipContent>Share settings</TooltipContent>
 				</Tooltip>
 
-					<PopoverContent
+				<PopoverContent
 					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60"
 					align="end"
 					sideOffset={8}
@@ -243,7 +243,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				</PopoverContent>
 			</Popover>
 
-				{/* Globe indicator when public snapshots exist - clicks to settings */}
+			{/* Globe indicator when public snapshots exist - clicks to settings */}
 			{hasPublicSnapshots && (
 				<Tooltip>
 					<TooltipTrigger asChild>

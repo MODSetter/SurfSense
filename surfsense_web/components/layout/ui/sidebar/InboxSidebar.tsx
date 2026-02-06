@@ -219,7 +219,7 @@ export function InboxSidebar({
 
 	// Server-side search query (enabled only when user is typing a search)
 	// Determines which notification types to search based on active tab
-	const searchTypeFilter = activeTab === "comments" ? "new_mention" as const : undefined;
+	const searchTypeFilter = activeTab === "comments" ? ("new_mention" as const) : undefined;
 	const { data: searchResponse, isLoading: isSearchLoading } = useQuery({
 		queryKey: cacheKeys.notifications.search(searchSpaceId, debouncedSearch.trim(), activeTab),
 		queryFn: () =>
@@ -288,8 +288,10 @@ export function InboxSidebar({
 
 	// Pagination switches based on active tab
 	const loading = activeTab === "comments" ? mentions.loading : status.loading;
-	const loadingMore = activeTab === "comments" ? (mentions.loadingMore ?? false) : (status.loadingMore ?? false);
-	const hasMore = activeTab === "comments" ? (mentions.hasMore ?? false) : (status.hasMore ?? false);
+	const loadingMore =
+		activeTab === "comments" ? (mentions.loadingMore ?? false) : (status.loadingMore ?? false);
+	const hasMore =
+		activeTab === "comments" ? (mentions.hasMore ?? false) : (status.hasMore ?? false);
 	const loadMore = activeTab === "comments" ? mentions.loadMore : status.loadMore;
 
 	// Get unique connector types from status items for filtering
@@ -319,9 +321,7 @@ export function InboxSidebar({
 	// When not searching: use Electric real-time items (fast, local)
 	const filteredItems = useMemo(() => {
 		// In search mode, use API results
-		let items: InboxItem[] = isSearchMode
-			? (searchResponse?.items ?? [])
-			: displayItems;
+		let items: InboxItem[] = isSearchMode ? (searchResponse?.items ?? []) : displayItems;
 
 		// For status tab search results, filter to status-specific types
 		if (isSearchMode && activeTab === "status") {
@@ -926,49 +926,49 @@ export function InboxSidebar({
 				</TabsList>
 			</Tabs>
 
-		<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-			{(isSearchMode ? isSearchLoading : loading) ? (
-				<div className="space-y-2">
-					{activeTab === "comments"
-						? /* Comments skeleton: avatar + two-line text + time */
-							[85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
-								<div
-									key={`skeleton-comment-${i}`}
-									className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
-								>
-									<Skeleton className="h-8 w-8 rounded-full shrink-0" />
-									<div className="flex-1 min-w-0 space-y-2">
-										<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
-										<Skeleton className="h-2.5 w-[70%] rounded" />
+			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
+				{(isSearchMode ? isSearchLoading : loading) ? (
+					<div className="space-y-2">
+						{activeTab === "comments"
+							? /* Comments skeleton: avatar + two-line text + time */
+								[85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
+									<div
+										key={`skeleton-comment-${i}`}
+										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+									>
+										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+										<div className="flex-1 min-w-0 space-y-2">
+											<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+											<Skeleton className="h-2.5 w-[70%] rounded" />
+										</div>
+										<Skeleton className="h-3 w-6 shrink-0 rounded" />
 									</div>
-									<Skeleton className="h-3 w-6 shrink-0 rounded" />
-								</div>
-							))
-						: /* Status skeleton: status icon circle + two-line text + time */
-							[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
-								<div
-									key={`skeleton-status-${i}`}
-									className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
-								>
-									<Skeleton className="h-8 w-8 rounded-full shrink-0" />
-									<div className="flex-1 min-w-0 space-y-2">
-										<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
-										<Skeleton className="h-2.5 w-[60%] rounded" />
+								))
+							: /* Status skeleton: status icon circle + two-line text + time */
+								[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+									<div
+										key={`skeleton-status-${i}`}
+										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+									>
+										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+										<div className="flex-1 min-w-0 space-y-2">
+											<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+											<Skeleton className="h-2.5 w-[60%] rounded" />
+										</div>
+										<div className="flex items-center gap-1.5 shrink-0">
+											<Skeleton className="h-3 w-6 rounded" />
+											<Skeleton className="h-2 w-2 rounded-full" />
+										</div>
 									</div>
-									<div className="flex items-center gap-1.5 shrink-0">
-										<Skeleton className="h-3 w-6 rounded" />
-										<Skeleton className="h-2 w-2 rounded-full" />
-									</div>
-								</div>
-							))}
-				</div>
-			) : filteredItems.length > 0 ? (
-				<div className="space-y-2">
-					{filteredItems.map((item, index) => {
-						const isMarkingAsRead = markingAsReadId === item.id;
-						// Place prefetch trigger on 5th item from end (only when not searching)
-						const isPrefetchTrigger =
-							!isSearchMode && hasMore && index === filteredItems.length - 5;
+								))}
+					</div>
+				) : filteredItems.length > 0 ? (
+					<div className="space-y-2">
+						{filteredItems.map((item, index) => {
+							const isMarkingAsRead = markingAsReadId === item.id;
+							// Place prefetch trigger on 5th item from end (only when not searching)
+							const isPrefetchTrigger =
+								!isSearchMode && hasMore && index === filteredItems.length - 5;
 
 							return (
 								<div
@@ -1023,54 +1023,53 @@ export function InboxSidebar({
 								</div>
 							);
 						})}
-					{/* Fallback trigger at the very end if less than 5 items and not searching */}
-					{!isSearchMode && filteredItems.length < 5 && hasMore && (
-						<div ref={prefetchTriggerRef} className="h-1" />
-					)}
-					{/* Loading more skeletons at the bottom during infinite scroll */}
-					{loadingMore && (
-						activeTab === "comments"
-							? [80, 60, 90].map((titleWidth, i) => (
-								<div
-									key={`loading-more-comment-${i}`}
-									className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
-								>
-									<Skeleton className="h-8 w-8 rounded-full shrink-0" />
-									<div className="flex-1 min-w-0 space-y-2">
-										<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
-										<Skeleton className="h-2.5 w-[70%] rounded" />
-									</div>
-									<Skeleton className="h-3 w-6 shrink-0 rounded" />
-								</div>
-							))
-							: [70, 85, 55].map((titleWidth, i) => (
-								<div
-									key={`loading-more-status-${i}`}
-									className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
-								>
-									<Skeleton className="h-8 w-8 rounded-full shrink-0" />
-									<div className="flex-1 min-w-0 space-y-2">
-										<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
-										<Skeleton className="h-2.5 w-[60%] rounded" />
-									</div>
-									<div className="flex items-center gap-1.5 shrink-0">
-										<Skeleton className="h-3 w-6 rounded" />
-										<Skeleton className="h-2 w-2 rounded-full" />
-									</div>
-								</div>
-							))
-					)}
+						{/* Fallback trigger at the very end if less than 5 items and not searching */}
+						{!isSearchMode && filteredItems.length < 5 && hasMore && (
+							<div ref={prefetchTriggerRef} className="h-1" />
+						)}
+						{/* Loading more skeletons at the bottom during infinite scroll */}
+						{loadingMore &&
+							(activeTab === "comments"
+								? [80, 60, 90].map((titleWidth, i) => (
+										<div
+											key={`loading-more-comment-${i}`}
+											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+										>
+											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+											<div className="flex-1 min-w-0 space-y-2">
+												<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+												<Skeleton className="h-2.5 w-[70%] rounded" />
+											</div>
+											<Skeleton className="h-3 w-6 shrink-0 rounded" />
+										</div>
+									))
+								: [70, 85, 55].map((titleWidth, i) => (
+										<div
+											key={`loading-more-status-${i}`}
+											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+										>
+											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+											<div className="flex-1 min-w-0 space-y-2">
+												<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+												<Skeleton className="h-2.5 w-[60%] rounded" />
+											</div>
+											<div className="flex items-center gap-1.5 shrink-0">
+												<Skeleton className="h-3 w-6 rounded" />
+												<Skeleton className="h-2 w-2 rounded-full" />
+											</div>
+										</div>
+									)))}
 					</div>
-			) : isSearchMode ? (
-				<div className="text-center py-8">
-					<Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-					<p className="text-sm text-muted-foreground">
-						{t("no_results_found") || "No results found"}
-					</p>
-					<p className="text-xs text-muted-foreground/70 mt-1">
-						{t("try_different_search") || "Try a different search term"}
-					</p>
-				</div>
+				) : isSearchMode ? (
+					<div className="text-center py-8">
+						<Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
+						<p className="text-sm text-muted-foreground">
+							{t("no_results_found") || "No results found"}
+						</p>
+						<p className="text-xs text-muted-foreground/70 mt-1">
+							{t("try_different_search") || "Try a different search term"}
+						</p>
+					</div>
 				) : (
 					<div className="text-center py-8">
 						{activeTab === "comments" ? (

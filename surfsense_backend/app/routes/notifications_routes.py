@@ -197,10 +197,9 @@ async def list_notifications(
     # Filter by search query (case-insensitive title/message search)
     if search:
         search_term = f"%{search}%"
-        search_filter = (
-            Notification.title.ilike(search_term)
-            | Notification.message.ilike(search_term)
-        )
+        search_filter = Notification.title.ilike(
+            search_term
+        ) | Notification.message.ilike(search_term)
         query = query.where(search_filter)
         count_query = count_query.where(search_filter)
 
