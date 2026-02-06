@@ -740,6 +740,8 @@
 		"nav_agent_configs_desc": "LLM models with prompts & citations",
 		"nav_role_assignments": "Role Assignments",
 		"nav_role_assignments_desc": "Assign configs to agent roles",
+		"nav_image_models": "Image Models",
+		"nav_image_models_desc": "Configure image generation models",
 		"nav_system_instructions": "System Instructions",
 		"nav_system_instructions_desc": "SearchSpace-wide AI instructions",
 		"nav_public_links": "Public Chat Links",

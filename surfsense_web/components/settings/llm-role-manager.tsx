@@ -255,15 +255,15 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						</Alert>
 					)}
 
-					{/* Role Assignment Cards */}
-					{availableConfigs.length > 0 && (
-						<div className="grid gap-4 md:gap-6">
-							{Object.entries(ROLE_DESCRIPTIONS).map(([key, role]) => {
-								const IconComponent = role.icon;
-								const currentAssignment = assignments[`${key}_llm_id` as keyof typeof assignments];
-								const assignedConfig = availableConfigs.find(
-									(config) => config.id === currentAssignment
-								);
+				{/* Role Assignment Cards */}
+				{availableConfigs.length > 0 && (
+					<div className="grid gap-4 md:gap-6">
+						{Object.entries(ROLE_DESCRIPTIONS).map(([key, role]) => {
+							const IconComponent = role.icon;
+							const currentAssignment = assignments[`${key}_llm_id` as keyof typeof assignments];
+							const assignedConfig = availableConfigs.find(
+								(config) => config.id === currentAssignment
+							);
 
 								return (
 									<motion.div
@@ -294,100 +294,100 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 												</div>
 											</CardHeader>
 											<CardContent className="space-y-3 md:space-y-4 px-3 md:px-6 pb-3 md:pb-6">
-												<div className="space-y-1.5 md:space-y-2">
-													<Label className="text-xs md:text-sm font-medium">
-														Assign LLM Configuration:
-													</Label>
-													<Select
-														value={currentAssignment?.toString() || "unassigned"}
-														onValueChange={(value) => handleRoleAssignment(`${key}_llm_id`, value)}
-													>
-														<SelectTrigger className="h-9 md:h-10 text-xs md:text-sm">
-															<SelectValue placeholder="Select an LLM configuration" />
-														</SelectTrigger>
-														<SelectContent>
-															<SelectItem value="unassigned">
-																<span className="text-muted-foreground">Unassigned</span>
-															</SelectItem>
+											<div className="space-y-1.5 md:space-y-2">
+												<Label className="text-xs md:text-sm font-medium">
+													Assign LLM Configuration:
+												</Label>
+												<Select
+													value={currentAssignment?.toString() || "unassigned"}
+													onValueChange={(value) => handleRoleAssignment(`${key}_llm_id`, value)}
+												>
+													<SelectTrigger className="h-9 md:h-10 text-xs md:text-sm">
+														<SelectValue placeholder="Select an LLM configuration" />
+													</SelectTrigger>
+													<SelectContent>
+														<SelectItem value="unassigned">
+															<span className="text-muted-foreground">Unassigned</span>
+														</SelectItem>
 
-															{/* Global Configurations */}
-															{globalConfigs.length > 0 && (
-																<>
-																	<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-																		Global Configurations
-																	</div>
-																	{globalConfigs.map((config) => {
-																		const isAutoMode =
-																			"is_auto_mode" in config && config.is_auto_mode;
-																		return (
-																			<SelectItem key={config.id} value={config.id.toString()}>
-																				<div className="flex items-center gap-2">
-																					{isAutoMode ? (
-																						<Badge
-																							variant="outline"
-																							className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-700"
-																						>
-																							<Shuffle className="size-3 mr-1" />
-																							AUTO
-																						</Badge>
-																					) : (
-																						<Badge variant="outline" className="text-xs">
-																							{config.provider}
-																						</Badge>
-																					)}
-																					<span>{config.name}</span>
-																					{!isAutoMode && (
-																						<span className="text-muted-foreground">
-																							({config.model_name})
-																						</span>
-																					)}
-																					{isAutoMode ? (
-																						<Badge
-																							variant="secondary"
-																							className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
-																						>
-																							Recommended
-																						</Badge>
-																					) : (
-																						<Badge variant="secondary" className="text-xs">
-																							🌐 Global
-																						</Badge>
-																					)}
-																				</div>
-																			</SelectItem>
-																		);
-																	})}
-																</>
-															)}
+														{/* Global Configurations */}
+														{globalConfigs.length > 0 && (
+																	<>
+																		<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+																			Global Configurations
+																		</div>
+																		{globalConfigs.map((config) => {
+																			const isAutoMode =
+																				"is_auto_mode" in config && config.is_auto_mode;
+																			return (
+																				<SelectItem key={config.id} value={config.id.toString()}>
+																					<div className="flex items-center gap-2">
+																						{isAutoMode ? (
+																							<Badge
+																								variant="outline"
+																								className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-700"
+																							>
+																								<Shuffle className="size-3 mr-1" />
+																								AUTO
+																							</Badge>
+																						) : (
+																							<Badge variant="outline" className="text-xs">
+																								{config.provider}
+																							</Badge>
+																						)}
+																						<span>{config.name}</span>
+																						{!isAutoMode && (
+																							<span className="text-muted-foreground">
+																								({config.model_name})
+																							</span>
+																						)}
+																						{isAutoMode ? (
+																							<Badge
+																								variant="secondary"
+																								className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+																							>
+																								Recommended
+																							</Badge>
+																						) : (
+																							<Badge variant="secondary" className="text-xs">
+																								🌐 Global
+																							</Badge>
+																						)}
+																					</div>
+																				</SelectItem>
+																			);
+																		})}
+																	</>
+																)}
 
-															{/* Custom Configurations */}
-															{newLLMConfigs.length > 0 && (
-																<>
-																	<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-																		Your Configurations
-																	</div>
-																	{newLLMConfigs
-																		.filter(
-																			(config) => config.id && config.id.toString().trim() !== ""
-																		)
-																		.map((config) => (
-																			<SelectItem key={config.id} value={config.id.toString()}>
-																				<div className="flex items-center gap-2">
-																					<Badge variant="outline" className="text-xs">
-																						{config.provider}
-																					</Badge>
-																					<span>{config.name}</span>
-																					<span className="text-muted-foreground">
-																						({config.model_name})
-																					</span>
-																				</div>
-																			</SelectItem>
-																		))}
-																</>
-															)}
-														</SelectContent>
-													</Select>
-												</div>
+														{/* Custom Configurations */}
+														{newLLMConfigs.length > 0 && (
+															<>
+																<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+																	Your Configurations
+																</div>
+																{newLLMConfigs
+																	.filter(
+																		(config) => config.id && config.id.toString().trim() !== ""
+																	)
+																	.map((config) => (
+																		<SelectItem key={config.id} value={config.id.toString()}>
+																			<div className="flex items-center gap-2">
+																				<Badge variant="outline" className="text-xs">
+																					{config.provider}
+																				</Badge>
+																				<span>{config.name}</span>
+																				<span className="text-muted-foreground">
+																					({config.model_name})
+																				</span>
+																			</div>
+																		</SelectItem>
+																	))}
+															</>
+														)}
+													</SelectContent>
+												</Select>
+											</div>
 
 												{assignedConfig && (
 													<div

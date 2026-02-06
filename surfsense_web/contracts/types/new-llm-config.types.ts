@@ -162,18 +162,104 @@ export const globalNewLLMConfig = z.object({
 export const getGlobalNewLLMConfigsResponse = z.array(globalNewLLMConfig);
 
 // =============================================================================
+// Image Generation Config (separate table from NewLLMConfig)
+// =============================================================================
+
+/**
+ * ImageGenProvider enum - only providers that support image generation
+ * See: https://docs.litellm.ai/docs/image_generation#supported-providers
+ */
+export const imageGenProviderEnum = z.enum([
+	"OPENAI",
+	"AZURE_OPENAI",
+	"GOOGLE",
+	"VERTEX_AI",
+	"BEDROCK",
+	"RECRAFT",
+	"OPENROUTER",
+	"XINFERENCE",
+	"NSCALE",
+]);
+
+export type ImageGenProvider = z.infer<typeof imageGenProviderEnum>;
+
+/**
+ * ImageGenerationConfig - user-created image gen model configs
+ * Separate from NewLLMConfig: no system_instructions, no citations_enabled.
+ */
+export const imageGenerationConfig = z.object({
+	id: z.number(),
+	name: z.string().max(100),
+	description: z.string().max(500).nullable().optional(),
+	provider: imageGenProviderEnum,
+	custom_provider: z.string().max(100).nullable().optional(),
+	model_name: z.string().max(100),
+	api_key: z.string(),
+	api_base: z.string().max(500).nullable().optional(),
+	api_version: z.string().max(50).nullable().optional(),
+	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
+	created_at: z.string(),
+	search_space_id: z.number(),
+});
+
+export const createImageGenConfigRequest = imageGenerationConfig.omit({
+	id: true,
+	created_at: true,
+});
+
+export const createImageGenConfigResponse = imageGenerationConfig;
+
+export const getImageGenConfigsResponse = z.array(imageGenerationConfig);
+
+export const updateImageGenConfigRequest = z.object({
+	id: z.number(),
+	data: imageGenerationConfig
+		.omit({ id: true, created_at: true, search_space_id: true })
+		.partial(),
+});
+
+export const updateImageGenConfigResponse = imageGenerationConfig;
+
+export const deleteImageGenConfigResponse = z.object({
+	message: z.string(),
+	id: z.number(),
+});
+
+/**
+ * Global Image Generation Config - from YAML, has negative IDs
+ * ID 0 is reserved for "Auto" mode (LiteLLM Router load balancing)
+ */
+export const globalImageGenConfig = z.object({
+	id: z.number(),
+	name: z.string(),
+	description: z.string().nullable().optional(),
+	provider: z.string(),
+	custom_provider: z.string().nullable().optional(),
+	model_name: z.string(),
+	api_base: z.string().nullable().optional(),
+	api_version: z.string().nullable().optional(),
+	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
+	is_global: z.literal(true),
+	is_auto_mode: z.boolean().optional().default(false),
+});
+
+export const getGlobalImageGenConfigsResponse = z.array(globalImageGenConfig);
+
+// =============================================================================
 // LLM Preferences (Role Assignments)
 // =============================================================================
 
 /**
  * LLM Preferences schemas - for role assignments
- * The agent_llm and document_summary_llm fields contain the full NewLLMConfig objects
+ * image_generation uses image_generation_config_id (not llm_id)
  */
 export const llmPreferences = z.object({
 	agent_llm_id: z.union([z.number(), z.null()]).optional(),
 	document_summary_llm_id: z.union([z.number(), z.null()]).optional(),
+	image_generation_config_id: z.union([z.number(), z.null()]).optional(),
 	agent_llm: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 	document_summary_llm: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
+	image_generation_config: z.union([z.record(z.string(), z.unknown()), z.null()]).optional(),
 });
 
 /**
@@ -193,6 +279,7 @@ export const updateLLMPreferencesRequest = z.object({
 	data: llmPreferences.pick({
 		agent_llm_id: true,
 		document_summary_llm_id: true,
+		image_generation_config_id: true,
 	}),
 });
 
@@ -219,6 +306,15 @@ export type GetDefaultSystemInstructionsResponse = z.infer<
 >;
 export type GlobalNewLLMConfig = z.infer<typeof globalNewLLMConfig>;
 export type GetGlobalNewLLMConfigsResponse = z.infer<typeof getGlobalNewLLMConfigsResponse>;
+export type ImageGenerationConfig = z.infer<typeof imageGenerationConfig>;
+export type CreateImageGenConfigRequest = z.infer<typeof createImageGenConfigRequest>;
+export type CreateImageGenConfigResponse = z.infer<typeof createImageGenConfigResponse>;
+export type GetImageGenConfigsResponse = z.infer<typeof getImageGenConfigsResponse>;
+export type UpdateImageGenConfigRequest = z.infer<typeof updateImageGenConfigRequest>;
+export type UpdateImageGenConfigResponse = z.infer<typeof updateImageGenConfigResponse>;
+export type DeleteImageGenConfigResponse = z.infer<typeof deleteImageGenConfigResponse>;
+export type GlobalImageGenConfig = z.infer<typeof globalImageGenConfig>;
+export type GetGlobalImageGenConfigsResponse = z.infer<typeof getGlobalImageGenConfigsResponse>;
 export type LLMPreferences = z.infer<typeof llmPreferences>;
 export type GetLLMPreferencesRequest = z.infer<typeof getLLMPreferencesRequest>;
 export type GetLLMPreferencesResponse = z.infer<typeof getLLMPreferencesResponse>;

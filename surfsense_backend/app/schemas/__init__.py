@@ -20,6 +20,16 @@ from .documents import (
     PaginatedResponse,
 )
 from .google_drive import DriveItem, GoogleDriveIndexingOptions, GoogleDriveIndexRequest
+from .image_generation import (
+    GlobalImageGenConfigRead,
+    ImageGenerationConfigCreate,
+    ImageGenerationConfigPublic,
+    ImageGenerationConfigRead,
+    ImageGenerationConfigUpdate,
+    ImageGenerationCreate,
+    ImageGenerationListRead,
+    ImageGenerationRead,
+)
 from .logs import LogBase, LogCreate, LogFilter, LogRead, LogUpdate
 from .new_chat import (
     ChatMessage,
@@ -106,6 +116,16 @@ __all__ = [
     "GlobalNewLLMConfigRead",
     "GoogleDriveIndexRequest",
     "GoogleDriveIndexingOptions",
+    "GlobalImageGenConfigRead",
+    # Image Generation Config schemas
+    "ImageGenerationConfigCreate",
+    "ImageGenerationConfigPublic",
+    "ImageGenerationConfigRead",
+    "ImageGenerationConfigUpdate",
+    # Image Generation schemas
+    "ImageGenerationCreate",
+    "ImageGenerationListRead",
+    "ImageGenerationRead",
     # Base schemas
     "IDModel",
     # RBAC schemas

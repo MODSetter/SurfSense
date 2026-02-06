@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
 import type {
 	GlobalNewLLMConfig,
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
+import { ImageModelSelector } from "./image-model-selector";
 import { ModelConfigSidebar } from "./model-config-sidebar";
 import { ModelSelector } from "./model-selector";
 
@@ -13,6 +15,7 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
+	const router = useRouter();
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [selectedConfig, setSelectedConfig] = useState<
 		NewLLMConfigPublic | GlobalNewLLMConfig | null
@@ -40,14 +43,19 @@ export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
 	const handleSidebarClose = useCallback((open: boolean) => {
 		setSidebarOpen(open);
 		if (!open) {
-			// Reset state when closing
 			setSelectedConfig(null);
 		}
 	}, []);
 
+	const handleAddImageModel = useCallback(() => {
+		// Navigate to settings image-models tab
+		router.push(`/dashboard/${searchSpaceId}/settings?tab=image-models`);
+	}, [router, searchSpaceId]);
+
 	return (
 		<div className="flex items-center gap-2">
 			<ModelSelector onEdit={handleEditConfig} onAddNew={handleAddNew} />
+			<ImageModelSelector onAddNew={handleAddImageModel} />
 			<ModelConfigSidebar
 				open={sidebarOpen}
 				onOpenChange={handleSidebarClose}

@@ -11,6 +11,7 @@ from .confluence_add_connector_route import router as confluence_add_connector_r
 from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
 from .editor_routes import router as editor_router
+from .image_generation_routes import router as image_generation_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
 )
@@ -49,6 +50,7 @@ router.include_router(notes_router)
 router.include_router(new_chat_router)  # Chat with assistant-ui persistence
 router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
+router.include_router(image_generation_router)  # Image generation via litellm
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
 router.include_router(google_gmail_add_connector_router)
