@@ -61,7 +61,11 @@ def get_youtube_video_id(url: str) -> str | None:
 
 
 async def add_youtube_video_document(
-    session: AsyncSession, url: str, search_space_id: int, user_id: str
+    session: AsyncSession,
+    url: str,
+    search_space_id: int,
+    user_id: str,
+    notification=None,
 ) -> Document:
     """
     Process a YouTube video URL, extract transcripts, and store as a document.
@@ -75,6 +79,9 @@ async def add_youtube_video_document(
         url: YouTube video URL (supports standard, shortened, and embed formats)
         search_space_id: ID of the search space to add the document to
         user_id: ID of the user
+        notification: Optional notification object — if provided, the document_id
+            is stored in its metadata right after document creation so the stale
+            cleanup task can identify stuck documents.
 
     Returns:
         Document: The created document object
@@ -181,6 +188,15 @@ async def add_youtube_video_document(
             session.add(document)
             await session.commit()  # Document visible in UI now with pending status!
             is_new_document = True
+
+            # Store document_id in notification metadata so stale cleanup task
+            # can identify this document if the worker crashes.
+            if notification and notification.notification_metadata is not None:
+                from sqlalchemy.orm.attributes import flag_modified
+
+                notification.notification_metadata["document_id"] = document.id
+                flag_modified(notification, "notification_metadata")
+                await session.commit()
 
             logging.info(f"Created pending document for YouTube video {video_id}")
 
