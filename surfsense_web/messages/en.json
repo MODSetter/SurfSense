@@ -308,6 +308,7 @@
 		"no_rows_selected": "No rows selected",
 		"delete_success_count": "Successfully deleted {count} document(s)",
 		"delete_partial_failed": "Some documents could not be deleted",
+		"delete_success": "Document deleted successfully",
 		"delete_error": "Error deleting documents",
 		"filter_by_title": "Filter by title...",
 		"bulk_delete": "Delete Selected",
