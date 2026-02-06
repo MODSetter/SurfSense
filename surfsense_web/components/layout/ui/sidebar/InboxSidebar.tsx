@@ -594,15 +594,15 @@ export function InboxSidebar({
 						{/* Mobile: Button that opens bottom drawer */}
 						{isMobile ? (
 							<>
-							<Button
-								variant="ghost"
-								size="icon"
-								className="h-8 w-8 rounded-full"
-								onClick={() => setFilterDrawerOpen(true)}
-							>
-								<ListFilter className="h-4 w-4 text-muted-foreground" />
-								<span className="sr-only">{t("filter") || "Filter"}</span>
-							</Button>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full"
+									onClick={() => setFilterDrawerOpen(true)}
+								>
+									<ListFilter className="h-4 w-4 text-muted-foreground" />
+									<span className="sr-only">{t("filter") || "Filter"}</span>
+								</Button>
 								<Drawer
 									open={filterDrawerOpen}
 									onOpenChange={setFilterDrawerOpen}
@@ -806,36 +806,36 @@ export function InboxSidebar({
 								</DropdownMenuContent>
 							</DropdownMenu>
 						)}
-					{isMobile ? (
-						<Button
-							variant="ghost"
-							size="icon"
-							className="h-8 w-8 rounded-full"
-							onClick={handleMarkAllAsRead}
-							disabled={totalUnreadCount === 0}
-						>
-							<CheckCheck className="h-4 w-4 text-muted-foreground" />
-							<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-						</Button>
-					) : (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 rounded-full"
-									onClick={handleMarkAllAsRead}
-									disabled={totalUnreadCount === 0}
-								>
-									<CheckCheck className="h-4 w-4 text-muted-foreground" />
-									<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent className="z-80">
-								{t("mark_all_read") || "Mark all as read"}
-							</TooltipContent>
-						</Tooltip>
-					)}
+						{isMobile ? (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={handleMarkAllAsRead}
+								disabled={totalUnreadCount === 0}
+							>
+								<CheckCheck className="h-4 w-4 text-muted-foreground" />
+								<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+							</Button>
+						) : (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 rounded-full"
+										onClick={handleMarkAllAsRead}
+										disabled={totalUnreadCount === 0}
+									>
+										<CheckCheck className="h-4 w-4 text-muted-foreground" />
+										<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent className="z-80">
+									{t("mark_all_read") || "Mark all as read"}
+								</TooltipContent>
+							</Tooltip>
+						)}
 						{/* Dock/Undock button - desktop only */}
 						{!isMobile && onDockedChange && (
 							<Tooltip>
@@ -984,61 +984,61 @@ export function InboxSidebar({
 										isMarkingAsRead && "opacity-50 pointer-events-none"
 									)}
 								>
-								{isMobile ? (
-									<button
-										type="button"
-										onClick={() => handleItemClick(item)}
-										disabled={isMarkingAsRead}
-										className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
-									>
-										<div className="shrink-0">{getStatusIcon(item)}</div>
-										<div className="flex-1 min-w-0 overflow-hidden">
-											<p
-												className={cn(
-													"text-xs font-medium line-clamp-2",
-													!item.read && "font-semibold"
-												)}
-											>
-												{item.title}
-											</p>
-											<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-												{convertRenderedToDisplay(item.message)}
-											</p>
-										</div>
-									</button>
-								) : (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<button
-												type="button"
-												onClick={() => handleItemClick(item)}
-												disabled={isMarkingAsRead}
-												className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
-											>
-												<div className="shrink-0">{getStatusIcon(item)}</div>
-												<div className="flex-1 min-w-0 overflow-hidden">
-													<p
-														className={cn(
-															"text-xs font-medium line-clamp-2",
-															!item.read && "font-semibold"
-														)}
-													>
-														{item.title}
-													</p>
-													<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-														{convertRenderedToDisplay(item.message)}
-													</p>
-												</div>
-											</button>
-										</TooltipTrigger>
-										<TooltipContent side="bottom" align="start" className="max-w-[250px]">
-											<p className="font-medium">{item.title}</p>
-											<p className="text-muted-foreground mt-1">
-												{convertRenderedToDisplay(item.message)}
-											</p>
-										</TooltipContent>
-									</Tooltip>
-								)}
+									{isMobile ? (
+										<button
+											type="button"
+											onClick={() => handleItemClick(item)}
+											disabled={isMarkingAsRead}
+											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+										>
+											<div className="shrink-0">{getStatusIcon(item)}</div>
+											<div className="flex-1 min-w-0 overflow-hidden">
+												<p
+													className={cn(
+														"text-xs font-medium line-clamp-2",
+														!item.read && "font-semibold"
+													)}
+												>
+													{item.title}
+												</p>
+												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</div>
+										</button>
+									) : (
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<button
+													type="button"
+													onClick={() => handleItemClick(item)}
+													disabled={isMarkingAsRead}
+													className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+												>
+													<div className="shrink-0">{getStatusIcon(item)}</div>
+													<div className="flex-1 min-w-0 overflow-hidden">
+														<p
+															className={cn(
+																"text-xs font-medium line-clamp-2",
+																!item.read && "font-semibold"
+															)}
+														>
+															{item.title}
+														</p>
+														<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+															{convertRenderedToDisplay(item.message)}
+														</p>
+													</div>
+												</button>
+											</TooltipTrigger>
+											<TooltipContent side="bottom" align="start" className="max-w-[250px]">
+												<p className="font-medium">{item.title}</p>
+												<p className="text-muted-foreground mt-1">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</TooltipContent>
+										</Tooltip>
+									)}
 
 									{/* Time and unread dot - fixed width to prevent content shift */}
 									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">

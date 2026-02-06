@@ -190,9 +190,7 @@ export function SearchSpaceAvatar({
 							{avatarButton}
 						</div>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent className="w-48">
-						{menuItems}
-					</DropdownMenuContent>
+					<DropdownMenuContent className="w-48">{menuItems}</DropdownMenuContent>
 				</DropdownMenu>
 			);
 		}

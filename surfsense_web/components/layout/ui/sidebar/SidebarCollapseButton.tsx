@@ -11,15 +11,17 @@ interface SidebarCollapseButtonProps {
 	disableTooltip?: boolean;
 }
 
-export function SidebarCollapseButton({ isCollapsed, onToggle, disableTooltip = false }: SidebarCollapseButtonProps) {
+export function SidebarCollapseButton({
+	isCollapsed,
+	onToggle,
+	disableTooltip = false,
+}: SidebarCollapseButtonProps) {
 	const t = useTranslations("sidebar");
 
 	const button = (
 		<Button variant="ghost" size="icon" onClick={onToggle} className="h-8 w-8 shrink-0">
 			{isCollapsed ? <PanelLeft className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-			<span className="sr-only">
-				{isCollapsed ? t("expand_sidebar") : t("collapse_sidebar")}
-			</span>
+			<span className="sr-only">{isCollapsed ? t("expand_sidebar") : t("collapse_sidebar")}</span>
 		</Button>
 	);
 
@@ -29,9 +31,7 @@ export function SidebarCollapseButton({ isCollapsed, onToggle, disableTooltip = 
 
 	return (
 		<Tooltip>
-			<TooltipTrigger asChild>
-				{button}
-			</TooltipTrigger>
+			<TooltipTrigger asChild>{button}</TooltipTrigger>
 			<TooltipContent side={isCollapsed ? "right" : "bottom"}>
 				{isCollapsed ? `${t("expand_sidebar")} (⌘B)` : `${t("collapse_sidebar")} (⌘B)`}
 			</TooltipContent>
