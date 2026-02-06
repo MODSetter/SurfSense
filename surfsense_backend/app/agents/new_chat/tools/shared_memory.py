@@ -1,6 +1,7 @@
 """Shared (team) memory backend for search-space-scoped AI context."""
 
 import logging
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -37,3 +38,28 @@ async def delete_oldest_shared_memory(
     if oldest:
         await db_session.delete(oldest)
         await db_session.commit()
+
+
+def format_shared_memories_for_context(
+    memories: list[dict[str, Any]],
+    created_by_map: dict[str, str] | None = None,
+) -> str:
+    if not memories:
+        return "No relevant team memories found."
+    created_by_map = created_by_map or {}
+    parts = ["<team_memories>"]
+    for memory in memories:
+        category = memory.get("category", "unknown")
+        text = memory.get("memory_text", "")
+        updated = memory.get("updated_at", "")
+        created_by_id = memory.get("created_by_id")
+        added_by = (
+            created_by_map.get(str(created_by_id), "A team member")
+            if created_by_id is not None
+            else "A team member"
+        )
+        parts.append(
+            f"  <memory category='{category}' updated='{updated}' added_by='{added_by}'>{text}</memory>"
+        )
+    parts.append("</team_memories>")
+    return "\n".join(parts)
