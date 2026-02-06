@@ -17,6 +17,8 @@ from fake_useragent import UserAgent
 from langchain_core.tools import tool
 from playwright.async_api import async_playwright
 
+from app.utils.proxy_config import get_playwright_proxy, get_residential_proxy_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -186,9 +188,15 @@ async def fetch_with_chromium(url: str) -> dict[str, Any] | None:
         ua = UserAgent()
         user_agent = ua.random
 
+        # Use residential proxy if configured
+        playwright_proxy = get_playwright_proxy()
+
         # Use Playwright to fetch the page
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            launch_kwargs: dict = {"headless": True}
+            if playwright_proxy:
+                launch_kwargs["proxy"] = playwright_proxy
+            browser = await p.chromium.launch(**launch_kwargs)
             context = await browser.new_context(user_agent=user_agent)
             page = await context.new_page()
 
@@ -283,12 +291,16 @@ def create_link_preview_tool():
             ua = UserAgent()
             user_agent = ua.random
 
+            # Use residential proxy if configured
+            proxy_url = get_residential_proxy_url()
+
             # Use a browser-like User-Agent to fetch Open Graph metadata.
             # We're only fetching publicly available metadata (title, description, thumbnail)
             # that websites intentionally expose via OG tags for link preview purposes.
             async with httpx.AsyncClient(
                 timeout=10.0,
                 follow_redirects=True,
+                proxy=proxy_url,
                 headers={
                     "User-Agent": user_agent,
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",

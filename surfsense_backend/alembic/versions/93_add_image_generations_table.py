@@ -13,8 +13,7 @@ Changes:
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM, JSONB, UUID
 
 from alembic import op
 

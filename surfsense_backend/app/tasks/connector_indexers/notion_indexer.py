@@ -217,7 +217,7 @@ async def index_notion_pages(
                 )
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"Failed to get Notion pages: Notion API limitation",
+                    "Failed to get Notion pages: Notion API limitation",
                     f"{error_str} - This page contains Notion AI content (transcription/ai_block) that cannot be accessed via the API.",
                     {"error_type": "UnsupportedBlockType", "is_known_limitation": True},
                 )

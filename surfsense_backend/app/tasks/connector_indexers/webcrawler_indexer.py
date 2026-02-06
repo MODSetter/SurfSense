@@ -138,7 +138,7 @@ async def index_crawled_urls(
                 f"No URLs provided for indexing. Connector ID: {connector_id}, "
                 f"Connector name: {connector.name}, "
                 f"Config keys: {list(connector.config.keys()) if connector.config else 'None'}, "
-                f"INITIAL_URLS raw value: {repr(raw_initial_urls)}"
+                f"INITIAL_URLS raw value: {raw_initial_urls!r}"
             )
             await task_logger.log_task_failure(
                 log_entry,
