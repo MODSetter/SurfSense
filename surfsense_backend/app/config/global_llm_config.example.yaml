@@ -208,8 +208,7 @@ global_image_generation_configs:
     model_name: "dall-e-3"
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
-    rpm: 50
-    tpm: 100000
+    rpm: 50  # Requests per minute (image gen is rate-limited by RPM, not tokens)
     litellm_params: {}
 
   # Example: OpenAI GPT Image 1
@@ -221,7 +220,6 @@ global_image_generation_configs:
     api_key: "sk-your-openai-api-key-here"
     api_base: ""
     rpm: 50
-    tpm: 100000
     litellm_params: {}
 
   # Example: Azure OpenAI DALL-E 3
@@ -234,7 +232,6 @@ global_image_generation_configs:
     api_base: "https://your-resource.openai.azure.com"
     api_version: "2024-02-15-preview"
     rpm: 50
-    tpm: 100000
     litellm_params:
       base_model: "dall-e-3"
 
@@ -247,7 +244,6 @@ global_image_generation_configs:
   #   api_key: "your-openrouter-api-key-here"
   #   api_base: ""
   #   rpm: 30
-  #   tpm: 50000
   #   litellm_params: {}
 
 # Notes:
@@ -262,17 +258,11 @@ global_image_generation_configs:
 # - rpm/tpm: Optional rate limits for load balancing (requests/tokens per minute)
 #   These help the router distribute load evenly and avoid rate limit errors
 #
-# AZURE-SPECIFIC NOTES:
-# - Always add 'base_model' in litellm_params for Azure deployments
-# - This fixes "Could not identify azure model 'X'" warnings
-# - base_model should match the underlying OpenAI model (e.g., gpt-4o, gpt-4-turbo, gpt-3.5-turbo)
-# - model_name format: "azure/<your-deployment-name>"
-# - api_version: Use a recent Azure API version (e.g., "2024-02-15-preview")
-# - See: https://docs.litellm.ai/docs/proxy/cost_tracking#spend-tracking-for-azure-openai-models
 #
 # IMAGE GENERATION NOTES:
 # - Image generation configs use the same ID scheme as LLM configs (negative for global)
 # - Supported models: dall-e-2, dall-e-3, gpt-image-1 (OpenAI), azure/* (Azure), 
 #   bedrock/* (AWS), vertex_ai/* (Google), recraft/* (Recraft), openrouter/* (OpenRouter)
 # - The router uses litellm.aimage_generation() for async image generation
-# - api_version is required for Azure image generation deployments
+# - Only RPM (requests per minute) is relevant for image generation rate limiting.
+#   TPM (tokens per minute) does not apply since image APIs are billed/rate-limited per request, not per token.

@@ -183,11 +183,11 @@ class ImageGenRouterService:
                 "litellm_params": litellm_params,
             }
 
-            # Add rate limits from config if available
+            # Add RPM rate limit from config if available
+            # Note: TPM (tokens per minute) is not applicable for image generation
+            # since image APIs are rate-limited by requests, not tokens.
             if config.get("rpm"):
                 deployment["rpm"] = config["rpm"]
-            if config.get("tpm"):
-                deployment["tpm"] = config["tpm"]
 
             return deployment
 
@@ -219,10 +219,6 @@ class ImageGenRouterService:
         prompt: str,
         model: str = "auto",
         n: int | None = None,
-        quality: str | None = None,
-        size: str | None = None,
-        style: str | None = None,
-        response_format: str | None = None,
         timeout: int = 600,
         **kwargs,
     ) -> ImageResponse:
@@ -232,16 +228,16 @@ class ImageGenRouterService:
         Uses Router.aimage_generation() which distributes requests
         across configured image generation deployments.
 
+        Parameters like size, quality, style, and response_format are intentionally
+        omitted to keep the interface model-agnostic. Providers use their own
+        sensible defaults. If needed, pass them via **kwargs.
+
         Args:
             prompt: Text description of the desired image(s)
             model: Model alias (default "auto" for router routing)
             n: Number of images to generate
-            quality: Image quality setting
-            size: Image size
-            style: Style parameter
-            response_format: "url" or "b64_json"
             timeout: Request timeout in seconds
-            **kwargs: Additional litellm params
+            **kwargs: Additional provider-specific params (size, quality, etc.)
 
         Returns:
             ImageResponse from litellm
@@ -264,14 +260,6 @@ class ImageGenRouterService:
         }
         if n is not None:
             gen_kwargs["n"] = n
-        if quality is not None:
-            gen_kwargs["quality"] = quality
-        if size is not None:
-            gen_kwargs["size"] = size
-        if style is not None:
-            gen_kwargs["style"] = style
-        if response_format is not None:
-            gen_kwargs["response_format"] = response_format
         gen_kwargs.update(kwargs)
 
         return await instance._router.aimage_generation(**gen_kwargs)
