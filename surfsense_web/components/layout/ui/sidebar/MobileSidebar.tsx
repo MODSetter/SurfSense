@@ -153,22 +153,22 @@ export function MobileSidebar({
 						onChatRename={onChatRename}
 						onChatDelete={onChatDelete}
 						onChatArchive={onChatArchive}
-					onViewAllSharedChats={
-						onViewAllSharedChats
-							? () => {
-									onOpenChange(false);
-									onViewAllSharedChats();
-								}
-							: undefined
-					}
-					onViewAllPrivateChats={
-						onViewAllPrivateChats
-							? () => {
-									onOpenChange(false);
-									onViewAllPrivateChats();
-								}
-							: undefined
-					}
+						onViewAllSharedChats={
+							onViewAllSharedChats
+								? () => {
+										onOpenChange(false);
+										onViewAllSharedChats();
+									}
+								: undefined
+						}
+						onViewAllPrivateChats={
+							onViewAllPrivateChats
+								? () => {
+										onOpenChange(false);
+										onViewAllPrivateChats();
+									}
+								: undefined
+						}
 						user={user}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
