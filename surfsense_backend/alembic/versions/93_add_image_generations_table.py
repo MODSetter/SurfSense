@@ -60,8 +60,15 @@ def upgrade() -> None:
             sa.Column(
                 "provider",
                 sa.Enum(
-                    "OPENAI", "AZURE_OPENAI", "GOOGLE", "VERTEX_AI", "BEDROCK",
-                    "RECRAFT", "OPENROUTER", "XINFERENCE", "NSCALE",
+                    "OPENAI",
+                    "AZURE_OPENAI",
+                    "GOOGLE",
+                    "VERTEX_AI",
+                    "BEDROCK",
+                    "RECRAFT",
+                    "OPENROUTER",
+                    "XINFERENCE",
+                    "NSCALE",
                     name="imagegenprovider",
                     create_type=False,
                 ),

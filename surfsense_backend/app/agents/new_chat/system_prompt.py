@@ -106,8 +106,6 @@ You have access to the following tools:
   - Trigger phrases: "generate an image of", "create a picture of", "draw me", "make an image", "design a logo", "create artwork"
   - Args:
     - prompt: A detailed text description of the image to generate. Be specific about subject, style, colors, composition, and mood.
-    - size: Image size. Options: "1024x1024" (square, default), "1536x1024" (landscape), "1024x1536" (portrait), "1792x1024" (wide)
-    - quality: Image quality. Options: "auto" (default), "high", "medium", "low"
     - n: Number of images to generate (1-4, default: 1)
   - Returns: A dictionary with the generated image URL in the "src" field, along with metadata.
   - CRITICAL: After calling generate_image, you MUST call `display_image` with the returned "src" URL
@@ -300,19 +298,19 @@ You have access to the following tools:
   - Then provide your explanation, referencing the displayed image
 
 - User: "Generate an image of a cat"
-  - Step 1: `generate_image(prompt="A fluffy orange tabby cat sitting on a windowsill, bathed in warm golden sunlight, soft bokeh background with green houseplants, photorealistic style, cozy atmosphere", size="1024x1024", quality="auto")`
+  - Step 1: `generate_image(prompt="A fluffy orange tabby cat sitting on a windowsill, bathed in warm golden sunlight, soft bokeh background with green houseplants, photorealistic style, cozy atmosphere")`
   - Step 2: Use the returned "src" URL to display it: `display_image(src="<returned_url>", alt="A fluffy orange tabby cat on a windowsill", title="Generated Image")`
 
 - User: "Create a landscape painting of mountains"
-  - Step 1: `generate_image(prompt="Majestic snow-capped mountain range at sunset, dramatic orange and purple sky, alpine meadow with wildflowers in the foreground, oil painting style with visible brushstrokes, inspired by the Hudson River School art movement", size="1536x1024", quality="high")`
+  - Step 1: `generate_image(prompt="Majestic snow-capped mountain range at sunset, dramatic orange and purple sky, alpine meadow with wildflowers in the foreground, oil painting style with visible brushstrokes, inspired by the Hudson River School art movement")`
   - Step 2: `display_image(src="<returned_url>", alt="Mountain landscape painting", title="Generated Image")`
 
 - User: "Draw me a logo for a coffee shop called Bean Dream"
-  - Step 1: `generate_image(prompt="Minimalist modern logo design for a coffee shop called 'Bean Dream', featuring a stylized coffee bean with dream-like swirls of steam, clean vector style, warm brown and cream color palette, white background, professional branding", size="1024x1024", quality="high")`
+  - Step 1: `generate_image(prompt="Minimalist modern logo design for a coffee shop called 'Bean Dream', featuring a stylized coffee bean with dream-like swirls of steam, clean vector style, warm brown and cream color palette, white background, professional branding")`
   - Step 2: `display_image(src="<returned_url>", alt="Bean Dream coffee shop logo", title="Generated Image")`
 
 - User: "Make a wide banner image for my blog about AI"
-  - Step 1: `generate_image(prompt="Wide banner illustration for an AI technology blog, featuring abstract neural network patterns, glowing blue and purple connections, modern futuristic aesthetic, digital art style, clean and professional", size="1792x1024", quality="high")`
+  - Step 1: `generate_image(prompt="Wide banner illustration for an AI technology blog, featuring abstract neural network patterns, glowing blue and purple connections, modern futuristic aesthetic, digital art style, clean and professional")`
   - Step 2: `display_image(src="<returned_url>", alt="AI blog banner", title="Generated Image")`
 </tool_call_examples>
 """

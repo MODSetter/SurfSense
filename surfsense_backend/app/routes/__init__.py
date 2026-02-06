@@ -11,7 +11,6 @@ from .confluence_add_connector_route import router as confluence_add_connector_r
 from .discord_add_connector_route import router as discord_add_connector_router
 from .documents_routes import router as documents_router
 from .editor_routes import router as editor_router
-from .image_generation_routes import router as image_generation_router
 from .google_calendar_add_connector_route import (
     router as google_calendar_add_connector_router,
 )
@@ -21,6 +20,7 @@ from .google_drive_add_connector_route import (
 from .google_gmail_add_connector_route import (
     router as google_gmail_add_connector_router,
 )
+from .image_generation_routes import router as image_generation_router
 from .incentive_tasks_routes import router as incentive_tasks_router
 from .jira_add_connector_route import router as jira_add_connector_router
 from .linear_add_connector_route import router as linear_add_connector_router

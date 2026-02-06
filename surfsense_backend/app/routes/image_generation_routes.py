@@ -54,9 +54,9 @@ logger = logging.getLogger(__name__)
 _PROVIDER_MAP = {
     "OPENAI": "openai",
     "AZURE_OPENAI": "azure",
-    "GOOGLE": "gemini",       # Google AI Studio
+    "GOOGLE": "gemini",  # Google AI Studio
     "VERTEX_AI": "vertex_ai",
-    "BEDROCK": "bedrock",     # AWS Bedrock
+    "BEDROCK": "bedrock",  # AWS Bedrock
     "RECRAFT": "recraft",
     "OPENROUTER": "openrouter",
     "XINFERENCE": "xinference",
@@ -82,7 +82,9 @@ def _get_global_image_gen_config(config_id: int) -> dict | None:
     return None
 
 
-def _build_model_string(provider: str, model_name: str, custom_provider: str | None) -> str:
+def _build_model_string(
+    provider: str, model_name: str, custom_provider: str | None
+) -> str:
     """Build a litellm model string from provider + model_name."""
     if custom_provider:
         return f"{custom_provider}/{model_name}"
@@ -210,38 +212,44 @@ async def get_global_image_gen_configs(
         safe_configs = []
 
         if global_configs and len(global_configs) > 0:
-            safe_configs.append({
-                "id": 0,
-                "name": "Auto (Load Balanced)",
-                "description": "Automatically routes across available image generation providers.",
-                "provider": "AUTO",
-                "custom_provider": None,
-                "model_name": "auto",
-                "api_base": None,
-                "api_version": None,
-                "litellm_params": {},
-                "is_global": True,
-                "is_auto_mode": True,
-            })
+            safe_configs.append(
+                {
+                    "id": 0,
+                    "name": "Auto (Load Balanced)",
+                    "description": "Automatically routes across available image generation providers.",
+                    "provider": "AUTO",
+                    "custom_provider": None,
+                    "model_name": "auto",
+                    "api_base": None,
+                    "api_version": None,
+                    "litellm_params": {},
+                    "is_global": True,
+                    "is_auto_mode": True,
+                }
+            )
 
         for cfg in global_configs:
-            safe_configs.append({
-                "id": cfg.get("id"),
-                "name": cfg.get("name"),
-                "description": cfg.get("description"),
-                "provider": cfg.get("provider"),
-                "custom_provider": cfg.get("custom_provider"),
-                "model_name": cfg.get("model_name"),
-                "api_base": cfg.get("api_base") or None,
-                "api_version": cfg.get("api_version") or None,
-                "litellm_params": cfg.get("litellm_params", {}),
-                "is_global": True,
-            })
+            safe_configs.append(
+                {
+                    "id": cfg.get("id"),
+                    "name": cfg.get("name"),
+                    "description": cfg.get("description"),
+                    "provider": cfg.get("provider"),
+                    "custom_provider": cfg.get("custom_provider"),
+                    "model_name": cfg.get("model_name"),
+                    "api_base": cfg.get("api_base") or None,
+                    "api_version": cfg.get("api_version") or None,
+                    "litellm_params": cfg.get("litellm_params", {}),
+                    "is_global": True,
+                }
+            )
 
         return safe_configs
     except Exception as e:
         logger.exception("Failed to fetch global image generation configs")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch configs: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch configs: {e!s}"
+        ) from e
 
 
 # =============================================================================
@@ -258,7 +266,9 @@ async def create_image_gen_config(
     """Create a new image generation config for a search space."""
     try:
         await check_permission(
-            session, user, config_data.search_space_id,
+            session,
+            user,
+            config_data.search_space_id,
             Permission.IMAGE_GENERATIONS_CREATE.value,
             "You don't have permission to create image generation configs in this search space",
         )
@@ -274,7 +284,9 @@ async def create_image_gen_config(
     except Exception as e:
         await session.rollback()
         logger.exception("Failed to create ImageGenerationConfig")
-        raise HTTPException(status_code=500, detail=f"Failed to create config: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create config: {e!s}"
+        ) from e
 
 
 @router.get("/image-generation-configs", response_model=list[ImageGenerationConfigRead])
@@ -288,7 +300,9 @@ async def list_image_gen_configs(
     """List image generation configs for a search space."""
     try:
         await check_permission(
-            session, user, search_space_id,
+            session,
+            user,
+            search_space_id,
             Permission.IMAGE_GENERATIONS_READ.value,
             "You don't have permission to view image generation configs in this search space",
         )
@@ -306,10 +320,14 @@ async def list_image_gen_configs(
         raise
     except Exception as e:
         logger.exception("Failed to list ImageGenerationConfigs")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch configs: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch configs: {e!s}"
+        ) from e
 
 
-@router.get("/image-generation-configs/{config_id}", response_model=ImageGenerationConfigRead)
+@router.get(
+    "/image-generation-configs/{config_id}", response_model=ImageGenerationConfigRead
+)
 async def get_image_gen_config(
     config_id: int,
     session: AsyncSession = Depends(get_async_session),
@@ -325,7 +343,9 @@ async def get_image_gen_config(
             raise HTTPException(status_code=404, detail="Config not found")
 
         await check_permission(
-            session, user, db_config.search_space_id,
+            session,
+            user,
+            db_config.search_space_id,
             Permission.IMAGE_GENERATIONS_READ.value,
             "You don't have permission to view image generation configs in this search space",
         )
@@ -335,10 +355,14 @@ async def get_image_gen_config(
         raise
     except Exception as e:
         logger.exception("Failed to get ImageGenerationConfig")
-        raise HTTPException(status_code=500, detail=f"Failed to fetch config: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch config: {e!s}"
+        ) from e
 
 
-@router.put("/image-generation-configs/{config_id}", response_model=ImageGenerationConfigRead)
+@router.put(
+    "/image-generation-configs/{config_id}", response_model=ImageGenerationConfigRead
+)
 async def update_image_gen_config(
     config_id: int,
     update_data: ImageGenerationConfigUpdate,
@@ -355,7 +379,9 @@ async def update_image_gen_config(
             raise HTTPException(status_code=404, detail="Config not found")
 
         await check_permission(
-            session, user, db_config.search_space_id,
+            session,
+            user,
+            db_config.search_space_id,
             Permission.IMAGE_GENERATIONS_CREATE.value,
             "You don't have permission to update image generation configs in this search space",
         )
@@ -372,7 +398,9 @@ async def update_image_gen_config(
     except Exception as e:
         await session.rollback()
         logger.exception("Failed to update ImageGenerationConfig")
-        raise HTTPException(status_code=500, detail=f"Failed to update config: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update config: {e!s}"
+        ) from e
 
 
 @router.delete("/image-generation-configs/{config_id}", response_model=dict)
@@ -391,21 +419,28 @@ async def delete_image_gen_config(
             raise HTTPException(status_code=404, detail="Config not found")
 
         await check_permission(
-            session, user, db_config.search_space_id,
+            session,
+            user,
+            db_config.search_space_id,
             Permission.IMAGE_GENERATIONS_DELETE.value,
             "You don't have permission to delete image generation configs in this search space",
         )
 
         await session.delete(db_config)
         await session.commit()
-        return {"message": "Image generation config deleted successfully", "id": config_id}
+        return {
+            "message": "Image generation config deleted successfully",
+            "id": config_id,
+        }
 
     except HTTPException:
         raise
     except Exception as e:
         await session.rollback()
         logger.exception("Failed to delete ImageGenerationConfig")
-        raise HTTPException(status_code=500, detail=f"Failed to delete config: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete config: {e!s}"
+        ) from e
 
 
 # =============================================================================
@@ -422,7 +457,9 @@ async def create_image_generation(
     """Create and execute an image generation request."""
     try:
         await check_permission(
-            session, user, data.search_space_id,
+            session,
+            user,
+            data.search_space_id,
             Permission.IMAGE_GENERATIONS_CREATE.value,
             "You don't have permission to create image generations in this search space",
         )
@@ -463,11 +500,15 @@ async def create_image_generation(
         raise
     except SQLAlchemyError:
         await session.rollback()
-        raise HTTPException(status_code=500, detail="Database error during image generation") from None
+        raise HTTPException(
+            status_code=500, detail="Database error during image generation"
+        ) from None
     except Exception as e:
         await session.rollback()
         logger.exception("Failed to create image generation")
-        raise HTTPException(status_code=500, detail=f"Image generation failed: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Image generation failed: {e!s}"
+        ) from e
 
 
 @router.get("/image-generations", response_model=list[ImageGenerationListRead])
@@ -487,7 +528,9 @@ async def list_image_generations(
     try:
         if search_space_id is not None:
             await check_permission(
-                session, user, search_space_id,
+                session,
+                user,
+                search_space_id,
                 Permission.IMAGE_GENERATIONS_READ.value,
                 "You don't have permission to read image generations in this search space",
             )
@@ -495,7 +538,8 @@ async def list_image_generations(
                 select(ImageGeneration)
                 .filter(ImageGeneration.search_space_id == search_space_id)
                 .order_by(ImageGeneration.created_at.desc())
-                .offset(skip).limit(limit)
+                .offset(skip)
+                .limit(limit)
             )
         else:
             result = await session.execute(
@@ -504,15 +548,21 @@ async def list_image_generations(
                 .join(SearchSpaceMembership)
                 .filter(SearchSpaceMembership.user_id == user.id)
                 .order_by(ImageGeneration.created_at.desc())
-                .offset(skip).limit(limit)
+                .offset(skip)
+                .limit(limit)
             )
 
-        return [ImageGenerationListRead.from_orm_with_count(img) for img in result.scalars().all()]
+        return [
+            ImageGenerationListRead.from_orm_with_count(img)
+            for img in result.scalars().all()
+        ]
 
     except HTTPException:
         raise
     except SQLAlchemyError:
-        raise HTTPException(status_code=500, detail="Database error fetching image generations") from None
+        raise HTTPException(
+            status_code=500, detail="Database error fetching image generations"
+        ) from None
 
 
 @router.get("/image-generations/{image_gen_id}", response_model=ImageGenerationRead)
@@ -531,7 +581,9 @@ async def get_image_generation(
             raise HTTPException(status_code=404, detail="Image generation not found")
 
         await check_permission(
-            session, user, image_gen.search_space_id,
+            session,
+            user,
+            image_gen.search_space_id,
             Permission.IMAGE_GENERATIONS_READ.value,
             "You don't have permission to read image generations in this search space",
         )
@@ -540,7 +592,9 @@ async def get_image_generation(
     except HTTPException:
         raise
     except SQLAlchemyError:
-        raise HTTPException(status_code=500, detail="Database error fetching image generation") from None
+        raise HTTPException(
+            status_code=500, detail="Database error fetching image generation"
+        ) from None
 
 
 @router.delete("/image-generations/{image_gen_id}", response_model=dict)
@@ -559,7 +613,9 @@ async def delete_image_generation(
             raise HTTPException(status_code=404, detail="Image generation not found")
 
         await check_permission(
-            session, user, db_image_gen.search_space_id,
+            session,
+            user,
+            db_image_gen.search_space_id,
             Permission.IMAGE_GENERATIONS_DELETE.value,
             "You don't have permission to delete image generations in this search space",
         )
@@ -572,12 +628,15 @@ async def delete_image_generation(
         raise
     except SQLAlchemyError:
         await session.rollback()
-        raise HTTPException(status_code=500, detail="Database error deleting image generation") from None
+        raise HTTPException(
+            status_code=500, detail="Database error deleting image generation"
+        ) from None
 
 
 # =============================================================================
 # Image Serving (serves generated images from DB, protected by signed tokens)
 # =============================================================================
+
 
 @router.get("/image-generations/{image_gen_id}/image")
 async def serve_generated_image(
@@ -616,13 +675,16 @@ async def serve_generated_image(
 
         images = image_gen.response_data.get("data", [])
         if not images or index >= len(images):
-            raise HTTPException(status_code=404, detail="Image not found at the specified index")
+            raise HTTPException(
+                status_code=404, detail="Image not found at the specified index"
+            )
 
         image_entry = images[index]
 
         # If there's a URL, redirect to it
         if image_entry.get("url"):
             from fastapi.responses import RedirectResponse
+
             return RedirectResponse(url=image_entry["url"])
 
         # If there's b64_json data, decode and serve it
@@ -643,4 +705,6 @@ async def serve_generated_image(
         raise
     except Exception as e:
         logger.exception("Failed to serve generated image")
-        raise HTTPException(status_code=500, detail=f"Failed to serve image: {e!s}") from e
+        raise HTTPException(
+            status_code=500, detail=f"Failed to serve image: {e!s}"
+        ) from e

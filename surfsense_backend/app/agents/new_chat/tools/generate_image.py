@@ -21,12 +21,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
 from app.db import ImageGeneration, ImageGenerationConfig, SearchSpace
-from app.utils.signed_image_urls import generate_image_token
 from app.services.image_gen_router_service import (
     IMAGE_GEN_AUTO_MODE_ID,
     ImageGenRouterService,
     is_image_gen_auto_mode,
 )
+from app.utils.signed_image_urls import generate_image_token
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +76,6 @@ def create_generate_image_tool(
     @tool
     async def generate_image(
         prompt: str,
-        size: str = "1024x1024",
-        quality: str = "auto",
         n: int = 1,
     ) -> dict[str, Any]:
         """
@@ -89,10 +87,6 @@ def create_generate_image_tool(
         Args:
             prompt: A detailed text description of the image to generate.
                     Be specific about subject, style, colors, composition, and mood.
-            size: Image size. Options: "1024x1024" (square), "1536x1024" (landscape),
-                  "1024x1536" (portrait), "1792x1024" (wide). Default: "1024x1024"
-            quality: Image quality. Options: "auto" (default), "high", "medium", "low".
-                     Default: "auto"
             n: Number of images to generate (1-4). Default: 1
 
         Returns:
@@ -112,18 +106,14 @@ def create_generate_image_tool(
             )
 
             # Build generation kwargs
-            # NOTE: 'style' is intentionally excluded from gen_kwargs because
-            # it is only supported by DALL-E 3 and causes errors with other
-            # models (e.g. gpt-image-1 rejects it as an unknown parameter).
-            # Since we can't predict which model auto-mode will route to,
-            # it's safest to omit it.
+            # NOTE: size, quality, and style are intentionally NOT passed.
+            # Different models support different values for these params
+            # (e.g. DALL-E 3 wants "hd"/"standard" for quality while
+            # gpt-image-1 wants "high"/"medium"/"low"; size options also
+            # differ). Letting the model use its own defaults avoids errors.
             gen_kwargs: dict[str, Any] = {}
             if n is not None and n > 1:
                 gen_kwargs["n"] = n
-            if quality:
-                gen_kwargs["quality"] = quality
-            if size:
-                gen_kwargs["size"] = size
 
             # Call litellm based on config type
             if is_image_gen_auto_mode(config_id):
@@ -199,8 +189,6 @@ def create_generate_image_tool(
                 prompt=prompt,
                 model=getattr(response, "_hidden_params", {}).get("model"),
                 n=n,
-                quality=quality,
-                size=size,
                 image_generation_config_id=config_id,
                 response_data=response_dict,
                 search_space_id=search_space_id,

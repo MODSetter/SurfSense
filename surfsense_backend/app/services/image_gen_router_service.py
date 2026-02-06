@@ -31,9 +31,9 @@ IMAGE_GEN_AUTO_MODE_ID = 0
 IMAGE_GEN_PROVIDER_MAP = {
     "OPENAI": "openai",
     "AZURE_OPENAI": "azure",
-    "GOOGLE": "gemini",       # Google AI Studio
+    "GOOGLE": "gemini",  # Google AI Studio
     "VERTEX_AI": "vertex_ai",
-    "BEDROCK": "bedrock",     # AWS Bedrock
+    "BEDROCK": "bedrock",  # AWS Bedrock
     "RECRAFT": "recraft",
     "OPENROUTER": "openrouter",
     "XINFERENCE": "xinference",
@@ -156,9 +156,7 @@ class ImageGenRouterService:
                 model_string = f"{config['custom_provider']}/{config['model_name']}"
             else:
                 provider = config.get("provider", "").upper()
-                provider_prefix = IMAGE_GEN_PROVIDER_MAP.get(
-                    provider, provider.lower()
-                )
+                provider_prefix = IMAGE_GEN_PROVIDER_MAP.get(provider, provider.lower())
                 model_string = f"{provider_prefix}/{config['model_name']}"
 
             # Build litellm params
@@ -194,9 +192,7 @@ class ImageGenRouterService:
             return deployment
 
         except Exception as e:
-            logger.warning(
-                f"Failed to convert image gen config to deployment: {e}"
-            )
+            logger.warning(f"Failed to convert image gen config to deployment: {e}")
             return None
 
     @classmethod

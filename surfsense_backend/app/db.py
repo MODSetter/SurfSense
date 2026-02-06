@@ -100,7 +100,6 @@ class PodcastStatus(str, Enum):
     FAILED = "failed"
 
 
-
 class LiteLLMProvider(str, Enum):
     """
     Enum for LLM providers supported by LiteLLM.
@@ -941,7 +940,9 @@ class ImageGenerationConfig(BaseModel, TimestampMixin):
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
-    search_space = relationship("SearchSpace", back_populates="image_generation_configs")
+    search_space = relationship(
+        "SearchSpace", back_populates="image_generation_configs"
+    )
 
 
 class ImageGeneration(BaseModel, TimestampMixin):
@@ -973,9 +974,7 @@ class ImageGeneration(BaseModel, TimestampMixin):
         String(50), nullable=True
     )  # "1024x1024", "1536x1024", "1024x1536", etc.
     style = Column(String(50), nullable=True)  # Model-specific style parameter
-    response_format = Column(
-        String(50), nullable=True
-    )  # "url" or "b64_json"
+    response_format = Column(String(50), nullable=True)  # "url" or "b64_json"
 
     # Image generation config reference
     # 0 = Auto mode (router), negative IDs = global configs from YAML,

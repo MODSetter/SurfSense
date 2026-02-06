@@ -113,10 +113,12 @@ __all__ = [
     "DriveItem",
     "ExtensionDocumentContent",
     "ExtensionDocumentMetadata",
+    "GlobalImageGenConfigRead",
     "GlobalNewLLMConfigRead",
     "GoogleDriveIndexRequest",
     "GoogleDriveIndexingOptions",
-    "GlobalImageGenConfigRead",
+    # Base schemas
+    "IDModel",
     # Image Generation Config schemas
     "ImageGenerationConfigCreate",
     "ImageGenerationConfigPublic",
@@ -126,8 +128,6 @@ __all__ = [
     "ImageGenerationCreate",
     "ImageGenerationListRead",
     "ImageGenerationRead",
-    # Base schemas
-    "IDModel",
     # RBAC schemas
     "InviteAcceptRequest",
     "InviteAcceptResponse",

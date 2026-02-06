@@ -13,7 +13,6 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.db import ImageGenProvider
 
-
 # =============================================================================
 # ImageGenerationConfig CRUD Schemas
 # =============================================================================
