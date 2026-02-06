@@ -90,7 +90,7 @@ export function LayoutDataProvider({
 	});
 
 	// Fetch threads (40 total to allow up to 20 per section - shared/private)
-	const { data: threadsData } = useQuery({
+	const { data: threadsData, isPending: isLoadingThreads } = useQuery({
 		queryKey: ["threads", searchSpaceId, { limit: 40 }],
 		queryFn: () => fetchThreads(Number(searchSpaceId), 40),
 		enabled: !!searchSpaceId,
@@ -585,6 +585,7 @@ export function LayoutDataProvider({
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}
+				isLoadingChats={isLoadingThreads}
 				inbox={{
 					isOpen: isInboxSidebarOpen,
 					onOpenChange: setIsInboxSidebarOpen,

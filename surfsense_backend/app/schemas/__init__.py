@@ -11,6 +11,7 @@ from .documents import (
     DocumentBase,
     DocumentRead,
     DocumentsCreate,
+    DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,
     DocumentUpdate,
@@ -104,6 +105,7 @@ __all__ = [
     # Document schemas
     "DocumentBase",
     "DocumentRead",
+    "DocumentStatusSchema",
     "DocumentTitleRead",
     "DocumentTitleSearchResponse",
     "DocumentUpdate",

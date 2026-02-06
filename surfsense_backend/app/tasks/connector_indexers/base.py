@@ -28,6 +28,35 @@ def get_current_timestamp() -> datetime:
     return datetime.now(UTC)
 
 
+def safe_set_chunks(document: Document, chunks: list) -> None:
+    """
+    Safely assign chunks to a document without triggering lazy loading.
+
+    ALWAYS use this instead of `document.chunks = chunks` to avoid
+    SQLAlchemy async errors (MissingGreenlet / greenlet_spawn).
+
+    Why this is needed:
+    - Direct assignment `document.chunks = chunks` triggers SQLAlchemy to
+      load the OLD chunks first (for comparison/orphan detection)
+    - This lazy loading fails in async context with asyncpg driver
+    - set_committed_value bypasses this by setting the value directly
+
+    This function is safe regardless of how the document was loaded
+    (with or without selectinload).
+
+    Args:
+        document: The Document object to update
+        chunks: List of Chunk objects to assign
+
+    Example:
+        # Instead of: document.chunks = chunks (DANGEROUS!)
+        safe_set_chunks(document, chunks)  # Always safe
+    """
+    from sqlalchemy.orm.attributes import set_committed_value
+
+    set_committed_value(document, "chunks", chunks)
+
+
 def parse_date_flexible(date_str: str) -> datetime:
     """
     Parse date from multiple common formats.

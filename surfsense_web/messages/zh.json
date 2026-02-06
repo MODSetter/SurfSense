@@ -313,7 +313,6 @@
 		"filter_placeholder": "按标题筛选...",
 		"rows_per_page": "每页行数",
 		"refresh": "刷新",
-		"refresh_success": "文档已刷新",
 		"upload_documents": "上传文档",
 		"create_shared_note": "创建共享笔记",
 		"processing_documents": "正在处理文档...",

@@ -1,4 +1,9 @@
-"""Google Drive indexer using Surfsense file processors."""
+"""Google Drive indexer using Surfsense file processors.
+
+Implements 2-phase document status updates for real-time UI feedback:
+- Phase 1: Create all documents with 'pending' status (visible in UI immediately)
+- Phase 2: Process each document: pending → processing → ready/failed
+"""
 
 import logging
 import time
@@ -17,11 +22,12 @@ from app.connectors.google_drive import (
     get_files_in_folder,
     get_start_page_token,
 )
-from app.db import DocumentType, SearchSourceConnectorType
+from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.task_logging_service import TaskLoggingService
 from app.tasks.connector_indexers.base import (
     check_document_by_unique_identifier,
     get_connector_by_id,
+    get_current_timestamp,
     update_connector_last_indexed,
 )
 from app.utils.document_converters import generate_unique_identifier_hash
@@ -324,8 +330,29 @@ async def index_google_drive_single_file(
         display_name = file_name or file.get("name", "Unknown")
         logger.info(f"Indexing Google Drive file: {display_name} ({file_id})")
 
+        # Create pending document for status visibility
+        pending_doc, should_skip = await _create_pending_document_for_file(
+            session=session,
+            file=file,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+        )
+
+        if should_skip:
+            await task_logger.log_task_progress(
+                log_entry,
+                f"File {display_name} is unchanged or not indexable",
+                {"status": "skipped"},
+            )
+            return 0, None
+
+        # Commit pending document so it appears in UI
+        if pending_doc and pending_doc.id is None:
+            await session.commit()
+
         # Process the file
-        indexed, skipped = await _process_single_file(
+        indexed, skipped, failed = await _process_single_file(
             drive_client=drive_client,
             session=session,
             file=file,
@@ -334,12 +361,22 @@ async def index_google_drive_single_file(
             user_id=user_id,
             task_logger=task_logger,
             log_entry=log_entry,
+            pending_document=pending_doc,
         )
 
         await session.commit()
         logger.info(
             "Successfully committed Google Drive file indexing changes to database"
         )
+
+        if failed > 0:
+            error_msg = f"Failed to index file {display_name}"
+            await task_logger.log_task_failure(
+                log_entry,
+                error_msg,
+                {"file_name": display_name, "file_id": file_id},
+            )
+            return 0, error_msg
 
         if indexed > 0:
             await task_logger.log_task_success(
@@ -397,7 +434,12 @@ async def _index_full_scan(
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int]:
-    """Perform full scan indexing of a folder."""
+    """Perform full scan indexing of a folder.
+
+    Implements 2-phase document status updates for real-time UI feedback:
+    - Phase 1: Collect all files and create pending documents (visible in UI immediately)
+    - Phase 2: Process each file: pending → processing → ready/failed
+    """
     await task_logger.log_task_progress(
         log_entry,
         f"Starting full scan of folder: {folder_name} (include_subfolders={include_subfolders})",
@@ -410,29 +452,31 @@ async def _index_full_scan(
 
     documents_indexed = 0
     documents_skipped = 0
+    documents_failed = 0
     files_processed = 0
 
     # Heartbeat tracking - update notification periodically to prevent appearing stuck
     last_heartbeat_time = time.time()
 
+    # =======================================================================
+    # PHASE 1: Collect all files and create pending documents
+    # This makes ALL documents visible in the UI immediately with pending status
+    # =======================================================================
+    files_to_process = []  # List of (file, pending_document or None)
+    new_documents_created = False
+
     # Queue of folders to process: (folder_id, folder_name)
     folders_to_process = [(folder_id, folder_name)]
 
+    logger.info("Phase 1: Collecting files and creating pending documents")
+
     while folders_to_process and files_processed < max_files:
-        # Check if it's time for a heartbeat update
-        if (
-            on_heartbeat_callback
-            and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
-        ):
-            await on_heartbeat_callback(documents_indexed)
-            last_heartbeat_time = time.time()
         current_folder_id, current_folder_name = folders_to_process.pop(0)
-        logger.info(f"Processing folder: {current_folder_name} ({current_folder_id})")
+        logger.info(f"Scanning folder: {current_folder_name} ({current_folder_id})")
         page_token = None
 
         while files_processed < max_files:
             # Get files and folders in current folder
-            # include_subfolders=True here so we get folder items to queue them
             files, next_token, error = await get_files_in_folder(
                 drive_client,
                 current_folder_id,
@@ -462,35 +506,74 @@ async def _index_full_scan(
                         logger.debug(f"Queued subfolder: {file.get('name', 'Unknown')}")
                     continue
 
-                # Process the file
                 files_processed += 1
 
-                indexed, skipped = await _process_single_file(
-                    drive_client=drive_client,
+                # Create pending document for this file
+                pending_doc, should_skip = await _create_pending_document_for_file(
                     session=session,
                     file=file,
                     connector_id=connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
-                    task_logger=task_logger,
-                    log_entry=log_entry,
                 )
 
-                documents_indexed += indexed
-                documents_skipped += skipped
+                if should_skip:
+                    documents_skipped += 1
+                    continue
 
-                if documents_indexed % 10 == 0 and documents_indexed > 0:
-                    await session.commit()
-                    logger.info(
-                        f"Committed batch: {documents_indexed} files indexed so far"
-                    )
+                if pending_doc and pending_doc.id is None:
+                    # New document was created
+                    new_documents_created = True
+
+                files_to_process.append((file, pending_doc))
 
             page_token = next_token
             if not page_token:
                 break
 
+    # Commit all pending documents - they all appear in UI now
+    if new_documents_created:
+        logger.info(
+            f"Phase 1: Committing {len([f for f in files_to_process if f[1] and f[1].id is None])} pending documents"
+        )
+        await session.commit()
+
+    # =======================================================================
+    # PHASE 2: Process each file one by one
+    # Each document transitions: pending → processing → ready/failed
+    # =======================================================================
+    logger.info(f"Phase 2: Processing {len(files_to_process)} files")
+
+    for file, pending_doc in files_to_process:
+        # Check if it's time for a heartbeat update
+        if on_heartbeat_callback:
+            current_time = time.time()
+            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = current_time
+
+        indexed, skipped, failed = await _process_single_file(
+            drive_client=drive_client,
+            session=session,
+            file=file,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            task_logger=task_logger,
+            log_entry=log_entry,
+            pending_document=pending_doc,
+        )
+
+        documents_indexed += indexed
+        documents_skipped += skipped
+        documents_failed += failed
+
+        if documents_indexed % 10 == 0 and documents_indexed > 0:
+            await session.commit()
+            logger.info(f"Committed batch: {documents_indexed} files indexed so far")
+
     logger.info(
-        f"Full scan complete: {documents_indexed} indexed, {documents_skipped} skipped"
+        f"Full scan complete: {documents_indexed} indexed, {documents_skipped} skipped, {documents_failed} failed"
     )
     return documents_indexed, documents_skipped
 
@@ -514,6 +597,10 @@ async def _index_with_delta_sync(
 
     Note: include_subfolders is accepted for API consistency but delta sync
     automatically tracks changes across all folders including subfolders.
+
+    Implements 2-phase document status updates for real-time UI feedback:
+    - Phase 1: Collect all changes and create pending documents (visible in UI immediately)
+    - Phase 2: Process each file: pending → processing → ready/failed
     """
     await task_logger.log_task_progress(
         log_entry,
@@ -537,19 +624,21 @@ async def _index_with_delta_sync(
 
     documents_indexed = 0
     documents_skipped = 0
+    documents_failed = 0
     files_processed = 0
 
     # Heartbeat tracking - update notification periodically to prevent appearing stuck
     last_heartbeat_time = time.time()
 
+    # =======================================================================
+    # PHASE 1: Analyze changes and create pending documents for new/modified files
+    # =======================================================================
+    changes_to_process = []  # List of (change, file, pending_document or None)
+    new_documents_created = False
+
+    logger.info("Phase 1: Analyzing changes and creating pending documents")
+
     for change in changes:
-        # Check if it's time for a heartbeat update
-        if (
-            on_heartbeat_callback
-            and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
-        ):
-            await on_heartbeat_callback(documents_indexed)
-            last_heartbeat_time = time.time()
         if files_processed >= max_files:
             break
 
@@ -566,7 +655,45 @@ async def _index_with_delta_sync(
         if not file:
             continue
 
-        indexed, skipped = await _process_single_file(
+        # Create pending document for this file
+        pending_doc, should_skip = await _create_pending_document_for_file(
+            session=session,
+            file=file,
+            connector_id=connector_id,
+            search_space_id=search_space_id,
+            user_id=user_id,
+        )
+
+        if should_skip:
+            documents_skipped += 1
+            continue
+
+        if pending_doc and pending_doc.id is None:
+            # New document was created
+            new_documents_created = True
+
+        changes_to_process.append((change, file, pending_doc))
+
+    # Commit all pending documents - they all appear in UI now
+    if new_documents_created:
+        logger.info("Phase 1: Committing pending documents")
+        await session.commit()
+
+    # =======================================================================
+    # PHASE 2: Process each file one by one
+    # Each document transitions: pending → processing → ready/failed
+    # =======================================================================
+    logger.info(f"Phase 2: Processing {len(changes_to_process)} changes")
+
+    for _, file, pending_doc in changes_to_process:
+        # Check if it's time for a heartbeat update
+        if on_heartbeat_callback:
+            current_time = time.time()
+            if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                await on_heartbeat_callback(documents_indexed)
+                last_heartbeat_time = current_time
+
+        indexed, skipped, failed = await _process_single_file(
             drive_client=drive_client,
             session=session,
             file=file,
@@ -575,19 +702,123 @@ async def _index_with_delta_sync(
             user_id=user_id,
             task_logger=task_logger,
             log_entry=log_entry,
+            pending_document=pending_doc,
         )
 
         documents_indexed += indexed
         documents_skipped += skipped
+        documents_failed += failed
 
         if documents_indexed % 10 == 0 and documents_indexed > 0:
             await session.commit()
             logger.info(f"Committed batch: {documents_indexed} changes processed")
 
     logger.info(
-        f"Delta sync complete: {documents_indexed} indexed, {documents_skipped} skipped"
+        f"Delta sync complete: {documents_indexed} indexed, {documents_skipped} skipped, {documents_failed} failed"
     )
     return documents_indexed, documents_skipped
+
+
+async def _create_pending_document_for_file(
+    session: AsyncSession,
+    file: dict,
+    connector_id: int,
+    search_space_id: int,
+    user_id: str,
+) -> tuple[Document | None, bool]:
+    """
+    Create a pending document for a Google Drive file if it doesn't exist.
+
+    This is Phase 1 of the 2-phase document status update pattern.
+    Creates documents with 'pending' status so they appear in UI immediately.
+
+    Args:
+        session: Database session
+        file: File metadata from Google Drive API
+        connector_id: ID of the Drive connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+
+    Returns:
+        Tuple of (document, should_skip):
+        - (existing_doc, False): Existing document that needs update
+        - (new_pending_doc, False): New pending document created
+        - (None, True): File should be skipped (unchanged, rename-only, or folder)
+    """
+    from app.connectors.google_drive.file_types import should_skip_file
+
+    file_id = file.get("id")
+    file_name = file.get("name", "Unknown")
+    mime_type = file.get("mimeType", "")
+
+    # Skip folders and shortcuts
+    if should_skip_file(mime_type):
+        return None, True
+
+    if not file_id:
+        return None, True
+
+    # Generate unique identifier hash for this file
+    unique_identifier_hash = generate_unique_identifier_hash(
+        DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
+    )
+
+    # Check if document exists
+    existing_document = await check_document_by_unique_identifier(
+        session, unique_identifier_hash
+    )
+
+    if existing_document:
+        # Check if this is a rename-only update (content unchanged)
+        incoming_md5 = file.get("md5Checksum")
+        incoming_modified_time = file.get("modifiedTime")
+        doc_metadata = existing_document.document_metadata or {}
+        stored_md5 = doc_metadata.get("md5_checksum")
+        stored_modified_time = doc_metadata.get("modified_time")
+
+        # Determine if content changed
+        content_unchanged = False
+        if incoming_md5 and stored_md5:
+            content_unchanged = incoming_md5 == stored_md5
+        elif not incoming_md5 and incoming_modified_time and stored_modified_time:
+            # Google Workspace file - use modifiedTime as fallback
+            content_unchanged = incoming_modified_time == stored_modified_time
+
+        if content_unchanged:
+            # Ensure status is ready (might have been stuck in processing/pending)
+            if not DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.READY
+            ):
+                existing_document.status = DocumentStatus.ready()
+            return None, True
+
+        # Content changed - return existing document for update
+        return existing_document, False
+
+    # Create new pending document
+    document = Document(
+        search_space_id=search_space_id,
+        title=file_name,
+        document_type=DocumentType.GOOGLE_DRIVE_FILE,
+        document_metadata={
+            "google_drive_file_id": file_id,
+            "google_drive_file_name": file_name,
+            "google_drive_mime_type": mime_type,
+            "connector_id": connector_id,
+        },
+        content="Pending...",  # Placeholder until processed
+        content_hash=unique_identifier_hash,  # Temporary unique value - updated when ready
+        unique_identifier_hash=unique_identifier_hash,
+        embedding=None,
+        chunks=[],  # Empty at creation
+        status=DocumentStatus.pending(),  # Pending until processing starts
+        updated_at=get_current_timestamp(),
+        created_by_id=user_id,
+        connector_id=connector_id,
+    )
+    session.add(document)
+
+    return document, False
 
 
 async def _check_rename_only_update(
@@ -725,15 +956,31 @@ async def _process_single_file(
     user_id: str,
     task_logger: TaskLoggingService,
     log_entry: any,
-) -> tuple[int, int]:
+    pending_document: Document | None = None,
+) -> tuple[int, int, int]:
     """
     Process a single file by downloading and using Surfsense's file processor.
 
+    Implements Phase 2 of the 2-phase document status update pattern.
+    Updates document status: pending → processing → ready/failed
+
+    Args:
+        drive_client: Google Drive client
+        session: Database session
+        file: File metadata from Google Drive API
+        connector_id: ID of the connector
+        search_space_id: ID of the search space
+        user_id: ID of the user
+        task_logger: Task logging service
+        log_entry: Log entry for tracking
+        pending_document: Optional pending document created in Phase 1
+
     Returns:
-        Tuple of (indexed_count, skipped_count)
+        Tuple of (indexed_count, skipped_count, failed_count)
     """
     file_name = file.get("name", "Unknown")
     mime_type = file.get("mimeType", "")
+    file_id = file.get("id")
 
     try:
         logger.info(f"Processing file: {file_name} ({mime_type})")
@@ -756,10 +1003,15 @@ async def _process_single_file(
             # Return 1 for renamed files (they are "indexed" in the sense that they're updated)
             # Return 0 for unchanged files
             if "renamed" in (rename_message or "").lower():
-                return 1, 0
-            return 0, 1
+                return 1, 0, 0
+            return 0, 1, 0
 
-        _, error, _ = await download_and_process_file(
+        # Set document to PROCESSING status if we have a pending document
+        if pending_document:
+            pending_document.status = DocumentStatus.processing()
+            await session.commit()
+
+        _, error, metadata = await download_and_process_file(
             client=drive_client,
             file=file,
             search_space_id=search_space_id,
@@ -776,14 +1028,46 @@ async def _process_single_file(
                 f"Skipped {file_name}: {error}",
                 {"status": "skipped", "reason": error},
             )
-            return 0, 1
+            # Mark pending document as failed if it exists
+            if pending_document:
+                pending_document.status = DocumentStatus.failed(error)
+                pending_document.updated_at = get_current_timestamp()
+                await session.commit()
+            return 0, 1, 0
+
+        # The document was created/updated by download_and_process_file
+        # Find the document and ensure it has READY status
+        if file_id:
+            unique_identifier_hash = generate_unique_identifier_hash(
+                DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
+            )
+            processed_doc = await check_document_by_unique_identifier(
+                session, unique_identifier_hash
+            )
+            # Ensure status is READY
+            if processed_doc and not DocumentStatus.is_state(
+                processed_doc.status, DocumentStatus.READY
+            ):
+                processed_doc.status = DocumentStatus.ready()
+                processed_doc.updated_at = get_current_timestamp()
+                await session.commit()
 
         logger.info(f"Successfully indexed Google Drive file: {file_name}")
-        return 1, 0
+        return 1, 0, 0
 
     except Exception as e:
         logger.error(f"Error processing file {file_name}: {e!s}", exc_info=True)
-        return 0, 1
+        # Mark pending document as failed if it exists
+        if pending_document:
+            try:
+                pending_document.status = DocumentStatus.failed(str(e))
+                pending_document.updated_at = get_current_timestamp()
+                await session.commit()
+            except Exception as status_error:
+                logger.error(
+                    f"Failed to update document status to failed: {status_error}"
+                )
+        return 0, 0, 1
 
 
 async def _remove_document(session: AsyncSession, file_id: str, search_space_id: int):

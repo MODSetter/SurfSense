@@ -1,5 +1,4 @@
 import { atomWithMutation } from "jotai-tanstack-query";
-import { toast } from "sonner";
 import type {
 	CreateConnectorRequest,
 	DeleteConnectorRequest,
@@ -17,15 +16,16 @@ export const createConnectorMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
 
 	return {
-		mutationKey: cacheKeys.connectors.all(searchSpaceId!),
+		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: CreateConnectorRequest) => {
 			return connectorsApiService.createConnector(request);
 		},
 
 		onSuccess: () => {
+			if (!searchSpaceId) return;
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.connectors.all(searchSpaceId!),
+				queryKey: cacheKeys.connectors.all(searchSpaceId),
 			});
 		},
 	};
@@ -35,15 +35,16 @@ export const updateConnectorMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
 
 	return {
-		mutationKey: cacheKeys.connectors.all(searchSpaceId!),
+		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: UpdateConnectorRequest) => {
 			return connectorsApiService.updateConnector(request);
 		},
 
 		onSuccess: (_, request: UpdateConnectorRequest) => {
+			if (!searchSpaceId) return;
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.connectors.all(searchSpaceId!),
+				queryKey: cacheKeys.connectors.all(searchSpaceId),
 			});
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.connectors.byId(String(request.id)),
@@ -56,15 +57,16 @@ export const deleteConnectorMutationAtom = atomWithMutation((get) => {
 	const searchSpaceId = get(activeSearchSpaceIdAtom);
 
 	return {
-		mutationKey: cacheKeys.connectors.all(searchSpaceId!),
+		mutationKey: cacheKeys.connectors.all(searchSpaceId ?? ""),
 		enabled: !!searchSpaceId,
 		mutationFn: async (request: DeleteConnectorRequest) => {
 			return connectorsApiService.deleteConnector(request);
 		},
 
 		onSuccess: (_, request: DeleteConnectorRequest) => {
+			if (!searchSpaceId) return;
 			queryClient.setQueryData(
-				cacheKeys.connectors.all(searchSpaceId!),
+				cacheKeys.connectors.all(searchSpaceId),
 				(oldData: GetConnectorsResponse | undefined) => {
 					if (!oldData) return oldData;
 					return oldData.filter((connector) => connector.id !== request.id);
@@ -88,9 +90,9 @@ export const indexConnectorMutationAtom = atomWithMutation((get) => {
 		},
 
 		onSuccess: (response: IndexConnectorResponse) => {
-			toast.success(response.message);
+			if (!searchSpaceId) return;
 			queryClient.invalidateQueries({
-				queryKey: cacheKeys.connectors.all(searchSpaceId!),
+				queryKey: cacheKeys.connectors.all(searchSpaceId),
 			});
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.connectors.byId(String(response.connector_id)),

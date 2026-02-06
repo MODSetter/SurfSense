@@ -12,9 +12,20 @@
  * 3. Works even if logout cleanup fails
  */
 
-import { PGlite } from "@electric-sql/pglite";
+import { PGlite, type Transaction } from "@electric-sql/pglite";
 import { live } from "@electric-sql/pglite/live";
 import { electricSync } from "@electric-sql/pglite-sync";
+
+// Debug logging - only logs in development, silent in production
+const IS_DEV = process.env.NODE_ENV === "development";
+
+function debugLog(...args: unknown[]) {
+	if (IS_DEV) console.log(...args);
+}
+
+function debugWarn(...args: unknown[]) {
+	if (IS_DEV) console.warn(...args);
+}
 
 // Types
 export interface ElectricClient {
@@ -56,7 +67,14 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 // v2: user-specific database architecture
 // v3: consistent cutoff date for sync+queries, visibility refresh support
 // v4: heartbeat-based stale notification detection with updated_at tracking
-const SYNC_VERSION = 4;
+// v5: fixed duplicate key errors (root cause: unstable cutoff dates in use-inbox.ts)
+//     - added onMustRefetch handler for server-side refetch scenarios
+//     - fixed getSyncCutoffDate to use stable midnight UTC timestamps
+// v6: real-time documents table - added title and created_by_id columns for live document display
+// v7: removed use-documents-electric.ts - consolidated to single documents sync to prevent conflicts
+// v8: added status column for real-time document processing status (ready/processing/failed)
+// v9: added pending state for accurate document queue visibility
+const SYNC_VERSION = 11;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";
@@ -77,13 +95,17 @@ function getDbName(userId: string): string {
 }
 
 /**
- * Clean up databases from OTHER users (not the current user)
+ * Clean up databases from OTHER users AND old versions
  * This is called on login to ensure clean state
  */
 async function cleanupOtherUserDatabases(currentUserId: string): Promise<void> {
 	if (typeof window === "undefined" || !window.indexedDB) {
 		return;
 	}
+
+	// The exact database identifier we want to keep (current user + current version)
+	// Format: "surfsense-{userId}-v{version}"
+	const currentDbIdentifier = `${DB_PREFIX}${currentUserId}-v${SYNC_VERSION}`;
 
 	try {
 		// Try to list all databases (not supported in all browsers)
@@ -95,26 +117,27 @@ async function cleanupOtherUserDatabases(currentUserId: string): Promise<void> {
 				if (!dbName) continue;
 
 				// Check if this is a SurfSense database
-				if (dbName.startsWith(DB_PREFIX) || dbName.includes("surfsense")) {
-					// Don't delete current user's database
-					if (dbName.includes(currentUserId)) {
-						console.log(`[Electric] Keeping current user's database: ${dbName}`);
+				if (dbName.includes("surfsense")) {
+					// Check if this is the current database
+					// PGlite stores with "/pglite/" prefix, so we check if the name ENDS WITH our identifier
+					if (dbName.endsWith(currentDbIdentifier)) {
+						debugLog(`[Electric] Keeping current database: ${dbName}`);
 						continue;
 					}
 
-					// Delete databases from other users
+					// Delete ALL other databases (other users OR old versions of current user)
 					try {
-						console.log(`[Electric] Deleting stale database: ${dbName}`);
+						debugLog(`[Electric] Deleting stale database: ${dbName}`);
 						window.indexedDB.deleteDatabase(dbName);
 					} catch (deleteErr) {
-						console.warn(`[Electric] Failed to delete database ${dbName}:`, deleteErr);
+						debugWarn(`[Electric] Failed to delete database ${dbName}:`, deleteErr);
 					}
 				}
 			}
 		}
 	} catch (err) {
 		// indexedDB.databases() not supported - that's okay, login cleanup is best-effort
-		console.warn("[Electric] Could not enumerate databases for cleanup:", err);
+		debugWarn("[Electric] Could not enumerate databases for cleanup:", err);
 	}
 }
 
@@ -140,7 +163,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 	// If initialized for a different user, close the old client first
 	if (electricClient && currentUserId !== userId) {
-		console.log(`[Electric] User changed from ${currentUserId} to ${userId}, reinitializing...`);
+		debugLog(`[Electric] User changed from ${currentUserId} to ${userId}, reinitializing...`);
 		await cleanupElectric();
 	}
 
@@ -155,12 +178,12 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 	initPromise = (async () => {
 		try {
 			// STEP 1: Clean up databases from other users (login-time cleanup)
-			console.log("[Electric] Cleaning up databases from other users...");
+			debugLog("[Electric] Cleaning up databases from other users...");
 			await cleanupOtherUserDatabases(userId);
 
 			// STEP 2: Create user-specific PGlite database
 			const dbName = getDbName(userId);
-			console.log(`[Electric] Initializing database: ${dbName}`);
+			debugLog(`[Electric] Initializing database: ${dbName}`);
 
 			const db = await PGlite.create({
 				dataDir: dbName,
@@ -216,18 +239,22 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 			`);
 
 			// Create the documents table schema in PGlite
-			// Only sync minimal fields needed for type counts: id, document_type, search_space_id
+			// Sync columns needed for real-time table display (lightweight - no content/metadata)
 			await db.exec(`
 				CREATE TABLE IF NOT EXISTS documents (
 					id INTEGER PRIMARY KEY,
 					search_space_id INTEGER NOT NULL,
 					document_type TEXT NOT NULL,
-					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+					title TEXT NOT NULL DEFAULT '',
+					created_by_id TEXT,
+					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+					status JSONB DEFAULT '{"state": "ready"}'::jsonb
 				);
 				
 				CREATE INDEX IF NOT EXISTS idx_documents_search_space_id ON documents(search_space_id);
 				CREATE INDEX IF NOT EXISTS idx_documents_type ON documents(document_type);
 				CREATE INDEX IF NOT EXISTS idx_documents_search_space_type ON documents(search_space_id, document_type);
+				CREATE INDEX IF NOT EXISTS idx_documents_status ON documents((status->>'state'));
 			`);
 
 			await db.exec(`
@@ -290,14 +317,14 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 					// Check if we already have an active sync for this shape (memory optimization)
 					const existingHandle = activeSyncHandles.get(cacheKey);
 					if (existingHandle) {
-						console.log(`[Electric] Reusing existing sync handle for: ${cacheKey}`);
+						debugLog(`[Electric] Reusing existing sync handle for: ${cacheKey}`);
 						return existingHandle;
 					}
 
 					// Check if there's already a pending sync for this shape (prevent race condition)
 					const pendingSync = pendingSyncs.get(cacheKey);
 					if (pendingSync) {
-						console.log(`[Electric] Waiting for pending sync to complete: ${cacheKey}`);
+						debugLog(`[Electric] Waiting for pending sync to complete: ${cacheKey}`);
 						return pendingSync;
 					}
 
@@ -323,7 +350,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 								if (singleQuoteCount % 2 !== 0) {
 									// Odd number of quotes means unterminated string literal
-									console.warn("Where clause has unmatched quotes, fixing:", where);
+									debugWarn("Where clause has unmatched quotes, fixing:", where);
 									// Add closing quote at the end
 									validatedWhere = `${where}'`;
 									params.where = validatedWhere;
@@ -337,15 +364,15 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 						if (columns) params.columns = columns.join(",");
 
-						console.log("[Electric] Syncing shape with params:", params);
-						console.log("[Electric] Electric URL:", `${electricUrl}/v1/shape`);
-						console.log("[Electric] Where clause:", where, "Validated:", validatedWhere);
+						debugLog("[Electric] Syncing shape with params:", params);
+						debugLog("[Electric] Electric URL:", `${electricUrl}/v1/shape`);
+						debugLog("[Electric] Where clause:", where, "Validated:", validatedWhere);
 
 						try {
 							// Debug: Test Electric SQL connection directly first (DEV ONLY - skipped in production)
 							if (process.env.NODE_ENV === "development") {
 								const testUrl = `${electricUrl}/v1/shape?table=${table}&offset=-1${validatedWhere ? `&where=${encodeURIComponent(validatedWhere)}` : ""}`;
-								console.log("[Electric] Testing Electric SQL directly:", testUrl);
+								debugLog("[Electric] Testing Electric SQL directly:", testUrl);
 								try {
 									const testResponse = await fetch(testUrl);
 									const testHeaders = {
@@ -353,9 +380,9 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 										offset: testResponse.headers.get("electric-offset"),
 										upToDate: testResponse.headers.get("electric-up-to-date"),
 									};
-									console.log("[Electric] Direct Electric SQL response headers:", testHeaders);
+									debugLog("[Electric] Direct Electric SQL response headers:", testHeaders);
 									const testData = await testResponse.json();
-									console.log(
+									debugLog(
 										"[Electric] Direct Electric SQL data count:",
 										Array.isArray(testData) ? testData.length : "not array",
 										testData
@@ -396,14 +423,14 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 								// Shorter timeout (5 seconds) as fallback
 								setTimeout(() => {
 									if (!syncResolved) {
-										console.warn(
+										debugWarn(
 											`[Electric] ⚠️ Sync timeout for ${table} - checking isUpToDate one more time...`
 										);
 										// Check isUpToDate one more time before resolving
 										// This will be checked after shape is created
 										setTimeout(() => {
 											if (!syncResolved) {
-												console.warn(
+												debugWarn(
 													`[Electric] ⚠️ Sync timeout for ${table} - resolving anyway after 5s`
 												);
 												resolveInitialSync();
@@ -413,7 +440,22 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 								}, 5000);
 							});
 
-							// Include userId in shapeKey for user-specific sync state
+							// ROOT CAUSE FIX: The duplicate key errors were caused by unstable cutoff dates
+							// in use-inbox.ts generating different sync keys on each render.
+							// That's now fixed (rounded to midnight UTC in getSyncCutoffDate).
+							// We can safely use shapeKey for fast incremental sync.
+
+							const shapeKey = `${userId}_v${SYNC_VERSION}_${table}_${where?.replace(/[^a-zA-Z0-9]/g, "_") || "all"}`;
+
+							// Type assertion to PGlite with electric extension
+							const pgWithElectric = db as unknown as {
+								electric: {
+									syncShapeToTable: (
+										config: Record<string, unknown>
+									) => Promise<{ unsubscribe: () => void; isUpToDate: boolean; stream: unknown }>;
+								};
+							};
+
 							const shapeConfig = {
 								shape: {
 									url: `${electricUrl}/v1/shape`,
@@ -425,9 +467,9 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 								},
 								table,
 								primaryKey,
-								shapeKey: `${userId}_v${SYNC_VERSION}_${table}_${where?.replace(/[^a-zA-Z0-9]/g, "_") || "all"}`, // User-specific versioned key
+								shapeKey, // Re-enabled for fast incremental sync (root cause in use-inbox.ts is fixed)
 								onInitialSync: () => {
-									console.log(
+									debugLog(
 										`[Electric] ✅ Initial sync complete for ${table} - data should now be in PGlite`
 									);
 									resolveInitialSync();
@@ -440,21 +482,37 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 									);
 									rejectInitialSync(error);
 								},
+								// Handle must-refetch: clear table data before Electric re-inserts from scratch
+								// This prevents "duplicate key" errors when the shape is invalidated
+								onMustRefetch: async (tx: Transaction) => {
+									debugLog(
+										`[Electric] ⚠️ Must refetch triggered for ${table} - clearing existing data`
+									);
+									try {
+										// Delete rows matching the shape's WHERE clause
+										// If no WHERE clause, delete all rows from the table
+										if (validatedWhere) {
+											// Parse the WHERE clause to build a DELETE statement
+											// The WHERE clause is already validated and formatted
+											await tx.exec(`DELETE FROM ${table} WHERE ${validatedWhere}`);
+											debugLog(`[Electric] 🗑️ Cleared ${table} rows matching: ${validatedWhere}`);
+										} else {
+											// No WHERE clause means we're syncing the entire table
+											await tx.exec(`DELETE FROM ${table}`);
+											debugLog(`[Electric] 🗑️ Cleared all rows from ${table}`);
+										}
+									} catch (cleanupError) {
+										console.error(
+											`[Electric] ❌ Failed to clear ${table} during must-refetch:`,
+											cleanupError
+										);
+										// Re-throw to let Electric handle the error
+										throw cleanupError;
+									}
+								},
 							};
 
-							console.log(
-								"[Electric] syncShapeToTable config:",
-								JSON.stringify(shapeConfig, null, 2)
-							);
-
-							// Type assertion to PGlite with electric extension
-							const pgWithElectric = db as PGlite & {
-								electric: {
-									syncShapeToTable: (
-										config: typeof shapeConfig
-									) => Promise<{ unsubscribe: () => void; isUpToDate: boolean; stream: unknown }>;
-								};
-							};
+							debugLog("[Electric] syncShapeToTable config:", JSON.stringify(shapeConfig, null, 2));
 
 							let shape: { unsubscribe: () => void; isUpToDate: boolean; stream: unknown };
 							try {
@@ -464,7 +522,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 								const errorMessage =
 									syncError instanceof Error ? syncError.message : String(syncError);
 								if (errorMessage.includes("Already syncing")) {
-									console.warn(
+									debugWarn(
 										`[Electric] Already syncing ${table}, waiting for existing sync to settle...`
 									);
 
@@ -474,12 +532,12 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 									// Check if an active handle now exists (another sync might have completed)
 									const existingHandle = activeSyncHandles.get(cacheKey);
 									if (existingHandle) {
-										console.log(`[Electric] Found existing handle after waiting: ${cacheKey}`);
+										debugLog(`[Electric] Found existing handle after waiting: ${cacheKey}`);
 										return existingHandle;
 									}
 
 									// Retry once after waiting
-									console.log(`[Electric] Retrying sync for ${table}...`);
+									debugLog(`[Electric] Retrying sync for ${table}...`);
 									try {
 										shape = await pgWithElectric.electric.syncShapeToTable(shapeConfig);
 									} catch (retryError) {
@@ -487,12 +545,10 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 											retryError instanceof Error ? retryError.message : String(retryError);
 										if (retryMessage.includes("Already syncing")) {
 											// Still syncing - create a placeholder handle that indicates the table is being synced
-											console.warn(
-												`[Electric] ${table} still syncing, creating placeholder handle`
-											);
+											debugWarn(`[Electric] ${table} still syncing, creating placeholder handle`);
 											const placeholderHandle: SyncHandle = {
 												unsubscribe: () => {
-													console.log(`[Electric] Placeholder unsubscribe for: ${cacheKey}`);
+													debugLog(`[Electric] Placeholder unsubscribe for: ${cacheKey}`);
 													activeSyncHandles.delete(cacheKey);
 												},
 												get isUpToDate() {
@@ -516,7 +572,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 							}
 
 							// Log the actual shape result structure
-							console.log("[Electric] Shape sync result (initial):", {
+							debugLog("[Electric] Shape sync result (initial):", {
 								hasUnsubscribe: typeof shape?.unsubscribe === "function",
 								isUpToDate: shape?.isUpToDate,
 								hasStream: !!shape?.stream,
@@ -525,7 +581,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 							// Recommended Approach Step 1: Check isUpToDate immediately
 							if (shape.isUpToDate) {
-								console.log(
+								debugLog(
 									`[Electric] ✅ Sync already up-to-date for ${table} (resuming from previous state)`
 								);
 								resolveInitialSync();
@@ -533,7 +589,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 								// Recommended Approach Step 2: Subscribe to stream and watch for "up-to-date" message
 								if (shape?.stream) {
 									const stream = shape.stream as any;
-									console.log("[Electric] Shape stream details:", {
+									debugLog("[Electric] Shape stream details:", {
 										shapeHandle: stream?.shapeHandle,
 										lastOffset: stream?.lastOffset,
 										isUpToDate: stream?.isUpToDate,
@@ -546,14 +602,14 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 									// NOTE: We keep this subscription active - don't unsubscribe!
 									// The stream is what Electric SQL uses for real-time updates
 									if (typeof stream?.subscribe === "function") {
-										console.log(
+										debugLog(
 											"[Electric] Subscribing to shape stream to watch for up-to-date message..."
 										);
 										// Subscribe but don't store unsubscribe - we want it to stay active
 										stream.subscribe((messages: unknown[]) => {
 											// Continue receiving updates even after sync is resolved
 											if (!syncResolved) {
-												console.log(
+												debugLog(
 													"[Electric] 🔵 Shape stream received messages:",
 													messages?.length || 0
 												);
@@ -570,14 +626,14 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 														(typeof msg === "object" && "up-to-date" in msg)
 													) {
 														if (!syncResolved) {
-															console.log(`[Electric] ✅ Received up-to-date message for ${table}`);
+															debugLog(`[Electric] ✅ Received up-to-date message for ${table}`);
 															resolveInitialSync();
 														}
 														// Continue listening for real-time updates - don't return!
 													}
 												}
 												if (!syncResolved && messages.length > 0) {
-													console.log(
+													debugLog(
 														"[Electric] First message:",
 														JSON.stringify(messages[0], null, 2)
 													);
@@ -586,16 +642,14 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 											// Also check stream's isUpToDate property after receiving messages
 											if (!syncResolved && stream?.isUpToDate) {
-												console.log(`[Electric] ✅ Stream isUpToDate is true for ${table}`);
+												debugLog(`[Electric] ✅ Stream isUpToDate is true for ${table}`);
 												resolveInitialSync();
 											}
 										});
 
 										// Also check stream's isUpToDate property immediately
 										if (stream?.isUpToDate) {
-											console.log(
-												`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`
-											);
+											debugLog(`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`);
 											resolveInitialSync();
 										}
 									}
@@ -608,9 +662,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 										}
 
 										if (shape.isUpToDate || stream?.isUpToDate) {
-											console.log(
-												`[Electric] ✅ Sync completed (detected via polling) for ${table}`
-											);
+											debugLog(`[Electric] ✅ Sync completed (detected via polling) for ${table}`);
 											clearInterval(pollInterval);
 											resolveInitialSync();
 										}
@@ -621,7 +673,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 										clearInterval(pollInterval);
 									});
 								} else {
-									console.warn(
+									debugWarn(
 										`[Electric] ⚠️ No stream available for ${table}, relying on callback and timeout`
 									);
 								}
@@ -630,7 +682,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 							// Create the sync handle with proper cleanup
 							const syncHandle: SyncHandle = {
 								unsubscribe: () => {
-									console.log(`[Electric] Unsubscribing from: ${cacheKey}`);
+									debugLog(`[Electric] Unsubscribing from: ${cacheKey}`);
 									// Remove from cache first
 									activeSyncHandles.delete(cacheKey);
 									// Then unsubscribe from the shape
@@ -648,7 +700,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 							// Cache the sync handle for reuse (memory optimization)
 							activeSyncHandles.set(cacheKey, syncHandle);
-							console.log(
+							debugLog(
 								`[Electric] Cached sync handle for: ${cacheKey} (total cached: ${activeSyncHandles.size})`
 							);
 
@@ -660,7 +712,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 								const response = await fetch(`${electricUrl}/v1/shape?table=${table}&offset=-1`, {
 									method: "GET",
 								});
-								console.log(
+								debugLog(
 									"[Electric] Electric SQL server response:",
 									response.status,
 									response.statusText
@@ -682,14 +734,14 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 					// Clean up the pending sync when done (whether success or failure)
 					syncPromise.finally(() => {
 						pendingSyncs.delete(cacheKey);
-						console.log(`[Electric] Pending sync removed for: ${cacheKey}`);
+						debugLog(`[Electric] Pending sync removed for: ${cacheKey}`);
 					});
 
 					return syncPromise;
 				},
 			};
 
-			console.log(`[Electric] ✅ Initialized successfully for user: ${userId}`);
+			debugLog(`[Electric] ✅ Initialized successfully for user: ${userId}`);
 			return electricClient;
 		} catch (error) {
 			console.error("[Electric] Failed to initialize:", error);
@@ -715,10 +767,10 @@ export async function cleanupElectric(): Promise<void> {
 	}
 
 	const userIdToClean = currentUserId;
-	console.log(`[Electric] Cleaning up for user: ${userIdToClean}`);
+	debugLog(`[Electric] Cleaning up for user: ${userIdToClean}`);
 
 	// Unsubscribe from all active sync handles first (memory cleanup)
-	console.log(`[Electric] Unsubscribing from ${activeSyncHandles.size} active sync handles`);
+	debugLog(`[Electric] Unsubscribing from ${activeSyncHandles.size} active sync handles`);
 	// Copy keys to array to avoid mutation during iteration
 	const handleKeys = Array.from(activeSyncHandles.keys());
 	for (const key of handleKeys) {
@@ -727,7 +779,7 @@ export async function cleanupElectric(): Promise<void> {
 			try {
 				handle.unsubscribe();
 			} catch (err) {
-				console.warn(`[Electric] Failed to unsubscribe from ${key}:`, err);
+				debugWarn(`[Electric] Failed to unsubscribe from ${key}:`, err);
 			}
 		}
 	}
@@ -738,7 +790,7 @@ export async function cleanupElectric(): Promise<void> {
 	try {
 		// Close the PGlite database connection
 		await electricClient.db.close();
-		console.log("[Electric] Database closed");
+		debugLog("[Electric] Database closed");
 	} catch (error) {
 		console.error("[Electric] Error closing database:", error);
 	}
@@ -754,13 +806,13 @@ export async function cleanupElectric(): Promise<void> {
 		try {
 			const dbName = `${DB_PREFIX}${userIdToClean}-v${SYNC_VERSION}`;
 			window.indexedDB.deleteDatabase(dbName);
-			console.log(`[Electric] Deleted database: ${dbName}`);
+			debugLog(`[Electric] Deleted database: ${dbName}`);
 		} catch (err) {
-			console.warn("[Electric] Failed to delete database:", err);
+			debugWarn("[Electric] Failed to delete database:", err);
 		}
 	}
 
-	console.log("[Electric] Cleanup complete");
+	debugLog("[Electric] Cleanup complete");
 }
 
 /**

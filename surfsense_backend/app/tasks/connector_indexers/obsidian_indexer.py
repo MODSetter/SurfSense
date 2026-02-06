@@ -3,6 +3,10 @@ Obsidian connector indexer.
 
 Indexes markdown notes from a local Obsidian vault.
 This connector is only available in self-hosted mode.
+
+Implements 2-phase document status updates for real-time UI feedback:
+- Phase 1: Create all documents with 'pending' status (visible in UI immediately)
+- Phase 2: Process each document: pending → processing → ready/failed
 """
 
 import os
@@ -17,7 +21,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.db import Document, DocumentType, SearchSourceConnectorType
+from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
@@ -34,6 +38,7 @@ from .base import (
     get_connector_by_id,
     get_current_timestamp,
     logger,
+    safe_set_chunks,
     update_connector_last_indexed,
 )
 
@@ -307,25 +312,22 @@ async def index_obsidian_vault(
 
         logger.info(f"Processing {len(files)} files after date filtering")
 
-        # Get LLM for summarization
-        long_context_llm = await get_user_long_context_llm(
-            session, user_id, search_space_id
-        )
-
         indexed_count = 0
         skipped_count = 0
+        failed_count = 0
+        duplicate_content_count = 0
 
         # Heartbeat tracking - update notification periodically to prevent appearing stuck
         last_heartbeat_time = time.time()
 
+        # =======================================================================
+        # PHASE 1: Analyze all files, create pending documents
+        # This makes ALL documents visible in the UI immediately with pending status
+        # =======================================================================
+        files_to_process = []  # List of dicts with document and file data
+        new_documents_created = False
+
         for file_info in files:
-            # Check if it's time for a heartbeat update
-            if (
-                on_heartbeat_callback
-                and (time.time() - last_heartbeat_time) >= HEARTBEAT_INTERVAL_SECONDS
-            ):
-                await on_heartbeat_callback(indexed_count)
-                last_heartbeat_time = time.time()
             try:
                 file_path = file_info["path"]
                 relative_path = file_info["relative_path"]
@@ -368,13 +370,151 @@ async def index_obsidian_vault(
                     search_space_id,
                 )
 
+                # Generate content hash
+                content_hash = generate_content_hash(content, search_space_id)
+
                 # Check for existing document
                 existing_document = await check_document_by_unique_identifier(
                     session, unique_identifier_hash
                 )
 
-                # Generate content hash
-                content_hash = generate_content_hash(content, search_space_id)
+                if existing_document:
+                    # Document exists - check if content has changed
+                    if existing_document.content_hash == content_hash:
+                        # Ensure status is ready (might have been stuck in processing/pending)
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
+                            existing_document.status = DocumentStatus.ready()
+                        logger.debug(f"Note {title} unchanged, skipping")
+                        skipped_count += 1
+                        continue
+
+                    # Queue existing document for update (will be set to processing in Phase 2)
+                    files_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "file_info": file_info,
+                            "content": content,
+                            "body_content": body_content,
+                            "frontmatter": frontmatter,
+                            "wiki_links": wiki_links,
+                            "tags": tags,
+                            "title": title,
+                            "relative_path": relative_path,
+                            "content_hash": content_hash,
+                            "unique_identifier_hash": unique_identifier_hash,
+                        }
+                    )
+                    continue
+
+                # Document doesn't exist by unique_identifier_hash
+                # Check if a document with the same content_hash exists (from another connector)
+                with session.no_autoflush:
+                    duplicate_by_content = await check_duplicate_document_by_hash(
+                        session, content_hash
+                    )
+
+                if duplicate_by_content:
+                    logger.info(
+                        f"Obsidian note {title} already indexed by another connector "
+                        f"(existing document ID: {duplicate_by_content.id}, "
+                        f"type: {duplicate_by_content.document_type}). Skipping."
+                    )
+                    duplicate_content_count += 1
+                    skipped_count += 1
+                    continue
+
+                # Create new document with PENDING status (visible in UI immediately)
+                document = Document(
+                    search_space_id=search_space_id,
+                    title=title,
+                    document_type=DocumentType.OBSIDIAN_CONNECTOR,
+                    document_metadata={
+                        "vault_name": vault_name,
+                        "file_path": relative_path,
+                        "connector_id": connector_id,
+                    },
+                    content="Pending...",  # Placeholder until processed
+                    content_hash=unique_identifier_hash,  # Temporary unique value - updated when ready
+                    unique_identifier_hash=unique_identifier_hash,
+                    embedding=None,
+                    chunks=[],  # Empty at creation - safe for async
+                    status=DocumentStatus.pending(),  # Pending until processing starts
+                    updated_at=get_current_timestamp(),
+                    created_by_id=user_id,
+                    connector_id=connector_id,
+                )
+                session.add(document)
+                new_documents_created = True
+
+                files_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "file_info": file_info,
+                        "content": content,
+                        "body_content": body_content,
+                        "frontmatter": frontmatter,
+                        "wiki_links": wiki_links,
+                        "tags": tags,
+                        "title": title,
+                        "relative_path": relative_path,
+                        "content_hash": content_hash,
+                        "unique_identifier_hash": unique_identifier_hash,
+                    }
+                )
+
+            except Exception as e:
+                logger.exception(
+                    f"Error in Phase 1 for file {file_info.get('path', 'unknown')}: {e}"
+                )
+                failed_count += 1
+                continue
+
+        # Commit all pending documents - they all appear in UI now
+        if new_documents_created:
+            logger.info(
+                f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents"
+            )
+            await session.commit()
+
+        # =======================================================================
+        # PHASE 2: Process each document one by one
+        # Each document transitions: pending → processing → ready/failed
+        # =======================================================================
+        logger.info(f"Phase 2: Processing {len(files_to_process)} documents")
+
+        # Get LLM for summarization
+        long_context_llm = await get_user_long_context_llm(
+            session, user_id, search_space_id
+        )
+
+        for item in files_to_process:
+            # Send heartbeat periodically
+            if on_heartbeat_callback:
+                current_time = time.time()
+                if current_time - last_heartbeat_time >= HEARTBEAT_INTERVAL_SECONDS:
+                    await on_heartbeat_callback(indexed_count)
+                    last_heartbeat_time = current_time
+
+            document = item["document"]
+            try:
+                # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
+                document.status = DocumentStatus.processing()
+                await session.commit()
+
+                # Extract data from item
+                title = item["title"]
+                relative_path = item["relative_path"]
+                content = item["content"]
+                body_content = item["body_content"]
+                frontmatter = item["frontmatter"]
+                wiki_links = item["wiki_links"]
+                tags = item["tags"]
+                content_hash = item["content_hash"]
+                file_info = item["file_info"]
 
                 # Build metadata
                 document_metadata = {
@@ -404,134 +544,114 @@ async def index_obsidian_vault(
                 ]
                 document_string = build_document_metadata_string(metadata_sections)
 
-                if existing_document:
-                    # Check if content has changed
-                    if existing_document.content_hash == content_hash:
-                        logger.debug(f"Note {title} unchanged, skipping")
-                        skipped_count += 1
-                        continue
-
-                    # Update existing document
-                    logger.info(f"Updating note: {title}")
-
-                    # Generate new summary if content changed
-                    if long_context_llm:
-                        new_summary, _ = await generate_document_summary(
-                            document_string,
-                            long_context_llm,
-                            document_metadata,
-                        )
-                        # Store summary in metadata
-                        document_metadata["summary"] = new_summary
-
-                    # Add URL and connector_id to metadata
-                    document_metadata["url"] = (
-                        f"obsidian://{vault_name}/{relative_path}"
-                    )
-                    document_metadata["connector_id"] = connector_id
-
-                    existing_document.content = document_string
-                    existing_document.content_hash = content_hash
-                    existing_document.document_metadata = document_metadata
-                    existing_document.updated_at = get_current_timestamp()
-
-                    # Update embedding
-                    embedding = config.embedding_model_instance.embed(document_string)
-                    existing_document.embedding = embedding
-
-                    # Update chunks - delete old and create new
-                    existing_document.chunks.clear()
-                    new_chunks = await create_document_chunks(document_string)
-                    existing_document.chunks = new_chunks
-
-                    indexed_count += 1
-
-                else:
-                    # Document doesn't exist by unique_identifier_hash
-                    # Check if a document with the same content_hash exists (from another connector)
-                    with session.no_autoflush:
-                        duplicate_by_content = await check_duplicate_document_by_hash(
-                            session, content_hash
-                        )
-
-                    if duplicate_by_content:
-                        logger.info(
-                            f"Obsidian note {title} already indexed by another connector "
-                            f"(existing document ID: {duplicate_by_content.id}, "
-                            f"type: {duplicate_by_content.document_type}). Skipping."
-                        )
-                        skipped_count += 1
-                        continue
-
-                    # Create new document
-                    logger.info(f"Indexing new note: {title}")
-
-                    # Generate summary
-                    summary_content = ""
-                    if long_context_llm:
-                        summary_content, _ = await generate_document_summary(
-                            document_string,
-                            long_context_llm,
-                            document_metadata,
-                        )
-
-                    # Generate embedding
-                    embedding = config.embedding_model_instance.embed(document_string)
-
-                    # Add URL and summary to metadata
-                    document_metadata["url"] = (
-                        f"obsidian://{vault_name}/{relative_path}"
-                    )
-                    document_metadata["summary"] = summary_content
-                    document_metadata["connector_id"] = connector_id
-
-                    # Create chunks
-                    chunks = await create_document_chunks(document_string)
-
-                    # Create document
-                    new_document = Document(
-                        search_space_id=search_space_id,
-                        title=title,
-                        document_type=DocumentType.OBSIDIAN_CONNECTOR,
-                        content=document_string,
-                        content_hash=content_hash,
-                        unique_identifier_hash=unique_identifier_hash,
-                        document_metadata=document_metadata,
-                        embedding=embedding,
-                        chunks=chunks,
-                        updated_at=get_current_timestamp(),
-                        created_by_id=user_id,
-                        connector_id=connector_id,
+                # Generate summary
+                summary_content = ""
+                if long_context_llm:
+                    summary_content, _ = await generate_document_summary(
+                        document_string,
+                        long_context_llm,
+                        document_metadata,
                     )
 
-                    session.add(new_document)
+                # Generate embedding
+                embedding = config.embedding_model_instance.embed(document_string)
 
-                    indexed_count += 1
+                # Add URL and summary to metadata
+                document_metadata["url"] = f"obsidian://{vault_name}/{relative_path}"
+                document_metadata["summary"] = summary_content
+                document_metadata["connector_id"] = connector_id
+
+                # Create chunks
+                chunks = await create_document_chunks(document_string)
+
+                # Update document to READY with actual content
+                document.title = title
+                document.content = document_string
+                document.content_hash = content_hash
+                document.embedding = embedding
+                document.document_metadata = document_metadata
+                safe_set_chunks(document, chunks)
+                document.updated_at = get_current_timestamp()
+                document.status = DocumentStatus.ready()
+
+                indexed_count += 1
+
+                # Batch commit every 10 documents (for ready status updates)
+                if indexed_count % 10 == 0:
+                    logger.info(
+                        f"Committing batch: {indexed_count} Obsidian notes processed so far"
+                    )
+                    await session.commit()
 
             except Exception as e:
                 logger.exception(
-                    f"Error processing file {file_info.get('path', 'unknown')}: {e}"
+                    f"Error processing file {item.get('file_info', {}).get('path', 'unknown')}: {e}"
                 )
-                skipped_count += 1
+                # Mark document as failed with reason (visible in UI)
+                try:
+                    document.status = DocumentStatus.failed(str(e))
+                    document.updated_at = get_current_timestamp()
+                except Exception as status_error:
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
+                failed_count += 1
                 continue
 
-        # Update connector's last indexed timestamp
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
-        # Commit all changes
-        await session.commit()
+        # Final commit for any remaining documents not yet committed in batches
+        logger.info(f"Final commit: Total {indexed_count} Obsidian notes processed")
+        try:
+            await session.commit()
+            logger.info(
+                "Successfully committed all Obsidian document changes to database"
+            )
+        except Exception as e:
+            # Handle any remaining integrity errors gracefully (race conditions, etc.)
+            if (
+                "duplicate key value violates unique constraint" in str(e).lower()
+                or "uniqueviolationerror" in str(e).lower()
+            ):
+                logger.warning(
+                    f"Duplicate content_hash detected during final commit. "
+                    f"This may occur if the same note was indexed by multiple connectors. "
+                    f"Rolling back and continuing. Error: {e!s}"
+                )
+                await session.rollback()
+                # Don't fail the entire task - some documents may have been successfully indexed
+            else:
+                raise
+
+        # Build warning message if there were issues
+        warning_parts = []
+        if duplicate_content_count > 0:
+            warning_parts.append(f"{duplicate_content_count} duplicate")
+        if failed_count > 0:
+            warning_parts.append(f"{failed_count} failed")
+        warning_message = ", ".join(warning_parts) if warning_parts else None
+
+        total_processed = indexed_count
 
         await task_logger.log_task_success(
             log_entry,
-            f"Successfully indexed {indexed_count} Obsidian notes (skipped {skipped_count})",
+            f"Successfully completed Obsidian vault indexing for connector {connector_id}",
             {
-                "indexed_count": indexed_count,
-                "skipped_count": skipped_count,
-                "total_files": len(files),
+                "notes_processed": total_processed,
+                "documents_indexed": indexed_count,
+                "documents_skipped": skipped_count,
+                "documents_failed": failed_count,
+                "duplicate_content_count": duplicate_content_count,
             },
         )
 
-        return indexed_count, None
+        logger.info(
+            f"Obsidian vault indexing completed: {indexed_count} ready, "
+            f"{skipped_count} skipped, {failed_count} failed "
+            f"({duplicate_content_count} duplicate content)"
+        )
+        return total_processed, warning_message
 
     except SQLAlchemyError as e:
         logger.exception(f"Database error during Obsidian indexing: {e}")
