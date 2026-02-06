@@ -372,11 +372,11 @@ export function DocumentsTableShell({
 											<Skeleton className="h-3 w-16" />
 										</TableHead>
 									)}
-									{columnVisibility.status && (
-										<TableHead className="w-20 text-center">
-											<Skeleton className="h-3 w-12 mx-auto" />
-										</TableHead>
-									)}
+								{columnVisibility.status && (
+									<TableHead className="w-14 text-center">
+										<Skeleton className="h-3 w-12 mx-auto" />
+									</TableHead>
+								)}
 									<TableHead className="w-10">
 										<span className="sr-only">Actions</span>
 									</TableHead>
@@ -415,7 +415,7 @@ export function DocumentsTableShell({
 												</TableCell>
 											)}
 											{columnVisibility.status && (
-												<TableCell className="w-20 py-2.5 text-center">
+												<TableCell className="w-14 py-2.5 text-center">
 													<Skeleton className="h-5 w-5 mx-auto rounded-full" />
 												</TableCell>
 											)}
@@ -544,14 +544,14 @@ export function DocumentsTableShell({
 											</SortableHeader>
 										</TableHead>
 									)}
-								{columnVisibility.status && (
-									<TableHead className="w-20">
-										<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-											<BadgeInfo size={14} className="opacity-60 text-muted-foreground" />
-											Status
-										</span>
-									</TableHead>
-								)}
+							{columnVisibility.status && (
+								<TableHead className="w-14">
+									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+										<BadgeInfo size={14} className="opacity-60 text-muted-foreground" />
+										Status
+									</span>
+								</TableHead>
+							)}
 									<TableHead className="w-10">
 										<span className="sr-only">Actions</span>
 									</TableHead>
@@ -647,11 +647,11 @@ export function DocumentsTableShell({
 														</Tooltip>
 													</TableCell>
 												)}
-												{columnVisibility.status && (
-													<TableCell className="w-20 py-2.5 text-center">
-														<StatusIndicator status={doc.status} />
-													</TableCell>
-												)}
+											{columnVisibility.status && (
+												<TableCell className="w-14 py-2.5 text-center">
+													<StatusIndicator status={doc.status} />
+												</TableCell>
+											)}
 												<TableCell className="w-10 py-2.5 text-center">
 													<RowActions
 														document={doc}
