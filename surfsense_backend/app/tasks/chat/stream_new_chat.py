@@ -26,7 +26,7 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
-from app.db import Document, SurfsenseDocsDocument
+from app.db import ChatVisibility, Document, SurfsenseDocsDocument
 from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
 from app.schemas.new_chat import ChatAttachment
 from app.services.chat_session_state_service import (
@@ -208,6 +208,7 @@ async def stream_new_chat(
     mentioned_surfsense_doc_ids: list[int] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
+    thread_visibility: ChatVisibility | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -295,17 +296,18 @@ async def stream_new_chat(
         # Get the PostgreSQL checkpointer for persistent conversation memory
         checkpointer = await get_checkpointer()
 
-        # Create the deep agent with checkpointer and configurable prompts
+        visibility = thread_visibility or ChatVisibility.PRIVATE
         agent = await create_surfsense_deep_agent(
             llm=llm,
             search_space_id=search_space_id,
             db_session=session,
             connector_service=connector_service,
             checkpointer=checkpointer,
-            user_id=user_id,  # Pass user ID for memory tools
-            thread_id=chat_id,  # Pass chat ID for podcast association
-            agent_config=agent_config,  # Pass prompt configuration
-            firecrawl_api_key=firecrawl_api_key,  # Pass Firecrawl API key if configured
+            user_id=user_id,
+            thread_id=chat_id,
+            agent_config=agent_config,
+            firecrawl_api_key=firecrawl_api_key,
+            thread_visibility=visibility,
         )
 
         # Build input with message history
