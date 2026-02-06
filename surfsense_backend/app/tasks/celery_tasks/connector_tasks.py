@@ -1,6 +1,7 @@
 """Celery tasks for connector indexing."""
 
 import logging
+import traceback
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
@@ -9,6 +10,36 @@ from app.celery_app import celery_app
 from app.config import config
 
 logger = logging.getLogger(__name__)
+
+
+def _handle_greenlet_error(e: Exception, task_name: str, connector_id: int) -> None:
+    """
+    Handle greenlet_spawn errors with detailed logging for debugging.
+
+    The 'greenlet_spawn has not been called' error occurs when:
+    1. SQLAlchemy lazy-loads a relationship outside of an async context
+    2. A sync operation is called from an async context (or vice versa)
+    3. Session objects are accessed after the session is closed
+
+    This helper logs detailed context to help identify the root cause.
+    """
+    error_str = str(e)
+    if "greenlet_spawn has not been called" in error_str:
+        logger.error(
+            f"GREENLET ERROR in {task_name} for connector {connector_id}: {error_str}\n"
+            f"This error typically occurs when SQLAlchemy tries to lazy-load a relationship "
+            f"outside of an async context. Check for:\n"
+            f"1. Accessing relationship attributes (e.g., document.chunks, connector.search_space) "
+            f"without using selectinload() or joinedload()\n"
+            f"2. Accessing model attributes after the session is closed\n"
+            f"3. Passing ORM objects between different async contexts\n"
+            f"Stack trace:\n{traceback.format_exc()}"
+        )
+    else:
+        logger.error(
+            f"Error in {task_name} for connector {connector_id}: {error_str}\n"
+            f"Stack trace:\n{traceback.format_exc()}"
+        )
 
 
 def get_celery_session_maker():
@@ -46,6 +77,9 @@ def index_slack_messages_task(
                 connector_id, search_space_id, user_id, start_date, end_date
             )
         )
+    except Exception as e:
+        _handle_greenlet_error(e, "index_slack_messages", connector_id)
+        raise
     finally:
         loop.close()
 
@@ -89,6 +123,9 @@ def index_notion_pages_task(
                 connector_id, search_space_id, user_id, start_date, end_date
             )
         )
+    except Exception as e:
+        _handle_greenlet_error(e, "index_notion_pages", connector_id)
+        raise
     finally:
         loop.close()
 
@@ -347,6 +384,9 @@ def index_google_calendar_events_task(
                 connector_id, search_space_id, user_id, start_date, end_date
             )
         )
+    except Exception as e:
+        _handle_greenlet_error(e, "index_google_calendar_events", connector_id)
+        raise
     finally:
         loop.close()
 
@@ -696,6 +736,9 @@ def index_crawled_urls_task(
                 connector_id, search_space_id, user_id, start_date, end_date
             )
         )
+    except Exception as e:
+        _handle_greenlet_error(e, "index_crawled_urls", connector_id)
+        raise
     finally:
         loop.close()
 

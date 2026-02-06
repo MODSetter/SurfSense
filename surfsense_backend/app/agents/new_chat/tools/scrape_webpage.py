@@ -2,17 +2,26 @@
 Web scraping tool for the SurfSense agent.
 
 This module provides a tool for scraping and extracting content from webpages
-using the existing WebCrawlerConnector. The scraped content can be used by
-the agent to answer questions about web pages.
+using the existing WebCrawlerConnector. For YouTube URLs, it fetches the
+transcript directly via the YouTubeTranscriptApi instead of crawling the page.
 """
 
 import hashlib
+import logging
 from typing import Any
 from urllib.parse import urlparse
 
+import aiohttp
+from fake_useragent import UserAgent
 from langchain_core.tools import tool
+from requests import Session
+from youtube_transcript_api import YouTubeTranscriptApi
 
 from app.connectors.webcrawler_connector import WebCrawlerConnector
+from app.tasks.document_processors.youtube_processor import get_youtube_video_id
+from app.utils.proxy_config import get_requests_proxies
+
+logger = logging.getLogger(__name__)
 
 
 def extract_domain(url: str) -> str:
@@ -57,6 +66,89 @@ def truncate_content(content: str, max_length: int = 50000) -> tuple[str, bool]:
     return truncated + "\n\n[Content truncated...]", True
 
 
+async def _scrape_youtube_video(
+    url: str, video_id: str, max_length: int
+) -> dict[str, Any]:
+    """
+    Fetch YouTube video metadata and transcript via the YouTubeTranscriptApi.
+
+    Returns a result dict in the same shape as the regular scrape_webpage output.
+    """
+    scrape_id = generate_scrape_id(url)
+    domain = "youtube.com"
+
+    # --- Video metadata via oEmbed ---
+    residential_proxies = get_requests_proxies()
+
+    params = {
+        "format": "json",
+        "url": f"https://www.youtube.com/watch?v={video_id}",
+    }
+    oembed_url = "https://www.youtube.com/oembed"
+
+    try:
+        async with (
+            aiohttp.ClientSession() as http_session,
+            http_session.get(
+                oembed_url,
+                params=params,
+                proxy=residential_proxies["http"] if residential_proxies else None,
+            ) as response,
+        ):
+            video_data = await response.json()
+    except Exception:
+        video_data = {}
+
+    title = video_data.get("title", "YouTube Video")
+    author = video_data.get("author_name", "Unknown")
+
+    # --- Transcript via YouTubeTranscriptApi ---
+    try:
+        ua = UserAgent()
+        http_client = Session()
+        http_client.headers.update({"User-Agent": ua.random})
+        if residential_proxies:
+            http_client.proxies.update(residential_proxies)
+        ytt_api = YouTubeTranscriptApi(http_client=http_client)
+        captions = ytt_api.fetch(video_id)
+
+        transcript_segments = []
+        for line in captions:
+            start_time = line.start
+            duration = line.duration
+            text = line.text
+            timestamp = f"[{start_time:.2f}s-{start_time + duration:.2f}s]"
+            transcript_segments.append(f"{timestamp} {text}")
+        transcript_text = "\n".join(transcript_segments)
+    except Exception as e:
+        logger.warning(f"[scrape_webpage] No transcript for video {video_id}: {e}")
+        transcript_text = f"No captions available for this video. Error: {e!s}"
+
+    # Build combined content
+    content = f"# {title}\n\n**Author:** {author}\n**Video ID:** {video_id}\n\n## Transcript\n\n{transcript_text}"
+
+    # Truncate if needed
+    content, was_truncated = truncate_content(content, max_length)
+    word_count = len(content.split())
+
+    description = f"YouTube video by {author}"
+
+    return {
+        "id": scrape_id,
+        "assetId": url,
+        "kind": "article",
+        "href": url,
+        "title": title,
+        "description": description,
+        "content": content,
+        "domain": domain,
+        "word_count": word_count,
+        "was_truncated": was_truncated,
+        "crawler_type": "youtube_transcript",
+        "author": author,
+    }
+
+
 def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
     """
     Factory function to create the scrape_webpage tool.
@@ -79,7 +171,8 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
 
         Use this tool when the user wants you to read, summarize, or answer
         questions about a specific webpage's content. This tool actually
-        fetches and reads the full page content.
+        fetches and reads the full page content. For YouTube video URLs it
+        fetches the transcript directly instead of crawling the page.
 
         Common triggers:
         - "Read this article and summarize it"
@@ -114,6 +207,11 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
             url = f"https://{url}"
 
         try:
+            # Check if this is a YouTube URL and use transcript API instead
+            video_id = get_youtube_video_id(url)
+            if video_id:
+                return await _scrape_youtube_video(url, video_id, max_length)
+
             # Create webcrawler connector
             connector = WebCrawlerConnector(firecrawl_api_key=firecrawl_api_key)
 
@@ -184,7 +282,7 @@ def create_scrape_webpage_tool(firecrawl_api_key: str | None = None):
 
         except Exception as e:
             error_message = str(e)
-            print(f"[scrape_webpage] Error scraping {url}: {error_message}")
+            logger.error(f"[scrape_webpage] Error scraping {url}: {error_message}")
             return {
                 "id": scrape_id,
                 "assetId": url,

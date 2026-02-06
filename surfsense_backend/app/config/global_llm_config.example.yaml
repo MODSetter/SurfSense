@@ -183,6 +183,69 @@ global_llm_configs:
     use_default_system_instructions: true
     citations_enabled: true
 
+# =============================================================================
+# Image Generation Configuration
+# =============================================================================
+# These configurations power the image generation feature using litellm.aimage_generation().
+# Supported providers: OpenAI, Azure, Google AI Studio, Vertex AI, AWS Bedrock,
+# Recraft, OpenRouter, Xinference, Nscale
+#
+# Auto mode (ID 0) uses LiteLLM Router for load balancing across all image gen configs.
+
+# Router Settings for Image Generation Auto Mode
+image_generation_router_settings:
+  routing_strategy: "usage-based-routing"
+  num_retries: 3
+  allowed_fails: 3
+  cooldown_time: 60
+
+global_image_generation_configs:
+  # Example: OpenAI DALL-E 3
+  - id: -1
+    name: "Global DALL-E 3"
+    description: "OpenAI's DALL-E 3 for high-quality image generation"
+    provider: "OPENAI"
+    model_name: "dall-e-3"
+    api_key: "sk-your-openai-api-key-here"
+    api_base: ""
+    rpm: 50  # Requests per minute (image gen is rate-limited by RPM, not tokens)
+    litellm_params: {}
+
+  # Example: OpenAI GPT Image 1
+  - id: -2
+    name: "Global GPT Image 1"
+    description: "OpenAI's GPT Image 1 model"
+    provider: "OPENAI"
+    model_name: "gpt-image-1"
+    api_key: "sk-your-openai-api-key-here"
+    api_base: ""
+    rpm: 50
+    litellm_params: {}
+
+  # Example: Azure OpenAI DALL-E 3
+  - id: -3
+    name: "Global Azure DALL-E 3"
+    description: "Azure-hosted DALL-E 3 deployment"
+    provider: "AZURE_OPENAI"
+    model_name: "azure/dall-e-3-deployment"
+    api_key: "your-azure-api-key-here"
+    api_base: "https://your-resource.openai.azure.com"
+    api_version: "2024-02-15-preview"
+    rpm: 50
+    litellm_params:
+      base_model: "dall-e-3"
+
+  # Example: OpenRouter Gemini Image Generation
+  # - id: -4
+  #   name: "Global Gemini Image Gen"
+  #   description: "Google Gemini image generation via OpenRouter"
+  #   provider: "OPENROUTER"
+  #   model_name: "google/gemini-2.5-flash-image"
+  #   api_key: "your-openrouter-api-key-here"
+  #   api_base: ""
+  #   rpm: 30
+  #   litellm_params: {}
+
 # Notes:
 # - ID 0 is reserved for "Auto" mode - uses LiteLLM Router for load balancing
 # - Use negative IDs to distinguish global configs from user configs (NewLLMConfig in DB)
@@ -195,10 +258,11 @@ global_llm_configs:
 # - rpm/tpm: Optional rate limits for load balancing (requests/tokens per minute)
 #   These help the router distribute load evenly and avoid rate limit errors
 #
-# AZURE-SPECIFIC NOTES:
-# - Always add 'base_model' in litellm_params for Azure deployments
-# - This fixes "Could not identify azure model 'X'" warnings
-# - base_model should match the underlying OpenAI model (e.g., gpt-4o, gpt-4-turbo, gpt-3.5-turbo)
-# - model_name format: "azure/<your-deployment-name>"
-# - api_version: Use a recent Azure API version (e.g., "2024-02-15-preview")
-# - See: https://docs.litellm.ai/docs/proxy/cost_tracking#spend-tracking-for-azure-openai-models
+#
+# IMAGE GENERATION NOTES:
+# - Image generation configs use the same ID scheme as LLM configs (negative for global)
+# - Supported models: dall-e-2, dall-e-3, gpt-image-1 (OpenAI), azure/* (Azure), 
+#   bedrock/* (AWS), vertex_ai/* (Google), recraft/* (Recraft), openrouter/* (OpenRouter)
+# - The router uses litellm.aimage_generation() for async image generation
+# - Only RPM (requests per minute) is relevant for image generation rate limiting.
+#   TPM (tokens per minute) does not apply since image APIs are billed/rate-limited per request, not per token.

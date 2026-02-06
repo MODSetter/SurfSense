@@ -14,6 +14,8 @@ from fake_useragent import UserAgent
 from firecrawl import AsyncFirecrawlApp
 from playwright.async_api import async_playwright
 
+from app.utils.proxy_config import get_playwright_proxy
+
 logger = logging.getLogger(__name__)
 
 
@@ -165,9 +167,15 @@ class WebCrawlerConnector:
         ua = UserAgent()
         user_agent = ua.random
 
+        # Use residential proxy if configured
+        playwright_proxy = get_playwright_proxy()
+
         # Use Playwright to fetch the page
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            launch_kwargs: dict = {"headless": True}
+            if playwright_proxy:
+                launch_kwargs["proxy"] = playwright_proxy
+            browser = await p.chromium.launch(**launch_kwargs)
             context = await browser.new_context(user_agent=user_agent)
             page = await context.new_page()
 

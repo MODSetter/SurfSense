@@ -10,6 +10,8 @@ import logging
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
+from fake_useragent import UserAgent
+from requests import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -23,6 +25,7 @@ from app.utils.document_converters import (
     generate_document_summary,
     generate_unique_identifier_hash,
 )
+from app.utils.proxy_config import get_requests_proxies
 
 from .base import (
     check_document_by_unique_identifier,
@@ -200,9 +203,16 @@ async def add_youtube_video_document(
         }
         oembed_url = "https://www.youtube.com/oembed"
 
+        # Build residential proxy URL (if configured)
+        residential_proxies = get_requests_proxies()
+
         async with (
             aiohttp.ClientSession() as http_session,
-            http_session.get(oembed_url, params=params) as response,
+            http_session.get(
+                oembed_url,
+                params=params,
+                proxy=residential_proxies["http"] if residential_proxies else None,
+            ) as response,
         ):
             video_data = await response.json()
 
@@ -228,7 +238,12 @@ async def add_youtube_video_document(
         )
 
         try:
-            ytt_api = YouTubeTranscriptApi()
+            ua = UserAgent()
+            http_client = Session()
+            http_client.headers.update({"User-Agent": ua.random})
+            if residential_proxies:
+                http_client.proxies.update(residential_proxies)
+            ytt_api = YouTubeTranscriptApi(http_client=http_client)
             captions = ytt_api.fetch(video_id)
             # Include complete caption information with timestamps
             transcript_segments = []

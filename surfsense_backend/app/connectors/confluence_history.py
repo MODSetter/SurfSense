@@ -128,7 +128,9 @@ class ConfluenceHistoryConnector:
 
                 # Final validation after decryption
                 final_token = config_data.get("access_token")
-                if not final_token or (isinstance(final_token, str) and not final_token.strip()):
+                if not final_token or (
+                    isinstance(final_token, str) and not final_token.strip()
+                ):
                     raise ValueError(
                         "Confluence access token is invalid or empty. "
                         "Please reconnect your Confluence account."

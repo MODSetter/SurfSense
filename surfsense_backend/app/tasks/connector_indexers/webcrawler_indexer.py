@@ -117,10 +117,15 @@ async def index_crawled_urls(
         api_key = connector.config.get("FIRECRAWL_API_KEY")
 
         # Get URLs from connector config
-        urls = parse_webcrawler_urls(connector.config.get("INITIAL_URLS"))
+        raw_initial_urls = connector.config.get("INITIAL_URLS")
+        urls = parse_webcrawler_urls(raw_initial_urls)
 
+        # DEBUG: Log connector config details for troubleshooting empty URL issues
         logger.info(
-            f"Starting crawled web page indexing for connector {connector_id} with {len(urls)} URLs"
+            f"Starting crawled web page indexing for connector {connector_id} with {len(urls)} URLs. "
+            f"Connector name: {connector.name}, "
+            f"INITIAL_URLS type: {type(raw_initial_urls).__name__}, "
+            f"INITIAL_URLS value: {repr(raw_initial_urls)[:200] if raw_initial_urls else 'None'}"
         )
 
         # Initialize webcrawler client
@@ -137,11 +142,18 @@ async def index_crawled_urls(
 
         # Validate URLs
         if not urls:
+            # DEBUG: Log detailed connector config for troubleshooting
+            logger.error(
+                f"No URLs provided for indexing. Connector ID: {connector_id}, "
+                f"Connector name: {connector.name}, "
+                f"Config keys: {list(connector.config.keys()) if connector.config else 'None'}, "
+                f"INITIAL_URLS raw value: {raw_initial_urls!r}"
+            )
             await task_logger.log_task_failure(
                 log_entry,
                 "No URLs provided for indexing",
-                "Empty URL list",
-                {"error_type": "ValidationError"},
+                f"Empty URL list. INITIAL_URLS value: {repr(raw_initial_urls)[:100]}",
+                {"error_type": "ValidationError", "connector_name": connector.name},
             )
             return 0, "No URLs provided for indexing"
 

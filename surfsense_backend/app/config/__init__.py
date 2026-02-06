@@ -81,6 +81,56 @@ def load_router_settings():
         return default_settings
 
 
+def load_global_image_gen_configs():
+    """
+    Load global image generation configurations from YAML file.
+
+    Returns:
+        list: List of global image generation config dictionaries, or empty list
+    """
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    if not global_config_file.exists():
+        return []
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            return data.get("global_image_generation_configs", [])
+    except Exception as e:
+        print(f"Warning: Failed to load global image generation configs: {e}")
+        return []
+
+
+def load_image_gen_router_settings():
+    """
+    Load router settings for image generation Auto mode from YAML file.
+
+    Returns:
+        dict: Router settings dictionary
+    """
+    default_settings = {
+        "routing_strategy": "usage-based-routing",
+        "num_retries": 3,
+        "allowed_fails": 3,
+        "cooldown_time": 60,
+    }
+
+    global_config_file = BASE_DIR / "app" / "config" / "global_llm_config.yaml"
+
+    if not global_config_file.exists():
+        return default_settings
+
+    try:
+        with open(global_config_file, encoding="utf-8") as f:
+            data = yaml.safe_load(f)
+            settings = data.get("image_generation_router_settings", {})
+            return {**default_settings, **settings}
+    except Exception as e:
+        print(f"Warning: Failed to load image generation router settings: {e}")
+        return default_settings
+
+
 def initialize_llm_router():
     """
     Initialize the LLM Router service for Auto mode.
@@ -103,6 +153,33 @@ def initialize_llm_router():
         )
     except Exception as e:
         print(f"Warning: Failed to initialize LLM Router: {e}")
+
+
+def initialize_image_gen_router():
+    """
+    Initialize the Image Generation Router service for Auto mode.
+    This should be called during application startup.
+    """
+    image_gen_configs = load_global_image_gen_configs()
+    router_settings = load_image_gen_router_settings()
+
+    if not image_gen_configs:
+        print(
+            "Info: No global image generation configs found, "
+            "Image Generation Auto mode will not be available"
+        )
+        return
+
+    try:
+        from app.services.image_gen_router_service import ImageGenRouterService
+
+        ImageGenRouterService.initialize(image_gen_configs, router_settings)
+        print(
+            f"Info: Image Generation Router initialized with {len(image_gen_configs)} models "
+            f"(strategy: {router_settings.get('routing_strategy', 'usage-based-routing')})"
+        )
+    except Exception as e:
+        print(f"Warning: Failed to initialize Image Generation Router: {e}")
 
 
 class Config:
@@ -216,6 +293,12 @@ class Config:
     # Router settings for Auto mode (LiteLLM Router load balancing)
     ROUTER_SETTINGS = load_router_settings()
 
+    # Global Image Generation Configurations (optional)
+    GLOBAL_IMAGE_GEN_CONFIGS = load_global_image_gen_configs()
+
+    # Router settings for Image Generation Auto mode
+    IMAGE_GEN_ROUTER_SETTINGS = load_image_gen_router_settings()
+
     # Chonkie Configuration | Edit this to your needs
     EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL")
     # Azure OpenAI credentials from environment variables
@@ -276,6 +359,14 @@ class Config:
     elif ETL_SERVICE == "LLAMACLOUD":
         # LlamaCloud API Key
         LLAMA_CLOUD_API_KEY = os.getenv("LLAMA_CLOUD_API_KEY")
+
+    # Residential Proxy Configuration (anonymous-proxies.net)
+    # Used for web crawling and YouTube transcript fetching to avoid IP bans.
+    RESIDENTIAL_PROXY_USERNAME = os.getenv("RESIDENTIAL_PROXY_USERNAME")
+    RESIDENTIAL_PROXY_PASSWORD = os.getenv("RESIDENTIAL_PROXY_PASSWORD")
+    RESIDENTIAL_PROXY_HOSTNAME = os.getenv("RESIDENTIAL_PROXY_HOSTNAME")
+    RESIDENTIAL_PROXY_LOCATION = os.getenv("RESIDENTIAL_PROXY_LOCATION", "")
+    RESIDENTIAL_PROXY_TYPE = int(os.getenv("RESIDENTIAL_PROXY_TYPE", "1"))
 
     # Litellm TTS Configuration
     TTS_SERVICE = os.getenv("TTS_SERVICE")

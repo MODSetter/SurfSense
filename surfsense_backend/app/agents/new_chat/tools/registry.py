@@ -44,6 +44,7 @@ from typing import Any
 from langchain_core.tools import BaseTool
 
 from .display_image import create_display_image_tool
+from .generate_image import create_generate_image_tool
 from .knowledge_base import create_search_knowledge_base_tool
 from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
@@ -124,6 +125,16 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         description="Display an image in the chat with metadata",
         factory=lambda deps: create_display_image_tool(),
         requires=[],
+    ),
+    # Generate image tool - creates images using AI models (DALL-E, GPT Image, etc.)
+    ToolDefinition(
+        name="generate_image",
+        description="Generate images from text descriptions using AI image models",
+        factory=lambda deps: create_generate_image_tool(
+            search_space_id=deps["search_space_id"],
+            db_session=deps["db_session"],
+        ),
+        requires=["search_space_id", "db_session"],
     ),
     # Web scraping tool - extracts content from webpages
     ToolDefinition(
