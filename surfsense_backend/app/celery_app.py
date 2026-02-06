@@ -13,14 +13,15 @@ load_dotenv()
 
 @worker_process_init.connect
 def init_worker(**kwargs):
-    """Initialize the LLM Router when a Celery worker process starts.
+    """Initialize the LLM Router and Image Gen Router when a Celery worker process starts.
 
     This ensures the Auto mode (LiteLLM Router) is available for background tasks
-    like document summarization.
+    like document summarization and image generation.
     """
-    from app.config import initialize_llm_router
+    from app.config import initialize_image_gen_router, initialize_llm_router
 
     initialize_llm_router()
+    initialize_image_gen_router()
 
 
 # Get Celery configuration from environment

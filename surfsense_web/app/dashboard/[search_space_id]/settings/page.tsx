@@ -7,6 +7,7 @@ import {
 	ChevronRight,
 	FileText,
 	Globe,
+	ImageIcon,
 	type LucideIcon,
 	Menu,
 	MessageSquare,
@@ -19,6 +20,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { PublicChatSnapshotsManager } from "@/components/public-chat-snapshots/public-chat-snapshots-manager";
 import { GeneralSettingsManager } from "@/components/settings/general-settings-manager";
+import { ImageModelManager } from "@/components/settings/image-model-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
@@ -51,6 +53,12 @@ const settingsNavItems: SettingsNavItem[] = [
 		labelKey: "nav_role_assignments",
 		descriptionKey: "nav_role_assignments_desc",
 		icon: Brain,
+	},
+	{
+		id: "image-models",
+		labelKey: "nav_image_models",
+		descriptionKey: "nav_image_models_desc",
+		icon: ImageIcon,
 	},
 	{
 		id: "prompts",
@@ -282,8 +290,11 @@ function SettingsContent({
 								<GeneralSettingsManager searchSpaceId={searchSpaceId} />
 							)}
 							{activeSection === "models" && <ModelConfigManager searchSpaceId={searchSpaceId} />}
-							{activeSection === "roles" && <LLMRoleManager searchSpaceId={searchSpaceId} />}
-							{activeSection === "prompts" && <PromptConfigManager searchSpaceId={searchSpaceId} />}
+						{activeSection === "roles" && <LLMRoleManager searchSpaceId={searchSpaceId} />}
+						{activeSection === "image-models" && (
+							<ImageModelManager searchSpaceId={searchSpaceId} />
+						)}
+						{activeSection === "prompts" && <PromptConfigManager searchSpaceId={searchSpaceId} />}
 							{activeSection === "public-links" && (
 								<PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />
 							)}

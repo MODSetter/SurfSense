@@ -27,6 +27,7 @@ from app.agents.new_chat.llm_config import (
     load_llm_config_from_yaml,
 )
 from app.db import Document, SurfsenseDocsDocument
+from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
 from app.schemas.new_chat import ChatAttachment
 from app.services.chat_session_state_service import (
     clear_ai_responding,
@@ -1207,6 +1208,62 @@ async def stream_new_chat(
         completion_event = complete_current_step()
         if completion_event:
             yield completion_event
+
+        # Generate LLM title for new chats after first response
+        # Check if this is the first assistant response by counting existing assistant messages
+        from sqlalchemy import func
+
+        from app.db import NewChatMessage, NewChatThread
+
+        assistant_count_result = await session.execute(
+            select(func.count(NewChatMessage.id)).filter(
+                NewChatMessage.thread_id == chat_id,
+                NewChatMessage.role == "assistant",
+            )
+        )
+        assistant_message_count = assistant_count_result.scalar() or 0
+
+        # Only generate title on the first response (no prior assistant messages)
+        if assistant_message_count == 0:
+            generated_title = None
+            try:
+                # Generate title using the same LLM
+                title_chain = TITLE_GENERATION_PROMPT_TEMPLATE | llm
+                # Truncate inputs to avoid context length issues
+                truncated_query = user_query[:500]
+                truncated_response = accumulated_text[:1000]
+                title_result = await title_chain.ainvoke(
+                    {
+                        "user_query": truncated_query,
+                        "assistant_response": truncated_response,
+                    }
+                )
+
+                # Extract and clean the title
+                if title_result and hasattr(title_result, "content"):
+                    raw_title = title_result.content.strip()
+                    # Validate the title (reasonable length)
+                    if raw_title and len(raw_title) <= 100:
+                        # Remove any quotes or extra formatting
+                        generated_title = raw_title.strip("\"'")
+            except Exception:
+                generated_title = None
+
+            # Only update if LLM succeeded (keep truncated prompt title as fallback)
+            if generated_title:
+                # Fetch thread and update title
+                thread_result = await session.execute(
+                    select(NewChatThread).filter(NewChatThread.id == chat_id)
+                )
+                thread = thread_result.scalars().first()
+                if thread:
+                    thread.title = generated_title
+                    await session.commit()
+
+                    # Notify frontend of the title update
+                    yield streaming_service.format_thread_title_update(
+                        chat_id, generated_title
+                    )
 
         # Finish the step and message
         yield streaming_service.format_finish_step()

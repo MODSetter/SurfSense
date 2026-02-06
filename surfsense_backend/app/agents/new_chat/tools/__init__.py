@@ -8,6 +8,7 @@ Available tools:
 - search_knowledge_base: Search the user's personal knowledge base
 - search_surfsense_docs: Search Surfsense documentation for usage help
 - generate_podcast: Generate audio podcasts from content
+- generate_image: Generate images from text descriptions using AI models
 - link_preview: Fetch rich previews for URLs
 - display_image: Display images in chat
 - scrape_webpage: Extract content from webpages
@@ -18,6 +19,7 @@ Available tools:
 # Registry exports
 # Tool factory exports (for direct use)
 from .display_image import create_display_image_tool
+from .generate_image import create_generate_image_tool
 from .knowledge_base import (
     CONNECTOR_DESCRIPTIONS,
     create_search_knowledge_base_tool,
@@ -47,6 +49,7 @@ __all__ = [
     "build_tools",
     # Tool factories
     "create_display_image_tool",
+    "create_generate_image_tool",
     "create_generate_podcast_tool",
     "create_link_preview_tool",
     "create_recall_memory_tool",

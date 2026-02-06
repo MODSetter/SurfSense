@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/breadcrumb";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { authenticatedFetch, getBearerToken } from "@/lib/auth-utils";
+import { getThreadFull } from "@/lib/chat/thread-persistence";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
 interface BreadcrumbItemInterface {
@@ -32,6 +33,16 @@ export function DashboardBreadcrumb() {
 		queryKey: cacheKeys.searchSpaces.detail(searchSpaceId || ""),
 		queryFn: () => searchSpacesApiService.getSearchSpace({ id: Number(searchSpaceId) }),
 		enabled: !!searchSpaceId,
+	});
+
+	// Extract chat thread ID from pathname for chat pages
+	const chatThreadId = segments[2] === "new-chat" && segments[3] ? segments[3] : null;
+
+	// Fetch thread details when on a chat page with a thread ID
+	const { data: threadData } = useQuery({
+		queryKey: ["threads", searchSpaceId, "detail", chatThreadId],
+		queryFn: () => getThreadFull(Number(chatThreadId)),
+		enabled: !!chatThreadId && !!searchSpaceId,
 	});
 
 	// State to store document title for editor breadcrumb
@@ -144,10 +155,11 @@ export function DashboardBreadcrumb() {
 					}
 
 					// Handle new-chat sub-sections (thread IDs)
-					// Don't show thread ID in breadcrumb - users identify chats by content, not by ID
+					// Show the chat title if available, otherwise fall back to "Chat"
 					if (section === "new-chat") {
+						const chatLabel = threadData?.title || t("chat") || "Chat";
 						breadcrumbs.push({
-							label: t("chat") || "Chat",
+							label: chatLabel,
 						});
 						return breadcrumbs;
 					}
