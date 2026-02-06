@@ -120,7 +120,10 @@ const ThreadContent: FC<{ header?: React.ReactNode }> = ({ header }) => {
 					}}
 				/>
 
-				<ThreadPrimitive.ViewportFooter className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6">
+				<ThreadPrimitive.ViewportFooter
+					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6"
+					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
+				>
 					<ThreadScrollToBottom />
 					<AssistantIf condition={({ thread }) => !thread.isEmpty}>
 						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">

@@ -1408,7 +1408,7 @@ export default function NewChatPage() {
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
 		return (
-			<div className="flex h-[calc(100vh-64px)] flex-col bg-background px-4">
+			<div className="flex h-[calc(100dvh-64px)] flex-col bg-background px-4">
 				<div className="mx-auto w-full max-w-[44rem] flex flex-1 flex-col gap-6 py-8">
 					{/* User message */}
 					<div className="flex justify-end">
@@ -1449,7 +1449,7 @@ export default function NewChatPage() {
 	// For new chats (urlChatId === 0), threadId being null is expected (lazy creation)
 	if (!threadId && urlChatId > 0) {
 		return (
-			<div className="flex h-[calc(100vh-64px)] flex-col items-center justify-center gap-4">
+			<div className="flex h-[calc(100dvh-64px)] flex-col items-center justify-center gap-4">
 				<div className="text-destructive">Failed to load chat</div>
 				<button
 					type="button"
@@ -1474,7 +1474,7 @@ export default function NewChatPage() {
 			<SaveMemoryToolUI />
 			<RecallMemoryToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
-			<div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden">
+			<div className="flex flex-col h-[calc(100dvh-64px)] overflow-hidden">
 				<Thread
 					messageThinkingSteps={messageThinkingSteps}
 					header={<ChatHeader searchSpaceId={searchSpaceId} />}
