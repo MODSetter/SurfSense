@@ -13,6 +13,7 @@ Changes:
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import ENUM as PG_ENUM
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from alembic import op
@@ -59,7 +60,7 @@ def upgrade() -> None:
             sa.Column("description", sa.String(500), nullable=True),
             sa.Column(
                 "provider",
-                sa.Enum(
+                PG_ENUM(
                     "OPENAI",
                     "AZURE_OPENAI",
                     "GOOGLE",
