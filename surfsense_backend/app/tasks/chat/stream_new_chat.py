@@ -209,6 +209,7 @@ async def stream_new_chat(
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
     thread_visibility: ChatVisibility | None = None,
+    current_user_display_name: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -315,7 +316,9 @@ async def stream_new_chat(
 
         # Bootstrap history for cloned chats (no LangGraph checkpoint exists yet)
         if needs_history_bootstrap:
-            langchain_messages = await bootstrap_history_from_db(session, chat_id)
+            langchain_messages = await bootstrap_history_from_db(
+                session, chat_id, thread_visibility=visibility
+            )
 
             # Clear the flag so we don't bootstrap again on next message
             from app.db import NewChatThread
@@ -377,6 +380,9 @@ async def stream_new_chat(
         if context_parts:
             context = "\n\n".join(context_parts)
             final_query = f"{context}\n\n<user_query>{user_query}</user_query>"
+
+        if visibility == ChatVisibility.SEARCH_SPACE and current_user_display_name:
+            final_query = f"**[{current_user_display_name}]:** {final_query}"
 
         # if messages:
         #     # Convert frontend messages to LangChain format

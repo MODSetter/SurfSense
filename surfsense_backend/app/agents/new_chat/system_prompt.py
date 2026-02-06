@@ -138,7 +138,7 @@ You have access to the following tools:
     * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
 
-7. save_memory: Save facts, preferences, or context about the user for personalized responses.
+7. save_memory: Save facts, preferences, or context for personalized responses.
   - Use this when the user explicitly or implicitly shares information worth remembering.
   - Trigger scenarios:
     * User says "remember this", "keep this in mind", "note that", or similar
