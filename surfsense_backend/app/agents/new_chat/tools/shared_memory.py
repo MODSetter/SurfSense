@@ -4,6 +4,7 @@ import logging
 from typing import Any
 from uuid import UUID
 
+from langchain_core.tools import tool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -177,3 +178,101 @@ def format_shared_memories_for_context(
         )
     parts.append("</team_memories>")
     return "\n".join(parts)
+
+
+def create_save_shared_memory_tool(
+    search_space_id: int,
+    created_by_id: str | UUID,
+    db_session: AsyncSession,
+):
+    """
+    Factory function to create the save_memory tool for shared (team) chats.
+
+    Args:
+        search_space_id: The search space ID
+        created_by_id: The user ID of the person adding the memory
+        db_session: Database session for executing queries
+
+    Returns:
+        A configured tool function for saving team memories
+    """
+
+    @tool
+    async def save_memory(
+        content: str,
+        category: str = "fact",
+    ) -> dict[str, Any]:
+        """
+        Save a fact, preference, or context to the team's shared memory for future reference.
+
+        Use this tool when:
+        - User or a team member says "remember this", "keep this in mind", or similar in this shared chat
+        - The team agrees on something to remember (e.g., decisions, conventions, where things live)
+        - Someone shares a preference or fact that should be visible to the whole team
+
+        The saved information will be available in future shared conversations in this space.
+
+        Args:
+            content: The fact/preference/context to remember.
+                    Phrase it clearly, e.g., "API keys are stored in Vault",
+                    "The team prefers weekly demos on Fridays"
+            category: Type of memory. One of:
+                    - "preference": Team or workspace preferences
+                    - "fact": Facts the team agreed on (e.g., processes, locations)
+                    - "instruction": Standing instructions for the team
+                    - "context": Current context (e.g., ongoing projects, goals)
+
+        Returns:
+            A dictionary with the save status and memory details
+        """
+        return await save_shared_memory(
+            db_session, search_space_id, created_by_id, content, category
+        )
+
+    return save_memory
+
+
+def create_recall_shared_memory_tool(
+    search_space_id: int,
+    db_session: AsyncSession,
+):
+    """
+    Factory function to create the recall_memory tool for shared (team) chats.
+
+    Args:
+        search_space_id: The search space ID
+        db_session: Database session for executing queries
+
+    Returns:
+        A configured tool function for recalling team memories
+    """
+
+    @tool
+    async def recall_memory(
+        query: str | None = None,
+        category: str | None = None,
+        top_k: int = DEFAULT_RECALL_TOP_K,
+    ) -> dict[str, Any]:
+        """
+        Recall relevant team memories for this space to provide contextual responses.
+
+        Use this tool when:
+        - You need team context to answer (e.g., "where do we store X?", "what did we decide about Y?")
+        - Someone asks about something the team agreed to remember
+        - Team preferences or conventions would improve the response
+
+        Args:
+            query: Optional search query to find specific memories.
+                  If not provided, returns the most recent memories.
+            category: Optional category filter. One of:
+                     "preference", "fact", "instruction", "context"
+            top_k: Number of memories to retrieve (default: 5, max: 20)
+
+        Returns:
+            A dictionary containing relevant memories and formatted context
+        """
+        return await recall_shared_memory(
+            db_session, search_space_id, query, category, top_k
+        )
+
+    return recall_memory
