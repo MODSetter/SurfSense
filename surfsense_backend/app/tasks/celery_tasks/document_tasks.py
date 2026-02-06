@@ -413,7 +413,7 @@ def process_file_upload_task(
     if not os.path.exists(file_path):
         logger.error(
             f"[process_file_upload] File does not exist: {file_path}. "
-            "The temp file may have been cleaned up before the task ran."
+            "File may have been removed before syncing could start."
         )
         return
 
@@ -654,7 +654,7 @@ def process_file_upload_with_document_task(
     if not os.path.exists(temp_path):
         logger.error(
             f"[process_file_upload_with_document] File does not exist: {temp_path}. "
-            "The temp file may have been cleaned up before the task ran."
+            "File may have been removed before syncing could start."
         )
         # Mark document as failed since file is missing
         loop = asyncio.new_event_loop()
@@ -663,7 +663,7 @@ def process_file_upload_with_document_task(
             loop.run_until_complete(
                 _mark_document_failed(
                     document_id,
-                    "File not found - temp file may have been cleaned up",
+                    "File not found. Please re-upload the file.",
                 )
             )
         finally:
