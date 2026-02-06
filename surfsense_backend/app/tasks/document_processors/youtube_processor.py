@@ -244,7 +244,13 @@ async def add_youtube_video_document(
             if residential_proxies:
                 http_client.proxies.update(residential_proxies)
             ytt_api = YouTubeTranscriptApi(http_client=http_client)
-            captions = ytt_api.fetch(video_id)
+
+            # List all available transcripts and pick the first one
+            # (the video's primary language) instead of defaulting to English
+            transcript_list = ytt_api.list(video_id)
+            transcript = next(iter(transcript_list))
+            captions = transcript.fetch()
+
             # Include complete caption information with timestamps
             transcript_segments = []
             for line in captions:
@@ -257,11 +263,14 @@ async def add_youtube_video_document(
 
             await task_logger.log_task_progress(
                 log_entry,
-                f"Transcript fetched successfully: {len(captions)} segments",
+                f"Transcript fetched successfully: {len(captions)} segments ({transcript.language})",
                 {
                     "stage": "transcript_fetched",
                     "segments_count": len(captions),
                     "transcript_length": len(transcript_text),
+                    "language": transcript.language,
+                    "language_code": transcript.language_code,
+                    "is_generated": transcript.is_generated,
                 },
             )
         except Exception as e:

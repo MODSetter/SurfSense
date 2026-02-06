@@ -110,7 +110,17 @@ async def _scrape_youtube_video(
         if residential_proxies:
             http_client.proxies.update(residential_proxies)
         ytt_api = YouTubeTranscriptApi(http_client=http_client)
-        captions = ytt_api.fetch(video_id)
+
+        # List all available transcripts and pick the first one
+        # (the video's primary language) instead of defaulting to English
+        transcript_list = ytt_api.list(video_id)
+        transcript = next(iter(transcript_list))
+        captions = transcript.fetch()
+
+        logger.info(
+            f"[scrape_webpage] Fetched transcript for {video_id} "
+            f"in {transcript.language} ({transcript.language_code})"
+        )
 
         transcript_segments = []
         for line in captions:
