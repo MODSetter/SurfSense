@@ -576,6 +576,18 @@ export function InboxSidebar({
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
+						{/* Back button - mobile only */}
+						{isMobile && (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => onOpenChange(false)}
+							>
+								<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+								<span className="sr-only">{t("close") || "Close"}</span>
+							</Button>
+						)}
 						<h2 className="text-lg font-semibold">{t("inbox") || "Inbox"}</h2>
 					</div>
 					<div className="flex items-center gap-1">
@@ -816,23 +828,6 @@ export function InboxSidebar({
 								{t("mark_all_read") || "Mark all as read"}
 							</TooltipContent>
 						</Tooltip>
-						{/* Close button - mobile only */}
-						{isMobile && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full"
-										onClick={() => onOpenChange(false)}
-									>
-										<ChevronLeft className="h-4 w-4 text-muted-foreground" />
-										<span className="sr-only">{t("close") || "Close"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">{t("close") || "Close"}</TooltipContent>
-							</Tooltip>
-						)}
 						{/* Dock/Undock button - desktop only */}
 						{!isMobile && onDockedChange && (
 							<Tooltip>

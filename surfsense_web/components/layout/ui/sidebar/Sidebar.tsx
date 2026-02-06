@@ -50,6 +50,7 @@ interface SidebarProps {
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	className?: string;
 	isLoadingChats?: boolean;
+	disableTooltips?: boolean;
 }
 
 export function Sidebar({
@@ -78,6 +79,7 @@ export function Sidebar({
 	setTheme,
 	className,
 	isLoadingChats = false,
+	disableTooltips = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
 
@@ -95,23 +97,25 @@ export function Sidebar({
 					<SidebarCollapseButton
 						isCollapsed={isCollapsed}
 						onToggle={onToggleCollapse ?? (() => {})}
+						disableTooltip={disableTooltips}
 					/>
 				</div>
 			) : (
-				<div className="flex h-14 shrink-0 items-center justify-between px-1 border-b">
-					<SidebarHeader
-						searchSpace={searchSpace}
+			<div className="flex h-14 shrink-0 items-center gap-0 px-1 border-b">
+				<SidebarHeader
+					searchSpace={searchSpace}
+					isCollapsed={isCollapsed}
+					onSettings={onSettings}
+					onManageMembers={onManageMembers}
+				/>
+				<div className="shrink-0">
+					<SidebarCollapseButton
 						isCollapsed={isCollapsed}
-						onSettings={onSettings}
-						onManageMembers={onManageMembers}
+						onToggle={onToggleCollapse ?? (() => {})}
+						disableTooltip={disableTooltips}
 					/>
-					<div className="">
-						<SidebarCollapseButton
-							isCollapsed={isCollapsed}
-							onToggle={onToggleCollapse ?? (() => {})}
-						/>
-					</div>
 				</div>
+			</div>
 			)}
 
 			{/* New chat button */}
@@ -138,7 +142,7 @@ export function Sidebar({
 			{isCollapsed ? (
 				<div className="flex-1 w-[60px]" />
 			) : (
-				<div className="flex-1 flex flex-col gap-1 py-2 w-[240px] min-h-0 overflow-hidden">
+				<div className="flex-1 flex flex-col gap-1 py-2 w-full min-h-0 overflow-hidden">
 					{/* Shared Chats Section - takes only space needed, max 50% */}
 					<SidebarSection
 						title={t("shared_chats")}
