@@ -801,9 +801,8 @@ class MemoryCategory(str, Enum):
 
 class UserMemory(BaseModel, TimestampMixin):
     """
-    Stores facts, preferences, and context about users for personalized AI responses.
-    Similar to Claude's memory feature - enables the AI to remember user information
-    across conversations.
+    Private memory: facts, preferences, context per user per search space.
+    Used only for private chats (not shared/team chats).
     """
 
     __tablename__ = "user_memories"
