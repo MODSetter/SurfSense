@@ -21,6 +21,7 @@ interface SearchSpaceAvatarProps {
 	onDelete?: () => void;
 	onSettings?: () => void;
 	size?: "sm" | "md";
+	disableTooltip?: boolean;
 }
 
 /**
@@ -64,6 +65,7 @@ export function SearchSpaceAvatar({
 	onDelete,
 	onSettings,
 	size = "md",
+	disableTooltip = false,
 }: SearchSpaceAvatarProps) {
 	const t = useTranslations("searchSpace");
 	const tCommon = useTranslations("common");
@@ -114,16 +116,22 @@ export function SearchSpaceAvatar({
 	if (onDelete || onSettings) {
 		return (
 			<ContextMenu>
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<ContextMenuTrigger asChild>
-							<div className="inline-block">{avatarButton}</div>
-						</ContextMenuTrigger>
-					</TooltipTrigger>
-					<TooltipContent side="right" sideOffset={8}>
-						{tooltipContent}
-					</TooltipContent>
-				</Tooltip>
+				{disableTooltip ? (
+					<ContextMenuTrigger asChild>
+						<div className="inline-block">{avatarButton}</div>
+					</ContextMenuTrigger>
+				) : (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<ContextMenuTrigger asChild>
+								<div className="inline-block">{avatarButton}</div>
+							</ContextMenuTrigger>
+						</TooltipTrigger>
+						<TooltipContent side="right" sideOffset={8}>
+							{tooltipContent}
+						</TooltipContent>
+					</Tooltip>
+				)}
 				<ContextMenuContent className="w-48">
 					{onSettings && (
 						<ContextMenuItem onClick={onSettings}>
@@ -150,6 +158,10 @@ export function SearchSpaceAvatar({
 	}
 
 	// No context menu needed
+	if (disableTooltip) {
+		return avatarButton;
+	}
+
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>{avatarButton}</TooltipTrigger>
