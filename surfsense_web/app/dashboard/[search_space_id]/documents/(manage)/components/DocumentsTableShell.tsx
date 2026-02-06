@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from "date-fns";
 import {
 	AlertCircle,
+	BadgeInfo,
 	Calendar,
 	CheckCircle2,
 	ChevronDown,
@@ -543,11 +544,14 @@ export function DocumentsTableShell({
 											</SortableHeader>
 										</TableHead>
 									)}
-									{columnVisibility.status && (
-										<TableHead className="w-20 text-center">
-											<span className="text-sm font-medium text-muted-foreground/70">Status</span>
-										</TableHead>
-									)}
+								{columnVisibility.status && (
+									<TableHead className="w-20">
+										<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+											<BadgeInfo size={14} className="opacity-60 text-muted-foreground" />
+											Status
+										</span>
+									</TableHead>
+								)}
 									<TableHead className="w-10">
 										<span className="sr-only">Actions</span>
 									</TableHead>
