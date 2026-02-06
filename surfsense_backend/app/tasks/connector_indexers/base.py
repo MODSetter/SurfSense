@@ -52,8 +52,8 @@ def parse_date_flexible(date_str: str) -> datetime:
     # Try ISO format as fallback
     try:
         return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-    except ValueError:
-        raise ValueError(f"Unable to parse date: {date_str}")
+    except ValueError as err:
+        raise ValueError(f"Unable to parse date: {date_str}") from err
 
 
 async def check_duplicate_document_by_hash(

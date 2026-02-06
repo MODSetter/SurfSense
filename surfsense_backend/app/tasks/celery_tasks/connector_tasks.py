@@ -15,12 +15,12 @@ logger = logging.getLogger(__name__)
 def _handle_greenlet_error(e: Exception, task_name: str, connector_id: int) -> None:
     """
     Handle greenlet_spawn errors with detailed logging for debugging.
-    
+
     The 'greenlet_spawn has not been called' error occurs when:
     1. SQLAlchemy lazy-loads a relationship outside of an async context
     2. A sync operation is called from an async context (or vice versa)
     3. Session objects are accessed after the session is closed
-    
+
     This helper logs detailed context to help identify the root cause.
     """
     error_str = str(e)
