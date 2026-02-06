@@ -467,7 +467,7 @@ export function DocumentsTableShell({
 						className="flex flex-col items-center gap-4 max-w-md px-4 text-center"
 					>
 						<div className="rounded-full bg-muted/50 p-4">
-							<FileX className="h-8 w-8 text-muted-foreground/60" />
+							<FileX className="h-8 w-8 text-muted-foreground" />
 						</div>
 						<div className="space-y-1.5">
 							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
