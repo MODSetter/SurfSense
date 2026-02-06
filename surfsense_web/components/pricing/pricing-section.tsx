@@ -42,7 +42,7 @@ const demoPlans = [
 			"Planned: Centralized billing",
 			"Priority support",
 		],
-		description: "The AIknowledge base for individuals and teams",
+		description: "The AI knowledge base for individuals and teams",
 		buttonText: "Upgrade",
 		href: "/contact",
 		isPopular: true,
