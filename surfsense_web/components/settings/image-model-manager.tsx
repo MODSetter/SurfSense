@@ -95,16 +95,29 @@ const item = {
 
 export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 	// Image gen config atoms
-	const { mutateAsync: createConfig, isPending: isCreating, error: createError } =
-		useAtomValue(createImageGenConfigMutationAtom);
-	const { mutateAsync: updateConfig, isPending: isUpdating, error: updateError } =
-		useAtomValue(updateImageGenConfigMutationAtom);
-	const { mutateAsync: deleteConfig, isPending: isDeleting, error: deleteError } =
-		useAtomValue(deleteImageGenConfigMutationAtom);
+	const {
+		mutateAsync: createConfig,
+		isPending: isCreating,
+		error: createError,
+	} = useAtomValue(createImageGenConfigMutationAtom);
+	const {
+		mutateAsync: updateConfig,
+		isPending: isUpdating,
+		error: updateError,
+	} = useAtomValue(updateImageGenConfigMutationAtom);
+	const {
+		mutateAsync: deleteConfig,
+		isPending: isDeleting,
+		error: deleteError,
+	} = useAtomValue(deleteImageGenConfigMutationAtom);
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
-	const { data: userConfigs, isFetching: configsLoading, error: fetchError, refetch: refreshConfigs } =
-		useAtomValue(imageGenConfigsAtom);
+	const {
+		data: userConfigs,
+		isFetching: configsLoading,
+		error: fetchError,
+		refetch: refreshConfigs,
+	} = useAtomValue(imageGenConfigsAtom);
 	const { data: globalConfigs = [], isFetching: globalLoading } =
 		useAtomValue(globalImageGenConfigsAtom);
 	const { data: preferences = {}, isFetching: prefsLoading } = useAtomValue(llmPreferencesAtom);
@@ -249,7 +262,9 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				data: {
 					image_generation_config_id:
 						typeof selectedPrefId === "string"
-							? selectedPrefId ? parseInt(selectedPrefId) : undefined
+							? selectedPrefId
+								? parseInt(selectedPrefId)
+								: undefined
 							: selectedPrefId,
 				},
 			});
@@ -289,7 +304,12 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 			{/* Errors */}
 			<AnimatePresence>
 				{errors.map((err) => (
-					<motion.div key={err?.message} initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+					<motion.div
+						key={err?.message}
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+					>
 						<Alert variant="destructive" className="py-3">
 							<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 							<AlertDescription className="text-xs md:text-sm">{err?.message}</AlertDescription>
@@ -304,7 +324,8 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 					<Sparkles className="h-3 w-3 md:h-4 md:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
 					<AlertDescription className="text-teal-800 dark:text-teal-200 text-xs md:text-sm">
 						<span className="font-medium">
-							{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global image model(s)
+							{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
+							image model(s)
 						</span>{" "}
 						available from your administrator.
 					</AlertDescription>
@@ -342,18 +363,27 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 									</SelectItem>
 									{globalConfigs.length > 0 && (
 										<>
-											<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Global</div>
+											<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+												Global
+											</div>
 											{globalConfigs.map((c) => {
 												const isAuto = "is_auto_mode" in c && c.is_auto_mode;
 												return (
 													<SelectItem key={`g-${c.id}`} value={c.id.toString()}>
 														<div className="flex items-center gap-2">
 															{isAuto ? (
-																<Badge variant="outline" className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200">
-																	<Shuffle className="size-3 mr-1" />AUTO
+																<Badge
+																	variant="outline"
+																	className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200"
+																>
+																	<Shuffle className="size-3 mr-1" />
+																	AUTO
 																</Badge>
 															) : (
-																<Badge variant="outline" className="text-xs bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200">
+																<Badge
+																	variant="outline"
+																	className="text-xs bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200"
+																>
 																	{c.provider}
 																</Badge>
 															)}
@@ -366,11 +396,15 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 									)}
 									{(userConfigs?.length ?? 0) > 0 && (
 										<>
-											<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">Your Models</div>
+											<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
+												Your Models
+											</div>
 											{userConfigs?.map((c) => (
 												<SelectItem key={`u-${c.id}`} value={c.id.toString()}>
 													<div className="flex items-center gap-2">
-														<Badge variant="outline" className="text-xs">{c.provider}</Badge>
+														<Badge variant="outline" className="text-xs">
+															{c.provider}
+														</Badge>
 														<span>{c.name}</span>
 														<span className="text-muted-foreground">({c.model_name})</span>
 													</div>
@@ -382,10 +416,23 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 							</Select>
 							{hasPrefChanges && (
 								<div className="flex gap-2 pt-1">
-									<Button size="sm" onClick={handleSavePref} disabled={isSavingPref} className="text-xs h-8">
+									<Button
+										size="sm"
+										onClick={handleSavePref}
+										disabled={isSavingPref}
+										className="text-xs h-8"
+									>
 										{isSavingPref ? "Saving..." : "Save"}
 									</Button>
-									<Button size="sm" variant="outline" onClick={() => { setSelectedPrefId(preferences.image_generation_config_id ?? ""); setHasPrefChanges(false); }} className="text-xs h-8">
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={() => {
+											setSelectedPrefId(preferences.image_generation_config_id ?? "");
+											setHasPrefChanges(false);
+										}}
+										className="text-xs h-8"
+									>
 										Reset
 									</Button>
 								</div>
@@ -409,7 +456,10 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				<div className="space-y-4 md:space-y-6">
 					<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
 						<h3 className="text-lg md:text-xl font-semibold tracking-tight">Your Image Models</h3>
-						<Button onClick={openNewDialog} className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9">
+						<Button
+							onClick={openNewDialog}
+							className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
+						>
 							<Plus className="h-3 w-3 md:h-4 md:w-4" />
 							Add Image Model
 						</Button>
@@ -435,7 +485,12 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 						<motion.div variants={container} initial="hidden" animate="show" className="grid gap-4">
 							<AnimatePresence mode="popLayout">
 								{userConfigs?.map((config) => (
-									<motion.div key={config.id} variants={item} layout exit={{ opacity: 0, scale: 0.95 }}>
+									<motion.div
+										key={config.id}
+										variants={item}
+										layout
+										exit={{ opacity: 0, scale: 0.95 }}
+									>
 										<Card className="group overflow-hidden hover:shadow-lg transition-all duration-300 border-muted-foreground/10 hover:border-teal-500/30">
 											<CardContent className="p-0">
 												<div className="flex">
@@ -448,8 +503,13 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 																</div>
 																<div className="flex-1 min-w-0 space-y-2">
 																	<div className="flex items-center gap-1.5 flex-wrap">
-																		<h4 className="text-sm md:text-base font-semibold truncate">{config.name}</h4>
-																		<Badge variant="secondary" className="text-[9px] md:text-[10px] px-1.5 py-0.5 bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20">
+																		<h4 className="text-sm md:text-base font-semibold truncate">
+																			{config.name}
+																		</h4>
+																		<Badge
+																			variant="secondary"
+																			className="text-[9px] md:text-[10px] px-1.5 py-0.5 bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20"
+																		>
 																			{config.provider}
 																		</Badge>
 																	</div>
@@ -457,7 +517,9 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 																		{config.model_name}
 																	</code>
 																	{config.description && (
-																		<p className="text-[10px] md:text-xs text-muted-foreground line-clamp-1">{config.description}</p>
+																		<p className="text-[10px] md:text-xs text-muted-foreground line-clamp-1">
+																			{config.description}
+																		</p>
 																	)}
 																	<div className="flex items-center gap-1 text-[10px] md:text-xs text-muted-foreground pt-1">
 																		<Clock className="h-2.5 w-2.5 md:h-3 md:w-3" />
@@ -469,7 +531,12 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 																<TooltipProvider>
 																	<Tooltip>
 																		<TooltipTrigger asChild>
-																			<Button variant="ghost" size="sm" onClick={() => openEditDialog(config)} className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+																			<Button
+																				variant="ghost"
+																				size="sm"
+																				onClick={() => openEditDialog(config)}
+																				className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+																			>
 																				<Edit3 className="h-3.5 w-3.5" />
 																			</Button>
 																		</TooltipTrigger>
@@ -479,7 +546,12 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 																<TooltipProvider>
 																	<Tooltip>
 																		<TooltipTrigger asChild>
-																			<Button variant="ghost" size="sm" onClick={() => setConfigToDelete(config)} className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive">
+																			<Button
+																				variant="ghost"
+																				size="sm"
+																				onClick={() => setConfigToDelete(config)}
+																				className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+																			>
 																				<Trash2 className="h-3.5 w-3.5" />
 																			</Button>
 																		</TooltipTrigger>
@@ -501,15 +573,30 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 			)}
 
 			{/* Create/Edit Dialog */}
-			<Dialog open={isDialogOpen} onOpenChange={(open) => { if (!open) { setIsDialogOpen(false); setEditingConfig(null); resetForm(); } }}>
+			<Dialog
+				open={isDialogOpen}
+				onOpenChange={(open) => {
+					if (!open) {
+						setIsDialogOpen(false);
+						setEditingConfig(null);
+						resetForm();
+					}
+				}}
+			>
 				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
-							{editingConfig ? <Edit3 className="w-5 h-5 text-teal-600" /> : <Plus className="w-5 h-5 text-teal-600" />}
+							{editingConfig ? (
+								<Edit3 className="w-5 h-5 text-teal-600" />
+							) : (
+								<Plus className="w-5 h-5 text-teal-600" />
+							)}
 							{editingConfig ? "Edit Image Model" : "Add Image Model"}
 						</DialogTitle>
 						<DialogDescription>
-							{editingConfig ? "Update your image generation model" : "Configure a new image generation model (DALL-E 3, GPT Image 1, etc.)"}
+							{editingConfig
+								? "Update your image generation model"
+								: "Configure a new image generation model (DALL-E 3, GPT Image 1, etc.)"}
 						</DialogDescription>
 					</DialogHeader>
 
@@ -541,7 +628,9 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 							<Label className="text-sm font-medium">Provider *</Label>
 							<Select
 								value={formData.provider}
-								onValueChange={(val) => setFormData((p) => ({ ...p, provider: val, model_name: "" }))}
+								onValueChange={(val) =>
+									setFormData((p) => ({ ...p, provider: val, model_name: "" }))
+								}
 							>
 								<SelectTrigger>
 									<SelectValue placeholder="Select a provider" />
@@ -565,7 +654,11 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 							{suggestedModels.length > 0 ? (
 								<Popover open={modelComboboxOpen} onOpenChange={setModelComboboxOpen}>
 									<PopoverTrigger asChild>
-										<Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+										<Button
+											variant="outline"
+											role="combobox"
+											className="w-full justify-between font-normal"
+										>
 											{formData.model_name || "Select or type a model..."}
 											<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 										</Button>
@@ -579,7 +672,9 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 											/>
 											<CommandList>
 												<CommandEmpty>
-													<span className="text-xs text-muted-foreground">Type a custom model name</span>
+													<span className="text-xs text-muted-foreground">
+														Type a custom model name
+													</span>
 												</CommandEmpty>
 												<CommandGroup>
 													{suggestedModels.map((m) => (
@@ -591,7 +686,12 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 																setModelComboboxOpen(false);
 															}}
 														>
-															<Check className={cn("mr-2 h-4 w-4", formData.model_name === m.value ? "opacity-100" : "opacity-0")} />
+															<Check
+																className={cn(
+																	"mr-2 h-4 w-4",
+																	formData.model_name === m.value ? "opacity-100" : "opacity-0"
+																)}
+															/>
 															<span className="font-mono text-sm">{m.value}</span>
 															<span className="ml-2 text-xs text-muted-foreground">{m.label}</span>
 														</CommandItem>
@@ -650,14 +750,24 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 							<Button
 								variant="outline"
 								className="flex-1"
-								onClick={() => { setIsDialogOpen(false); setEditingConfig(null); resetForm(); }}
+								onClick={() => {
+									setIsDialogOpen(false);
+									setEditingConfig(null);
+									resetForm();
+								}}
 							>
 								Cancel
 							</Button>
 							<Button
 								className="flex-1"
 								onClick={handleFormSubmit}
-								disabled={isSubmitting || !formData.name || !formData.provider || !formData.model_name || !formData.api_key}
+								disabled={
+									isSubmitting ||
+									!formData.name ||
+									!formData.provider ||
+									!formData.model_name ||
+									!formData.api_key
+								}
 							>
 								{isSubmitting ? <Spinner size="sm" className="mr-2" /> : null}
 								{editingConfig ? "Save Changes" : "Create & Use"}
@@ -668,7 +778,10 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 			</Dialog>
 
 			{/* Delete Confirmation */}
-			<AlertDialog open={!!configToDelete} onOpenChange={(open) => !open && setConfigToDelete(null)}>
+			<AlertDialog
+				open={!!configToDelete}
+				onOpenChange={(open) => !open && setConfigToDelete(null)}
+			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
 						<AlertDialogTitle className="flex items-center gap-2">
@@ -676,13 +789,28 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 							Delete Image Model
 						</AlertDialogTitle>
 						<AlertDialogDescription>
-							Are you sure you want to delete <span className="font-semibold text-foreground">{configToDelete?.name}</span>?
+							Are you sure you want to delete{" "}
+							<span className="font-semibold text-foreground">{configToDelete?.name}</span>?
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-							{isDeleting ? <><Spinner size="sm" className="mr-2" />Deleting</> : <><Trash2 className="mr-2 h-4 w-4" />Delete</>}
+						<AlertDialogAction
+							onClick={handleDelete}
+							disabled={isDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isDeleting ? (
+								<>
+									<Spinner size="sm" className="mr-2" />
+									Deleting
+								</>
+							) : (
+								<>
+									<Trash2 className="mr-2 h-4 w-4" />
+									Delete
+								</>
+							)}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

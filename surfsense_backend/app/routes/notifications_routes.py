@@ -144,6 +144,9 @@ async def list_notifications(
     before_date: str | None = Query(
         None, description="Get notifications before this ISO date (for pagination)"
     ),
+    search: str | None = Query(
+        None, description="Search notifications by title or message (case-insensitive)"
+    ),
     limit: int = Query(50, ge=1, le=100, description="Number of items to return"),
     offset: int = Query(0, ge=0, description="Number of items to skip"),
     user: User = Depends(current_active_user),
@@ -190,6 +193,15 @@ async def list_notifications(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid date format. Use ISO format (e.g., 2024-01-15T00:00:00Z)",
             ) from None
+
+    # Filter by search query (case-insensitive title/message search)
+    if search:
+        search_term = f"%{search}%"
+        search_filter = Notification.title.ilike(
+            search_term
+        ) | Notification.message.ilike(search_term)
+        query = query.where(search_filter)
+        count_query = count_query.where(search_filter)
 
     # Get total count
     total_result = await session.execute(count_query)

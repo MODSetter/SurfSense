@@ -345,9 +345,7 @@ export function Image({
 							variant="secondary"
 							className={cn(
 								"border-0 text-xs backdrop-blur-sm",
-								isGenerated
-									? "bg-primary/80 text-primary-foreground"
-									: "bg-black/60 text-white"
+								isGenerated ? "bg-primary/80 text-primary-foreground" : "bg-black/60 text-white"
 							)}
 						>
 							{isGenerated && <SparklesIcon className="size-3 mr-1" />}

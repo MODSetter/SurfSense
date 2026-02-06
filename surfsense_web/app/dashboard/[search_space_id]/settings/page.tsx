@@ -290,11 +290,11 @@ function SettingsContent({
 								<GeneralSettingsManager searchSpaceId={searchSpaceId} />
 							)}
 							{activeSection === "models" && <ModelConfigManager searchSpaceId={searchSpaceId} />}
-						{activeSection === "roles" && <LLMRoleManager searchSpaceId={searchSpaceId} />}
-						{activeSection === "image-models" && (
-							<ImageModelManager searchSpaceId={searchSpaceId} />
-						)}
-						{activeSection === "prompts" && <PromptConfigManager searchSpaceId={searchSpaceId} />}
+							{activeSection === "roles" && <LLMRoleManager searchSpaceId={searchSpaceId} />}
+							{activeSection === "image-models" && (
+								<ImageModelManager searchSpaceId={searchSpaceId} />
+							)}
+							{activeSection === "prompts" && <PromptConfigManager searchSpaceId={searchSpaceId} />}
 							{activeSection === "public-links" && (
 								<PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />
 							)}

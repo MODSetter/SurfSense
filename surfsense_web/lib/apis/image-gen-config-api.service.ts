@@ -32,11 +32,9 @@ class ImageGenConfigApiService {
 			const msg = parsed.error.issues.map((i) => i.message).join(", ");
 			throw new ValidationError(`Invalid request: ${msg}`);
 		}
-		return baseApiService.post(
-			`/api/v1/image-generation-configs`,
-			createImageGenConfigResponse,
-			{ body: parsed.data }
-		);
+		return baseApiService.post(`/api/v1/image-generation-configs`, createImageGenConfigResponse, {
+			body: parsed.data,
+		});
 	};
 
 	/**

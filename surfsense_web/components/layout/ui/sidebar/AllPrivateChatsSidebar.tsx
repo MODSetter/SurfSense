@@ -27,10 +27,12 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
 	deleteThread,
 	fetchThreads,
@@ -56,6 +58,7 @@ export function AllPrivateChatsSidebar({
 	const router = useRouter();
 	const params = useParams();
 	const queryClient = useQueryClient();
+	const isMobile = useIsMobile();
 
 	const currentChatId = Array.isArray(params.chat_id)
 		? Number(params.chat_id[0])
@@ -303,8 +306,16 @@ export function AllPrivateChatsSidebar({
 
 						<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 							{isLoading ? (
-								<div className="flex items-center justify-center py-8">
-									<Spinner size="md" className="text-muted-foreground" />
+								<div className="space-y-1">
+									{[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+										<div
+											key={`skeleton-${i}`}
+											className="flex items-center gap-2 rounded-md px-2 py-1.5"
+										>
+											<Skeleton className="h-4 w-4 shrink-0 rounded" />
+											<Skeleton className="h-4 rounded" style={{ width: `${titleWidth}%` }} />
+										</div>
+									))}
 								</div>
 							) : error ? (
 								<div className="text-center py-8 text-sm text-destructive">
@@ -329,25 +340,37 @@ export function AllPrivateChatsSidebar({
 													isBusy && "opacity-50 pointer-events-none"
 												)}
 											>
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<button
-															type="button"
-															onClick={() => handleThreadClick(thread.id)}
-															disabled={isBusy}
-															className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
-														>
-															<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
-															<span className="truncate">{thread.title || "New Chat"}</span>
-														</button>
-													</TooltipTrigger>
-													<TooltipContent side="bottom" align="start">
-														<p>
-															{t("updated") || "Updated"}:{" "}
-															{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
-														</p>
-													</TooltipContent>
-												</Tooltip>
+												{isMobile ? (
+													<button
+														type="button"
+														onClick={() => handleThreadClick(thread.id)}
+														disabled={isBusy}
+														className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
+													>
+														<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
+														<span className="truncate">{thread.title || "New Chat"}</span>
+													</button>
+												) : (
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<button
+																type="button"
+																onClick={() => handleThreadClick(thread.id)}
+																disabled={isBusy}
+																className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
+															>
+																<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
+																<span className="truncate">{thread.title || "New Chat"}</span>
+															</button>
+														</TooltipTrigger>
+														<TooltipContent side="bottom" align="start">
+															<p>
+																{t("updated") || "Updated"}:{" "}
+																{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+															</p>
+														</TooltipContent>
+													</Tooltip>
+												)}
 
 												<DropdownMenu
 													open={openDropdownId === thread.id}

@@ -1,6 +1,7 @@
 "use client";
 
 import { Settings, Trash2, Users } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import {
 	ContextMenu,
@@ -9,6 +10,13 @@ import {
 	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuSeparator,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +29,7 @@ interface SearchSpaceAvatarProps {
 	onDelete?: () => void;
 	onSettings?: () => void;
 	size?: "sm" | "md";
+	disableTooltip?: boolean;
 }
 
 /**
@@ -64,12 +73,42 @@ export function SearchSpaceAvatar({
 	onDelete,
 	onSettings,
 	size = "md",
+	disableTooltip = false,
 }: SearchSpaceAvatarProps) {
 	const t = useTranslations("searchSpace");
 	const tCommon = useTranslations("common");
 	const bgColor = stringToColor(name);
 	const initials = getInitials(name);
 	const sizeClasses = size === "sm" ? "h-8 w-8 text-xs" : "h-10 w-10 text-sm";
+
+	// Long-press state for mobile
+	const [longPressMenuOpen, setLongPressMenuOpen] = useState(false);
+	const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const touchMoved = useRef(false);
+
+	const handleTouchStart = useCallback(() => {
+		touchMoved.current = false;
+		longPressTimer.current = setTimeout(() => {
+			if (!touchMoved.current) {
+				setLongPressMenuOpen(true);
+			}
+		}, 500);
+	}, []);
+
+	const handleTouchMove = useCallback(() => {
+		touchMoved.current = true;
+		if (longPressTimer.current) {
+			clearTimeout(longPressTimer.current);
+			longPressTimer.current = null;
+		}
+	}, []);
+
+	const handleTouchEnd = useCallback(() => {
+		if (longPressTimer.current) {
+			clearTimeout(longPressTimer.current);
+			longPressTimer.current = null;
+		}
+	}, []);
 
 	const tooltipContent = (
 		<div className="flex flex-col">
@@ -110,8 +149,53 @@ export function SearchSpaceAvatar({
 		</button>
 	);
 
+	const menuItems = (
+		<>
+			{onSettings && (
+				<DropdownMenuItem onClick={onSettings}>
+					<Settings className="mr-2 h-4 w-4" />
+					{tCommon("settings")}
+				</DropdownMenuItem>
+			)}
+			{onSettings && onDelete && <DropdownMenuSeparator />}
+			{onDelete && isOwner && (
+				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+					<Trash2 className="mr-2 h-4 w-4" />
+					{tCommon("delete")}
+				</DropdownMenuItem>
+			)}
+			{onDelete && !isOwner && (
+				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+					<Trash2 className="mr-2 h-4 w-4" />
+					{t("leave")}
+				</DropdownMenuItem>
+			)}
+		</>
+	);
+
 	// If delete or settings handlers are provided, wrap with context menu
 	if (onDelete || onSettings) {
+		// Mobile: use long-press triggered DropdownMenu
+		if (disableTooltip) {
+			return (
+				<DropdownMenu open={longPressMenuOpen} onOpenChange={setLongPressMenuOpen}>
+					<DropdownMenuTrigger asChild>
+						<div
+							className="inline-block"
+							onTouchStart={handleTouchStart}
+							onTouchMove={handleTouchMove}
+							onTouchEnd={handleTouchEnd}
+							onTouchCancel={handleTouchEnd}
+						>
+							{avatarButton}
+						</div>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent className="w-48">{menuItems}</DropdownMenuContent>
+				</DropdownMenu>
+			);
+		}
+
+		// Desktop: use right-click ContextMenu + Tooltip
 		return (
 			<ContextMenu>
 				<Tooltip>
@@ -150,6 +234,10 @@ export function SearchSpaceAvatar({
 	}
 
 	// No context menu needed
+	if (disableTooltip) {
+		return avatarButton;
+	}
+
 	return (
 		<Tooltip>
 			<TooltipTrigger asChild>{avatarButton}</TooltipTrigger>

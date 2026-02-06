@@ -67,14 +67,10 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 // v2: user-specific database architecture
 // v3: consistent cutoff date for sync+queries, visibility refresh support
 // v4: heartbeat-based stale notification detection with updated_at tracking
-// v5: fixed duplicate key errors (root cause: unstable cutoff dates in use-inbox.ts)
-//     - added onMustRefetch handler for server-side refetch scenarios
-//     - fixed getSyncCutoffDate to use stable midnight UTC timestamps
-// v6: real-time documents table - added title and created_by_id columns for live document display
-// v7: removed use-documents-electric.ts - consolidated to single documents sync to prevent conflicts
-// v8: added status column for real-time document processing status (ready/processing/failed)
-// v9: added pending state for accurate document queue visibility
-const SYNC_VERSION = 11;
+// v5: fixed duplicate key errors, stable cutoff dates, onMustRefetch handler,
+//     real-time documents table with title/created_by_id/status columns,
+//     consolidated single documents sync, pending state for document queue visibility
+const SYNC_VERSION = 5;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";
