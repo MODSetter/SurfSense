@@ -46,9 +46,8 @@ _redis_client: redis.Redis | None = None
 # Error messages shown to users when tasks are interrupted
 STALE_SYNC_ERROR_MESSAGE = "Sync was interrupted unexpectedly. Please retry."
 STALE_PROCESSING_ERROR_MESSAGE = (
-    "Processing was interrupted unexpectedly. Please retry."
+    "Syncing was interrupted unexpectedly. Please retry."
 )
-
 
 def get_redis_client() -> redis.Redis:
     """Get or create Redis client for heartbeat checking."""

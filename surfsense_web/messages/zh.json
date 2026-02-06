@@ -360,7 +360,7 @@
 	"upload_documents": {
 		"title": "上传文档",
 		"subtitle": "上传您的文件，使其可通过 AI 对话进行搜索和访问。",
-		"file_size_limit": "最大文件大小：每个文件 50MB。支持的格式因您的 ETL 服务配置而异。",
+		"file_size_limit": "最大文件大小：每个文件 50MB。",
 		"upload_limits": "上传限制：最多 {maxFiles} 个文件，总大小不超过 {maxSizeMB}MB。",
 		"drop_files": "放下文件到这里",
 		"drag_drop": "拖放文件到这里",
