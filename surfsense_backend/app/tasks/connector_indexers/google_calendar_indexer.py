@@ -27,6 +27,7 @@ from .base import (
     get_connector_by_id,
     get_current_timestamp,
     logger,
+    parse_date_flexible,
     update_connector_last_indexed,
 )
 
@@ -216,6 +217,26 @@ async def index_google_calendar_events(
             # Use provided dates (including future dates)
             start_date_str = start_date
             end_date_str = end_date
+
+        # FIX: Ensure end_date is at least 1 day after start_date to avoid
+        # "start_date must be strictly before end_date" errors when dates are the same
+        # (e.g., when last_indexed_at is today)
+        if start_date_str == end_date_str:
+            logger.info(
+                f"Start date ({start_date_str}) equals end date ({end_date_str}), "
+                "adjusting end date to next day to ensure valid date range"
+            )
+            # Parse end_date and add 1 day
+            try:
+                end_dt = parse_date_flexible(end_date_str)
+            except ValueError:
+                logger.warning(
+                    f"Could not parse end_date '{end_date_str}', using current date"
+                )
+                end_dt = datetime.now()
+            end_dt = end_dt + timedelta(days=1)
+            end_date_str = end_dt.strftime("%Y-%m-%d")
+            logger.info(f"Adjusted end date to {end_date_str}")
 
         await task_logger.log_task_progress(
             log_entry,

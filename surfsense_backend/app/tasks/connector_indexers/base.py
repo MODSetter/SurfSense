@@ -28,6 +28,34 @@ def get_current_timestamp() -> datetime:
     return datetime.now(UTC)
 
 
+def parse_date_flexible(date_str: str) -> datetime:
+    """
+    Parse date from multiple common formats.
+
+    Args:
+        date_str: Date string to parse
+
+    Returns:
+        Parsed datetime object
+
+    Raises:
+        ValueError: If unable to parse the date string
+    """
+    formats = ["%Y-%m-%d", "%Y-%m-%dT%H:%M:%S"]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str.rstrip("Z"), fmt)
+        except ValueError:
+            continue
+
+    # Try ISO format as fallback
+    try:
+        return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    except ValueError:
+        raise ValueError(f"Unable to parse date: {date_str}")
+
+
 async def check_duplicate_document_by_hash(
     session: AsyncSession, content_hash: str
 ) -> Document | None:
@@ -158,6 +186,26 @@ def calculate_date_range(
         start_date if start_date else calculated_start_date.strftime("%Y-%m-%d")
     )
     end_date_str = end_date if end_date else calculated_end_date.strftime("%Y-%m-%d")
+
+    # FIX: Ensure end_date is at least 1 day after start_date to avoid
+    # "start_date must be strictly before end_date" errors when dates are the same
+    # (e.g., when last_indexed_at is today)
+    if start_date_str == end_date_str:
+        logger.info(
+            f"Start date ({start_date_str}) equals end date ({end_date_str}), "
+            "adjusting end date to next day to ensure valid date range"
+        )
+        # Parse end_date and add 1 day
+        try:
+            end_dt = parse_date_flexible(end_date_str)
+        except ValueError:
+            logger.warning(
+                f"Could not parse end_date '{end_date_str}', using current date"
+            )
+            end_dt = datetime.now()
+        end_dt = end_dt + timedelta(days=1)
+        end_date_str = end_dt.strftime("%Y-%m-%d")
+        logger.info(f"Adjusted end date to {end_date_str}")
 
     return start_date_str, end_date_str
 
