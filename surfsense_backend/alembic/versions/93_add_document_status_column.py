@@ -1,7 +1,7 @@
 """Add status column to documents table for per-document processing status
 
-Revision ID: 92
-Revises: 91
+Revision ID: 93
+Revises: 92
 Create Date: 2026-02-05
 
 Changes:
@@ -16,8 +16,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "92"
-down_revision: str | None = "91"
+revision: str = "93"
+down_revision: str | None = "92"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
