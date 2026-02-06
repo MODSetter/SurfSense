@@ -149,8 +149,18 @@ export function Sidebar({
 						defaultOpen={true}
 						fillHeight={false}
 						className="shrink-0 max-h-[50%] flex flex-col"
-						action={
-							onViewAllSharedChats ? (
+					action={
+						onViewAllSharedChats ? (
+							disableTooltips ? (
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
+									onClick={onViewAllSharedChats}
+								>
+									<FolderOpen className="h-4 w-4" />
+								</Button>
+							) : (
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
@@ -166,10 +176,11 @@ export function Sidebar({
 										{t("view_all_shared_chats") || "View all shared chats"}
 									</TooltipContent>
 								</Tooltip>
-							) : undefined
-						}
-					>
-						{isLoadingChats ? (
+							)
+						) : undefined
+					}
+				>
+					{isLoadingChats ? (
 							<div className="flex flex-col gap-0.5">
 								<ChatListItemSkeleton />
 								<ChatListItemSkeleton />
@@ -210,8 +221,18 @@ export function Sidebar({
 						title={t("chats")}
 						defaultOpen={true}
 						fillHeight={true}
-						action={
-							onViewAllPrivateChats ? (
+					action={
+						onViewAllPrivateChats ? (
+							disableTooltips ? (
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
+									onClick={onViewAllPrivateChats}
+								>
+									<FolderOpen className="h-4 w-4" />
+								</Button>
+							) : (
 								<Tooltip>
 									<TooltipTrigger asChild>
 										<Button
@@ -227,8 +248,9 @@ export function Sidebar({
 										{t("view_all_private_chats") || "View all private chats"}
 									</TooltipContent>
 								</Tooltip>
-							) : undefined
-						}
+							)
+						) : undefined
+					}
 					>
 						{isLoadingChats ? (
 							<div className="flex flex-col gap-0.5">
