@@ -1,7 +1,7 @@
 from datetime import datetime
 
 
-class ChucksHybridSearchRetriever:
+class ChunksHybridSearchRetriever:
     def __init__(self, db_session):
         """
         Initialize the hybrid search retriever with a database session.
