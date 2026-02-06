@@ -272,7 +272,9 @@ async def index_linear_issues(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         logger.info(
                             f"Document for Linear issue {issue_identifier} unchanged. Skipping."
@@ -281,19 +283,21 @@ async def index_linear_issues(
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    issues_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'issue_content': issue_content,
-                        'content_hash': content_hash,
-                        'issue_id': issue_id,
-                        'issue_identifier': issue_identifier,
-                        'issue_title': issue_title,
-                        'state': state,
-                        'description': description,
-                        'comment_count': comment_count,
-                        'priority': priority,
-                    })
+                    issues_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "issue_content": issue_content,
+                            "content_hash": content_hash,
+                            "issue_id": issue_id,
+                            "issue_identifier": issue_identifier,
+                            "issue_title": issue_title,
+                            "state": state,
+                            "description": description,
+                            "comment_count": comment_count,
+                            "priority": priority,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -338,19 +342,21 @@ async def index_linear_issues(
                 session.add(document)
                 new_documents_created = True
 
-                issues_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'issue_content': issue_content,
-                    'content_hash': content_hash,
-                    'issue_id': issue_id,
-                    'issue_identifier': issue_identifier,
-                    'issue_title': issue_title,
-                    'state': state,
-                    'description': description,
-                    'comment_count': comment_count,
-                    'priority': priority,
-                })
+                issues_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "issue_content": issue_content,
+                        "content_hash": content_hash,
+                        "issue_id": issue_id,
+                        "issue_identifier": issue_identifier,
+                        "issue_title": issue_title,
+                        "state": state,
+                        "description": description,
+                        "comment_count": comment_count,
+                        "priority": priority,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for issue: {e!s}", exc_info=True)
@@ -359,7 +365,9 @@ async def index_linear_issues(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([i for i in issues_to_process if i['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([i for i in issues_to_process if i['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -376,7 +384,7 @@ async def index_linear_issues(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -389,20 +397,23 @@ async def index_linear_issues(
 
                 if user_llm:
                     document_metadata_for_summary = {
-                        "issue_id": item['issue_identifier'],
-                        "issue_title": item['issue_title'],
-                        "state": item['state'],
-                        "priority": item['priority'],
-                        "comment_count": item['comment_count'],
+                        "issue_id": item["issue_identifier"],
+                        "issue_title": item["issue_title"],
+                        "state": item["state"],
+                        "priority": item["priority"],
+                        "comment_count": item["comment_count"],
                         "document_type": "Linear Issue",
                         "connector_type": "Linear",
                     }
-                    summary_content, summary_embedding = await generate_document_summary(
-                        item['issue_content'], user_llm, document_metadata_for_summary
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        item["issue_content"], user_llm, document_metadata_for_summary
                     )
                 else:
                     # Fallback to simple summary if no LLM configured
-                    description = item['description']
+                    description = item["description"]
                     if description and len(description) > 1000:
                         description = description[:997] + "..."
                     summary_content = f"Linear Issue {item['issue_identifier']}: {item['issue_title']}\n\nStatus: {item['state']}\n\n"
@@ -413,19 +424,19 @@ async def index_linear_issues(
                         summary_content
                     )
 
-                chunks = await create_document_chunks(item['issue_content'])
+                chunks = await create_document_chunks(item["issue_content"])
 
                 # Update document to READY with actual content
                 document.title = f"{item['issue_identifier']}: {item['issue_title']}"
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = {
-                    "issue_id": item['issue_id'],
-                    "issue_identifier": item['issue_identifier'],
-                    "issue_title": item['issue_title'],
-                    "state": item['state'],
-                    "comment_count": item['comment_count'],
+                    "issue_id": item["issue_id"],
+                    "issue_identifier": item["issue_identifier"],
+                    "issue_title": item["issue_title"],
+                    "state": item["state"],
+                    "comment_count": item["comment_count"],
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
@@ -452,7 +463,9 @@ async def index_linear_issues(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 skipped_issues.append(
                     f"{item.get('issue_identifier', 'Unknown')} (processing error)"
                 )
@@ -466,7 +479,9 @@ async def index_linear_issues(
         logger.info(f"Final commit: Total {documents_indexed} Linear issues processed")
         try:
             await session.commit()
-            logger.info("Successfully committed all Linear document changes to database")
+            logger.info(
+                "Successfully committed all Linear document changes to database"
+            )
         except Exception as e:
             # Handle any remaining integrity errors gracefully (race conditions, etc.)
             if (

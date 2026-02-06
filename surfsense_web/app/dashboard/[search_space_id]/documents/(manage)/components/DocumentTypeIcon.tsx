@@ -38,7 +38,9 @@ export function DocumentTypeChip({ type, className }: { type: string; className?
 			className={`inline-flex items-center gap-1.5 rounded bg-muted/40 px-2 py-1 text-xs text-muted-foreground max-w-full overflow-hidden ${className ?? ""}`}
 		>
 			<span className="opacity-80 flex-shrink-0">{icon}</span>
-			<span ref={textRef} className="truncate min-w-0">{fullLabel}</span>
+			<span ref={textRef} className="truncate min-w-0">
+				{fullLabel}
+			</span>
 		</span>
 	);
 

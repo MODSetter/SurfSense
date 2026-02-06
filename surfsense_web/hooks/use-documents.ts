@@ -144,7 +144,7 @@ export function useDocuments(
 		(doc: DocumentElectric): DocumentDisplay => ({
 			...doc,
 			created_by_name: doc.created_by_id
-				? userCacheRef.current.get(doc.created_by_id) ?? null
+				? (userCacheRef.current.get(doc.created_by_id) ?? null)
 				: null,
 			status: doc.status ?? { state: "ready" },
 		}),
@@ -232,7 +232,15 @@ export function useDocuments(
 				const handle = await client.syncShape({
 					table: "documents",
 					where: `search_space_id = ${spaceId}`,
-					columns: ["id", "document_type", "search_space_id", "title", "created_by_id", "created_at", "status"],
+					columns: [
+						"id",
+						"document_type",
+						"search_space_id",
+						"title",
+						"created_by_id",
+						"created_at",
+						"status",
+					],
 					primaryKey: ["id"],
 				});
 
@@ -258,7 +266,10 @@ export function useDocuments(
 				// Set up live query
 				const db = client.db as {
 					live?: {
-						query: <T>(sql: string, params?: (number | string)[]) => Promise<{
+						query: <T>(
+							sql: string,
+							params?: (number | string)[]
+						) => Promise<{
 							subscribe: (cb: (result: { rows: T[] }) => void) => void;
 							unsubscribe?: () => void;
 						}>;
@@ -297,8 +308,7 @@ export function useDocuments(
 					if (!mounted || !result.rows) return;
 
 					// DEBUG: Log first few raw documents to see what's coming from Electric
-  					console.log("[useDocuments] Raw data sample:", result.rows.slice(0, 3));
-  
+					console.log("[useDocuments] Raw data sample:", result.rows.slice(0, 3));
 
 					const validItems = result.rows.filter(isValidDocument);
 					const isFullySynced = syncHandleRef.current?.isUpToDate ?? false;
@@ -309,8 +319,9 @@ export function useDocuments(
 
 					// Fetch user names for new users (non-blocking)
 					const unknownUserIds = validItems
-						.filter((doc): doc is DocumentElectric & { created_by_id: string } => 
-							doc.created_by_id !== null && !userCacheRef.current.has(doc.created_by_id)
+						.filter(
+							(doc): doc is DocumentElectric & { created_by_id: string } =>
+								doc.created_by_id !== null && !userCacheRef.current.has(doc.created_by_id)
 						)
 						.map((doc) => doc.created_by_id);
 
@@ -326,7 +337,7 @@ export function useDocuments(
 										prev.map((doc) => ({
 											...doc,
 											created_by_name: doc.created_by_id
-												? userCacheRef.current.get(doc.created_by_id) ?? null
+												? (userCacheRef.current.get(doc.created_by_id) ?? null)
 												: null,
 										}))
 									);
@@ -358,7 +369,9 @@ export function useDocuments(
 						// Case 2: Electric is fully synced - TRUST IT COMPLETELY (handles bulk deletes)
 						if (isFullySynced) {
 							const liveDocs = deduplicateAndSort(validItems.map(electricToDisplayDoc));
-							console.log(`[useDocuments] Synced update: ${liveDocs.length} docs (was ${prev.length})`);
+							console.log(
+								`[useDocuments] Synced update: ${liveDocs.length} docs (was ${prev.length})`
+							);
 							return liveDocs;
 						}
 

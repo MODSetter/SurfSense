@@ -261,7 +261,9 @@ async def index_bookstack_pages(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         logger.info(
                             f"Document for BookStack page {page_name} unchanged. Skipping."
@@ -270,20 +272,22 @@ async def index_bookstack_pages(
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    pages_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'page_id': page_id,
-                        'page_name': page_name,
-                        'page_slug': page_slug,
-                        'book_id': book_id,
-                        'book_slug': book_slug,
-                        'chapter_id': chapter_id,
-                        'page_url': page_url,
-                        'page_content': page_content,
-                        'full_content': full_content,
-                        'content_hash': content_hash,
-                    })
+                    pages_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "page_id": page_id,
+                            "page_name": page_name,
+                            "page_slug": page_slug,
+                            "book_id": book_id,
+                            "book_slug": book_slug,
+                            "chapter_id": chapter_id,
+                            "page_url": page_url,
+                            "page_content": page_content,
+                            "full_content": full_content,
+                            "content_hash": content_hash,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -331,20 +335,22 @@ async def index_bookstack_pages(
                 session.add(document)
                 new_documents_created = True
 
-                pages_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'page_id': page_id,
-                    'page_name': page_name,
-                    'page_slug': page_slug,
-                    'book_id': book_id,
-                    'book_slug': book_slug,
-                    'chapter_id': chapter_id,
-                    'page_url': page_url,
-                    'page_content': page_content,
-                    'full_content': full_content,
-                    'content_hash': content_hash,
-                })
+                pages_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "page_id": page_id,
+                        "page_name": page_name,
+                        "page_slug": page_slug,
+                        "book_id": book_id,
+                        "book_slug": book_slug,
+                        "chapter_id": chapter_id,
+                        "page_url": page_url,
+                        "page_content": page_content,
+                        "full_content": full_content,
+                        "content_hash": content_hash,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for page: {e!s}", exc_info=True)
@@ -353,7 +359,9 @@ async def index_bookstack_pages(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([p for p in pages_to_process if p['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([p for p in pages_to_process if p['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -370,7 +378,7 @@ async def index_bookstack_pages(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -383,23 +391,23 @@ async def index_bookstack_pages(
 
                 # Build document metadata
                 doc_metadata = {
-                    "page_id": item['page_id'],
-                    "page_name": item['page_name'],
-                    "page_slug": item['page_slug'],
-                    "book_id": item['book_id'],
-                    "book_slug": item['book_slug'],
-                    "chapter_id": item['chapter_id'],
+                    "page_id": item["page_id"],
+                    "page_name": item["page_name"],
+                    "page_slug": item["page_slug"],
+                    "book_id": item["book_id"],
+                    "book_slug": item["book_slug"],
+                    "chapter_id": item["chapter_id"],
                     "base_url": bookstack_base_url,
-                    "page_url": item['page_url'],
+                    "page_url": item["page_url"],
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
 
                 if user_llm:
                     summary_metadata = {
-                        "page_name": item['page_name'],
-                        "page_id": item['page_id'],
-                        "book_id": item['book_id'],
+                        "page_name": item["page_name"],
+                        "page_id": item["page_id"],
+                        "book_id": item["book_id"],
                         "document_type": "BookStack Page",
                         "connector_type": "BookStack",
                     }
@@ -407,17 +415,15 @@ async def index_bookstack_pages(
                         summary_content,
                         summary_embedding,
                     ) = await generate_document_summary(
-                        item['full_content'], user_llm, summary_metadata
+                        item["full_content"], user_llm, summary_metadata
                     )
                 else:
                     # Fallback to simple summary if no LLM configured
-                    summary_content = (
-                        f"BookStack Page: {item['page_name']}\n\nBook ID: {item['book_id']}\n\n"
-                    )
-                    if item['page_content']:
+                    summary_content = f"BookStack Page: {item['page_name']}\n\nBook ID: {item['book_id']}\n\n"
+                    if item["page_content"]:
                         # Take first 1000 characters of content for summary
-                        content_preview = item['page_content'][:1000]
-                        if len(item['page_content']) > 1000:
+                        content_preview = item["page_content"][:1000]
+                        if len(item["page_content"]) > 1000:
                             content_preview += "..."
                         summary_content += f"Content Preview: {content_preview}\n\n"
                     summary_embedding = config.embedding_model_instance.embed(
@@ -425,12 +431,12 @@ async def index_bookstack_pages(
                     )
 
                 # Process chunks - using the full page content
-                chunks = await create_document_chunks(item['full_content'])
+                chunks = await create_document_chunks(item["full_content"])
 
                 # Update document to READY with actual content
-                document.title = item['page_name']
+                document.title = item["page_name"]
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = doc_metadata
                 safe_set_chunks(document, chunks)
@@ -456,7 +462,9 @@ async def index_bookstack_pages(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 skipped_pages.append(
                     f"{item.get('page_name', 'Unknown')} (processing error)"
                 )
@@ -473,7 +481,9 @@ async def index_bookstack_pages(
         )
         try:
             await session.commit()
-            logger.info("Successfully committed all BookStack document changes to database")
+            logger.info(
+                "Successfully committed all BookStack document changes to database"
+            )
         except Exception as e:
             # Handle any remaining integrity errors gracefully (race conditions, etc.)
             if (

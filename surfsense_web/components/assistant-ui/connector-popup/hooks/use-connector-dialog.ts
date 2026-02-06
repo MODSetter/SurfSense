@@ -346,13 +346,13 @@ export const useConnectorDialog = () => {
 						const connectorId = parseInt(params.connectorId, 10);
 						newConnector = result.data.find((c: SearchSourceConnector) => c.id === connectorId);
 
-					// If we found the connector, find the matching OAuth/Composio connector by type
-					if (newConnector) {
-						const connectorType = newConnector.connector_type;
-						oauthConnector =
-							OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
-							COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
-					}
+						// If we found the connector, find the matching OAuth/Composio connector by type
+						if (newConnector) {
+							const connectorType = newConnector.connector_type;
+							oauthConnector =
+								OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+								COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
+						}
 					}
 
 					// If we don't have a connector yet, try to find by connector param
@@ -361,12 +361,12 @@ export const useConnectorDialog = () => {
 							OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
 							COMPOSIO_CONNECTORS.find((c) => c.id === params.connector);
 
-					if (oauthConnector) {
-						const oauthConnectorType = oauthConnector.connectorType;
-						newConnector = result.data.find(
-							(c: SearchSourceConnector) => c.connector_type === oauthConnectorType
-						);
-					}
+						if (oauthConnector) {
+							const oauthConnectorType = oauthConnector.connectorType;
+							newConnector = result.data.find(
+								(c: SearchSourceConnector) => c.connector_type === oauthConnectorType
+							);
+						}
 					}
 
 					if (newConnector && oauthConnector) {
@@ -679,11 +679,11 @@ export const useConnectorDialog = () => {
 									},
 								});
 
-							const successMessage =
-								currentConnectorType === "MCP_CONNECTOR"
-									? `${connector.name} added successfully`
-									: `${connectorTitle} connected and syncing started!`;
-							toast.success(successMessage);
+								const successMessage =
+									currentConnectorType === "MCP_CONNECTOR"
+										? `${connector.name} added successfully`
+										: `${connectorTitle} connected and syncing started!`;
+								toast.success(successMessage);
 
 								const url = new URL(window.location.href);
 								url.searchParams.delete("modal");

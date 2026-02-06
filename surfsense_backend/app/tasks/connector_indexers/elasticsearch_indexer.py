@@ -253,7 +253,9 @@ async def index_elasticsearch_documents(
                         # If content is unchanged, skip. Otherwise queue for update.
                         if existing_doc.content_hash == content_hash:
                             # Ensure status is ready (might have been stuck in processing/pending)
-                            if not DocumentStatus.is_state(existing_doc.status, DocumentStatus.READY):
+                            if not DocumentStatus.is_state(
+                                existing_doc.status, DocumentStatus.READY
+                            ):
                                 existing_doc.status = DocumentStatus.ready()
                             logger.info(
                                 f"Skipping ES doc {doc_id} — already indexed (doc id {existing_doc.id})"
@@ -262,17 +264,19 @@ async def index_elasticsearch_documents(
                             continue
 
                         # Queue existing document for update (will be set to processing in Phase 2)
-                        docs_to_process.append({
-                            'document': existing_doc,
-                            'is_new': False,
-                            'doc_id': doc_id,
-                            'title': title,
-                            'content': content,
-                            'content_hash': content_hash,
-                            'unique_identifier_hash': unique_identifier_hash,
-                            'hit': hit,
-                            'source': source,
-                        })
+                        docs_to_process.append(
+                            {
+                                "document": existing_doc,
+                                "is_new": False,
+                                "doc_id": doc_id,
+                                "title": title,
+                                "content": content,
+                                "content_hash": content_hash,
+                                "unique_identifier_hash": unique_identifier_hash,
+                                "hit": hit,
+                                "source": source,
+                            }
+                        )
                         hits_collected += 1
                         continue
 
@@ -310,17 +314,19 @@ async def index_elasticsearch_documents(
                     session.add(document)
                     new_documents_created = True
 
-                    docs_to_process.append({
-                        'document': document,
-                        'is_new': True,
-                        'doc_id': doc_id,
-                        'title': title,
-                        'content': content,
-                        'content_hash': content_hash,
-                        'unique_identifier_hash': unique_identifier_hash,
-                        'hit': hit,
-                        'source': source,
-                    })
+                    docs_to_process.append(
+                        {
+                            "document": document,
+                            "is_new": True,
+                            "doc_id": doc_id,
+                            "title": title,
+                            "content": content,
+                            "content_hash": content_hash,
+                            "unique_identifier_hash": unique_identifier_hash,
+                            "hit": hit,
+                            "source": source,
+                        }
+                    )
                     hits_collected += 1
 
                 except Exception as e:
@@ -330,7 +336,9 @@ async def index_elasticsearch_documents(
 
             # Commit all pending documents - they all appear in UI now
             if new_documents_created:
-                logger.info(f"Phase 1: Committing {len([d for d in docs_to_process if d['is_new']])} pending documents")
+                logger.info(
+                    f"Phase 1: Committing {len([d for d in docs_to_process if d['is_new']])} pending documents"
+                )
                 await session.commit()
 
             # =======================================================================
@@ -347,7 +355,7 @@ async def index_elasticsearch_documents(
                         await on_heartbeat_callback(documents_processed)
                         last_heartbeat_time = current_time
 
-                document = item['document']
+                document = item["document"]
                 try:
                     # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                     document.status = DocumentStatus.processing()
@@ -355,9 +363,9 @@ async def index_elasticsearch_documents(
 
                     # Build metadata
                     metadata = {
-                        "elasticsearch_id": item['doc_id'],
-                        "elasticsearch_index": item['hit'].get("_index", index_name),
-                        "elasticsearch_score": item['hit'].get("_score"),
+                        "elasticsearch_id": item["doc_id"],
+                        "elasticsearch_index": item["hit"].get("_index", index_name),
+                        "elasticsearch_score": item["hit"].get("_score"),
                         "indexed_at": datetime.now().isoformat(),
                         "source": "ELASTICSEARCH_CONNECTOR",
                         "connector_id": connector_id,
@@ -366,17 +374,17 @@ async def index_elasticsearch_documents(
                     # Add any additional metadata fields specified in config
                     if "ELASTICSEARCH_METADATA_FIELDS" in config:
                         for field in config["ELASTICSEARCH_METADATA_FIELDS"]:
-                            if field in item['source']:
-                                metadata[f"es_{field}"] = item['source'][field]
+                            if field in item["source"]:
+                                metadata[f"es_{field}"] = item["source"][field]
 
                     # Create chunks
-                    chunks = await create_document_chunks(item['content'])
+                    chunks = await create_document_chunks(item["content"])
 
                     # Update document to READY with actual content
-                    document.title = item['title']
-                    document.content = item['content']
-                    document.content_hash = item['content_hash']
-                    document.unique_identifier_hash = item['unique_identifier_hash']
+                    document.title = item["title"]
+                    document.content = item["content"]
+                    document.content_hash = item["content_hash"]
+                    document.unique_identifier_hash = item["unique_identifier_hash"]
                     document.document_metadata = metadata
                     safe_set_chunks(document, chunks)
                     document.updated_at = get_current_timestamp()
@@ -399,7 +407,9 @@ async def index_elasticsearch_documents(
                         document.status = DocumentStatus.failed(str(e))
                         document.updated_at = get_current_timestamp()
                     except Exception as status_error:
-                        logger.error(f"Failed to update document status to failed: {status_error}")
+                        logger.error(
+                            f"Failed to update document status to failed: {status_error}"
+                        )
                     documents_failed += 1
                     continue
 
@@ -411,10 +421,14 @@ async def index_elasticsearch_documents(
                 )
 
             # Final commit for any remaining documents not yet committed in batches
-            logger.info(f"Final commit: Total {documents_processed} Elasticsearch documents processed")
+            logger.info(
+                f"Final commit: Total {documents_processed} Elasticsearch documents processed"
+            )
             try:
                 await session.commit()
-                logger.info("Successfully committed all Elasticsearch document changes to database")
+                logger.info(
+                    "Successfully committed all Elasticsearch document changes to database"
+                )
             except Exception as e:
                 # Handle any remaining integrity errors gracefully (race conditions, etc.)
                 if (

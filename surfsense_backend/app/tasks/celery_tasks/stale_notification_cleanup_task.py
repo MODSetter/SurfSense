@@ -154,9 +154,7 @@ async def _cleanup_stale_notifications():
                 f"Found {len(stale_notification_ids)} stale connector indexing notifications "
                 f"(no Redis heartbeat key): {stale_notification_ids}"
             )
-            logger.info(
-                f"Connector IDs for document cleanup: {stale_connector_ids}"
-            )
+            logger.info(f"Connector IDs for document cleanup: {stale_connector_ids}")
 
             # O(1) Batch UPDATE notifications using JSONB || operator
             # This merges the update data into existing notification_metadata

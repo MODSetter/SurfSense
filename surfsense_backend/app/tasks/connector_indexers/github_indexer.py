@@ -17,7 +17,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.connectors.github_connector import GitHubConnector, RepositoryDigest
+from app.connectors.github_connector import GitHubConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
@@ -237,7 +237,9 @@ async def index_github_repos(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         logger.info(f"Repository {repo_full_name} unchanged. Skipping.")
                         documents_skipped += 1
@@ -247,14 +249,16 @@ async def index_github_repos(
                     logger.info(
                         f"Content changed for repository {repo_full_name}. Queuing for update."
                     )
-                    repos_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'digest': digest,
-                        'content_hash': content_hash,
-                        'repo_full_name': repo_full_name,
-                        'unique_identifier_hash': unique_identifier_hash,
-                    })
+                    repos_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "digest": digest,
+                            "content_hash": content_hash,
+                            "repo_full_name": repo_full_name,
+                            "unique_identifier_hash": unique_identifier_hash,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -298,14 +302,16 @@ async def index_github_repos(
                 session.add(document)
                 new_documents_created = True
 
-                repos_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'digest': digest,
-                    'content_hash': content_hash,
-                    'repo_full_name': repo_full_name,
-                    'unique_identifier_hash': unique_identifier_hash,
-                })
+                repos_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "digest": digest,
+                        "content_hash": content_hash,
+                        "repo_full_name": repo_full_name,
+                        "unique_identifier_hash": unique_identifier_hash,
+                    }
+                )
 
             except Exception as repo_err:
                 logger.error(
@@ -317,7 +323,9 @@ async def index_github_repos(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([r for r in repos_to_process if r['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([r for r in repos_to_process if r['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -334,9 +342,9 @@ async def index_github_repos(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
-            digest = item['digest']
-            repo_full_name = item['repo_full_name']
+            document = item["document"]
+            digest = item["digest"]
+            repo_full_name = item["repo_full_name"]
 
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
@@ -353,7 +361,9 @@ async def index_github_repos(
                     "document_type": "GitHub Repository",
                     "connector_type": "GitHub",
                     "ingestion_method": "gitingest",
-                    "file_tree": digest.tree[:2000] if len(digest.tree) > 2000 else digest.tree,
+                    "file_tree": digest.tree[:2000]
+                    if len(digest.tree) > 2000
+                    else digest.tree,
                     "estimated_tokens": digest.estimated_tokens,
                 }
 
@@ -377,13 +387,17 @@ async def index_github_repos(
                         f"## Summary\n{digest.summary}\n\n"
                         f"## File Structure\n{digest.tree[:3000]}"
                     )
-                    summary_embedding = config.embedding_model_instance.embed(summary_text)
+                    summary_embedding = config.embedding_model_instance.embed(
+                        summary_text
+                    )
 
                 # Chunk the full digest content for granular search
                 try:
                     chunks_data = await create_document_chunks(digest.content)
                 except Exception as chunk_err:
-                    logger.error(f"Failed to chunk repository {repo_full_name}: {chunk_err}")
+                    logger.error(
+                        f"Failed to chunk repository {repo_full_name}: {chunk_err}"
+                    )
                     chunks_data = await _simple_chunk_content(digest.content)
 
                 # Update document to READY with actual content
@@ -401,7 +415,7 @@ async def index_github_repos(
 
                 document.title = repo_full_name
                 document.content = summary_text
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = doc_metadata
                 safe_set_chunks(document, chunks_data)
@@ -433,7 +447,9 @@ async def index_github_repos(
                     document.status = DocumentStatus.failed(str(repo_err))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 errors.append(f"Failed processing {repo_full_name}: {repo_err}")
                 documents_failed += 1
                 continue
@@ -442,7 +458,9 @@ async def index_github_repos(
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit
-        logger.info(f"Final commit: Total {documents_processed} GitHub repositories processed")
+        logger.info(
+            f"Final commit: Total {documents_processed} GitHub repositories processed"
+        )
         try:
             await session.commit()
             logger.info(

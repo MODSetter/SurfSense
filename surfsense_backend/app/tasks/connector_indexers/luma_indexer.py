@@ -305,7 +305,9 @@ async def index_luma_events(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         logger.info(
                             f"Document for Luma event {event_name} unchanged. Skipping."
@@ -314,23 +316,25 @@ async def index_luma_events(
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    events_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'event_id': event_id,
-                        'event_name': event_name,
-                        'event_url': event_url,
-                        'event_markdown': event_markdown,
-                        'content_hash': content_hash,
-                        'start_at': start_at,
-                        'end_at': end_at,
-                        'timezone': timezone,
-                        'location': location,
-                        'city': city,
-                        'host_names': host_names,
-                        'description': description,
-                        'cover_url': cover_url,
-                    })
+                    events_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "event_id": event_id,
+                            "event_name": event_name,
+                            "event_url": event_url,
+                            "event_markdown": event_markdown,
+                            "content_hash": content_hash,
+                            "start_at": start_at,
+                            "end_at": end_at,
+                            "timezone": timezone,
+                            "location": location,
+                            "city": city,
+                            "host_names": host_names,
+                            "description": description,
+                            "cover_url": cover_url,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -380,23 +384,25 @@ async def index_luma_events(
                 session.add(document)
                 new_documents_created = True
 
-                events_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'event_id': event_id,
-                    'event_name': event_name,
-                    'event_url': event_url,
-                    'event_markdown': event_markdown,
-                    'content_hash': content_hash,
-                    'start_at': start_at,
-                    'end_at': end_at,
-                    'timezone': timezone,
-                    'location': location,
-                    'city': city,
-                    'host_names': host_names,
-                    'description': description,
-                    'cover_url': cover_url,
-                })
+                events_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "event_id": event_id,
+                        "event_name": event_name,
+                        "event_url": event_url,
+                        "event_markdown": event_markdown,
+                        "content_hash": content_hash,
+                        "start_at": start_at,
+                        "end_at": end_at,
+                        "timezone": timezone,
+                        "location": location,
+                        "city": city,
+                        "host_names": host_names,
+                        "description": description,
+                        "cover_url": cover_url,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for event: {e!s}", exc_info=True)
@@ -405,7 +411,9 @@ async def index_luma_events(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([e for e in events_to_process if e['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([e for e in events_to_process if e['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -422,7 +430,7 @@ async def index_luma_events(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -435,15 +443,15 @@ async def index_luma_events(
 
                 if user_llm:
                     document_metadata_for_summary = {
-                        "event_id": item['event_id'],
-                        "event_name": item['event_name'],
-                        "event_url": item['event_url'],
-                        "start_at": item['start_at'],
-                        "end_at": item['end_at'],
-                        "timezone": item['timezone'],
-                        "location": item['location'] or "No location",
-                        "city": item['city'],
-                        "hosts": item['host_names'],
+                        "event_id": item["event_id"],
+                        "event_name": item["event_name"],
+                        "event_url": item["event_url"],
+                        "start_at": item["start_at"],
+                        "end_at": item["end_at"],
+                        "timezone": item["timezone"],
+                        "location": item["location"] or "No location",
+                        "city": item["city"],
+                        "hosts": item["host_names"],
                         "document_type": "Luma Event",
                         "connector_type": "Luma",
                     }
@@ -451,26 +459,26 @@ async def index_luma_events(
                         summary_content,
                         summary_embedding,
                     ) = await generate_document_summary(
-                        item['event_markdown'], user_llm, document_metadata_for_summary
+                        item["event_markdown"], user_llm, document_metadata_for_summary
                     )
                 else:
                     # Fallback to simple summary if no LLM configured
                     summary_content = f"Luma Event: {item['event_name']}\n\n"
-                    if item['event_url']:
+                    if item["event_url"]:
                         summary_content += f"URL: {item['event_url']}\n"
                     summary_content += f"Start: {item['start_at']}\n"
                     summary_content += f"End: {item['end_at']}\n"
-                    if item['timezone']:
+                    if item["timezone"]:
                         summary_content += f"Timezone: {item['timezone']}\n"
-                    if item['location']:
+                    if item["location"]:
                         summary_content += f"Location: {item['location']}\n"
-                    if item['city']:
+                    if item["city"]:
                         summary_content += f"City: {item['city']}\n"
-                    if item['host_names']:
+                    if item["host_names"]:
                         summary_content += f"Hosts: {item['host_names']}\n"
-                    if item['description']:
-                        desc_preview = item['description'][:1000]
-                        if len(item['description']) > 1000:
+                    if item["description"]:
+                        desc_preview = item["description"][:1000]
+                        if len(item["description"]) > 1000:
                             desc_preview += "..."
                         summary_content += f"Description: {desc_preview}\n"
 
@@ -478,24 +486,24 @@ async def index_luma_events(
                         summary_content
                     )
 
-                chunks = await create_document_chunks(item['event_markdown'])
+                chunks = await create_document_chunks(item["event_markdown"])
 
                 # Update document to READY with actual content
-                document.title = item['event_name']
+                document.title = item["event_name"]
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = {
-                    "event_id": item['event_id'],
-                    "event_name": item['event_name'],
-                    "event_url": item['event_url'],
-                    "start_at": item['start_at'],
-                    "end_at": item['end_at'],
-                    "timezone": item['timezone'],
-                    "location": item['location'],
-                    "city": item['city'],
-                    "hosts": item['host_names'],
-                    "cover_url": item['cover_url'],
+                    "event_id": item["event_id"],
+                    "event_name": item["event_name"],
+                    "event_url": item["event_url"],
+                    "start_at": item["start_at"],
+                    "end_at": item["end_at"],
+                    "timezone": item["timezone"],
+                    "location": item["location"],
+                    "city": item["city"],
+                    "hosts": item["host_names"],
+                    "cover_url": item["cover_url"],
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
@@ -522,7 +530,9 @@ async def index_luma_events(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 skipped_events.append(
                     f"{item.get('event_name', 'Unknown')} (processing error)"
                 )

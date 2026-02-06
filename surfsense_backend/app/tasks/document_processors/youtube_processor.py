@@ -136,11 +136,19 @@ async def add_youtube_video_document(
             document = existing_document
             is_new_document = False
             # Check if already being processed
-            if DocumentStatus.is_state(existing_document.status, DocumentStatus.PENDING):
-                logging.info(f"YouTube video {video_id} already pending. Returning existing.")
+            if DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PENDING
+            ):
+                logging.info(
+                    f"YouTube video {video_id} already pending. Returning existing."
+                )
                 return existing_document
-            if DocumentStatus.is_state(existing_document.status, DocumentStatus.PROCESSING):
-                logging.info(f"YouTube video {video_id} already processing. Returning existing.")
+            if DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PROCESSING
+            ):
+                logging.info(
+                    f"YouTube video {video_id} already processing. Returning existing."
+                )
                 return existing_document
         else:
             # Create new document with PENDING status (visible in UI immediately)
@@ -300,7 +308,9 @@ async def add_youtube_video_document(
                     "video_id": video_id,
                 },
             )
-            logging.info(f"Document for YouTube video {video_id} unchanged. Marking as ready.")
+            logging.info(
+                f"Document for YouTube video {video_id} unchanged. Marking as ready."
+            )
             document.status = DocumentStatus.ready()
             await session.commit()
             return document
@@ -408,7 +418,9 @@ async def add_youtube_video_document(
         # Mark document as failed if it exists
         if document:
             try:
-                document.status = DocumentStatus.failed(f"Database error: {str(db_error)[:150]}")
+                document.status = DocumentStatus.failed(
+                    f"Database error: {str(db_error)[:150]}"
+                )
                 document.updated_at = get_current_timestamp()
                 await session.commit()
             except Exception:

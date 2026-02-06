@@ -938,13 +938,15 @@ async def _index_composio_drive_delta_sync(
 
             if existing_document:
                 # Queue existing document for update
-                files_to_process.append({
-                    'document': existing_document,
-                    'is_new': False,
-                    'file_id': file_id,
-                    'file_name': file_name,
-                    'mime_type': mime_type,
-                })
+                files_to_process.append(
+                    {
+                        "document": existing_document,
+                        "is_new": False,
+                        "file_id": file_id,
+                        "file_name": file_name,
+                        "mime_type": mime_type,
+                    }
+                )
                 continue
 
             # Create new document with PENDING status
@@ -974,13 +976,15 @@ async def _index_composio_drive_delta_sync(
             session.add(document)
             new_documents_created = True
 
-            files_to_process.append({
-                'document': document,
-                'is_new': True,
-                'file_id': file_id,
-                'file_name': file_name,
-                'mime_type': mime_type,
-            })
+            files_to_process.append(
+                {
+                    "document": document,
+                    "is_new": True,
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "mime_type": mime_type,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Error in Phase 1 for change: {e!s}", exc_info=True)
@@ -989,7 +993,9 @@ async def _index_composio_drive_delta_sync(
 
     # Commit all pending documents - they all appear in UI now
     if new_documents_created:
-        logger.info(f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents")
+        logger.info(
+            f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents"
+        )
         await session.commit()
 
     # =======================================================================
@@ -1005,7 +1011,7 @@ async def _index_composio_drive_delta_sync(
                 await on_heartbeat_callback(documents_indexed)
                 last_heartbeat_time = current_time
 
-        document = item['document']
+        document = item["document"]
         try:
             # Set to PROCESSING and commit
             document.status = DocumentStatus.processing()
@@ -1013,11 +1019,13 @@ async def _index_composio_drive_delta_sync(
 
             # Get file content
             content, content_error = await composio_connector.get_drive_file_content(
-                item['file_id'], original_mime_type=item['mime_type']
+                item["file_id"], original_mime_type=item["mime_type"]
             )
 
             if content_error or not content:
-                logger.warning(f"Could not get content for file {item['file_name']}: {content_error}")
+                logger.warning(
+                    f"Could not get content for file {item['file_name']}: {content_error}"
+                )
                 markdown_content = f"# {item['file_name']}\n\n"
                 markdown_content += f"**File ID:** {item['file_id']}\n"
                 markdown_content += f"**Type:** {item['mime_type']}\n"
@@ -1031,9 +1039,9 @@ async def _index_composio_drive_delta_sync(
             else:
                 markdown_content = await _process_file_content(
                     content=content,
-                    file_name=item['file_name'],
-                    file_id=item['file_id'],
-                    mime_type=item['mime_type'],
+                    file_name=item["file_name"],
+                    file_id=item["file_id"],
+                    mime_type=item["mime_type"],
                     search_space_id=search_space_id,
                     user_id=user_id,
                     session=session,
@@ -1045,14 +1053,14 @@ async def _index_composio_drive_delta_sync(
             content_hash = generate_content_hash(markdown_content, search_space_id)
 
             # For existing documents, check if content changed
-            if not item['is_new'] and document.content_hash == content_hash:
+            if not item["is_new"] and document.content_hash == content_hash:
                 if not DocumentStatus.is_state(document.status, DocumentStatus.READY):
                     document.status = DocumentStatus.ready()
                 documents_skipped += 1
                 continue
 
             # Check for duplicate content hash (for new documents)
-            if item['is_new']:
+            if item["is_new"]:
                 with session.no_autoflush:
                     duplicate_by_content = await check_duplicate_document_by_hash(
                         session, content_hash
@@ -1067,13 +1075,15 @@ async def _index_composio_drive_delta_sync(
                     continue
 
             # Heavy processing (LLM, embeddings, chunks)
-            user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
+            user_llm = await get_user_long_context_llm(
+                session, user_id, search_space_id
+            )
 
             if user_llm:
                 document_metadata_for_summary = {
-                    "file_id": item['file_id'],
-                    "file_name": item['file_name'],
-                    "mime_type": item['mime_type'],
+                    "file_id": item["file_id"],
+                    "file_name": item["file_name"],
+                    "mime_type": item["mime_type"],
                     "document_type": "Google Drive File (Composio)",
                 }
                 summary_content, summary_embedding = await generate_document_summary(
@@ -1081,20 +1091,22 @@ async def _index_composio_drive_delta_sync(
                 )
             else:
                 summary_content = f"Google Drive File: {item['file_name']}\n\nType: {item['mime_type']}"
-                summary_embedding = config.embedding_model_instance.embed(summary_content)
+                summary_embedding = config.embedding_model_instance.embed(
+                    summary_content
+                )
 
             chunks = await create_document_chunks(markdown_content)
 
             # Update document to READY
-            document.title = item['file_name']
+            document.title = item["file_name"]
             document.content = summary_content
             document.content_hash = content_hash
             document.embedding = summary_embedding
             document.document_metadata = {
-                "file_id": item['file_id'],
-                "file_name": item['file_name'],
-                "FILE_NAME": item['file_name'],
-                "mime_type": item['mime_type'],
+                "file_id": item["file_id"],
+                "file_name": item["file_name"],
+                "FILE_NAME": item["file_name"],
+                "mime_type": item["mime_type"],
                 "connector_id": connector_id,
                 "source": "composio",
             }
@@ -1117,7 +1129,9 @@ async def _index_composio_drive_delta_sync(
                 document.status = DocumentStatus.failed(str(e))
                 document.updated_at = get_current_timestamp()
             except Exception as status_error:
-                logger.error(f"Failed to update document status to failed: {status_error}")
+                logger.error(
+                    f"Failed to update document status to failed: {status_error}"
+                )
             documents_failed += 1
             continue
 
@@ -1329,13 +1343,15 @@ async def _index_composio_drive_full_scan(
 
             if existing_document:
                 # Queue existing document for update (will be set to processing in Phase 2)
-                files_to_process.append({
-                    'document': existing_document,
-                    'is_new': False,
-                    'file_id': file_id,
-                    'file_name': file_name,
-                    'mime_type': mime_type,
-                })
+                files_to_process.append(
+                    {
+                        "document": existing_document,
+                        "is_new": False,
+                        "file_id": file_id,
+                        "file_name": file_name,
+                        "mime_type": mime_type,
+                    }
+                )
                 continue
 
             # Create new document with PENDING status (visible in UI immediately)
@@ -1365,13 +1381,15 @@ async def _index_composio_drive_full_scan(
             session.add(document)
             new_documents_created = True
 
-            files_to_process.append({
-                'document': document,
-                'is_new': True,
-                'file_id': file_id,
-                'file_name': file_name,
-                'mime_type': mime_type,
-            })
+            files_to_process.append(
+                {
+                    "document": document,
+                    "is_new": True,
+                    "file_id": file_id,
+                    "file_name": file_name,
+                    "mime_type": mime_type,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Error in Phase 1 for file: {e!s}", exc_info=True)
@@ -1380,7 +1398,9 @@ async def _index_composio_drive_full_scan(
 
     # Commit all pending documents - they all appear in UI now
     if new_documents_created:
-        logger.info(f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents")
+        logger.info(
+            f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents"
+        )
         await session.commit()
 
     # =======================================================================
@@ -1397,7 +1417,7 @@ async def _index_composio_drive_full_scan(
                 await on_heartbeat_callback(documents_indexed)
                 last_heartbeat_time = current_time
 
-        document = item['document']
+        document = item["document"]
         try:
             # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
             document.status = DocumentStatus.processing()
@@ -1405,11 +1425,13 @@ async def _index_composio_drive_full_scan(
 
             # Get file content (pass mime_type for Google Workspace export handling)
             content, content_error = await composio_connector.get_drive_file_content(
-                item['file_id'], original_mime_type=item['mime_type']
+                item["file_id"], original_mime_type=item["mime_type"]
             )
 
             if content_error or not content:
-                logger.warning(f"Could not get content for file {item['file_name']}: {content_error}")
+                logger.warning(
+                    f"Could not get content for file {item['file_name']}: {content_error}"
+                )
                 markdown_content = f"# {item['file_name']}\n\n"
                 markdown_content += f"**File ID:** {item['file_id']}\n"
                 markdown_content += f"**Type:** {item['mime_type']}\n"
@@ -1424,9 +1446,9 @@ async def _index_composio_drive_full_scan(
                 # Process content based on file type
                 markdown_content = await _process_file_content(
                     content=content,
-                    file_name=item['file_name'],
-                    file_id=item['file_id'],
-                    mime_type=item['mime_type'],
+                    file_name=item["file_name"],
+                    file_id=item["file_id"],
+                    mime_type=item["mime_type"],
                     search_space_id=search_space_id,
                     user_id=user_id,
                     session=session,
@@ -1438,7 +1460,7 @@ async def _index_composio_drive_full_scan(
             content_hash = generate_content_hash(markdown_content, search_space_id)
 
             # For existing documents, check if content changed
-            if not item['is_new'] and document.content_hash == content_hash:
+            if not item["is_new"] and document.content_hash == content_hash:
                 # Ensure status is ready
                 if not DocumentStatus.is_state(document.status, DocumentStatus.READY):
                     document.status = DocumentStatus.ready()
@@ -1446,7 +1468,7 @@ async def _index_composio_drive_full_scan(
                 continue
 
             # Check for duplicate content hash (for new documents)
-            if item['is_new']:
+            if item["is_new"]:
                 with session.no_autoflush:
                     duplicate_by_content = await check_duplicate_document_by_hash(
                         session, content_hash
@@ -1462,13 +1484,15 @@ async def _index_composio_drive_full_scan(
                     continue
 
             # Heavy processing (LLM, embeddings, chunks)
-            user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
+            user_llm = await get_user_long_context_llm(
+                session, user_id, search_space_id
+            )
 
             if user_llm:
                 document_metadata_for_summary = {
-                    "file_id": item['file_id'],
-                    "file_name": item['file_name'],
-                    "mime_type": item['mime_type'],
+                    "file_id": item["file_id"],
+                    "file_name": item["file_name"],
+                    "mime_type": item["mime_type"],
                     "document_type": "Google Drive File (Composio)",
                 }
                 summary_content, summary_embedding = await generate_document_summary(
@@ -1476,20 +1500,22 @@ async def _index_composio_drive_full_scan(
                 )
             else:
                 summary_content = f"Google Drive File: {item['file_name']}\n\nType: {item['mime_type']}"
-                summary_embedding = config.embedding_model_instance.embed(summary_content)
+                summary_embedding = config.embedding_model_instance.embed(
+                    summary_content
+                )
 
             chunks = await create_document_chunks(markdown_content)
 
             # Update document to READY with actual content
-            document.title = item['file_name']
+            document.title = item["file_name"]
             document.content = summary_content
             document.content_hash = content_hash
             document.embedding = summary_embedding
             document.document_metadata = {
-                "file_id": item['file_id'],
-                "file_name": item['file_name'],
-                "FILE_NAME": item['file_name'],
-                "mime_type": item['mime_type'],
+                "file_id": item["file_id"],
+                "file_name": item["file_name"],
+                "FILE_NAME": item["file_name"],
+                "mime_type": item["mime_type"],
                 "connector_id": connector_id,
                 "source": "composio",
             }
@@ -1515,7 +1541,9 @@ async def _index_composio_drive_full_scan(
                 document.status = DocumentStatus.failed(str(e))
                 document.updated_at = get_current_timestamp()
             except Exception as status_error:
-                logger.error(f"Failed to update document status to failed: {status_error}")
+                logger.error(
+                    f"Failed to update document status to failed: {status_error}"
+                )
             documents_failed += 1
             continue
 

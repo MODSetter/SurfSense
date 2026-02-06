@@ -116,13 +116,15 @@ export default function DocumentsTable() {
 				created_by_id: item.created_by_id ?? null,
 				created_by_name: item.created_by_name ?? null,
 				created_at: item.created_at,
-				status: (item as { status?: { state: "ready" | "pending" | "processing" | "failed"; reason?: string } }).status ?? { state: "ready" as const },
+				status: (
+					item as {
+						status?: { state: "ready" | "pending" | "processing" | "failed"; reason?: string };
+					}
+				).status ?? { state: "ready" as const },
 			}))
 		: paginatedRealtimeDocuments;
 
-	const displayTotal = isSearchMode
-		? searchResponse?.total || 0
-		: sortedRealtimeDocuments.length;
+	const displayTotal = isSearchMode ? searchResponse?.total || 0 : sortedRealtimeDocuments.length;
 
 	const loading = isSearchMode ? isSearchLoading : realtimeLoading;
 	const error = isSearchMode ? searchError : realtimeError;
@@ -149,13 +151,13 @@ export default function DocumentsTable() {
 		// Filter out pending/processing documents - they cannot be deleted
 		// For real-time mode, use sortedRealtimeDocuments (which has status)
 		// For search mode, use searchResponse items (need to safely access status)
-		const allDocs = isSearchMode 
-			? (searchResponse?.items || []).map(item => ({
-				id: item.id,
-				status: (item as { status?: { state: string } }).status,
-			}))
-			: sortedRealtimeDocuments.map(doc => ({ id: doc.id, status: doc.status }));
-		
+		const allDocs = isSearchMode
+			? (searchResponse?.items || []).map((item) => ({
+					id: item.id,
+					status: (item as { status?: { state: string } }).status,
+				}))
+			: sortedRealtimeDocuments.map((doc) => ({ id: doc.id, status: doc.status }));
+
 		const selectedDocs = allDocs.filter((doc) => selectedIds.has(doc.id));
 		const deletableIds = selectedDocs
 			.filter((doc) => doc.status?.state !== "pending" && doc.status?.state !== "processing")
@@ -163,7 +165,9 @@ export default function DocumentsTable() {
 		const inProgressCount = selectedIds.size - deletableIds.length;
 
 		if (inProgressCount > 0) {
-			toast.warning(`${inProgressCount} document(s) are pending or processing and cannot be deleted.`);
+			toast.warning(
+				`${inProgressCount} document(s) are pending or processing and cannot be deleted.`
+			);
 		}
 
 		if (deletableIds.length === 0) {
@@ -180,8 +184,9 @@ export default function DocumentsTable() {
 						await deleteDocumentMutation({ id });
 						return true;
 					} catch (error: unknown) {
-						const status = (error as { response?: { status?: number } })?.response?.status 
-							?? (error as { status?: number })?.status;
+						const status =
+							(error as { response?: { status?: number } })?.response?.status ??
+							(error as { status?: number })?.status;
 						if (status === 409) conflictCount++;
 						return false;
 					}
@@ -195,13 +200,13 @@ export default function DocumentsTable() {
 			} else {
 				toast.error(t("delete_partial_failed"));
 			}
-			
+
 			// If in search mode, refetch search results to reflect deletion
 			if (isSearchMode) {
 				await refetchSearch();
 			}
 			// Real-time mode: Electric will sync the deletion automatically
-			
+
 			setSelectedIds(new Set());
 		} catch (e) {
 			console.error(e);
@@ -210,21 +215,24 @@ export default function DocumentsTable() {
 	};
 
 	// Single document delete handler for RowActions
-	const handleDeleteDocument = useCallback(async (id: number): Promise<boolean> => {
-		try {
-			await deleteDocumentMutation({ id });
-			toast.success(t("delete_success") || "Document deleted");
-			// If in search mode, refetch search results to reflect deletion
-			if (isSearchMode) {
-				await refetchSearch();
+	const handleDeleteDocument = useCallback(
+		async (id: number): Promise<boolean> => {
+			try {
+				await deleteDocumentMutation({ id });
+				toast.success(t("delete_success") || "Document deleted");
+				// If in search mode, refetch search results to reflect deletion
+				if (isSearchMode) {
+					await refetchSearch();
+				}
+				// Real-time mode: Electric will sync the deletion automatically
+				return true;
+			} catch (e) {
+				console.error("Error deleting document:", e);
+				return false;
 			}
-			// Real-time mode: Electric will sync the deletion automatically
-			return true;
-		} catch (e) {
-			console.error("Error deleting document:", e);
-			return false;
-		}
-	}, [deleteDocumentMutation, isSearchMode, refetchSearch, t]);
+		},
+		[deleteDocumentMutation, isSearchMode, refetchSearch, t]
+	);
 
 	const handleSortChange = useCallback((key: SortKey) => {
 		setSortKey((currentKey) => {

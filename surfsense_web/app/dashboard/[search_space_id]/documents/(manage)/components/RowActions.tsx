@@ -46,7 +46,8 @@ export function RowActions({
 	);
 
 	// Documents in "pending" or "processing" state should show disabled delete
-	const isBeingProcessed = document.status?.state === "pending" || document.status?.state === "processing";
+	const isBeingProcessed =
+		document.status?.state === "pending" || document.status?.state === "processing";
 
 	// SURFSENSE_DOCS are system-managed and should not show delete at all
 	const shouldShowDelete = !NON_DELETABLE_DOCUMENT_TYPES.includes(
@@ -67,8 +68,9 @@ export function RowActions({
 		} catch (error: unknown) {
 			console.error("Error deleting document:", error);
 			// Check for 409 Conflict (document started processing after UI loaded)
-			const status = (error as { response?: { status?: number } })?.response?.status 
-				?? (error as { status?: number })?.status;
+			const status =
+				(error as { response?: { status?: number } })?.response?.status ??
+				(error as { status?: number })?.status;
 			if (status === 409) {
 				toast.error("Document is now being processed. Please try again later.");
 			} else {
@@ -92,7 +94,11 @@ export function RowActions({
 					// Editable documents: show 3-dot dropdown with edit + delete
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
-							<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80">
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted/80"
+							>
 								<MoreHorizontal className="h-4 w-4" />
 								<span className="sr-only">Open menu</span>
 							</Button>
@@ -101,7 +107,9 @@ export function RowActions({
 							<DropdownMenuItem
 								onClick={() => !isEditDisabled && handleEdit()}
 								disabled={isEditDisabled}
-								className={isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""}
+								className={
+									isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""
+								}
 							>
 								<Pencil className="mr-2 h-4 w-4" />
 								<span>Edit</span>
@@ -110,7 +118,11 @@ export function RowActions({
 								<DropdownMenuItem
 									onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
 									disabled={isDeleteDisabled}
-									className={isDeleteDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : "text-destructive focus:text-destructive"}
+									className={
+										isDeleteDisabled
+											? "text-muted-foreground cursor-not-allowed opacity-50"
+											: "text-destructive focus:text-destructive"
+									}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
 									<span>Delete</span>
@@ -150,7 +162,9 @@ export function RowActions({
 							<DropdownMenuItem
 								onClick={() => !isEditDisabled && handleEdit()}
 								disabled={isEditDisabled}
-								className={isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""}
+								className={
+									isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""
+								}
 							>
 								<Pencil className="mr-2 h-4 w-4" />
 								<span>Edit</span>
@@ -159,7 +173,11 @@ export function RowActions({
 								<DropdownMenuItem
 									onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
 									disabled={isDeleteDisabled}
-									className={isDeleteDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : "text-destructive focus:text-destructive"}
+									className={
+										isDeleteDisabled
+											? "text-muted-foreground cursor-not-allowed opacity-50"
+											: "text-destructive focus:text-destructive"
+									}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
 									<span>Delete</span>

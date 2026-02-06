@@ -228,7 +228,9 @@ async def index_google_gmail_messages(
         documents_indexed = 0
         documents_skipped = 0
         documents_failed = 0  # Track messages that failed processing
-        duplicate_content_count = 0  # Track messages skipped due to duplicate content_hash
+        duplicate_content_count = (
+            0  # Track messages skipped due to duplicate content_hash
+        )
 
         # Heartbeat tracking - update notification periodically to prevent appearing stuck
         last_heartbeat_time = time.time()
@@ -294,23 +296,27 @@ async def index_google_gmail_messages(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         documents_skipped += 1
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    messages_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'markdown_content': markdown_content,
-                        'content_hash': content_hash,
-                        'message_id': message_id,
-                        'thread_id': thread_id,
-                        'subject': subject,
-                        'sender': sender,
-                        'date_str': date_str,
-                    })
+                    messages_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "markdown_content": markdown_content,
+                            "content_hash": content_hash,
+                            "message_id": message_id,
+                            "thread_id": thread_id,
+                            "subject": subject,
+                            "sender": sender,
+                            "date_str": date_str,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -356,17 +362,19 @@ async def index_google_gmail_messages(
                 session.add(document)
                 new_documents_created = True
 
-                messages_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'markdown_content': markdown_content,
-                    'content_hash': content_hash,
-                    'message_id': message_id,
-                    'thread_id': thread_id,
-                    'subject': subject,
-                    'sender': sender,
-                    'date_str': date_str,
-                })
+                messages_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "markdown_content": markdown_content,
+                        "content_hash": content_hash,
+                        "message_id": message_id,
+                        "thread_id": thread_id,
+                        "subject": subject,
+                        "sender": sender,
+                        "date_str": date_str,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for message: {e!s}", exc_info=True)
@@ -375,7 +383,9 @@ async def index_google_gmail_messages(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([m for m in messages_to_process if m['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([m for m in messages_to_process if m['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -392,7 +402,7 @@ async def index_google_gmail_messages(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -405,16 +415,21 @@ async def index_google_gmail_messages(
 
                 if user_llm:
                     document_metadata_for_summary = {
-                        "message_id": item['message_id'],
-                        "thread_id": item['thread_id'],
-                        "subject": item['subject'],
-                        "sender": item['sender'],
-                        "date": item['date_str'],
+                        "message_id": item["message_id"],
+                        "thread_id": item["thread_id"],
+                        "subject": item["subject"],
+                        "sender": item["sender"],
+                        "date": item["date_str"],
                         "document_type": "Gmail Message",
                         "connector_type": "Google Gmail",
                     }
-                    summary_content, summary_embedding = await generate_document_summary(
-                        item['markdown_content'], user_llm, document_metadata_for_summary
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        item["markdown_content"],
+                        user_llm,
+                        document_metadata_for_summary,
                     )
                 else:
                     summary_content = f"Google Gmail Message: {item['subject']}\n\n"
@@ -424,19 +439,19 @@ async def index_google_gmail_messages(
                         summary_content
                     )
 
-                chunks = await create_document_chunks(item['markdown_content'])
+                chunks = await create_document_chunks(item["markdown_content"])
 
                 # Update document to READY with actual content
-                document.title = item['subject']
+                document.title = item["subject"]
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = {
-                    "message_id": item['message_id'],
-                    "thread_id": item['thread_id'],
-                    "subject": item['subject'],
-                    "sender": item['sender'],
-                    "date": item['date_str'],
+                    "message_id": item["message_id"],
+                    "thread_id": item["thread_id"],
+                    "subject": item["subject"],
+                    "sender": item["sender"],
+                    "date": item["date_str"],
                     "connector_id": connector_id,
                 }
                 safe_set_chunks(document, chunks)
@@ -459,7 +474,9 @@ async def index_google_gmail_messages(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 documents_failed += 1
                 continue
 

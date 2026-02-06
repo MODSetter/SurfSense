@@ -268,7 +268,9 @@ async def index_composio_google_calendar(
         documents_indexed = 0
         documents_skipped = 0
         documents_failed = 0  # Track events that failed processing
-        duplicate_content_count = 0  # Track events skipped due to duplicate content_hash
+        duplicate_content_count = (
+            0  # Track events skipped due to duplicate content_hash
+        )
         last_heartbeat_time = time.time()
 
         # =======================================================================
@@ -317,23 +319,27 @@ async def index_composio_google_calendar(
                 if existing_document:
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         documents_skipped += 1
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    events_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'markdown_content': markdown_content,
-                        'content_hash': content_hash,
-                        'event_id': event_id,
-                        'summary': summary,
-                        'start_time': start_time,
-                        'end_time': end_time,
-                        'location': location,
-                    })
+                    events_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "markdown_content": markdown_content,
+                            "content_hash": content_hash,
+                            "event_id": event_id,
+                            "summary": summary,
+                            "start_time": start_time,
+                            "end_time": end_time,
+                            "location": location,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -383,17 +389,19 @@ async def index_composio_google_calendar(
                 session.add(document)
                 new_documents_created = True
 
-                events_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'markdown_content': markdown_content,
-                    'content_hash': content_hash,
-                    'event_id': event_id,
-                    'summary': summary,
-                    'start_time': start_time,
-                    'end_time': end_time,
-                    'location': location,
-                })
+                events_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "markdown_content": markdown_content,
+                        "content_hash": content_hash,
+                        "event_id": event_id,
+                        "summary": summary,
+                        "start_time": start_time,
+                        "end_time": end_time,
+                        "location": location,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for event: {e!s}", exc_info=True)
@@ -402,7 +410,9 @@ async def index_composio_google_calendar(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([e for e in events_to_process if e['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([e for e in events_to_process if e['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -419,7 +429,7 @@ async def index_composio_google_calendar(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -432,35 +442,40 @@ async def index_composio_google_calendar(
 
                 if user_llm:
                     document_metadata_for_summary = {
-                        "event_id": item['event_id'],
-                        "summary": item['summary'],
-                        "start_time": item['start_time'],
+                        "event_id": item["event_id"],
+                        "summary": item["summary"],
+                        "start_time": item["start_time"],
                         "document_type": "Google Calendar Event (Composio)",
                     }
-                    summary_content, summary_embedding = await generate_document_summary(
-                        item['markdown_content'], user_llm, document_metadata_for_summary
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        item["markdown_content"],
+                        user_llm,
+                        document_metadata_for_summary,
                     )
                 else:
                     summary_content = f"Calendar: {item['summary']}\n\nStart: {item['start_time']}\nEnd: {item['end_time']}"
-                    if item['location']:
+                    if item["location"]:
                         summary_content += f"\nLocation: {item['location']}"
                     summary_embedding = config.embedding_model_instance.embed(
                         summary_content
                     )
 
-                chunks = await create_document_chunks(item['markdown_content'])
+                chunks = await create_document_chunks(item["markdown_content"])
 
                 # Update document to READY with actual content
-                document.title = item['summary']
+                document.title = item["summary"]
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = {
-                    "event_id": item['event_id'],
-                    "summary": item['summary'],
-                    "start_time": item['start_time'],
-                    "end_time": item['end_time'],
-                    "location": item['location'],
+                    "event_id": item["event_id"],
+                    "summary": item["summary"],
+                    "start_time": item["start_time"],
+                    "end_time": item["end_time"],
+                    "location": item["location"],
                     "connector_id": connector_id,
                     "source": "composio",
                 }
@@ -484,7 +499,9 @@ async def index_composio_google_calendar(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 documents_failed += 1
                 continue
 

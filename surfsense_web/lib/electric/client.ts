@@ -444,9 +444,9 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 							// in use-inbox.ts generating different sync keys on each render.
 							// That's now fixed (rounded to midnight UTC in getSyncCutoffDate).
 							// We can safely use shapeKey for fast incremental sync.
-							
+
 							const shapeKey = `${userId}_v${SYNC_VERSION}_${table}_${where?.replace(/[^a-zA-Z0-9]/g, "_") || "all"}`;
-							
+
 							// Type assertion to PGlite with electric extension
 							const pgWithElectric = db as unknown as {
 								electric: {
@@ -495,9 +495,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 											// Parse the WHERE clause to build a DELETE statement
 											// The WHERE clause is already validated and formatted
 											await tx.exec(`DELETE FROM ${table} WHERE ${validatedWhere}`);
-											debugLog(
-												`[Electric] 🗑️ Cleared ${table} rows matching: ${validatedWhere}`
-											);
+											debugLog(`[Electric] 🗑️ Cleared ${table} rows matching: ${validatedWhere}`);
 										} else {
 											// No WHERE clause means we're syncing the entire table
 											await tx.exec(`DELETE FROM ${table}`);
@@ -514,10 +512,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 								},
 							};
 
-							debugLog(
-								"[Electric] syncShapeToTable config:",
-								JSON.stringify(shapeConfig, null, 2)
-							);
+							debugLog("[Electric] syncShapeToTable config:", JSON.stringify(shapeConfig, null, 2));
 
 							let shape: { unsubscribe: () => void; isUpToDate: boolean; stream: unknown };
 							try {
@@ -550,9 +545,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 											retryError instanceof Error ? retryError.message : String(retryError);
 										if (retryMessage.includes("Already syncing")) {
 											// Still syncing - create a placeholder handle that indicates the table is being synced
-											debugWarn(
-												`[Electric] ${table} still syncing, creating placeholder handle`
-											);
+											debugWarn(`[Electric] ${table} still syncing, creating placeholder handle`);
 											const placeholderHandle: SyncHandle = {
 												unsubscribe: () => {
 													debugLog(`[Electric] Placeholder unsubscribe for: ${cacheKey}`);
@@ -656,9 +649,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 
 										// Also check stream's isUpToDate property immediately
 										if (stream?.isUpToDate) {
-											debugLog(
-												`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`
-											);
+											debugLog(`[Electric] ✅ Stream isUpToDate is true immediately for ${table}`);
 											resolveInitialSync();
 										}
 									}
@@ -671,9 +662,7 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 										}
 
 										if (shape.isUpToDate || stream?.isUpToDate) {
-											debugLog(
-												`[Electric] ✅ Sync completed (detected via polling) for ${table}`
-											);
+											debugLog(`[Electric] ✅ Sync completed (detected via polling) for ${table}`);
 											clearInterval(pollInterval);
 											resolveInitialSync();
 										}

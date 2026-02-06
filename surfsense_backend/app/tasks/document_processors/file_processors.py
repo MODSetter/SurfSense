@@ -1629,16 +1629,16 @@ async def process_file_in_background_with_document(
 ) -> Document | None:
     """
     Process file and update existing pending document (2-phase pattern).
-    
+
     This function is Phase 2 of the real-time document status updates:
     - Phase 1 (API): Created document with pending status
     - Phase 2 (this): Process file and update document to ready/failed
-    
+
     The document already exists with pending status. This function:
     1. Parses the file content (markdown, audio, or ETL services)
     2. Updates the document with content, embeddings, and chunks
     3. Sets status to 'ready' on success
-    
+
     Args:
         document: Existing document with pending status
         file_path: Path to the uploaded file
@@ -1650,7 +1650,7 @@ async def process_file_in_background_with_document(
         log_entry: Log entry for this task
         connector: Optional connector info for Google Drive files
         notification: Optional notification for progress updates
-    
+
     Returns:
         Updated Document object if successful, None if duplicate content detected
     """
@@ -1665,13 +1665,18 @@ async def process_file_in_background_with_document(
         etl_service = None
 
         # ===== STEP 1: Parse file content based on type =====
-        
+
         # Check if the file is a markdown or text file
         if filename.lower().endswith((".md", ".markdown", ".txt")):
             # Update notification: parsing stage
             if notification:
-                await NotificationService.document_processing.notify_processing_progress(
-                    session, notification, stage="parsing", stage_message="Reading file"
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Reading file",
+                    )
                 )
 
             await task_logger.log_task_progress(
@@ -1695,8 +1700,13 @@ async def process_file_in_background_with_document(
         ):
             # Update notification: parsing stage (transcription)
             if notification:
-                await NotificationService.document_processing.notify_processing_progress(
-                    session, notification, stage="parsing", stage_message="Transcribing audio"
+                await (
+                    NotificationService.document_processing.notify_processing_progress(
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Transcribing audio",
+                    )
                 )
 
             await task_logger.log_task_progress(
@@ -1708,7 +1718,8 @@ async def process_file_in_background_with_document(
             # Transcribe audio
             stt_service_type = (
                 "local"
-                if app_config.STT_SERVICE and app_config.STT_SERVICE.startswith("local/")
+                if app_config.STT_SERVICE
+                and app_config.STT_SERVICE.startswith("local/")
                 else "external"
             )
 
@@ -1719,7 +1730,9 @@ async def process_file_in_background_with_document(
                 transcribed_text = result.get("text", "")
                 if not transcribed_text:
                     raise ValueError("Transcription returned empty text")
-                markdown_content = f"# Transcription of {filename}\n\n{transcribed_text}"
+                markdown_content = (
+                    f"# Transcription of {filename}\n\n{transcribed_text}"
+                )
             else:
                 with open(file_path, "rb") as audio_file:
                     transcription_kwargs = {
@@ -1728,12 +1741,18 @@ async def process_file_in_background_with_document(
                         "api_key": app_config.STT_SERVICE_API_KEY,
                     }
                     if app_config.STT_SERVICE_API_BASE:
-                        transcription_kwargs["api_base"] = app_config.STT_SERVICE_API_BASE
-                    transcription_response = await atranscription(**transcription_kwargs)
+                        transcription_kwargs["api_base"] = (
+                            app_config.STT_SERVICE_API_BASE
+                        )
+                    transcription_response = await atranscription(
+                        **transcription_kwargs
+                    )
                     transcribed_text = transcription_response.get("text", "")
                     if not transcribed_text:
                         raise ValueError("Transcription returned empty text")
-                markdown_content = f"# Transcription of {filename}\n\n{transcribed_text}"
+                markdown_content = (
+                    f"# Transcription of {filename}\n\n{transcribed_text}"
+                )
 
             etl_service = "AUDIO_TRANSCRIPTION"
             # Clean up temp file
@@ -1742,13 +1761,18 @@ async def process_file_in_background_with_document(
 
         else:
             # Document files - use ETL service
-            from app.services.page_limit_service import PageLimitExceededError, PageLimitService
+            from app.services.page_limit_service import (
+                PageLimitExceededError,
+                PageLimitService,
+            )
 
             page_limit_service = PageLimitService(session)
 
             # Estimate page count
             try:
-                estimated_pages = page_limit_service.estimate_pages_before_processing(file_path)
+                estimated_pages = page_limit_service.estimate_pages_before_processing(
+                    file_path
+                )
             except Exception:
                 file_size = os.path.getsize(file_path)
                 estimated_pages = max(1, file_size // (80 * 1024))
@@ -1759,14 +1783,22 @@ async def process_file_in_background_with_document(
             if app_config.ETL_SERVICE == "UNSTRUCTURED":
                 if notification:
                     await NotificationService.document_processing.notify_processing_progress(
-                        session, notification, stage="parsing", stage_message="Extracting content"
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
                     )
 
                 from langchain_unstructured import UnstructuredLoader
 
                 loader = UnstructuredLoader(
-                    file_path, mode="elements", post_processors=[], languages=["eng"],
-                    include_orig_elements=False, include_metadata=False, strategy="auto"
+                    file_path,
+                    mode="elements",
+                    post_processors=[],
+                    languages=["eng"],
+                    include_orig_elements=False,
+                    include_metadata=False,
+                    strategy="auto",
                 )
                 docs = await loader.aload()
                 markdown_content = await convert_document_to_markdown(docs)
@@ -1775,37 +1807,55 @@ async def process_file_in_background_with_document(
                 etl_service = "UNSTRUCTURED"
 
                 # Update page usage
-                await page_limit_service.update_page_usage(user_id, final_page_count, allow_exceed=True)
+                await page_limit_service.update_page_usage(
+                    user_id, final_page_count, allow_exceed=True
+                )
 
             elif app_config.ETL_SERVICE == "LLAMACLOUD":
                 if notification:
                     await NotificationService.document_processing.notify_processing_progress(
-                        session, notification, stage="parsing", stage_message="Extracting content"
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
                     )
 
                 result = await parse_with_llamacloud_retry(
-                    file_path=file_path, estimated_pages=estimated_pages,
-                    task_logger=task_logger, log_entry=log_entry
+                    file_path=file_path,
+                    estimated_pages=estimated_pages,
+                    task_logger=task_logger,
+                    log_entry=log_entry,
                 )
-                markdown_documents = await result.aget_markdown_documents(split_by_page=False)
+                markdown_documents = await result.aget_markdown_documents(
+                    split_by_page=False
+                )
                 if not markdown_documents:
-                    raise RuntimeError(f"LlamaCloud parsing returned no documents: {filename}")
+                    raise RuntimeError(
+                        f"LlamaCloud parsing returned no documents: {filename}"
+                    )
                 markdown_content = markdown_documents[0].text
                 etl_service = "LLAMACLOUD"
 
                 # Update page usage
-                await page_limit_service.update_page_usage(user_id, estimated_pages, allow_exceed=True)
+                await page_limit_service.update_page_usage(
+                    user_id, estimated_pages, allow_exceed=True
+                )
 
             elif app_config.ETL_SERVICE == "DOCLING":
                 if notification:
                     await NotificationService.document_processing.notify_processing_progress(
-                        session, notification, stage="parsing", stage_message="Extracting content"
+                        session,
+                        notification,
+                        stage="parsing",
+                        stage_message="Extracting content",
                     )
 
                 # Suppress logging during Docling import
                 getLogger("docling.pipeline.base_pipeline").setLevel(ERROR)
                 getLogger("docling.document_converter").setLevel(ERROR)
-                getLogger("docling_core.transforms.chunker.hierarchical_chunker").setLevel(ERROR)
+                getLogger(
+                    "docling_core.transforms.chunker.hierarchical_chunker"
+                ).setLevel(ERROR)
 
                 from docling.document_converter import DocumentConverter
 
@@ -1815,7 +1865,9 @@ async def process_file_in_background_with_document(
                 etl_service = "DOCLING"
 
                 # Update page usage
-                await page_limit_service.update_page_usage(user_id, estimated_pages, allow_exceed=True)
+                await page_limit_service.update_page_usage(
+                    user_id, estimated_pages, allow_exceed=True
+                )
 
             else:
                 raise RuntimeError(f"Unknown ETL_SERVICE: {app_config.ETL_SERVICE}")
@@ -1829,7 +1881,7 @@ async def process_file_in_background_with_document(
 
         # ===== STEP 2: Check for duplicate content =====
         content_hash = generate_content_hash(markdown_content, search_space_id)
-        
+
         existing_by_content = await check_duplicate_document(session, content_hash)
         if existing_by_content and existing_by_content.id != document.id:
             # Duplicate content found - mark this document as failed
@@ -1846,7 +1898,7 @@ async def process_file_in_background_with_document(
             )
 
         user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
-        
+
         if user_llm:
             document_metadata = {
                 "file_name": filename,
@@ -1881,10 +1933,10 @@ async def process_file_in_background_with_document(
             **(document.document_metadata or {}),
         }
         flag_modified(document, "document_metadata")
-        
+
         # Use safe_set_chunks to avoid async issues
         safe_set_chunks(document, chunks)
-        
+
         document.blocknote_document = blocknote_json
         document.content_needs_reindexing = False
         document.updated_at = get_current_timestamp()
@@ -1922,7 +1974,11 @@ async def process_file_in_background_with_document(
             log_entry,
             error_message,
             str(e),
-            {"error_type": type(e).__name__, "filename": filename, "document_id": document.id},
+            {
+                "error_type": type(e).__name__,
+                "filename": filename,
+                "document_id": document.id,
+            },
         )
         logging.error(f"Error processing file with document: {error_message}")
         raise

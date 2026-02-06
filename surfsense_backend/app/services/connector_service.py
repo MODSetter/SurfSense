@@ -1465,11 +1465,7 @@ class ConnectorService:
             issue_key = metadata.get("issue_key", "")
             issue_title = metadata.get("issue_title", "Untitled Issue")
             status = metadata.get("status", "")
-            title = (
-                f"{issue_key} - {issue_title}"
-                if issue_key
-                else issue_title
-            )
+            title = f"{issue_key} - {issue_title}" if issue_key else issue_title
             if status:
                 title += f" ({status})"
             return title
@@ -2387,11 +2383,7 @@ class ConnectorService:
         def _title_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             event_name = metadata.get("event_name", "Untitled Event")
             start_time = metadata.get("start_time", "")
-            return (
-                f"{event_name} ({start_time})"
-                if start_time
-                else event_name
-            )
+            return f"{event_name} ({start_time})" if start_time else event_name
 
         def _url_fn(_doc_info: dict[str, Any], metadata: dict[str, Any]) -> str:
             return metadata.get("event_url", "") or ""

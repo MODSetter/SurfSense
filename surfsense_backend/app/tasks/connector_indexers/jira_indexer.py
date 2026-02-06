@@ -239,23 +239,27 @@ async def index_jira_issues(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         documents_skipped += 1
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    issues_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'issue_content': issue_content,
-                        'content_hash': content_hash,
-                        'issue_id': issue_id,
-                        'issue_identifier': issue_identifier,
-                        'issue_title': issue_title,
-                        'formatted_issue': formatted_issue,
-                        'comment_count': comment_count,
-                    })
+                    issues_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "issue_content": issue_content,
+                            "content_hash": content_hash,
+                            "issue_id": issue_id,
+                            "issue_identifier": issue_identifier,
+                            "issue_title": issue_title,
+                            "formatted_issue": formatted_issue,
+                            "comment_count": comment_count,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -301,17 +305,19 @@ async def index_jira_issues(
                 session.add(document)
                 new_documents_created = True
 
-                issues_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'issue_content': issue_content,
-                    'content_hash': content_hash,
-                    'issue_id': issue_id,
-                    'issue_identifier': issue_identifier,
-                    'issue_title': issue_title,
-                    'formatted_issue': formatted_issue,
-                    'comment_count': comment_count,
-                })
+                issues_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "issue_content": issue_content,
+                        "content_hash": content_hash,
+                        "issue_id": issue_id,
+                        "issue_identifier": issue_identifier,
+                        "issue_title": issue_title,
+                        "formatted_issue": formatted_issue,
+                        "comment_count": comment_count,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for issue: {e!s}", exc_info=True)
@@ -320,7 +326,9 @@ async def index_jira_issues(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([i for i in issues_to_process if i['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([i for i in issues_to_process if i['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -337,7 +345,7 @@ async def index_jira_issues(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -350,11 +358,11 @@ async def index_jira_issues(
 
                 if user_llm:
                     document_metadata = {
-                        "issue_key": item['issue_identifier'],
-                        "issue_title": item['issue_title'],
-                        "status": item['formatted_issue'].get("status", "Unknown"),
-                        "priority": item['formatted_issue'].get("priority", "Unknown"),
-                        "comment_count": item['comment_count'],
+                        "issue_key": item["issue_identifier"],
+                        "issue_title": item["issue_title"],
+                        "status": item["formatted_issue"].get("status", "Unknown"),
+                        "priority": item["formatted_issue"].get("priority", "Unknown"),
+                        "comment_count": item["comment_count"],
                         "document_type": "Jira Issue",
                         "connector_type": "Jira",
                     }
@@ -362,34 +370,32 @@ async def index_jira_issues(
                         summary_content,
                         summary_embedding,
                     ) = await generate_document_summary(
-                        item['issue_content'], user_llm, document_metadata
+                        item["issue_content"], user_llm, document_metadata
                     )
                 else:
                     # Fallback to simple summary if no LLM configured
                     summary_content = f"Jira Issue {item['issue_identifier']}: {item['issue_title']}\n\nStatus: {item['formatted_issue'].get('status', 'Unknown')}\n\n"
-                    if item['formatted_issue'].get("description"):
-                        summary_content += (
-                            f"Description: {item['formatted_issue'].get('description')}\n\n"
-                        )
+                    if item["formatted_issue"].get("description"):
+                        summary_content += f"Description: {item['formatted_issue'].get('description')}\n\n"
                     summary_content += f"Comments: {item['comment_count']}"
                     summary_embedding = config.embedding_model_instance.embed(
                         summary_content
                     )
 
                 # Process chunks - using the full issue content with comments
-                chunks = await create_document_chunks(item['issue_content'])
+                chunks = await create_document_chunks(item["issue_content"])
 
                 # Update document to READY with actual content
                 document.title = f"{item['issue_identifier']}: {item['issue_title']}"
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = {
-                    "issue_id": item['issue_id'],
-                    "issue_identifier": item['issue_identifier'],
-                    "issue_title": item['issue_title'],
-                    "state": item['formatted_issue'].get("status", "Unknown"),
-                    "comment_count": item['comment_count'],
+                    "issue_id": item["issue_id"],
+                    "issue_identifier": item["issue_identifier"],
+                    "issue_title": item["issue_title"],
+                    "state": item["formatted_issue"].get("status", "Unknown"),
+                    "comment_count": item["comment_count"],
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
@@ -416,7 +422,9 @@ async def index_jira_issues(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 documents_failed += 1
                 continue  # Skip this issue and continue with others
 

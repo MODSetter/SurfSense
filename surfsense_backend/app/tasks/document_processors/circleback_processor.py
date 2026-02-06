@@ -91,7 +91,9 @@ async def add_circleback_meeting_document(
             # Document exists - check if content has changed
             if existing_document.content_hash == content_hash:
                 # Ensure status is ready (might have been stuck in processing/pending)
-                if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                if not DocumentStatus.is_state(
+                    existing_document.status, DocumentStatus.READY
+                ):
                     existing_document.status = DocumentStatus.ready()
                     await session.commit()
                 logger.info(f"Circleback meeting {meeting_id} unchanged. Skipping.")
@@ -110,7 +112,7 @@ async def add_circleback_meeting_document(
             # PHASE 1: Create document with PENDING status
             # This makes the document visible in the UI immediately
             # =======================================================================
-            
+
             # Fetch the user who set up the Circleback connector (preferred)
             # or fall back to search space owner if no connector found
             created_by_user_id = None
@@ -173,7 +175,7 @@ async def add_circleback_meeting_document(
         # =======================================================================
         # PHASE 3: Process the document content
         # =======================================================================
-        
+
         # Get LLM for generating summary
         llm = await get_document_summary_llm(session, search_space_id)
         if not llm:
@@ -243,7 +245,7 @@ async def add_circleback_meeting_document(
 
         await session.commit()
         await session.refresh(document)
-        
+
         if existing_document:
             logger.info(
                 f"Updated Circleback meeting document {meeting_id} in search space {search_space_id}"
@@ -267,7 +269,9 @@ async def add_circleback_meeting_document(
                 document.updated_at = get_current_timestamp()
                 await session.commit()
             except Exception as status_error:
-                logger.error(f"Failed to update document status to failed: {status_error}")
+                logger.error(
+                    f"Failed to update document status to failed: {status_error}"
+                )
         raise db_error
     except Exception as e:
         await session.rollback()
@@ -279,5 +283,7 @@ async def add_circleback_meeting_document(
                 document.updated_at = get_current_timestamp()
                 await session.commit()
             except Exception as status_error:
-                logger.error(f"Failed to update document status to failed: {status_error}")
+                logger.error(
+                    f"Failed to update document status to failed: {status_error}"
+                )
         raise RuntimeError(f"Failed to process Circleback meeting: {e!s}") from e

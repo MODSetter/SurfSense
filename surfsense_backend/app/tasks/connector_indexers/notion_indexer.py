@@ -354,20 +354,24 @@ async def index_notion_pages(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         documents_skipped += 1
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    pages_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'markdown_content': markdown_content,
-                        'content_hash': content_hash,
-                        'page_id': page_id,
-                        'page_title': page_title,
-                    })
+                    pages_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "markdown_content": markdown_content,
+                            "content_hash": content_hash,
+                            "page_id": page_id,
+                            "page_title": page_title,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -410,14 +414,16 @@ async def index_notion_pages(
                 session.add(document)
                 new_documents_created = True
 
-                pages_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'markdown_content': markdown_content,
-                    'content_hash': content_hash,
-                    'page_id': page_id,
-                    'page_title': page_title,
-                })
+                pages_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "markdown_content": markdown_content,
+                        "content_hash": content_hash,
+                        "page_id": page_id,
+                        "page_title": page_title,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for page: {e!s}", exc_info=True)
@@ -426,7 +432,9 @@ async def index_notion_pages(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([p for p in pages_to_process if p['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([p for p in pages_to_process if p['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -443,7 +451,7 @@ async def index_notion_pages(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -456,13 +464,18 @@ async def index_notion_pages(
 
                 if user_llm:
                     document_metadata_for_summary = {
-                        "page_title": item['page_title'],
-                        "page_id": item['page_id'],
+                        "page_title": item["page_title"],
+                        "page_id": item["page_id"],
                         "document_type": "Notion Page",
                         "connector_type": "Notion",
                     }
-                    summary_content, summary_embedding = await generate_document_summary(
-                        item['markdown_content'], user_llm, document_metadata_for_summary
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
+                        item["markdown_content"],
+                        user_llm,
+                        document_metadata_for_summary,
                     )
                 else:
                     # Fallback to simple summary if no LLM configured
@@ -471,16 +484,16 @@ async def index_notion_pages(
                         summary_content
                     )
 
-                chunks = await create_document_chunks(item['markdown_content'])
+                chunks = await create_document_chunks(item["markdown_content"])
 
                 # Update document to READY with actual content
-                document.title = item['page_title']
+                document.title = item["page_title"]
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = {
-                    "page_title": item['page_title'],
-                    "page_id": item['page_id'],
+                    "page_title": item["page_title"],
+                    "page_id": item["page_id"],
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
@@ -504,7 +517,9 @@ async def index_notion_pages(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 skipped_pages.append(f"{item['page_title']} (processing error)")
                 documents_failed += 1
                 continue

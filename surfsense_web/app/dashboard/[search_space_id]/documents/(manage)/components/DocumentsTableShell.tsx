@@ -1,7 +1,20 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { AlertCircle, Calendar, CheckCircle2, ChevronDown, ChevronUp, Clock, FileText, FileX, Loader2, Network, Plus, User } from "lucide-react";
+import {
+	AlertCircle,
+	Calendar,
+	CheckCircle2,
+	ChevronDown,
+	ChevronUp,
+	Clock,
+	FileText,
+	FileX,
+	Loader2,
+	Network,
+	Plus,
+	User,
+} from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import React, { useRef, useState, useEffect, useCallback } from "react";
@@ -10,12 +23,7 @@ import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-	Dialog,
-	DialogContent,
-	DialogHeader,
-	DialogTitle,
-} from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -35,7 +43,7 @@ import type { ColumnVisibility, Document, DocumentStatus } from "./types";
 // Status indicator component for document processing status
 function StatusIndicator({ status }: { status?: DocumentStatus }) {
 	const state = status?.state ?? "ready";
-	
+
 	switch (state) {
 		case "pending":
 			return (
@@ -176,12 +184,10 @@ function SortableHeader({
 		>
 			{icon && <span className="opacity-60">{icon}</span>}
 			{children}
-			<span className={`transition-opacity ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}>
-				{isActive && sortDesc ? (
-					<ChevronDown size={14} />
-				) : (
-					<ChevronUp size={14} />
-				)}
+			<span
+				className={`transition-opacity ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
+			>
+				{isActive && sortDesc ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
 			</span>
 		</button>
 	);
@@ -300,8 +306,10 @@ export function DocumentsTableShell({
 
 	// Only consider selectable documents for "select all" logic
 	const selectableDocs = sorted.filter(isSelectable);
-	const allSelectedOnPage = selectableDocs.length > 0 && selectableDocs.every((d) => selectedIds.has(d.id));
-	const someSelectedOnPage = selectableDocs.some((d) => selectedIds.has(d.id)) && !allSelectedOnPage;
+	const allSelectedOnPage =
+		selectableDocs.length > 0 && selectableDocs.every((d) => selectedIds.has(d.id));
+	const someSelectedOnPage =
+		selectableDocs.some((d) => selectedIds.has(d.id)) && !allSelectedOnPage;
 
 	const toggleAll = (checked: boolean) => {
 		const next = new Set(selectedIds);
@@ -388,10 +396,7 @@ export function DocumentsTableShell({
 												</div>
 											</TableCell>
 											<TableCell className="w-[35%] py-2.5 max-w-0 border-r border-border/40">
-												<Skeleton
-													className="h-4"
-													style={{ width: `${widthPercent}%` }}
-												/>
+												<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
 											</TableCell>
 											{columnVisibility.document_type && (
 												<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/40 overflow-hidden">
@@ -429,24 +434,15 @@ export function DocumentsTableShell({
 								<div className="flex items-start gap-3">
 									<Skeleton className="h-4 w-4 mt-0.5 rounded" />
 									<div className="flex-1 min-w-0 space-y-2">
-										<Skeleton
-											className="h-4"
-											style={{ width: `${widthPercent}%` }}
-										/>
+										<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
 										<div className="flex flex-wrap items-center gap-2">
 											<Skeleton className="h-5 w-20 rounded" />
-											{columnVisibility.created_by && (
-												<Skeleton className="h-3 w-14" />
-											)}
-											{columnVisibility.created_at && (
-												<Skeleton className="h-3 w-20" />
-											)}
+											{columnVisibility.created_by && <Skeleton className="h-3 w-14" />}
+											{columnVisibility.created_at && <Skeleton className="h-3 w-20" />}
 										</div>
 									</div>
 									<div className="flex items-center gap-2">
-										{columnVisibility.status && (
-											<Skeleton className="h-5 w-5 rounded-full" />
-										)}
+										{columnVisibility.status && <Skeleton className="h-5 w-5 rounded-full" />}
 										<Skeleton className="h-7 w-7 rounded" />
 									</div>
 								</div>
@@ -549,9 +545,7 @@ export function DocumentsTableShell({
 									)}
 									{columnVisibility.status && (
 										<TableHead className="w-20 text-center">
-											<span className="text-sm font-medium text-muted-foreground/70">
-												Status
-											</span>
+											<span className="text-sm font-medium text-muted-foreground/70">Status</span>
 										</TableHead>
 									)}
 									<TableHead className="w-10">
@@ -580,9 +574,7 @@ export function DocumentsTableShell({
 													},
 												}}
 												className={`border-b border-border/40 transition-colors ${
-													isSelected
-														? "bg-primary/5 hover:bg-primary/8"
-														: "hover:bg-muted/30"
+													isSelected ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
 												}`}
 											>
 												<TableCell className="w-8 px-0 py-2.5 text-center">
@@ -591,7 +583,9 @@ export function DocumentsTableShell({
 															checked={isSelected}
 															onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
 															disabled={!canSelect}
-															aria-label={canSelect ? "Select row" : "Cannot select while processing"}
+															aria-label={
+																canSelect ? "Select row" : "Cannot select while processing"
+															}
 															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
 														/>
 													</div>
@@ -639,7 +633,9 @@ export function DocumentsTableShell({
 													<TableCell className="w-32 py-2.5 text-sm text-foreground border-r border-border/40">
 														<Tooltip>
 															<TooltipTrigger asChild>
-																<span className="cursor-default">{formatRelativeDate(doc.created_at)}</span>
+																<span className="cursor-default">
+																	{formatRelativeDate(doc.created_at)}
+																</span>
 															</TooltipTrigger>
 															<TooltipContent side="top">
 																{formatAbsoluteDate(doc.created_at)}
@@ -720,9 +716,7 @@ export function DocumentsTableShell({
 											<div className="flex flex-wrap items-center gap-2">
 												<DocumentTypeChip type={doc.document_type} />
 												{columnVisibility.created_by && doc.created_by_name && (
-													<span className="text-xs text-foreground">
-														{doc.created_by_name}
-													</span>
+													<span className="text-xs text-foreground">{doc.created_by_name}</span>
 												)}
 												{columnVisibility.created_at && (
 													<Tooltip>

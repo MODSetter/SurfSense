@@ -191,7 +191,9 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 			{!hideTrigger && (
 				<TooltipIconButton
 					data-joyride="connector-icon"
-					tooltip={hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"}
+					tooltip={
+						hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"
+					}
 					side="bottom"
 					className={cn(
 						"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors relative",

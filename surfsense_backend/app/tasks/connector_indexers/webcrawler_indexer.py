@@ -184,22 +184,28 @@ async def index_crawled_urls(
 
                 if existing_document:
                     # Document exists - check if it's already being processed
-                    if DocumentStatus.is_state(existing_document.status, DocumentStatus.PENDING):
+                    if DocumentStatus.is_state(
+                        existing_document.status, DocumentStatus.PENDING
+                    ):
                         logger.info(f"URL {url} already pending. Skipping.")
                         documents_skipped += 1
                         continue
-                    if DocumentStatus.is_state(existing_document.status, DocumentStatus.PROCESSING):
+                    if DocumentStatus.is_state(
+                        existing_document.status, DocumentStatus.PROCESSING
+                    ):
                         logger.info(f"URL {url} already processing. Skipping.")
                         documents_skipped += 1
                         continue
 
                     # Queue existing document for potential update check
-                    urls_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'url': url,
-                        'unique_identifier_hash': unique_identifier_hash,
-                    })
+                    urls_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "url": url,
+                            "unique_identifier_hash": unique_identifier_hash,
+                        }
+                    )
                     continue
 
                 # Create new document with PENDING status (visible in UI immediately)
@@ -224,12 +230,14 @@ async def index_crawled_urls(
                 session.add(document)
                 new_documents_created = True
 
-                urls_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'url': url,
-                    'unique_identifier_hash': unique_identifier_hash,
-                })
+                urls_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "url": url,
+                        "unique_identifier_hash": unique_identifier_hash,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for URL {url}: {e!s}", exc_info=True)
@@ -238,7 +246,9 @@ async def index_crawled_urls(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([u for u in urls_to_process if u['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([u for u in urls_to_process if u['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -255,9 +265,9 @@ async def index_crawled_urls(
                     await on_heartbeat_callback(documents_indexed + documents_updated)
                     last_heartbeat_time = current_time
 
-            document = item['document']
-            url = item['url']
-            is_new = item['is_new']
+            document = item["document"]
+            url = item["url"]
+            is_new = item["is_new"]
 
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
@@ -298,7 +308,9 @@ async def index_crawled_urls(
                     continue
 
                 # Format content as structured document for summary generation
-                structured_document = crawler.format_to_structured_document(crawl_result)
+                structured_document = crawler.format_to_structured_document(
+                    crawl_result
+                )
 
                 # Generate content hash using a version WITHOUT metadata
                 structured_document_for_hash = crawler.format_to_structured_document(
@@ -339,7 +351,9 @@ async def index_crawled_urls(
                             f"(existing document ID: {duplicate_by_content.id}). "
                             f"Marking as failed."
                         )
-                        document.status = DocumentStatus.failed("Duplicate content exists")
+                        document.status = DocumentStatus.failed(
+                            "Duplicate content exists"
+                        )
                         document.updated_at = get_current_timestamp()
                         await session.commit()
                         duplicate_content_count += 1
@@ -360,7 +374,10 @@ async def index_crawled_urls(
                         "document_type": "Crawled URL",
                         "crawler_type": crawler_type,
                     }
-                    summary_content, summary_embedding = await generate_document_summary(
+                    (
+                        summary_content,
+                        summary_embedding,
+                    ) = await generate_document_summary(
                         structured_document, user_llm, document_metadata_for_summary
                     )
                 else:
@@ -423,7 +440,9 @@ async def index_crawled_urls(
                     document.updated_at = get_current_timestamp()
                     await session.commit()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 documents_failed += 1
                 continue
 
@@ -438,7 +457,9 @@ async def index_crawled_urls(
         )
         try:
             await session.commit()
-            logger.info("Successfully committed all webcrawler document changes to database")
+            logger.info(
+                "Successfully committed all webcrawler document changes to database"
+            )
         except Exception as e:
             # Handle any remaining integrity errors gracefully
             if "duplicate key value violates unique constraint" in str(e).lower():

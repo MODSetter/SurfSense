@@ -140,7 +140,9 @@ async def index_airtable_records(
                     log_entry, success_msg, {"bases_count": 0}
                 )
                 # CRITICAL: Update timestamp even when no bases found so Electric SQL syncs
-                await update_connector_last_indexed(session, connector, update_last_indexed)
+                await update_connector_last_indexed(
+                    session, connector, update_last_indexed
+                )
                 await session.commit()
                 return 0, None  # Return None (not error) when no items found
 
@@ -277,22 +279,28 @@ async def index_airtable_records(
                                 # Document exists - check if content has changed
                                 if existing_document.content_hash == content_hash:
                                     # Ensure status is ready (might have been stuck in processing/pending)
-                                    if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
-                                        existing_document.status = DocumentStatus.ready()
+                                    if not DocumentStatus.is_state(
+                                        existing_document.status, DocumentStatus.READY
+                                    ):
+                                        existing_document.status = (
+                                            DocumentStatus.ready()
+                                        )
                                     documents_skipped += 1
                                     continue
 
                                 # Queue existing document for update (will be set to processing in Phase 2)
-                                records_to_process.append({
-                                    'document': existing_document,
-                                    'is_new': False,
-                                    'markdown_content': markdown_content,
-                                    'content_hash': content_hash,
-                                    'record_id': record_id,
-                                    'record': record,
-                                    'base_name': base_name,
-                                    'table_name': table_name,
-                                })
+                                records_to_process.append(
+                                    {
+                                        "document": existing_document,
+                                        "is_new": False,
+                                        "markdown_content": markdown_content,
+                                        "content_hash": content_hash,
+                                        "record_id": record_id,
+                                        "record": record,
+                                        "base_name": base_name,
+                                        "table_name": table_name,
+                                    }
+                                )
                                 continue
 
                             # Document doesn't exist by unique_identifier_hash
@@ -339,25 +347,31 @@ async def index_airtable_records(
                             session.add(document)
                             new_documents_created = True
 
-                            records_to_process.append({
-                                'document': document,
-                                'is_new': True,
-                                'markdown_content': markdown_content,
-                                'content_hash': content_hash,
-                                'record_id': record_id,
-                                'record': record,
-                                'base_name': base_name,
-                                'table_name': table_name,
-                            })
+                            records_to_process.append(
+                                {
+                                    "document": document,
+                                    "is_new": True,
+                                    "markdown_content": markdown_content,
+                                    "content_hash": content_hash,
+                                    "record_id": record_id,
+                                    "record": record,
+                                    "base_name": base_name,
+                                    "table_name": table_name,
+                                }
+                            )
 
                         except Exception as e:
-                            logger.error(f"Error in Phase 1 for record: {e!s}", exc_info=True)
+                            logger.error(
+                                f"Error in Phase 1 for record: {e!s}", exc_info=True
+                            )
                             documents_failed += 1
                             continue
 
             # Commit all pending documents - they all appear in UI now
             if new_documents_created:
-                logger.info(f"Phase 1: Committing {len([r for r in records_to_process if r['is_new']])} pending documents")
+                logger.info(
+                    f"Phase 1: Committing {len([r for r in records_to_process if r['is_new']])} pending documents"
+                )
                 await session.commit()
 
             # =======================================================================
@@ -374,7 +388,7 @@ async def index_airtable_records(
                         await on_heartbeat_callback(documents_indexed)
                         last_heartbeat_time = current_time
 
-                document = item['document']
+                document = item["document"]
                 try:
                     # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                     document.status = DocumentStatus.processing()
@@ -387,13 +401,18 @@ async def index_airtable_records(
 
                     if user_llm:
                         document_metadata_for_summary = {
-                            "record_id": item['record_id'],
-                            "created_time": item['record'].get("CREATED_TIME()", ""),
+                            "record_id": item["record_id"],
+                            "created_time": item["record"].get("CREATED_TIME()", ""),
                             "document_type": "Airtable Record",
                             "connector_type": "Airtable",
                         }
-                        summary_content, summary_embedding = await generate_document_summary(
-                            item['markdown_content'], user_llm, document_metadata_for_summary
+                        (
+                            summary_content,
+                            summary_embedding,
+                        ) = await generate_document_summary(
+                            item["markdown_content"],
+                            user_llm,
+                            document_metadata_for_summary,
                         )
                     else:
                         # Fallback to simple summary if no LLM configured
@@ -402,18 +421,18 @@ async def index_airtable_records(
                             summary_content
                         )
 
-                    chunks = await create_document_chunks(item['markdown_content'])
+                    chunks = await create_document_chunks(item["markdown_content"])
 
                     # Update document to READY with actual content
-                    document.title = item['record_id']
+                    document.title = item["record_id"]
                     document.content = summary_content
-                    document.content_hash = item['content_hash']
+                    document.content_hash = item["content_hash"]
                     document.embedding = summary_embedding
                     document.document_metadata = {
-                        "record_id": item['record_id'],
-                        "created_time": item['record'].get("CREATED_TIME()", ""),
-                        "base_name": item['base_name'],
-                        "table_name": item['table_name'],
+                        "record_id": item["record_id"],
+                        "created_time": item["record"].get("CREATED_TIME()", ""),
+                        "base_name": item["base_name"],
+                        "table_name": item["table_name"],
                         "connector_id": connector_id,
                     }
                     safe_set_chunks(document, chunks)
@@ -430,13 +449,17 @@ async def index_airtable_records(
                         await session.commit()
 
                 except Exception as e:
-                    logger.error(f"Error processing Airtable record: {e!s}", exc_info=True)
+                    logger.error(
+                        f"Error processing Airtable record: {e!s}", exc_info=True
+                    )
                     # Mark document as failed with reason (visible in UI)
                     try:
                         document.status = DocumentStatus.failed(str(e))
                         document.updated_at = get_current_timestamp()
                     except Exception as status_error:
-                        logger.error(f"Failed to update document status to failed: {status_error}")
+                        logger.error(
+                            f"Failed to update document status to failed: {status_error}"
+                        )
                     documents_failed += 1
                     continue
 
@@ -446,7 +469,9 @@ async def index_airtable_records(
             total_processed = documents_indexed
 
             # Final commit to ensure all documents are persisted (safety net)
-            logger.info(f"Final commit: Total {documents_indexed} Airtable records processed")
+            logger.info(
+                f"Final commit: Total {documents_indexed} Airtable records processed"
+            )
             try:
                 await session.commit()
                 logger.info(

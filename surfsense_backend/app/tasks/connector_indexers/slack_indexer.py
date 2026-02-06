@@ -314,7 +314,9 @@ async def index_slack_messages(
                         # Document exists - check if content has changed
                         if existing_document.content_hash == content_hash:
                             # Ensure status is ready (might have been stuck in processing/pending)
-                            if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                            if not DocumentStatus.is_state(
+                                existing_document.status, DocumentStatus.READY
+                            ):
                                 existing_document.status = DocumentStatus.ready()
                             logger.info(
                                 f"Document for Slack message {msg_ts} in channel {channel_name} unchanged. Skipping."
@@ -323,18 +325,20 @@ async def index_slack_messages(
                             continue
 
                         # Queue existing document for update (will be set to processing in Phase 2)
-                        messages_to_process.append({
-                            'document': existing_document,
-                            'is_new': False,
-                            'combined_document_string': combined_document_string,
-                            'content_hash': content_hash,
-                            'channel_name': channel_name,
-                            'channel_id': channel_id,
-                            'msg_ts': msg_ts,
-                            'start_date': start_date_str,
-                            'end_date': end_date_str,
-                            'message_count': len(formatted_messages),
-                        })
+                        messages_to_process.append(
+                            {
+                                "document": existing_document,
+                                "is_new": False,
+                                "combined_document_string": combined_document_string,
+                                "content_hash": content_hash,
+                                "channel_name": channel_name,
+                                "channel_id": channel_id,
+                                "msg_ts": msg_ts,
+                                "start_date": start_date_str,
+                                "end_date": end_date_str,
+                                "message_count": len(formatted_messages),
+                            }
+                        )
                         continue
 
                     # Document doesn't exist by unique_identifier_hash
@@ -377,18 +381,20 @@ async def index_slack_messages(
                     session.add(document)
                     new_documents_created = True
 
-                    messages_to_process.append({
-                        'document': document,
-                        'is_new': True,
-                        'combined_document_string': combined_document_string,
-                        'content_hash': content_hash,
-                        'channel_name': channel_name,
-                        'channel_id': channel_id,
-                        'msg_ts': msg_ts,
-                        'start_date': start_date_str,
-                        'end_date': end_date_str,
-                        'message_count': len(formatted_messages),
-                    })
+                    messages_to_process.append(
+                        {
+                            "document": document,
+                            "is_new": True,
+                            "combined_document_string": combined_document_string,
+                            "content_hash": content_hash,
+                            "channel_name": channel_name,
+                            "channel_id": channel_id,
+                            "msg_ts": msg_ts,
+                            "start_date": start_date_str,
+                            "end_date": end_date_str,
+                            "message_count": len(formatted_messages),
+                        }
+                    )
 
                 logger.info(
                     f"Phase 1: Collected {len(formatted_messages)} messages from channel {channel_name}"
@@ -409,7 +415,9 @@ async def index_slack_messages(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([m for m in messages_to_process if m['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([m for m in messages_to_process if m['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -426,29 +434,29 @@ async def index_slack_messages(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
                 await session.commit()
 
                 # Heavy processing (embeddings, chunks)
-                chunks = await create_document_chunks(item['combined_document_string'])
+                chunks = await create_document_chunks(item["combined_document_string"])
                 doc_embedding = config.embedding_model_instance.embed(
-                    item['combined_document_string']
+                    item["combined_document_string"]
                 )
 
                 # Update document to READY with actual content
-                document.title = item['channel_name']
-                document.content = item['combined_document_string']
-                document.content_hash = item['content_hash']
+                document.title = item["channel_name"]
+                document.content = item["combined_document_string"]
+                document.content_hash = item["content_hash"]
                 document.embedding = doc_embedding
                 document.document_metadata = {
-                    "channel_name": item['channel_name'],
-                    "channel_id": item['channel_id'],
-                    "start_date": item['start_date'],
-                    "end_date": item['end_date'],
-                    "message_count": item['message_count'],
+                    "channel_name": item["channel_name"],
+                    "channel_id": item["channel_id"],
+                    "start_date": item["start_date"],
+                    "end_date": item["end_date"],
+                    "message_count": item["message_count"],
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
@@ -475,7 +483,9 @@ async def index_slack_messages(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 documents_failed += 1
                 continue
 

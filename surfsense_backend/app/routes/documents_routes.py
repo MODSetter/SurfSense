@@ -114,11 +114,11 @@ async def create_documents_file_upload(
 ):
     """
     Upload files as documents with real-time status tracking.
-    
+
     Implements 2-phase document status updates for real-time UI feedback:
     - Phase 1: Create all documents with 'pending' status (visible in UI immediately via ElectricSQL)
     - Phase 2: Celery processes each file: pending → processing → ready/failed
-    
+
     Requires DOCUMENTS_CREATE permission.
     """
     from datetime import datetime
@@ -144,7 +144,9 @@ async def create_documents_file_upload(
             raise HTTPException(status_code=400, detail="No files provided")
 
         created_documents: list[Document] = []
-        files_to_process: list[tuple[Document, str, str]] = []  # (document, temp_path, filename)
+        files_to_process: list[
+            tuple[Document, str, str]
+        ] = []  # (document, temp_path, filename)
         skipped_duplicates = 0
 
         # ===== PHASE 1: Create pending documents for all files =====
@@ -201,7 +203,9 @@ async def create_documents_file_upload(
                 )
                 session.add(document)
                 created_documents.append(document)
-                files_to_process.append((document, temp_path, file.filename or "unknown"))
+                files_to_process.append(
+                    (document, temp_path, file.filename or "unknown")
+                )
 
             except Exception as e:
                 raise HTTPException(
@@ -348,15 +352,15 @@ async def read_documents(
             created_by_name = None
             if doc.created_by:
                 created_by_name = doc.created_by.display_name or doc.created_by.email
-            
+
             # Parse status from JSONB
             status_data = None
-            if hasattr(doc, 'status') and doc.status:
+            if hasattr(doc, "status") and doc.status:
                 status_data = DocumentStatusSchema(
                     state=doc.status.get("state", "ready"),
                     reason=doc.status.get("reason"),
                 )
-            
+
             api_documents.append(
                 DocumentRead(
                     id=doc.id,
@@ -503,15 +507,15 @@ async def search_documents(
             created_by_name = None
             if doc.created_by:
                 created_by_name = doc.created_by.display_name or doc.created_by.email
-            
+
             # Parse status from JSONB
             status_data = None
-            if hasattr(doc, 'status') and doc.status:
+            if hasattr(doc, "status") and doc.status:
                 status_data = DocumentStatusSchema(
                     state=doc.status.get("state", "ready"),
                     reason=doc.status.get("reason"),
                 )
-            
+
             api_documents.append(
                 DocumentRead(
                     id=doc.id,

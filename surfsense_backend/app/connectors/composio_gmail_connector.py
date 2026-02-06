@@ -285,24 +285,28 @@ async def _analyze_gmail_messages_phase1(
             if existing_document:
                 if existing_document.content_hash == content_hash:
                     # Ensure status is ready (might have been stuck in processing/pending)
-                    if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                    if not DocumentStatus.is_state(
+                        existing_document.status, DocumentStatus.READY
+                    ):
                         existing_document.status = DocumentStatus.ready()
                     documents_skipped += 1
                     continue
 
                 # Queue existing document for update (will be set to processing in Phase 2)
-                messages_to_process.append({
-                    'document': existing_document,
-                    'is_new': False,
-                    'markdown_content': markdown_content,
-                    'content_hash': content_hash,
-                    'message_id': message_id,
-                    'thread_id': thread_id,
-                    'subject': subject,
-                    'sender': sender,
-                    'date_str': date_str,
-                    'label_ids': label_ids,
-                })
+                messages_to_process.append(
+                    {
+                        "document": existing_document,
+                        "is_new": False,
+                        "markdown_content": markdown_content,
+                        "content_hash": content_hash,
+                        "message_id": message_id,
+                        "thread_id": thread_id,
+                        "subject": subject,
+                        "sender": sender,
+                        "date_str": date_str,
+                        "label_ids": label_ids,
+                    }
+                )
                 continue
 
             # Document doesn't exist by unique_identifier_hash
@@ -350,18 +354,20 @@ async def _analyze_gmail_messages_phase1(
             )
             session.add(document)
 
-            messages_to_process.append({
-                'document': document,
-                'is_new': True,
-                'markdown_content': markdown_content,
-                'content_hash': content_hash,
-                'message_id': message_id,
-                'thread_id': thread_id,
-                'subject': subject,
-                'sender': sender,
-                'date_str': date_str,
-                'label_ids': label_ids,
-            })
+            messages_to_process.append(
+                {
+                    "document": document,
+                    "is_new": True,
+                    "markdown_content": markdown_content,
+                    "content_hash": content_hash,
+                    "message_id": message_id,
+                    "thread_id": thread_id,
+                    "subject": subject,
+                    "sender": sender,
+                    "date_str": date_str,
+                    "label_ids": label_ids,
+                }
+            )
 
         except Exception as e:
             logger.error(f"Error in Phase 1 for message: {e!s}", exc_info=True)
@@ -398,7 +404,7 @@ async def _process_gmail_messages_phase2(
                 await on_heartbeat_callback(documents_indexed)
                 last_heartbeat_time = current_time
 
-        document = item['document']
+        document = item["document"]
         try:
             # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
             document.status = DocumentStatus.processing()
@@ -411,37 +417,35 @@ async def _process_gmail_messages_phase2(
 
             if user_llm:
                 document_metadata_for_summary = {
-                    "message_id": item['message_id'],
-                    "thread_id": item['thread_id'],
-                    "subject": item['subject'],
-                    "sender": item['sender'],
+                    "message_id": item["message_id"],
+                    "thread_id": item["thread_id"],
+                    "subject": item["subject"],
+                    "sender": item["sender"],
                     "document_type": "Gmail Message (Composio)",
                 }
                 summary_content, summary_embedding = await generate_document_summary(
-                    item['markdown_content'], user_llm, document_metadata_for_summary
+                    item["markdown_content"], user_llm, document_metadata_for_summary
                 )
             else:
-                summary_content = (
-                    f"Gmail: {item['subject']}\n\nFrom: {item['sender']}\nDate: {item['date_str']}"
-                )
+                summary_content = f"Gmail: {item['subject']}\n\nFrom: {item['sender']}\nDate: {item['date_str']}"
                 summary_embedding = config.embedding_model_instance.embed(
                     summary_content
                 )
 
-            chunks = await create_document_chunks(item['markdown_content'])
+            chunks = await create_document_chunks(item["markdown_content"])
 
             # Update document to READY with actual content
-            document.title = item['subject']
+            document.title = item["subject"]
             document.content = summary_content
-            document.content_hash = item['content_hash']
+            document.content_hash = item["content_hash"]
             document.embedding = summary_embedding
             document.document_metadata = {
-                "message_id": item['message_id'],
-                "thread_id": item['thread_id'],
-                "subject": item['subject'],
-                "sender": item['sender'],
-                "date": item['date_str'],
-                "labels": item['label_ids'],
+                "message_id": item["message_id"],
+                "thread_id": item["thread_id"],
+                "subject": item["subject"],
+                "sender": item["sender"],
+                "date": item["date_str"],
+                "labels": item["label_ids"],
                 "connector_id": connector_id,
                 "source": "composio",
             }
@@ -465,7 +469,9 @@ async def _process_gmail_messages_phase2(
                 document.status = DocumentStatus.failed(str(e))
                 document.updated_at = get_current_timestamp()
             except Exception as status_error:
-                logger.error(f"Failed to update document status to failed: {status_error}")
+                logger.error(
+                    f"Failed to update document status to failed: {status_error}"
+                )
             documents_failed += 1
             continue
 
@@ -571,7 +577,9 @@ async def index_composio_gmail(
                 )
 
             all_messages.extend(messages)
-            logger.info(f"Fetched {len(messages)} messages (total: {len(all_messages)})")
+            logger.info(
+                f"Fetched {len(messages)} messages (total: {len(all_messages)})"
+            )
 
             if not next_token or len(messages) < current_batch_size:
                 break
@@ -616,7 +624,7 @@ async def index_composio_gmail(
         )
 
         # Commit all pending documents - they all appear in UI now
-        new_documents_count = len([m for m in messages_to_process if m['is_new']])
+        new_documents_count = len([m for m in messages_to_process if m["is_new"]])
         if new_documents_count > 0:
             logger.info(f"Phase 1: Committing {new_documents_count} pending documents")
             await session.commit()
@@ -645,9 +653,7 @@ async def index_composio_gmail(
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit to ensure all documents are persisted
-        logger.info(
-            f"Final commit: Total {documents_indexed} Gmail messages processed"
-        )
+        logger.info(f"Final commit: Total {documents_indexed} Gmail messages processed")
         try:
             await session.commit()
             logger.info(

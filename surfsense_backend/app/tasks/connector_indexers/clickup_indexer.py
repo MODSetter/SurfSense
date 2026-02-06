@@ -260,7 +260,9 @@ async def index_clickup_tasks(
                         # Document exists - check if content has changed
                         if existing_document.content_hash == content_hash:
                             # Ensure status is ready (might have been stuck in processing/pending)
-                            if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                            if not DocumentStatus.is_state(
+                                existing_document.status, DocumentStatus.READY
+                            ):
                                 existing_document.status = DocumentStatus.ready()
                             logger.info(
                                 f"Document for ClickUp task {task_name} unchanged. Skipping."
@@ -272,22 +274,24 @@ async def index_clickup_tasks(
                             logger.info(
                                 f"Content changed for ClickUp task {task_name}. Queuing for update."
                             )
-                            tasks_to_process.append({
-                                'document': existing_document,
-                                'is_new': False,
-                                'task_content': task_content,
-                                'content_hash': content_hash,
-                                'task_id': task_id,
-                                'task_name': task_name,
-                                'task_status': task_status,
-                                'task_priority': task_priority,
-                                'task_list_name': task_list_name,
-                                'task_space_name': task_space_name,
-                                'task_assignees': task_assignees,
-                                'task_due_date': task_due_date,
-                                'task_created': task_created,
-                                'task_updated': task_updated,
-                            })
+                            tasks_to_process.append(
+                                {
+                                    "document": existing_document,
+                                    "is_new": False,
+                                    "task_content": task_content,
+                                    "content_hash": content_hash,
+                                    "task_id": task_id,
+                                    "task_name": task_name,
+                                    "task_status": task_status,
+                                    "task_priority": task_priority,
+                                    "task_list_name": task_list_name,
+                                    "task_space_name": task_space_name,
+                                    "task_assignees": task_assignees,
+                                    "task_due_date": task_due_date,
+                                    "task_created": task_created,
+                                    "task_updated": task_updated,
+                                }
+                            )
                             continue
 
                     # Document doesn't exist by unique_identifier_hash
@@ -335,22 +339,24 @@ async def index_clickup_tasks(
                     session.add(document)
                     new_documents_created = True
 
-                    tasks_to_process.append({
-                        'document': document,
-                        'is_new': True,
-                        'task_content': task_content,
-                        'content_hash': content_hash,
-                        'task_id': task_id,
-                        'task_name': task_name,
-                        'task_status': task_status,
-                        'task_priority': task_priority,
-                        'task_list_name': task_list_name,
-                        'task_space_name': task_space_name,
-                        'task_assignees': task_assignees,
-                        'task_due_date': task_due_date,
-                        'task_created': task_created,
-                        'task_updated': task_updated,
-                    })
+                    tasks_to_process.append(
+                        {
+                            "document": document,
+                            "is_new": True,
+                            "task_content": task_content,
+                            "content_hash": content_hash,
+                            "task_id": task_id,
+                            "task_name": task_name,
+                            "task_status": task_status,
+                            "task_priority": task_priority,
+                            "task_list_name": task_list_name,
+                            "task_space_name": task_space_name,
+                            "task_assignees": task_assignees,
+                            "task_due_date": task_due_date,
+                            "task_created": task_created,
+                            "task_updated": task_updated,
+                        }
+                    )
 
                 except Exception as e:
                     logger.error(
@@ -362,7 +368,9 @@ async def index_clickup_tasks(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([t for t in tasks_to_process if t['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([t for t in tasks_to_process if t['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -379,7 +387,7 @@ async def index_clickup_tasks(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -392,13 +400,13 @@ async def index_clickup_tasks(
 
                 if user_llm:
                     document_metadata_for_summary = {
-                        "task_id": item['task_id'],
-                        "task_name": item['task_name'],
-                        "task_status": item['task_status'],
-                        "task_priority": item['task_priority'],
-                        "task_list": item['task_list_name'],
-                        "task_space": item['task_space_name'],
-                        "assignees": len(item['task_assignees']),
+                        "task_id": item["task_id"],
+                        "task_name": item["task_name"],
+                        "task_status": item["task_status"],
+                        "task_priority": item["task_priority"],
+                        "task_list": item["task_list_name"],
+                        "task_space": item["task_space_name"],
+                        "assignees": len(item["task_assignees"]),
                         "document_type": "ClickUp Task",
                         "connector_type": "ClickUp",
                     }
@@ -406,30 +414,30 @@ async def index_clickup_tasks(
                         summary_content,
                         summary_embedding,
                     ) = await generate_document_summary(
-                        item['task_content'], user_llm, document_metadata_for_summary
+                        item["task_content"], user_llm, document_metadata_for_summary
                     )
                 else:
-                    summary_content = item['task_content']
+                    summary_content = item["task_content"]
                     summary_embedding = config.embedding_model_instance.embed(
-                        item['task_content']
+                        item["task_content"]
                     )
 
-                chunks = await create_document_chunks(item['task_content'])
+                chunks = await create_document_chunks(item["task_content"])
 
                 # Update document to READY with actual content
-                document.title = item['task_name']
+                document.title = item["task_name"]
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = {
-                    "task_id": item['task_id'],
-                    "task_name": item['task_name'],
-                    "task_status": item['task_status'],
-                    "task_priority": item['task_priority'],
-                    "task_assignees": item['task_assignees'],
-                    "task_due_date": item['task_due_date'],
-                    "task_created": item['task_created'],
-                    "task_updated": item['task_updated'],
+                    "task_id": item["task_id"],
+                    "task_name": item["task_name"],
+                    "task_status": item["task_status"],
+                    "task_priority": item["task_priority"],
+                    "task_assignees": item["task_assignees"],
+                    "task_due_date": item["task_due_date"],
+                    "task_created": item["task_created"],
+                    "task_updated": item["task_updated"],
                     "connector_id": connector_id,
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
@@ -456,7 +464,9 @@ async def index_clickup_tasks(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 documents_failed += 1
                 continue
 

@@ -262,23 +262,27 @@ async def index_confluence_pages(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         documents_skipped += 1
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    pages_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'full_content': full_content,
-                        'page_content': page_content,
-                        'content_hash': content_hash,
-                        'page_id': page_id,
-                        'page_title': page_title,
-                        'space_id': space_id,
-                        'comment_count': comment_count,
-                    })
+                    pages_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "full_content": full_content,
+                            "page_content": page_content,
+                            "content_hash": content_hash,
+                            "page_id": page_id,
+                            "page_title": page_title,
+                            "space_id": space_id,
+                            "comment_count": comment_count,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -323,17 +327,19 @@ async def index_confluence_pages(
                 session.add(document)
                 new_documents_created = True
 
-                pages_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'full_content': full_content,
-                    'page_content': page_content,
-                    'content_hash': content_hash,
-                    'page_id': page_id,
-                    'page_title': page_title,
-                    'space_id': space_id,
-                    'comment_count': comment_count,
-                })
+                pages_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "full_content": full_content,
+                        "page_content": page_content,
+                        "content_hash": content_hash,
+                        "page_id": page_id,
+                        "page_title": page_title,
+                        "space_id": space_id,
+                        "comment_count": comment_count,
+                    }
+                )
 
             except Exception as e:
                 logger.error(f"Error in Phase 1 for page: {e!s}", exc_info=True)
@@ -342,7 +348,9 @@ async def index_confluence_pages(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([p for p in pages_to_process if p['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([p for p in pages_to_process if p['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -359,7 +367,7 @@ async def index_confluence_pages(
                     await on_heartbeat_callback(documents_indexed)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
@@ -372,10 +380,10 @@ async def index_confluence_pages(
 
                 if user_llm:
                     document_metadata = {
-                        "page_title": item['page_title'],
-                        "page_id": item['page_id'],
-                        "space_id": item['space_id'],
-                        "comment_count": item['comment_count'],
+                        "page_title": item["page_title"],
+                        "page_id": item["page_id"],
+                        "space_id": item["space_id"],
+                        "comment_count": item["comment_count"],
                         "document_type": "Confluence Page",
                         "connector_type": "Confluence",
                     }
@@ -383,17 +391,15 @@ async def index_confluence_pages(
                         summary_content,
                         summary_embedding,
                     ) = await generate_document_summary(
-                        item['full_content'], user_llm, document_metadata
+                        item["full_content"], user_llm, document_metadata
                     )
                 else:
                     # Fallback to simple summary if no LLM configured
-                    summary_content = (
-                        f"Confluence Page: {item['page_title']}\n\nSpace ID: {item['space_id']}\n\n"
-                    )
-                    if item['page_content']:
+                    summary_content = f"Confluence Page: {item['page_title']}\n\nSpace ID: {item['space_id']}\n\n"
+                    if item["page_content"]:
                         # Take first 1000 characters of content for summary
-                        content_preview = item['page_content'][:1000]
-                        if len(item['page_content']) > 1000:
+                        content_preview = item["page_content"][:1000]
+                        if len(item["page_content"]) > 1000:
                             content_preview += "..."
                         summary_content += f"Content Preview: {content_preview}\n\n"
                     summary_content += f"Comments: {item['comment_count']}"
@@ -402,18 +408,18 @@ async def index_confluence_pages(
                     )
 
                 # Process chunks - using the full page content with comments
-                chunks = await create_document_chunks(item['full_content'])
+                chunks = await create_document_chunks(item["full_content"])
 
                 # Update document to READY with actual content
-                document.title = item['page_title']
+                document.title = item["page_title"]
                 document.content = summary_content
-                document.content_hash = item['content_hash']
+                document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = {
-                    "page_id": item['page_id'],
-                    "page_title": item['page_title'],
-                    "space_id": item['space_id'],
-                    "comment_count": item['comment_count'],
+                    "page_id": item["page_id"],
+                    "page_title": item["page_title"],
+                    "space_id": item["space_id"],
+                    "comment_count": item["comment_count"],
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
@@ -440,7 +446,9 @@ async def index_confluence_pages(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 documents_failed += 1
                 continue  # Skip this page and continue with others
 

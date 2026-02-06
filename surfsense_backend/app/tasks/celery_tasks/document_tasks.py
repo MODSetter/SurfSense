@@ -548,11 +548,11 @@ def process_file_upload_with_document_task(
 ):
     """
     Celery task to process uploaded file with existing pending document.
-    
+
     This task is used by the 2-phase document upload flow:
     - Phase 1 (API): Creates pending document (visible in UI immediately)
     - Phase 2 (this task): Updates document status: pending → processing → ready/failed
-    
+
     Args:
         document_id: ID of the pending document created in Phase 1
         temp_path: Path to the uploaded file
@@ -634,7 +634,7 @@ async def _process_file_with_document(
 ):
     """
     Process file and update existing pending document status.
-    
+
     This function implements Phase 2 of the 2-phase document upload:
     - Sets document status to 'processing' (shows spinner in UI)
     - Processes the file (parsing, embedding, chunking)
@@ -669,11 +669,15 @@ async def _process_file_with_document(
             file_size = os.path.getsize(temp_path)
             logger.info(f"[_process_file_with_document] File size: {file_size} bytes")
         except Exception as e:
-            logger.warning(f"[_process_file_with_document] Could not get file size: {e}")
+            logger.warning(
+                f"[_process_file_with_document] Could not get file size: {e}"
+            )
             file_size = None
 
         # Create notification for document processing
-        logger.info(f"[_process_file_with_document] Creating notification for: {filename}")
+        logger.info(
+            f"[_process_file_with_document] Creating notification for: {filename}"
+        )
         notification = (
             await NotificationService.document_processing.notify_processing_started(
                 session=session,
@@ -822,7 +826,9 @@ async def _process_file_with_document(
             if os.path.exists(temp_path):
                 try:
                     os.unlink(temp_path)
-                    logger.info(f"[_process_file_with_document] Cleaned up temp file: {temp_path}")
+                    logger.info(
+                        f"[_process_file_with_document] Cleaned up temp file: {temp_path}"
+                    )
                 except Exception as cleanup_error:
                     logger.warning(
                         f"[_process_file_with_document] Failed to clean up temp file: {cleanup_error}"

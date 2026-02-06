@@ -382,27 +382,31 @@ async def index_obsidian_vault(
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
                         # Ensure status is ready (might have been stuck in processing/pending)
-                        if not DocumentStatus.is_state(existing_document.status, DocumentStatus.READY):
+                        if not DocumentStatus.is_state(
+                            existing_document.status, DocumentStatus.READY
+                        ):
                             existing_document.status = DocumentStatus.ready()
                         logger.debug(f"Note {title} unchanged, skipping")
                         skipped_count += 1
                         continue
 
                     # Queue existing document for update (will be set to processing in Phase 2)
-                    files_to_process.append({
-                        'document': existing_document,
-                        'is_new': False,
-                        'file_info': file_info,
-                        'content': content,
-                        'body_content': body_content,
-                        'frontmatter': frontmatter,
-                        'wiki_links': wiki_links,
-                        'tags': tags,
-                        'title': title,
-                        'relative_path': relative_path,
-                        'content_hash': content_hash,
-                        'unique_identifier_hash': unique_identifier_hash,
-                    })
+                    files_to_process.append(
+                        {
+                            "document": existing_document,
+                            "is_new": False,
+                            "file_info": file_info,
+                            "content": content,
+                            "body_content": body_content,
+                            "frontmatter": frontmatter,
+                            "wiki_links": wiki_links,
+                            "tags": tags,
+                            "title": title,
+                            "relative_path": relative_path,
+                            "content_hash": content_hash,
+                            "unique_identifier_hash": unique_identifier_hash,
+                        }
+                    )
                     continue
 
                 # Document doesn't exist by unique_identifier_hash
@@ -445,20 +449,22 @@ async def index_obsidian_vault(
                 session.add(document)
                 new_documents_created = True
 
-                files_to_process.append({
-                    'document': document,
-                    'is_new': True,
-                    'file_info': file_info,
-                    'content': content,
-                    'body_content': body_content,
-                    'frontmatter': frontmatter,
-                    'wiki_links': wiki_links,
-                    'tags': tags,
-                    'title': title,
-                    'relative_path': relative_path,
-                    'content_hash': content_hash,
-                    'unique_identifier_hash': unique_identifier_hash,
-                })
+                files_to_process.append(
+                    {
+                        "document": document,
+                        "is_new": True,
+                        "file_info": file_info,
+                        "content": content,
+                        "body_content": body_content,
+                        "frontmatter": frontmatter,
+                        "wiki_links": wiki_links,
+                        "tags": tags,
+                        "title": title,
+                        "relative_path": relative_path,
+                        "content_hash": content_hash,
+                        "unique_identifier_hash": unique_identifier_hash,
+                    }
+                )
 
             except Exception as e:
                 logger.exception(
@@ -469,7 +475,9 @@ async def index_obsidian_vault(
 
         # Commit all pending documents - they all appear in UI now
         if new_documents_created:
-            logger.info(f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents")
+            logger.info(
+                f"Phase 1: Committing {len([f for f in files_to_process if f['is_new']])} pending documents"
+            )
             await session.commit()
 
         # =======================================================================
@@ -491,22 +499,22 @@ async def index_obsidian_vault(
                     await on_heartbeat_callback(indexed_count)
                     last_heartbeat_time = current_time
 
-            document = item['document']
+            document = item["document"]
             try:
                 # Set to PROCESSING and commit - shows "processing" in UI for THIS document only
                 document.status = DocumentStatus.processing()
                 await session.commit()
 
                 # Extract data from item
-                title = item['title']
-                relative_path = item['relative_path']
-                content = item['content']
-                body_content = item['body_content']
-                frontmatter = item['frontmatter']
-                wiki_links = item['wiki_links']
-                tags = item['tags']
-                content_hash = item['content_hash']
-                file_info = item['file_info']
+                title = item["title"]
+                relative_path = item["relative_path"]
+                content = item["content"]
+                body_content = item["body_content"]
+                frontmatter = item["frontmatter"]
+                wiki_links = item["wiki_links"]
+                tags = item["tags"]
+                content_hash = item["content_hash"]
+                file_info = item["file_info"]
 
                 # Build metadata
                 document_metadata = {
@@ -584,7 +592,9 @@ async def index_obsidian_vault(
                     document.status = DocumentStatus.failed(str(e))
                     document.updated_at = get_current_timestamp()
                 except Exception as status_error:
-                    logger.error(f"Failed to update document status to failed: {status_error}")
+                    logger.error(
+                        f"Failed to update document status to failed: {status_error}"
+                    )
                 failed_count += 1
                 continue
 
@@ -592,9 +602,7 @@ async def index_obsidian_vault(
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit for any remaining documents not yet committed in batches
-        logger.info(
-            f"Final commit: Total {indexed_count} Obsidian notes processed"
-        )
+        logger.info(f"Final commit: Total {indexed_count} Obsidian notes processed")
         try:
             await session.commit()
             logger.info(
