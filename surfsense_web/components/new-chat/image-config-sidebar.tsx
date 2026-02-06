@@ -179,7 +179,17 @@ export function ImageConfigSidebar({
 		} finally {
 			setIsSubmitting(false);
 		}
-	}, [mode, isGlobal, config, formData, searchSpaceId, createConfig, updateConfig, updatePreferences, onOpenChange]);
+	}, [
+		mode,
+		isGlobal,
+		config,
+		formData,
+		searchSpaceId,
+		createConfig,
+		updateConfig,
+		updatePreferences,
+		onOpenChange,
+	]);
 
 	const handleUseGlobalConfig = useCallback(async () => {
 		if (!config || !isGlobal) return;
@@ -297,11 +307,16 @@ export function ImageConfigSidebar({
 										<Alert className="mb-6 border-violet-500/30 bg-violet-500/5">
 											<Shuffle className="size-4 text-violet-500" />
 											<AlertDescription className="text-sm text-violet-700 dark:text-violet-400">
-												Auto mode distributes image generation requests across all configured providers for optimal performance and rate limit protection.
+												Auto mode distributes image generation requests across all configured
+												providers for optimal performance and rate limit protection.
 											</AlertDescription>
 										</Alert>
 										<div className="flex gap-3 pt-4 border-t border-border/50">
-											<Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+											<Button
+												variant="outline"
+												className="flex-1"
+												onClick={() => onOpenChange(false)}
+											>
 												Close
 											</Button>
 											<Button
@@ -327,12 +342,16 @@ export function ImageConfigSidebar({
 										<div className="space-y-4">
 											<div className="grid gap-4 sm:grid-cols-2">
 												<div className="space-y-1.5">
-													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Name</div>
+													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+														Name
+													</div>
 													<p className="text-sm font-medium">{config.name}</p>
 												</div>
 												{config.description && (
 													<div className="space-y-1.5">
-														<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</div>
+														<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+															Description
+														</div>
 														<p className="text-sm text-muted-foreground">{config.description}</p>
 													</div>
 												)}
@@ -340,20 +359,32 @@ export function ImageConfigSidebar({
 											<Separator />
 											<div className="grid gap-4 sm:grid-cols-2">
 												<div className="space-y-1.5">
-													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Provider</div>
+													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+														Provider
+													</div>
 													<p className="text-sm font-medium">{config.provider}</p>
 												</div>
 												<div className="space-y-1.5">
-													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Model</div>
+													<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+														Model
+													</div>
 													<p className="text-sm font-medium font-mono">{config.model_name}</p>
 												</div>
 											</div>
 										</div>
 										<div className="flex gap-3 pt-6 border-t border-border/50 mt-6">
-											<Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+											<Button
+												variant="outline"
+												className="flex-1"
+												onClick={() => onOpenChange(false)}
+											>
 												Close
 											</Button>
-											<Button className="flex-1 gap-2" onClick={handleUseGlobalConfig} disabled={isSubmitting}>
+											<Button
+												className="flex-1 gap-2"
+												onClick={handleUseGlobalConfig}
+												disabled={isSubmitting}
+											>
 												{isSubmitting ? "Loading..." : "Use This Model"}
 											</Button>
 										</div>
@@ -379,7 +410,9 @@ export function ImageConfigSidebar({
 											<Input
 												placeholder="Optional description"
 												value={formData.description}
-												onChange={(e) => setFormData((p) => ({ ...p, description: e.target.value }))}
+												onChange={(e) =>
+													setFormData((p) => ({ ...p, description: e.target.value }))
+												}
 											/>
 										</div>
 
@@ -390,7 +423,9 @@ export function ImageConfigSidebar({
 											<Label className="text-sm font-medium">Provider *</Label>
 											<Select
 												value={formData.provider}
-												onValueChange={(val) => setFormData((p) => ({ ...p, provider: val, model_name: "" }))}
+												onValueChange={(val) =>
+													setFormData((p) => ({ ...p, provider: val, model_name: "" }))
+												}
 											>
 												<SelectTrigger>
 													<SelectValue placeholder="Select a provider" />
@@ -414,7 +449,11 @@ export function ImageConfigSidebar({
 											{suggestedModels.length > 0 ? (
 												<Popover open={modelComboboxOpen} onOpenChange={setModelComboboxOpen}>
 													<PopoverTrigger asChild>
-														<Button variant="outline" role="combobox" className="w-full justify-between font-normal">
+														<Button
+															variant="outline"
+															role="combobox"
+															className="w-full justify-between font-normal"
+														>
 															{formData.model_name || "Select or type a model..."}
 															<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 														</Button>
@@ -424,11 +463,15 @@ export function ImageConfigSidebar({
 															<CommandInput
 																placeholder="Search or type model..."
 																value={formData.model_name}
-																onValueChange={(val) => setFormData((p) => ({ ...p, model_name: val }))}
+																onValueChange={(val) =>
+																	setFormData((p) => ({ ...p, model_name: val }))
+																}
 															/>
 															<CommandList>
 																<CommandEmpty>
-																	<span className="text-xs text-muted-foreground">Type a custom model name</span>
+																	<span className="text-xs text-muted-foreground">
+																		Type a custom model name
+																	</span>
 																</CommandEmpty>
 																<CommandGroup>
 																	{suggestedModels.map((m) => (
@@ -440,9 +483,18 @@ export function ImageConfigSidebar({
 																				setModelComboboxOpen(false);
 																			}}
 																		>
-																			<Check className={cn("mr-2 h-4 w-4", formData.model_name === m.value ? "opacity-100" : "opacity-0")} />
+																			<Check
+																				className={cn(
+																					"mr-2 h-4 w-4",
+																					formData.model_name === m.value
+																						? "opacity-100"
+																						: "opacity-0"
+																				)}
+																			/>
 																			<span className="font-mono text-sm">{m.value}</span>
-																			<span className="ml-2 text-xs text-muted-foreground">{m.label}</span>
+																			<span className="ml-2 text-xs text-muted-foreground">
+																				{m.label}
+																			</span>
 																		</CommandItem>
 																	))}
 																</CommandGroup>
@@ -454,7 +506,9 @@ export function ImageConfigSidebar({
 												<Input
 													placeholder="e.g., dall-e-3"
 													value={formData.model_name}
-													onChange={(e) => setFormData((p) => ({ ...p, model_name: e.target.value }))}
+													onChange={(e) =>
+														setFormData((p) => ({ ...p, model_name: e.target.value }))
+													}
 												/>
 											)}
 										</div>
@@ -489,14 +543,20 @@ export function ImageConfigSidebar({
 												<Input
 													placeholder="2024-02-15-preview"
 													value={formData.api_version}
-													onChange={(e) => setFormData((p) => ({ ...p, api_version: e.target.value }))}
+													onChange={(e) =>
+														setFormData((p) => ({ ...p, api_version: e.target.value }))
+													}
 												/>
 											</div>
 										)}
 
 										{/* Actions */}
 										<div className="flex gap-3 pt-4 border-t">
-											<Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+											<Button
+												variant="outline"
+												className="flex-1"
+												onClick={() => onOpenChange(false)}
+											>
 												Cancel
 											</Button>
 											<Button

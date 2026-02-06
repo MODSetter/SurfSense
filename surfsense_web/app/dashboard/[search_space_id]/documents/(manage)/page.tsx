@@ -140,6 +140,9 @@ export default function DocumentsTable() {
 			}
 		});
 		setPageIndex(0);
+		// Clear selections when filter changes — selected IDs from the previous
+		// filter view are no longer visible and would cause misleading bulk actions
+		setSelectedIds(new Set());
 	};
 
 	const onBulkDelete = async () => {

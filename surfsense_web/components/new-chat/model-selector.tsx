@@ -392,8 +392,8 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 							</CommandGroup>
 						)}
 
-					{/* Add New Config Button */}
-					<div className="p-2 bg-muted/20">
+						{/* Add New Config Button */}
+						<div className="p-2 bg-muted/20">
 							<Button
 								variant="ghost"
 								size="sm"

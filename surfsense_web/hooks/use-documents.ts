@@ -71,8 +71,14 @@ function isValidDocument(doc: DocumentElectric): boolean {
  * 3. Use syncHandle.isUpToDate to determine if deletions can be trusted
  * 4. Handles bulk deletions correctly by checking sync state
  *
+ * Filtering strategy:
+ * - Internal state always stores ALL documents (unfiltered)
+ * - typeFilter is applied client-side when returning documents
+ * - typeCounts always reflect the full dataset so the filter sidebar stays complete
+ * - Changing filters is instant (no API re-fetch or Electric re-sync)
+ *
  * @param searchSpaceId - The search space ID to filter documents
- * @param typeFilter - Optional document types to filter by
+ * @param typeFilter - Optional document types to filter by (applied client-side)
  */
 export function useDocuments(
 	searchSpaceId: number | null,
@@ -80,7 +86,8 @@ export function useDocuments(
 ) {
 	const electricClient = useElectricClient();
 
-	const [documents, setDocuments] = useState<DocumentDisplay[]>([]);
+	// Internal state: ALL documents (unfiltered)
+	const [allDocuments, setAllDocuments] = useState<DocumentDisplay[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<Error | null>(null);
 
@@ -94,14 +101,21 @@ export function useDocuments(
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe?: () => void } | null>(null);
 
-	// Real-time type counts
+	// Type counts from ALL documents (unfiltered) — keeps filter sidebar complete
 	const typeCounts = useMemo(() => {
 		const counts: Record<string, number> = {};
-		for (const doc of documents) {
+		for (const doc of allDocuments) {
 			counts[doc.document_type] = (counts[doc.document_type] || 0) + 1;
 		}
 		return counts;
-	}, [documents]);
+	}, [allDocuments]);
+
+	// Client-side filtered documents for display
+	const documents = useMemo(() => {
+		if (typeFilter.length === 0) return allDocuments;
+		const filterSet = new Set<string>(typeFilter);
+		return allDocuments.filter((doc) => filterSet.has(doc.document_type));
+	}, [allDocuments, typeFilter]);
 
 	// Populate user cache from API response
 	const populateUserCache = useCallback(
@@ -151,7 +165,8 @@ export function useDocuments(
 		[]
 	);
 
-	// EFFECT 1: Load from API (PRIMARY source of truth)
+	// EFFECT 1: Load ALL documents from API (PRIMARY source of truth)
+	// No type filter — always fetches everything so typeCounts stay complete
 	useEffect(() => {
 		if (!searchSpaceId) {
 			setLoading(false);
@@ -160,7 +175,6 @@ export function useDocuments(
 
 		// Capture validated value for async closure
 		const spaceId = searchSpaceId;
-		const currentTypeFilter = typeFilter;
 
 		let mounted = true;
 		apiLoadedRef.current = false;
@@ -174,8 +188,7 @@ export function useDocuments(
 					queryParams: {
 						search_space_id: spaceId,
 						page: 0,
-						page_size: -1, // Fetch all documents
-						...(currentTypeFilter.length > 0 && { document_types: currentTypeFilter }),
+						page_size: -1, // Fetch all documents (unfiltered)
 					},
 				});
 
@@ -183,7 +196,7 @@ export function useDocuments(
 
 				populateUserCache(response.items);
 				const docs = response.items.map(apiToDisplayDoc);
-				setDocuments(docs);
+				setAllDocuments(docs);
 				apiLoadedRef.current = true;
 				setError(null);
 				console.log("[useDocuments] API loaded", docs.length, "documents");
@@ -201,16 +214,16 @@ export function useDocuments(
 		return () => {
 			mounted = false;
 		};
-	}, [searchSpaceId, typeFilter, populateUserCache, apiToDisplayDoc]);
+	}, [searchSpaceId, populateUserCache, apiToDisplayDoc]);
 
 	// EFFECT 2: Start Electric sync + live query for real-time updates
+	// No type filter — syncs and queries ALL documents; filtering is client-side
 	useEffect(() => {
 		if (!searchSpaceId || !electricClient) return;
 
 		// Capture validated values for async closure
 		const spaceId = searchSpaceId;
 		const client = electricClient;
-		const currentTypeFilter = typeFilter;
 
 		let mounted = true;
 
@@ -228,7 +241,7 @@ export function useDocuments(
 			try {
 				console.log("[useDocuments] Starting Electric sync for real-time updates");
 
-				// Start Electric sync
+				// Start Electric sync (all documents for this search space)
 				const handle = await client.syncShape({
 					table: "documents",
 					where: `search_space_id = ${spaceId}`,
@@ -263,7 +276,7 @@ export function useDocuments(
 
 				if (!mounted) return;
 
-				// Set up live query
+				// Set up live query (unfiltered — type filtering is done client-side)
 				const db = client.db as {
 					live?: {
 						query: <T>(
@@ -281,21 +294,12 @@ export function useDocuments(
 					return;
 				}
 
-				let query = `SELECT id, document_type, search_space_id, title, created_by_id, created_at, status
+				const query = `SELECT id, document_type, search_space_id, title, created_by_id, created_at, status
 					FROM documents 
-					WHERE search_space_id = $1`;
+					WHERE search_space_id = $1
+					ORDER BY created_at DESC`;
 
-				const params: (number | string)[] = [spaceId];
-
-				if (currentTypeFilter.length > 0) {
-					const placeholders = currentTypeFilter.map((_, i) => `$${i + 2}`).join(", ");
-					query += ` AND document_type IN (${placeholders})`;
-					params.push(...currentTypeFilter);
-				}
-
-				query += ` ORDER BY created_at DESC`;
-
-				const liveQuery = await db.live.query<DocumentElectric>(query, params);
+				const liveQuery = await db.live.query<DocumentElectric>(query, [spaceId]);
 
 				if (!mounted) {
 					liveQuery.unsubscribe?.();
@@ -333,7 +337,7 @@ export function useDocuments(
 							.then((response) => {
 								populateUserCache(response.items);
 								if (mounted) {
-									setDocuments((prev) =>
+									setAllDocuments((prev) =>
 										prev.map((doc) => ({
 											...doc,
 											created_by_name: doc.created_by_id
@@ -347,7 +351,7 @@ export function useDocuments(
 					}
 
 					// Smart update logic based on sync state
-					setDocuments((prev) => {
+					setAllDocuments((prev) => {
 						// Don't process if API hasn't loaded yet
 						if (!apiLoadedRef.current) {
 							console.log("[useDocuments] Waiting for API load, skipping live update");
@@ -424,7 +428,7 @@ export function useDocuments(
 				liveQueryRef.current = null;
 			}
 		};
-	}, [searchSpaceId, electricClient, typeFilter, electricToDisplayDoc, populateUserCache]);
+	}, [searchSpaceId, electricClient, electricToDisplayDoc, populateUserCache]);
 
 	// Track previous searchSpaceId to detect actual changes
 	const prevSearchSpaceIdRef = useRef<number | null>(null);
@@ -432,7 +436,7 @@ export function useDocuments(
 	// Reset on search space change (not on initial mount)
 	useEffect(() => {
 		if (prevSearchSpaceIdRef.current !== null && prevSearchSpaceIdRef.current !== searchSpaceId) {
-			setDocuments([]);
+			setAllDocuments([]);
 			apiLoadedRef.current = false;
 			userCacheRef.current.clear();
 		}

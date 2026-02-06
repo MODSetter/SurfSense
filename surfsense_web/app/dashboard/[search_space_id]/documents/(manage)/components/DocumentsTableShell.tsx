@@ -3,6 +3,7 @@
 import { formatDistanceToNow } from "date-fns";
 import {
 	AlertCircle,
+	BadgeInfo,
 	Calendar,
 	CheckCircle2,
 	ChevronDown,
@@ -372,7 +373,7 @@ export function DocumentsTableShell({
 										</TableHead>
 									)}
 									{columnVisibility.status && (
-										<TableHead className="w-20 text-center">
+										<TableHead className="w-14 text-center">
 											<Skeleton className="h-3 w-12 mx-auto" />
 										</TableHead>
 									)}
@@ -414,7 +415,7 @@ export function DocumentsTableShell({
 												</TableCell>
 											)}
 											{columnVisibility.status && (
-												<TableCell className="w-20 py-2.5 text-center">
+												<TableCell className="w-14 py-2.5 text-center">
 													<Skeleton className="h-5 w-5 mx-auto rounded-full" />
 												</TableCell>
 											)}
@@ -466,7 +467,7 @@ export function DocumentsTableShell({
 						className="flex flex-col items-center gap-4 max-w-md px-4 text-center"
 					>
 						<div className="rounded-full bg-muted/50 p-4">
-							<FileX className="h-8 w-8 text-muted-foreground/60" />
+							<FileX className="h-8 w-8 text-muted-foreground" />
 						</div>
 						<div className="space-y-1.5">
 							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
@@ -544,8 +545,11 @@ export function DocumentsTableShell({
 										</TableHead>
 									)}
 									{columnVisibility.status && (
-										<TableHead className="w-20 text-center">
-											<span className="text-sm font-medium text-muted-foreground/70">Status</span>
+										<TableHead className="w-14">
+											<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+												<BadgeInfo size={14} className="opacity-60 text-muted-foreground" />
+												Status
+											</span>
 										</TableHead>
 									)}
 									<TableHead className="w-10">
@@ -644,7 +648,7 @@ export function DocumentsTableShell({
 													</TableCell>
 												)}
 												{columnVisibility.status && (
-													<TableCell className="w-20 py-2.5 text-center">
+													<TableCell className="w-14 py-2.5 text-center">
 														<StatusIndicator status={doc.status} />
 													</TableCell>
 												)}

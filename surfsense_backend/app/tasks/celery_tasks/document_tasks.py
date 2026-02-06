@@ -1,6 +1,8 @@
 """Celery tasks for document processing."""
 
+import asyncio
 import logging
+import os
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -16,6 +18,79 @@ from app.tasks.document_processors import (
 )
 
 logger = logging.getLogger(__name__)
+
+# ===== Redis heartbeat for document processing tasks =====
+# Same mechanism as connector indexing heartbeats (search_source_connectors_routes.py).
+# A background coroutine refreshes a Redis key every 60s with a 2-min TTL.
+# If the Celery worker crashes, the coroutine dies, the key expires, and the
+# stale_notification_cleanup_task detects the missing key and marks the
+# notification + document as failed.
+_doc_heartbeat_redis = None
+HEARTBEAT_TTL_SECONDS = 120  # 2 minutes — same as connector indexing
+HEARTBEAT_REFRESH_INTERVAL = 60  # Refresh every 60 seconds
+
+
+def _get_doc_heartbeat_redis():
+    """Get Redis client for document processing heartbeat."""
+    import redis
+
+    global _doc_heartbeat_redis
+    if _doc_heartbeat_redis is None:
+        redis_url = os.getenv(
+            "REDIS_APP_URL",
+            os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+        )
+        _doc_heartbeat_redis = redis.from_url(redis_url, decode_responses=True)
+    return _doc_heartbeat_redis
+
+
+def _get_heartbeat_key(notification_id: int) -> str:
+    """Generate Redis key for document processing heartbeat.
+
+    Uses same key pattern as connector indexing: indexing:heartbeat:{notification_id}
+    """
+    return f"indexing:heartbeat:{notification_id}"
+
+
+def _start_heartbeat(notification_id: int) -> None:
+    """Set initial Redis heartbeat key for a document processing task."""
+    try:
+        key = _get_heartbeat_key(notification_id)
+        _get_doc_heartbeat_redis().setex(key, HEARTBEAT_TTL_SECONDS, "started")
+    except Exception as e:
+        logger.warning(
+            f"Failed to set initial heartbeat for notification {notification_id}: {e}"
+        )
+
+
+def _stop_heartbeat(notification_id: int) -> None:
+    """Delete Redis heartbeat key when task completes (success or failure)."""
+    try:
+        key = _get_heartbeat_key(notification_id)
+        _get_doc_heartbeat_redis().delete(key)
+    except Exception:
+        pass  # Key will expire on its own
+
+
+async def _run_heartbeat_loop(notification_id: int):
+    """Background coroutine that refreshes Redis heartbeat every 60 seconds.
+
+    This keeps the heartbeat alive while the task is running.
+    When the task finishes, this coroutine is cancelled via heartbeat_task.cancel().
+    When the worker crashes, this coroutine dies with it and the key expires.
+    """
+    key = _get_heartbeat_key(notification_id)
+    try:
+        while True:
+            await asyncio.sleep(HEARTBEAT_REFRESH_INTERVAL)
+            try:
+                _get_doc_heartbeat_redis().setex(key, HEARTBEAT_TTL_SECONDS, "alive")
+            except Exception as e:
+                logger.warning(
+                    f"Failed to refresh heartbeat for notification {notification_id}: {e}"
+                )
+    except asyncio.CancelledError:
+        pass  # Normal cancellation when task completes
 
 
 def get_celery_session_maker():
@@ -44,8 +119,6 @@ def process_extension_document_task(
         search_space_id: ID of the search space
         user_id: ID of the user
     """
-    import asyncio
-
     # Create a new event loop for this task
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -196,8 +269,6 @@ def process_youtube_video_task(self, url: str, search_space_id: int, user_id: st
         search_space_id: ID of the search space
         user_id: ID of the user
     """
-    import asyncio
-
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -226,6 +297,10 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
             )
         )
 
+        # Start Redis heartbeat for stale task detection
+        _start_heartbeat(notification.id)
+        heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification.id))
+
         log_entry = await task_logger.log_task_start(
             task_name="process_youtube_video",
             source="document_processor",
@@ -243,7 +318,7 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
             )
 
             result = await add_youtube_video_document(
-                session, url, search_space_id, user_id
+                session, url, search_space_id, user_id, notification=notification
             )
 
             if result:
@@ -307,6 +382,10 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
 
             logger.error(f"Error processing YouTube video: {e!s}")
             raise
+        finally:
+            # Stop heartbeat — key deleted on success, expires on crash
+            heartbeat_task.cancel()
+            _stop_heartbeat(notification.id)
 
 
 @celery_app.task(name="process_file_upload", bind=True)
@@ -322,8 +401,6 @@ def process_file_upload_task(
         search_space_id: ID of the search space
         user_id: ID of the user
     """
-    import asyncio
-    import os
     import traceback
 
     logger.info(
@@ -336,7 +413,7 @@ def process_file_upload_task(
     if not os.path.exists(file_path):
         logger.error(
             f"[process_file_upload] File does not exist: {file_path}. "
-            "The temp file may have been cleaned up before the task ran."
+            "File may have been removed before syncing could start."
         )
         return
 
@@ -370,8 +447,6 @@ async def _process_file_upload(
     file_path: str, filename: str, search_space_id: int, user_id: str
 ):
     """Process file upload with new session."""
-    import os
-
     from app.tasks.document_processors.file_processors import process_file_in_background
 
     logger.info(f"[_process_file_upload] Starting async processing for: {filename}")
@@ -403,6 +478,10 @@ async def _process_file_upload(
         logger.info(
             f"[_process_file_upload] Notification created with ID: {notification.id if notification else 'None'}"
         )
+
+        # Start Redis heartbeat for stale task detection
+        _start_heartbeat(notification.id)
+        heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification.id))
 
         log_entry = await task_logger.log_task_start(
             task_name="process_file_upload",
@@ -535,6 +614,10 @@ async def _process_file_upload(
             )
             logger.error(error_message)
             raise
+        finally:
+            # Stop heartbeat — key deleted on success, expires on crash
+            heartbeat_task.cancel()
+            _stop_heartbeat(notification.id)
 
 
 @celery_app.task(name="process_file_upload_with_document", bind=True)
@@ -560,8 +643,6 @@ def process_file_upload_with_document_task(
         search_space_id: ID of the search space
         user_id: ID of the user
     """
-    import asyncio
-    import os
     import traceback
 
     logger.info(
@@ -573,7 +654,7 @@ def process_file_upload_with_document_task(
     if not os.path.exists(temp_path):
         logger.error(
             f"[process_file_upload_with_document] File does not exist: {temp_path}. "
-            "The temp file may have been cleaned up before the task ran."
+            "File may have been removed before syncing could start."
         )
         # Mark document as failed since file is missing
         loop = asyncio.new_event_loop()
@@ -582,7 +663,7 @@ def process_file_upload_with_document_task(
             loop.run_until_complete(
                 _mark_document_failed(
                     document_id,
-                    "File not found - temp file may have been cleaned up",
+                    "File not found. Please re-upload the file.",
                 )
             )
         finally:
@@ -640,8 +721,6 @@ async def _process_file_with_document(
     - Processes the file (parsing, embedding, chunking)
     - Updates document to 'ready' on success or 'failed' on error
     """
-    import os
-
     from app.db import Document, DocumentStatus
     from app.tasks.document_processors.base import get_current_timestamp
     from app.tasks.document_processors.file_processors import (
@@ -688,6 +767,19 @@ async def _process_file_with_document(
                 file_size=file_size,
             )
         )
+
+        # Store document_id in notification metadata so cleanup task can find the document
+        if notification and notification.notification_metadata is not None:
+            notification.notification_metadata["document_id"] = document_id
+            from sqlalchemy.orm.attributes import flag_modified
+
+            flag_modified(notification, "notification_metadata")
+            await session.commit()
+            await session.refresh(notification)
+
+        # Start Redis heartbeat for stale task detection
+        _start_heartbeat(notification.id)
+        heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification.id))
 
         log_entry = await task_logger.log_task_start(
             task_name="process_file_upload_with_document",
@@ -822,6 +914,10 @@ async def _process_file_with_document(
             raise
 
         finally:
+            # Stop heartbeat — key deleted on success, expires on crash
+            heartbeat_task.cancel()
+            _stop_heartbeat(notification.id)
+
             # Clean up temp file
             if os.path.exists(temp_path):
                 try:
@@ -856,8 +952,6 @@ def process_circleback_meeting_task(
         search_space_id: ID of the search space
         connector_id: ID of the Circleback connector (for deletion support)
     """
-    import asyncio
-
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
 
@@ -897,6 +991,7 @@ async def _process_circleback_meeting(
 
         # Create notification if user_id is available
         notification = None
+        heartbeat_task = None
         if user_id:
             notification = (
                 await NotificationService.document_processing.notify_processing_started(
@@ -907,6 +1002,10 @@ async def _process_circleback_meeting(
                     search_space_id=search_space_id,
                 )
             )
+
+            # Start Redis heartbeat for stale task detection
+            _start_heartbeat(notification.id)
+            heartbeat_task = asyncio.create_task(_run_heartbeat_loop(notification.id))
 
         log_entry = await task_logger.log_task_start(
             task_name="process_circleback_meeting",
@@ -1000,3 +1099,9 @@ async def _process_circleback_meeting(
 
             logger.error(f"Error processing Circleback meeting: {e!s}")
             raise
+        finally:
+            # Stop heartbeat — key deleted on success, expires on crash
+            if heartbeat_task:
+                heartbeat_task.cancel()
+            if notification:
+                _stop_heartbeat(notification.id)

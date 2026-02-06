@@ -1,7 +1,8 @@
 "use client";
 
-import { Menu, Plus } from "lucide-react";
+import { PanelRightClose, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { SearchSpaceAvatar } from "../icon-rail/SearchSpaceAvatar";
@@ -43,7 +44,7 @@ interface MobileSidebarProps {
 export function MobileSidebarTrigger({ onClick }: { onClick: () => void }) {
 	return (
 		<Button variant="ghost" size="icon" className="md:hidden h-8 w-8" onClick={onClick}>
-			<Menu className="h-5 w-5" />
+			<PanelRightClose className="h-5 w-5" />
 			<span className="sr-only">Open menu</span>
 		</Button>
 	);
@@ -97,15 +98,16 @@ export function MobileSidebar({
 
 	return (
 		<Sheet open={isOpen} onOpenChange={onOpenChange}>
-			<SheetContent side="left" className="w-[300px] p-0 flex flex-col">
+			<SheetContent side="left" className="w-[340px] p-0 flex flex-row gap-0 [&>button]:hidden">
 				<SheetTitle className="sr-only">Navigation</SheetTitle>
 
-				{/* Horizontal Search Spaces Rail */}
-				<div className="shrink-0 border-b bg-muted/40 px-2 py-2 overflow-hidden">
-					<div className="flex items-center gap-2 px-1 py-1 overflow-x-auto scrollbar-thin scrollbar-thumb-muted-foreground/20">
-						{searchSpaces.map((space) => (
-							<div key={space.id} className="shrink-0">
+				{/* Vertical Search Spaces Rail - left side */}
+				<div className="flex h-full w-14 shrink-0 flex-col items-center bg-muted/40 border-r">
+					<ScrollArea className="w-full flex-1">
+						<div className="flex flex-col items-center gap-2 px-1.5 py-3">
+							{searchSpaces.map((space) => (
 								<SearchSpaceAvatar
+									key={space.id}
 									name={space.name}
 									isActive={space.id === activeSearchSpaceId}
 									isShared={space.memberCount > 1}
@@ -116,26 +118,28 @@ export function MobileSidebar({
 										onSearchSpaceSettings ? () => onSearchSpaceSettings(space) : undefined
 									}
 									size="md"
+									disableTooltip
 								/>
-							</div>
-						))}
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={onAddSearchSpace}
-							className="h-10 w-10 shrink-0 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
-						>
-							<Plus className="h-5 w-5 text-muted-foreground" />
-							<span className="sr-only">Add search space</span>
-						</Button>
-					</div>
+							))}
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={onAddSearchSpace}
+								className="h-10 w-10 shrink-0 rounded-lg border-2 border-dashed border-muted-foreground/30 hover:border-muted-foreground/50"
+							>
+								<Plus className="h-5 w-5 text-muted-foreground" />
+								<span className="sr-only">Add search space</span>
+							</Button>
+						</div>
+					</ScrollArea>
 				</div>
 
-				{/* Sidebar Content */}
-				<div className="flex-1 overflow-hidden">
+				{/* Sidebar Content - right side */}
+				<div className="flex-1 overflow-hidden flex flex-col">
 					<Sidebar
 						searchSpace={searchSpace}
 						isCollapsed={false}
+						onToggleCollapse={() => onOpenChange(false)}
 						navItems={navItems}
 						onNavItemClick={handleNavItemClick}
 						chats={chats}
@@ -149,8 +153,22 @@ export function MobileSidebar({
 						onChatRename={onChatRename}
 						onChatDelete={onChatDelete}
 						onChatArchive={onChatArchive}
-						onViewAllSharedChats={onViewAllSharedChats}
-						onViewAllPrivateChats={onViewAllPrivateChats}
+						onViewAllSharedChats={
+							onViewAllSharedChats
+								? () => {
+										onOpenChange(false);
+										onViewAllSharedChats();
+									}
+								: undefined
+						}
+						onViewAllPrivateChats={
+							onViewAllPrivateChats
+								? () => {
+										onOpenChange(false);
+										onViewAllPrivateChats();
+									}
+								: undefined
+						}
 						user={user}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
@@ -161,6 +179,7 @@ export function MobileSidebar({
 						setTheme={setTheme}
 						className="w-full border-none"
 						isLoadingChats={isLoadingChats}
+						disableTooltips
 					/>
 				</div>
 			</SheetContent>
