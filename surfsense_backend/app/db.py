@@ -847,6 +847,40 @@ class UserMemory(BaseModel, TimestampMixin):
     search_space = relationship("SearchSpace", back_populates="user_memories")
 
 
+class SharedMemory(BaseModel, TimestampMixin):
+    __tablename__ = "shared_memories"
+
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    memory_text = Column(Text, nullable=False)
+    category = Column(
+        SQLAlchemyEnum(MemoryCategory),
+        nullable=False,
+        default=MemoryCategory.fact,
+    )
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    search_space = relationship("SearchSpace", back_populates="shared_memories")
+    created_by = relationship("User")
+
+
 class Document(BaseModel, TimestampMixin):
     __tablename__ = "documents"
 
@@ -1207,6 +1241,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         "UserMemory",
         back_populates="search_space",
         order_by="UserMemory.updated_at.desc()",
+        cascade="all, delete-orphan",
+    )
+    shared_memories = relationship(
+        "SharedMemory",
+        back_populates="search_space",
+        order_by="SharedMemory.updated_at.desc()",
         cascade="all, delete-orphan",
     )
 
