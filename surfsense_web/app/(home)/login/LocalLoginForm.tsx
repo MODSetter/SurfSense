@@ -16,7 +16,6 @@ import { trackLoginAttempt, trackLoginFailure, trackLoginSuccess } from "@/lib/p
 
 export function LocalLoginForm() {
 	const t = useTranslations("auth");
-	const tCommon = useTranslations("common");
 	const [username, setUsername] = useState("");
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
@@ -57,12 +56,6 @@ export function LocalLoginForm() {
 			if (typeof window !== "undefined") {
 				sessionStorage.setItem("login_success_tracked", "true");
 			}
-
-			// Success toast
-			toast.success(t("login_success"), {
-				description: "Redirecting to dashboard",
-				duration: 2000,
-			});
 
 			// Small delay to show success message
 			setTimeout(() => {
@@ -123,7 +116,7 @@ export function LocalLoginForm() {
 			<form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
 				{/* Error Display */}
 				<AnimatePresence>
-					{error && error.title && (
+					{error?.title && (
 						<motion.div
 							initial={{ opacity: 0, y: -10, scale: 0.95 }}
 							animate={{ opacity: 1, y: 0, scale: 1 }}
