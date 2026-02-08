@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
+
+import type React from "react";
 
 interface Integration {
 	name: string;
@@ -8,181 +9,197 @@ interface Integration {
 
 const INTEGRATIONS: Integration[] = [
 	// Search
-	{ name: "Tavily", icon: "https://www.tavily.com/images/logo.svg" },
-	{
-		name: "LinkUp",
-		icon: "https://framerusercontent.com/images/7zeIm6t3f1HaSltkw8upEvsD80.png?scale-down-to=512",
-	},
-	{ name: "Elasticsearch", icon: "https://cdn.simpleicons.org/elastic/00A9E5" },
+	{ name: "Tavily", icon: "/connectors/tavily.svg" },
+	{ name: "Elasticsearch", icon: "/connectors/elasticsearch.svg" },
+	{ name: "Baidu Search", icon: "/connectors/baidu-search.svg" },
+	{ name: "SearXNG", icon: "/connectors/searxng.svg" },
 
 	// Communication
-	{
-		name: "Slack",
-		icon: "https://upload.wikimedia.org/wikipedia/commons/d/d5/Slack_icon_2019.svg",
-	},
-	{ name: "Discord", icon: "https://cdn.simpleicons.org/discord/5865F2" },
-	{ name: "Gmail", icon: "https://cdn.simpleicons.org/gmail/EA4335" },
+	{ name: "Slack", icon: "/connectors/slack.svg" },
+	{ name: "Discord", icon: "/connectors/discord.svg" },
+	{ name: "Gmail", icon: "/connectors/google-gmail.svg" },
+	{ name: "Microsoft Teams", icon: "/connectors/microsoft-teams.svg" },
 
 	// Project Management
-	{ name: "Linear", icon: "https://cdn.simpleicons.org/linear/5E6AD2" },
-	{ name: "Jira", icon: "https://cdn.simpleicons.org/jira/0052CC" },
-	{ name: "ClickUp", icon: "https://cdn.simpleicons.org/clickup/7B68EE" },
-	{ name: "Airtable", icon: "https://cdn.simpleicons.org/airtable/18BFFF" },
+	{ name: "Linear", icon: "/connectors/linear.svg" },
+	{ name: "Jira", icon: "/connectors/jira.svg" },
+	{ name: "ClickUp", icon: "/connectors/clickup.svg" },
+	{ name: "Airtable", icon: "/connectors/airtable.svg" },
 
 	// Documentation & Knowledge
-	{ name: "Confluence", icon: "https://cdn.simpleicons.org/confluence/172B4D" },
-	{ name: "Notion", icon: "https://cdn.simpleicons.org/notion/000000/ffffff" },
-	{ name: "Web Pages", icon: "https://cdn.jsdelivr.net/npm/lucide-static@0.294.0/icons/globe.svg" },
+	{ name: "Confluence", icon: "/connectors/confluence.svg" },
+	{ name: "Notion", icon: "/connectors/notion.svg" },
+	{ name: "BookStack", icon: "/connectors/bookstack.svg" },
+	{ name: "Obsidian", icon: "/connectors/obsidian.svg" },
 
 	// Cloud Storage
-	{ name: "Google Drive", icon: "https://cdn.simpleicons.org/googledrive/4285F4" },
-	{ name: "Dropbox", icon: "https://cdn.simpleicons.org/dropbox/0061FF" },
-	{
-		name: "Amazon S3",
-		icon: "https://upload.wikimedia.org/wikipedia/commons/b/bc/Amazon-S3-Logo.svg",
-	},
+	{ name: "Google Drive", icon: "/connectors/google-drive.svg" },
 
 	// Development
-	{ name: "GitHub", icon: "https://cdn.simpleicons.org/github/181717/ffffff" },
+	{ name: "GitHub", icon: "/connectors/github.svg" },
 
 	// Productivity
-	{ name: "Google Calendar", icon: "https://cdn.simpleicons.org/googlecalendar/4285F4" },
-	{ name: "Luma", icon: "https://images.lumacdn.com/social-images/default-social-202407.png" },
+	{ name: "Google Calendar", icon: "/connectors/google-calendar.svg" },
+	{ name: "Luma", icon: "/connectors/luma.svg" },
 
 	// Media
-	{ name: "YouTube", icon: "https://cdn.simpleicons.org/youtube/FF0000" },
+	{ name: "YouTube", icon: "/connectors/youtube.svg" },
 ];
 
-function SemiCircleOrbit({ radius, centerX, centerY, count, iconSize, startIndex }: any) {
+// 5 vertical columns — 21 icons spread across categories
+const COLUMNS: number[][] = [
+	[2, 5, 10, 0, 11],
+	[1, 7, 20, 17],
+	[13, 6, 4, 16],
+	[12, 8, 15, 18],
+	[3, 9, 14, 19],
+];
+
+// Different scroll speeds per column for organic feel (seconds)
+const SCROLL_DURATIONS = [26, 32, 22, 30, 28];
+
+function IntegrationCard({ integration }: { integration: Integration }) {
 	return (
-		<>
-			{/* Semi-circle glow background */}
-			<div className="absolute inset-0 flex justify-center items-start overflow-visible">
-				<div
-					className="
-            w-[800px] h-[800px] rounded-full 
-            bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.15),transparent_70%)]
-            dark:bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.15),transparent_70%)]
-            blur-3xl 
-            pointer-events-none
-          "
-					style={{
-						zIndex: 0,
-						transform: "translateY(-20%)",
-					}}
-				/>
+		<div
+			className="w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px] rounded-[16px] sm:rounded-[20px] md:rounded-[24px] flex items-center justify-center shrink-0"
+			style={{
+				background:
+					"linear-gradient(145deg, var(--card-from), var(--card-to))",
+				boxShadow:
+					"inset 0 1px 0 0 var(--card-highlight), 0 4px 24px var(--card-shadow)",
+			}}
+		>
+			<img
+				src={integration.icon}
+				alt={integration.name}
+				className="w-6 h-6 sm:w-7 sm:h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 object-contain"
+				loading="lazy"
+			/>
+		</div>
+	);
+}
+
+function ScrollingColumn({
+	cards,
+	scrollUp,
+	duration,
+	colIndex,
+	isEdge,
+	isEdgeAdjacent,
+}: {
+	cards: number[];
+	scrollUp: boolean;
+	duration: number;
+	colIndex: number;
+	isEdge: boolean;
+	isEdgeAdjacent: boolean;
+}) {
+	// Edge columns get a heavy vertical mask; edge-adjacent columns get a lighter one to smooth the transition
+	const columnMask = isEdge
+		? {
+				maskImage:
+					"linear-gradient(to bottom, transparent 0%, transparent 20%, black 40%, black 60%, transparent 80%, transparent 100%)",
+				WebkitMaskImage:
+					"linear-gradient(to bottom, transparent 0%, transparent 20%, black 40%, black 60%, transparent 80%, transparent 100%)",
+			}
+		: isEdgeAdjacent
+			? {
+					maskImage:
+						"linear-gradient(to bottom, transparent 0%, transparent 10%, black 30%, black 70%, transparent 90%, transparent 100%)",
+					WebkitMaskImage:
+						"linear-gradient(to bottom, transparent 0%, transparent 10%, black 30%, black 70%, transparent 90%, transparent 100%)",
+				}
+			: {};
+
+	const cardSet = cards.map((integrationIndex, i) => (
+		<IntegrationCard
+			key={`${INTEGRATIONS[integrationIndex].name}-c${colIndex}-${i}`}
+			integration={INTEGRATIONS[integrationIndex]}
+		/>
+	));
+
+	return (
+		<div className="flex-shrink-0 overflow-hidden" style={{ ...columnMask, contain: "layout style paint" }}>
+			{/* Outer div has NO gap — each inner copy uses pb matching the gap so both halves are identical in height → seamless -50% loop */}
+			<div
+				className="flex flex-col"
+				style={{
+					animation: `${scrollUp ? "integrations-scroll-up" : "integrations-scroll-down"} ${duration}s linear infinite`,
+					willChange: "transform",
+					transform: "translateZ(0)",
+				}}
+			>
+				<div className="flex flex-col gap-2 sm:gap-3 md:gap-5 lg:gap-6 pb-2 sm:pb-3 md:pb-5 lg:pb-6">
+					{cardSet}
+				</div>
+				<div className="flex flex-col gap-2 sm:gap-3 md:gap-5 lg:gap-6 pb-2 sm:pb-3 md:pb-5 lg:pb-6">
+					{cardSet}
+				</div>
 			</div>
-
-			{/* Orbit icons */}
-			{Array.from({ length: count }).map((_, index) => {
-				const actualIndex = startIndex + index;
-				// Skip if we've run out of integrations
-				if (actualIndex >= INTEGRATIONS.length) return null;
-
-				const angle = (index / (count - 1)) * 180;
-				const x = radius * Math.cos((angle * Math.PI) / 180);
-				const y = radius * Math.sin((angle * Math.PI) / 180);
-				const integration = INTEGRATIONS[actualIndex];
-
-				// Tooltip positioning — above or below based on angle
-				const tooltipAbove = angle > 90;
-
-				return (
-					<div
-						key={index}
-						className="absolute flex flex-col items-center group"
-						style={{
-							left: `${centerX + x - iconSize / 2}px`,
-							top: `${centerY - y - iconSize / 2}px`,
-							zIndex: 5,
-						}}
-					>
-						<img
-							src={integration.icon}
-							alt={integration.name}
-							width={iconSize}
-							height={iconSize}
-							className="object-contain cursor-pointer transition-transform hover:scale-110"
-							style={{ minWidth: iconSize, minHeight: iconSize }} // fix accidental shrink
-						/>
-
-						{/* Tooltip */}
-						<div
-							className={`absolute ${
-								tooltipAbove ? "bottom-[calc(100%+8px)]" : "top-[calc(100%+8px)]"
-							} hidden group-hover:block w-auto min-w-max rounded-lg bg-black px-3 py-1.5 text-xs text-white shadow-lg text-center whitespace-nowrap`}
-						>
-							{integration.name}
-							<div
-								className={`absolute left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-black ${
-									tooltipAbove ? "top-full" : "bottom-full"
-								}`}
-							></div>
-						</div>
-					</div>
-				);
-			})}
-		</>
+		</div>
 	);
 }
 
 export default function ExternalIntegrations() {
-	const [size, setSize] = useState({ width: 0, height: 0 });
-
-	useEffect(() => {
-		const updateSize = () => setSize({ width: window.innerWidth, height: window.innerHeight });
-		updateSize();
-		window.addEventListener("resize", updateSize);
-		return () => window.removeEventListener("resize", updateSize);
-	}, []);
-
-	const baseWidth = Math.min(size.width * 0.8, 700);
-	const centerX = baseWidth / 2;
-	const centerY = baseWidth * 0.5;
-
-	const iconSize =
-		size.width < 480
-			? Math.max(24, baseWidth * 0.05)
-			: size.width < 768
-				? Math.max(28, baseWidth * 0.06)
-				: Math.max(32, baseWidth * 0.07);
-
 	return (
-		<section className="py-12 relative min-h-screen w-full overflow-visible">
-			<div className="relative flex flex-col items-center text-center z-10">
-				<h1 className="my-6 text-4xl font-bold lg:text-7xl">Integrations</h1>
-				<p className="mb-12 max-w-2xl text-gray-600 dark:text-gray-400 lg:text-xl">
-					Integrate with your team's most important tools
-				</p>
+		<section
+			className={[
+				"relative py-20 md:py-28 overflow-hidden",
+				// No explicit background — inherits the page gradient for seamless blending
+				// CSS custom properties — light mode (card styling)
+				"[--card-from:rgba(255,255,255,0.9)]",
+				"[--card-to:rgba(245,245,248,0.92)]",
+				"[--card-highlight:rgba(255,255,255,0.5)]",
+				"[--card-lowlight:transparent]",
+				"[--card-shadow:transparent]",
+				"[--card-border:transparent]",
+		// CSS custom properties — dark mode (card styling)
+		"dark:[--card-from:rgb(28,28,32)]",
+		"dark:[--card-to:rgb(28,28,32)]",
+		"dark:[--card-highlight:rgba(255,255,255,0.03)]",
+		"dark:[--card-lowlight:rgba(0,0,0,0.1)]",
+		"dark:[--card-shadow:rgba(0,0,0,0.15)]",
+		"dark:[--card-border:rgba(255,255,255,0.03)]",
+			].join(" ")}
+		>
+			{/* Heading */}
+			<div className="text-center mb-12 md:mb-16 relative z-20 px-4">
+				<h3 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 dark:text-white leading-[1.1] tracking-tight">
+					Integrate with your
+					<br />
+					team&apos;s most important tools
+				</h3>
+			</div>
 
-				<div
-					className="relative overflow-visible"
-					style={{ width: baseWidth, height: baseWidth * 0.7, paddingBottom: "100px" }}
-				>
-					<SemiCircleOrbit
-						radius={baseWidth * 0.22}
-						centerX={centerX}
-						centerY={centerY}
-						count={5}
-						iconSize={iconSize}
-						startIndex={0}
+			{/* Scrolling columns container — masked at edges so the page background shows through seamlessly */}
+			<div
+				className="relative"
+				style={
+					{
+						maskImage:
+							"linear-gradient(to bottom, transparent 0%, black 25%, black 70%, transparent 100%), " +
+							"linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+						WebkitMaskImage:
+							"linear-gradient(to bottom, transparent 0%, black 25%, black 75%, transparent 100%), " +
+							"linear-gradient(to right, transparent 0%, black 12%, black 88%, transparent 100%)",
+						maskComposite: "intersect",
+						WebkitMaskComposite: "source-in",
+					} as React.CSSProperties
+				}
+			>
+				{/* 5 scrolling columns */}
+				<div className="flex justify-center gap-2 sm:gap-3 md:gap-5 lg:gap-6 h-[340px] sm:h-[420px] md:h-[560px] lg:h-[640px] overflow-hidden">
+					{COLUMNS.map((column, colIndex) => (
+					<ScrollingColumn
+						key={`col-${SCROLL_DURATIONS[colIndex]}-${colIndex}`}
+						cards={column}
+						scrollUp={colIndex % 2 === 0}
+						duration={SCROLL_DURATIONS[colIndex]}
+						colIndex={colIndex}
+						isEdge={colIndex === 0 || colIndex === COLUMNS.length - 1}
+						isEdgeAdjacent={colIndex === 1 || colIndex === COLUMNS.length - 2}
 					/>
-					<SemiCircleOrbit
-						radius={baseWidth * 0.36}
-						centerX={centerX}
-						centerY={centerY}
-						count={6}
-						iconSize={iconSize}
-						startIndex={5}
-					/>
-					<SemiCircleOrbit
-						radius={baseWidth * 0.5}
-						centerX={centerX}
-						centerY={centerY}
-						count={8}
-						iconSize={iconSize}
-						startIndex={11}
-					/>
+					))}
 				</div>
 			</div>
 		</section>
