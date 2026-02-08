@@ -19,7 +19,6 @@ import {
 	ChevronRightIcon,
 	CopyIcon,
 	DownloadIcon,
-	Loader2,
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
@@ -61,6 +60,7 @@ import {
 } from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type { Document } from "@/contracts/types/document.types";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
 import { cn } from "@/lib/utils";
@@ -542,7 +542,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 			{/* Show processing indicator when attachments are being processed */}
 			{hasProcessingAttachments && (
 				<div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-					<Loader2 className="size-3 animate-spin" />
+					<Spinner size="xs" />
 					<span>Processing...</span>
 				</div>
 			)}

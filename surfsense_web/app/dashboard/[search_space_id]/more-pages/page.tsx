@@ -2,12 +2,13 @@
 
 import { IconCalendar, IconMailFilled } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Gift, Loader2, Mail, Star } from "lucide-react";
+import { Check, ExternalLink, Gift, Mail, Star } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import {
 	Dialog,
@@ -144,7 +145,7 @@ export default function MorePagesPage() {
 												className="gap-1"
 											>
 												{completeMutation.isPending ? (
-													<Loader2 className="h-3 w-3 animate-spin" />
+													<Spinner size="xs" />
 												) : (
 													<>
 														Go

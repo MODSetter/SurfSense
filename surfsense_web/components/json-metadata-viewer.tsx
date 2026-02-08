@@ -1,7 +1,8 @@
-import { FileJson, Loader2 } from "lucide-react";
+import { FileJson } from "lucide-react";
 import React from "react";
 import { defaultStyles, JsonView } from "react-json-view-lite";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	Dialog,
 	DialogContent,
@@ -58,7 +59,7 @@ export function JsonMetadataViewer({
 					<div className="mt-2 sm:mt-4 p-2 sm:p-4 bg-muted/30 rounded-md text-xs sm:text-sm">
 						{loading ? (
 							<div className="flex items-center justify-center py-12">
-								<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+								<Spinner size="lg" className="text-muted-foreground" />
 							</div>
 						) : (
 							<JsonView data={jsonData} style={defaultStyles} />

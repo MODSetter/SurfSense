@@ -5,7 +5,6 @@ import {
 	ChevronUp,
 	Languages,
 	Laptop,
-	Loader2,
 	LogOut,
 	Moon,
 	Settings,
@@ -27,6 +26,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocaleContext } from "@/contexts/LocaleContext";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { User } from "../../types/layout.types";
 
@@ -264,18 +264,18 @@ export function SidebarUserProfile({
 
 						<DropdownMenuSeparator />
 
-						<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-							{isLoggingOut ? (
-								<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-							) : (
-								<LogOut className="mr-2 h-4 w-4" />
-							)}
-							{isLoggingOut ? t("loggingOut") : t("logout")}
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-			</div>
-		);
+					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+						{isLoggingOut ? (
+							<Spinner size="sm" className="mr-2" />
+						) : (
+							<LogOut className="mr-2 h-4 w-4" />
+						)}
+						{isLoggingOut ? t("loggingOut") : t("logout")}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</div>
+	);
 	}
 
 	// Expanded view
@@ -386,16 +386,16 @@ export function SidebarUserProfile({
 
 					<DropdownMenuSeparator />
 
-					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-						{isLoggingOut ? (
-							<Loader2 className="mr-2 h-4 w-4 animate-spin" />
-						) : (
-							<LogOut className="mr-2 h-4 w-4" />
-						)}
-						{isLoggingOut ? t("loggingOut") : t("logout")}
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-		</div>
+				<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+					{isLoggingOut ? (
+						<Spinner size="sm" className="mr-2" />
+					) : (
+						<LogOut className="mr-2 h-4 w-4" />
+					)}
+					{isLoggingOut ? t("loggingOut") : t("logout")}
+				</DropdownMenuItem>
+			</DropdownMenuContent>
+		</DropdownMenu>
+	</div>
 	);
 }

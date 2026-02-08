@@ -11,7 +11,6 @@ import {
 	Clock,
 	FileText,
 	FileX,
-	Loader2,
 	Network,
 	Plus,
 	User,
@@ -361,7 +360,7 @@ export function DocumentsTableShell({
 										<TableHead className="w-[15%] min-w-[100px] max-w-[170px] border-r border-border/40">
 											<Skeleton className="h-3 w-14" />
 										</TableHead>
-									)} 
+									)}
 									{columnVisibility.created_by && (
 										<TableHead className="w-36 border-r border-border/40">
 											<Skeleton className="h-3 w-10" />
@@ -773,7 +772,7 @@ export function DocumentsTableShell({
 					<div className="mt-4">
 						{viewingLoading ? (
 							<div className="flex items-center justify-center py-12">
-								<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+								<Spinner size="lg" className="text-muted-foreground" />
 							</div>
 						) : (
 							<MarkdownViewer content={viewingContent} />

@@ -1,10 +1,11 @@
 "use client";
 
-import { Copy, Loader2 } from "lucide-react";
+import { Copy } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { publicChatApiService } from "@/lib/apis/public-chat-api.service";
 import { getBearerToken } from "@/lib/auth-utils";
 
@@ -61,9 +62,9 @@ export function PublicChatFooter({ shareToken }: PublicChatFooterProps) {
 	};
 
 	return (
-		<div className="mx-auto flex max-w-(--thread-max-width) items-center justify-center px-4 py-4">
-			<Button size="lg" onClick={handleCopyAndContinue} disabled={isCloning} className="gap-2">
-				{isCloning ? <Loader2 className="size-4 animate-spin" /> : <Copy className="size-4" />}
+		<div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2">
+			<Button size="lg" onClick={handleCopyAndContinue} disabled={isCloning} className="gap-2 rounded-full px-6 shadow-lg transition-all duration-200 hover:scale-[1.02] hover:shadow-xl hover:brightness-110 hover:bg-primary">
+				{isCloning ? <Spinner size="sm" /> : <Copy className="size-4" />}
 				Copy and continue this chat
 			</Button>
 		</div>
