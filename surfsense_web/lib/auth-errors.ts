@@ -45,6 +45,10 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 		title: "Invalid credentials",
 		description: "The email or password you entered is incorrect",
 	},
+	LOGIN_USER_NOT_FOUND: {
+		title: "Account not found",
+		description: "No account exists with this email address. Please sign up first.",
+	},
 	LOGIN_USER_NOT_VERIFIED: {
 		title: "Account not verified",
 		description: "Please verify your email address before signing in",
@@ -139,6 +143,7 @@ export function getAuthErrorMessage(errorCode: string, returnTitle: boolean = fa
 	if (!errorInfo) {
 		const patterns = [
 			{ pattern: /credential|password|email/i, code: "LOGIN_BAD_CREDENTIALS" },
+			{ pattern: /not found|no account|does not exist|user not found/i, code: "LOGIN_USER_NOT_FOUND" },
 			{ pattern: /verify|verification/i, code: "LOGIN_USER_NOT_VERIFIED" },
 			{ pattern: /inactive|disabled|suspended/i, code: "USER_INACTIVE" },
 			{ pattern: /exists|duplicate/i, code: "REGISTER_USER_ALREADY_EXISTS" },
