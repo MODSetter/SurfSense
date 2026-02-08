@@ -98,9 +98,9 @@ export function UserDropdown({
 					className="text-xs md:text-sm"
 					disabled={isLoggingOut}
 				>
-				{isLoggingOut ? (
-					<Spinner size="sm" className="mr-2" />
-				) : (
+					{isLoggingOut ? (
+						<Spinner size="sm" className="mr-2" />
+					) : (
 						<LogOut className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
 					)}
 					{isLoggingOut ? "Logging out..." : "Log out"}

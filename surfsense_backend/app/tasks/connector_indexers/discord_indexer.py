@@ -651,9 +651,7 @@ async def index_discord_messages(
         # PHASE 2: Process each batch document one by one
         # Each document transitions: pending → processing → ready/failed
         # =======================================================================
-        logger.info(
-            f"Phase 2: Processing {len(batches_to_process)} batch documents"
-        )
+        logger.info(f"Phase 2: Processing {len(batches_to_process)} batch documents")
 
         for item in batches_to_process:
             # Send heartbeat periodically

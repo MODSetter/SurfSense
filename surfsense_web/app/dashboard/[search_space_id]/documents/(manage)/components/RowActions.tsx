@@ -51,8 +51,7 @@ export function RowActions({
 		document.status?.state === "pending" || document.status?.state === "processing";
 
 	// FILE documents that failed processing cannot be edited
-	const isFileFailed =
-		document.document_type === "FILE" && document.status?.state === "failed";
+	const isFileFailed = document.document_type === "FILE" && document.status?.state === "failed";
 
 	// SURFSENSE_DOCS are system-managed and should not show delete at all
 	const shouldShowDelete = !NON_DELETABLE_DOCUMENT_TYPES.includes(
@@ -212,7 +211,8 @@ export function RowActions({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete document?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This action cannot be undone. This will permanently delete this document from your search space.
+							This action cannot be undone. This will permanently delete this document from your
+							search space.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

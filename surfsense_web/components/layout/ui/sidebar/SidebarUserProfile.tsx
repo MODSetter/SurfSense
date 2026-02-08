@@ -1,15 +1,6 @@
 "use client";
 
-import {
-	Check,
-	ChevronUp,
-	Languages,
-	Laptop,
-	LogOut,
-	Moon,
-	Settings,
-	Sun,
-} from "lucide-react";
+import { Check, ChevronUp, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
@@ -264,18 +255,18 @@ export function SidebarUserProfile({
 
 						<DropdownMenuSeparator />
 
-					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-						{isLoggingOut ? (
-							<Spinner size="sm" className="mr-2" />
-						) : (
-							<LogOut className="mr-2 h-4 w-4" />
-						)}
-						{isLoggingOut ? t("loggingOut") : t("logout")}
-					</DropdownMenuItem>
-				</DropdownMenuContent>
-			</DropdownMenu>
-		</div>
-	);
+						<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+							{isLoggingOut ? (
+								<Spinner size="sm" className="mr-2" />
+							) : (
+								<LogOut className="mr-2 h-4 w-4" />
+							)}
+							{isLoggingOut ? t("loggingOut") : t("logout")}
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
+			</div>
+		);
 	}
 
 	// Expanded view
@@ -386,16 +377,16 @@ export function SidebarUserProfile({
 
 					<DropdownMenuSeparator />
 
-				<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-					{isLoggingOut ? (
-						<Spinner size="sm" className="mr-2" />
-					) : (
-						<LogOut className="mr-2 h-4 w-4" />
-					)}
-					{isLoggingOut ? t("loggingOut") : t("logout")}
-				</DropdownMenuItem>
-			</DropdownMenuContent>
-		</DropdownMenu>
-	</div>
+					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
+						{isLoggingOut ? (
+							<Spinner size="sm" className="mr-2" />
+						) : (
+							<LogOut className="mr-2 h-4 w-4" />
+						)}
+						{isLoggingOut ? t("loggingOut") : t("logout")}
+					</DropdownMenuItem>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		</div>
 	);
 }
