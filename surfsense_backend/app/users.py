@@ -204,9 +204,7 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             credentials.password, user.hashed_password
         )
         if not verified:
-            logger.warning(
-                f"Failed login attempt (wrong password) for user: {user.id}"
-            )
+            logger.warning(f"Failed login attempt (wrong password) for user: {user.id}")
             return None
         if updated_password_hash is not None:
             await self.user_db.update(user, {"hashed_password": updated_password_hash})

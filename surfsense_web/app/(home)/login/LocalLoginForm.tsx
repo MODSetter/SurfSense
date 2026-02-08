@@ -95,7 +95,6 @@ export function LocalLoginForm() {
 				title: errorDetails.title,
 				message: errorDetails.description,
 			});
-
 		}
 	};
 
