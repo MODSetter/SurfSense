@@ -1,7 +1,15 @@
+import logging
+import os
 from contextlib import asynccontextmanager
 
+import redis
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIASGIMiddleware
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
@@ -16,6 +24,106 @@ from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
+
+rate_limit_logger = logging.getLogger("surfsense.rate_limit")
+
+
+# ============================================================================
+# Rate Limiting Configuration (SlowAPI + Redis)
+# ============================================================================
+# Uses the same Redis instance as Celery for zero additional infrastructure.
+# Protects auth endpoints from brute force and user enumeration attacks.
+REDIS_URL = os.getenv(
+    "REDIS_APP_URL",
+    os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+)
+
+# SlowAPI limiter — provides default rate limits (60/min) for ALL routes
+# via the ASGI middleware. This is the general safety net.
+limiter = Limiter(
+    key_func=get_remote_address,
+    storage_uri=REDIS_URL,
+    default_limits=["60/minute"],
+)
+
+
+def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
+    """Custom 429 handler that returns JSON matching our frontend error format."""
+    retry_after = exc.detail.split("per")[-1].strip() if exc.detail else "60"
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "RATE_LIMIT_EXCEEDED"},
+        headers={"Retry-After": retry_after},
+    )
+
+
+# ============================================================================
+# Auth-Specific Rate Limits (Redis-backed FastAPI dependencies)
+# ============================================================================
+# Stricter per-IP limits on auth endpoints to prevent:
+# - Brute force password attacks
+# - User enumeration via LOGIN_USER_NOT_FOUND / REGISTER_USER_ALREADY_EXISTS
+# - Email spam via forgot-password
+#
+# These use direct Redis INCR+EXPIRE for simplicity and reliability.
+# Same Redis instance as SlowAPI / Celery.
+_rate_limit_redis: redis.Redis | None = None
+
+
+def _get_rate_limit_redis() -> redis.Redis:
+    """Get or create Redis client for auth rate limiting."""
+    global _rate_limit_redis
+    if _rate_limit_redis is None:
+        _rate_limit_redis = redis.from_url(REDIS_URL, decode_responses=True)
+    return _rate_limit_redis
+
+
+def _check_rate_limit(
+    request: Request, max_requests: int, window_seconds: int, scope: str
+):
+    """
+    Check per-IP rate limit using Redis. Raises 429 if exceeded.
+    Uses atomic INCR + EXPIRE to avoid race conditions.
+    """
+    client_ip = get_remote_address(request)
+    key = f"surfsense:auth_rate_limit:{scope}:{client_ip}"
+
+    r = _get_rate_limit_redis()
+
+    # Atomic: increment first, then set TTL if this is a new key
+    pipe = r.pipeline()
+    pipe.incr(key)
+    pipe.expire(key, window_seconds)
+    result = pipe.execute()
+
+    current_count = result[0]  # INCR returns the new value
+
+    if current_count > max_requests:
+        rate_limit_logger.warning(
+            f"Rate limit exceeded on {scope} for IP {client_ip} "
+            f"({current_count}/{max_requests} in {window_seconds}s)"
+        )
+        raise HTTPException(
+            status_code=429,
+            detail="RATE_LIMIT_EXCEEDED",
+        )
+
+
+def rate_limit_login(request: Request):
+    """5 login attempts per minute per IP."""
+    _check_rate_limit(request, max_requests=5, window_seconds=60, scope="login")
+
+
+def rate_limit_register(request: Request):
+    """3 registration attempts per minute per IP."""
+    _check_rate_limit(request, max_requests=3, window_seconds=60, scope="register")
+
+
+def rate_limit_password_reset(request: Request):
+    """2 password reset attempts per minute per IP."""
+    _check_rate_limit(
+        request, max_requests=2, window_seconds=60, scope="password_reset"
+    )
 
 
 @asynccontextmanager
@@ -44,6 +152,14 @@ def registration_allowed():
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Register rate limiter and custom 429 handler
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Add SlowAPI ASGI middleware for automatic rate limiting
+# This applies default_limits to all routes and enables per-route overrides
+app.add_middleware(SlowAPIASGIMiddleware)
 
 # Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
 # This ensures FastAPI uses HTTPS in redirects when behind a proxy
@@ -90,18 +206,25 @@ app.add_middleware(
 )
 
 app.include_router(
-    fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
+    fastapi_users.get_auth_router(auth_backend),
+    prefix="/auth/jwt",
+    tags=["auth"],
+    dependencies=[Depends(rate_limit_login)],
 )
 app.include_router(
     fastapi_users.get_register_router(UserRead, UserCreate),
     prefix="/auth",
     tags=["auth"],
-    dependencies=[Depends(registration_allowed)],  # blocks registration when disabled
+    dependencies=[
+        Depends(rate_limit_register),
+        Depends(registration_allowed),  # blocks registration when disabled
+    ],
 )
 app.include_router(
     fastapi_users.get_reset_password_router(),
     prefix="/auth",
     tags=["auth"],
+    dependencies=[Depends(rate_limit_password_reset)],
 )
 app.include_router(
     fastapi_users.get_verify_router(UserRead),

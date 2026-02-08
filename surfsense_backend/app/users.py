@@ -192,6 +192,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
         except UserNotExists:
             # Still hash the password to mitigate timing attacks
             self.password_helper.hash(credentials.password)
+            logger.warning(
+                f"Login attempt for non-existent account: {credentials.username}"
+            )
             raise HTTPException(
                 status_code=400,
                 detail="LOGIN_USER_NOT_FOUND",
@@ -201,6 +204,9 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
             credentials.password, user.hashed_password
         )
         if not verified:
+            logger.warning(
+                f"Failed login attempt (wrong password) for user: {user.id}"
+            )
             return None
         if updated_password_hash is not None:
             await self.user_db.update(user, {"hashed_password": updated_password_hash})

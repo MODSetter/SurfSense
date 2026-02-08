@@ -31,6 +31,10 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 		title: "Too many attempts",
 		description: "Please wait before trying again",
 	},
+	RATE_LIMIT_EXCEEDED: {
+		title: "Too many attempts",
+		description: "You've made too many requests. Please wait a minute and try again.",
+	},
 	"500": {
 		title: "Server error",
 		description: "Something went wrong on our end. Please try again",
