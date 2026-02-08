@@ -84,17 +84,27 @@ def _check_rate_limit(
     """
     Check per-IP rate limit using Redis. Raises 429 if exceeded.
     Uses atomic INCR + EXPIRE to avoid race conditions.
+    Fails open (allows request) if Redis is unavailable.
     """
     client_ip = get_remote_address(request)
     key = f"surfsense:auth_rate_limit:{scope}:{client_ip}"
 
-    r = _get_rate_limit_redis()
+    try:
+        r = _get_rate_limit_redis()
 
-    # Atomic: increment first, then set TTL if this is a new key
-    pipe = r.pipeline()
-    pipe.incr(key)
-    pipe.expire(key, window_seconds)
-    result = pipe.execute()
+        # Atomic: increment first, then set TTL if this is a new key
+        pipe = r.pipeline()
+        pipe.incr(key)
+        pipe.expire(key, window_seconds)
+        result = pipe.execute()
+    except (redis.exceptions.RedisError, OSError) as exc:
+        # Redis unavailable — fail open to preserve auth availability.
+        # SlowAPI middleware provides a secondary rate-limiting layer.
+        rate_limit_logger.warning(
+            f"Redis unavailable for rate limiting ({scope}), "
+            f"allowing request from {client_ip}: {exc}"
+        )
+        return
 
     current_count = result[0]  # INCR returns the new value
 
