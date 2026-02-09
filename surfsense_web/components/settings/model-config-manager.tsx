@@ -15,7 +15,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useCallback, useMemo, useState } from "react";
-import { membersAtom } from "@/atoms/members/members-query.atoms";
+import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import {
 	createNewLLMConfigMutationAtom,
 	deleteNewLLMConfigMutationAtom,
@@ -120,6 +120,25 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 		return map;
 	}, [members]);
 
+	// Permissions
+	const { data: access } = useAtomValue(myAccessAtom);
+	const canCreate = useMemo(() => {
+		if (!access) return false;
+		if (access.is_owner) return true;
+		return access.permissions?.includes("llm_configs:create") ?? false;
+	}, [access]);
+	const canUpdate = useMemo(() => {
+		if (!access) return false;
+		if (access.is_owner) return true;
+		return access.permissions?.includes("llm_configs:update") ?? false;
+	}, [access]);
+	const canDelete = useMemo(() => {
+		if (!access) return false;
+		if (access.is_owner) return true;
+		return access.permissions?.includes("llm_configs:delete") ?? false;
+	}, [access]);
+	const isReadOnly = !canCreate && !canUpdate && !canDelete;
+
 	// Local state
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<NewLLMConfig | null>(null);
@@ -187,13 +206,15 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					<RefreshCw className={cn("h-3 w-3 md:h-4 md:w-4", isLoading && "animate-spin")} />
 					Refresh
 				</Button>
-				<Button
-					onClick={openNewDialog}
-					size="sm"
-					className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
-				>
-					Add Configuration
-				</Button>
+				{canCreate && (
+					<Button
+						onClick={openNewDialog}
+						size="sm"
+						className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
+					>
+						Add Configuration
+					</Button>
+				)}
 			</div>
 
 			{/* Fetch Error Alert */}
@@ -214,6 +235,34 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					</motion.div>
 				)}
 			</AnimatePresence>
+
+			{/* Read-only / Limited permissions notice */}
+			{access && !isLoading && isReadOnly && (
+				<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+					<Alert className="bg-muted/50 py-3 md:py-4">
+						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+						<AlertDescription className="text-xs md:text-sm">
+							You have <span className="font-medium">read-only</span> access to LLM configurations.
+							Contact a space owner to request additional permissions.
+						</AlertDescription>
+					</Alert>
+				</motion.div>
+			)}
+			{access && !isLoading && !isReadOnly && (!canCreate || !canUpdate || !canDelete) && (
+				<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+					<Alert className="bg-muted/50 py-3 md:py-4">
+						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+						<AlertDescription className="text-xs md:text-sm">
+							You can{" "}
+							{[canCreate && "create", canUpdate && "edit", canDelete && "delete"]
+								.filter(Boolean)
+								.join(" and ")}{" "}
+							configurations
+							{!canDelete && ", but cannot delete them"}.
+						</AlertDescription>
+					</Alert>
+				</motion.div>
+			)}
 
 			{/* Global Configs Info */}
 			{globalConfigs.length > 0 && (
@@ -279,17 +328,21 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 									<div className="space-y-2 mb-4 md:mb-6">
 										<h3 className="text-lg md:text-xl font-semibold">No Configurations Yet</h3>
 										<p className="text-xs md:text-sm text-muted-foreground max-w-sm">
-											Create your first AI configuration to customize how your agent responds
+											{canCreate
+												? "Create your first AI configuration to customize how your agent responds"
+												: "No AI configurations have been added to this space yet. Contact a space owner to add one."}
 										</p>
 									</div>
-									<Button
-										onClick={openNewDialog}
-										size="lg"
-										className="gap-2 text-xs md:text-sm h-9 md:h-10"
-									>
-										<Plus className="h-3 w-3 md:h-4 md:w-4" />
-										Create First Configuration
-									</Button>
+									{canCreate && (
+										<Button
+											onClick={openNewDialog}
+											size="lg"
+											className="gap-2 text-xs md:text-sm h-9 md:h-10"
+										>
+											<Plus className="h-3 w-3 md:h-4 md:w-4" />
+											Create First Configuration
+										</Button>
+									)}
 								</CardContent>
 							</Card>
 						</motion.div>
@@ -325,38 +378,44 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																</p>
 															)}
 														</div>
+														{(canUpdate || canDelete) && (
 														<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
-															<TooltipProvider>
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<Button
-																			variant="ghost"
-																			size="icon"
-																			onClick={() => openEditDialog(config)}
-																			className="h-7 w-7 text-muted-foreground hover:text-foreground"
-																		>
-																			<Edit3 className="h-3 w-3" />
-																		</Button>
-																	</TooltipTrigger>
-																	<TooltipContent>Edit</TooltipContent>
-																</Tooltip>
-															</TooltipProvider>
-															<TooltipProvider>
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<Button
-																			variant="ghost"
-																			size="icon"
-																			onClick={() => setConfigToDelete(config)}
-																			className="h-7 w-7 text-muted-foreground hover:text-destructive"
-																		>
-																			<Trash2 className="h-3 w-3" />
-																		</Button>
-																	</TooltipTrigger>
-																	<TooltipContent>Delete</TooltipContent>
-																</Tooltip>
-															</TooltipProvider>
+															{canUpdate && (
+																<TooltipProvider>
+																	<Tooltip>
+																		<TooltipTrigger asChild>
+																			<Button
+																				variant="ghost"
+																				size="icon"
+																				onClick={() => openEditDialog(config)}
+																				className="h-7 w-7 text-muted-foreground hover:text-foreground"
+																			>
+																				<Edit3 className="h-3 w-3" />
+																			</Button>
+																		</TooltipTrigger>
+																		<TooltipContent>Edit</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															)}
+															{canDelete && (
+																<TooltipProvider>
+																	<Tooltip>
+																		<TooltipTrigger asChild>
+																			<Button
+																				variant="ghost"
+																				size="icon"
+																				onClick={() => setConfigToDelete(config)}
+																				className="h-7 w-7 text-muted-foreground hover:text-destructive"
+																			>
+																				<Trash2 className="h-3 w-3" />
+																			</Button>
+																		</TooltipTrigger>
+																		<TooltipContent>Delete</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															)}
 														</div>
+													)}
 													</div>
 
 													{/* Provider + Model */}

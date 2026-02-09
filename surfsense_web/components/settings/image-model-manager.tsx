@@ -19,7 +19,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { membersAtom } from "@/atoms/members/members-query.atoms";
+import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import {
 	createImageGenConfigMutationAtom,
 	deleteImageGenConfigMutationAtom,
@@ -147,6 +147,22 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 		}
 		return map;
 	}, [members]);
+
+	// Permissions
+	const { data: access } = useAtomValue(myAccessAtom);
+	const canCreate = useMemo(() => {
+		if (!access) return false;
+		if (access.is_owner) return true;
+		return access.permissions?.includes("image_generations:create") ?? false;
+	}, [access]);
+	const canDelete = useMemo(() => {
+		if (!access) return false;
+		if (access.is_owner) return true;
+		return access.permissions?.includes("image_generations:delete") ?? false;
+	}, [access]);
+	// Backend uses image_generations:create for update as well
+	const canUpdate = canCreate;
+	const isReadOnly = !canCreate && !canDelete;
 
 	// Local state
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -344,6 +360,34 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				))}
 			</AnimatePresence>
 
+			{/* Read-only / Limited permissions notice */}
+			{access && !isLoading && isReadOnly && (
+				<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+					<Alert className="bg-muted/50 py-3 md:py-4">
+						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+						<AlertDescription className="text-xs md:text-sm">
+							You have <span className="font-medium">read-only</span> access to image generation
+							configurations. Contact a space owner to request additional permissions.
+						</AlertDescription>
+					</Alert>
+				</motion.div>
+			)}
+			{access && !isLoading && !isReadOnly && (!canCreate || !canDelete) && (
+				<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+					<Alert className="bg-muted/50 py-3 md:py-4">
+						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+						<AlertDescription className="text-xs md:text-sm">
+							You can{" "}
+							{[canCreate && "create and edit", canDelete && "delete"]
+								.filter(Boolean)
+								.join(" and ")}{" "}
+							image model configurations
+							{!canDelete && ", but cannot delete them"}.
+						</AlertDescription>
+					</Alert>
+				</motion.div>
+			)}
+
 			{/* Global info */}
 			{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length > 0 && (
 			<Alert className="bg-muted/50 py-3">
@@ -530,12 +574,14 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				<div className="space-y-4 md:space-y-6">
 					<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
 						<h3 className="text-lg md:text-xl font-semibold tracking-tight">Your Image Models</h3>
-						<Button
-							onClick={openNewDialog}
-							className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
-						>
-							Add Image Model
-						</Button>
+						{canCreate && (
+							<Button
+								onClick={openNewDialog}
+								className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
+							>
+								Add Image Model
+							</Button>
+						)}
 					</div>
 
 					{(userConfigs?.length ?? 0) === 0 ? (
@@ -546,12 +592,16 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 								</div>
 								<h3 className="text-lg font-semibold mb-2">No Image Models Yet</h3>
 								<p className="text-xs md:text-sm text-muted-foreground max-w-sm mb-4">
-									Add your own image generation model (DALL-E 3, GPT Image 1, etc.)
+									{canCreate
+										? "Add your own image generation model (DALL-E 3, GPT Image 1, etc.)"
+										: "No image models have been added to this space yet. Contact a space owner to add one."}
 								</p>
-								<Button onClick={openNewDialog} size="lg" className="gap-2 text-xs md:text-sm h-9 md:h-10">
-									<Plus className="h-3 w-3 md:h-4 md:w-4" />
-									Add First Image Model
-								</Button>
+								{canCreate && (
+									<Button onClick={openNewDialog} size="lg" className="gap-2 text-xs md:text-sm h-9 md:h-10">
+										<Plus className="h-3 w-3 md:h-4 md:w-4" />
+										Add First Image Model
+									</Button>
+								)}
 							</CardContent>
 						</Card>
 					) : (
@@ -586,38 +636,44 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 																</p>
 															)}
 														</div>
+														{(canUpdate || canDelete) && (
 														<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
-															<TooltipProvider>
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<Button
-																			variant="ghost"
-																			size="icon"
-																			onClick={() => openEditDialog(config)}
-																			className="h-7 w-7 text-muted-foreground hover:text-foreground"
-																		>
-																			<Edit3 className="h-3 w-3" />
-																		</Button>
-																	</TooltipTrigger>
-																	<TooltipContent>Edit</TooltipContent>
-																</Tooltip>
-															</TooltipProvider>
-															<TooltipProvider>
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<Button
-																			variant="ghost"
-																			size="icon"
-																			onClick={() => setConfigToDelete(config)}
-																			className="h-7 w-7 text-muted-foreground hover:text-destructive"
-																		>
-																			<Trash2 className="h-3 w-3" />
-																		</Button>
-																	</TooltipTrigger>
-																	<TooltipContent>Delete</TooltipContent>
-																</Tooltip>
-															</TooltipProvider>
+															{canUpdate && (
+																<TooltipProvider>
+																	<Tooltip>
+																		<TooltipTrigger asChild>
+																			<Button
+																				variant="ghost"
+																				size="icon"
+																				onClick={() => openEditDialog(config)}
+																				className="h-7 w-7 text-muted-foreground hover:text-foreground"
+																			>
+																				<Edit3 className="h-3 w-3" />
+																			</Button>
+																		</TooltipTrigger>
+																		<TooltipContent>Edit</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															)}
+															{canDelete && (
+																<TooltipProvider>
+																	<Tooltip>
+																		<TooltipTrigger asChild>
+																			<Button
+																				variant="ghost"
+																				size="icon"
+																				onClick={() => setConfigToDelete(config)}
+																				className="h-7 w-7 text-muted-foreground hover:text-destructive"
+																			>
+																				<Trash2 className="h-3 w-3" />
+																			</Button>
+																		</TooltipTrigger>
+																		<TooltipContent>Delete</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															)}
 														</div>
+													)}
 													</div>
 
 													{/* Provider + Model */}
