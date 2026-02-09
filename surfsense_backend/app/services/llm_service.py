@@ -119,7 +119,7 @@ async def validate_llm_config(
                 "ALIBABA_QWEN": "openai",
                 "MOONSHOT": "openai",
                 "ZHIPU": "openai",  # GLM needs special handling
-                "GITHUB_MODELS": "openai",
+                "GITHUB_MODELS": "github",
             }
             provider_prefix = provider_map.get(provider, provider.lower())
             model_string = f"{provider_prefix}/{model_name}"
@@ -336,7 +336,7 @@ async def get_search_space_llm_instance(
                 "ALIBABA_QWEN": "openai",
                 "MOONSHOT": "openai",
                 "ZHIPU": "openai",
-                "GITHUB_MODELS": "openai",
+                "GITHUB_MODELS": "github",
             }
             provider_prefix = provider_map.get(
                 llm_config.provider.value, llm_config.provider.value.lower()

@@ -45,7 +45,7 @@ PROVIDER_MAP = {
     "ALIBABA_QWEN": "openai",
     "MOONSHOT": "openai",
     "ZHIPU": "openai",
-    "GITHUB_MODELS": "openai",
+    "GITHUB_MODELS": "github",
     "REPLICATE": "replicate",
     "PERPLEXITY": "perplexity",
     "ANYSCALE": "anyscale",

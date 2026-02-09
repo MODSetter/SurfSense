@@ -15,20 +15,8 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    op.execute(
-        """
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM pg_enum
-                WHERE enumtypid = 'litellmprovider'::regtype
-                AND enumlabel = 'GITHUB_MODELS'
-            ) THEN
-                ALTER TYPE litellmprovider ADD VALUE 'GITHUB_MODELS';
-            END IF;
-        END$$;
-        """
-    )
+    op.execute("COMMIT")
+    op.execute("ALTER TYPE litellmprovider ADD VALUE IF NOT EXISTS 'GITHUB_MODELS'")
 
 
 def downgrade() -> None:
