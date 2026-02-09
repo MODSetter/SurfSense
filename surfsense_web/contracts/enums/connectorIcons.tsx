@@ -1,4 +1,4 @@
-import { IconLinkPlus, IconUsersGroup } from "@tabler/icons-react";
+import { IconUsersGroup } from "@tabler/icons-react";
 import {
 	BookOpen,
 	File,
@@ -15,11 +15,11 @@ import { EnumConnectorName } from "./connector";
 
 export const getConnectorIcon = (connectorType: EnumConnectorName | string, className?: string) => {
 	const iconProps = { className: className || "h-4 w-4" };
-	const imgProps = { className: className || "h-5 w-5", width: 20, height: 20 };
+	const imgProps = { className: `${className || "h-5 w-5"} select-none pointer-events-none`, width: 20, height: 20, draggable: false as const };
 
 	switch (connectorType) {
-		case EnumConnectorName.LINKUP_API:
-			return <IconLinkPlus {...iconProps} />;
+	case EnumConnectorName.LINKUP_API:
+		return <Image src="/connectors/linkup.svg" alt="Linkup" {...imgProps} />;
 		case EnumConnectorName.LINEAR_CONNECTOR:
 			return <Image src="/connectors/linear.svg" alt="Linear" {...imgProps} />;
 		case EnumConnectorName.GITHUB_CONNECTOR:
@@ -63,7 +63,7 @@ export const getConnectorIcon = (connectorType: EnumConnectorName | string, clas
 		case EnumConnectorName.YOUTUBE_CONNECTOR:
 			return <Image src="/connectors/youtube.svg" alt="YouTube" {...imgProps} />;
 		case EnumConnectorName.CIRCLEBACK_CONNECTOR:
-			return <IconUsersGroup {...iconProps} />;
+			return <Image src="/connectors/circleback.svg" alt="Circleback" {...imgProps} />;
 		case EnumConnectorName.MCP_CONNECTOR:
 			return <Image src="/connectors/modelcontextprotocol.svg" alt="MCP" {...imgProps} />;
 		case EnumConnectorName.OBSIDIAN_CONNECTOR:

@@ -1,6 +1,7 @@
 "use client";
 
 import type React from "react";
+import Image from "next/image";
 
 interface Integration {
 	name: string;
@@ -44,15 +45,24 @@ const INTEGRATIONS: Integration[] = [
 
 	// Media
 	{ name: "YouTube", icon: "/connectors/youtube.svg" },
+
+	// Search
+	{ name: "Linkup", icon: "/connectors/linkup.svg" },
+
+	// Meetings
+	{ name: "Circleback", icon: "/connectors/circleback.svg" },
+
+	// AI
+	{ name: "MCP", icon: "/connectors/modelcontextprotocol.svg" },
 ];
 
-// 5 vertical columns — 21 icons spread across categories
+// 5 vertical columns — 23 icons spread across categories
 const COLUMNS: number[][] = [
-	[2, 5, 10, 0, 11],
+	[2, 5, 10, 0, 21, 11],
 	[1, 7, 20, 17],
-	[13, 6, 4, 16],
+	[13, 6, 23, 4, 16],
 	[12, 8, 15, 18],
-	[3, 9, 14, 19],
+	[3, 9, 14, 22, 19],
 ];
 
 // Different scroll speeds per column for organic feel (seconds)
@@ -61,7 +71,7 @@ const SCROLL_DURATIONS = [26, 32, 22, 30, 28];
 function IntegrationCard({ integration }: { integration: Integration }) {
 	return (
 		<div
-			className="w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px] rounded-[16px] sm:rounded-[20px] md:rounded-[24px] flex items-center justify-center shrink-0"
+			className="w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px] rounded-[16px] sm:rounded-[20px] md:rounded-[24px] flex items-center justify-center shrink-0 select-none"
 			style={{
 				background:
 					"linear-gradient(145deg, var(--card-from), var(--card-to))",
@@ -69,12 +79,15 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 					"inset 0 1px 0 0 var(--card-highlight), 0 4px 24px var(--card-shadow)",
 			}}
 		>
-			<img
-				src={integration.icon}
-				alt={integration.name}
-				className="w-6 h-6 sm:w-7 sm:h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 object-contain"
-				loading="lazy"
-			/>
+		<Image
+			src={integration.icon}
+			alt={integration.name}
+			className="w-6 h-6 sm:w-7 sm:h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 object-contain select-none pointer-events-none"
+			loading="lazy"
+			draggable={false}
+			width={48}
+			height={48}
+		/>
 		</div>
 	);
 }
