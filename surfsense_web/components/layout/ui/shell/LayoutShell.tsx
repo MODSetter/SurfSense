@@ -6,6 +6,7 @@ import type { InboxItem } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SidebarProvider, useSidebarState } from "../../hooks";
+import { useSidebarResize } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
@@ -116,11 +117,12 @@ export function LayoutShell({
 	const isMobile = useIsMobile();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
+	const { sidebarWidth, handleMouseDown: onResizeMouseDown, isDragging: isResizing } = useSidebarResize();
 
 	// Memoize context value to prevent unnecessary re-renders
 	const sidebarContextValue = useMemo(
-		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
-		[isCollapsed, setIsCollapsed, toggleCollapsed]
+		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed, sidebarWidth }),
+		[isCollapsed, setIsCollapsed, toggleCollapsed, sidebarWidth]
 	);
 
 	// Mobile layout
@@ -236,6 +238,9 @@ export function LayoutShell({
 							setTheme={setTheme}
 							className="hidden md:flex border-r shrink-0"
 							isLoadingChats={isLoadingChats}
+							sidebarWidth={sidebarWidth}
+							onResizeMouseDown={onResizeMouseDown}
+							isResizing={isResizing}
 						/>
 
 						{/* Docked Inbox Sidebar - renders as flex sibling between sidebar and content */}

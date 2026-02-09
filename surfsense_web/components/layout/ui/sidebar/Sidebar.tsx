@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
-import { useSidebarResize } from "../../hooks/useSidebarResize";
+import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
 import { PageUsageDisplay } from "./PageUsageDisplay";
@@ -52,6 +52,9 @@ interface SidebarProps {
 	className?: string;
 	isLoadingChats?: boolean;
 	disableTooltips?: boolean;
+	sidebarWidth?: number;
+	onResizeMouseDown?: (e: React.MouseEvent) => void;
+	isResizing?: boolean;
 }
 
 export function Sidebar({
@@ -81,24 +84,26 @@ export function Sidebar({
 	className,
 	isLoadingChats = false,
 	disableTooltips = false,
+	sidebarWidth = SIDEBAR_MIN_WIDTH,
+	onResizeMouseDown,
+	isResizing = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
-	const { sidebarWidth, handleMouseDown, isDragging } = useSidebarResize();
 
 	return (
 		<div
 			className={cn(
 				"relative flex h-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden",
 				isCollapsed ? "w-[60px] transition-all duration-200" : "",
-				!isCollapsed && !isDragging ? "transition-all duration-200" : "",
+				!isCollapsed && !isResizing ? "transition-all duration-200" : "",
 				className
 			)}
 			style={!isCollapsed ? { width: sidebarWidth } : undefined}
 		>
 			{/* Resize handle on right border */}
-			{!isCollapsed && (
+			{!isCollapsed && onResizeMouseDown && (
 				<div
-					onMouseDown={handleMouseDown}
+					onMouseDown={onResizeMouseDown}
 					className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-border active:bg-border z-10"
 				/>
 			)}

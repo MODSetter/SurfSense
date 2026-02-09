@@ -61,9 +61,8 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 import { useSidebarContextSafe } from "../../hooks";
 
-// Sidebar width constants
+// Sidebar width constant for collapsed state
 const SIDEBAR_COLLAPSED_WIDTH = 60;
-const SIDEBAR_EXPANDED_WIDTH = 240;
 
 /**
  * Get initials from name or email for avatar fallback
@@ -566,7 +565,8 @@ export function InboxSidebar({
 	const isCollapsed = sidebarContext?.isCollapsed ?? false;
 
 	// Calculate the left position for the inbox panel (relative to sidebar)
-	const sidebarWidth = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+	// Use dynamic width from context (tracks resize) for expanded state
+	const sidebarWidth = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : (sidebarContext?.sidebarWidth ?? 240);
 
 	if (!mounted) return null;
 
