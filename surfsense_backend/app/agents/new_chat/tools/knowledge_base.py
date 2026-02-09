@@ -413,16 +413,15 @@ async def search_knowledge_base_async(
             kwargs["end_date"] = resolved_end_date
 
         try:
-            async with semaphore:
-                # Use isolated session per connector. Shared AsyncSession cannot safely
-                # run concurrent DB operations.
-                async with async_session_maker() as isolated_session:
-                    isolated_connector_service = ConnectorService(
-                        isolated_session, search_space_id
-                    )
-                    connector_method = getattr(isolated_connector_service, method_name)
-                    _, chunks = await connector_method(**kwargs)
-                    return chunks
+            # Use isolated session per connector. Shared AsyncSession cannot safely
+            # run concurrent DB operations.
+            async with semaphore, async_session_maker() as isolated_session:
+                isolated_connector_service = ConnectorService(
+                    isolated_session, search_space_id
+                )
+                connector_method = getattr(isolated_connector_service, method_name)
+                _, chunks = await connector_method(**kwargs)
+                return chunks
         except Exception as e:
             print(f"Error searching connector {connector}: {e}")
             return []

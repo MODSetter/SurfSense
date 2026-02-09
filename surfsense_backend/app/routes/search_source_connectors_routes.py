@@ -19,6 +19,7 @@ Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search spa
 """
 
 import logging
+from contextlib import suppress
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -31,6 +32,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.config import config
 from app.connectors.github_connector import GitHubConnector
 from app.db import (
     Permission,
@@ -69,16 +71,16 @@ from app.tasks.connector_indexers import (
     index_slack_messages,
 )
 from app.users import current_active_user
+from app.utils.indexing_locks import (
+    acquire_connector_indexing_lock,
+    release_connector_indexing_lock,
+)
 from app.utils.periodic_scheduler import (
     create_periodic_schedule,
     delete_periodic_schedule,
     update_periodic_schedule,
 )
 from app.utils.rbac import check_permission
-from app.utils.indexing_locks import (
-    acquire_connector_indexing_lock,
-    release_connector_indexing_lock,
-)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -1569,10 +1571,8 @@ async def _run_indexing_with_notifications(
             except Exception:
                 pass  # Ignore cleanup errors - key will expire anyway
         if connector_lock_acquired:
-            try:
+            with suppress(Exception):
                 release_connector_indexing_lock(connector_id)
-            except Exception:
-                pass  # Lock has TTL; safe to ignore cleanup failures
 
 
 async def run_notion_indexing_with_new_session(
