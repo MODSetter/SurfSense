@@ -26,7 +26,7 @@ export function PublicChatSnapshotsList({
 	}
 
 	return (
-		<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+		<div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
 			{snapshots.map((snapshot) => (
 				<PublicChatSnapshotRow
 					key={snapshot.id}
