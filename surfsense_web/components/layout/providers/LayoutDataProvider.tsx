@@ -33,9 +33,6 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { LayoutShell } from "../ui/shell";
-import { AllPrivateChatsSidebar } from "../ui/sidebar/AllPrivateChatsSidebar";
-import { AllSharedChatsSidebar } from "../ui/sidebar/AllSharedChatsSidebar";
-
 interface LayoutDataProviderProps {
 	searchSpaceId: string;
 	children: React.ReactNode;
@@ -390,7 +387,13 @@ export function LayoutDataProvider({
 		(item: NavItem) => {
 			// Handle inbox specially - toggle sidebar instead of navigating
 			if (item.url === "#inbox") {
-				setIsInboxSidebarOpen((prev) => !prev);
+				setIsInboxSidebarOpen((prev) => {
+					if (!prev) {
+						setIsAllSharedChatsSidebarOpen(false);
+						setIsAllPrivateChatsSidebarOpen(false);
+					}
+					return !prev;
+				});
 				return;
 			}
 			router.push(item.url);
@@ -490,10 +493,14 @@ export function LayoutDataProvider({
 
 	const handleViewAllSharedChats = useCallback(() => {
 		setIsAllSharedChatsSidebarOpen(true);
+		setIsAllPrivateChatsSidebarOpen(false);
+		setIsInboxSidebarOpen(false);
 	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
 		setIsAllPrivateChatsSidebarOpen(true);
+		setIsAllSharedChatsSidebarOpen(false);
+		setIsInboxSidebarOpen(false);
 	}, []);
 
 	// Delete handlers
@@ -613,6 +620,16 @@ export function LayoutDataProvider({
 					markAllAsRead,
 					isDocked: isInboxDocked,
 					onDockedChange: setIsInboxDocked,
+				}}
+				allSharedChatsPanel={{
+					open: isAllSharedChatsSidebarOpen,
+					onOpenChange: setIsAllSharedChatsSidebarOpen,
+					searchSpaceId,
+				}}
+				allPrivateChatsPanel={{
+					open: isAllPrivateChatsSidebarOpen,
+					onOpenChange: setIsAllPrivateChatsSidebarOpen,
+					searchSpaceId,
 				}}
 			>
 				{children}
@@ -795,20 +812,6 @@ export function LayoutDataProvider({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
-
-			{/* All Shared Chats Sidebar */}
-			<AllSharedChatsSidebar
-				open={isAllSharedChatsSidebarOpen}
-				onOpenChange={setIsAllSharedChatsSidebarOpen}
-				searchSpaceId={searchSpaceId}
-			/>
-
-			{/* All Private Chats Sidebar */}
-			<AllPrivateChatsSidebar
-				open={isAllPrivateChatsSidebarOpen}
-				onOpenChange={setIsAllPrivateChatsSidebarOpen}
-				searchSpaceId={searchSpaceId}
-			/>
 
 			{/* Create Search Space Dialog */}
 			<CreateSearchSpaceDialog

@@ -6,10 +6,18 @@ import type { InboxItem } from "@/hooks/use-inbox";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { SidebarProvider, useSidebarState } from "../../hooks";
+import { useSidebarResize } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
-import { InboxSidebar, MobileSidebar, MobileSidebarTrigger, Sidebar } from "../sidebar";
+import {
+	AllPrivateChatsSidebar,
+	AllSharedChatsSidebar,
+	InboxSidebar,
+	MobileSidebar,
+	MobileSidebarTrigger,
+	Sidebar,
+} from "../sidebar";
 
 // Tab-specific data source props
 interface TabDataSource {
@@ -75,6 +83,9 @@ interface LayoutShellProps {
 	// Inbox props
 	inbox?: InboxProps;
 	isLoadingChats?: boolean;
+	// All chats panel props
+	allSharedChatsPanel?: { open: boolean; onOpenChange: (open: boolean) => void; searchSpaceId: string };
+	allPrivateChatsPanel?: { open: boolean; onOpenChange: (open: boolean) => void; searchSpaceId: string };
 }
 
 export function LayoutShell({
@@ -112,15 +123,18 @@ export function LayoutShell({
 	className,
 	inbox,
 	isLoadingChats = false,
+	allSharedChatsPanel,
+	allPrivateChatsPanel,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
+	const { sidebarWidth, handleMouseDown: onResizeMouseDown, isDragging: isResizing } = useSidebarResize();
 
 	// Memoize context value to prevent unnecessary re-renders
 	const sidebarContextValue = useMemo(
-		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed }),
-		[isCollapsed, setIsCollapsed, toggleCollapsed]
+		() => ({ isCollapsed, setIsCollapsed, toggleCollapsed, sidebarWidth }),
+		[isCollapsed, setIsCollapsed, toggleCollapsed, sidebarWidth]
 	);
 
 	// Mobile layout
@@ -236,6 +250,9 @@ export function LayoutShell({
 							setTheme={setTheme}
 							className="hidden md:flex border-r shrink-0"
 							isLoadingChats={isLoadingChats}
+							sidebarWidth={sidebarWidth}
+							onResizeMouseDown={onResizeMouseDown}
+							isResizing={isResizing}
 						/>
 
 						{/* Docked Inbox Sidebar - renders as flex sibling between sidebar and content */}
@@ -273,6 +290,24 @@ export function LayoutShell({
 								markAllAsRead={inbox.markAllAsRead}
 								isDocked={false}
 								onDockedChange={inbox.onDockedChange}
+							/>
+						)}
+
+						{/* All Shared Chats - slide-out panel */}
+						{allSharedChatsPanel && (
+							<AllSharedChatsSidebar
+								open={allSharedChatsPanel.open}
+								onOpenChange={allSharedChatsPanel.onOpenChange}
+								searchSpaceId={allSharedChatsPanel.searchSpaceId}
+							/>
+						)}
+
+						{/* All Private Chats - slide-out panel */}
+						{allPrivateChatsPanel && (
+							<AllPrivateChatsSidebar
+								open={allPrivateChatsPanel.open}
+								onOpenChange={allPrivateChatsPanel.onOpenChange}
+								searchSpaceId={allPrivateChatsPanel.searchSpaceId}
 							/>
 						)}
 					</div>
