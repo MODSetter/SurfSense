@@ -1297,7 +1297,7 @@ class NewLLMConfig(BaseModel, TimestampMixin):
     - Configurable system instructions (defaults to SURFSENSE_SYSTEM_INSTRUCTIONS)
     - Citation toggle (enable/disable citation instructions)
 
-    Note: SURFSENSE_TOOLS_INSTRUCTIONS is always used and not configurable.
+    Note: Tools instructions are built by get_tools_instructions(thread_visibility) (personal vs shared memory).
     """
 
     __tablename__ = "new_llm_configs"

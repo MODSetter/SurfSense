@@ -228,7 +228,8 @@ async def create_surfsense_deep_agent(
         import logging
 
         logging.warning(f"Failed to discover available connectors/document types: {e}")
-
+        
+    # Build dependencies dict for the tools registry
     visibility = thread_visibility or ChatVisibility.PRIVATE
     dependencies = {
         "search_space_id": search_space_id,
@@ -257,10 +258,12 @@ async def create_surfsense_deep_agent(
             custom_system_instructions=agent_config.system_instructions,
             use_default_system_instructions=agent_config.use_default_system_instructions,
             citations_enabled=agent_config.citations_enabled,
+            thread_visibility=thread_visibility,
         )
     else:
-        # Use default prompt (with citations enabled)
-        system_prompt = build_surfsense_system_prompt()
+        system_prompt = build_surfsense_system_prompt(
+            thread_visibility=thread_visibility,
+        )
 
     # Create the deep agent with system prompt and checkpointer
     # Note: TodoListMiddleware (write_todos) is included by default in create_deep_agent
