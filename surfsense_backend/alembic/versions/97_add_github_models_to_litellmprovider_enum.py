@@ -1,15 +1,15 @@
 """Add GITHUB_MODELS to LiteLLMProvider enum
 
-Revision ID: 96
-Revises: 95
+Revision ID: 97
+Revises: 96
 """
 
 from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "96"
-down_revision: str | None = "95"
+revision: str = "97"
+down_revision: str | None = "96"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
