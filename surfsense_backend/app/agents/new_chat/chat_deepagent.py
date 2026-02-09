@@ -22,6 +22,7 @@ from app.agents.new_chat.system_prompt import (
     build_surfsense_system_prompt,
 )
 from app.agents.new_chat.tools.registry import build_tools_async
+from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
 
 # =============================================================================
@@ -126,6 +127,7 @@ async def create_surfsense_deep_agent(
     disabled_tools: list[str] | None = None,
     additional_tools: Sequence[BaseTool] | None = None,
     firecrawl_api_key: str | None = None,
+    thread_visibility: ChatVisibility | None = None,
 ):
     """
     Create a SurfSense deep agent with configurable tools and prompts.
@@ -226,16 +228,17 @@ async def create_surfsense_deep_agent(
         import logging
 
         logging.warning(f"Failed to discover available connectors/document types: {e}")
-
+        
     # Build dependencies dict for the tools registry
+    visibility = thread_visibility or ChatVisibility.PRIVATE
     dependencies = {
         "search_space_id": search_space_id,
         "db_session": db_session,
         "connector_service": connector_service,
         "firecrawl_api_key": firecrawl_api_key,
-        "user_id": user_id,  # Required for memory tools
-        "thread_id": thread_id,  # For podcast tool
-        # Dynamic connector/document type discovery for knowledge base tool
+        "user_id": user_id,
+        "thread_id": thread_id,
+        "thread_visibility": visibility,
         "available_connectors": available_connectors,
         "available_document_types": available_document_types,
     }
@@ -255,10 +258,12 @@ async def create_surfsense_deep_agent(
             custom_system_instructions=agent_config.system_instructions,
             use_default_system_instructions=agent_config.use_default_system_instructions,
             citations_enabled=agent_config.citations_enabled,
+            thread_visibility=thread_visibility,
         )
     else:
-        # Use default prompt (with citations enabled)
-        system_prompt = build_surfsense_system_prompt()
+        system_prompt = build_surfsense_system_prompt(
+            thread_visibility=thread_visibility,
+        )
 
     # Create the deep agent with system prompt and checkpointer
     # Note: TodoListMiddleware (write_todos) is included by default in create_deep_agent

@@ -51,7 +51,13 @@ from .mcp_tool import load_mcp_tools
 from .podcast import create_generate_podcast_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
+from .shared_memory import (
+    create_recall_shared_memory_tool,
+    create_save_shared_memory_tool,
+)
 from .user_memory import create_recall_memory_tool, create_save_memory_tool
+
+from app.db import ChatVisibility
 
 # =============================================================================
 # Tool Definition
@@ -156,29 +162,42 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["db_session"],
     ),
     # =========================================================================
-    # USER MEMORY TOOLS - Claude-like memory feature
+    # USER MEMORY TOOLS - private or team store by thread_visibility
     # =========================================================================
-    # Save memory tool - stores facts/preferences about the user
     ToolDefinition(
         name="save_memory",
-        description="Save facts, preferences, or context about the user for personalized responses",
-        factory=lambda deps: create_save_memory_tool(
-            user_id=deps["user_id"],
-            search_space_id=deps["search_space_id"],
-            db_session=deps["db_session"],
+        description="Save facts, preferences, or context for personalized or team responses",
+        factory=lambda deps: (
+            create_save_shared_memory_tool(
+                search_space_id=deps["search_space_id"],
+                created_by_id=deps["user_id"],
+                db_session=deps["db_session"],
+            )
+            if deps["thread_visibility"] == ChatVisibility.SEARCH_SPACE
+            else create_save_memory_tool(
+                user_id=deps["user_id"],
+                search_space_id=deps["search_space_id"],
+                db_session=deps["db_session"],
+            )
         ),
-        requires=["user_id", "search_space_id", "db_session"],
+        requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
     ),
-    # Recall memory tool - retrieves relevant user memories
     ToolDefinition(
         name="recall_memory",
-        description="Recall user memories for personalized and contextual responses",
-        factory=lambda deps: create_recall_memory_tool(
-            user_id=deps["user_id"],
-            search_space_id=deps["search_space_id"],
-            db_session=deps["db_session"],
+        description="Recall relevant memories (personal or team) for context",
+        factory=lambda deps: (
+            create_recall_shared_memory_tool(
+                search_space_id=deps["search_space_id"],
+                db_session=deps["db_session"],
+            )
+            if deps["thread_visibility"] == ChatVisibility.SEARCH_SPACE
+            else create_recall_memory_tool(
+                user_id=deps["user_id"],
+                search_space_id=deps["search_space_id"],
+                db_session=deps["db_session"],
+            )
         ),
-        requires=["user_id", "search_space_id", "db_session"],
+        requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
     ),
     # =========================================================================
     # ADD YOUR CUSTOM TOOLS BELOW

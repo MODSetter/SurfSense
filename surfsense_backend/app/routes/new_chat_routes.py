@@ -1045,12 +1045,14 @@ async def handle_new_chat(
                 search_space_id=request.search_space_id,
                 chat_id=request.chat_id,
                 session=session,
-                user_id=str(user.id),  # Pass user ID for memory tools and session state
+                user_id=str(user.id),
                 llm_config_id=llm_config_id,
                 attachments=request.attachments,
                 mentioned_document_ids=request.mentioned_document_ids,
                 mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
                 needs_history_bootstrap=thread.needs_history_bootstrap,
+                thread_visibility=thread.visibility,
+                current_user_display_name=user.display_name or "A team member",
             ),
             media_type="text/event-stream",
             headers={
@@ -1281,6 +1283,8 @@ async def regenerate_response(
                     mentioned_surfsense_doc_ids=request.mentioned_surfsense_doc_ids,
                     checkpoint_id=target_checkpoint_id,
                     needs_history_bootstrap=thread.needs_history_bootstrap,
+                    thread_visibility=thread.visibility,
+                    current_user_display_name=user.display_name or "A team member",
                 ):
                     yield chunk
                 # If we get here, streaming completed successfully
