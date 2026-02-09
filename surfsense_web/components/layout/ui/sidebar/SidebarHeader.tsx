@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, Logs, Settings, Users } from "lucide-react";
+import { ChevronsUpDown, Settings, Users } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -35,14 +35,14 @@ export function SidebarHeader({
 	const searchSpaceId = params.search_space_id as string;
 
 	return (
-		<div className={cn("flex shrink-0 items-center", className)}>
+		<div className={cn("flex min-w-0 flex-1 items-center", className)}>
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button
 						variant="ghost"
 						className={cn(
-							"flex h-auto items-center justify-between gap-2 overflow-hidden py-1.5 font-semibold",
-							isCollapsed ? "w-10" : "w-50"
+							"flex h-auto w-full items-center justify-between gap-1 overflow-hidden py-1.5 font-semibold",
+							isCollapsed && "w-10"
 						)}
 					>
 						<span className="truncate text-base">
@@ -55,10 +55,6 @@ export function SidebarHeader({
 					<DropdownMenuItem onClick={onManageMembers}>
 						<Users className="mr-2 h-4 w-4" />
 						{t("manage_members")}
-					</DropdownMenuItem>
-					<DropdownMenuItem onClick={() => router.push(`/dashboard/${searchSpaceId}/logs`)}>
-						<Logs className="mr-2 h-4 w-4" />
-						{t("logs")}
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem onClick={onSettings}>

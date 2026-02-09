@@ -178,7 +178,7 @@ export function DocumentsFilters({
 									<div className="relative">
 										<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 										<Input
-											placeholder="Search types..."
+											placeholder="Search types"
 											value={typeSearchQuery}
 											onChange={(e) => setTypeSearchQuery(e.target.value)}
 											className="h-6 pl-6 text-sm bg-transparent border-0 focus-visible:ring-0"

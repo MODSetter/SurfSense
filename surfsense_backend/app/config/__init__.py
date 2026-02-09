@@ -213,6 +213,17 @@ class Config:
     # Database
     DATABASE_URL = os.getenv("DATABASE_URL")
 
+    # Celery / Redis
+    CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND = os.getenv(
+        "CELERY_RESULT_BACKEND", "redis://localhost:6379/0"
+    )
+    CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "surfsense")
+    REDIS_APP_URL = os.getenv("REDIS_APP_URL", CELERY_BROKER_URL)
+    CONNECTOR_INDEXING_LOCK_TTL_SECONDS = int(
+        os.getenv("CONNECTOR_INDEXING_LOCK_TTL_SECONDS", str(8 * 60 * 60))
+    )
+
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
     # Backend URL to override the http to https in the OAuth redirect URI
     BACKEND_URL = os.getenv("BACKEND_URL")

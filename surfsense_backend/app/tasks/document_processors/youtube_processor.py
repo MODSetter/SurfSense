@@ -61,7 +61,11 @@ def get_youtube_video_id(url: str) -> str | None:
 
 
 async def add_youtube_video_document(
-    session: AsyncSession, url: str, search_space_id: int, user_id: str
+    session: AsyncSession,
+    url: str,
+    search_space_id: int,
+    user_id: str,
+    notification=None,
 ) -> Document:
     """
     Process a YouTube video URL, extract transcripts, and store as a document.
@@ -75,6 +79,9 @@ async def add_youtube_video_document(
         url: YouTube video URL (supports standard, shortened, and embed formats)
         search_space_id: ID of the search space to add the document to
         user_id: ID of the user
+        notification: Optional notification object — if provided, the document_id
+            is stored in its metadata right after document creation so the stale
+            cleanup task can identify stuck documents.
 
     Returns:
         Document: The created document object
@@ -182,6 +189,15 @@ async def add_youtube_video_document(
             await session.commit()  # Document visible in UI now with pending status!
             is_new_document = True
 
+            # Store document_id in notification metadata so stale cleanup task
+            # can identify this document if the worker crashes.
+            if notification and notification.notification_metadata is not None:
+                from sqlalchemy.orm.attributes import flag_modified
+
+                notification.notification_metadata["document_id"] = document.id
+                flag_modified(notification, "notification_metadata")
+                await session.commit()
+
             logging.info(f"Created pending document for YouTube video {video_id}")
 
         # =======================================================================
@@ -244,7 +260,13 @@ async def add_youtube_video_document(
             if residential_proxies:
                 http_client.proxies.update(residential_proxies)
             ytt_api = YouTubeTranscriptApi(http_client=http_client)
-            captions = ytt_api.fetch(video_id)
+
+            # List all available transcripts and pick the first one
+            # (the video's primary language) instead of defaulting to English
+            transcript_list = ytt_api.list(video_id)
+            transcript = next(iter(transcript_list))
+            captions = transcript.fetch()
+
             # Include complete caption information with timestamps
             transcript_segments = []
             for line in captions:
@@ -257,11 +279,14 @@ async def add_youtube_video_document(
 
             await task_logger.log_task_progress(
                 log_entry,
-                f"Transcript fetched successfully: {len(captions)} segments",
+                f"Transcript fetched successfully: {len(captions)} segments ({transcript.language})",
                 {
                     "stage": "transcript_fetched",
                     "segments_count": len(captions),
                     "transcript_length": len(transcript_text),
+                    "language": transcript.language,
+                    "language_code": transcript.language_code,
+                    "is_generated": transcript.is_generated,
                 },
             )
         except Exception as e:

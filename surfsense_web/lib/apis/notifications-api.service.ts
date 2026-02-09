@@ -51,6 +51,9 @@ class NotificationsApiService {
 		if (queryParams.offset !== undefined) {
 			params.append("offset", String(queryParams.offset));
 		}
+		if (queryParams.search) {
+			params.append("search", queryParams.search);
+		}
 
 		const queryString = params.toString();
 

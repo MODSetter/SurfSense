@@ -50,6 +50,7 @@ interface SidebarProps {
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	className?: string;
 	isLoadingChats?: boolean;
+	disableTooltips?: boolean;
 }
 
 export function Sidebar({
@@ -78,6 +79,7 @@ export function Sidebar({
 	setTheme,
 	className,
 	isLoadingChats = false,
+	disableTooltips = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
 
@@ -95,20 +97,22 @@ export function Sidebar({
 					<SidebarCollapseButton
 						isCollapsed={isCollapsed}
 						onToggle={onToggleCollapse ?? (() => {})}
+						disableTooltip={disableTooltips}
 					/>
 				</div>
 			) : (
-				<div className="flex h-14 shrink-0 items-center justify-between px-1 border-b">
+				<div className="flex h-14 shrink-0 items-center gap-0 px-1 border-b">
 					<SidebarHeader
 						searchSpace={searchSpace}
 						isCollapsed={isCollapsed}
 						onSettings={onSettings}
 						onManageMembers={onManageMembers}
 					/>
-					<div className="">
+					<div className="shrink-0">
 						<SidebarCollapseButton
 							isCollapsed={isCollapsed}
 							onToggle={onToggleCollapse ?? (() => {})}
+							disableTooltip={disableTooltips}
 						/>
 					</div>
 				</div>
@@ -138,7 +142,7 @@ export function Sidebar({
 			{isCollapsed ? (
 				<div className="flex-1 w-[60px]" />
 			) : (
-				<div className="flex-1 flex flex-col gap-1 py-2 w-[240px] min-h-0 overflow-hidden">
+				<div className="flex-1 flex flex-col gap-1 py-2 w-full min-h-0 overflow-hidden">
 					{/* Shared Chats Section - takes only space needed, max 50% */}
 					<SidebarSection
 						title={t("shared_chats")}
@@ -147,21 +151,32 @@ export function Sidebar({
 						className="shrink-0 max-h-[50%] flex flex-col"
 						action={
 							onViewAllSharedChats ? (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-											onClick={onViewAllSharedChats}
-										>
-											<FolderOpen className="h-4 w-4" />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent side="top">
-										{t("view_all_shared_chats") || "View all shared chats"}
-									</TooltipContent>
-								</Tooltip>
+								disableTooltips ? (
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
+										onClick={onViewAllSharedChats}
+									>
+										<FolderOpen className="h-4 w-4" />
+									</Button>
+								) : (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
+												onClick={onViewAllSharedChats}
+											>
+												<FolderOpen className="h-4 w-4" />
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent side="top">
+											{t("view_all_shared_chats") || "View all shared chats"}
+										</TooltipContent>
+									</Tooltip>
+								)
 							) : undefined
 						}
 					>
@@ -208,21 +223,32 @@ export function Sidebar({
 						fillHeight={true}
 						action={
 							onViewAllPrivateChats ? (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-											onClick={onViewAllPrivateChats}
-										>
-											<FolderOpen className="h-4 w-4" />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent side="top">
-										{t("view_all_private_chats") || "View all private chats"}
-									</TooltipContent>
-								</Tooltip>
+								disableTooltips ? (
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
+										onClick={onViewAllPrivateChats}
+									>
+										<FolderOpen className="h-4 w-4" />
+									</Button>
+								) : (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
+												onClick={onViewAllPrivateChats}
+											>
+												<FolderOpen className="h-4 w-4" />
+											</Button>
+										</TooltipTrigger>
+										<TooltipContent side="top">
+											{t("view_all_private_chats") || "View all private chats"}
+										</TooltipContent>
+									</Tooltip>
+								)
 							) : undefined
 						}
 					>

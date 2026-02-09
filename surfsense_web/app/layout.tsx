@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
@@ -18,6 +18,20 @@ const roboto = Roboto({
 	display: "swap",
 	variable: "--font-roboto",
 });
+
+/**
+ * Viewport configuration for mobile keyboard handling.
+ * - interactiveWidget: 'resizes-content' tells mobile browsers (especially Chrome Android)
+ *   to resize the CSS layout viewport when the virtual keyboard opens, so sticky elements
+ *   (like the chat input bar) stay visible above the keyboard.
+ * - viewportFit: 'cover' enables env(safe-area-inset-*) for notched/home-indicator devices.
+ */
+export const viewport: Viewport = {
+	width: "device-width",
+	initialScale: 1,
+	viewportFit: "cover",
+	interactiveWidget: "resizes-content",
+};
 
 export const metadata: Metadata = {
 	title: "SurfSense – Customizable AI Research & Knowledge Management Assistant",

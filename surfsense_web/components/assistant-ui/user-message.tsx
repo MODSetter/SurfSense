@@ -100,10 +100,10 @@ export const UserMessage: FC = () => {
 
 const UserActionBar: FC = () => {
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
-	
+
 	// Get current message ID
 	const currentMessageId = useAssistantState(({ message }) => message?.id);
-	
+
 	// Find the last user message ID in the thread (computed once, memoized by selector)
 	const lastUserMessageId = useAssistantState(({ thread }) => {
 		const messages = thread.messages;
@@ -117,7 +117,7 @@ const UserActionBar: FC = () => {
 
 	// Simple comparison - no iteration needed per message
 	const isLastUserMessage = currentMessageId === lastUserMessageId;
-	
+
 	// Show edit button only on the last user message and when thread is not running
 	const canEdit = isLastUserMessage && !isThreadRunning;
 

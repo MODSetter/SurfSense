@@ -10,6 +10,7 @@ import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { fetchThreads } from "@/lib/chat/thread-persistence";
 
 interface TourStep {
@@ -393,6 +394,7 @@ function TourTooltip({
 }
 
 export function OnboardingTour() {
+	const isMobile = useIsMobile();
 	const [isActive, setIsActive] = useState(false);
 	const [stepIndex, setStepIndex] = useState(0);
 	const [targetEl, setTargetEl] = useState<Element | null>(null);
@@ -685,8 +687,8 @@ export function OnboardingTour() {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, [isActive, user?.id]);
 
-	// Don't render if not active or not mounted
-	if (!mounted || !isActive) {
+	// Don't render on mobile, or if not active or not mounted
+	if (isMobile || !mounted || !isActive) {
 		return null;
 	}
 

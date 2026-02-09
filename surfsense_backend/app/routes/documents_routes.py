@@ -178,9 +178,26 @@ async def create_documents_file_upload(
                     session, unique_identifier_hash
                 )
                 if existing:
-                    # Clean up temp file for duplicates
-                    os.unlink(temp_path)
-                    skipped_duplicates += 1
+                    if DocumentStatus.is_state(existing.status, DocumentStatus.READY):
+                        # True duplicate — content already indexed, skip
+                        os.unlink(temp_path)
+                        skipped_duplicates += 1
+                        continue
+
+                    # Existing document is stuck (failed/pending/processing)
+                    # Reset it to pending and re-dispatch for processing
+                    existing.status = DocumentStatus.pending()
+                    existing.content = "Processing..."
+                    existing.document_metadata = {
+                        **(existing.document_metadata or {}),
+                        "file_size": file_size,
+                        "upload_time": datetime.now().isoformat(),
+                    }
+                    existing.updated_at = get_current_timestamp()
+                    created_documents.append(existing)
+                    files_to_process.append(
+                        (existing, temp_path, file.filename or "unknown")
+                    )
                     continue
 
                 # Create pending document (visible immediately in UI via ElectricSQL)

@@ -54,8 +54,7 @@ export function ImageModelSelector({ className, onAddNew, onEdit }: ImageModelSe
 	const [open, setOpen] = useState(false);
 	const [searchQuery, setSearchQuery] = useState("");
 
-	const { data: globalConfigs, isLoading: globalLoading } =
-		useAtomValue(globalImageGenConfigsAtom);
+	const { data: globalConfigs, isLoading: globalLoading } = useAtomValue(globalImageGenConfigsAtom);
 	const { data: userConfigs, isLoading: userLoading } = useAtomValue(imageGenConfigsAtom);
 	const { data: preferences, isLoading: prefsLoading } = useAtomValue(llmPreferencesAtom);
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
@@ -225,59 +224,59 @@ export function ImageModelSelector({ className, onAddNew, onEdit }: ImageModelSe
 									<Globe className="size-3.5" />
 									Global Image Models
 								</div>
-							{filteredGlobal.map((config) => {
-								const isSelected = currentConfig?.id === config.id;
-								const isAuto = "is_auto_mode" in config && config.is_auto_mode;
-								return (
-									<CommandItem
-										key={`g-${config.id}`}
-										value={`g-${config.id}`}
-										onSelect={() => handleSelect(config.id)}
-										className={cn(
-											"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50",
-											isSelected && "bg-accent/80",
-											isAuto && "border border-violet-200 dark:border-violet-800/50"
-										)}
-									>
-										<div className="flex items-center gap-3 min-w-0 flex-1">
-											<div className="shrink-0">
-												{isAuto ? (
-													<Shuffle className="size-4 text-violet-500" />
-												) : (
-													<ImageIcon className="size-4 text-teal-500" />
+								{filteredGlobal.map((config) => {
+									const isSelected = currentConfig?.id === config.id;
+									const isAuto = "is_auto_mode" in config && config.is_auto_mode;
+									return (
+										<CommandItem
+											key={`g-${config.id}`}
+											value={`g-${config.id}`}
+											onSelect={() => handleSelect(config.id)}
+											className={cn(
+												"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50",
+												isSelected && "bg-accent/80",
+												isAuto && "border border-violet-200 dark:border-violet-800/50"
+											)}
+										>
+											<div className="flex items-center gap-3 min-w-0 flex-1">
+												<div className="shrink-0">
+													{isAuto ? (
+														<Shuffle className="size-4 text-violet-500" />
+													) : (
+														<ImageIcon className="size-4 text-teal-500" />
+													)}
+												</div>
+												<div className="min-w-0 flex-1">
+													<div className="flex items-center gap-2">
+														<span className="font-medium truncate">{config.name}</span>
+														{isAuto && (
+															<Badge
+																variant="secondary"
+																className="text-[9px] px-1 py-0 h-3.5 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-0"
+															>
+																Recommended
+															</Badge>
+														)}
+														{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+													</div>
+													<span className="text-xs text-muted-foreground truncate block">
+														{isAuto ? "Auto load balancing" : config.model_name}
+													</span>
+												</div>
+												{onEdit && (
+													<ChevronRight
+														className="size-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+														onClick={(e) => {
+															e.stopPropagation();
+															setOpen(false);
+															onEdit(config, true);
+														}}
+													/>
 												)}
 											</div>
-											<div className="min-w-0 flex-1">
-												<div className="flex items-center gap-2">
-													<span className="font-medium truncate">{config.name}</span>
-													{isAuto && (
-														<Badge
-															variant="secondary"
-															className="text-[9px] px-1 py-0 h-3.5 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-0"
-														>
-															Recommended
-														</Badge>
-													)}
-													{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
-												</div>
-												<span className="text-xs text-muted-foreground truncate block">
-													{isAuto ? "Auto load balancing" : config.model_name}
-												</span>
-											</div>
-											{onEdit && (
-												<ChevronRight
-													className="size-3.5 text-muted-foreground shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-													onClick={(e) => {
-														e.stopPropagation();
-														setOpen(false);
-														onEdit(config, true);
-													}}
-												/>
-											)}
-										</div>
-									</CommandItem>
-								);
-							})}
+										</CommandItem>
+									);
+								})}
 							</CommandGroup>
 						)}
 
@@ -290,51 +289,49 @@ export function ImageModelSelector({ className, onAddNew, onEdit }: ImageModelSe
 										<User className="size-3.5" />
 										Your Image Models
 									</div>
-								{filteredUser.map((config) => {
-									const isSelected = currentConfig?.id === config.id;
-									return (
-										<CommandItem
-											key={`u-${config.id}`}
-											value={`u-${config.id}`}
-											onSelect={() => handleSelect(config.id)}
-											className={cn(
-												"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50",
-												isSelected && "bg-accent/80"
-											)}
-										>
-											<div className="flex items-center gap-3 min-w-0 flex-1">
-												<div className="shrink-0">
-													<ImageIcon className="size-4 text-teal-500" />
-												</div>
-												<div className="min-w-0 flex-1">
-													<div className="flex items-center gap-2">
-														<span className="font-medium truncate">{config.name}</span>
-														{isSelected && (
-															<Check className="size-3.5 text-primary shrink-0" />
-														)}
-													</div>
-													<span className="text-xs text-muted-foreground truncate block">
-														{config.model_name}
-													</span>
-												</div>
-												{onEdit && (
-													<Button
-														variant="ghost"
-														size="icon"
-														className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-														onClick={(e) => {
-															e.stopPropagation();
-															setOpen(false);
-															onEdit(config, false);
-														}}
-													>
-														<Edit3 className="size-3.5 text-muted-foreground" />
-													</Button>
+									{filteredUser.map((config) => {
+										const isSelected = currentConfig?.id === config.id;
+										return (
+											<CommandItem
+												key={`u-${config.id}`}
+												value={`u-${config.id}`}
+												onSelect={() => handleSelect(config.id)}
+												className={cn(
+													"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50",
+													isSelected && "bg-accent/80"
 												)}
-											</div>
-										</CommandItem>
-									);
-								})}
+											>
+												<div className="flex items-center gap-3 min-w-0 flex-1">
+													<div className="shrink-0">
+														<ImageIcon className="size-4 text-teal-500" />
+													</div>
+													<div className="min-w-0 flex-1">
+														<div className="flex items-center gap-2">
+															<span className="font-medium truncate">{config.name}</span>
+															{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+														</div>
+														<span className="text-xs text-muted-foreground truncate block">
+															{config.model_name}
+														</span>
+													</div>
+													{onEdit && (
+														<Button
+															variant="ghost"
+															size="icon"
+															className="h-7 w-7 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+															onClick={(e) => {
+																e.stopPropagation();
+																setOpen(false);
+																onEdit(config, false);
+															}}
+														>
+															<Edit3 className="size-3.5 text-muted-foreground" />
+														</Button>
+													)}
+												</div>
+											</CommandItem>
+										);
+									})}
 								</CommandGroup>
 							</>
 						)}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useAtom } from "jotai";
 import {
 	AlertCircle,
@@ -19,7 +20,7 @@ import {
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { setCommentsCollapsedAtom, setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
@@ -41,6 +42,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -52,7 +54,10 @@ import {
 	isPageLimitExceededMetadata,
 } from "@/contracts/types/inbox.types";
 import type { InboxItem } from "@/hooks/use-inbox";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { notificationsApiService } from "@/lib/apis/notifications-api.service";
+import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 import { useSidebarContextSafe } from "../../hooks";
 
@@ -179,7 +184,9 @@ export function InboxSidebar({
 }: InboxSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
+	const params = useParams();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
+	const searchSpaceId = params?.search_space_id ? Number(params.search_space_id) : null;
 
 	// Comments collapsed state (desktop only, when docked)
 	const [, setCommentsCollapsed] = useAtom(setCommentsCollapsedAtom);
@@ -187,18 +194,46 @@ export function InboxSidebar({
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
 	const [searchQuery, setSearchQuery] = useState("");
+	const debouncedSearch = useDebouncedValue(searchQuery, 300);
+	const isSearchMode = !!debouncedSearch.trim();
 	const [activeTab, setActiveTab] = useState<InboxTab>("comments");
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
 	const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
 	const [mounted, setMounted] = useState(false);
 	// Dropdown state for filter menu (desktop only)
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
+	// Scroll shadow state for connector list
+	const [connectorScrollPos, setConnectorScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const handleConnectorScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		const atTop = el.scrollTop <= 2;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+		setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+	}, []);
 	// Drawer state for filter menu (mobile only)
 	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 
 	// Prefetch trigger ref - placed on item near the end
 	const prefetchTriggerRef = useRef<HTMLDivElement>(null);
+
+	// Server-side search query (enabled only when user is typing a search)
+	// Determines which notification types to search based on active tab
+	const searchTypeFilter = activeTab === "comments" ? ("new_mention" as const) : undefined;
+	const { data: searchResponse, isLoading: isSearchLoading } = useQuery({
+		queryKey: cacheKeys.notifications.search(searchSpaceId, debouncedSearch.trim(), activeTab),
+		queryFn: () =>
+			notificationsApiService.getNotifications({
+				queryParams: {
+					search_space_id: searchSpaceId ?? undefined,
+					type: searchTypeFilter,
+					search: debouncedSearch.trim(),
+					limit: 50,
+				},
+			}),
+		staleTime: 30 * 1000, // 30 seconds (search results don't need to be super fresh)
+		enabled: isSearchMode && open,
+	});
 
 	useEffect(() => {
 		setMounted(true);
@@ -234,17 +269,11 @@ export function InboxSidebar({
 		}
 	}, [activeTab]);
 
-	// Both tabs now derive items from status (all types), so use status for pagination
-	const { loading, loadingMore = false, hasMore = false, loadMore } = status;
+	// Each tab uses its own data source for independent pagination
+	// Comments tab: uses mentions data source (fetches only mention/reply types from server)
+	const commentsItems = mentions.items;
 
-	// Comments tab: mentions and comment replies
-	const commentsItems = useMemo(
-		() =>
-			status.items.filter((item) => item.type === "new_mention" || item.type === "comment_reply"),
-		[status.items]
-	);
-
-	// Status tab: connector indexing, document processing, page limit exceeded, connector deletion
+	// Status tab: filters status data source (fetches all types) to status-specific types
 	const statusItems = useMemo(
 		() =>
 			status.items.filter(
@@ -256,6 +285,14 @@ export function InboxSidebar({
 			),
 		[status.items]
 	);
+
+	// Pagination switches based on active tab
+	const loading = activeTab === "comments" ? mentions.loading : status.loading;
+	const loadingMore =
+		activeTab === "comments" ? (mentions.loadingMore ?? false) : (status.loadingMore ?? false);
+	const hasMore =
+		activeTab === "comments" ? (mentions.hasMore ?? false) : (status.hasMore ?? false);
+	const loadMore = activeTab === "comments" ? mentions.loadMore : status.loadMore;
 
 	// Get unique connector types from status items for filtering
 	const uniqueConnectorTypes = useMemo(() => {
@@ -279,9 +316,23 @@ export function InboxSidebar({
 	// Get items for current tab
 	const displayItems = activeTab === "comments" ? commentsItems : statusItems;
 
-	// Filter items based on filter type, connector filter, and search query
+	// Filter items based on filter type, connector filter, and search mode
+	// When searching: use server-side API results (searches ALL notifications)
+	// When not searching: use Electric real-time items (fast, local)
 	const filteredItems = useMemo(() => {
-		let items = displayItems;
+		// In search mode, use API results
+		let items: InboxItem[] = isSearchMode ? (searchResponse?.items ?? []) : displayItems;
+
+		// For status tab search results, filter to status-specific types
+		if (isSearchMode && activeTab === "status") {
+			items = items.filter(
+				(item) =>
+					item.type === "connector_indexing" ||
+					item.type === "document_processing" ||
+					item.type === "page_limit_exceeded" ||
+					item.type === "connector_deletion"
+			);
+		}
 
 		// Apply read/unread filter
 		if (activeFilter === "unread") {
@@ -302,22 +353,14 @@ export function InboxSidebar({
 			});
 		}
 
-		// Apply search query
-		if (searchQuery.trim()) {
-			const query = searchQuery.toLowerCase();
-			items = items.filter(
-				(item) =>
-					item.title.toLowerCase().includes(query) || item.message.toLowerCase().includes(query)
-			);
-		}
-
 		return items;
-	}, [displayItems, activeFilter, activeTab, selectedConnector, searchQuery]);
+	}, [displayItems, searchResponse, isSearchMode, activeFilter, activeTab, selectedConnector]);
 
 	// Intersection Observer for infinite scroll with prefetching
-	// Only active when not searching (search results are client-side filtered)
+	// Re-runs when active tab changes so each tab gets its own pagination
+	// Disabled during server-side search (search results are not paginated via infinite scroll)
 	useEffect(() => {
-		if (!loadMore || !hasMore || loadingMore || !open || searchQuery.trim()) return;
+		if (!loadMore || !hasMore || loadingMore || !open || isSearchMode) return;
 
 		const observer = new IntersectionObserver(
 			(entries) => {
@@ -338,17 +381,11 @@ export function InboxSidebar({
 		}
 
 		return () => observer.disconnect();
-	}, [loadMore, hasMore, loadingMore, open, searchQuery]);
+	}, [loadMore, hasMore, loadingMore, open, isSearchMode, activeTab]);
 
-	// Unread counts derived from filtered items
-	const unreadCommentsCount = useMemo(
-		() => commentsItems.filter((item) => !item.read).length,
-		[commentsItems]
-	);
-	const unreadStatusCount = useMemo(
-		() => statusItems.filter((item) => !item.read).length,
-		[statusItems]
-	);
+	// Unread counts from server-side accurate totals (passed via props)
+	const unreadCommentsCount = mentions.unreadCount;
+	const unreadStatusCount = status.unreadCount;
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
@@ -539,26 +576,33 @@ export function InboxSidebar({
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
+						{/* Back button - mobile only */}
+						{isMobile && (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={() => onOpenChange(false)}
+							>
+								<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+								<span className="sr-only">{t("close") || "Close"}</span>
+							</Button>
+						)}
 						<h2 className="text-lg font-semibold">{t("inbox") || "Inbox"}</h2>
 					</div>
 					<div className="flex items-center gap-1">
 						{/* Mobile: Button that opens bottom drawer */}
 						{isMobile ? (
 							<>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className="h-8 w-8 rounded-full"
-											onClick={() => setFilterDrawerOpen(true)}
-										>
-											<ListFilter className="h-4 w-4 text-muted-foreground" />
-											<span className="sr-only">{t("filter") || "Filter"}</span>
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent className="z-80">{t("filter") || "Filter"}</TooltipContent>
-								</Tooltip>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 rounded-full"
+									onClick={() => setFilterDrawerOpen(true)}
+								>
+									<ListFilter className="h-4 w-4 text-muted-foreground" />
+									<span className="sr-only">{t("filter") || "Filter"}</span>
+								</Button>
 								<Drawer
 									open={filterDrawerOpen}
 									onOpenChange={setFilterDrawerOpen}
@@ -725,66 +769,71 @@ export function InboxSidebar({
 											<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
 												{t("connectors") || "Connectors"}
 											</DropdownMenuLabel>
-											<DropdownMenuItem
-												onClick={() => setSelectedConnector(null)}
-												className="flex items-center justify-between"
+											<div
+												className="relative max-h-[30vh] overflow-y-auto -mb-1"
+												onScroll={handleConnectorScroll}
+												style={{
+													maskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
+													WebkitMaskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
+												}}
 											>
-												<span className="flex items-center gap-2">
-													<LayoutGrid className="h-4 w-4" />
-													<span>{t("all_connectors") || "All connectors"}</span>
-												</span>
-												{selectedConnector === null && <Check className="h-4 w-4" />}
-											</DropdownMenuItem>
-											{uniqueConnectorTypes.map((connector) => (
 												<DropdownMenuItem
-													key={connector.type}
-													onClick={() => setSelectedConnector(connector.type)}
+													onClick={() => setSelectedConnector(null)}
 													className="flex items-center justify-between"
 												>
 													<span className="flex items-center gap-2">
-														{getConnectorIcon(connector.type, "h-4 w-4")}
-														<span>{connector.displayName}</span>
+														<LayoutGrid className="h-4 w-4" />
+														<span>{t("all_connectors") || "All connectors"}</span>
 													</span>
-													{selectedConnector === connector.type && <Check className="h-4 w-4" />}
+													{selectedConnector === null && <Check className="h-4 w-4" />}
 												</DropdownMenuItem>
-											))}
+												{uniqueConnectorTypes.map((connector) => (
+													<DropdownMenuItem
+														key={connector.type}
+														onClick={() => setSelectedConnector(connector.type)}
+														className="flex items-center justify-between"
+													>
+														<span className="flex items-center gap-2">
+															{getConnectorIcon(connector.type, "h-4 w-4")}
+															<span>{connector.displayName}</span>
+														</span>
+														{selectedConnector === connector.type && <Check className="h-4 w-4" />}
+													</DropdownMenuItem>
+												))}
+											</div>
 										</>
 									)}
 								</DropdownMenuContent>
 							</DropdownMenu>
 						)}
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 rounded-full"
-									onClick={handleMarkAllAsRead}
-									disabled={totalUnreadCount === 0}
-								>
-									<CheckCheck className="h-4 w-4 text-muted-foreground" />
-									<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent className="z-80">
-								{t("mark_all_read") || "Mark all as read"}
-							</TooltipContent>
-						</Tooltip>
-						{/* Close button - mobile only */}
-						{isMobile && (
+						{isMobile ? (
+							<Button
+								variant="ghost"
+								size="icon"
+								className="h-8 w-8 rounded-full"
+								onClick={handleMarkAllAsRead}
+								disabled={totalUnreadCount === 0}
+							>
+								<CheckCheck className="h-4 w-4 text-muted-foreground" />
+								<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
+							</Button>
+						) : (
 							<Tooltip>
 								<TooltipTrigger asChild>
 									<Button
 										variant="ghost"
 										size="icon"
 										className="h-8 w-8 rounded-full"
-										onClick={() => onOpenChange(false)}
+										onClick={handleMarkAllAsRead}
+										disabled={totalUnreadCount === 0}
 									>
-										<ChevronLeft className="h-4 w-4 text-muted-foreground" />
-										<span className="sr-only">{t("close") || "Close"}</span>
+										<CheckCheck className="h-4 w-4 text-muted-foreground" />
+										<span className="sr-only">{t("mark_all_read") || "Mark all as read"}</span>
 									</Button>
 								</TooltipTrigger>
-								<TooltipContent className="z-80">{t("close") || "Close"}</TooltipContent>
+								<TooltipContent className="z-80">
+									{t("mark_all_read") || "Mark all as read"}
+								</TooltipContent>
 							</Tooltip>
 						)}
 						{/* Dock/Undock button - desktop only */}
@@ -881,17 +930,48 @@ export function InboxSidebar({
 			</Tabs>
 
 			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-				{loading ? (
-					<div className="flex items-center justify-center py-8">
-						<Spinner size="md" className="text-muted-foreground" />
+				{(isSearchMode ? isSearchLoading : loading) ? (
+					<div className="space-y-2">
+						{activeTab === "comments"
+							? /* Comments skeleton: avatar + two-line text + time */
+								[85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
+									<div
+										key={`skeleton-comment-${i}`}
+										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+									>
+										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+										<div className="flex-1 min-w-0 space-y-2">
+											<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+											<Skeleton className="h-2.5 w-[70%] rounded" />
+										</div>
+										<Skeleton className="h-3 w-6 shrink-0 rounded" />
+									</div>
+								))
+							: /* Status skeleton: status icon circle + two-line text + time */
+								[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+									<div
+										key={`skeleton-status-${i}`}
+										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+									>
+										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+										<div className="flex-1 min-w-0 space-y-2">
+											<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+											<Skeleton className="h-2.5 w-[60%] rounded" />
+										</div>
+										<div className="flex items-center gap-1.5 shrink-0">
+											<Skeleton className="h-3 w-6 rounded" />
+											<Skeleton className="h-2 w-2 rounded-full" />
+										</div>
+									</div>
+								))}
 					</div>
 				) : filteredItems.length > 0 ? (
 					<div className="space-y-2">
 						{filteredItems.map((item, index) => {
 							const isMarkingAsRead = markingAsReadId === item.id;
-							// Place prefetch trigger on 5th item from end (only if not searching)
+							// Place prefetch trigger on 5th item from end (only when not searching)
 							const isPrefetchTrigger =
-								!searchQuery && hasMore && index === filteredItems.length - 5;
+								!isSearchMode && hasMore && index === filteredItems.length - 5;
 
 							return (
 								<div
@@ -904,37 +984,61 @@ export function InboxSidebar({
 										isMarkingAsRead && "opacity-50 pointer-events-none"
 									)}
 								>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<button
-												type="button"
-												onClick={() => handleItemClick(item)}
-												disabled={isMarkingAsRead}
-												className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
-											>
-												<div className="shrink-0">{getStatusIcon(item)}</div>
-												<div className="flex-1 min-w-0 overflow-hidden">
-													<p
-														className={cn(
-															"text-xs font-medium line-clamp-2",
-															!item.read && "font-semibold"
-														)}
-													>
-														{item.title}
-													</p>
-													<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
-														{convertRenderedToDisplay(item.message)}
-													</p>
-												</div>
-											</button>
-										</TooltipTrigger>
-										<TooltipContent side="bottom" align="start" className="max-w-[250px]">
-											<p className="font-medium">{item.title}</p>
-											<p className="text-muted-foreground mt-1">
-												{convertRenderedToDisplay(item.message)}
-											</p>
-										</TooltipContent>
-									</Tooltip>
+									{isMobile ? (
+										<button
+											type="button"
+											onClick={() => handleItemClick(item)}
+											disabled={isMarkingAsRead}
+											className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+										>
+											<div className="shrink-0">{getStatusIcon(item)}</div>
+											<div className="flex-1 min-w-0 overflow-hidden">
+												<p
+													className={cn(
+														"text-xs font-medium line-clamp-2",
+														!item.read && "font-semibold"
+													)}
+												>
+													{item.title}
+												</p>
+												<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</div>
+										</button>
+									) : (
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<button
+													type="button"
+													onClick={() => handleItemClick(item)}
+													disabled={isMarkingAsRead}
+													className="flex items-center gap-3 flex-1 min-w-0 text-left overflow-hidden"
+												>
+													<div className="shrink-0">{getStatusIcon(item)}</div>
+													<div className="flex-1 min-w-0 overflow-hidden">
+														<p
+															className={cn(
+																"text-xs font-medium line-clamp-2",
+																!item.read && "font-semibold"
+															)}
+														>
+															{item.title}
+														</p>
+														<p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">
+															{convertRenderedToDisplay(item.message)}
+														</p>
+													</div>
+												</button>
+											</TooltipTrigger>
+											<TooltipContent side="bottom" align="start" className="max-w-[250px]">
+												<p className="font-medium">{item.title}</p>
+												<p className="text-muted-foreground mt-1">
+													{convertRenderedToDisplay(item.message)}
+												</p>
+											</TooltipContent>
+										</Tooltip>
+									)}
 
 									{/* Time and unread dot - fixed width to prevent content shift */}
 									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">
@@ -947,11 +1051,43 @@ export function InboxSidebar({
 							);
 						})}
 						{/* Fallback trigger at the very end if less than 5 items and not searching */}
-						{!searchQuery && filteredItems.length < 5 && hasMore && (
+						{!isSearchMode && filteredItems.length < 5 && hasMore && (
 							<div ref={prefetchTriggerRef} className="h-1" />
 						)}
+						{/* Loading more skeletons at the bottom during infinite scroll */}
+						{loadingMore &&
+							(activeTab === "comments"
+								? [80, 60, 90].map((titleWidth, i) => (
+										<div
+											key={`loading-more-comment-${i}`}
+											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+										>
+											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+											<div className="flex-1 min-w-0 space-y-2">
+												<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+												<Skeleton className="h-2.5 w-[70%] rounded" />
+											</div>
+											<Skeleton className="h-3 w-6 shrink-0 rounded" />
+										</div>
+									))
+								: [70, 85, 55].map((titleWidth, i) => (
+										<div
+											key={`loading-more-status-${i}`}
+											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
+										>
+											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
+											<div className="flex-1 min-w-0 space-y-2">
+												<Skeleton className="h-3 rounded" style={{ width: `${titleWidth}%` }} />
+												<Skeleton className="h-2.5 w-[60%] rounded" />
+											</div>
+											<div className="flex items-center gap-1.5 shrink-0">
+												<Skeleton className="h-3 w-6 rounded" />
+												<Skeleton className="h-2 w-2 rounded-full" />
+											</div>
+										</div>
+									)))}
 					</div>
-				) : searchQuery ? (
+				) : isSearchMode ? (
 					<div className="text-center py-8">
 						<Search className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
 						<p className="text-sm text-muted-foreground">
