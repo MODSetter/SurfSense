@@ -104,8 +104,8 @@ export function HeroSection() {
 			{/* // TODO:aCTUAL DESCRITION */}
 			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
 				Connect any AI to your documents and knowledge sources.
-			<p className="relative z-50 mx-auto mt-0 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
 			</p>
+			<p className="relative z-50 mx-auto mt-0 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
 				Then chat with it in real-time, even alongside your team.
 			</p>
 			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
