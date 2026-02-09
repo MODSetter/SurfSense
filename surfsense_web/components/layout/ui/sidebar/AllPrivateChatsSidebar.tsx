@@ -12,11 +12,9 @@ import {
 	User,
 	X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +38,7 @@ import {
 	updateThread,
 } from "@/lib/chat/thread-persistence";
 import { cn } from "@/lib/utils";
+import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
 interface AllPrivateChatsSidebarProps {
 	open: boolean;
@@ -69,15 +68,10 @@ export function AllPrivateChatsSidebar({
 	const [archivingThreadId, setArchivingThreadId] = useState<number | null>(null);
 	const [searchQuery, setSearchQuery] = useState("");
 	const [showArchived, setShowArchived] = useState(false);
-	const [mounted, setMounted] = useState(false);
 	const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
-
-	useEffect(() => {
-		setMounted(true);
-	}, []);
 
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
@@ -88,17 +82,6 @@ export function AllPrivateChatsSidebar({
 		document.addEventListener("keydown", handleEscape);
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
-
-	useEffect(() => {
-		if (open) {
-			document.body.style.overflow = "hidden";
-		} else {
-			document.body.style.overflow = "";
-		}
-		return () => {
-			document.body.style.overflow = "";
-		};
-	}, [open]);
 
 	const {
 		data: threadsData,
@@ -214,33 +197,13 @@ export function AllPrivateChatsSidebar({
 	const activeCount = activeChats.length;
 	const archivedCount = archivedChats.length;
 
-	if (!mounted) return null;
-
-	return createPortal(
-		<AnimatePresence>
-			{open && (
-				<>
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-70 bg-black/50"
-						onClick={() => onOpenChange(false)}
-						aria-hidden="true"
-					/>
-
-					<motion.div
-						initial={{ x: "-100%" }}
-						animate={{ x: 0 }}
-						exit={{ x: "-100%" }}
-						transition={{ type: "tween", duration: 0.3, ease: "easeOut" }}
-						className="fixed inset-y-0 left-0 z-70 w-80 bg-background shadow-xl flex flex-col pointer-events-auto isolate"
-						role="dialog"
-						aria-modal="true"
-						aria-label={t("chats") || "Private Chats"}
-					>
-						<div className="shrink-0 p-4 pb-2 space-y-3">
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("chats") || "Private Chats"}
+		>
+			<div className="shrink-0 p-4 pb-2 space-y-3">
 							<div className="flex items-center gap-2">
 								<User className="h-5 w-5 text-primary" />
 								<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
@@ -451,11 +414,7 @@ export function AllPrivateChatsSidebar({
 									)}
 								</div>
 							)}
-						</div>
-					</motion.div>
-				</>
-			)}
-		</AnimatePresence>,
-		document.body
+				</div>
+		</SidebarSlideOutPanel>
 	);
 }
