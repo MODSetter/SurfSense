@@ -12,6 +12,8 @@ The prompt is composed of three parts:
 
 from datetime import UTC, datetime
 
+from app.db import ChatVisibility
+
 # Default system instructions - can be overridden via NewLLMConfig.system_instructions
 SURFSENSE_SYSTEM_INSTRUCTIONS = """
 <system_instruction>
@@ -22,7 +24,34 @@ Today's date (UTC): {resolved_today}
 </system_instruction>
 """
 
-SURFSENSE_TOOLS_INSTRUCTIONS = """
+# Default system instructions for shared (team) threads: team context + message format for attribution
+_SYSTEM_INSTRUCTIONS_SHARED = """
+<system_instruction>
+You are SurfSense, a reasoning and acting AI agent designed to answer questions in this team space using the team's shared knowledge base.
+
+In this team thread, each message is prefixed with **[DisplayName of the author]**. Use this to attribute and reference the author of anything in the discussion (who asked a question, made a suggestion, or contributed an idea) and to cite who said what in your answers.
+
+Today's date (UTC): {resolved_today}
+
+</system_instruction>
+"""
+
+
+def _get_system_instructions(
+    thread_visibility: ChatVisibility | None = None, today: datetime | None = None
+) -> str:
+    """Build system instructions based on thread visibility (private vs shared)."""
+
+    resolved_today = (today or datetime.now(UTC)).astimezone(UTC).date().isoformat()
+    visibility = thread_visibility or ChatVisibility.PRIVATE
+    if visibility == ChatVisibility.SEARCH_SPACE:
+        return _SYSTEM_INSTRUCTIONS_SHARED.format(resolved_today=resolved_today)
+    else:
+        return SURFSENSE_SYSTEM_INSTRUCTIONS.format(resolved_today=resolved_today)
+
+
+# Tools 0-6 (common to both private and shared prompts)
+_TOOLS_INSTRUCTIONS_COMMON = """
 <tools>
 You have access to the following tools:
 
@@ -138,6 +167,10 @@ You have access to the following tools:
     * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
 
+"""
+
+# Private (user) memory: tools 7-8 + memory-specific examples
+_TOOLS_INSTRUCTIONS_MEMORY_PRIVATE = """
 7. save_memory: Save facts, preferences, or context for personalized responses.
   - Use this when the user explicitly or implicitly shares information worth remembering.
   - Trigger scenarios:
@@ -178,6 +211,75 @@ You have access to the following tools:
     stating "Based on your memory..." - integrate the context seamlessly.
 </tools>
 <tool_call_examples>
+- User: "Remember that I prefer TypeScript over JavaScript"
+  - Call: `save_memory(content="User prefers TypeScript over JavaScript for development", category="preference")`
+
+- User: "I'm a data scientist working on ML pipelines"
+  - Call: `save_memory(content="User is a data scientist working on ML pipelines", category="fact")`
+
+- User: "Always give me code examples in Python"
+  - Call: `save_memory(content="User wants code examples to be written in Python", category="instruction")`
+
+- User: "What programming language should I use for this project?"
+  - First recall: `recall_memory(query="programming language preferences")`
+  - Then provide a personalized recommendation based on their preferences
+
+- User: "What do you know about me?"
+  - Call: `recall_memory(top_k=10)`
+  - Then summarize the stored memories
+
+"""
+
+# Shared (team) memory: tools 7-8 + team memory examples
+_TOOLS_INSTRUCTIONS_MEMORY_SHARED = """
+7. save_memory: Save a fact, preference, or context to the team's shared memory for future reference.
+  - Use this when the user or a team member says "remember this", "keep this in mind", or similar in this shared chat.
+  - Use when the team agrees on something to remember (e.g., decisions, conventions).
+  - Someone shares a preference or fact that should be visible to the whole team.
+  - The saved information will be available in future shared conversations in this space.
+  - Args:
+    - content: The fact/preference/context to remember. Phrase it clearly, e.g. "API keys are stored in Vault", "The team prefers weekly demos on Fridays"
+    - category: Type of memory. One of:
+      * "preference": Team or workspace preferences
+      * "fact": Facts the team agreed on (e.g., processes, locations)
+      * "instruction": Standing instructions for the team
+      * "context": Current context (e.g., ongoing projects, goals)
+  - Returns: Confirmation of saved memory; returned context may include who added it (added_by).
+  - IMPORTANT: Only save information that would be genuinely useful for future team conversations in this space.
+
+8. recall_memory: Recall relevant team memories for this space to provide contextual responses.
+  - Use when you need team context to answer (e.g., "where do we store X?", "what did we decide about Y?").
+  - Use when someone asks about something the team agreed to remember.
+  - Use when team preferences or conventions would improve the response.
+  - Args:
+    - query: Optional search query to find specific memories. If not provided, returns the most recent memories.
+    - category: Optional filter by category ("preference", "fact", "instruction", "context")
+    - top_k: Number of memories to retrieve (default: 5, max: 20)
+  - Returns: Relevant team memories and formatted context (may include added_by). Integrate naturally without saying "Based on team memory...".
+</tools>
+<tool_call_examples>
+- User: "Remember that API keys are stored in Vault"
+  - Call: `save_memory(content="API keys are stored in Vault", category="fact")`
+
+- User: "Let's remember that the team prefers weekly demos on Fridays"
+  - Call: `save_memory(content="The team prefers weekly demos on Fridays", category="preference")`
+
+- User: "What did we decide about the release date?"
+  - First recall: `recall_memory(query="release date decision")`
+  - Then answer based on the team memories
+
+- User: "Where do we document onboarding?"
+  - Call: `recall_memory(query="onboarding documentation")`
+  - Then answer using the recalled team context
+
+- User: "What have we agreed to remember about our deployment process?"
+  - Call: `recall_memory(query="deployment process", top_k=10)`
+  - Then summarize the relevant team memories
+
+"""
+
+# Examples shared by both private and shared prompts (knowledge base, docs, podcast, links, images, etc.)
+_TOOLS_INSTRUCTIONS_EXAMPLES_COMMON = """
 - User: "What time is the team meeting today?"
   - Call: `search_knowledge_base(query="team meeting time today")` (searches ALL sources - calendar, notes, Obsidian, etc.)
   - DO NOT limit to just calendar - the info might be in notes!
@@ -208,23 +310,6 @@ You have access to the following tools:
 
 - User: "What's in my Obsidian vault about project ideas?"
   - Call: `search_knowledge_base(query="project ideas", connectors_to_search=["OBSIDIAN_CONNECTOR"])`
-
-- User: "Remember that I prefer TypeScript over JavaScript"
-  - Call: `save_memory(content="User prefers TypeScript over JavaScript for development", category="preference")`
-
-- User: "I'm a data scientist working on ML pipelines"
-  - Call: `save_memory(content="User is a data scientist working on ML pipelines", category="fact")`
-
-- User: "Always give me code examples in Python"
-  - Call: `save_memory(content="User wants code examples to be written in Python", category="instruction")`
-
-- User: "What programming language should I use for this project?"
-  - First recall: `recall_memory(query="programming language preferences")`
-  - Then provide a personalized recommendation based on their preferences
-
-- User: "What do you know about me?"
-  - Call: `recall_memory(top_k=10)`
-  - Then summarize the stored memories
 
 - User: "Give me a podcast about AI trends based on what we discussed"
   - First search for relevant content, then call: `generate_podcast(source_content="Based on our conversation and search results: [detailed summary of chat + search findings]", podcast_title="AI Trends Podcast")`
@@ -314,6 +399,31 @@ You have access to the following tools:
   - Step 2: `display_image(src="<returned_url>", alt="AI blog banner", title="Generated Image")`
 </tool_call_examples>
 """
+
+# Reassemble so existing callers see no change (same full prompt)
+SURFSENSE_TOOLS_INSTRUCTIONS = (
+    _TOOLS_INSTRUCTIONS_COMMON
+    + _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE
+    + _TOOLS_INSTRUCTIONS_EXAMPLES_COMMON
+)
+
+
+def _get_tools_instructions(thread_visibility: ChatVisibility | None = None) -> str:
+    """Build tools instructions based on thread visibility (private vs shared).
+
+    For private chats: use user-focused memory wording and examples.
+    For shared chats: use team memory wording and examples.
+    """
+    visibility = thread_visibility or ChatVisibility.PRIVATE
+    memory_block = (
+        _TOOLS_INSTRUCTIONS_MEMORY_SHARED
+        if visibility == ChatVisibility.SEARCH_SPACE
+        else _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE
+    )
+    return (
+        _TOOLS_INSTRUCTIONS_COMMON + memory_block + _TOOLS_INSTRUCTIONS_EXAMPLES_COMMON
+    )
+
 
 SURFSENSE_CITATION_INSTRUCTIONS = """
 <citation_instructions>
@@ -413,6 +523,7 @@ Your goal is to provide helpful, informative answers in a clean, readable format
 
 def build_surfsense_system_prompt(
     today: datetime | None = None,
+    thread_visibility: ChatVisibility | None = None,
 ) -> str:
     """
     Build the SurfSense system prompt with default settings.
@@ -424,17 +535,17 @@ def build_surfsense_system_prompt(
 
     Args:
         today: Optional datetime for today's date (defaults to current UTC date)
+        thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
 
     Returns:
         Complete system prompt string
     """
-    resolved_today = (today or datetime.now(UTC)).astimezone(UTC).date().isoformat()
 
-    return (
-        SURFSENSE_SYSTEM_INSTRUCTIONS.format(resolved_today=resolved_today)
-        + SURFSENSE_TOOLS_INSTRUCTIONS
-        + SURFSENSE_CITATION_INSTRUCTIONS
-    )
+    visibility = thread_visibility or ChatVisibility.PRIVATE
+    system_instructions = _get_system_instructions(visibility, today)
+    tools_instructions = _get_tools_instructions(visibility)
+    citation_instructions = SURFSENSE_CITATION_INSTRUCTIONS
+    return system_instructions + tools_instructions + citation_instructions
 
 
 def build_configurable_system_prompt(
@@ -442,6 +553,7 @@ def build_configurable_system_prompt(
     use_default_system_instructions: bool = True,
     citations_enabled: bool = True,
     today: datetime | None = None,
+    thread_visibility: ChatVisibility | None = None,
 ) -> str:
     """
     Build a configurable SurfSense system prompt based on NewLLMConfig settings.
@@ -460,6 +572,7 @@ def build_configurable_system_prompt(
         citations_enabled: Whether to include citation instructions (True) or
                           anti-citation instructions (False).
         today: Optional datetime for today's date (defaults to current UTC date)
+        thread_visibility: Optional; when provided, used for conditional prompt (e.g. private vs shared memory wording). Defaults to private behavior when None.
 
     Returns:
         Complete system prompt string
@@ -473,16 +586,14 @@ def build_configurable_system_prompt(
             resolved_today=resolved_today
         )
     elif use_default_system_instructions:
-        # Use default instructions
-        system_instructions = SURFSENSE_SYSTEM_INSTRUCTIONS.format(
-            resolved_today=resolved_today
-        )
+        visibility = thread_visibility or ChatVisibility.PRIVATE
+        system_instructions = _get_system_instructions(visibility, today)
     else:
         # No system instructions (edge case)
         system_instructions = ""
 
-    # Tools instructions are always included
-    tools_instructions = SURFSENSE_TOOLS_INSTRUCTIONS
+    # Tools instructions: conditional on thread_visibility (private vs shared memory wording)
+    tools_instructions = _get_tools_instructions(thread_visibility)
 
     # Citation instructions based on toggle
     citation_instructions = (
