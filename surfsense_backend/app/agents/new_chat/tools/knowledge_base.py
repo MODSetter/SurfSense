@@ -8,6 +8,7 @@ This module provides:
 - Tool factory for creating search_knowledge_base tools
 """
 
+import asyncio
 import json
 from datetime import datetime
 from typing import Any
@@ -16,6 +17,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import async_session_maker
 from app.services.connector_service import ConnectorService
 
 # =============================================================================
@@ -333,7 +335,7 @@ async def search_knowledge_base_async(
     Returns:
         Formatted string with search results
     """
-    all_documents = []
+    all_documents: list[dict[str, Any]] = []
 
     # Resolve date range (default last 2 years)
     from app.agents.new_chat.utils import resolve_date_range
@@ -345,323 +347,132 @@ async def search_knowledge_base_async(
 
     connectors = _normalize_connectors(connectors_to_search, available_connectors)
 
-    for connector in connectors:
+    connector_specs: dict[str, tuple[str, bool, bool, dict[str, Any]]] = {
+        "YOUTUBE_VIDEO": ("search_youtube", True, True, {}),
+        "EXTENSION": ("search_extension", True, True, {}),
+        "CRAWLED_URL": ("search_crawled_urls", True, True, {}),
+        "FILE": ("search_files", True, True, {}),
+        "SLACK_CONNECTOR": ("search_slack", True, True, {}),
+        "TEAMS_CONNECTOR": ("search_teams", True, True, {}),
+        "NOTION_CONNECTOR": ("search_notion", True, True, {}),
+        "GITHUB_CONNECTOR": ("search_github", True, True, {}),
+        "LINEAR_CONNECTOR": ("search_linear", True, True, {}),
+        "TAVILY_API": ("search_tavily", False, True, {}),
+        "SEARXNG_API": ("search_searxng", False, True, {}),
+        "LINKUP_API": ("search_linkup", False, False, {"mode": "standard"}),
+        "BAIDU_SEARCH_API": ("search_baidu", False, True, {}),
+        "DISCORD_CONNECTOR": ("search_discord", True, True, {}),
+        "JIRA_CONNECTOR": ("search_jira", True, True, {}),
+        "GOOGLE_CALENDAR_CONNECTOR": ("search_google_calendar", True, True, {}),
+        "AIRTABLE_CONNECTOR": ("search_airtable", True, True, {}),
+        "GOOGLE_GMAIL_CONNECTOR": ("search_google_gmail", True, True, {}),
+        "GOOGLE_DRIVE_FILE": ("search_google_drive", True, True, {}),
+        "CONFLUENCE_CONNECTOR": ("search_confluence", True, True, {}),
+        "CLICKUP_CONNECTOR": ("search_clickup", True, True, {}),
+        "LUMA_CONNECTOR": ("search_luma", True, True, {}),
+        "ELASTICSEARCH_CONNECTOR": ("search_elasticsearch", True, True, {}),
+        "NOTE": ("search_notes", True, True, {}),
+        "BOOKSTACK_CONNECTOR": ("search_bookstack", True, True, {}),
+        "CIRCLEBACK": ("search_circleback", True, True, {}),
+        "OBSIDIAN_CONNECTOR": ("search_obsidian", True, True, {}),
+        # Composio connectors
+        "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": (
+            "search_composio_google_drive",
+            True,
+            True,
+            {},
+        ),
+        "COMPOSIO_GMAIL_CONNECTOR": ("search_composio_gmail", True, True, {}),
+        "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": (
+            "search_composio_google_calendar",
+            True,
+            True,
+            {},
+        ),
+    }
+
+    # Keep a conservative cap to avoid overloading DB/external services.
+    max_parallel_searches = 4
+    semaphore = asyncio.Semaphore(max_parallel_searches)
+
+    async def _search_one_connector(connector: str) -> list[dict[str, Any]]:
+        spec = connector_specs.get(connector)
+        if spec is None:
+            return []
+
+        method_name, includes_date_range, includes_top_k, extra_kwargs = spec
+        kwargs: dict[str, Any] = {
+            "user_query": query,
+            "search_space_id": search_space_id,
+            **extra_kwargs,
+        }
+        if includes_top_k:
+            kwargs["top_k"] = top_k
+        if includes_date_range:
+            kwargs["start_date"] = resolved_start_date
+            kwargs["end_date"] = resolved_end_date
+
         try:
-            if connector == "YOUTUBE_VIDEO":
-                _, chunks = await connector_service.search_youtube(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "EXTENSION":
-                _, chunks = await connector_service.search_extension(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "CRAWLED_URL":
-                _, chunks = await connector_service.search_crawled_urls(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "FILE":
-                _, chunks = await connector_service.search_files(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "SLACK_CONNECTOR":
-                _, chunks = await connector_service.search_slack(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "TEAMS_CONNECTOR":
-                _, chunks = await connector_service.search_teams(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "NOTION_CONNECTOR":
-                _, chunks = await connector_service.search_notion(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "GITHUB_CONNECTOR":
-                _, chunks = await connector_service.search_github(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "LINEAR_CONNECTOR":
-                _, chunks = await connector_service.search_linear(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "TAVILY_API":
-                _, chunks = await connector_service.search_tavily(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "SEARXNG_API":
-                _, chunks = await connector_service.search_searxng(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "LINKUP_API":
-                # Keep behavior aligned with researcher: default "standard"
-                _, chunks = await connector_service.search_linkup(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    mode="standard",
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "BAIDU_SEARCH_API":
-                _, chunks = await connector_service.search_baidu(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "DISCORD_CONNECTOR":
-                _, chunks = await connector_service.search_discord(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "JIRA_CONNECTOR":
-                _, chunks = await connector_service.search_jira(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "GOOGLE_CALENDAR_CONNECTOR":
-                _, chunks = await connector_service.search_google_calendar(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "AIRTABLE_CONNECTOR":
-                _, chunks = await connector_service.search_airtable(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "GOOGLE_GMAIL_CONNECTOR":
-                _, chunks = await connector_service.search_google_gmail(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "GOOGLE_DRIVE_FILE":
-                _, chunks = await connector_service.search_google_drive(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "CONFLUENCE_CONNECTOR":
-                _, chunks = await connector_service.search_confluence(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "CLICKUP_CONNECTOR":
-                _, chunks = await connector_service.search_clickup(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "LUMA_CONNECTOR":
-                _, chunks = await connector_service.search_luma(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "ELASTICSEARCH_CONNECTOR":
-                _, chunks = await connector_service.search_elasticsearch(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "NOTE":
-                _, chunks = await connector_service.search_notes(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "BOOKSTACK_CONNECTOR":
-                _, chunks = await connector_service.search_bookstack(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "CIRCLEBACK":
-                _, chunks = await connector_service.search_circleback(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "OBSIDIAN_CONNECTOR":
-                _, chunks = await connector_service.search_obsidian(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            # =========================================================
-            # Composio Connectors
-            # =========================================================
-            elif connector == "COMPOSIO_GOOGLE_DRIVE_CONNECTOR":
-                _, chunks = await connector_service.search_composio_google_drive(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "COMPOSIO_GMAIL_CONNECTOR":
-                _, chunks = await connector_service.search_composio_gmail(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
-            elif connector == "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR":
-                _, chunks = await connector_service.search_composio_google_calendar(
-                    user_query=query,
-                    search_space_id=search_space_id,
-                    top_k=top_k,
-                    start_date=resolved_start_date,
-                    end_date=resolved_end_date,
-                )
-                all_documents.extend(chunks)
-
+            async with semaphore:
+                # Use isolated session per connector. Shared AsyncSession cannot safely
+                # run concurrent DB operations.
+                async with async_session_maker() as isolated_session:
+                    isolated_connector_service = ConnectorService(
+                        isolated_session, search_space_id
+                    )
+                    connector_method = getattr(isolated_connector_service, method_name)
+                    _, chunks = await connector_method(**kwargs)
+                    return chunks
         except Exception as e:
             print(f"Error searching connector {connector}: {e}")
-            continue
+            return []
 
-    # Deduplicate by content hash
+    connector_results = await asyncio.gather(
+        *[_search_one_connector(connector) for connector in connectors]
+    )
+    for chunks in connector_results:
+        all_documents.extend(chunks)
+
+    # Deduplicate primarily by document ID. Only fall back to content hashing
+    # when a document has no ID.
     seen_doc_ids: set[Any] = set()
-    seen_hashes: set[int] = set()
+    seen_content_hashes: set[int] = set()
     deduplicated: list[dict[str, Any]] = []
+
+    def _content_fingerprint(document: dict[str, Any]) -> int | None:
+        chunks = document.get("chunks")
+        if isinstance(chunks, list):
+            chunk_texts = []
+            for chunk in chunks:
+                if not isinstance(chunk, dict):
+                    continue
+                chunk_content = (chunk.get("content") or "").strip()
+                if chunk_content:
+                    chunk_texts.append(chunk_content)
+            if chunk_texts:
+                return hash("||".join(chunk_texts))
+
+        flat_content = (document.get("content") or "").strip()
+        if flat_content:
+            return hash(flat_content)
+        return None
+
     for doc in all_documents:
         doc_id = (doc.get("document", {}) or {}).get("id")
-        content = (doc.get("content", "") or "").strip()
-        content_hash = hash(content)
 
-        if (doc_id and doc_id in seen_doc_ids) or content_hash in seen_hashes:
+        if doc_id is not None:
+            if doc_id in seen_doc_ids:
+                continue
+            seen_doc_ids.add(doc_id)
+            deduplicated.append(doc)
             continue
 
-        if doc_id:
-            seen_doc_ids.add(doc_id)
-        seen_hashes.add(content_hash)
+        content_hash = _content_fingerprint(doc)
+        if content_hash is not None:
+            if content_hash in seen_content_hashes:
+                continue
+            seen_content_hashes.add(content_hash)
+
         deduplicated.append(doc)
 
     return format_documents_for_context(deduplicated)

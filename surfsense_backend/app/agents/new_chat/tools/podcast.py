@@ -11,21 +11,18 @@ Duplicate request prevention:
 - Returns a friendly message if a podcast is already being generated
 """
 
-import os
 from typing import Any
 
 import redis
 from langchain_core.tools import tool
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import config
 from app.db import Podcast, PodcastStatus
 
 # Redis connection for tracking active podcast tasks
 # Defaults to the Celery broker when REDIS_APP_URL is not set
-REDIS_URL = os.getenv(
-    "REDIS_APP_URL",
-    os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
-)
+REDIS_URL = config.REDIS_APP_URL
 _redis_client: redis.Redis | None = None
 
 

@@ -19,7 +19,6 @@ Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search spa
 """
 
 import logging
-import os
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -76,6 +75,10 @@ from app.utils.periodic_scheduler import (
     update_periodic_schedule,
 )
 from app.utils.rbac import check_permission
+from app.utils.indexing_locks import (
+    acquire_connector_indexing_lock,
+    release_connector_indexing_lock,
+)
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -91,11 +94,9 @@ def get_heartbeat_redis_client() -> redis.Redis:
     """Get or create Redis client for heartbeat tracking."""
     global _heartbeat_redis_client
     if _heartbeat_redis_client is None:
-        redis_url = os.getenv(
-            "REDIS_APP_URL",
-            os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+        _heartbeat_redis_client = redis.from_url(
+            config.REDIS_APP_URL, decode_responses=True
         )
-        _heartbeat_redis_client = redis.from_url(redis_url, decode_responses=True)
     return _heartbeat_redis_client
 
 
@@ -1229,10 +1230,19 @@ async def _run_indexing_with_notifications(
     from celery.exceptions import SoftTimeLimitExceeded
 
     notification = None
+    connector_lock_acquired = False
     # Track indexed count for retry notifications and heartbeat
     current_indexed_count = 0
 
     try:
+        connector_lock_acquired = acquire_connector_indexing_lock(connector_id)
+        if not connector_lock_acquired:
+            logger.info(
+                f"Skipping indexing for connector {connector_id} "
+                "(another worker already holds Redis connector lock)"
+            )
+            return
+
         # Get connector info for notification
         connector_result = await session.execute(
             select(SearchSourceConnector).where(
@@ -1558,6 +1568,11 @@ async def _run_indexing_with_notifications(
                 get_heartbeat_redis_client().delete(heartbeat_key)
             except Exception:
                 pass  # Ignore cleanup errors - key will expire anyway
+        if connector_lock_acquired:
+            try:
+                release_connector_indexing_lock(connector_id)
+            except Exception:
+                pass  # Lock has TTL; safe to ignore cleanup failures
 
 
 async def run_notion_indexing_with_new_session(
