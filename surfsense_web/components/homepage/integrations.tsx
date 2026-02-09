@@ -73,21 +73,19 @@ function IntegrationCard({ integration }: { integration: Integration }) {
 		<div
 			className="w-[60px] h-[60px] sm:w-[80px] sm:h-[80px] md:w-[120px] md:h-[120px] lg:w-[140px] lg:h-[140px] rounded-[16px] sm:rounded-[20px] md:rounded-[24px] flex items-center justify-center shrink-0 select-none"
 			style={{
-				background:
-					"linear-gradient(145deg, var(--card-from), var(--card-to))",
-				boxShadow:
-					"inset 0 1px 0 0 var(--card-highlight), 0 4px 24px var(--card-shadow)",
+				background: "linear-gradient(145deg, var(--card-from), var(--card-to))",
+				boxShadow: "inset 0 1px 0 0 var(--card-highlight), 0 4px 24px var(--card-shadow)",
 			}}
 		>
-		<Image
-			src={integration.icon}
-			alt={integration.name}
-			className="w-6 h-6 sm:w-7 sm:h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 object-contain select-none pointer-events-none"
-			loading="lazy"
-			draggable={false}
-			width={48}
-			height={48}
-		/>
+			<Image
+				src={integration.icon}
+				alt={integration.name}
+				className="w-6 h-6 sm:w-7 sm:h-7 md:w-10 md:h-10 lg:w-12 lg:h-12 object-contain select-none pointer-events-none"
+				loading="lazy"
+				draggable={false}
+				width={48}
+				height={48}
+			/>
 		</div>
 	);
 }
@@ -132,7 +130,10 @@ function ScrollingColumn({
 	));
 
 	return (
-		<div className="flex-shrink-0 overflow-hidden" style={{ ...columnMask, contain: "layout style paint" }}>
+		<div
+			className="flex-shrink-0 overflow-hidden"
+			style={{ ...columnMask, contain: "layout style paint" }}
+		>
 			{/* Outer div has NO gap — each inner copy uses pb matching the gap so both halves are identical in height → seamless -50% loop */}
 			<div
 				className="flex flex-col"
@@ -166,13 +167,13 @@ export default function ExternalIntegrations() {
 				"[--card-lowlight:transparent]",
 				"[--card-shadow:transparent]",
 				"[--card-border:transparent]",
-		// CSS custom properties — dark mode (card styling)
-		"dark:[--card-from:rgb(28,28,32)]",
-		"dark:[--card-to:rgb(28,28,32)]",
-		"dark:[--card-highlight:rgba(255,255,255,0.03)]",
-		"dark:[--card-lowlight:rgba(0,0,0,0.1)]",
-		"dark:[--card-shadow:rgba(0,0,0,0.15)]",
-		"dark:[--card-border:rgba(255,255,255,0.03)]",
+				// CSS custom properties — dark mode (card styling)
+				"dark:[--card-from:rgb(28,28,32)]",
+				"dark:[--card-to:rgb(28,28,32)]",
+				"dark:[--card-highlight:rgba(255,255,255,0.03)]",
+				"dark:[--card-lowlight:rgba(0,0,0,0.1)]",
+				"dark:[--card-shadow:rgba(0,0,0,0.15)]",
+				"dark:[--card-border:rgba(255,255,255,0.03)]",
 			].join(" ")}
 		>
 			{/* Heading */}
@@ -203,15 +204,15 @@ export default function ExternalIntegrations() {
 				{/* 5 scrolling columns */}
 				<div className="flex justify-center gap-2 sm:gap-3 md:gap-5 lg:gap-6 h-[340px] sm:h-[420px] md:h-[560px] lg:h-[640px] overflow-hidden">
 					{COLUMNS.map((column, colIndex) => (
-					<ScrollingColumn
-						key={`col-${SCROLL_DURATIONS[colIndex]}-${colIndex}`}
-						cards={column}
-						scrollUp={colIndex % 2 === 0}
-						duration={SCROLL_DURATIONS[colIndex]}
-						colIndex={colIndex}
-						isEdge={colIndex === 0 || colIndex === COLUMNS.length - 1}
-						isEdgeAdjacent={colIndex === 1 || colIndex === COLUMNS.length - 2}
-					/>
+						<ScrollingColumn
+							key={`col-${SCROLL_DURATIONS[colIndex]}-${colIndex}`}
+							cards={column}
+							scrollUp={colIndex % 2 === 0}
+							duration={SCROLL_DURATIONS[colIndex]}
+							colIndex={colIndex}
+							isEdge={colIndex === 0 || colIndex === COLUMNS.length - 1}
+							isEdgeAdjacent={colIndex === 1 || colIndex === COLUMNS.length - 2}
+						/>
 					))}
 				</div>
 			</div>

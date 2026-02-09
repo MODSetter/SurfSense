@@ -15,11 +15,16 @@ import { EnumConnectorName } from "./connector";
 
 export const getConnectorIcon = (connectorType: EnumConnectorName | string, className?: string) => {
 	const iconProps = { className: className || "h-4 w-4" };
-	const imgProps = { className: `${className || "h-5 w-5"} select-none pointer-events-none`, width: 20, height: 20, draggable: false as const };
+	const imgProps = {
+		className: `${className || "h-5 w-5"} select-none pointer-events-none`,
+		width: 20,
+		height: 20,
+		draggable: false as const,
+	};
 
 	switch (connectorType) {
-	case EnumConnectorName.LINKUP_API:
-		return <Image src="/connectors/linkup.svg" alt="Linkup" {...imgProps} />;
+		case EnumConnectorName.LINKUP_API:
+			return <Image src="/connectors/linkup.svg" alt="Linkup" {...imgProps} />;
 		case EnumConnectorName.LINEAR_CONNECTOR:
 			return <Image src="/connectors/linear.svg" alt="Linear" {...imgProps} />;
 		case EnumConnectorName.GITHUB_CONNECTOR:

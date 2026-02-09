@@ -208,7 +208,8 @@ export function RowActions({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete document?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This action cannot be undone. This will permanently delete this document from your search space.
+							This action cannot be undone. This will permanently delete this document from your
+							search space.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
