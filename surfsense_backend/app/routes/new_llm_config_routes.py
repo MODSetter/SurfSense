@@ -149,8 +149,8 @@ async def create_new_llm_config(
                 detail=f"Invalid LLM configuration: {error_message}",
             )
 
-        # Create the config
-        db_config = NewLLMConfig(**config_data.model_dump())
+        # Create the config with user association
+        db_config = NewLLMConfig(**config_data.model_dump(), user_id=user.id)
         session.add(db_config)
         await session.commit()
         await session.refresh(db_config)

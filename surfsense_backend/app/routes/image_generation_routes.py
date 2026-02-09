@@ -273,7 +273,7 @@ async def create_image_gen_config(
             "You don't have permission to create image generation configs in this search space",
         )
 
-        db_config = ImageGenerationConfig(**config_data.model_dump())
+        db_config = ImageGenerationConfig(**config_data.model_dump(), user_id=user.id)
         session.add(db_config)
         await session.commit()
         await session.refresh(db_config)
