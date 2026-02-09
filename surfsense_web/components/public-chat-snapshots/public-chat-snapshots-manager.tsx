@@ -8,6 +8,7 @@ import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { deletePublicChatSnapshotMutationAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-mutation.atoms";
 import { publicChatSnapshotsAtom } from "@/atoms/public-chat-snapshots/public-chat-snapshots-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PublicChatSnapshotDetail } from "@/contracts/types/chat-threads.types";
 import { PublicChatSnapshotsList } from "./public-chat-snapshots-list";
@@ -85,11 +86,31 @@ export function PublicChatSnapshotsManager({
 	if (isLoading) {
 		return (
 			<div className="space-y-4 md:space-y-5">
+				{/* Info alert skeleton */}
 				<Skeleton className="h-12 w-full rounded-lg" />
+
+				{/* Cards grid skeleton */}
 				<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
-					<Skeleton className="h-32 w-full rounded-lg" />
-					<Skeleton className="h-32 w-full rounded-lg" />
-					<Skeleton className="h-32 w-full rounded-lg" />
+					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
+						<Card key={key} className="border-border/60">
+							<CardContent className="p-4 flex flex-col gap-3">
+								{/* Header: Title */}
+								<div className="flex items-start justify-between gap-2">
+									<Skeleton className="h-4 w-36 md:w-44" />
+								</div>
+								{/* Message count badge */}
+								<div className="flex items-center gap-1.5">
+									<Skeleton className="h-5 w-24 rounded-full" />
+								</div>
+								{/* Footer: Date + Creator */}
+								<div className="flex items-center gap-2 pt-2 border-t border-border/40">
+									<Skeleton className="h-3 w-20" />
+									<Skeleton className="h-4 w-4 rounded-full" />
+									<Skeleton className="h-3 w-16" />
+								</div>
+							</CardContent>
+						</Card>
+					))}
 				</div>
 			</div>
 		);

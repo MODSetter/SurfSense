@@ -47,6 +47,7 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { NewLLMConfig } from "@/contracts/types/new-llm-config.types";
@@ -84,17 +85,14 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const {
 		mutateAsync: createConfig,
 		isPending: isCreating,
-		error: createError,
 	} = useAtomValue(createNewLLMConfigMutationAtom);
 	const {
 		mutateAsync: updateConfig,
 		isPending: isUpdating,
-		error: updateError,
 	} = useAtomValue(updateNewLLMConfigMutationAtom);
 	const {
 		mutateAsync: deleteConfig,
 		isPending: isDeleting,
-		error: deleteError,
 	} = useAtomValue(deleteNewLLMConfigMutationAtom);
 
 	// Queries
@@ -128,7 +126,6 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	const [configToDelete, setConfigToDelete] = useState<NewLLMConfig | null>(null);
 
 	const isSubmitting = isCreating || isUpdating;
-	const errors = [createError, updateError, deleteError, fetchError].filter(Boolean) as Error[];
 
 	const handleFormSubmit = useCallback(
 		async (formData: LLMConfigFormData) => {
@@ -145,7 +142,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				setIsDialogOpen(false);
 				setEditingConfig(null);
 			} catch {
-				// Error handled by mutation
+				// Error is displayed inside the dialog by the form
 			}
 		},
 		[editingConfig, createConfig, updateConfig]
@@ -157,7 +154,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 			await deleteConfig({ id: configToDelete.id });
 			setConfigToDelete(null);
 		} catch {
-			// Error handled by mutation
+			// Error handled by mutation state
 		}
 	};
 
@@ -195,29 +192,27 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					size="sm"
 					className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
 				>
-					<Plus className="h-3 w-3 md:h-4 md:w-4" />
 					Add Configuration
 				</Button>
 			</div>
 
-			{/* Error Alerts */}
+			{/* Fetch Error Alert */}
 			<AnimatePresence>
-				{errors.length > 0 &&
-					errors.map((err) => (
-						<motion.div
-							key={err?.message ?? `error-${Date.now()}-${Math.random()}`}
-							initial={{ opacity: 0, y: -10 }}
-							animate={{ opacity: 1, y: 0 }}
-							exit={{ opacity: 0, y: -10 }}
-						>
-							<Alert variant="destructive" className="py-3 md:py-4">
-								<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-								<AlertDescription className="text-xs md:text-sm">
-									{err?.message ?? "Something went wrong"}
-								</AlertDescription>
-							</Alert>
-						</motion.div>
-					))}
+				{fetchError && (
+					<motion.div
+						key="fetch-error"
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						exit={{ opacity: 0, y: -10 }}
+					>
+						<Alert variant="destructive" className="py-3 md:py-4">
+							<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+							<AlertDescription className="text-xs md:text-sm">
+								{fetchError?.message ?? "Failed to load configurations"}
+							</AlertDescription>
+						</Alert>
+					</motion.div>
+				)}
 			</AnimatePresence>
 
 			{/* Global Configs Info */}
@@ -236,18 +231,39 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 				</motion.div>
 			)}
 
-			{/* Loading State */}
+			{/* Loading Skeleton */}
 			{isLoading && (
-				<Card>
-					<CardContent className="flex items-center justify-center py-10 md:py-16">
-						<div className="flex flex-col items-center gap-2 md:gap-3">
-							<Spinner size="md" className="md:h-8 md:w-8 text-muted-foreground" />
-							<span className="text-xs md:text-sm text-muted-foreground">
-								Loading configurations...
-							</span>
-						</div>
-					</CardContent>
-				</Card>
+				<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
+						<Card key={key} className="border-border/60">
+							<CardContent className="p-4 flex flex-col gap-3">
+								{/* Header */}
+								<div className="flex items-start justify-between gap-2">
+									<div className="space-y-1.5 flex-1 min-w-0">
+										<Skeleton className="h-4 w-28 md:w-32" />
+										<Skeleton className="h-3 w-40 md:w-48" />
+									</div>
+								</div>
+								{/* Provider + Model */}
+								<div className="flex items-center gap-2">
+									<Skeleton className="h-5 w-16 rounded-full" />
+									<Skeleton className="h-5 w-24 rounded-md" />
+								</div>
+								{/* Feature badges */}
+								<div className="flex items-center gap-1.5">
+									<Skeleton className="h-5 w-20 rounded-full" />
+									<Skeleton className="h-5 w-16 rounded-full" />
+								</div>
+								{/* Footer */}
+								<div className="flex items-center gap-2 pt-2 border-t border-border/40">
+									<Skeleton className="h-3 w-20" />
+									<Skeleton className="h-4 w-4 rounded-full" />
+									<Skeleton className="h-3 w-16" />
+								</div>
+							</CardContent>
+						</Card>
+					))}
+				</div>
 			)}
 
 			{/* Configurations List */}
@@ -413,7 +429,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 																						</span>
 																					</div>
 																				)}
-																				<span className="text-[11px] text-muted-foreground/60 truncate max-w-[80px]">
+																				<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
 																					{member.name}
 																				</span>
 																			</div>
@@ -444,12 +460,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 					onOpenAutoFocus={(e) => e.preventDefault()}
 				>
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							{editingConfig ? (
-								<Edit3 className="w-5 h-5 text-violet-600" />
-							) : (
-								<Plus className="w-5 h-5 text-violet-600" />
-							)}
+						<DialogTitle>
 							{editingConfig ? "Edit Configuration" : "Create New Configuration"}
 						</DialogTitle>
 						<DialogDescription>

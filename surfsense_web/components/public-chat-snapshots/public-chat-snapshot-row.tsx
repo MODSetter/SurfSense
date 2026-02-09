@@ -146,7 +146,7 @@ export function PublicChatSnapshotRow({
 													</span>
 												</div>
 											)}
-											<span className="text-[11px] text-muted-foreground/60 truncate max-w-[80px]">
+											<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
 												{member.name}
 											</span>
 										</div>
