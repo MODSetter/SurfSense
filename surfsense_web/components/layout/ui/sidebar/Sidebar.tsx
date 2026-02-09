@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
+import { useSidebarResize } from "../../hooks/useSidebarResize";
 import { ChatListItem } from "./ChatListItem";
 import { NavSection } from "./NavSection";
 import { PageUsageDisplay } from "./PageUsageDisplay";
@@ -82,15 +83,25 @@ export function Sidebar({
 	disableTooltips = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
+	const { sidebarWidth, handleMouseDown, isDragging } = useSidebarResize();
 
 	return (
 		<div
 			className={cn(
-				"flex h-full flex-col bg-sidebar text-sidebar-foreground transition-all duration-200 overflow-hidden",
-				isCollapsed ? "w-[60px]" : "w-[240px]",
+				"relative flex h-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden",
+				isCollapsed ? "w-[60px] transition-all duration-200" : "",
+				!isCollapsed && !isDragging ? "transition-all duration-200" : "",
 				className
 			)}
+			style={!isCollapsed ? { width: sidebarWidth } : undefined}
 		>
+			{/* Resize handle on right border */}
+			{!isCollapsed && (
+				<div
+					onMouseDown={handleMouseDown}
+					className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-border active:bg-border z-10"
+				/>
+			)}
 			{/* Header - search space name or collapse button when collapsed */}
 			{isCollapsed ? (
 				<div className="flex h-14 shrink-0 items-center justify-center border-b">
