@@ -11,7 +11,6 @@ import {
 	Clock,
 	FileText,
 	FileX,
-	Loader2,
 	Network,
 	Plus,
 	User,
@@ -354,11 +353,11 @@ export function DocumentsTableShell({
 											<Skeleton className="h-4 w-4 rounded" />
 										</div>
 									</TableHead>
-									<TableHead className="w-[35%] max-w-0 border-r border-border/40">
+									<TableHead className="w-[40%] max-w-0 border-r border-border/40">
 										<Skeleton className="h-3 w-20" />
 									</TableHead>
 									{columnVisibility.document_type && (
-										<TableHead className="w-[20%] min-w-[120px] max-w-[200px] border-r border-border/40">
+										<TableHead className="w-[15%] min-w-[100px] max-w-[170px] border-r border-border/40">
 											<Skeleton className="h-3 w-14" />
 										</TableHead>
 									)}
@@ -396,11 +395,11 @@ export function DocumentsTableShell({
 													<Skeleton className="h-4 w-4 rounded" />
 												</div>
 											</TableCell>
-											<TableCell className="w-[35%] py-2.5 max-w-0 border-r border-border/40">
+											<TableCell className="w-[40%] py-2.5 max-w-0 border-r border-border/40">
 												<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
 											</TableCell>
 											{columnVisibility.document_type && (
-												<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/40 overflow-hidden">
+												<TableCell className="w-[15%] min-w-[100px] max-w-[170px] py-2.5 border-r border-border/40 overflow-hidden">
 													<Skeleton className="h-5 w-24 rounded" />
 												</TableCell>
 											)}
@@ -499,7 +498,7 @@ export function DocumentsTableShell({
 											/>
 										</div>
 									</TableHead>
-									<TableHead className="w-[35%] border-r border-border/40">
+									<TableHead className="w-[40%] border-r border-border/40">
 										<SortableHeader
 											sortKey="title"
 											currentSortKey={sortKey}
@@ -511,7 +510,7 @@ export function DocumentsTableShell({
 										</SortableHeader>
 									</TableHead>
 									{columnVisibility.document_type && (
-										<TableHead className="w-[20%] min-w-[120px] max-w-[200px] border-r border-border/40">
+										<TableHead className="w-[15%] min-w-[100px] max-w-[170px] border-r border-border/40">
 											<SortableHeader
 												sortKey="document_type"
 												currentSortKey={sortKey}
@@ -594,7 +593,7 @@ export function DocumentsTableShell({
 														/>
 													</div>
 												</TableCell>
-												<TableCell className="w-[35%] py-2.5 max-w-0 border-r border-border/40">
+												<TableCell className="w-[40%] py-2.5 max-w-0 border-r border-border/40">
 													<button
 														type="button"
 														className="block w-full text-left text-sm text-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 p-0 truncate"
@@ -624,7 +623,7 @@ export function DocumentsTableShell({
 													</button>
 												</TableCell>
 												{columnVisibility.document_type && (
-													<TableCell className="w-[20%] min-w-[120px] max-w-[200px] py-2.5 border-r border-border/40 overflow-hidden">
+													<TableCell className="w-[15%] min-w-[100px] max-w-[170px] py-2.5 border-r border-border/40 overflow-hidden">
 														<DocumentTypeChip type={doc.document_type} />
 													</TableCell>
 												)}
@@ -773,7 +772,7 @@ export function DocumentsTableShell({
 					<div className="mt-4">
 						{viewingLoading ? (
 							<div className="flex items-center justify-center py-12">
-								<Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+								<Spinner size="lg" className="text-muted-foreground" />
 							</div>
 						) : (
 							<MarkdownViewer content={viewingContent} />
