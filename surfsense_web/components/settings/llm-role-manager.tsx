@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { getProviderIcon } from "@/lib/provider-icons";
 
 const ROLE_DESCRIPTIONS = {
 	agent: {
@@ -342,11 +343,14 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 													handleRoleAssignment(`${key}_llm_id`, value)
 												}
 											>
-												<SelectTrigger className="h-9 md:h-10 text-xs md:text-sm">
+												<SelectTrigger className="w-full h-9 md:h-10 text-xs md:text-sm">
 													<SelectValue placeholder="Select a configuration" />
 												</SelectTrigger>
-												<SelectContent>
-													<SelectItem value="unassigned">
+												<SelectContent className="max-w-[calc(100vw-2rem)]">
+													<SelectItem
+														value="unassigned"
+														className="text-xs md:text-sm py-1.5 md:py-2"
+													>
 														<span className="text-muted-foreground">
 															Unassigned
 														</span>
@@ -355,7 +359,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 													{/* Global Configurations */}
 													{globalConfigs.length > 0 && (
 														<SelectGroup>
-															<SelectLabel className="text-xs font-semibold text-muted-foreground">
+															<SelectLabel className="text-[11px] md:text-xs font-semibold text-muted-foreground px-2 py-1 md:py-1.5">
 																Global Configurations
 															</SelectLabel>
 															{globalConfigs.map((config) => {
@@ -366,29 +370,25 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																	<SelectItem
 																		key={config.id}
 																		value={config.id.toString()}
+																		className="text-xs md:text-sm py-1.5 md:py-2"
 																	>
-																		<div className="flex items-center gap-2">
+																		<div className="flex items-center gap-1 md:gap-1.5 flex-wrap min-w-0">
 																			{isAuto ? (
 																				<Badge
 																					variant="outline"
-																					className="text-[10px] bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-700"
+																					className="text-[9px] md:text-[10px] shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200 dark:border-violet-700"
 																				>
-																					<Shuffle className="size-2.5 mr-0.5" />
+																					<Shuffle className="size-2 md:size-2.5 mr-0.5" />
 																					AUTO
 																				</Badge>
 																			) : (
-																				<Badge
-																					variant="outline"
-																					className="text-[10px]"
-																				>
-																					{config.provider}
-																				</Badge>
+																				getProviderIcon(config.provider, { className: "size-3 md:size-3.5 shrink-0" })
 																			)}
-																			<span>
+																			<span className="truncate text-xs md:text-sm">
 																				{config.name}
 																			</span>
 																			{!isAuto && (
-																				<span className="text-muted-foreground text-[11px]">
+																				<span className="text-muted-foreground text-[10px] md:text-[11px] truncate">
 																					(
 																					{
 																						config.model_name
@@ -399,7 +399,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																			{isAuto && (
 																				<Badge
 																					variant="secondary"
-																					className="text-[9px] bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
+																					className="text-[8px] md:text-[9px] shrink-0 bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
 																				>
 																					Recommended
 																				</Badge>
@@ -414,7 +414,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 													{/* Custom Configurations */}
 													{newLLMConfigs.length > 0 && (
 														<SelectGroup>
-															<SelectLabel className="text-xs font-semibold text-muted-foreground">
+															<SelectLabel className="text-[11px] md:text-xs font-semibold text-muted-foreground px-2 py-1 md:py-1.5">
 																Your Configurations
 															</SelectLabel>
 															{newLLMConfigs
@@ -429,18 +429,14 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																	<SelectItem
 																		key={config.id}
 																		value={config.id.toString()}
+																		className="text-xs md:text-sm py-1.5 md:py-2"
 																	>
-																		<div className="flex items-center gap-2">
-																			<Badge
-																				variant="outline"
-																				className="text-[10px]"
-																			>
-																				{config.provider}
-																			</Badge>
-																			<span>
+																		<div className="flex items-center gap-1 md:gap-1.5 flex-wrap min-w-0">
+																			{getProviderIcon(config.provider, { className: "size-3 md:size-3.5 shrink-0" })}
+																			<span className="truncate text-xs md:text-sm">
 																				{config.name}
 																			</span>
-																			<span className="text-muted-foreground text-[11px]">
+																			<span className="text-muted-foreground text-[10px] md:text-[11px] truncate">
 																				(
 																				{
 																					config.model_name
@@ -501,12 +497,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																	)}
 															</div>
 															<div className="flex items-center gap-1.5 mt-1">
-																<Badge
-																	variant="outline"
-																	className="text-[9px] px-1.5 py-0 font-mono"
-																>
-																	{assignedConfig.provider}
-																</Badge>
+																{getProviderIcon(assignedConfig.provider, { className: "size-3 shrink-0" })}
 																<code className="text-[10px] text-muted-foreground font-mono truncate">
 																	{assignedConfig.model_name}
 																</code>

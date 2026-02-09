@@ -52,6 +52,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { NewLLMConfig } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
+import { getProviderIcon } from "@/lib/provider-icons";
 
 interface ModelConfigManagerProps {
 	searchSpaceId: number;
@@ -420,12 +421,7 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 
 													{/* Provider + Model */}
 													<div className="flex items-center gap-2 flex-wrap">
-														<Badge
-															variant="secondary"
-															className="text-[10px] font-medium px-2 py-0.5 bg-violet-500/10 text-violet-700 dark:text-violet-300 border-violet-500/20"
-														>
-															{config.provider}
-														</Badge>
+														{getProviderIcon(config.provider, { className: "size-3.5 shrink-0" })}
 														<code className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md truncate max-w-[160px]">
 															{config.model_name}
 														</code>

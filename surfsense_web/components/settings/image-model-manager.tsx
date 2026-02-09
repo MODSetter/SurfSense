@@ -78,6 +78,7 @@ import {
 } from "@/contracts/enums/image-gen-providers";
 import type { ImageGenerationConfig } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
+import { getProviderIcon } from "@/lib/provider-icons";
 
 interface ImageModelManagerProps {
 	searchSpaceId: number;
@@ -505,12 +506,7 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 
 													{/* Provider + Model */}
 													<div className="flex items-center gap-2 flex-wrap">
-														<Badge
-															variant="secondary"
-															className="text-[10px] font-medium px-2 py-0.5 bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20"
-														>
-															{config.provider}
-														</Badge>
+														{getProviderIcon(config.provider, { className: "size-3.5 shrink-0" })}
 														<code className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md truncate max-w-[160px]">
 															{config.model_name}
 														</code>

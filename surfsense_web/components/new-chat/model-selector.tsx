@@ -5,15 +5,10 @@ import {
 	Bot,
 	Check,
 	ChevronDown,
-	Cloud,
 	Edit3,
 	Globe,
 	Plus,
-	Settings2,
-	Shuffle,
-	Sparkles,
 	User,
-	Zap,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -42,33 +37,7 @@ import type {
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
-
-// Provider icons mapping
-const getProviderIcon = (provider: string, isAutoMode?: boolean) => {
-	const iconClass = "size-4";
-
-	// Special icon for Auto mode
-	if (isAutoMode || provider?.toUpperCase() === "AUTO") {
-		return <Shuffle className={cn(iconClass, "text-violet-500")} />;
-	}
-
-	switch (provider?.toUpperCase()) {
-		case "OPENAI":
-			return <Sparkles className={cn(iconClass, "text-emerald-500")} />;
-		case "ANTHROPIC":
-			return <Bot className={cn(iconClass, "text-amber-600")} />;
-		case "GOOGLE":
-			return <Cloud className={cn(iconClass, "text-blue-500")} />;
-		case "GROQ":
-			return <Zap className={cn(iconClass, "text-orange-500")} />;
-		case "OLLAMA":
-			return <Settings2 className={cn(iconClass, "text-gray-500")} />;
-		case "XAI":
-			return <Bot className={cn(iconClass, "text-violet-500")} />;
-		default:
-			return <Bot className={cn(iconClass, "text-muted-foreground")} />;
-	}
-};
+import { getProviderIcon } from "@/lib/provider-icons";
 
 interface ModelSelectorProps {
 	onEdit: (config: NewLLMConfigPublic | GlobalNewLLMConfig, isGlobal: boolean) => void;
@@ -196,7 +165,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						</>
 					) : currentConfig ? (
 						<>
-							{getProviderIcon(currentConfig.provider, isCurrentAutoMode ?? false)}
+							{getProviderIcon(currentConfig.provider, { isAutoMode: isCurrentAutoMode ?? false })}
 							<span className="max-w-[100px] md:max-w-[150px] truncate hidden md:inline">
 								{currentConfig.name}
 							</span>
@@ -283,7 +252,7 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 											<div className="flex items-center justify-between w-full gap-2">
 												<div className="flex items-center gap-3 min-w-0 flex-1">
 													<div className="shrink-0">
-														{getProviderIcon(config.provider, isAutoMode)}
+														{getProviderIcon(config.provider, { isAutoMode })}
 													</div>
 													<div className="min-w-0 flex-1">
 														<div className="flex items-center gap-2">
