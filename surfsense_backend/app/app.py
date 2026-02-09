@@ -62,7 +62,7 @@ def _rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
 # ============================================================================
 # Stricter per-IP limits on auth endpoints to prevent:
 # - Brute force password attacks
-# - User enumeration via LOGIN_USER_NOT_FOUND / REGISTER_USER_ALREADY_EXISTS
+# - User enumeration via REGISTER_USER_ALREADY_EXISTS
 # - Email spam via forgot-password
 #
 # These use direct Redis INCR+EXPIRE for simplicity and reliability.

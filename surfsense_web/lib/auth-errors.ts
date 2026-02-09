@@ -20,8 +20,8 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 		description: "Your account may be suspended or restricted",
 	},
 	"404": {
-		title: "Account not found",
-		description: "No account exists with this email address",
+		title: "Not found",
+		description: "The requested resource was not found",
 	},
 	"409": {
 		title: "Account conflict",
@@ -46,12 +46,8 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 
 	// FastAPI specific errors
 	LOGIN_BAD_CREDENTIALS: {
-		title: "Invalid credentials",
-		description: "The email or password you entered is incorrect",
-	},
-	LOGIN_USER_NOT_FOUND: {
-		title: "Account not found",
-		description: "No account exists with this email address. Please sign up first.",
+		title: "Login failed",
+		description: "Invalid email or password. If you don't have an account, please sign up.",
 	},
 	LOGIN_USER_NOT_VERIFIED: {
 		title: "Account not verified",
@@ -147,10 +143,6 @@ export function getAuthErrorMessage(errorCode: string, returnTitle: boolean = fa
 	if (!errorInfo) {
 		const patterns = [
 			{ pattern: /credential|password|email/i, code: "LOGIN_BAD_CREDENTIALS" },
-			{
-				pattern: /not found|no account|does not exist|user not found/i,
-				code: "LOGIN_USER_NOT_FOUND",
-			},
 			{ pattern: /verify|verification/i, code: "LOGIN_USER_NOT_VERIFIED" },
 			{ pattern: /inactive|disabled|suspended/i, code: "USER_INACTIVE" },
 			{ pattern: /exists|duplicate/i, code: "REGISTER_USER_ALREADY_EXISTS" },
