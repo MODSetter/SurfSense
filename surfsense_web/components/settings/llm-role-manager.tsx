@@ -239,7 +239,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 							</AlertDescription>
 						</Alert>
 					) : !isAssignmentComplete ? (
-						<Alert className="py-3 md:py-4">
+						<Alert className="bg-muted/50 py-3 md:py-4">
 							<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 							<AlertDescription className="text-xs md:text-sm">
 								Complete all role assignments to enable full functionality. Each role serves
@@ -247,7 +247,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 							</AlertDescription>
 						</Alert>
 					) : (
-						<Alert className="py-3 md:py-4">
+						<Alert className="bg-muted/50 py-3 md:py-4">
 							<CheckCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 							<AlertDescription className="text-xs md:text-sm">
 								All roles are assigned and ready to use! Your LLM configuration is complete.

@@ -246,6 +246,7 @@ class PublicChatSnapshotDetail(BaseModel):
     message_count: int
     thread_id: int
     thread_title: str
+    created_by_user_id: str | None = None
 
 
 class PublicChatSnapshotsBySpaceResponse(BaseModel):

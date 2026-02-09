@@ -12,13 +12,15 @@ import {
 	Plus,
 	RefreshCw,
 	Shuffle,
-	Sparkles,
+	Info,
 	Trash2,
+	User,
 	Wand2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	createImageGenConfigMutationAtom,
 	deleteImageGenConfigMutationAtom,
@@ -121,6 +123,21 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 	const { data: globalConfigs = [], isFetching: globalLoading } =
 		useAtomValue(globalImageGenConfigsAtom);
 	const { data: preferences = {}, isFetching: prefsLoading } = useAtomValue(llmPreferencesAtom);
+
+	// Members for user resolution
+	const { data: members } = useAtomValue(membersAtom);
+	const memberMap = useMemo(() => {
+		const map = new Map<string, { name: string; email?: string }>();
+		if (members) {
+			for (const m of members) {
+				map.set(m.user_id, {
+					name: m.user_display_name || m.user_email || "Unknown",
+					email: m.user_email || undefined,
+				});
+			}
+		}
+		return map;
+	}, [members]);
 
 	// Local state
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -320,16 +337,16 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 
 			{/* Global info */}
 			{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length > 0 && (
-				<Alert className="border-teal-500/30 bg-teal-500/5 py-3">
-					<Sparkles className="h-3 w-3 md:h-4 md:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-					<AlertDescription className="text-teal-800 dark:text-teal-200 text-xs md:text-sm">
-						<span className="font-medium">
-							{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
-							image model(s)
-						</span>{" "}
-						available from your administrator.
-					</AlertDescription>
-				</Alert>
+			<Alert className="bg-muted/50 py-3">
+				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+				<AlertDescription className="text-xs md:text-sm">
+					<span className="font-medium">
+						{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
+						image model(s)
+					</span>{" "}
+					available from your administrator.
+				</AlertDescription>
+			</Alert>
 			)}
 
 			{/* Active Preference Card */}
@@ -521,9 +538,17 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 																			{config.description}
 																		</p>
 																	)}
-																	<div className="flex items-center gap-1 text-[10px] md:text-xs text-muted-foreground pt-1">
-																		<Clock className="h-2.5 w-2.5 md:h-3 md:w-3" />
-																		{new Date(config.created_at).toLocaleDateString()}
+																	<div className="flex items-center gap-2 md:gap-4 pt-1">
+																		<div className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground">
+																			<Clock className="h-2.5 w-2.5 md:h-3 md:w-3" />
+																			{new Date(config.created_at).toLocaleDateString()}
+																		</div>
+																		{config.user_id && memberMap.get(config.user_id) && (
+																			<div className="flex items-center gap-1 md:gap-1.5 text-[10px] md:text-xs text-muted-foreground">
+																				<User className="h-2.5 w-2.5 md:h-3 md:w-3" />
+																				<span>{memberMap.get(config.user_id)?.name}</span>
+																			</div>
+																		)}
 																	</div>
 																</div>
 															</div>
