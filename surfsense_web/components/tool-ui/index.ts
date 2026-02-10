@@ -16,6 +16,7 @@ export {
 	type SerializableArticle,
 } from "./article";
 export { Audio } from "./audio";
+export { CreateNotionPageToolUI } from "./create-notion-page";
 export {
 	type DeepAgentThinkingArgs,
 	type DeepAgentThinkingResult,
