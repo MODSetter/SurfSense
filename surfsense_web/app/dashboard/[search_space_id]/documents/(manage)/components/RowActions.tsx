@@ -50,13 +50,16 @@ export function RowActions({
 	const isBeingProcessed =
 		document.status?.state === "pending" || document.status?.state === "processing";
 
+	// FILE documents that failed processing cannot be edited
+	const isFileFailed = document.document_type === "FILE" && document.status?.state === "failed";
+
 	// SURFSENSE_DOCS are system-managed and should not show delete at all
 	const shouldShowDelete = !NON_DELETABLE_DOCUMENT_TYPES.includes(
 		document.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
 	);
 
-	// Edit and Delete are disabled while processing
-	const isEditDisabled = isBeingProcessed;
+	// Edit is disabled while processing OR for failed FILE documents
+	const isEditDisabled = isBeingProcessed || isFileFailed;
 	const isDeleteDisabled = isBeingProcessed;
 
 	const handleDelete = async () => {

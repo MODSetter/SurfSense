@@ -19,6 +19,8 @@ from app.db import (
 from app.schemas import (
     DocumentRead,
     DocumentsCreate,
+    DocumentStatusBatchResponse,
+    DocumentStatusItemRead,
     DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,
@@ -148,6 +150,7 @@ async def create_documents_file_upload(
             tuple[Document, str, str]
         ] = []  # (document, temp_path, filename)
         skipped_duplicates = 0
+        duplicate_document_ids: list[int] = []
 
         # ===== PHASE 1: Create pending documents for all files =====
         # This makes ALL documents visible in the UI immediately with pending status
@@ -182,6 +185,7 @@ async def create_documents_file_upload(
                         # True duplicate — content already indexed, skip
                         os.unlink(temp_path)
                         skipped_duplicates += 1
+                        duplicate_document_ids.append(existing.id)
                         continue
 
                     # Existing document is stuck (failed/pending/processing)
@@ -255,6 +259,7 @@ async def create_documents_file_upload(
         return {
             "message": "Files uploaded for processing",
             "document_ids": [doc.id for doc in created_documents],
+            "duplicate_document_ids": duplicate_document_ids,
             "total_files": len(files),
             "pending_files": len(files_to_process),
             "skipped_duplicates": skipped_duplicates,
@@ -675,6 +680,74 @@ async def search_document_titles(
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Failed to search document titles: {e!s}"
+        ) from e
+
+
+@router.get("/documents/status", response_model=DocumentStatusBatchResponse)
+async def get_documents_status(
+    search_space_id: int,
+    document_ids: str,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Batch status endpoint for documents in a search space.
+
+    Returns lightweight status info for the provided document IDs, intended for
+    polling async ETL progress in chat upload flows.
+    """
+    try:
+        await check_permission(
+            session,
+            user,
+            search_space_id,
+            Permission.DOCUMENTS_READ.value,
+            "You don't have permission to read documents in this search space",
+        )
+
+        # Parse comma-separated IDs (e.g. "1,2,3")
+        parsed_ids = []
+        for raw_id in document_ids.split(","):
+            value = raw_id.strip()
+            if not value:
+                continue
+            try:
+                parsed_ids.append(int(value))
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid document id: {value}",
+                ) from None
+
+        if not parsed_ids:
+            return DocumentStatusBatchResponse(items=[])
+
+        result = await session.execute(
+            select(Document).filter(
+                Document.search_space_id == search_space_id,
+                Document.id.in_(parsed_ids),
+            )
+        )
+        docs = result.scalars().all()
+
+        items = [
+            DocumentStatusItemRead(
+                id=doc.id,
+                title=doc.title,
+                document_type=doc.document_type,
+                status=DocumentStatusSchema(
+                    state=(doc.status or {}).get("state", "ready"),
+                    reason=(doc.status or {}).get("reason"),
+                ),
+            )
+            for doc in docs
+        ]
+        return DocumentStatusBatchResponse(items=items)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Failed to fetch document status: {e!s}"
         ) from e
 
 

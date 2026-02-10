@@ -26,9 +26,8 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
-from app.db import Document, SurfsenseDocsDocument
+from app.db import ChatVisibility, Document, SurfsenseDocsDocument
 from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
-from app.schemas.new_chat import ChatAttachment
 from app.services.chat_session_state_service import (
     clear_ai_responding,
     set_ai_responding,
@@ -36,23 +35,6 @@ from app.services.chat_session_state_service import (
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
-
-
-def format_attachments_as_context(attachments: list[ChatAttachment]) -> str:
-    """Format attachments as context for the agent."""
-    if not attachments:
-        return ""
-
-    context_parts = ["<user_attachments>"]
-    for i, attachment in enumerate(attachments, 1):
-        context_parts.append(
-            f"<attachment index='{i}' name='{attachment.name}' type='{attachment.type}'>"
-        )
-        context_parts.append(f"<![CDATA[{attachment.content}]]>")
-        context_parts.append("</attachment>")
-    context_parts.append("</user_attachments>")
-
-    return "\n".join(context_parts)
 
 
 def format_mentioned_documents_as_context(documents: list[Document]) -> str:
@@ -203,11 +185,12 @@ async def stream_new_chat(
     session: AsyncSession,
     user_id: str | None = None,
     llm_config_id: int = -1,
-    attachments: list[ChatAttachment] | None = None,
     mentioned_document_ids: list[int] | None = None,
     mentioned_surfsense_doc_ids: list[int] | None = None,
     checkpoint_id: str | None = None,
     needs_history_bootstrap: bool = False,
+    thread_visibility: ChatVisibility | None = None,
+    current_user_display_name: str | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -222,7 +205,6 @@ async def stream_new_chat(
         session: The database session
         user_id: The current user's UUID string (for memory tools and session state)
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
-        attachments: Optional attachments with extracted content
         needs_history_bootstrap: If True, load message history from DB (for cloned chats)
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
         mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
@@ -295,17 +277,18 @@ async def stream_new_chat(
         # Get the PostgreSQL checkpointer for persistent conversation memory
         checkpointer = await get_checkpointer()
 
-        # Create the deep agent with checkpointer and configurable prompts
+        visibility = thread_visibility or ChatVisibility.PRIVATE
         agent = await create_surfsense_deep_agent(
             llm=llm,
             search_space_id=search_space_id,
             db_session=session,
             connector_service=connector_service,
             checkpointer=checkpointer,
-            user_id=user_id,  # Pass user ID for memory tools
-            thread_id=chat_id,  # Pass chat ID for podcast association
-            agent_config=agent_config,  # Pass prompt configuration
-            firecrawl_api_key=firecrawl_api_key,  # Pass Firecrawl API key if configured
+            user_id=user_id,
+            thread_id=chat_id,
+            agent_config=agent_config,
+            firecrawl_api_key=firecrawl_api_key,
+            thread_visibility=visibility,
         )
 
         # Build input with message history
@@ -313,7 +296,9 @@ async def stream_new_chat(
 
         # Bootstrap history for cloned chats (no LangGraph checkpoint exists yet)
         if needs_history_bootstrap:
-            langchain_messages = await bootstrap_history_from_db(session, chat_id)
+            langchain_messages = await bootstrap_history_from_db(
+                session, chat_id, thread_visibility=visibility
+            )
 
             # Clear the flag so we don't bootstrap again on next message
             from app.db import NewChatThread
@@ -355,12 +340,9 @@ async def stream_new_chat(
             )
             mentioned_surfsense_docs = list(result.scalars().all())
 
-        # Format the user query with context (attachments + mentioned documents + surfsense docs)
+        # Format the user query with context (mentioned documents + SurfSense docs)
         final_query = user_query
         context_parts = []
-
-        if attachments:
-            context_parts.append(format_attachments_as_context(attachments))
 
         if mentioned_documents:
             context_parts.append(
@@ -375,6 +357,9 @@ async def stream_new_chat(
         if context_parts:
             context = "\n\n".join(context_parts)
             final_query = f"{context}\n\n<user_query>{user_query}</user_query>"
+
+        if visibility == ChatVisibility.SEARCH_SPACE and current_user_display_name:
+            final_query = f"**[{current_user_display_name}]:** {final_query}"
 
         # if messages:
         #     # Convert frontend messages to LangChain format
@@ -451,38 +436,19 @@ async def stream_new_chat(
         last_active_step_id = analyze_step_id
 
         # Determine step title and action verb based on context
-        if attachments and (mentioned_documents or mentioned_surfsense_docs):
-            last_active_step_title = "Analyzing your content"
-            action_verb = "Reading"
-        elif attachments:
-            last_active_step_title = "Reading your content"
-            action_verb = "Reading"
-        elif mentioned_documents or mentioned_surfsense_docs:
+        if mentioned_documents or mentioned_surfsense_docs:
             last_active_step_title = "Analyzing referenced content"
             action_verb = "Analyzing"
         else:
             last_active_step_title = "Understanding your request"
             action_verb = "Processing"
 
-        # Build the message with inline context about attachments/documents
+        # Build the message with inline context about referenced documents
         processing_parts = []
 
         # Add the user query
         query_text = user_query[:80] + ("..." if len(user_query) > 80 else "")
         processing_parts.append(query_text)
-
-        # Add file attachment names inline
-        if attachments:
-            attachment_names = []
-            for attachment in attachments:
-                name = attachment.name
-                if len(name) > 30:
-                    name = name[:27] + "..."
-                attachment_names.append(name)
-            if len(attachment_names) == 1:
-                processing_parts.append(f"[{attachment_names[0]}]")
-            else:
-                processing_parts.append(f"[{len(attachment_names)} files]")
 
         # Add mentioned document names inline
         if mentioned_documents:

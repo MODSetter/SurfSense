@@ -46,16 +46,10 @@ def get_celery_session_maker():
 
 def _clear_generating_podcast(search_space_id: int) -> None:
     """Clear the generating podcast marker from Redis when task completes."""
-    import os
-
     import redis
 
     try:
-        redis_url = os.getenv(
-            "REDIS_APP_URL",
-            os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
-        )
-        client = redis.from_url(redis_url, decode_responses=True)
+        client = redis.from_url(config.REDIS_APP_URL, decode_responses=True)
         key = f"podcast:generating:{search_space_id}"
         client.delete(key)
         logger.info(

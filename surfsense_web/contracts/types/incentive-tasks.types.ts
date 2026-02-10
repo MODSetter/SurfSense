@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Incentive task type enum - matches backend IncentiveTaskType
  */
-export const incentiveTaskTypeEnum = z.enum(["GITHUB_STAR"]);
+export const incentiveTaskTypeEnum = z.enum(["GITHUB_STAR", "REDDIT_FOLLOW", "DISCORD_JOIN"]);
 
 /**
  * Single incentive task info schema
