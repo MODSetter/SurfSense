@@ -7,7 +7,7 @@ These schemas follow the assistant-ui ThreadHistoryAdapter pattern:
 """
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -191,6 +191,16 @@ class RegenerateRequest(BaseModel):
     )
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
+
+
+class ResumeDecision(BaseModel):
+    type: Literal["approve", "edit", "reject"]
+    edited_action: dict[str, Any] | None = None
+
+
+class ResumeRequest(BaseModel):
+    search_space_id: int
+    decisions: list[ResumeDecision]
 
 
 # =============================================================================

@@ -504,6 +504,18 @@ class VercelStreamingService:
             },
         )
 
+    def format_interrupt_request(self, interrupt_value: dict[str, Any]) -> str:
+        """Format an interrupt request for human-in-the-loop approval.
+
+        Args:
+            interrupt_value: The interrupt payload from HumanInTheLoopMiddleware
+                containing action_requests and review_configs.
+
+        Returns:
+            str: SSE formatted interrupt request data part
+        """
+        return self.format_data("interrupt-request", interrupt_value)
+
     # =========================================================================
     # Error Part
     # =========================================================================

@@ -1175,6 +1175,17 @@ async def stream_new_chat(
         if completion_event:
             yield completion_event
 
+        # Check if the graph was interrupted (human-in-the-loop)
+        state = await agent.aget_state(config)
+        is_interrupted = state.tasks and any(task.interrupts for task in state.tasks)
+        if is_interrupted:
+            interrupt_value = state.tasks[0].interrupts[0].value
+            yield streaming_service.format_interrupt_request(interrupt_value)
+            yield streaming_service.format_finish_step()
+            yield streaming_service.format_finish()
+            yield streaming_service.format_done()
+            return
+
         # Generate LLM title for new chats after first response
         # Check if this is the first assistant response by counting existing assistant messages
         from sqlalchemy import func
