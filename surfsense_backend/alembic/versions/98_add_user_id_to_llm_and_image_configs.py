@@ -1,7 +1,7 @@
 """Add user_id to new_llm_configs and image_generation_configs
 
-Revision ID: 96
-Revises: 95
+Revision ID: 98
+Revises: 97
 """
 
 from collections.abc import Sequence
@@ -9,8 +9,8 @@ from collections.abc import Sequence
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = "96"
-down_revision: str | None = "95"
+revision: str = "98"
+down_revision: str | None = "97"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
