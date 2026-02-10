@@ -273,19 +273,19 @@ INCENTIVE_TASKS_CONFIG = {
     IncentiveTaskType.GITHUB_STAR: {
         "title": "Star our GitHub repository",
         "description": "Show your support by starring SurfSense on GitHub",
-        "pages_reward": 100,
+        "pages_reward": 30,
         "action_url": "https://github.com/MODSetter/SurfSense",
     },
     IncentiveTaskType.REDDIT_FOLLOW: {
         "title": "Join our Subreddit",
         "description": "Join the SurfSense community on Reddit",
-        "pages_reward": 100,
+        "pages_reward": 30,
         "action_url": "https://www.reddit.com/r/SurfSense/",
     },
     IncentiveTaskType.DISCORD_JOIN: {
         "title": "Join our Discord",
         "description": "Join the SurfSense community on Discord",
-        "pages_reward": 100,
+        "pages_reward": 40,
         "action_url": "https://discord.gg/ejRNvftDp9",
     },
     # Future tasks can be configured here:
