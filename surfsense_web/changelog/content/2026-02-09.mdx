@@ -1,0 +1,72 @@
+---
+title: "SurfSense v0.0.13 - Public Sharing, Image Generation & Redesigned Documents"
+description: "SurfSense v0.0.13 introduces public chat sharing with permissions, image generation support, an auto load-balanced model mode, a redesigned Documents page, and numerous bug fixes across connectors and UI."
+date: "2026-02-09"
+tags: ["Public Sharing", "Image Generation", "Documents", "UI", "Bug Fixes"]
+version: "0.0.13"
+---
+
+## What's New in v0.0.13
+
+This update brings **public sharing, image generation**, a redesigned Documents page, and numerous bug fixes.
+
+### Features & Improvements
+
+#### Image Generation
+
+- **Image Generation**: Generate images directly in chat with custom model and provider configurations.
+
+#### Public Sharing
+
+- **Public Chat Links**: Share snapshots of chats via public links.
+- **Sharing Permissions**: Search Space owners control who can create and manage public links.
+- **Link Management Page**: View and revoke all public chat links from Search Space Settings.
+
+#### Auto (Load Balanced) Mode
+
+- **Auto Model Selection**: The default cloud model now automatically picks the lowest-load model for faster responses.
+
+#### Redesigned Documents Page
+
+- **Unified Page**: Merged Logs and Documents into one page with real-time statuses.
+- **Inline Connector Management**: Configure and monitor connectors alongside your documents.
+
+#### UI & UX Polish
+
+- **Inbox Refresh**: Cleaner inbox layout for easier scanning.
+- **Streamlined Login**: Consolidated loading screens into a single unified flow.
+- **Chat UI Tweaks**: Small refinements for a cleaner, more consistent chat experience.
+- **Prompt Suggestions**: Empty chat windows now show contextual suggestions.
+
+#### Documentation
+
+- **New Connector Docs**: Added docs for Luma, Circleback, Elasticsearch, Bookstack, and Obsidian connectors.
+
+<Accordion type="multiple" className="w-full not-prose">
+  <AccordionItem value="item-1">
+    <AccordionTrigger>Bug Fixes</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Fixed cloud scaling issues where document queue congestion occurred under high load</li>
+        <li>Documents now correctly attribute to the uploading user and de-index on disconnect or deletion</li>
+        <li>Fixed common backend errors in indexing and large file handling</li>
+        <li>Fixed Notion indexing failures caused by transcription blocks</li>
+        <li>Chat refresh button now correctly regenerates AI responses</li>
+        <li>Restored the previously disabled Role Editor</li>
+        <li>Fixed Mentions tab appearing empty when document notifications pushed mentions out of the pagination window</li>
+        <li>Bundled git in the Docker image to fix GitHub connector failures with gitingest</li>
+        <li>Fixed Google Calendar default date range errors and aligned backend defaults with the frontend</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-2">
+    <AccordionTrigger>Technical Improvements</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <ul className="list-disc space-y-2 pl-4">
+        <li>Rebuilt the GitHub connector on gitingest for more efficient, lower-cost repository fetching</li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
+
+SurfSense is your AI-powered federated search solution, connecting all your knowledge sources in one place.
