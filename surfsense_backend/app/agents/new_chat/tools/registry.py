@@ -45,6 +45,7 @@ from langchain_core.tools import BaseTool
 
 from app.db import ChatVisibility
 
+from .create_notion_page import create_create_notion_page_tool
 from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
 from .knowledge_base import create_search_knowledge_base_tool
@@ -202,13 +203,12 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     # =========================================================================
     # ADD YOUR CUSTOM TOOLS BELOW
     # =========================================================================
-    # Example:
-    # ToolDefinition(
-    #     name="my_custom_tool",
-    #     description="What my tool does",
-    #     factory=lambda deps: create_my_custom_tool(...),
-    #     requires=["search_space_id"],
-    # ),
+    ToolDefinition(
+        name="create_notion_page",
+        description="Create a new page in the user's Notion workspace",
+        factory=lambda deps: create_create_notion_page_tool(),
+        requires=[],
+    ),
 ]
 
 

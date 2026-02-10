@@ -273,6 +273,7 @@ async def create_surfsense_deep_agent(
         system_prompt=system_prompt,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
+        interrupt_on={"create_notion_page": True},
     )
 
     return agent
