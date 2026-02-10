@@ -218,7 +218,9 @@ export const getImageGenConfigsResponse = z.array(imageGenerationConfig);
 
 export const updateImageGenConfigRequest = z.object({
 	id: z.number(),
-	data: imageGenerationConfig.omit({ id: true, created_at: true, search_space_id: true, user_id: true }).partial(),
+	data: imageGenerationConfig
+		.omit({ id: true, created_at: true, search_space_id: true, user_id: true })
+		.partial(),
 });
 
 export const updateImageGenConfigResponse = imageGenerationConfig;

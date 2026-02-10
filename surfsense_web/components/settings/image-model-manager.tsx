@@ -348,16 +348,16 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 
 			{/* Global info */}
 			{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length > 0 && (
-			<Alert className="bg-muted/50 py-3">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
-					<span className="font-medium">
-						{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
-						image model(s)
-					</span>{" "}
-					available from your administrator.
-				</AlertDescription>
-			</Alert>
+				<Alert className="bg-muted/50 py-3">
+					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+					<AlertDescription className="text-xs md:text-sm">
+						<span className="font-medium">
+							{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
+							image model(s)
+						</span>{" "}
+						available from your administrator.
+					</AlertDescription>
+				</Alert>
 			)}
 
 			{/* Loading Skeleton */}
@@ -417,7 +417,11 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 										: "No image models have been added to this space yet. Contact a space owner to add one."}
 								</p>
 								{canCreate && (
-									<Button onClick={openNewDialog} size="lg" className="gap-2 text-xs md:text-sm h-9 md:h-10">
+									<Button
+										onClick={openNewDialog}
+										size="lg"
+										className="gap-2 text-xs md:text-sm h-9 md:h-10"
+									>
 										<Plus className="h-3 w-3 md:h-4 md:w-4" />
 										Add First Image Model
 									</Button>
@@ -457,43 +461,43 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 															)}
 														</div>
 														{(canUpdate || canDelete) && (
-														<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
-															{canUpdate && (
-																<TooltipProvider>
-																	<Tooltip>
-																		<TooltipTrigger asChild>
-																			<Button
-																				variant="ghost"
-																				size="icon"
-																				onClick={() => openEditDialog(config)}
-																				className="h-7 w-7 text-muted-foreground hover:text-foreground"
-																			>
-																				<Edit3 className="h-3 w-3" />
-																			</Button>
-																		</TooltipTrigger>
-																		<TooltipContent>Edit</TooltipContent>
-																	</Tooltip>
-																</TooltipProvider>
-															)}
-															{canDelete && (
-																<TooltipProvider>
-																	<Tooltip>
-																		<TooltipTrigger asChild>
-																			<Button
-																				variant="ghost"
-																				size="icon"
-																				onClick={() => setConfigToDelete(config)}
-																				className="h-7 w-7 text-muted-foreground hover:text-destructive"
-																			>
-																				<Trash2 className="h-3 w-3" />
-																			</Button>
-																		</TooltipTrigger>
-																		<TooltipContent>Delete</TooltipContent>
-																	</Tooltip>
-																</TooltipProvider>
-															)}
-														</div>
-													)}
+															<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+																{canUpdate && (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<Button
+																					variant="ghost"
+																					size="icon"
+																					onClick={() => openEditDialog(config)}
+																					className="h-7 w-7 text-muted-foreground hover:text-foreground"
+																				>
+																					<Edit3 className="h-3 w-3" />
+																				</Button>
+																			</TooltipTrigger>
+																			<TooltipContent>Edit</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																)}
+																{canDelete && (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<Button
+																					variant="ghost"
+																					size="icon"
+																					onClick={() => setConfigToDelete(config)}
+																					className="h-7 w-7 text-muted-foreground hover:text-destructive"
+																				>
+																					<Trash2 className="h-3 w-3" />
+																				</Button>
+																			</TooltipTrigger>
+																			<TooltipContent>Delete</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																)}
+															</div>
+														)}
 													</div>
 
 													{/* Provider + Model */}
@@ -507,14 +511,11 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 													{/* Footer: Date + Creator */}
 													<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
 														<span className="text-[11px] text-muted-foreground/60">
-															{new Date(config.created_at).toLocaleDateString(
-																undefined,
-																{
-																	year: "numeric",
-																	month: "short",
-																	day: "numeric",
-																}
-															)}
+															{new Date(config.created_at).toLocaleDateString(undefined, {
+																year: "numeric",
+																month: "short",
+																day: "numeric",
+															})}
 														</span>
 														{member && (
 															<>
@@ -574,13 +575,11 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				}}
 			>
 				<DialogContent
-				className="max-w-lg max-h-[90vh] overflow-y-auto"
-				onOpenAutoFocus={(e) => e.preventDefault()}
-			>
+					className="max-w-lg max-h-[90vh] overflow-y-auto"
+					onOpenAutoFocus={(e) => e.preventDefault()}
+				>
 					<DialogHeader>
-						<DialogTitle>
-							{editingConfig ? "Edit Image Model" : "Add Image Model"}
-						</DialogTitle>
+						<DialogTitle>{editingConfig ? "Edit Image Model" : "Add Image Model"}</DialogTitle>
 						<DialogDescription>
 							{editingConfig
 								? "Update your image generation model"

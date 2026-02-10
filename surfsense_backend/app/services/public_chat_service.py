@@ -439,7 +439,9 @@ async def list_snapshots_for_search_space(
             "message_count": len(s.message_ids) if s.message_ids else 0,
             "thread_id": s.thread_id,
             "thread_title": thread_titles.get(s.thread_id, "Untitled"),
-            "created_by_user_id": str(s.created_by_user_id) if s.created_by_user_id else None,
+            "created_by_user_id": str(s.created_by_user_id)
+            if s.created_by_user_id
+            else None,
         }
         for s in snapshots
     ]

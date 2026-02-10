@@ -141,4 +141,3 @@ def downgrade() -> None:
         ALTER TABLE image_generation_configs DROP COLUMN IF EXISTS user_id;
         """
     )
-

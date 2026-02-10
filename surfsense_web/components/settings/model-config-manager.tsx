@@ -83,18 +83,15 @@ function getInitials(name: string): string {
 
 export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 	// Mutations
-	const {
-		mutateAsync: createConfig,
-		isPending: isCreating,
-	} = useAtomValue(createNewLLMConfigMutationAtom);
-	const {
-		mutateAsync: updateConfig,
-		isPending: isUpdating,
-	} = useAtomValue(updateNewLLMConfigMutationAtom);
-	const {
-		mutateAsync: deleteConfig,
-		isPending: isDeleting,
-	} = useAtomValue(deleteNewLLMConfigMutationAtom);
+	const { mutateAsync: createConfig, isPending: isCreating } = useAtomValue(
+		createNewLLMConfigMutationAtom
+	);
+	const { mutateAsync: updateConfig, isPending: isUpdating } = useAtomValue(
+		updateNewLLMConfigMutationAtom
+	);
+	const { mutateAsync: deleteConfig, isPending: isDeleting } = useAtomValue(
+		deleteNewLLMConfigMutationAtom
+	);
 
 	// Queries
 	const {
@@ -380,43 +377,43 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 															)}
 														</div>
 														{(canUpdate || canDelete) && (
-														<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
-															{canUpdate && (
-																<TooltipProvider>
-																	<Tooltip>
-																		<TooltipTrigger asChild>
-																			<Button
-																				variant="ghost"
-																				size="icon"
-																				onClick={() => openEditDialog(config)}
-																				className="h-7 w-7 text-muted-foreground hover:text-foreground"
-																			>
-																				<Edit3 className="h-3 w-3" />
-																			</Button>
-																		</TooltipTrigger>
-																		<TooltipContent>Edit</TooltipContent>
-																	</Tooltip>
-																</TooltipProvider>
-															)}
-															{canDelete && (
-																<TooltipProvider>
-																	<Tooltip>
-																		<TooltipTrigger asChild>
-																			<Button
-																				variant="ghost"
-																				size="icon"
-																				onClick={() => setConfigToDelete(config)}
-																				className="h-7 w-7 text-muted-foreground hover:text-destructive"
-																			>
-																				<Trash2 className="h-3 w-3" />
-																			</Button>
-																		</TooltipTrigger>
-																		<TooltipContent>Delete</TooltipContent>
-																	</Tooltip>
-																</TooltipProvider>
-															)}
-														</div>
-													)}
+															<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+																{canUpdate && (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<Button
+																					variant="ghost"
+																					size="icon"
+																					onClick={() => openEditDialog(config)}
+																					className="h-7 w-7 text-muted-foreground hover:text-foreground"
+																				>
+																					<Edit3 className="h-3 w-3" />
+																				</Button>
+																			</TooltipTrigger>
+																			<TooltipContent>Edit</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																)}
+																{canDelete && (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<Button
+																					variant="ghost"
+																					size="icon"
+																					onClick={() => setConfigToDelete(config)}
+																					className="h-7 w-7 text-muted-foreground hover:text-destructive"
+																				>
+																					<Trash2 className="h-3 w-3" />
+																				</Button>
+																			</TooltipTrigger>
+																			<TooltipContent>Delete</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																)}
+															</div>
+														)}
 													</div>
 
 													{/* Provider + Model */}
@@ -453,14 +450,11 @@ export function ModelConfigManager({ searchSpaceId }: ModelConfigManagerProps) {
 													{/* Footer: Date + Creator */}
 													<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
 														<span className="text-[11px] text-muted-foreground/60">
-															{new Date(config.created_at).toLocaleDateString(
-																undefined,
-																{
-																	year: "numeric",
-																	month: "short",
-																	day: "numeric",
-																}
-															)}
+															{new Date(config.created_at).toLocaleDateString(undefined, {
+																year: "numeric",
+																month: "short",
+																day: "numeric",
+															})}
 														</span>
 														{member && (
 															<>

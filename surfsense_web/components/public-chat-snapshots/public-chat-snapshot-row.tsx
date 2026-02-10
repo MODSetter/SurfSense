@@ -50,9 +50,7 @@ export function PublicChatSnapshotRow({
 		day: "numeric",
 	});
 
-	const member = snapshot.created_by_user_id
-		? memberMap.get(snapshot.created_by_user_id)
-		: null;
+	const member = snapshot.created_by_user_id ? memberMap.get(snapshot.created_by_user_id) : null;
 
 	return (
 		<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
@@ -77,11 +75,7 @@ export function PublicChatSnapshotRow({
 										asChild
 										className="h-7 w-7 text-muted-foreground hover:text-foreground"
 									>
-										<a
-											href={snapshot.public_url}
-											target="_blank"
-											rel="noopener noreferrer"
-										>
+										<a href={snapshot.public_url} target="_blank" rel="noopener noreferrer">
 											<ExternalLink className="h-3 w-3" />
 										</a>
 									</Button>
@@ -110,51 +104,49 @@ export function PublicChatSnapshotRow({
 					</div>
 				</div>
 
-			{/* Message count badge */}
-			<div className="flex items-center gap-1.5">
-				<Badge
-					variant="outline"
-					className="text-[10px] px-1.5 py-0.5 border-muted-foreground/20 text-muted-foreground"
-				>
-					<MessageSquare className="h-2.5 w-2.5 mr-1" />
-					{snapshot.message_count} messages
-				</Badge>
-			</div>
+				{/* Message count badge */}
+				<div className="flex items-center gap-1.5">
+					<Badge
+						variant="outline"
+						className="text-[10px] px-1.5 py-0.5 border-muted-foreground/20 text-muted-foreground"
+					>
+						<MessageSquare className="h-2.5 w-2.5 mr-1" />
+						{snapshot.message_count} messages
+					</Badge>
+				</div>
 
-			{/* Public URL – selectable fallback for manual copy */}
-			<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
-				<p
-					className="min-w-0 flex-1 text-[10px] font-mono text-muted-foreground break-all select-all cursor-text"
-					title={snapshot.public_url}
-				>
-					{snapshot.public_url}
-				</p>
-				<TooltipProvider>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={handleCopyClick}
-								className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-							>
-								{copied ? (
-									<Check className="h-3 w-3 text-green-500" />
-								) : (
-									<Copy className="h-3 w-3" />
-								)}
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>{copied ? "Copied!" : "Copy link"}</TooltipContent>
-					</Tooltip>
-				</TooltipProvider>
-			</div>
+				{/* Public URL – selectable fallback for manual copy */}
+				<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
+					<p
+						className="min-w-0 flex-1 text-[10px] font-mono text-muted-foreground break-all select-all cursor-text"
+						title={snapshot.public_url}
+					>
+						{snapshot.public_url}
+					</p>
+					<TooltipProvider>
+						<Tooltip>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={handleCopyClick}
+									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+								>
+									{copied ? (
+										<Check className="h-3 w-3 text-green-500" />
+									) : (
+										<Copy className="h-3 w-3" />
+									)}
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>{copied ? "Copied!" : "Copy link"}</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
+				</div>
 
-			{/* Footer: Date + Creator */}
+				{/* Footer: Date + Creator */}
 				<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
-					<span className="text-[11px] text-muted-foreground/60">
-						{formattedDate}
-					</span>
+					<span className="text-[11px] text-muted-foreground/60">{formattedDate}</span>
 					{member && (
 						<>
 							<span className="text-muted-foreground/30">·</span>
@@ -182,9 +174,7 @@ export function PublicChatSnapshotRow({
 											</span>
 										</div>
 									</TooltipTrigger>
-									<TooltipContent side="bottom">
-										{member.email || member.name}
-									</TooltipContent>
+									<TooltipContent side="bottom">{member.email || member.name}</TooltipContent>
 								</Tooltip>
 							</TooltipProvider>
 						</>

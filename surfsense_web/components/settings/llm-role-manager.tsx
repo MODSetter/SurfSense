@@ -210,8 +210,18 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		...(userImageConfigs ?? []).filter((config) => config.id && config.id.toString().trim() !== ""),
 	];
 
-	const isLoading = configsLoading || preferencesLoading || globalConfigsLoading || imageConfigsLoading || globalImageConfigsLoading;
-	const hasError = configsError || preferencesError || globalConfigsError || imageConfigsError || globalImageConfigsError;
+	const isLoading =
+		configsLoading ||
+		preferencesLoading ||
+		globalConfigsLoading ||
+		imageConfigsLoading ||
+		globalImageConfigsLoading;
+	const hasError =
+		configsError ||
+		preferencesError ||
+		globalConfigsError ||
+		imageConfigsError ||
+		globalImageConfigsError;
 	const hasAnyConfigs = allLLMConfigs.length > 0 || allImageConfigs.length > 0;
 
 	return (
@@ -253,8 +263,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 							<AlertDescription className="text-xs md:text-sm">
 								{(configsError?.message ?? "Failed to load LLM configurations") ||
 									(preferencesError?.message ?? "Failed to load preferences") ||
-									(globalConfigsError?.message ??
-										"Failed to load global configurations")}
+									(globalConfigsError?.message ?? "Failed to load global configurations")}
 							</AlertDescription>
 						</Alert>
 					</motion.div>
@@ -305,8 +314,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				<Alert variant="destructive" className="py-3 md:py-4">
 					<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 					<AlertDescription className="text-xs md:text-sm">
-						No configurations found. Please add at least one LLM provider or image model
-						in the respective settings tabs before assigning roles.
+						No configurations found. Please add at least one LLM provider or image model in the
+						respective settings tabs before assigning roles.
 					</AlertDescription>
 				</Alert>
 			)}
@@ -322,8 +331,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 					{Object.entries(ROLE_DESCRIPTIONS).map(([key, role], index) => {
 						const IconComponent = role.icon;
 						const isImageRole = role.configType === "image";
-						const currentAssignment =
-							assignments[role.prefKey as keyof typeof assignments];
+						const currentAssignment = assignments[role.prefKey as keyof typeof assignments];
 
 						// Pick the right config lists based on role type
 						const roleGlobalConfigs = isImageRole ? globalImageConfigs : globalConfigs;
@@ -332,17 +340,13 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 							: newLLMConfigs.filter((c) => c.id && c.id.toString().trim() !== "");
 						const roleAllConfigs = isImageRole ? allImageConfigs : allLLMConfigs;
 
-						const assignedConfig = roleAllConfigs.find(
-							(config) => config.id === currentAssignment
-						);
+						const assignedConfig = roleAllConfigs.find((config) => config.id === currentAssignment);
 						const isAssigned =
 							currentAssignment !== "" &&
 							currentAssignment !== null &&
 							currentAssignment !== undefined;
 						const isAutoMode =
-							assignedConfig &&
-							"is_auto_mode" in assignedConfig &&
-							assignedConfig.is_auto_mode;
+							assignedConfig && "is_auto_mode" in assignedConfig && assignedConfig.is_auto_mode;
 
 						return (
 							<motion.div
@@ -362,14 +366,10 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 														role.bgColor
 													)}
 												>
-													<IconComponent
-														className={cn("w-4 h-4", role.color)}
-													/>
+													<IconComponent className={cn("w-4 h-4", role.color)} />
 												</div>
 												<div className="min-w-0">
-													<h4 className="text-sm font-semibold tracking-tight">
-														{role.title}
-													</h4>
+													<h4 className="text-sm font-semibold tracking-tight">{role.title}</h4>
 													<p className="text-[11px] text-muted-foreground/70 mt-0.5">
 														{role.description}
 													</p>
@@ -389,9 +389,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 											</Label>
 											<Select
 												value={currentAssignment?.toString() || "unassigned"}
-												onValueChange={(value) =>
-													handleRoleAssignment(role.prefKey, value)
-												}
+												onValueChange={(value) => handleRoleAssignment(role.prefKey, value)}
 											>
 												<SelectTrigger className="w-full h-9 md:h-10 text-xs md:text-sm">
 													<SelectValue placeholder="Select a configuration" />
@@ -401,9 +399,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 														value="unassigned"
 														className="text-xs md:text-sm py-1.5 md:py-2"
 													>
-														<span className="text-muted-foreground">
-															Unassigned
-														</span>
+														<span className="text-muted-foreground">Unassigned</span>
 													</SelectItem>
 
 													{/* Global Configurations */}
@@ -413,9 +409,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																Global Configurations
 															</SelectLabel>
 															{roleGlobalConfigs.map((config) => {
-																const isAuto =
-																	"is_auto_mode" in config &&
-																	config.is_auto_mode;
+																const isAuto = "is_auto_mode" in config && config.is_auto_mode;
 																return (
 																	<SelectItem
 																		key={config.id}
@@ -432,18 +426,16 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																					AUTO
 																				</Badge>
 																			) : (
-																				getProviderIcon(config.provider, { className: "size-3 md:size-3.5 shrink-0" })
+																				getProviderIcon(config.provider, {
+																					className: "size-3 md:size-3.5 shrink-0",
+																				})
 																			)}
 																			<span className="truncate text-xs md:text-sm">
 																				{config.name}
 																			</span>
 																			{!isAuto && (
 																				<span className="text-muted-foreground text-[10px] md:text-[11px] truncate">
-																					(
-																					{
-																						config.model_name
-																					}
-																					)
+																					({config.model_name})
 																				</span>
 																			)}
 																			{isAuto && (
@@ -468,42 +460,40 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 																Your Configurations
 															</SelectLabel>
 															{roleUserConfigs.map((config) => (
-																	<SelectItem
-																		key={config.id}
-																		value={config.id.toString()}
-																		className="text-xs md:text-sm py-1.5 md:py-2"
-																	>
-																		<div className="flex items-center gap-1 md:gap-1.5 flex-wrap min-w-0">
-																			{getProviderIcon(config.provider, { className: "size-3 md:size-3.5 shrink-0" })}
-																			<span className="truncate text-xs md:text-sm">
-																				{config.name}
-																			</span>
-																			<span className="text-muted-foreground text-[10px] md:text-[11px] truncate">
-																				(
-																				{
-																					config.model_name
-																				}
-																				)
-																			</span>
-																		</div>
-																	</SelectItem>
-																))}
+																<SelectItem
+																	key={config.id}
+																	value={config.id.toString()}
+																	className="text-xs md:text-sm py-1.5 md:py-2"
+																>
+																	<div className="flex items-center gap-1 md:gap-1.5 flex-wrap min-w-0">
+																		{getProviderIcon(config.provider, {
+																			className: "size-3 md:size-3.5 shrink-0",
+																		})}
+																		<span className="truncate text-xs md:text-sm">
+																			{config.name}
+																		</span>
+																		<span className="text-muted-foreground text-[10px] md:text-[11px] truncate">
+																			({config.model_name})
+																		</span>
+																	</div>
+																</SelectItem>
+															))}
 														</SelectGroup>
 													)}
 												</SelectContent>
 											</Select>
 										</div>
 
-									{/* Assigned Config Summary */}
-									{assignedConfig && (
-										<div
-											className={cn(
-												"rounded-lg p-3 border",
-												isAutoMode
-													? "bg-violet-50 dark:bg-violet-900/10 border-violet-200/50 dark:border-violet-800/30"
-													: "bg-muted/40 border-border/50"
-											)}
-										>
+										{/* Assigned Config Summary */}
+										{assignedConfig && (
+											<div
+												className={cn(
+													"rounded-lg p-3 border",
+													isAutoMode
+														? "bg-violet-50 dark:bg-violet-900/10 border-violet-200/50 dark:border-violet-800/30"
+														: "bg-muted/40 border-border/50"
+												)}
+											>
 												{isAutoMode ? (
 													<div className="flex items-center gap-2">
 														<Shuffle
@@ -525,21 +515,17 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 														<IconComponent className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" />
 														<div className="min-w-0 flex-1">
 															<div className="flex items-center gap-1.5 flex-wrap">
-																<span className="text-xs font-medium">
-																	{assignedConfig.name}
-																</span>
-																{"is_global" in assignedConfig &&
-																	assignedConfig.is_global && (
-																		<Badge
-																			variant="secondary"
-																			className="text-[9px] px-1.5 py-0"
-																		>
-																			🌐 Global
-																		</Badge>
-																	)}
+																<span className="text-xs font-medium">{assignedConfig.name}</span>
+																{"is_global" in assignedConfig && assignedConfig.is_global && (
+																	<Badge variant="secondary" className="text-[9px] px-1.5 py-0">
+																		🌐 Global
+																	</Badge>
+																)}
 															</div>
 															<div className="flex items-center gap-1.5 mt-1">
-																{getProviderIcon(assignedConfig.provider, { className: "size-3 shrink-0" })}
+																{getProviderIcon(assignedConfig.provider, {
+																	className: "size-3 shrink-0",
+																})}
 																<code className="text-[10px] text-muted-foreground font-mono truncate">
 																	{assignedConfig.model_name}
 																</code>
@@ -552,9 +538,9 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 														</div>
 													</div>
 												)}
-										</div>
-									)}
-								</CardContent>
+											</div>
+										)}
+									</CardContent>
 								</Card>
 							</motion.div>
 						);
@@ -572,9 +558,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 						transition={{ duration: 0.2 }}
 						className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 p-3 md:p-4"
 					>
-						<p className="text-xs md:text-sm text-muted-foreground">
-							You have unsaved changes
-						</p>
+						<p className="text-xs md:text-sm text-muted-foreground">You have unsaved changes</p>
 						<div className="flex items-center gap-2">
 							<Button
 								variant="outline"

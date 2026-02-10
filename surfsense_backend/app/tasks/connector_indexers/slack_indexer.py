@@ -357,9 +357,7 @@ async def index_slack_messages(
                 # Group messages into batches of SLACK_BATCH_SIZE
                 # Each batch becomes a single document with conversation context
                 # =======================================================
-                for batch_start in range(
-                    0, len(formatted_messages), SLACK_BATCH_SIZE
-                ):
+                for batch_start in range(0, len(formatted_messages), SLACK_BATCH_SIZE):
                     batch = formatted_messages[
                         batch_start : batch_start + SLACK_BATCH_SIZE
                     ]
@@ -377,9 +375,7 @@ async def index_slack_messages(
                     # channel_id + first message ts + last message ts
                     first_msg_ts = batch[0].get("timestamp", "")
                     last_msg_ts = batch[-1].get("timestamp", "")
-                    unique_identifier = (
-                        f"{channel_id}_{first_msg_ts}_{last_msg_ts}"
-                    )
+                    unique_identifier = f"{channel_id}_{first_msg_ts}_{last_msg_ts}"
                     unique_identifier_hash = generate_unique_identifier_hash(
                         DocumentType.SLACK_CONNECTOR,
                         unique_identifier,
@@ -392,10 +388,8 @@ async def index_slack_messages(
                     )
 
                     # Check if document with this unique identifier already exists
-                    existing_document = (
-                        await check_document_by_unique_identifier(
-                            session, unique_identifier_hash
-                        )
+                    existing_document = await check_document_by_unique_identifier(
+                        session, unique_identifier_hash
                     )
 
                     if existing_document:
@@ -405,9 +399,7 @@ async def index_slack_messages(
                             if not DocumentStatus.is_state(
                                 existing_document.status, DocumentStatus.READY
                             ):
-                                existing_document.status = (
-                                    DocumentStatus.ready()
-                                )
+                                existing_document.status = DocumentStatus.ready()
                             documents_skipped += 1
                             continue
 
@@ -440,10 +432,8 @@ async def index_slack_messages(
                     # Document doesn't exist by unique_identifier_hash
                     # Check if a document with the same content_hash exists (from another connector)
                     with session.no_autoflush:
-                        duplicate_by_content = (
-                            await check_duplicate_document_by_hash(
-                                session, content_hash
-                            )
+                        duplicate_by_content = await check_duplicate_document_by_hash(
+                            session, content_hash
                         )
 
                     if duplicate_by_content:
@@ -496,12 +486,8 @@ async def index_slack_messages(
                             "channel_id": channel_id,
                             "first_message_ts": first_msg_ts,
                             "last_message_ts": last_msg_ts,
-                            "first_message_time": batch[0].get(
-                                "datetime", "Unknown"
-                            ),
-                            "last_message_time": batch[-1].get(
-                                "datetime", "Unknown"
-                            ),
+                            "first_message_time": batch[0].get("datetime", "Unknown"),
+                            "last_message_time": batch[-1].get("datetime", "Unknown"),
                             "message_count": len(batch),
                             "start_date": start_date_str,
                             "end_date": end_date_str,
@@ -538,9 +524,7 @@ async def index_slack_messages(
         # PHASE 2: Process each batch document one by one
         # Each document transitions: pending → processing → ready/failed
         # =======================================================================
-        logger.info(
-            f"Phase 2: Processing {len(batches_to_process)} batch documents"
-        )
+        logger.info(f"Phase 2: Processing {len(batches_to_process)} batch documents")
 
         for item in batches_to_process:
             # Send heartbeat periodically
@@ -621,9 +605,7 @@ async def index_slack_messages(
         )
         try:
             await session.commit()
-            logger.info(
-                "Successfully committed all Slack document changes to database"
-            )
+            logger.info("Successfully committed all Slack document changes to database")
         except Exception as e:
             # Handle any remaining integrity errors gracefully (race conditions, etc.)
             if (

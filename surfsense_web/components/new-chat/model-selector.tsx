@@ -1,15 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import {
-	Bot,
-	Check,
-	ChevronDown,
-	Edit3,
-	ImageIcon,
-	Plus,
-	Zap,
-} from "lucide-react";
+import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, Zap } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -77,10 +69,10 @@ export function ModelSelector({
 	// Image data
 	const { data: imageGlobalConfigs, isLoading: imageGlobalLoading } =
 		useAtomValue(globalImageGenConfigsAtom);
-	const { data: imageUserConfigs, isLoading: imageUserLoading } =
-		useAtomValue(imageGenConfigsAtom);
+	const { data: imageUserConfigs, isLoading: imageUserLoading } = useAtomValue(imageGenConfigsAtom);
 
-	const isLoading = llmUserLoading || llmGlobalLoading || prefsLoading || imageGlobalLoading || imageUserLoading;
+	const isLoading =
+		llmUserLoading || llmGlobalLoading || prefsLoading || imageGlobalLoading || imageUserLoading;
 
 	// ─── LLM current config ───
 	const currentLLMConfig = useMemo(() => {
@@ -108,7 +100,9 @@ export function ModelSelector({
 	}, [preferences, imageGlobalConfigs, imageUserConfigs]);
 
 	const isImageAutoMode = useMemo(() => {
-		return currentImageConfig && "is_auto_mode" in currentImageConfig && currentImageConfig.is_auto_mode;
+		return (
+			currentImageConfig && "is_auto_mode" in currentImageConfig && currentImageConfig.is_auto_mode
+		);
 	}, [currentImageConfig]);
 
 	// ─── LLM filtering ───
@@ -244,7 +238,9 @@ export function ModelSelector({
 							{/* LLM section */}
 							{currentLLMConfig ? (
 								<>
-									{getProviderIcon(currentLLMConfig.provider, { isAutoMode: isLLMAutoMode ?? false })}
+									{getProviderIcon(currentLLMConfig.provider, {
+										isAutoMode: isLLMAutoMode ?? false,
+									})}
 									<span className="max-w-[100px] md:max-w-[120px] truncate hidden md:inline">
 										{currentLLMConfig.name}
 									</span>
@@ -262,7 +258,9 @@ export function ModelSelector({
 							{/* Image section */}
 							{currentImageConfig ? (
 								<>
-									{getProviderIcon(currentImageConfig.provider, { isAutoMode: isImageAutoMode ?? false })}
+									{getProviderIcon(currentImageConfig.provider, {
+										isAutoMode: isImageAutoMode ?? false,
+									})}
 									<span className="max-w-[80px] md:max-w-[100px] truncate hidden md:inline">
 										{currentImageConfig.name}
 									</span>
@@ -373,7 +371,9 @@ export function ModelSelector({
 																			Recommended
 																		</Badge>
 																	)}
-																	{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+																	{isSelected && (
+																		<Check className="size-3.5 text-primary shrink-0" />
+																	)}
 																</div>
 																<div className="flex items-center gap-1.5 mt-0.5">
 																	<span className="text-xs text-muted-foreground truncate">
@@ -436,7 +436,9 @@ export function ModelSelector({
 															<div className="min-w-0 flex-1">
 																<div className="flex items-center gap-2">
 																	<span className="font-medium truncate">{config.name}</span>
-																	{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+																	{isSelected && (
+																		<Check className="size-3.5 text-primary shrink-0" />
+																	)}
 																</div>
 																<div className="flex items-center gap-1.5 mt-0.5">
 																	<span className="text-xs text-muted-foreground truncate">
@@ -489,7 +491,10 @@ export function ModelSelector({
 
 					{/* ─── Image Tab ─── */}
 					<TabsContent value="image" className="mt-0">
-						<Command shouldFilter={false} className="rounded-none rounded-b-lg [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2">
+						<Command
+							shouldFilter={false}
+							className="rounded-none rounded-b-lg [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
+						>
 							{totalImageModels > 3 && (
 								<div className="px-2 md:px-3 py-1.5 md:py-2">
 									<CommandInput
@@ -573,7 +578,9 @@ export function ModelSelector({
 								{/* User Image Configs */}
 								{filteredImageUser.length > 0 && (
 									<>
-										{filteredImageGlobal.length > 0 && <CommandSeparator className="my-1 mx-4 bg-border/60" />}
+										{filteredImageGlobal.length > 0 && (
+											<CommandSeparator className="my-1 mx-4 bg-border/60" />
+										)}
 										<CommandGroup>
 											<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
 												Your Image Models
@@ -591,13 +598,13 @@ export function ModelSelector({
 														)}
 													>
 														<div className="flex items-center gap-3 min-w-0 flex-1">
-															<div className="shrink-0">
-																{getProviderIcon(config.provider)}
-															</div>
+															<div className="shrink-0">{getProviderIcon(config.provider)}</div>
 															<div className="min-w-0 flex-1">
 																<div className="flex items-center gap-2">
 																	<span className="font-medium truncate">{config.name}</span>
-																	{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
+																	{isSelected && (
+																		<Check className="size-3.5 text-primary shrink-0" />
+																	)}
 																</div>
 																<span className="text-xs text-muted-foreground truncate block">
 																	{config.model_name}

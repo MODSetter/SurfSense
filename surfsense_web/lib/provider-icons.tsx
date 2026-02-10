@@ -1,7 +1,4 @@
-import {
-	Bot,
-	Shuffle,
-} from "lucide-react";
+import { Bot, Shuffle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Ai21Icon } from "@/components/icons/providers";
 import { AnthropicIcon } from "@/components/icons/providers";
@@ -41,10 +38,7 @@ import { ZhipuIcon } from "@/components/icons/providers";
  */
 export function getProviderIcon(
 	provider: string,
-	{
-		isAutoMode,
-		className = "size-4",
-	}: { isAutoMode?: boolean; className?: string } = {}
+	{ isAutoMode, className = "size-4" }: { isAutoMode?: boolean; className?: string } = {}
 ) {
 	if (isAutoMode || provider?.toUpperCase() === "AUTO") {
 		return <Shuffle className={cn(className, "text-violet-800")} />;
@@ -123,4 +117,3 @@ export function getProviderIcon(
 			return <Bot className={cn(className, "text-muted-foreground")} />;
 	}
 }
-
