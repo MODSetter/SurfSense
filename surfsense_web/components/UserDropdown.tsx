@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Loader2, LogOut } from "lucide-react";
+import { BadgeCheck, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -14,6 +14,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { logout } from "@/lib/auth-utils";
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
@@ -98,7 +99,7 @@ export function UserDropdown({
 					disabled={isLoggingOut}
 				>
 					{isLoggingOut ? (
-						<Loader2 className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4 animate-spin" />
+						<Spinner size="sm" className="mr-2" />
 					) : (
 						<LogOut className="mr-2 h-3.5 w-3.5 md:h-4 md:w-4" />
 					)}

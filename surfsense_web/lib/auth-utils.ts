@@ -10,28 +10,53 @@ const REFRESH_TOKEN_KEY = "surfsense_refresh_token";
 let isRefreshing = false;
 let refreshPromise: Promise<string | null> | null = null;
 
+/** Path prefixes for routes that do not require auth (no current-user fetch, no redirect on 401) */
+const PUBLIC_ROUTE_PREFIXES = [
+	"/login",
+	"/register",
+	"/auth",
+	"/docs",
+	"/public",
+	"/invite",
+	"/contact",
+	"/pricing",
+	"/privacy",
+	"/terms",
+	"/changelog",
+];
+
 /**
- * Saves the current path and redirects to login page
- * Call this when a 401 response is received
+ * Returns true if the pathname is a public route where we should not run auth checks
+ * or redirect to login on 401.
+ */
+export function isPublicRoute(pathname: string): boolean {
+	if (pathname === "/" || pathname === "") return true;
+	return PUBLIC_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+}
+
+/**
+ * Clears tokens and optionally redirects to login.
+ * Call this when a 401 response is received.
+ * Only redirects when the current route is protected; on public routes we just clear tokens.
  */
 export function handleUnauthorized(): void {
 	if (typeof window === "undefined") return;
 
-	// Save the current path (including search params and hash) for redirect after login
-	const currentPath = window.location.pathname + window.location.search + window.location.hash;
+	const pathname = window.location.pathname;
 
-	// Don't save auth-related paths
-	const excludedPaths = ["/auth", "/auth/callback", "/"];
-	if (!excludedPaths.includes(window.location.pathname)) {
-		localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
-	}
-
-	// Clear both tokens
+	// Always clear tokens
 	localStorage.removeItem(BEARER_TOKEN_KEY);
 	localStorage.removeItem(REFRESH_TOKEN_KEY);
 
-	// Redirect to home page (which has login options)
-	window.location.href = "/login";
+	// Only redirect on protected routes; stay on public pages (e.g. /docs)
+	if (!isPublicRoute(pathname)) {
+		const currentPath = pathname + window.location.search + window.location.hash;
+		const excludedPaths = ["/auth", "/auth/callback", "/"];
+		if (!excludedPaths.includes(pathname)) {
+			localStorage.setItem(REDIRECT_PATH_KEY, currentPath);
+		}
+		window.location.href = "/login";
+	}
 }
 
 /**
@@ -179,7 +204,6 @@ export function getAuthHeaders(additionalHeaders?: Record<string, string>): Reco
 /**
  * Attempts to refresh the access token using the stored refresh token.
  * Returns the new access token if successful, null otherwise.
- * Exported for use by API services.
  */
 export async function refreshAccessToken(): Promise<string | null> {
 	// If already refreshing, wait for that request to complete

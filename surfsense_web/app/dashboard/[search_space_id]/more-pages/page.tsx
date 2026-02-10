@@ -2,7 +2,7 @@
 
 import { IconCalendar, IconMailFilled } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Gift, Loader2, Mail, Star } from "lucide-react";
+import { Check, ExternalLink, Gift, Mail, Star } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect } from "react";
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import type { IncentiveTaskInfo } from "@/contracts/types/incentive-tasks.types";
 import { incentiveTasksApiService } from "@/lib/apis/incentive-tasks-api.service";
 import {
@@ -144,7 +145,7 @@ export default function MorePagesPage() {
 												className="gap-1"
 											>
 												{completeMutation.isPending ? (
-													<Loader2 className="h-3 w-3 animate-spin" />
+													<Spinner size="xs" />
 												) : (
 													<>
 														Go

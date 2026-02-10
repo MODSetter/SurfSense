@@ -34,8 +34,8 @@ const GoogleLogo = ({ className }: { className?: string }) => (
 export function HeroSection() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const parentRef = useRef<HTMLDivElement>(null);
-	const heroVariant = useFeatureFlagVariantKey("notebooklm_flag");
-	const isNotebookLMVariant = heroVariant === "notebooklm";
+	const heroVariant = useFeatureFlagVariantKey("notebooklm_superpowers_flag");
+	const isNotebookLMVariant = heroVariant === "superpowers";
 
 	return (
 		<div
@@ -89,25 +89,24 @@ export function HeroSection() {
 					{isNotebookLMVariant ? (
 						<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
 							<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-								<span className="">NotebookLM for Teams</span>
+								<span className="">NotebookLM with Superpowers</span>
 							</div>
 						</div>
 					) : (
-						<>
-							The AI Workspace{" "}
-							<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
-								<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-									<span className="">Built for Teams</span>
-								</div>
+						<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
+							<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
+								<span className="">NotebookLM for Teams</span>
 							</div>
-						</>
+						</div>
 					)}
 				</Balancer>
 			</h2>
 			{/* // TODO:aCTUAL DESCRITION */}
 			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
-				your team.
+				Connect any AI to your documents and knowledge sources.
+			</p>
+			<p className="relative z-50 mx-auto mt-0 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
+				Then chat with it in real-time, even alongside your team.
 			</p>
 			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
 				<GetStartedButton />

@@ -19,7 +19,6 @@ import {
 	Search,
 	X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -53,17 +52,13 @@ import {
 	isNewMentionMetadata,
 	isPageLimitExceededMetadata,
 } from "@/contracts/types/inbox.types";
-import type { InboxItem } from "@/hooks/use-inbox";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import type { InboxItem } from "@/hooks/use-inbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
-import { useSidebarContextSafe } from "../../hooks";
-
-// Sidebar width constants
-const SIDEBAR_COLLAPSED_WIDTH = 60;
-const SIDEBAR_EXPANDED_WIDTH = 240;
+import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
 /**
  * Get initials from name or email for avatar fallback
@@ -560,13 +555,6 @@ export function InboxSidebar({
 			hint: t("no_status_updates_hint") || "Document and connector updates will appear here",
 		};
 	};
-
-	// Get sidebar collapsed state from context (provided by LayoutShell)
-	const sidebarContext = useSidebarContextSafe();
-	const isCollapsed = sidebarContext?.isCollapsed ?? false;
-
-	// Calculate the left position for the inbox panel (relative to sidebar)
-	const sidebarWidth = isCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
 
 	if (!mounted) return null;
 
@@ -1126,49 +1114,8 @@ export function InboxSidebar({
 
 	// FLOATING MODE: Render with animation and click-away layer
 	return (
-		<AnimatePresence>
-			{open && (
-				<>
-					{/* Click-away layer - only covers the content area, not the sidebar */}
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.15 }}
-						style={{
-							left: isMobile ? 0 : sidebarWidth,
-						}}
-						className="absolute inset-y-0 right-0"
-						onClick={() => onOpenChange(false)}
-						aria-hidden="true"
-					/>
-
-					{/* Clip container - positioned at sidebar edge with overflow hidden */}
-					<div
-						style={{
-							left: isMobile ? 0 : sidebarWidth,
-							width: isMobile ? "100%" : 360,
-						}}
-						className={cn("absolute z-10 overflow-hidden pointer-events-none", "inset-y-0")}
-					>
-						<motion.div
-							initial={{ x: "-100%" }}
-							animate={{ x: 0 }}
-							exit={{ x: "-100%" }}
-							transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-							className={cn(
-								"h-full w-full bg-background flex flex-col pointer-events-auto",
-								"sm:border-r sm:shadow-xl"
-							)}
-							role="dialog"
-							aria-modal="true"
-							aria-label={t("inbox") || "Inbox"}
-						>
-							{inboxContent}
-						</motion.div>
-					</div>
-				</>
-			)}
-		</AnimatePresence>
+		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("inbox") || "Inbox"}>
+			{inboxContent}
+		</SidebarSlideOutPanel>
 	);
 }

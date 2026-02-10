@@ -56,6 +56,7 @@ PROVIDER_MAP = {
     "ALIBABA_QWEN": "openai",
     "MOONSHOT": "openai",
     "ZHIPU": "openai",
+    "GITHUB_MODELS": "github",
     "HUGGINGFACE": "huggingface",
     "CUSTOM": "custom",
 }

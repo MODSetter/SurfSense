@@ -122,10 +122,12 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 						<div className="flex flex-col">
 							<span className="text-xl sm:text-2xl font-semibold tracking-tight text-wrap whitespace-normal wrap-break-word">
 								{getConnectorTypeDisplay(connector?.connector_type || "")} Connected !
-							</span>{" "}
-							<span className="text-xl sm:text-xl font-semibold text-muted-foreground tracking-tight text-wrap whitespace-normal wrap-break-word">
-								{getConnectorDisplayName(connector?.name || "")}
 							</span>
+							{connector?.name?.includes(" - ") && (
+								<span className="text-xl sm:text-xl font-semibold text-muted-foreground tracking-tight text-wrap whitespace-normal wrap-break-word">
+									{getConnectorDisplayName(connector.name)}
+								</span>
+							)}
 						</div>
 						<p className="text-xs sm:text-base text-muted-foreground mt-1">
 							Configure when to start syncing your data

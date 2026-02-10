@@ -3,7 +3,6 @@ import { useAtomValue } from "jotai";
 import { FileText, PencilIcon } from "lucide-react";
 import { type FC, useState } from "react";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 
 interface AuthorMetadata {
@@ -48,9 +47,6 @@ export const UserMessage: FC = () => {
 	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
 	const metadata = useAssistantState(({ message }) => message?.metadata);
 	const author = metadata?.custom?.author as AuthorMetadata | undefined;
-	const hasAttachments = useAssistantState(
-		({ message }) => message?.attachments && message.attachments.length > 0
-	);
 
 	return (
 		<MessagePrimitive.Root
@@ -59,11 +55,9 @@ export const UserMessage: FC = () => {
 		>
 			<div className="aui-user-message-content-wrapper col-start-2 min-w-0 flex items-end gap-2">
 				<div className="flex-1 min-w-0">
-					{/* Display attachments and mentioned documents */}
-					{(hasAttachments || (mentionedDocs && mentionedDocs.length > 0)) && (
+					{/* Display mentioned documents */}
+					{mentionedDocs && mentionedDocs.length > 0 && (
 						<div className="flex flex-wrap items-end gap-2 mb-2 justify-end">
-							{/* Attachments (images show as thumbnails, documents as chips) */}
-							<UserMessageAttachments />
 							{/* Mentioned documents as chips */}
 							{mentionedDocs?.map((doc) => (
 								<span

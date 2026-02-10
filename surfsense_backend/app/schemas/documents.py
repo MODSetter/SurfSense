@@ -99,3 +99,20 @@ class DocumentTitleSearchResponse(BaseModel):
 
     items: list[DocumentTitleRead]
     has_more: bool
+
+
+class DocumentStatusItemRead(BaseModel):
+    """Lightweight document status payload for batch status polling."""
+
+    id: int
+    title: str
+    document_type: DocumentType
+    status: DocumentStatusSchema
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentStatusBatchResponse(BaseModel):
+    """Batch status response for a set of document IDs."""
+
+    items: list[DocumentStatusItemRead]
