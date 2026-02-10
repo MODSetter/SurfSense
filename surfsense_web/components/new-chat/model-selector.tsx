@@ -6,9 +6,7 @@ import {
 	Check,
 	ChevronDown,
 	Edit3,
-	Globe,
 	Plus,
-	User,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -231,7 +229,6 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						{filteredGlobalConfigs.length > 0 && (
 							<CommandGroup>
 								<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-									<Globe className="size-3.5" />
 									Global Models
 								</div>
 								{filteredGlobalConfigs.map((config) => {
@@ -300,14 +297,13 @@ export function ModelSelector({ onEdit, onAddNew, className }: ModelSelectorProp
 						)}
 
 						{filteredGlobalConfigs.length > 0 && filteredUserConfigs.length > 0 && (
-							<CommandSeparator className="my-1 bg-border/30" />
+							<CommandSeparator className="my-1 bg-border/60" />
 						)}
 
 						{/* User Configs Section */}
 						{filteredUserConfigs.length > 0 && (
 							<CommandGroup>
 								<div className="flex items-center gap-2 px-3 py-2 text-xs font-semibold text-muted-foreground tracking-wider">
-									<User className="size-3.5" />
 									Your Configurations
 								</div>
 								{filteredUserConfigs.map((config) => {
