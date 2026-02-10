@@ -47,6 +47,14 @@ if config.AUTH_TYPE == "GOOGLE":
 
 
 class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
+    """
+    Custom user manager extending fastapi-users BaseUserManager.
+
+    Authentication returns a generic error for both non-existent accounts
+    and incorrect passwords to comply with OWASP WSTG-IDNT-04 and
+    prevent user enumeration attacks.
+    """
+
     reset_password_token_secret = SECRET
     verification_token_secret = SECRET
 

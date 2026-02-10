@@ -20,8 +20,8 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 		description: "Your account may be suspended or restricted",
 	},
 	"404": {
-		title: "Account not found",
-		description: "No account exists with this email address",
+		title: "Not found",
+		description: "The requested resource was not found",
 	},
 	"409": {
 		title: "Account conflict",
@@ -30,6 +30,10 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 	"429": {
 		title: "Too many attempts",
 		description: "Please wait before trying again",
+	},
+	RATE_LIMIT_EXCEEDED: {
+		title: "Too many attempts",
+		description: "You've made too many requests. Please wait a minute and try again.",
 	},
 	"500": {
 		title: "Server error",
@@ -42,8 +46,8 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 
 	// FastAPI specific errors
 	LOGIN_BAD_CREDENTIALS: {
-		title: "Invalid credentials",
-		description: "The email or password you entered is incorrect",
+		title: "Login failed",
+		description: "Invalid email or password. If you don't have an account, please sign up.",
 	},
 	LOGIN_USER_NOT_VERIFIED: {
 		title: "Account not verified",
