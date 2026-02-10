@@ -348,16 +348,16 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 
 			{/* Global info */}
 			{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length > 0 && (
-			<Alert className="flex flex-row items-center gap-2 bg-muted/50 py-3 [&>svg]:static [&>svg+div]:translate-y-0 [&>svg~*]:pl-0">
-				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-				<AlertDescription className="text-xs md:text-sm">
-					<span className="font-medium">
-						{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
-						image model(s)
-					</span>{" "}
-					available from your administrator.
-				</AlertDescription>
-			</Alert>
+				<Alert className="flex flex-row items-center gap-2 bg-muted/50 py-3 [&>svg]:static [&>svg+div]:translate-y-0 [&>svg~*]:pl-0">
+					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+					<AlertDescription className="text-xs md:text-sm">
+						<span className="font-medium">
+							{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
+							image model(s)
+						</span>{" "}
+						available from your administrator.
+					</AlertDescription>
+				</Alert>
 			)}
 
 			{/* Loading Skeleton */}
