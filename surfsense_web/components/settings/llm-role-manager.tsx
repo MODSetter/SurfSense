@@ -503,7 +503,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 														/>
 														<div className="min-w-0">
 															<p className="text-xs font-medium text-violet-700 dark:text-violet-300">
-																Auto Load Balanced
+																Auto Mode
 															</p>
 															<p className="text-[10px] text-violet-600/70 dark:text-violet-400/70 mt-0.5">
 																Routes across all available providers

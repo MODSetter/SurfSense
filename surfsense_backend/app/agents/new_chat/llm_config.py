@@ -108,7 +108,7 @@ class AgentConfig:
             use_default_system_instructions=True,
             citations_enabled=True,
             config_id=AUTO_MODE_ID,
-            config_name="Auto (Load Balanced)",
+            config_name="Auto (Fastest)",
             is_auto_mode=True,
         )
 

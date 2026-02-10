@@ -41,7 +41,7 @@ def get_global_llm_config(llm_config_id: int) -> dict | None:
     if llm_config_id == AUTO_MODE_ID:
         return {
             "id": AUTO_MODE_ID,
-            "name": "Auto (Load Balanced)",
+            "name": "Auto (Fastest)",
             "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling",
             "provider": "AUTO",
             "model_name": "auto",

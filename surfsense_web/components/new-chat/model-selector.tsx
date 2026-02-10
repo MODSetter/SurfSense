@@ -293,14 +293,14 @@ export function ModelSelector({
 						<TabsList className="w-full grid grid-cols-2 rounded-none rounded-t-lg bg-card h-11 p-0 gap-0">
 							<TabsTrigger
 								value="llm"
-								className="relative gap-2 text-sm font-medium rounded-none text-muted-foreground/60 transition-all duration-200 h-full data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-3 data-[state=active]:after:right-3 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-gray-500 data-[state=active]:after:rounded-full"
+								className="relative gap-2 text-sm font-medium rounded-none text-muted-foreground/60 transition-all duration-200 h-full data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-3 data-[state=active]:after:right-3 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-white data-[state=active]:after:rounded-full"
 							>
 								<Zap className="size-4" />
 								LLM
 							</TabsTrigger>
 							<TabsTrigger
 								value="image"
-								className="relative gap-2 text-sm font-medium rounded-none text-muted-foreground/60 transition-all duration-200 h-full data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-3 data-[state=active]:after:right-3 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-gray-500 data-[state=active]:after:rounded-full"
+								className="relative gap-2 text-sm font-medium rounded-none text-muted-foreground/60 transition-all duration-200 h-full data-[state=active]:bg-transparent data-[state=active]:text-foreground data-[state=active]:shadow-none data-[state=active]:after:absolute data-[state=active]:after:bottom-0 data-[state=active]:after:left-3 data-[state=active]:after:right-3 data-[state=active]:after:h-[2px] data-[state=active]:after:bg-white data-[state=active]:after:rounded-full"
 							>
 								<ImageIcon className="size-4" />
 								Image
@@ -377,7 +377,7 @@ export function ModelSelector({
 																</div>
 																<div className="flex items-center gap-1.5 mt-0.5">
 																	<span className="text-xs text-muted-foreground truncate">
-																		{isAutoMode ? "Auto load balancing" : config.model_name}
+																		{isAutoMode ? "Auto Mode" : config.model_name}
 																	</span>
 																	{!isAutoMode && config.citations_enabled && (
 																		<Badge
@@ -551,7 +551,7 @@ export function ModelSelector({
 																{isSelected && <Check className="size-3.5 text-primary shrink-0" />}
 															</div>
 															<span className="text-xs text-muted-foreground truncate block">
-																{isAuto ? "Auto load balancing" : config.model_name}
+																{isAuto ? "Auto Mode" : config.model_name}
 															</span>
 														</div>
 														{onEditImage && !isAuto && (

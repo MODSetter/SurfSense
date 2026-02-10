@@ -68,7 +68,7 @@ export function ModelConfigSidebar({
 	// Get title based on mode
 	const getTitle = () => {
 		if (mode === "create") return "Add New Configuration";
-		if (isAutoMode) return "Auto Mode (Load Balanced)";
+		if (isAutoMode) return "Auto Mode (Fastest)";
 		if (isGlobal) return "View Global Configuration";
 		return "Edit Configuration";
 	};
@@ -307,7 +307,7 @@ export function ModelConfigSidebar({
 														<Zap className="size-4 text-violet-600 dark:text-violet-400 mt-0.5 shrink-0" />
 														<div>
 															<p className="text-sm font-medium text-violet-900 dark:text-violet-100">
-																Automatic Load Balancing
+																Automatic (Fastest)
 															</p>
 															<p className="text-xs text-violet-700 dark:text-violet-300">
 																Distributes requests across all configured LLM providers

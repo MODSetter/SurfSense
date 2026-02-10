@@ -64,7 +64,7 @@ async def get_global_new_llm_configs(
             safe_configs.append(
                 {
                     "id": 0,
-                    "name": "Auto (Load Balanced)",
+                    "name": "Auto (Fastest)",
                     "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling. Recommended for most users.",
                     "provider": "AUTO",
                     "custom_provider": None,
