@@ -6,18 +6,16 @@ import {
 	Check,
 	ChevronsUpDown,
 	Edit3,
-	ImageIcon,
 	Key,
 	Plus,
 	RefreshCw,
-	Shuffle,
 	Info,
 	Trash2,
 	Wand2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -30,7 +28,6 @@ import {
 	imageGenConfigsAtom,
 } from "@/atoms/image-gen-config/image-gen-config-query.atoms";
 import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
-import { llmPreferencesAtom } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	AlertDialog,
@@ -42,9 +39,8 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Command,
 	CommandEmpty,
@@ -131,7 +127,6 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 	} = useAtomValue(imageGenConfigsAtom);
 	const { data: globalConfigs = [], isFetching: globalLoading } =
 		useAtomValue(globalImageGenConfigsAtom);
-	const { data: preferences = {}, isFetching: prefsLoading } = useAtomValue(llmPreferencesAtom);
 
 	// Members for user resolution
 	const { data: members } = useAtomValue(membersAtom);
@@ -170,20 +165,8 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 	const [editingConfig, setEditingConfig] = useState<ImageGenerationConfig | null>(null);
 	const [configToDelete, setConfigToDelete] = useState<ImageGenerationConfig | null>(null);
 
-	// Preference state
-	const [selectedPrefId, setSelectedPrefId] = useState<string | number>(
-		preferences.image_generation_config_id ?? ""
-	);
-	const [hasPrefChanges, setHasPrefChanges] = useState(false);
-	const [isSavingPref, setIsSavingPref] = useState(false);
-
-	useEffect(() => {
-		setSelectedPrefId(preferences.image_generation_config_id ?? "");
-		setHasPrefChanges(false);
-	}, [preferences]);
-
 	const isSubmitting = isCreating || isUpdating;
-	const isLoading = configsLoading || globalLoading || prefsLoading;
+	const isLoading = configsLoading || globalLoading;
 	const errors = [createError, updateError, deleteError, fetchError].filter(Boolean) as Error[];
 
 	// Form state for create/edit dialog
@@ -291,40 +274,6 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 		setIsDialogOpen(true);
 	};
 
-	const handlePrefChange = (value: string) => {
-		const newVal = value === "unassigned" ? "" : parseInt(value);
-		setSelectedPrefId(newVal);
-		setHasPrefChanges(newVal !== (preferences.image_generation_config_id ?? ""));
-	};
-
-	const handleSavePref = async () => {
-		setIsSavingPref(true);
-		try {
-			await updatePreferences({
-				search_space_id: searchSpaceId,
-				data: {
-					image_generation_config_id:
-						typeof selectedPrefId === "string"
-							? selectedPrefId
-								? parseInt(selectedPrefId)
-								: undefined
-							: selectedPrefId,
-				},
-			});
-			setHasPrefChanges(false);
-			toast.success("Image generation model preference saved!");
-		} catch {
-			toast.error("Failed to save preference");
-		} finally {
-			setIsSavingPref(false);
-		}
-	};
-
-	const allConfigs = [
-		...globalConfigs.map((c) => ({ ...c, _source: "global" as const })),
-		...(userConfigs ?? []).map((c) => ({ ...c, _source: "user" as const })),
-	];
-
 	const selectedProvider = IMAGE_GEN_PROVIDERS.find((p) => p.value === formData.provider);
 	const suggestedModels = getImageGenModelsByProvider(formData.provider);
 
@@ -342,6 +291,14 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 					<RefreshCw className={cn("h-3 w-3 md:h-4 md:w-4", configsLoading && "animate-spin")} />
 					Refresh
 				</Button>
+				{canCreate && (
+					<Button
+						onClick={openNewDialog}
+						className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
+					>
+						Add Image Model
+					</Button>
+				)}
 			</div>
 
 			{/* Errors */}
@@ -403,135 +360,9 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 			</Alert>
 			)}
 
-			{/* Active Preference Card */}
-			{!isLoading && allConfigs.length > 0 && (
-				<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-					<Card className="border-l-4 border-l-teal-500">
-						<CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
-							<div className="flex items-center gap-2 md:gap-3">
-								<div className="p-1.5 md:p-2 rounded-lg bg-teal-100 text-teal-800">
-									<ImageIcon className="w-4 h-4 md:w-5 md:h-5" />
-								</div>
-								<div>
-									<CardTitle className="text-base md:text-lg">Active Image Model</CardTitle>
-									<CardDescription className="text-xs md:text-sm">
-										Select which model to use for image generation
-									</CardDescription>
-								</div>
-							</div>
-						</CardHeader>
-						<CardContent className="space-y-3 px-3 md:px-6 pb-3 md:pb-6">
-							<Select
-								value={selectedPrefId?.toString() || "unassigned"}
-								onValueChange={handlePrefChange}
-							>
-								<SelectTrigger className="h-9 md:h-10 text-xs md:text-sm">
-									<SelectValue placeholder="Select an image model" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="unassigned">
-										<span className="text-muted-foreground">Unassigned</span>
-									</SelectItem>
-									{globalConfigs.length > 0 && (
-										<>
-											<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-												Global
-											</div>
-											{globalConfigs.map((c) => {
-												const isAuto = "is_auto_mode" in c && c.is_auto_mode;
-												return (
-													<SelectItem key={`g-${c.id}`} value={c.id.toString()}>
-														<div className="flex items-center gap-2">
-															{isAuto ? (
-																<Badge
-																	variant="outline"
-																	className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200"
-																>
-																	<Shuffle className="size-3 mr-1" />
-																	AUTO
-																</Badge>
-															) : (
-																<Badge
-																	variant="outline"
-																	className="text-xs bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200"
-																>
-																	{c.provider}
-																</Badge>
-															)}
-															<span>{c.name}</span>
-														</div>
-													</SelectItem>
-												);
-											})}
-										</>
-									)}
-									{(userConfigs?.length ?? 0) > 0 && (
-										<>
-											<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-												Your Models
-											</div>
-											{userConfigs?.map((c) => (
-												<SelectItem key={`u-${c.id}`} value={c.id.toString()}>
-													<div className="flex items-center gap-2">
-														<Badge variant="outline" className="text-xs">
-															{c.provider}
-														</Badge>
-														<span>{c.name}</span>
-														<span className="text-muted-foreground">({c.model_name})</span>
-													</div>
-												</SelectItem>
-											))}
-										</>
-									)}
-								</SelectContent>
-							</Select>
-							{hasPrefChanges && (
-								<div className="flex gap-2 pt-1">
-									<Button
-										size="sm"
-										onClick={handleSavePref}
-										disabled={isSavingPref}
-										className="text-xs h-8"
-									>
-										{isSavingPref ? "Saving..." : "Save"}
-									</Button>
-									<Button
-										size="sm"
-										variant="outline"
-										onClick={() => {
-											setSelectedPrefId(preferences.image_generation_config_id ?? "");
-											setHasPrefChanges(false);
-										}}
-										className="text-xs h-8"
-									>
-										Reset
-									</Button>
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				</motion.div>
-			)}
-
 			{/* Loading Skeleton */}
 			{isLoading && (
 				<div className="space-y-4 md:space-y-6">
-					{/* Active Preference Skeleton */}
-					<Card className="border-l-4 border-l-teal-500/30">
-						<CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
-							<div className="flex items-center gap-2 md:gap-3">
-								<Skeleton className="h-9 w-9 md:h-11 md:w-11 rounded-lg" />
-								<div className="space-y-2 flex-1">
-									<Skeleton className="h-5 md:h-6 w-36 md:w-44" />
-									<Skeleton className="h-3 md:h-4 w-56 md:w-72" />
-								</div>
-							</div>
-						</CardHeader>
-						<CardContent className="px-3 md:px-6 pb-3 md:pb-6">
-							<Skeleton className="h-9 md:h-10 w-full rounded-md" />
-						</CardContent>
-					</Card>
-
 					{/* Your Image Models Section Skeleton */}
 					<div className="space-y-4">
 						<div className="flex items-center justify-between">
@@ -573,18 +404,6 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 			{/* User Configs */}
 			{!isLoading && (
 				<div className="space-y-4 md:space-y-6">
-					<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-						<h3 className="text-lg md:text-xl font-semibold tracking-tight">Your Image Models</h3>
-						{canCreate && (
-							<Button
-								onClick={openNewDialog}
-								className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
-							>
-								Add Image Model
-							</Button>
-						)}
-					</div>
-
 					{(userConfigs?.length ?? 0) === 0 ? (
 						<Card className="border-dashed border-2 border-muted-foreground/25">
 							<CardContent className="flex flex-col items-center justify-center py-10 md:py-16 text-center">

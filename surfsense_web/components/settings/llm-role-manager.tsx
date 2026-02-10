@@ -7,6 +7,7 @@ import {
 	CheckCircle,
 	CircleDashed,
 	FileText,
+	ImageIcon,
 	RefreshCw,
 	RotateCcw,
 	Save,
@@ -15,6 +16,10 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+	globalImageGenConfigsAtom,
+	imageGenConfigsAtom,
+} from "@/atoms/image-gen-config/image-gen-config-query.atoms";
 import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -46,6 +51,8 @@ const ROLE_DESCRIPTIONS = {
 		description: "Primary LLM for chat interactions and agent operations",
 		color: "text-blue-600 dark:text-blue-400",
 		bgColor: "bg-blue-500/10",
+		prefKey: "agent_llm_id" as const,
+		configType: "llm" as const,
 	},
 	document_summary: {
 		icon: FileText,
@@ -53,6 +60,17 @@ const ROLE_DESCRIPTIONS = {
 		description: "Handles document summarization and research synthesis",
 		color: "text-purple-600 dark:text-purple-400",
 		bgColor: "bg-purple-500/10",
+		prefKey: "document_summary_llm_id" as const,
+		configType: "llm" as const,
+	},
+	image_generation: {
+		icon: ImageIcon,
+		title: "Image Generation Model",
+		description: "Model used for AI image generation (DALL-E, GPT Image, etc.)",
+		color: "text-teal-600 dark:text-teal-400",
+		bgColor: "bg-teal-500/10",
+		prefKey: "image_generation_config_id" as const,
+		configType: "image" as const,
 	},
 };
 
@@ -61,6 +79,7 @@ interface LLMRoleManagerProps {
 }
 
 export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
+	// LLM configs
 	const {
 		data: newLLMConfigs = [],
 		isFetching: configsLoading,
@@ -72,6 +91,20 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		isFetching: globalConfigsLoading,
 		error: globalConfigsError,
 	} = useAtomValue(globalNewLLMConfigsAtom);
+
+	// Image gen configs
+	const {
+		data: userImageConfigs = [],
+		isFetching: imageConfigsLoading,
+		error: imageConfigsError,
+	} = useAtomValue(imageGenConfigsAtom);
+	const {
+		data: globalImageConfigs = [],
+		isFetching: globalImageConfigsLoading,
+		error: globalImageConfigsError,
+	} = useAtomValue(globalImageGenConfigsAtom);
+
+	// Preferences
 	const {
 		data: preferences = {},
 		isFetching: preferencesLoading,
@@ -83,6 +116,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const [assignments, setAssignments] = useState({
 		agent_llm_id: preferences.agent_llm_id ?? "",
 		document_summary_llm_id: preferences.document_summary_llm_id ?? "",
+		image_generation_config_id: preferences.image_generation_config_id ?? "",
 	});
 
 	const [hasChanges, setHasChanges] = useState(false);
@@ -92,15 +126,16 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		const newAssignments = {
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
+			image_generation_config_id: preferences.image_generation_config_id ?? "",
 		};
 		setAssignments(newAssignments);
 		setHasChanges(false);
 	}, [preferences]);
 
-	const handleRoleAssignment = (role: string, configId: string) => {
+	const handleRoleAssignment = (prefKey: string, configId: string) => {
 		const newAssignments = {
 			...assignments,
-			[role]: configId === "unassigned" ? "" : parseInt(configId),
+			[prefKey]: configId === "unassigned" ? "" : parseInt(configId),
 		};
 
 		setAssignments(newAssignments);
@@ -108,6 +143,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		const currentPrefs = {
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
+			image_generation_config_id: preferences.image_generation_config_id ?? "",
 		};
 
 		const hasChangesNow = Object.keys(newAssignments).some(
@@ -122,19 +158,13 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 	const handleSave = async () => {
 		setIsSaving(true);
 
+		const toNumericOrUndefined = (val: string | number) =>
+			typeof val === "string" ? (val ? parseInt(val) : undefined) : val;
+
 		const numericAssignments = {
-			agent_llm_id:
-				typeof assignments.agent_llm_id === "string"
-					? assignments.agent_llm_id
-						? parseInt(assignments.agent_llm_id)
-						: undefined
-					: assignments.agent_llm_id,
-			document_summary_llm_id:
-				typeof assignments.document_summary_llm_id === "string"
-					? assignments.document_summary_llm_id
-						? parseInt(assignments.document_summary_llm_id)
-						: undefined
-					: assignments.document_summary_llm_id,
+			agent_llm_id: toNumericOrUndefined(assignments.agent_llm_id),
+			document_summary_llm_id: toNumericOrUndefined(assignments.document_summary_llm_id),
+			image_generation_config_id: toNumericOrUndefined(assignments.image_generation_config_id),
 		};
 
 		await updatePreferences({
@@ -143,7 +173,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		});
 
 		setHasChanges(false);
-		toast.success("LLM role assignments saved successfully!");
+		toast.success("Role assignments saved successfully!");
 
 		setIsSaving(false);
 	};
@@ -152,6 +182,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		setAssignments({
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
+			image_generation_config_id: preferences.image_generation_config_id ?? "",
 		});
 		setHasChanges(false);
 	};
@@ -162,16 +193,26 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		assignments.agent_llm_id !== undefined &&
 		assignments.document_summary_llm_id !== "" &&
 		assignments.document_summary_llm_id !== null &&
-		assignments.document_summary_llm_id !== undefined;
+		assignments.document_summary_llm_id !== undefined &&
+		assignments.image_generation_config_id !== "" &&
+		assignments.image_generation_config_id !== null &&
+		assignments.image_generation_config_id !== undefined;
 
-	// Combine global and custom configs
-	const allConfigs = [
+	// Combine global and custom LLM configs
+	const allLLMConfigs = [
 		...globalConfigs.map((config) => ({ ...config, is_global: true })),
 		...newLLMConfigs.filter((config) => config.id && config.id.toString().trim() !== ""),
 	];
 
-	const isLoading = configsLoading || preferencesLoading || globalConfigsLoading;
-	const hasError = configsError || preferencesError || globalConfigsError;
+	// Combine global and custom image gen configs
+	const allImageConfigs = [
+		...globalImageConfigs.map((config) => ({ ...config, is_global: true })),
+		...(userImageConfigs ?? []).filter((config) => config.id && config.id.toString().trim() !== ""),
+	];
+
+	const isLoading = configsLoading || preferencesLoading || globalConfigsLoading || imageConfigsLoading || globalImageConfigsLoading;
+	const hasError = configsError || preferencesError || globalConfigsError || imageConfigsError || globalImageConfigsError;
+	const hasAnyConfigs = allLLMConfigs.length > 0 || allImageConfigs.length > 0;
 
 	return (
 		<div className="space-y-5 md:space-y-6">
@@ -223,7 +264,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			{/* Loading Skeleton */}
 			{isLoading && (
 				<div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-					{["skeleton-a", "skeleton-b"].map((key) => (
+					{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
 						<Card key={key} className="border-border/60">
 							<CardContent className="p-4 md:p-5 space-y-4">
 								{/* Header: icon + title + status */}
@@ -260,18 +301,18 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			)}
 
 			{/* No configs warning */}
-			{!isLoading && !hasError && allConfigs.length === 0 && (
+			{!isLoading && !hasError && !hasAnyConfigs && (
 				<Alert variant="destructive" className="py-3 md:py-4">
 					<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 					<AlertDescription className="text-xs md:text-sm">
-						No LLM configurations found. Please add at least one LLM provider in the
-						Agent Configs tab before assigning roles.
+						No configurations found. Please add at least one LLM provider or image model
+						in the respective settings tabs before assigning roles.
 					</AlertDescription>
 				</Alert>
 			)}
 
 			{/* Role Assignment Cards */}
-			{!isLoading && !hasError && allConfigs.length > 0 && (
+			{!isLoading && !hasError && hasAnyConfigs && (
 				<motion.div
 					initial={{ opacity: 0 }}
 					animate={{ opacity: 1 }}
@@ -280,9 +321,18 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 				>
 					{Object.entries(ROLE_DESCRIPTIONS).map(([key, role], index) => {
 						const IconComponent = role.icon;
+						const isImageRole = role.configType === "image";
 						const currentAssignment =
-							assignments[`${key}_llm_id` as keyof typeof assignments];
-						const assignedConfig = allConfigs.find(
+							assignments[role.prefKey as keyof typeof assignments];
+
+						// Pick the right config lists based on role type
+						const roleGlobalConfigs = isImageRole ? globalImageConfigs : globalConfigs;
+						const roleUserConfigs = isImageRole
+							? (userImageConfigs ?? []).filter((c) => c.id && c.id.toString().trim() !== "")
+							: newLLMConfigs.filter((c) => c.id && c.id.toString().trim() !== "");
+						const roleAllConfigs = isImageRole ? allImageConfigs : allLLMConfigs;
+
+						const assignedConfig = roleAllConfigs.find(
 							(config) => config.id === currentAssignment
 						);
 						const isAssigned =
@@ -340,7 +390,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 											<Select
 												value={currentAssignment?.toString() || "unassigned"}
 												onValueChange={(value) =>
-													handleRoleAssignment(`${key}_llm_id`, value)
+													handleRoleAssignment(role.prefKey, value)
 												}
 											>
 												<SelectTrigger className="w-full h-9 md:h-10 text-xs md:text-sm">
@@ -357,12 +407,12 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 													</SelectItem>
 
 													{/* Global Configurations */}
-													{globalConfigs.length > 0 && (
+													{roleGlobalConfigs.length > 0 && (
 														<SelectGroup>
 															<SelectLabel className="text-[11px] md:text-xs font-semibold text-muted-foreground px-2 py-1 md:py-1.5">
 																Global Configurations
 															</SelectLabel>
-															{globalConfigs.map((config) => {
+															{roleGlobalConfigs.map((config) => {
 																const isAuto =
 																	"is_auto_mode" in config &&
 																	config.is_auto_mode;
@@ -412,20 +462,12 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 													)}
 
 													{/* Custom Configurations */}
-													{newLLMConfigs.length > 0 && (
+													{roleUserConfigs.length > 0 && (
 														<SelectGroup>
 															<SelectLabel className="text-[11px] md:text-xs font-semibold text-muted-foreground px-2 py-1 md:py-1.5">
 																Your Configurations
 															</SelectLabel>
-															{newLLMConfigs
-																.filter(
-																	(config) =>
-																		config.id &&
-																		config.id
-																			.toString()
-																			.trim() !== ""
-																)
-																.map((config) => (
+															{roleUserConfigs.map((config) => (
 																	<SelectItem
 																		key={config.id}
 																		value={config.id.toString()}
@@ -480,7 +522,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 													</div>
 												) : (
 													<div className="flex items-start gap-2">
-														<Bot className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+														<IconComponent className="w-3.5 h-3.5 shrink-0 mt-0.5 text-muted-foreground" />
 														<div className="min-w-0 flex-1">
 															<div className="flex items-center gap-1.5 flex-wrap">
 																<span className="text-xs font-medium">
