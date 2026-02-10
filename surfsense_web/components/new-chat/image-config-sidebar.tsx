@@ -129,7 +129,7 @@ export function ImageConfigSidebar({
 
 	const getTitle = () => {
 		if (mode === "create") return "Add Image Model";
-		if (isAutoMode) return "Auto Mode (Load Balanced)";
+		if (isAutoMode) return "Auto Mode (Fastest)";
 		if (isGlobal) return "View Global Image Model";
 		return "Edit Image Model";
 	};

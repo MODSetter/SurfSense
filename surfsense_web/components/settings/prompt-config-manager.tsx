@@ -122,7 +122,7 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 				</AlertDescription>
 			</Alert>
 
-			<Alert className="py-3 md:py-4">
+			<Alert className="bg-muted/50 py-3 md:py-4">
 				<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
 				<AlertDescription className="text-xs md:text-sm">
 					System instructions apply to all AI interactions in this search space. They guide how the

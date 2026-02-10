@@ -7,6 +7,7 @@ NewLLMConfig combines LLM model settings with prompt configuration:
 - Citation toggle
 """
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -90,6 +91,7 @@ class NewLLMConfigRead(NewLLMConfigBase):
     id: int
     created_at: datetime
     search_space_id: int
+    user_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -118,6 +120,7 @@ class NewLLMConfigPublic(BaseModel):
 
     created_at: datetime
     search_space_id: int
+    user_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
 

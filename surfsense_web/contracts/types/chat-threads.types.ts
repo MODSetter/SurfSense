@@ -55,6 +55,7 @@ export const publicChatSnapshotDetail = z.object({
 	message_count: z.number(),
 	thread_id: z.number(),
 	thread_title: z.string(),
+	created_by_user_id: z.string().nullable().optional(),
 });
 
 /**

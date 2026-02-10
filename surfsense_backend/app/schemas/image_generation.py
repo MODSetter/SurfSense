@@ -6,6 +6,7 @@ ImageGeneration: Schemas for the actual image generation requests/results.
 GlobalImageGenConfigRead: Schema for admin-configured YAML configs.
 """
 
+import uuid
 from datetime import datetime
 from typing import Any
 
@@ -79,6 +80,7 @@ class ImageGenerationConfigRead(ImageGenerationConfigBase):
     id: int
     created_at: datetime
     search_space_id: int
+    user_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -97,6 +99,7 @@ class ImageGenerationConfigPublic(BaseModel):
     litellm_params: dict[str, Any] | None = None
     created_at: datetime
     search_space_id: int
+    user_id: uuid.UUID
 
     model_config = ConfigDict(from_attributes=True)
 
