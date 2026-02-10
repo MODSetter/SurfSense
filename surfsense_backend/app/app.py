@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 from collections import defaultdict
 from contextlib import asynccontextmanager
@@ -36,16 +35,12 @@ rate_limit_logger = logging.getLogger("surfsense.rate_limit")
 # ============================================================================
 # Uses the same Redis instance as Celery for zero additional infrastructure.
 # Protects auth endpoints from brute force and user enumeration attacks.
-REDIS_URL = os.getenv(
-    "REDIS_APP_URL",
-    os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
-)
 
 # SlowAPI limiter — provides default rate limits (60/min) for ALL routes
 # via the ASGI middleware. This is the general safety net.
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri=REDIS_URL,
+    storage_uri=config.REDIS_APP_URL,
     default_limits=["60/minute"],
 )
 
@@ -82,7 +77,7 @@ def _get_rate_limit_redis() -> redis.Redis:
     """Get or create Redis client for auth rate limiting."""
     global _rate_limit_redis
     if _rate_limit_redis is None:
-        _rate_limit_redis = redis.from_url(REDIS_URL, decode_responses=True)
+        _rate_limit_redis = redis.from_url(config.REDIS_APP_URL, decode_responses=True)
     return _rate_limit_redis
 
 
