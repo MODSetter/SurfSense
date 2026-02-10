@@ -36,11 +36,9 @@ def _get_doc_heartbeat_redis():
 
     global _doc_heartbeat_redis
     if _doc_heartbeat_redis is None:
-        redis_url = os.getenv(
-            "REDIS_APP_URL",
-            os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0"),
+        _doc_heartbeat_redis = redis.from_url(
+            config.REDIS_APP_URL, decode_responses=True
         )
-        _doc_heartbeat_redis = redis.from_url(redis_url, decode_responses=True)
     return _doc_heartbeat_redis
 
 

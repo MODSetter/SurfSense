@@ -27,6 +27,12 @@ export interface InlineMentionEditorRef {
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
 	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
+	setDocumentChipStatus: (
+		docId: number,
+		docType: string | undefined,
+		statusLabel: string | null,
+		statusKind?: "pending" | "processing" | "ready" | "failed"
+	) => void;
 }
 
 interface InlineMentionEditorProps {
@@ -46,6 +52,7 @@ interface InlineMentionEditorProps {
 const CHIP_DATA_ATTR = "data-mention-chip";
 const CHIP_ID_ATTR = "data-mention-id";
 const CHIP_DOCTYPE_ATTR = "data-mention-doctype";
+const CHIP_STATUS_ATTR = "data-mention-status";
 
 /**
  * Type guard to check if a node is a chip element
@@ -182,6 +189,11 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				titleSpan.className = "max-w-[120px] truncate";
 				titleSpan.textContent = doc.title;
 				titleSpan.title = doc.title;
+				titleSpan.setAttribute("data-mention-title", "true");
+
+				const statusSpan = document.createElement("span");
+				statusSpan.setAttribute(CHIP_STATUS_ATTR, "true");
+				statusSpan.className = "text-[10px] font-semibold opacity-80 hidden";
 
 				const removeBtn = document.createElement("button");
 				removeBtn.type = "button";
@@ -207,6 +219,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 				chip.appendChild(iconSpan);
 				chip.appendChild(titleSpan);
+				chip.appendChild(statusSpan);
 				chip.appendChild(removeBtn);
 
 				return chip;
@@ -332,6 +345,48 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			}
 		}, []);
 
+		const setDocumentChipStatus = useCallback(
+			(
+				docId: number,
+				docType: string | undefined,
+				statusLabel: string | null,
+				statusKind: "pending" | "processing" | "ready" | "failed" = "pending"
+			) => {
+				if (!editorRef.current) return;
+
+				const chips = editorRef.current.querySelectorAll<HTMLSpanElement>(
+					`span[${CHIP_DATA_ATTR}="true"]`
+				);
+				for (const chip of chips) {
+					const chipId = getChipId(chip);
+					const chipType = getChipDocType(chip);
+					if (chipId !== docId) continue;
+					if ((docType ?? "UNKNOWN") !== chipType) continue;
+
+					const statusEl = chip.querySelector<HTMLSpanElement>(`span[${CHIP_STATUS_ATTR}="true"]`);
+					if (!statusEl) continue;
+
+					if (!statusLabel) {
+						statusEl.textContent = "";
+						statusEl.className = "text-[10px] font-semibold opacity-80 hidden";
+						continue;
+					}
+
+					const statusClass =
+						statusKind === "failed"
+							? "text-destructive"
+							: statusKind === "processing"
+								? "text-amber-700"
+								: statusKind === "ready"
+									? "text-emerald-700"
+									: "text-amber-700";
+					statusEl.textContent = statusLabel;
+					statusEl.className = `text-[10px] font-semibold opacity-80 ${statusClass}`;
+				}
+			},
+			[]
+		);
+
 		// Expose methods via ref
 		useImperativeHandle(ref, () => ({
 			focus: () => editorRef.current?.focus(),
@@ -339,6 +394,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			getText,
 			getMentionedDocuments,
 			insertDocumentChip,
+			setDocumentChipStatus,
 		}));
 
 		// Handle input changes
@@ -526,7 +582,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					className={cn(
 						"min-h-[24px] max-h-32 overflow-y-auto",
 						"text-sm outline-none",
-						"whitespace-pre-wrap break-words",
+						"whitespace-pre-wrap wrap-break-word",
 						disabled && "opacity-50 cursor-not-allowed",
 						className
 					)}

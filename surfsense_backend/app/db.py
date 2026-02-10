@@ -211,6 +211,7 @@ class LiteLLMProvider(str, Enum):
     DATABRICKS = "DATABRICKS"
     COMETAPI = "COMETAPI"
     HUGGINGFACE = "HUGGINGFACE"
+    GITHUB_MODELS = "GITHUB_MODELS"
     CUSTOM = "CUSTOM"
 
 
@@ -272,19 +273,19 @@ INCENTIVE_TASKS_CONFIG = {
     IncentiveTaskType.GITHUB_STAR: {
         "title": "Star our GitHub repository",
         "description": "Show your support by starring SurfSense on GitHub",
-        "pages_reward": 100,
+        "pages_reward": 30,
         "action_url": "https://github.com/MODSetter/SurfSense",
     },
     IncentiveTaskType.REDDIT_FOLLOW: {
         "title": "Join our Subreddit",
         "description": "Join the SurfSense community on Reddit",
-        "pages_reward": 100,
+        "pages_reward": 30,
         "action_url": "https://www.reddit.com/r/SurfSense/",
     },
     IncentiveTaskType.DISCORD_JOIN: {
         "title": "Join our Discord",
         "description": "Join the SurfSense community on Discord",
-        "pages_reward": 100,
+        "pages_reward": 40,
         "action_url": "https://discord.gg/ejRNvftDp9",
     },
     # Future tasks can be configured here:
@@ -801,9 +802,8 @@ class MemoryCategory(str, Enum):
 
 class UserMemory(BaseModel, TimestampMixin):
     """
-    Stores facts, preferences, and context about users for personalized AI responses.
-    Similar to Claude's memory feature - enables the AI to remember user information
-    across conversations.
+    Private memory: facts, preferences, context per user per search space.
+    Used only for private chats (not shared/team chats).
     """
 
     __tablename__ = "user_memories"
@@ -845,6 +845,40 @@ class UserMemory(BaseModel, TimestampMixin):
     # Relationships
     user = relationship("User", back_populates="memories")
     search_space = relationship("SearchSpace", back_populates="user_memories")
+
+
+class SharedMemory(BaseModel, TimestampMixin):
+    __tablename__ = "shared_memories"
+
+    search_space_id = Column(
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    created_by_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("user.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    memory_text = Column(Text, nullable=False)
+    category = Column(
+        SQLAlchemyEnum(MemoryCategory),
+        nullable=False,
+        default=MemoryCategory.fact,
+    )
+    embedding = Column(Vector(config.embedding_model_instance.dimension))
+    updated_at = Column(
+        TIMESTAMP(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(UTC),
+        onupdate=lambda: datetime.now(UTC),
+        index=True,
+    )
+
+    search_space = relationship("SearchSpace", back_populates="shared_memories")
+    created_by = relationship("User")
 
 
 class Document(BaseModel, TimestampMixin):
@@ -1215,6 +1249,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         order_by="UserMemory.updated_at.desc()",
         cascade="all, delete-orphan",
     )
+    shared_memories = relationship(
+        "SharedMemory",
+        back_populates="search_space",
+        order_by="SharedMemory.updated_at.desc()",
+        cascade="all, delete-orphan",
+    )
 
 
 class SearchSourceConnector(BaseModel, TimestampMixin):
@@ -1265,7 +1305,7 @@ class NewLLMConfig(BaseModel, TimestampMixin):
     - Configurable system instructions (defaults to SURFSENSE_SYSTEM_INSTRUCTIONS)
     - Citation toggle (enable/disable citation instructions)
 
-    Note: SURFSENSE_TOOLS_INSTRUCTIONS is always used and not configurable.
+    Note: Tools instructions are built by get_tools_instructions(thread_visibility) (personal vs shared memory).
     """
 
     __tablename__ = "new_llm_configs"

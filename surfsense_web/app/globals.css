@@ -187,5 +187,24 @@ button {
 	background-color: hsl(var(--muted-foreground) / 0.4);
 }
 
+/* Integrations section — vertical column auto-scroll */
+@keyframes integrations-scroll-up {
+	0% {
+		transform: translateY(0);
+	}
+	100% {
+		transform: translateY(-50%);
+	}
+}
+
+@keyframes integrations-scroll-down {
+	0% {
+		transform: translateY(-50%);
+	}
+	100% {
+		transform: translateY(0);
+	}
+}
+
 @source '../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}';
 @source '../node_modules/streamdown/dist/*.js';

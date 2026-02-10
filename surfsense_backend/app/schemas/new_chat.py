@@ -159,15 +159,6 @@ class ChatMessage(BaseModel):
     content: str
 
 
-class ChatAttachment(BaseModel):
-    """An attachment with its extracted content for chat context."""
-
-    id: str  # Unique attachment ID
-    name: str  # Original filename
-    type: str  # Attachment type: document, image, audio
-    content: str  # Extracted markdown content from the file
-
-
 class NewChatRequest(BaseModel):
     """Request schema for the deep agent chat endpoint."""
 
@@ -175,9 +166,6 @@ class NewChatRequest(BaseModel):
     user_query: str
     search_space_id: int
     messages: list[ChatMessage] | None = None  # Optional chat history from frontend
-    attachments: list[ChatAttachment] | None = (
-        None  # Optional attachments with extracted content
-    )
     mentioned_document_ids: list[int] | None = (
         None  # Optional document IDs mentioned with @ in the chat
     )
@@ -201,7 +189,6 @@ class RegenerateRequest(BaseModel):
     user_query: str | None = (
         None  # New user query (for edit). None = reload with same query
     )
-    attachments: list[ChatAttachment] | None = None
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
 

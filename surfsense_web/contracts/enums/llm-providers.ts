@@ -175,6 +175,13 @@ export const LLM_PROVIDERS: LLMProvider[] = [
 		description: "Databricks Model Serving",
 	},
 	{
+		value: "GITHUB_MODELS",
+		label: "GitHub Models",
+		example: "openai/gpt-5, meta/llama-3.1-405b-instruct",
+		description: "AI models from GitHub Marketplace",
+		apiBase: "https://models.github.ai/inference",
+	},
+	{
 		value: "CUSTOM",
 		label: "Custom Provider",
 		example: "your-custom-model",

@@ -52,9 +52,21 @@ def safe_set_chunks(document: Document, chunks: list) -> None:
         # Instead of: document.chunks = chunks (DANGEROUS!)
         safe_set_chunks(document, chunks)  # Always safe
     """
+    from sqlalchemy.orm import object_session
     from sqlalchemy.orm.attributes import set_committed_value
 
+    # Keep relationship assignment lazy-load-safe.
     set_committed_value(document, "chunks", chunks)
+
+    # Ensure chunk rows are actually persisted.
+    # set_committed_value bypasses normal unit-of-work tracking, so we need to
+    # explicitly attach chunk objects to the current session.
+    session = object_session(document)
+    if session is not None:
+        if document.id is not None:
+            for chunk in chunks:
+                chunk.document_id = document.id
+        session.add_all(chunks)
 
 
 def parse_date_flexible(date_str: str) -> datetime:

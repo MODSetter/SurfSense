@@ -71,8 +71,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
-	IMAGE_GEN_PROVIDERS,
 	getImageGenModelsByProvider,
+	IMAGE_GEN_PROVIDERS,
 } from "@/contracts/enums/image-gen-providers";
 import type { ImageGenerationConfig } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";

@@ -1477,6 +1477,78 @@ export const LLM_MODELS: LLMModel[] = [
 		provider: "DATABRICKS",
 		contextWindow: "128K",
 	},
+
+	// GitHub Models
+	{
+		value: "openai/gpt-5",
+		label: "GitHub GPT-5",
+		provider: "GITHUB_MODELS",
+	},
+	{
+		value: "openai/gpt-4.1",
+		label: "GitHub GPT-4.1",
+		provider: "GITHUB_MODELS",
+		contextWindow: "1048K",
+	},
+	{
+		value: "openai/gpt-4o",
+		label: "GitHub GPT-4o",
+		provider: "GITHUB_MODELS",
+		contextWindow: "128K",
+	},
+	{
+		value: "deepseek/DeepSeek-V3-0324",
+		label: "GitHub DeepSeek V3",
+		provider: "GITHUB_MODELS",
+		contextWindow: "64K",
+	},
+	{
+		value: "xai/grok-3",
+		label: "GitHub Grok 3",
+		provider: "GITHUB_MODELS",
+		contextWindow: "131K",
+	},
+	{
+		value: "openai/gpt-5-mini",
+		label: "GitHub GPT-5 Mini",
+		provider: "GITHUB_MODELS",
+	},
+	{
+		value: "openai/gpt-4.1-mini",
+		label: "GitHub GPT-4.1 Mini",
+		provider: "GITHUB_MODELS",
+		contextWindow: "1048K",
+	},
+	{
+		value: "meta/Llama-4-Scout-17B-16E-Instruct",
+		label: "GitHub Llama 4 Scout",
+		provider: "GITHUB_MODELS",
+		contextWindow: "512K",
+	},
+	{
+		value: "openai/gpt-4.1-nano",
+		label: "GitHub GPT-4.1 Nano",
+		provider: "GITHUB_MODELS",
+		contextWindow: "1048K",
+	},
+	{
+		value: "openai/gpt-4o-mini",
+		label: "GitHub GPT-4o Mini",
+		provider: "GITHUB_MODELS",
+		contextWindow: "128K",
+	},
+	{
+		value: "openai/o4-mini",
+		label: "GitHub O4 Mini",
+		provider: "GITHUB_MODELS",
+		contextWindow: "200K",
+	},
+	{
+		value: "deepseek/DeepSeek-R1",
+		label: "GitHub DeepSeek R1",
+		provider: "GITHUB_MODELS",
+		contextWindow: "64K",
+	},
 ];
 
 // Helper function to get models by provider

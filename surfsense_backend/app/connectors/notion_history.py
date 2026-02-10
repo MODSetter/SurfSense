@@ -27,6 +27,12 @@ T = TypeVar("T")
 MAX_RETRIES = 5
 BASE_RETRY_DELAY = 1.0  # seconds
 MAX_RETRY_DELAY = 60.0  # seconds (Notion's max request timeout)
+MAX_RATE_LIMIT_WAIT_SECONDS = float(
+    getattr(config, "NOTION_MAX_RETRY_AFTER_SECONDS", 30.0)
+)
+MAX_TOTAL_RETRY_WAIT_SECONDS = float(
+    getattr(config, "NOTION_MAX_TOTAL_RETRY_WAIT_SECONDS", 120.0)
+)
 
 # Type alias for retry callback function
 # Signature: async callback(retry_reason, attempt, max_attempts, wait_seconds) -> None
@@ -292,6 +298,7 @@ class NotionHistoryConnector:
         """
         last_exception: APIResponseError | None = None
         retry_delay = BASE_RETRY_DELAY
+        total_wait_time = 0.0
 
         for attempt in range(MAX_RETRIES):
             try:
@@ -325,6 +332,15 @@ class NotionHistoryConnector:
                             wait_time = retry_delay
                     else:
                         wait_time = retry_delay
+
+                    # Avoid very long worker sleeps from external Retry-After values.
+                    if wait_time > MAX_RATE_LIMIT_WAIT_SECONDS:
+                        logger.warning(
+                            f"Notion Retry-After ({wait_time}s) exceeds cap "
+                            f"({MAX_RATE_LIMIT_WAIT_SECONDS}s). Clamping wait time."
+                        )
+                        wait_time = MAX_RATE_LIMIT_WAIT_SECONDS
+
                     logger.warning(
                         f"Notion API rate limited (429). "
                         f"Waiting {wait_time}s. Attempt {attempt + 1}/{MAX_RETRIES}"
@@ -348,6 +364,14 @@ class NotionHistoryConnector:
 
                 # Notify about retry via callback (for user notifications)
                 # Call before sleeping so user sees the message while we wait
+                if total_wait_time + wait_time > MAX_TOTAL_RETRY_WAIT_SECONDS:
+                    logger.error(
+                        "Notion API retry budget exceeded "
+                        f"({total_wait_time + wait_time:.1f}s > "
+                        f"{MAX_TOTAL_RETRY_WAIT_SECONDS:.1f}s). Failing fast."
+                    )
+                    raise
+
                 if on_retry:
                     try:
                         await on_retry(
@@ -362,6 +386,7 @@ class NotionHistoryConnector:
 
                 # Wait before retrying
                 await asyncio.sleep(wait_time)
+                total_wait_time += wait_time
 
                 # Exponential backoff for next attempt
                 retry_delay = min(retry_delay * 2, MAX_RETRY_DELAY)

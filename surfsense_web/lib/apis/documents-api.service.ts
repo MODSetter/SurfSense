@@ -8,6 +8,7 @@ import {
 	type GetDocumentByChunkRequest,
 	type GetDocumentRequest,
 	type GetDocumentsRequest,
+	type GetDocumentsStatusRequest,
 	type GetDocumentTypeCountsRequest,
 	type GetSurfsenseDocsRequest,
 	getDocumentByChunkRequest,
@@ -16,6 +17,8 @@ import {
 	getDocumentResponse,
 	getDocumentsRequest,
 	getDocumentsResponse,
+	getDocumentsStatusRequest,
+	getDocumentsStatusResponse,
 	getDocumentTypeCountsRequest,
 	getDocumentTypeCountsResponse,
 	getSurfsenseDocsByChunkResponse,
@@ -128,6 +131,30 @@ class DocumentsApiService {
 		return baseApiService.postFormData(`/api/v1/documents/fileupload`, uploadDocumentResponse, {
 			body: formData,
 		});
+	};
+
+	/**
+	 * Batch document status for async processing tracking
+	 */
+	getDocumentsStatus = async (request: GetDocumentsStatusRequest) => {
+		const parsedRequest = getDocumentsStatusRequest.safeParse(request);
+
+		if (!parsedRequest.success) {
+			console.error("Invalid request:", parsedRequest.error);
+			const errorMessage = parsedRequest.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		const { search_space_id, document_ids } = parsedRequest.data.queryParams;
+		const params = new URLSearchParams({
+			search_space_id: String(search_space_id),
+			document_ids: document_ids.join(","),
+		});
+
+		return baseApiService.get(
+			`/api/v1/documents/status?${params.toString()}`,
+			getDocumentsStatusResponse
+		);
 	};
 
 	/**

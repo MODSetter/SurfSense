@@ -1,6 +1,6 @@
 [project]
 name = "surf-new-backend"
-version = "0.0.12"
+version = "0.0.13"
 description = "SurfSense Backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -62,6 +62,7 @@ dependencies = [
     "unstructured[all-docs]>=0.18.31",
     "unstructured-client>=0.42.3",
     "langchain-unstructured>=1.0.1",
+    "slowapi>=0.1.9",
 ]
 
 [dependency-groups]

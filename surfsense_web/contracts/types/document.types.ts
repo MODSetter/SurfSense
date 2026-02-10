@@ -138,6 +138,37 @@ export const uploadDocumentRequest = z.object({
 
 export const uploadDocumentResponse = z.object({
 	message: z.literal("Files uploaded for processing"),
+	document_ids: z.array(z.number()),
+	duplicate_document_ids: z.array(z.number()).optional(),
+	total_files: z.number().optional(),
+	pending_files: z.number().optional(),
+	skipped_duplicates: z.number().optional(),
+});
+
+/**
+ * Batch document status
+ */
+export const getDocumentsStatusRequest = z.object({
+	queryParams: z.object({
+		search_space_id: z.number(),
+		document_ids: z.array(z.number()).min(1),
+	}),
+});
+
+export const documentStatus = z.object({
+	state: z.enum(["ready", "pending", "processing", "failed"]),
+	reason: z.string().nullable().optional(),
+});
+
+export const documentStatusItem = z.object({
+	id: z.number(),
+	title: z.string(),
+	document_type: documentTypeEnum,
+	status: documentStatus,
+});
+
+export const getDocumentsStatusResponse = z.object({
+	items: z.array(documentStatusItem),
 });
 
 /**
@@ -261,6 +292,10 @@ export type CreateDocumentRequest = z.infer<typeof createDocumentRequest>;
 export type CreateDocumentResponse = z.infer<typeof createDocumentResponse>;
 export type UploadDocumentRequest = z.infer<typeof uploadDocumentRequest>;
 export type UploadDocumentResponse = z.infer<typeof uploadDocumentResponse>;
+export type GetDocumentsStatusRequest = z.infer<typeof getDocumentsStatusRequest>;
+export type GetDocumentsStatusResponse = z.infer<typeof getDocumentsStatusResponse>;
+export type DocumentStatus = z.infer<typeof documentStatus>;
+export type DocumentStatusItem = z.infer<typeof documentStatusItem>;
 export type SearchDocumentsRequest = z.infer<typeof searchDocumentsRequest>;
 export type SearchDocumentsResponse = z.infer<typeof searchDocumentsResponse>;
 export type SearchDocumentTitlesRequest = z.infer<typeof searchDocumentTitlesRequest>;

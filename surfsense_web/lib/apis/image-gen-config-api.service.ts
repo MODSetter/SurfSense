@@ -2,12 +2,12 @@ import {
 	type CreateImageGenConfigRequest,
 	createImageGenConfigRequest,
 	createImageGenConfigResponse,
+	deleteImageGenConfigResponse,
+	getGlobalImageGenConfigsResponse,
+	getImageGenConfigsResponse,
 	type UpdateImageGenConfigRequest,
 	updateImageGenConfigRequest,
 	updateImageGenConfigResponse,
-	deleteImageGenConfigResponse,
-	getImageGenConfigsResponse,
-	getGlobalImageGenConfigsResponse,
 } from "@/contracts/types/new-llm-config.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";

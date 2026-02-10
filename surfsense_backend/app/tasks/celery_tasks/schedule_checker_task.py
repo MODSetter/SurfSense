@@ -9,7 +9,8 @@ from sqlalchemy.pool import NullPool
 
 from app.celery_app import celery_app
 from app.config import config
-from app.db import SearchSourceConnector, SearchSourceConnectorType
+from app.db import Notification, SearchSourceConnector, SearchSourceConnectorType
+from app.utils.indexing_locks import is_connector_indexing_locked
 
 logger = logging.getLogger(__name__)
 
@@ -107,6 +108,32 @@ async def _check_and_trigger_schedules():
 
             # Trigger indexing for each due connector
             for connector in due_connectors:
+                # Primary guard: Redis lock indicates a task is currently running.
+                if is_connector_indexing_locked(connector.id):
+                    logger.info(
+                        f"Skipping periodic indexing for connector {connector.id} "
+                        "(Redis lock indicates indexing is already in progress)"
+                    )
+                    continue
+
+                # Skip scheduling if a sync for this connector is already in progress.
+                # This prevents duplicate tasks from piling up under slow/rate-limited providers.
+                in_progress_result = await session.execute(
+                    select(Notification.id).where(
+                        Notification.type == "connector_indexing",
+                        Notification.notification_metadata["connector_id"].astext
+                        == str(connector.id),
+                        Notification.notification_metadata["status"].astext
+                        == "in_progress",
+                    )
+                )
+                if in_progress_result.first():
+                    logger.info(
+                        f"Skipping periodic indexing for connector {connector.id} "
+                        "(already has in-progress indexing notification)"
+                    )
+                    continue
+
                 task = task_map.get(connector.connector_type)
                 if task:
                     logger.info(
