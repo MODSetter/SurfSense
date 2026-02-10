@@ -1326,4 +1326,3 @@ async def regenerate_response(
             status_code=500,
             detail=f"An unexpected error occurred during regeneration: {e!s}",
         ) from None
-

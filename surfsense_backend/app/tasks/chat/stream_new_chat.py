@@ -36,6 +36,7 @@ from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
 
+
 def format_mentioned_documents_as_context(documents: list[Document]) -> str:
     """
     Format mentioned documents as context for the agent.

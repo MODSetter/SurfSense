@@ -84,8 +84,16 @@ interface LayoutShellProps {
 	inbox?: InboxProps;
 	isLoadingChats?: boolean;
 	// All chats panel props
-	allSharedChatsPanel?: { open: boolean; onOpenChange: (open: boolean) => void; searchSpaceId: string };
-	allPrivateChatsPanel?: { open: boolean; onOpenChange: (open: boolean) => void; searchSpaceId: string };
+	allSharedChatsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+		searchSpaceId: string;
+	};
+	allPrivateChatsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+		searchSpaceId: string;
+	};
 }
 
 export function LayoutShell({
@@ -129,7 +137,11 @@ export function LayoutShell({
 	const isMobile = useIsMobile();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 	const { isCollapsed, setIsCollapsed, toggleCollapsed } = useSidebarState(defaultCollapsed);
-	const { sidebarWidth, handleMouseDown: onResizeMouseDown, isDragging: isResizing } = useSidebarResize();
+	const {
+		sidebarWidth,
+		handleMouseDown: onResizeMouseDown,
+		isDragging: isResizing,
+	} = useSidebarResize();
 
 	// Memoize context value to prevent unnecessary re-renders
 	const sidebarContextValue = useMemo(

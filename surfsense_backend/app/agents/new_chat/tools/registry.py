@@ -43,6 +43,8 @@ from typing import Any
 
 from langchain_core.tools import BaseTool
 
+from app.db import ChatVisibility
+
 from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
 from .knowledge_base import create_search_knowledge_base_tool
@@ -56,8 +58,6 @@ from .shared_memory import (
     create_save_shared_memory_tool,
 )
 from .user_memory import create_recall_memory_tool, create_save_memory_tool
-
-from app.db import ChatVisibility
 
 # =============================================================================
 # Tool Definition

@@ -228,7 +228,7 @@ async def create_surfsense_deep_agent(
         import logging
 
         logging.warning(f"Failed to discover available connectors/document types: {e}")
-        
+
     # Build dependencies dict for the tools registry
     visibility = thread_visibility or ChatVisibility.PRIVATE
     dependencies = {

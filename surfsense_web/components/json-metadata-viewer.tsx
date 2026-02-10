@@ -2,7 +2,6 @@ import { FileJson } from "lucide-react";
 import React from "react";
 import { defaultStyles, JsonView } from "react-json-view-lite";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import {
 	Dialog,
 	DialogContent,
@@ -10,6 +9,7 @@ import {
 	DialogTitle,
 	DialogTrigger,
 } from "@/components/ui/dialog";
+import { Spinner } from "@/components/ui/spinner";
 import "react-json-view-lite/dist/index.css";
 
 interface JsonMetadataViewerProps {

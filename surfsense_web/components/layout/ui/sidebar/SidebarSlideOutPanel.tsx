@@ -1,8 +1,8 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "@/lib/utils";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { cn } from "@/lib/utils";
 import { useSidebarContextSafe } from "../../hooks";
 
 const SIDEBAR_COLLAPSED_WIDTH = 60;
@@ -40,8 +40,8 @@ export function SidebarSlideOutPanel({
 		<AnimatePresence>
 			{open && (
 				<>
-				{/* Click-away layer - covers the full container including the sidebar */}
-				<motion.div
+					{/* Click-away layer - covers the full container including the sidebar */}
+					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}

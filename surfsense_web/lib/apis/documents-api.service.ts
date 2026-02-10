@@ -16,9 +16,9 @@ import {
 	getDocumentRequest,
 	getDocumentResponse,
 	getDocumentsRequest,
+	getDocumentsResponse,
 	getDocumentsStatusRequest,
 	getDocumentsStatusResponse,
-	getDocumentsResponse,
 	getDocumentTypeCountsRequest,
 	getDocumentTypeCountsResponse,
 	getSurfsenseDocsByChunkResponse,
@@ -151,7 +151,10 @@ class DocumentsApiService {
 			document_ids: document_ids.join(","),
 		});
 
-		return baseApiService.get(`/api/v1/documents/status?${params.toString()}`, getDocumentsStatusResponse);
+		return baseApiService.get(
+			`/api/v1/documents/status?${params.toString()}`,
+			getDocumentsStatusResponse
+		);
 	};
 
 	/**

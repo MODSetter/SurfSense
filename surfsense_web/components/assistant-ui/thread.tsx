@@ -246,7 +246,9 @@ const Composer: FC = () => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
-	const [uploadedMentionDocs, setUploadedMentionDocs] = useState<Record<number, UploadedMentionDoc>>({});
+	const [uploadedMentionDocs, setUploadedMentionDocs] = useState<
+		Record<number, UploadedMentionDoc>
+	>({});
 	const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
@@ -755,11 +757,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 
 			{blockingUploadedMentionsCount > 0 && (
 				<div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-					{hasFailedUploadedMentions ? (
-						<FileWarning className="size-3" />
-					) : (
-						<Spinner size="xs" />
-					)}
+					{hasFailedUploadedMentions ? <FileWarning className="size-3" /> : <Spinner size="xs" />}
 					<span>
 						{hasFailedUploadedMentions
 							? "Remove or retry failed uploads"
@@ -788,11 +786,11 @@ const ComposerAction: FC<ComposerActionProps> = ({
 										? "Waiting for uploaded files to finish indexing"
 										: isUploadingDocs
 											? "Uploading documents..."
-								: !hasModelConfigured
-									? "Please select a model from the header to start chatting"
-									: isComposerEmpty
-											? "Enter a message to send"
-											: "Send message"
+											: !hasModelConfigured
+												? "Please select a model from the header to start chatting"
+												: isComposerEmpty
+													? "Enter a message to send"
+													: "Send message"
 						}
 						side="bottom"
 						type="submit"

@@ -18,9 +18,9 @@ from app.db import (
 )
 from app.schemas import (
     DocumentRead,
+    DocumentsCreate,
     DocumentStatusBatchResponse,
     DocumentStatusItemRead,
-    DocumentsCreate,
     DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,

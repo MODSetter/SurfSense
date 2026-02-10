@@ -25,14 +25,15 @@ import { Input } from "@/components/ui/input";
 import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
-import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
 import { logout } from "@/lib/auth-utils";
+import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { LayoutShell } from "../ui/shell";
+
 interface LayoutDataProviderProps {
 	searchSpaceId: string;
 	children: React.ReactNode;

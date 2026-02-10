@@ -9,10 +9,15 @@ Message content in new_chat_messages can be stored in various formats:
 These utilities help extract and transform content for different use cases.
 """
 
+from typing import TYPE_CHECKING
+
 from langchain_core.messages import AIMessage, HumanMessage
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
+
+if TYPE_CHECKING:
+    from app.db import ChatVisibility
 
 
 def extract_text_content(content: str | dict | list) -> str:
@@ -39,7 +44,7 @@ def extract_text_content(content: str | dict | list) -> str:
 async def bootstrap_history_from_db(
     session: AsyncSession,
     thread_id: int,
-    thread_visibility: "ChatVisibility | None" = None,
+    thread_visibility: ChatVisibility | None = None,
 ) -> list[HumanMessage | AIMessage]:
     """
     Load message history from database and convert to LangChain format.
@@ -80,8 +85,8 @@ async def bootstrap_history_from_db(
         if msg.role == "user":
             if is_shared:
                 author_name = (
-                    (msg.author.display_name if msg.author else None) or "A team member"
-                )
+                    msg.author.display_name if msg.author else None
+                ) or "A team member"
                 text_content = f"**[{author_name}]:** {text_content}"
             langchain_messages.append(HumanMessage(content=text_content))
         elif msg.role == "assistant":

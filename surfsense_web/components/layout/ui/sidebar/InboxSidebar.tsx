@@ -52,8 +52,8 @@ import {
 	isNewMentionMetadata,
 	isPageLimitExceededMetadata,
 } from "@/contracts/types/inbox.types";
-import type { InboxItem } from "@/hooks/use-inbox";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import type { InboxItem } from "@/hooks/use-inbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";

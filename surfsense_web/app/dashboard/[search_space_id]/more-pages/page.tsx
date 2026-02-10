@@ -8,7 +8,6 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Card, CardContent } from "@/components/ui/card";
 import {
 	Dialog,
@@ -20,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import type { IncentiveTaskInfo } from "@/contracts/types/incentive-tasks.types";
 import { incentiveTasksApiService } from "@/lib/apis/incentive-tasks-api.service";
 import {

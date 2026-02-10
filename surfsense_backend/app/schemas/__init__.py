@@ -10,9 +10,9 @@ from .chunks import ChunkBase, ChunkCreate, ChunkRead, ChunkUpdate
 from .documents import (
     DocumentBase,
     DocumentRead,
+    DocumentsCreate,
     DocumentStatusBatchResponse,
     DocumentStatusItemRead,
-    DocumentsCreate,
     DocumentStatusSchema,
     DocumentTitleRead,
     DocumentTitleSearchResponse,

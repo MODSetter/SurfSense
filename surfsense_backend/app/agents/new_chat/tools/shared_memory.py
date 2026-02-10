@@ -126,7 +126,9 @@ async def recall_shared_memory(
             }
             for m in rows
         ]
-        created_by_ids = list({m["created_by_id"] for m in memory_list if m["created_by_id"]})
+        created_by_ids = list(
+            {m["created_by_id"] for m in memory_list if m["created_by_id"]}
+        )
         created_by_map: dict[str, str] = {}
         if created_by_ids:
             uuids = [UUID(uid) for uid in created_by_ids]

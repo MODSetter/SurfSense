@@ -1,9 +1,9 @@
 "use client";
 
 import type React from "react";
-import { useRef, useState, useEffect } from "react";
-import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { useEffect, useRef, useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 
 export function getDocumentTypeIcon(type: string, className?: string): React.ReactNode {
 	return getConnectorIcon(type, className);
