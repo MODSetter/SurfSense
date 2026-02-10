@@ -9,6 +9,8 @@ Message content in new_chat_messages can be stored in various formats:
 These utilities help extract and transform content for different use cases.
 """
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage
