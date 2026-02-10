@@ -44,7 +44,6 @@ import { useMessagesElectric } from "@/hooks/use-messages-electric";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
-import { createAttachmentAdapter, extractAttachmentContent } from "@/lib/chat/attachment-adapter";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
 	isPodcastGenerating,
@@ -215,9 +214,6 @@ export default function NewChatPage() {
 	);
 
 	useMessagesElectric(threadId, handleElectricMessagesUpdate);
-
-	// Create the attachment adapter for file processing
-	const attachmentAdapter = useMemo(() => createAttachmentAdapter(), []);
 
 	// Extract search_space_id from URL params
 	const searchSpaceId = useMemo(() => {
@@ -409,16 +405,7 @@ export default function NewChatPage() {
 				}
 			}
 
-			// Extract attachments from message
-			// AppendMessage.attachments contains the processed attachment objects (from adapter.send())
-			const messageAttachments: Array<Record<string, unknown>> = [];
-			if (message.attachments && message.attachments.length > 0) {
-				for (const att of message.attachments) {
-					messageAttachments.push(att as unknown as Record<string, unknown>);
-				}
-			}
-
-			if (!userQuery.trim() && messageAttachments.length === 0) return;
+			if (!userQuery.trim()) return;
 
 			// Check if podcast is already generating
 			if (isPodcastGenerating() && looksLikePodcastRequest(userQuery)) {
@@ -485,14 +472,13 @@ export default function NewChatPage() {
 				role: "user",
 				content: message.content,
 				createdAt: new Date(),
-				attachments: message.attachments || [],
 				metadata: authorMetadata,
 			};
 			setMessages((prev) => [...prev, userMessage]);
 
 			// Track message sent
 			trackChatMessageSent(searchSpaceId, currentThreadId, {
-				hasAttachments: messageAttachments.length > 0,
+				hasAttachments: false,
 				hasMentionedDocuments:
 					mentionedDocumentIds.surfsense_doc_ids.length > 0 ||
 					mentionedDocumentIds.document_ids.length > 0,
@@ -512,7 +498,7 @@ export default function NewChatPage() {
 				}));
 			}
 
-			// Persist user message with mentioned documents and attachments (don't await, fire and forget)
+			// Persist user message with mentioned documents (don't await, fire and forget)
 			const persistContent: unknown[] = [...message.content];
 
 			// Add mentioned documents for persistence
@@ -523,23 +509,6 @@ export default function NewChatPage() {
 						id: doc.id,
 						title: doc.title,
 						document_type: doc.document_type,
-					})),
-				});
-			}
-
-			// Add attachments for persistence (so they survive page reload)
-			if (message.attachments && message.attachments.length > 0) {
-				persistContent.push({
-					type: "attachments",
-					items: message.attachments.map((att) => ({
-						id: att.id,
-						name: att.name,
-						type: att.type,
-						contentType: (att as { contentType?: string }).contentType,
-						// Include imageDataUrl for images so they can be displayed after reload
-						imageDataUrl: (att as { imageDataUrl?: string }).imageDataUrl,
-						// Include extractedContent for context (already extracted, no re-processing needed)
-						extractedContent: (att as { extractedContent?: string }).extractedContent,
 					})),
 				});
 			}
@@ -688,9 +657,6 @@ export default function NewChatPage() {
 					})
 					.filter((m) => m.content.length > 0);
 
-				// Extract attachment content to send with the request
-				const attachments = extractAttachmentContent(messageAttachments);
-
 				// Get mentioned document IDs for context (separate fields for backend)
 				const hasDocumentIds = mentionedDocumentIds.document_ids.length > 0;
 				const hasSurfsenseDocIds = mentionedDocumentIds.surfsense_doc_ids.length > 0;
@@ -715,7 +681,6 @@ export default function NewChatPage() {
 						user_query: userQuery.trim(),
 						search_space_id: searchSpaceId,
 						messages: messageHistory,
-						attachments: attachments.length > 0 ? attachments : undefined,
 						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
 						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
 							? mentionedDocumentIds.surfsense_doc_ids
@@ -1010,7 +975,6 @@ export default function NewChatPage() {
 			// Extract the original user query BEFORE removing messages (for reload mode)
 			let userQueryToDisplay = newUserQuery;
 			let originalUserMessageContent: ThreadMessageLike["content"] | null = null;
-			let originalUserMessageAttachments: ThreadMessageLike["attachments"] | undefined;
 			let originalUserMessageMetadata: ThreadMessageLike["metadata"] | undefined;
 
 			if (!newUserQuery) {
@@ -1018,7 +982,6 @@ export default function NewChatPage() {
 				const lastUserMessage = [...messages].reverse().find((m) => m.role === "user");
 				if (lastUserMessage) {
 					originalUserMessageContent = lastUserMessage.content;
-					originalUserMessageAttachments = lastUserMessage.attachments;
 					originalUserMessageMetadata = lastUserMessage.metadata;
 					// Extract text for the API request
 					for (const part of lastUserMessage.content) {
@@ -1144,7 +1107,6 @@ export default function NewChatPage() {
 					? [{ type: "text", text: newUserQuery }]
 					: originalUserMessageContent || [{ type: "text", text: userQueryToDisplay || "" }],
 				createdAt: new Date(),
-				attachments: newUserQuery ? undefined : originalUserMessageAttachments,
 				metadata: newUserQuery ? undefined : originalUserMessageMetadata,
 			};
 			setMessages((prev) => [...prev, userMessage]);
@@ -1391,7 +1353,7 @@ export default function NewChatPage() {
 		await handleRegenerate(null);
 	}, [handleRegenerate]);
 
-	// Create external store runtime with attachment support
+	// Create external store runtime
 	const runtime = useExternalStoreRuntime({
 		messages,
 		isRunning,
@@ -1400,9 +1362,6 @@ export default function NewChatPage() {
 		onReload,
 		convertMessage,
 		onCancel: cancelRun,
-		adapters: {
-			attachments: attachmentAdapter,
-		},
 	});
 
 	// Show loading state only when loading an existing thread

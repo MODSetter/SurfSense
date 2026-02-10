@@ -19,12 +19,15 @@ import {
 	ChevronRightIcon,
 	CopyIcon,
 	DownloadIcon,
+	FileWarning,
+	Paperclip,
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { showCommentsGutterAtom } from "@/atoms/chat/current-thread.atom";
 import {
@@ -39,7 +42,6 @@ import {
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
-import { ComposerAddAttachment, ComposerAttachments } from "@/components/assistant-ui/attachment";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import {
@@ -63,6 +65,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { Document } from "@/contracts/types/document.types";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
+import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
@@ -74,6 +77,19 @@ const CYCLING_PLACEHOLDERS = [
 	"Briefly, what are today's top ten important emails and calendar events?",
 	"Check if this week's Slack messages reference any GitHub issues.",
 ];
+
+const CHAT_UPLOAD_ACCEPT =
+	".pdf,.doc,.docx,.txt,.md,.markdown,.ppt,.pptx,.xls,.xlsx,.xlsm,.xlsb,.csv,.html,.htm,.xml,.rtf,.epub,.jpg,.jpeg,.png,.bmp,.webp,.tiff,.tif,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm";
+
+type UploadState = "pending" | "processing" | "ready" | "failed";
+
+interface UploadedMentionDoc {
+	id: number;
+	title: string;
+	document_type: Document["document_type"];
+	state: UploadState;
+	reason?: string | null;
+}
 
 interface ThreadProps {
 	messageThinkingSteps?: Map<string, ThinkingStep[]>;
@@ -230,8 +246,11 @@ const Composer: FC = () => {
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
+	const [uploadedMentionDocs, setUploadedMentionDocs] = useState<Record<number, UploadedMentionDoc>>({});
+	const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
+	const uploadInputRef = useRef<HTMLInputElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
@@ -357,9 +376,28 @@ const Composer: FC = () => {
 		[showDocumentPopover]
 	);
 
+	const uploadedMentionedDocs = useMemo(
+		() => mentionedDocuments.filter((doc) => uploadedMentionDocs[doc.id]),
+		[mentionedDocuments, uploadedMentionDocs]
+	);
+
+	const blockingUploadedMentions = useMemo(
+		() =>
+			uploadedMentionedDocs.filter((doc) => {
+				const state = uploadedMentionDocs[doc.id]?.state;
+				return state === "pending" || state === "processing" || state === "failed";
+			}),
+		[uploadedMentionedDocs, uploadedMentionDocs]
+	);
+
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
-		if (isThreadRunning || isBlockedByOtherUser) {
+		if (
+			isThreadRunning ||
+			isBlockedByOtherUser ||
+			isUploadingDocs ||
+			blockingUploadedMentions.length > 0
+		) {
 			return;
 		}
 		if (!showDocumentPopover) {
@@ -375,6 +413,8 @@ const Composer: FC = () => {
 		showDocumentPopover,
 		isThreadRunning,
 		isBlockedByOtherUser,
+		isUploadingDocs,
+		blockingUploadedMentions.length,
 		composerRuntime,
 		setMentionedDocuments,
 		setMentionedDocumentIds,
@@ -394,6 +434,11 @@ const Composer: FC = () => {
 						.map((doc) => doc.id),
 				});
 				return updated;
+			});
+			setUploadedMentionDocs((prev) => {
+				if (!(docId in prev)) return prev;
+				const { [docId]: _removed, ...rest } = prev;
+				return rest;
 			});
 		},
 		[setMentionedDocuments, setMentionedDocumentIds]
@@ -433,6 +478,139 @@ const Composer: FC = () => {
 		[mentionedDocuments, setMentionedDocuments, setMentionedDocumentIds]
 	);
 
+	const refreshUploadedDocStatuses = useCallback(
+		async (documentIds: number[]) => {
+			if (!search_space_id || documentIds.length === 0) return;
+			const statusResponse = await documentsApiService.getDocumentsStatus({
+				queryParams: {
+					search_space_id: Number(search_space_id),
+					document_ids: documentIds,
+				},
+			});
+
+			setUploadedMentionDocs((prev) => {
+				const next = { ...prev };
+				for (const item of statusResponse.items) {
+					next[item.id] = {
+						id: item.id,
+						title: item.title,
+						document_type: item.document_type,
+						state: item.status.state,
+						reason: item.status.reason,
+					};
+				}
+				return next;
+			});
+
+			handleDocumentsMention(
+				statusResponse.items.map((item) => ({
+					id: item.id,
+					title: item.title,
+					document_type: item.document_type,
+				}))
+			);
+		},
+		[search_space_id, handleDocumentsMention]
+	);
+
+	const handleUploadClick = useCallback(() => {
+		uploadInputRef.current?.click();
+	}, []);
+
+	const handleUploadInputChange = useCallback(
+		async (event: React.ChangeEvent<HTMLInputElement>) => {
+			const files = Array.from(event.target.files ?? []);
+			event.target.value = "";
+			if (files.length === 0 || !search_space_id) return;
+
+			setIsUploadingDocs(true);
+			try {
+				const uploadResponse = await documentsApiService.uploadDocument({
+					files,
+					search_space_id: Number(search_space_id),
+				});
+				const uploadedIds = uploadResponse.document_ids ?? [];
+				const duplicateIds = uploadResponse.duplicate_document_ids ?? [];
+				const idsToMention = Array.from(new Set([...uploadedIds, ...duplicateIds]));
+				if (idsToMention.length === 0) {
+					toast.warning("No documents were created or matched from selected files.");
+					return;
+				}
+
+				await refreshUploadedDocStatuses(idsToMention);
+				if (uploadedIds.length > 0 && duplicateIds.length > 0) {
+					toast.success(
+						`Uploaded ${uploadedIds.length} file${uploadedIds.length > 1 ? "s" : ""} and matched ${duplicateIds.length} existing file${duplicateIds.length > 1 ? "s" : ""}.`
+					);
+				} else if (uploadedIds.length > 0) {
+					toast.success(`Uploaded ${uploadedIds.length} file${uploadedIds.length > 1 ? "s" : ""}`);
+				} else {
+					toast.success(
+						`Matched ${duplicateIds.length} existing file${duplicateIds.length > 1 ? "s" : ""} and added mention${duplicateIds.length > 1 ? "s" : ""}.`
+					);
+				}
+			} catch (error) {
+				const message = error instanceof Error ? error.message : "Upload failed";
+				toast.error(`Upload failed: ${message}`);
+			} finally {
+				setIsUploadingDocs(false);
+			}
+		},
+		[search_space_id, refreshUploadedDocStatuses]
+	);
+
+	// Poll status for uploaded mentioned documents until all are ready or removed.
+	useEffect(() => {
+		const trackedIds = uploadedMentionedDocs.map((doc) => doc.id);
+		const needsPolling = trackedIds.some((id) => {
+			const state = uploadedMentionDocs[id]?.state;
+			return state === "pending" || state === "processing";
+		});
+		if (!needsPolling) return;
+
+		const interval = setInterval(() => {
+			refreshUploadedDocStatuses(trackedIds).catch((error) => {
+				console.error("[Composer] Failed to refresh uploaded mention statuses:", error);
+			});
+		}, 2500);
+
+		return () => clearInterval(interval);
+	}, [uploadedMentionedDocs, uploadedMentionDocs, refreshUploadedDocStatuses]);
+
+	// Push upload status directly onto mention chips (instead of separate status rows).
+	useEffect(() => {
+		for (const doc of uploadedMentionedDocs) {
+			const state = uploadedMentionDocs[doc.id]?.state ?? "pending";
+			const statusLabel =
+				state === "ready"
+					? null
+					: state === "failed"
+						? "failed"
+						: state === "processing"
+							? "indexing"
+							: "queued";
+			editorRef.current?.setDocumentChipStatus(doc.id, doc.document_type, statusLabel, state);
+		}
+	}, [uploadedMentionedDocs, uploadedMentionDocs]);
+
+	// Prune upload status entries that are no longer mentioned in the composer.
+	useEffect(() => {
+		const activeIds = new Set(mentionedDocuments.map((doc) => doc.id));
+		setUploadedMentionDocs((prev) => {
+			let changed = false;
+			const next: Record<number, UploadedMentionDoc> = {};
+			for (const [key, value] of Object.entries(prev)) {
+				const id = Number(key);
+				if (activeIds.has(id)) {
+					next[id] = value;
+				} else {
+					changed = true;
+				}
+			}
+			return changed ? next : prev;
+		});
+	}, [mentionedDocuments]);
+
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
 			<ChatSessionStatus
@@ -441,8 +619,7 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<ComposerPrimitive.AttachmentDropzone className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
-				<ComposerAttachments />
+			<div className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow">
 				{/* Inline editor with @mention support */}
 				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
 					<InlineMentionEditor
@@ -457,6 +634,14 @@ const Composer: FC = () => {
 						className="min-h-[24px]"
 					/>
 				</div>
+				<input
+					ref={uploadInputRef}
+					type="file"
+					multiple
+					accept={CHAT_UPLOAD_ACCEPT}
+					onChange={handleUploadInputChange}
+					className="hidden"
+				/>
 
 				{/* Document picker popover (portal to body for proper z-index stacking) */}
 				{showDocumentPopover &&
@@ -483,33 +668,43 @@ const Composer: FC = () => {
 						/>,
 						document.body
 					)}
-				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
-			</ComposerPrimitive.AttachmentDropzone>
+				<ComposerAction
+					isBlockedByOtherUser={isBlockedByOtherUser}
+					onUploadClick={handleUploadClick}
+					isUploadingDocs={isUploadingDocs}
+					blockingUploadedMentionsCount={blockingUploadedMentions.length}
+					hasFailedUploadedMentions={blockingUploadedMentions.some(
+						(doc) => uploadedMentionDocs[doc.id]?.state === "failed"
+					)}
+				/>
+			</div>
 		</ComposerPrimitive.Root>
 	);
 };
 
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
+	onUploadClick: () => void;
+	isUploadingDocs: boolean;
+	blockingUploadedMentionsCount: number;
+	hasFailedUploadedMentions: boolean;
 }
 
-const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
-	// Check if any attachments are still being processed (running AND progress < 100)
-	// When progress is 100, processing is done but waiting for send()
-	const hasProcessingAttachments = useAssistantState(({ composer }) =>
-		composer.attachments?.some((att) => {
-			const status = att.status;
-			if (status?.type !== "running") return false;
-			const progress = (status as { type: "running"; progress?: number }).progress;
-			return progress === undefined || progress < 100;
-		})
-	);
+const ComposerAction: FC<ComposerActionProps> = ({
+	isBlockedByOtherUser = false,
+	onUploadClick,
+	isUploadingDocs,
+	blockingUploadedMentionsCount,
+	hasFailedUploadedMentions,
+}) => {
+	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 
-	// Check if composer text is empty
-	const isComposerEmpty = useAssistantState(({ composer }) => {
+	// Check if composer text is empty (chips are represented in mentionedDocuments atom)
+	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
 	});
+	const isComposerEmpty = isComposerTextEmpty && mentionedDocuments.length === 0;
 
 	// Check if a model is configured
 	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
@@ -530,25 +725,51 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	}, [preferences, globalConfigs, userConfigs]);
 
 	const isSendDisabled =
-		hasProcessingAttachments || isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
+		isComposerEmpty ||
+		!hasModelConfigured ||
+		isBlockedByOtherUser ||
+		isUploadingDocs ||
+		blockingUploadedMentionsCount > 0;
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
-				<ComposerAddAttachment />
+				<TooltipIconButton
+					tooltip={isUploadingDocs ? "Uploading documents..." : "Upload and mention files"}
+					side="bottom"
+					variant="ghost"
+					size="icon"
+					className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+					aria-label="Upload files"
+					onClick={onUploadClick}
+					disabled={isUploadingDocs}
+				>
+					{isUploadingDocs ? (
+						<Spinner size="sm" className="text-muted-foreground" />
+					) : (
+						<Paperclip className="size-4" />
+					)}
+				</TooltipIconButton>
 				<ConnectorIndicator />
 			</div>
 
-			{/* Show processing indicator when attachments are being processed */}
-			{hasProcessingAttachments && (
+			{blockingUploadedMentionsCount > 0 && (
 				<div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-					<Spinner size="xs" />
-					<span>Processing...</span>
+					{hasFailedUploadedMentions ? (
+						<FileWarning className="size-3" />
+					) : (
+						<Spinner size="xs" />
+					)}
+					<span>
+						{hasFailedUploadedMentions
+							? "Remove or retry failed uploads"
+							: "Waiting for uploaded files to finish indexing"}
+					</span>
 				</div>
 			)}
 
 			{/* Show warning when no model is configured */}
-			{!hasModelConfigured && !hasProcessingAttachments && (
+			{!hasModelConfigured && blockingUploadedMentionsCount === 0 && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
 					<AlertCircle className="size-3" />
 					<span>Select a model</span>
@@ -561,11 +782,15 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						tooltip={
 							isBlockedByOtherUser
 								? "Wait for AI to finish responding"
+								: hasFailedUploadedMentions
+									? "Remove or retry failed uploads before sending"
+									: blockingUploadedMentionsCount > 0
+										? "Waiting for uploaded files to finish indexing"
+										: isUploadingDocs
+											? "Uploading documents..."
 								: !hasModelConfigured
 									? "Please select a model from the header to start chatting"
-									: hasProcessingAttachments
-										? "Wait for attachments to process"
-										: isComposerEmpty
+									: isComposerEmpty
 											? "Enter a message to send"
 											: "Send message"
 						}

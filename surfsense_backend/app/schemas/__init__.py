@@ -10,6 +10,8 @@ from .chunks import ChunkBase, ChunkCreate, ChunkRead, ChunkUpdate
 from .documents import (
     DocumentBase,
     DocumentRead,
+    DocumentStatusBatchResponse,
+    DocumentStatusItemRead,
     DocumentsCreate,
     DocumentStatusSchema,
     DocumentTitleRead,
@@ -105,6 +107,8 @@ __all__ = [
     # Document schemas
     "DocumentBase",
     "DocumentRead",
+    "DocumentStatusBatchResponse",
+    "DocumentStatusItemRead",
     "DocumentStatusSchema",
     "DocumentTitleRead",
     "DocumentTitleSearchResponse",
