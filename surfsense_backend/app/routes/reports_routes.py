@@ -1,8 +1,8 @@
 """
-Report routes for CRUD operations and export (PDF/DOCX).
+Report routes for read, export (PDF/DOCX), and delete operations.
 
-These routes support the report generation feature in new-chat.
-Reports are generated inline by the agent tool and stored as Markdown.
+No create or update endpoints here — reports are generated inline by the
+agent tool during chat and stored as Markdown in the database.
 Export to PDF/DOCX is on-demand via pypandoc.
 
 Authorization: lightweight search-space membership checks (no granular RBAC)
@@ -12,6 +12,8 @@ since reports are chat-generated artifacts, not standalone managed resources.
 import asyncio
 import io
 import logging
+import os
+import tempfile
 from enum import Enum
 
 import pypandoc
@@ -205,26 +207,32 @@ async def export_report(
             )
 
         # Convert Markdown to the requested format via pypandoc.
-        # pypandoc spawns a pandoc subprocess (blocking), so we run it in a
-        # thread executor to avoid blocking the async event loop.
+        # pypandoc spawns a pandoc subprocess (blocking), so we run the
+        # entire convert → read → cleanup pipeline in a thread executor
+        # to avoid blocking the async event loop on any file I/O.
         extra_args = ["--standalone"]
         if format == ExportFormat.PDF:
             extra_args.append("--pdf-engine=weasyprint")
 
-        loop = asyncio.get_running_loop()
-        output = await loop.run_in_executor(
-            None,  # default thread-pool
-            lambda: pypandoc.convert_text(
-                report.content,
-                format.value,
-                format="md",
-                extra_args=extra_args,
-            ),
-        )
+        def _convert_and_read() -> bytes:
+            """Run all blocking I/O (tempfile, pandoc, file read, cleanup) in a thread."""
+            fd, tmp_path = tempfile.mkstemp(suffix=f".{format.value}")
+            os.close(fd)
+            try:
+                pypandoc.convert_text(
+                    report.content,
+                    format.value,
+                    format="md",
+                    extra_args=extra_args,
+                    outputfile=tmp_path,
+                )
+                with open(tmp_path, "rb") as f:
+                    return f.read()
+            finally:
+                os.unlink(tmp_path)
 
-        # pypandoc returns bytes for binary formats (pdf, docx), str for text formats
-        if isinstance(output, str):
-            output = output.encode("utf-8")
+        loop = asyncio.get_running_loop()
+        output = await loop.run_in_executor(None, _convert_and_read)
 
         # Sanitize filename
         safe_title = (

@@ -3,7 +3,6 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import {
 	ChevronDownIcon,
-	FileTextIcon,
 	XIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -257,12 +256,9 @@ function ReportPanelContent({
 	if (error || !reportContent) {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-				<div className="flex size-12 items-center justify-center rounded-full bg-muted">
-					<FileTextIcon className="size-6 text-muted-foreground" />
-				</div>
 				<div>
 					<p className="font-medium text-foreground">Failed to load report</p>
-					<p className="text-sm text-muted-foreground mt-1">
+					<p className="text-sm text-red-500 mt-1">
 						{error || "An unknown error occurred"}
 					</p>
 				</div>
