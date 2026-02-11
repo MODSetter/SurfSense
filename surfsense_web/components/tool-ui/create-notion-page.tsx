@@ -1,7 +1,7 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { AlertTriangleIcon, CheckIcon, FileTextIcon, Loader2Icon, PencilIcon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, CheckIcon, Loader2Icon, PencilIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +22,7 @@ interface InterruptResult {
 }
 
 interface SuccessResult {
-	status: string;
+	status: "success";
 	page_id: string;
 	title: string;
 	url: string;
@@ -31,7 +31,12 @@ interface SuccessResult {
 	message?: string;
 }
 
-type CreateNotionPageResult = InterruptResult | SuccessResult;
+interface ErrorResult {
+	status: "error";
+	message: string;
+}
+
+type CreateNotionPageResult = InterruptResult | SuccessResult | ErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -42,6 +47,15 @@ function isInterruptResult(result: unknown): result is InterruptResult {
 	);
 }
 
+function isErrorResult(result: unknown): result is ErrorResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as ErrorResult).status === "error"
+	);
+}
+
 function ApprovalCard({
 	args,
 	interruptData,
@@ -49,51 +63,53 @@ function ApprovalCard({
 }: {
 	args: Record<string, unknown>;
 	interruptData: InterruptResult;
-	onDecision: (decision: { type: "approve" | "reject" | "edit"; message?: string; edited_action?: { name: string; args: Record<string, unknown> } }) => void;
+	onDecision: (decision: {
+		type: "approve" | "reject" | "edit";
+		message?: string;
+		edited_action?: { name: string; args: Record<string, unknown> };
+	}) => void;
 }) {
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
 	const [isEditing, setIsEditing] = useState(false);
 	const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>(args);
-	
+
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
 	return (
-		<div className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
-			decided 
-				? "border border-border bg-card shadow-sm" 
-				: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
-		}`}>
-			<div className={`flex items-center gap-3 border-b ${
+		<div
+			className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
 				decided
-					? "border-border bg-card"
-					: "border-foreground/15 bg-muted/40 dark:bg-muted/20"
-			} px-4 py-3`}>
-				<div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-					decided
-						? "bg-muted"
-						: "bg-muted animate-pulse"
-				}`}>
-					<AlertTriangleIcon className={`size-4 ${
-						decided
-							? "text-muted-foreground"
-							: "text-foreground"
-					}`} />
+					? "border border-border bg-card shadow-sm"
+					: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
+			}`}
+		>
+			<div
+				className={`flex items-center gap-3 border-b ${
+					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
+				} px-4 py-3`}
+			>
+				<div
+					className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+						decided ? "bg-muted" : "bg-muted animate-pulse"
+					}`}
+				>
+					<AlertTriangleIcon
+						className={`size-4 ${decided ? "text-muted-foreground" : "text-foreground"}`}
+					/>
 				</div>
 				<div className="min-w-0 flex-1">
-					<p className={`text-sm font-medium ${
-						decided
-							? "text-foreground"
-							: "text-foreground"
-					}`}>Create Notion Page</p>
-					<p className={`truncate text-xs ${
-						decided
-							? "text-muted-foreground"
-							: "text-muted-foreground"
-					}`}>
+					<p className={`text-sm font-medium ${decided ? "text-foreground" : "text-foreground"}`}>
+						Create Notion Page
+					</p>
+					<p
+						className={`truncate text-xs ${
+							decided ? "text-muted-foreground" : "text-muted-foreground"
+						}`}
+					>
 						{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
 					</p>
 				</div>
@@ -111,7 +127,9 @@ function ApprovalCard({
 					{args.content != null && (
 						<div>
 							<p className="text-xs font-medium text-muted-foreground">Content</p>
-							<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">{String(args.content)}</p>
+							<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">
+								{String(args.content)}
+							</p>
 						</div>
 					)}
 				</div>
@@ -121,20 +139,28 @@ function ApprovalCard({
 			{isEditing && (
 				<div className="space-y-3 px-4 py-3 bg-card">
 					<div>
-						<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+						<label
+							htmlFor="notion-title"
+							className="text-xs font-medium text-muted-foreground mb-1.5 block"
+						>
 							Title
 						</label>
 						<Input
+							id="notion-title"
 							value={String(editedArgs.title ?? "")}
 							onChange={(e) => setEditedArgs({ ...editedArgs, title: e.target.value })}
 							placeholder="Enter page title"
 						/>
 					</div>
 					<div>
-						<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+						<label
+							htmlFor="notion-content"
+							className="text-xs font-medium text-muted-foreground mb-1.5 block"
+						>
 							Content
 						</label>
 						<Textarea
+							id="notion-content"
 							value={String(editedArgs.content ?? "")}
 							onChange={(e) => setEditedArgs({ ...editedArgs, content: e.target.value })}
 							placeholder="Enter page content"
@@ -146,11 +172,11 @@ function ApprovalCard({
 			)}
 
 			{/* Action buttons */}
-			<div className={`flex items-center gap-2 border-t ${
-				decided
-					? "border-border bg-card"
-					: "border-foreground/15 bg-muted/20 dark:bg-muted/10"
-			} px-4 py-3`}>
+			<div
+				className={`flex items-center gap-2 border-t ${
+					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
+				} px-4 py-3`}
+			>
 				{decided ? (
 					<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
 						{decided === "approve" || decided === "edit" ? (
@@ -209,11 +235,7 @@ function ApprovalCard({
 							</Button>
 						)}
 						{canEdit && (
-							<Button
-								size="sm"
-								variant="outline"
-								onClick={() => setIsEditing(true)}
-							>
+							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
 								<PencilIcon />
 								Edit
 							</Button>
@@ -238,6 +260,24 @@ function ApprovalCard({
 	);
 }
 
+function ErrorCard({ result }: { result: ErrorResult }) {
+	return (
+		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-destructive/50 bg-card">
+			<div className="flex items-center gap-3 border-b border-destructive/50 px-4 py-3">
+				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+					<XIcon className="size-4 text-destructive" />
+				</div>
+				<div className="min-w-0 flex-1">
+					<p className="text-sm font-medium text-destructive">Failed to create Notion page</p>
+				</div>
+			</div>
+			<div className="px-4 py-3">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
+		</div>
+	);
+}
+
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
 		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
@@ -246,13 +286,12 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 					<CheckIcon className="size-4 text-green-500" />
 				</div>
 				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium">{result.title}</p>
-					<p className="text-xs text-muted-foreground">
+					<p className=" text-[.8rem] text-muted-foreground">
 						{result.message || "Notion page created successfully"}
 					</p>
 				</div>
 			</div>
-			
+
 			{/* Show details to verify the arguments were used */}
 			<div className="space-y-2 px-4 py-3 text-xs">
 				<div>
@@ -308,6 +347,10 @@ export const CreateNotionPageToolUI = makeAssistantToolUI<
 					}}
 				/>
 			);
+		}
+
+		if (isErrorResult(result)) {
+			return <ErrorCard result={result} />;
 		}
 
 		return <SuccessCard result={result as SuccessResult} />;
