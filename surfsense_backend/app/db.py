@@ -100,11 +100,6 @@ class PodcastStatus(str, Enum):
     FAILED = "failed"
 
 
-class ReportStatus(str, Enum):
-    READY = "ready"
-    FAILED = "failed"
-
-
 class DocumentStatus:
     """
     Helper class for document processing status (stored as JSONB).
@@ -1044,18 +1039,6 @@ class Report(BaseModel, TimestampMixin):
     title = Column(String(500), nullable=False)
     content = Column(Text, nullable=True)  # Markdown body
     report_metadata = Column(JSONB, nullable=True)  # section headings, word count, etc.
-    status = Column(
-        SQLAlchemyEnum(
-            ReportStatus,
-            name="report_status",
-            create_type=False,
-            values_callable=lambda x: [e.value for e in x],
-        ),
-        nullable=False,
-        default=ReportStatus.READY,
-        server_default="ready",
-        index=True,
-    )
     report_style = Column(String(100), nullable=True)  # e.g. "executive_summary", "deep_research"
 
     search_space_id = Column(
