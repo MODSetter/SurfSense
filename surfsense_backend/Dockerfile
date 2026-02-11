@@ -74,6 +74,23 @@ RUN dos2unix /app/scripts/docker/entrypoint.sh && chmod +x /app/scripts/docker/e
 ENV PYTHONPATH=/app
 ENV UVICORN_LOOP=asyncio
 
+# SERVICE_ROLE controls which process this container runs:
+#   api     – FastAPI backend only (runs migrations on startup)
+#   worker  – Celery worker only
+#   beat    – Celery beat scheduler only
+#   all     – All three (legacy / dev default)
+ENV SERVICE_ROLE=all
+
+# Celery worker tuning (only used when SERVICE_ROLE=worker or all)
+ENV CELERY_MAX_WORKERS=10
+ENV CELERY_MIN_WORKERS=2
+ENV CELERY_MAX_TASKS_PER_CHILD=50
+# CELERY_QUEUES: comma-separated queues to consume (empty = all queues)
+#   "surfsense"              – fast tasks only (file uploads, podcasts, etc.)
+#   "surfsense.connectors"   – slow connector indexing tasks only
+#   ""                       – both queues (default, for single-worker setups)
+ENV CELERY_QUEUES=""
+
 # Run
 EXPOSE 8000-8001
 CMD ["/app/scripts/docker/entrypoint.sh"] 

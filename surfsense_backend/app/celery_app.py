@@ -86,6 +86,11 @@ celery_app = Celery(
     ],
 )
 
+# ── Queue names ──────────────────────────────────────────────
+# Default queue  : fast, user-facing tasks (file upload, podcast, reindex, …)
+# Connectors queue: slow, long-running indexing tasks (Notion, Gmail, web crawl, …)
+CONNECTORS_QUEUE = f"{CELERY_TASK_DEFAULT_QUEUE}.connectors"
+
 # Celery configuration
 celery_app.conf.update(
     # Task settings
@@ -114,6 +119,34 @@ celery_app.conf.update(
     broker_connection_retry_on_startup=True,
     # Beat scheduler settings
     beat_max_loop_interval=60,  # Check every minute
+    # ── Task routing ─────────────────────────────────────────
+    # Route slow connector/indexing tasks to a dedicated queue so they
+    # never block fast user-facing tasks (file uploads, podcasts, etc.)
+    task_routes={
+        # Connector indexing tasks → connectors queue
+        "index_slack_messages": {"queue": CONNECTORS_QUEUE},
+        "index_notion_pages": {"queue": CONNECTORS_QUEUE},
+        "index_github_repos": {"queue": CONNECTORS_QUEUE},
+        "index_linear_issues": {"queue": CONNECTORS_QUEUE},
+        "index_jira_issues": {"queue": CONNECTORS_QUEUE},
+        "index_confluence_pages": {"queue": CONNECTORS_QUEUE},
+        "index_clickup_tasks": {"queue": CONNECTORS_QUEUE},
+        "index_google_calendar_events": {"queue": CONNECTORS_QUEUE},
+        "index_airtable_records": {"queue": CONNECTORS_QUEUE},
+        "index_google_gmail_messages": {"queue": CONNECTORS_QUEUE},
+        "index_google_drive_files": {"queue": CONNECTORS_QUEUE},
+        "index_discord_messages": {"queue": CONNECTORS_QUEUE},
+        "index_teams_messages": {"queue": CONNECTORS_QUEUE},
+        "index_luma_events": {"queue": CONNECTORS_QUEUE},
+        "index_elasticsearch_documents": {"queue": CONNECTORS_QUEUE},
+        "index_crawled_urls": {"queue": CONNECTORS_QUEUE},
+        "index_bookstack_pages": {"queue": CONNECTORS_QUEUE},
+        "index_obsidian_vault": {"queue": CONNECTORS_QUEUE},
+        "index_composio_connector": {"queue": CONNECTORS_QUEUE},
+        "delete_connector_with_documents": {"queue": CONNECTORS_QUEUE},
+        # Everything else (document processing, podcasts, reindexing,
+        # schedule checker, cleanup) stays on the default fast queue.
+    },
 )
 
 # Configure Celery Beat schedule
