@@ -1,6 +1,6 @@
 {
 	"name": "surfsense_web",
-	"version": "0.0.12",
+	"version": "0.0.13",
 	"private": true,
 	"description": "SurfSense Frontend",
 	"scripts": {
@@ -112,6 +112,7 @@
 	"devDependencies": {
 		"@biomejs/biome": "2.1.2",
 		"@eslint/eslintrc": "^3.3.1",
+		"@svgr/webpack": "^8.1.0",
 		"@tailwindcss/postcss": "^4.1.11",
 		"@tailwindcss/typography": "^0.5.16",
 		"@types/canvas-confetti": "^1.9.0",

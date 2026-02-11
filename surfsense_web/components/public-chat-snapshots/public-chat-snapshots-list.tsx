@@ -10,6 +10,7 @@ interface PublicChatSnapshotsListProps {
 	onCopy: (snapshot: PublicChatSnapshotDetail) => void;
 	onDelete: (snapshot: PublicChatSnapshotDetail) => void;
 	deletingId?: number;
+	memberMap: Map<string, { name: string; email?: string; avatarUrl?: string }>;
 }
 
 export function PublicChatSnapshotsList({
@@ -18,13 +19,14 @@ export function PublicChatSnapshotsList({
 	onCopy,
 	onDelete,
 	deletingId,
+	memberMap,
 }: PublicChatSnapshotsListProps) {
 	if (snapshots.length === 0) {
 		return <PublicChatSnapshotsEmptyState />;
 	}
 
 	return (
-		<div className="border rounded-md divide-y">
+		<div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
 			{snapshots.map((snapshot) => (
 				<PublicChatSnapshotRow
 					key={snapshot.id}
@@ -33,6 +35,7 @@ export function PublicChatSnapshotsList({
 					onCopy={onCopy}
 					onDelete={onDelete}
 					isDeleting={deletingId === snapshot.id}
+					memberMap={memberMap}
 				/>
 			))}
 		</div>

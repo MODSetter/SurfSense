@@ -63,6 +63,7 @@ export const newLLMConfig = z.object({
 	// Metadata
 	created_at: z.string(),
 	search_space_id: z.number(),
+	user_id: z.string(),
 });
 
 /**
@@ -76,6 +77,7 @@ export const newLLMConfigPublic = newLLMConfig.omit({ api_key: true });
 export const createNewLLMConfigRequest = newLLMConfig.omit({
 	id: true,
 	created_at: true,
+	user_id: true,
 });
 
 export const createNewLLMConfigResponse = newLLMConfig;
@@ -110,6 +112,7 @@ export const updateNewLLMConfigRequest = z.object({
 			id: true,
 			created_at: true,
 			search_space_id: true,
+			user_id: true,
 		})
 		.partial(),
 });
@@ -201,11 +204,13 @@ export const imageGenerationConfig = z.object({
 	litellm_params: z.record(z.string(), z.any()).nullable().optional(),
 	created_at: z.string(),
 	search_space_id: z.number(),
+	user_id: z.string(),
 });
 
 export const createImageGenConfigRequest = imageGenerationConfig.omit({
 	id: true,
 	created_at: true,
+	user_id: true,
 });
 
 export const createImageGenConfigResponse = imageGenerationConfig;
@@ -214,7 +219,9 @@ export const getImageGenConfigsResponse = z.array(imageGenerationConfig);
 
 export const updateImageGenConfigRequest = z.object({
 	id: z.number(),
-	data: imageGenerationConfig.omit({ id: true, created_at: true, search_space_id: true }).partial(),
+	data: imageGenerationConfig
+		.omit({ id: true, created_at: true, search_space_id: true, user_id: true })
+		.partial(),
 });
 
 export const updateImageGenConfigResponse = imageGenerationConfig;

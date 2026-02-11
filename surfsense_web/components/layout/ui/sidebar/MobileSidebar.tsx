@@ -113,10 +113,6 @@ export function MobileSidebar({
 									isShared={space.memberCount > 1}
 									isOwner={space.isOwner}
 									onClick={() => handleSearchSpaceSelect(space.id)}
-									onDelete={onSearchSpaceDelete ? () => onSearchSpaceDelete(space) : undefined}
-									onSettings={
-										onSearchSpaceSettings ? () => onSearchSpaceSettings(space) : undefined
-									}
 									size="md"
 									disableTooltip
 								/>

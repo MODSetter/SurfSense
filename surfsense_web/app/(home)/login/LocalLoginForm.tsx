@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Spinner } from "@/components/ui/spinner";
-import { getAuthErrorDetails, isNetworkError, shouldRetry } from "@/lib/auth-errors";
+import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
 import { AUTH_TYPE } from "@/lib/env-config";
 import { ValidationError } from "@/lib/error";
 import { trackLoginAttempt, trackLoginFailure, trackLoginSuccess } from "@/lib/posthog/events";
@@ -65,10 +65,6 @@ export function LocalLoginForm() {
 			if (err instanceof ValidationError) {
 				trackLoginFailure("local", err.message);
 				setError({ title: err.name, message: err.message });
-				toast.error(err.name, {
-					description: err.message,
-					duration: 6000,
-				});
 				return;
 			}
 
@@ -92,22 +88,6 @@ export function LocalLoginForm() {
 				title: errorDetails.title,
 				message: errorDetails.description,
 			});
-
-			// Show error toast with conditional retry action
-			const toastOptions: any = {
-				description: errorDetails.description,
-				duration: 6000,
-			};
-
-			// Add retry action if the error is retryable
-			if (shouldRetry(errorCode)) {
-				toastOptions.action = {
-					label: "Retry",
-					onClick: () => handleSubmit(e),
-				};
-			}
-
-			toast.error(errorDetails.title, toastOptions);
 		}
 	};
 

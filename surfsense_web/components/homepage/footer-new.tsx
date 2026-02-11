@@ -43,7 +43,7 @@ export function FooterNew() {
 		},
 		{
 			title: "LinkedIn",
-			href: "https://www.linkedin.com/in/rohan-verma-sde/",
+			href: "https://www.linkedin.com/company/surfsense/",
 			icon: IconBrandLinkedin,
 		},
 		{
