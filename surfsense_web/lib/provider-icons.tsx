@@ -1,36 +1,38 @@
 import { Bot, Shuffle } from "lucide-react";
+import {
+	Ai21Icon,
+	AnthropicIcon,
+	AnyscaleIcon,
+	BedrockIcon,
+	CerebrasIcon,
+	CloudflareIcon,
+	CohereIcon,
+	CometApiIcon,
+	DatabricksIcon,
+	DeepInfraIcon,
+	DeepSeekIcon,
+	FireworksAiIcon,
+	GeminiIcon,
+	GroqIcon,
+	HuggingFaceIcon,
+	MistralIcon,
+	MoonshotIcon,
+	NscaleIcon,
+	OllamaIcon,
+	OpenaiIcon,
+	OpenRouterIcon,
+	PerplexityIcon,
+	QwenIcon,
+	RecraftIcon,
+	ReplicateIcon,
+	SambaNovaIcon,
+	TogetherAiIcon,
+	VertexAiIcon,
+	XaiIcon,
+	XinferenceIcon,
+	ZhipuIcon,
+} from "@/components/icons/providers";
 import { cn } from "@/lib/utils";
-import { Ai21Icon } from "@/components/icons/providers";
-import { AnthropicIcon } from "@/components/icons/providers";
-import { AnyscaleIcon } from "@/components/icons/providers";
-import { BedrockIcon } from "@/components/icons/providers";
-import { CerebrasIcon } from "@/components/icons/providers";
-import { CloudflareIcon } from "@/components/icons/providers";
-import { CohereIcon } from "@/components/icons/providers";
-import { CometApiIcon } from "@/components/icons/providers";
-import { DatabricksIcon } from "@/components/icons/providers";
-import { DeepInfraIcon } from "@/components/icons/providers";
-import { DeepSeekIcon } from "@/components/icons/providers";
-import { FireworksAiIcon } from "@/components/icons/providers";
-import { GeminiIcon } from "@/components/icons/providers";
-import { GroqIcon } from "@/components/icons/providers";
-import { HuggingFaceIcon } from "@/components/icons/providers";
-import { MistralIcon } from "@/components/icons/providers";
-import { MoonshotIcon } from "@/components/icons/providers";
-import { NscaleIcon } from "@/components/icons/providers";
-import { OllamaIcon } from "@/components/icons/providers";
-import { OpenaiIcon } from "@/components/icons/providers";
-import { OpenRouterIcon } from "@/components/icons/providers";
-import { PerplexityIcon } from "@/components/icons/providers";
-import { QwenIcon } from "@/components/icons/providers";
-import { RecraftIcon } from "@/components/icons/providers";
-import { ReplicateIcon } from "@/components/icons/providers";
-import { SambaNovaIcon } from "@/components/icons/providers";
-import { TogetherAiIcon } from "@/components/icons/providers";
-import { VertexAiIcon } from "@/components/icons/providers";
-import { XaiIcon } from "@/components/icons/providers";
-import { XinferenceIcon } from "@/components/icons/providers";
-import { ZhipuIcon } from "@/components/icons/providers";
 
 /**
  * Returns a Lucide icon element for the given LLM / image-gen provider.

@@ -5,10 +5,10 @@ import {
 	AlertCircle,
 	Edit3,
 	FileText,
+	Info,
 	MessageSquareQuote,
 	Plus,
 	RefreshCw,
-	Info,
 	Trash2,
 	Wand2,
 } from "lucide-react";
@@ -51,8 +51,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { NewLLMConfig } from "@/contracts/types/new-llm-config.types";
-import { cn } from "@/lib/utils";
 import { getProviderIcon } from "@/lib/provider-icons";
+import { cn } from "@/lib/utils";
 
 interface ModelConfigManagerProps {
 	searchSpaceId: number;

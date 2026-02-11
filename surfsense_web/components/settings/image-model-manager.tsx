@@ -6,10 +6,10 @@ import {
 	Check,
 	ChevronsUpDown,
 	Edit3,
+	Info,
 	Key,
 	Plus,
 	RefreshCw,
-	Info,
 	Trash2,
 	Wand2,
 } from "lucide-react";
@@ -17,7 +17,6 @@ import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import {
 	createImageGenConfigMutationAtom,
 	deleteImageGenConfigMutationAtom,
@@ -27,6 +26,7 @@ import {
 	globalImageGenConfigsAtom,
 	imageGenConfigsAtom,
 } from "@/atoms/image-gen-config/image-gen-config-query.atoms";
+import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
@@ -75,8 +75,8 @@ import {
 	IMAGE_GEN_PROVIDERS,
 } from "@/contracts/enums/image-gen-providers";
 import type { ImageGenerationConfig } from "@/contracts/types/new-llm-config.types";
-import { cn } from "@/lib/utils";
 import { getProviderIcon } from "@/lib/provider-icons";
+import { cn } from "@/lib/utils";
 
 interface ImageModelManagerProps {
 	searchSpaceId: number;

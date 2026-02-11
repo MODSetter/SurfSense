@@ -41,8 +41,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 import { getProviderIcon } from "@/lib/provider-icons";
+import { cn } from "@/lib/utils";
 
 const ROLE_DESCRIPTIONS = {
 	agent: {
