@@ -93,7 +93,7 @@ function ParsedArticle({ result }: { result: unknown }) {
 		<Article
 			{...article}
 			maxWidth="480px"
-			responseActions={[{ id: "open", label: "Open Source", variant: "default" }]}
+			responseActions={[{ id: "open", label: "Open Link", variant: "default" }]}
 			onResponseAction={(id) => {
 				if (id === "open" && article.href) {
 					window.open(article.href, "_blank", "noopener,noreferrer");
