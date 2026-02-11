@@ -180,7 +180,7 @@ async def export_report(
         # thread executor to avoid blocking the async event loop.
         extra_args = ["--standalone"]
         if format == ExportFormat.PDF:
-            extra_args.append("--pdf-engine=wkhtmltopdf")
+            extra_args.append("--pdf-engine=weasyprint")
 
         loop = asyncio.get_running_loop()
         output = await loop.run_in_executor(
