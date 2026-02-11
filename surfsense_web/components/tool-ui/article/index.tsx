@@ -8,7 +8,8 @@ import {
 	FileTextIcon,
 	UserIcon,
 } from "lucide-react";
-import { Component, type ReactNode, useCallback } from "react";
+import { Component, type ReactNode, useCallback, useState } from "react";
+import Image from "next/image";
 import { z } from "zod";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -127,6 +128,30 @@ function formatWordCount(count: number): string {
 }
 
 /**
+ * Favicon component that fetches the site icon via Google's favicon service,
+ * falling back to BookOpenIcon on error.
+ */
+function SiteFavicon({ domain }: { domain: string }) {
+	const [failed, setFailed] = useState(false);
+
+	if (failed) {
+		return <BookOpenIcon className="size-5 text-primary" />;
+	}
+
+	return (
+		<Image
+			src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`}
+			alt={`${domain} favicon`}
+			width={28}
+			height={28}
+			className="size-5 sm:size-7 rounded-sm"
+			onError={() => setFailed(true)}
+			unoptimized
+		/>
+	);
+}
+
+/**
  * Article card component for displaying scraped webpage content
  */
 export function Article({
@@ -198,27 +223,33 @@ export function Article({
 				}}
 			>
 				{/* Header */}
-				<CardContent className="p-4">
-					<div className="flex items-start gap-3">
-						{/* Icon */}
-						<div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-							<BookOpenIcon className="size-5 text-primary" />
-						</div>
+				<CardContent className="p-3 sm:p-4">
+					<div className="flex items-start gap-2.5 sm:gap-3">
+						{/* Favicon / Icon */}
+						{domain ? (
+							<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center">
+								<SiteFavicon domain={domain} />
+							</div>
+						) : (
+							<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+								<BookOpenIcon className="size-4 sm:size-5 text-primary" />
+							</div>
+						)}
 
 						{/* Content */}
 						<div className="flex-1 min-w-0">
 							{/* Title */}
-							<h3 className="font-semibold text-sm line-clamp-2 group-hover:text-primary transition-colors">
+							<h3 className="font-semibold text-xs sm:text-sm line-clamp-2 group-hover:text-primary transition-colors">
 								{title}
 							</h3>
 
 							{/* Description */}
 							{description && (
-								<p className="text-muted-foreground text-xs mt-1 line-clamp-2">{description}</p>
+								<p className="text-muted-foreground text-[10px] sm:text-xs mt-1 line-clamp-2">{description}</p>
 							)}
 
 							{/* Metadata row */}
-							<div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-2 text-xs text-muted-foreground">
+							<div className="flex flex-wrap items-center gap-x-2 sm:gap-x-3 gap-y-1 mt-1.5 sm:mt-2 text-[10px] sm:text-xs text-muted-foreground">
 								{domain && (
 									<Tooltip>
 										<TooltipTrigger asChild>
@@ -275,12 +306,6 @@ export function Article({
 							</div>
 						</div>
 
-						{/* External link indicator */}
-						{href && (
-							<div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-								<ExternalLinkIcon className="size-4 text-muted-foreground" />
-							</div>
-						)}
 					</div>
 
 					{/* Response actions */}

@@ -87,18 +87,12 @@ function ScrapeCancelledState({ url }: { url: string }) {
  * Parsed Article component with error handling
  */
 function ParsedArticle({ result }: { result: unknown }) {
-	const article = parseSerializableArticle(result);
+	const { description, ...article } = parseSerializableArticle(result);
 
 	return (
 		<Article
 			{...article}
 			maxWidth="480px"
-			responseActions={[{ id: "open", label: "Open Link", variant: "default" }]}
-			onResponseAction={(id) => {
-				if (id === "open" && article.href) {
-					window.open(article.href, "_blank", "noopener,noreferrer");
-				}
-			}}
 		/>
 	);
 }
