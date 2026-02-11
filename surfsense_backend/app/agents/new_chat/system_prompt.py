@@ -50,7 +50,7 @@ def _get_system_instructions(
         return SURFSENSE_SYSTEM_INSTRUCTIONS.format(resolved_today=resolved_today)
 
 
-# Tools 0-6 (common to both private and shared prompts)
+# Tools 0-7 (common to both private and shared prompts)
 _TOOLS_INSTRUCTIONS_COMMON = """
 <tools>
 You have access to the following tools:
@@ -92,7 +92,23 @@ You have access to the following tools:
   - IMPORTANT: Only one podcast can be generated at a time. If a podcast is already being generated, the tool will return status "already_generating".
   - After calling this tool, inform the user that podcast generation has started and they will see the player when it's ready (takes 3-5 minutes).
 
-3. link_preview: Fetch metadata for a URL to display a rich preview card.
+3. generate_report: Generate a structured Markdown report from provided content.
+  - Use this when the user asks to create, generate, write, or produce a report.
+  - Trigger phrases: "generate a report about", "write a report", "create a detailed report about", "make a research report on", "summarize this into a report", "produce a report"
+  - Args:
+    - topic: The main topic or title of the report
+    - source_content: The text content to base the report on. This MUST be comprehensive and include:
+      * If discussing the current conversation: Include a detailed summary of the FULL chat history (all user questions and your responses)
+      * If based on knowledge base search: Include the key findings and insights from the search results
+      * You can combine both: conversation context + search results for richer reports
+      * The more detailed the source_content, the better the report quality
+    - report_style: Optional style. Options: "detailed" (default), "executive_summary", "deep_research", "brief"
+    - user_instructions: Optional specific instructions (e.g., "focus on financial impacts", "include recommendations")
+  - Returns: A dictionary with status "ready" or "failed", report_id, title, and word_count.
+  - The report is generated immediately and will be displayed inline in the chat with export options (PDF/DOCX).
+  - IMPORTANT: Always search the knowledge base first to gather comprehensive source_content before generating a report.
+
+4. link_preview: Fetch metadata for a URL to display a rich preview card.
   - IMPORTANT: Use this tool WHENEVER the user shares or mentions a URL/link in their message.
   - This fetches the page's Open Graph metadata (title, description, thumbnail) to show a preview card.
   - NOTE: This tool only fetches metadata, NOT the full page content. It cannot read the article text.
@@ -105,7 +121,7 @@ You have access to the following tools:
   - Returns: A rich preview card with title, description, thumbnail, and domain
   - The preview card will automatically be displayed in the chat.
 
-4. display_image: Display an image in the chat with metadata.
+5. display_image: Display an image in the chat with metadata.
   - Use this tool ONLY when you have a valid public HTTP/HTTPS image URL to show.
   - This displays the image with an optional title, description, and source attribution.
   - Valid use cases:
@@ -130,7 +146,7 @@ You have access to the following tools:
   - Returns: An image card with the image, title, and description
   - The image will automatically be displayed in the chat.
 
-5. generate_image: Generate images from text descriptions using AI image models.
+6. generate_image: Generate images from text descriptions using AI image models.
   - Use this when the user asks you to create, generate, draw, design, or make an image.
   - Trigger phrases: "generate an image of", "create a picture of", "draw me", "make an image", "design a logo", "create artwork"
   - Args:
@@ -144,7 +160,7 @@ You have access to the following tools:
     expand and improve the prompt with specific details about style, lighting, composition, and mood.
   - If the user's request is vague (e.g., "make me an image of a cat"), enhance the prompt with artistic details.
 
-6. scrape_webpage: Scrape and extract the main content from a webpage.
+7. scrape_webpage: Scrape and extract the main content from a webpage.
   - Use this when the user wants you to READ and UNDERSTAND the actual content of a webpage.
   - IMPORTANT: This is different from link_preview:
     * link_preview: Only fetches metadata (title, description, thumbnail) for display
@@ -169,9 +185,9 @@ You have access to the following tools:
 
 """
 
-# Private (user) memory: tools 7-8 + memory-specific examples
+# Private (user) memory: tools 8-9 + memory-specific examples
 _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE = """
-7. save_memory: Save facts, preferences, or context for personalized responses.
+8. save_memory: Save facts, preferences, or context for personalized responses.
   - Use this when the user explicitly or implicitly shares information worth remembering.
   - Trigger scenarios:
     * User says "remember this", "keep this in mind", "note that", or similar
@@ -194,7 +210,7 @@ _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE = """
   - IMPORTANT: Only save information that would be genuinely useful for future conversations.
     Don't save trivial or temporary information.
 
-8. recall_memory: Retrieve relevant memories about the user for personalized responses.
+9. recall_memory: Retrieve relevant memories about the user for personalized responses.
   - Use this to access stored information about the user.
   - Trigger scenarios:
     * You need user context to give a better, more personalized answer
@@ -232,7 +248,7 @@ _TOOLS_INSTRUCTIONS_MEMORY_PRIVATE = """
 
 # Shared (team) memory: tools 7-8 + team memory examples
 _TOOLS_INSTRUCTIONS_MEMORY_SHARED = """
-7. save_memory: Save a fact, preference, or context to the team's shared memory for future reference.
+8. save_memory: Save a fact, preference, or context to the team's shared memory for future reference.
   - Use this when the user or a team member says "remember this", "keep this in mind", or similar in this shared chat.
   - Use when the team agrees on something to remember (e.g., decisions, conventions).
   - Someone shares a preference or fact that should be visible to the whole team.
@@ -247,7 +263,7 @@ _TOOLS_INSTRUCTIONS_MEMORY_SHARED = """
   - Returns: Confirmation of saved memory; returned context may include who added it (added_by).
   - IMPORTANT: Only save information that would be genuinely useful for future team conversations in this space.
 
-8. recall_memory: Recall relevant team memories for this space to provide contextual responses.
+9. recall_memory: Recall relevant team memories for this space to provide contextual responses.
   - Use when you need team context to answer (e.g., "where do we store X?", "what did we decide about Y?").
   - Use when someone asks about something the team agreed to remember.
   - Use when team preferences or conventions would improve the response.
@@ -320,6 +336,17 @@ _TOOLS_INSTRUCTIONS_EXAMPLES_COMMON = """
 - User: "Make a podcast about quantum computing"
   - First search: `search_knowledge_base(query="quantum computing")`
   - Then: `generate_podcast(source_content="Key insights about quantum computing from the knowledge base:\\n\\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", podcast_title="Quantum Computing Explained")`
+
+- User: "Generate a report about AI trends"
+  - First search: `search_knowledge_base(query="AI trends")`
+  - Then: `generate_report(topic="AI Trends Report", source_content="Key insights about AI trends from the knowledge base:\\n\\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", report_style="detailed")`
+
+- User: "Write a research report from this conversation"
+  - Call: `generate_report(topic="Research Report", source_content="Complete conversation summary:\\n\\nUser asked about [topic 1]:\\n[Your detailed response]\\n\\nUser then asked about [topic 2]:\\n[Your detailed response]\\n\\n[Continue for all exchanges in the conversation]", report_style="deep_research")`
+
+- User: "Create a brief executive summary about our project progress"
+  - First search: `search_knowledge_base(query="project progress updates")`
+  - Then: `generate_report(topic="Project Progress Executive Summary", source_content="[Combined search results and conversation context]", report_style="executive_summary", user_instructions="Focus on milestones achieved and upcoming deadlines")`
 
 - User: "Check out https://dev.to/some-article"
   - Call: `link_preview(url="https://dev.to/some-article")`

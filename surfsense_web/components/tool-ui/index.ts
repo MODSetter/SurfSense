@@ -31,6 +31,7 @@ export {
 	DisplayImageToolUI,
 } from "./display-image";
 export { GeneratePodcastToolUI } from "./generate-podcast";
+export { GenerateReportToolUI } from "./generate-report";
 export {
 	Image,
 	ImageErrorBoundary,
