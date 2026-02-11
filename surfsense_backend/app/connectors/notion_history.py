@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
@@ -869,12 +870,13 @@ class NotionHistoryConnector:
                     },
                 })
             # Numbered list
-            elif len(line) > 2 and line[0].isdigit() and line[1:3] == ". ":
+            elif (match := re.match(r'^(\d+)\.\s+(.*)$', line)):
+                content = match.group(2)  # Extract text after "number. "
                 blocks.append({
                     "object": "block",
                     "type": "numbered_list_item",
                     "numbered_list_item": {
-                        "rich_text": [{"type": "text", "text": {"content": line[3:]}}]
+                        "rich_text": [{"type": "text", "text": {"content": content}}]
                     },
                 })
             # Regular paragraph
@@ -1024,22 +1026,85 @@ class NotionHistoryConnector:
                     block_id=page_id
                 )
 
-                # Delete existing blocks
-                for block in existing_blocks.get("results", []):
-                    await self._api_call_with_retry(
-                        notion.blocks.delete,
-                        block_id=block["id"]
-                    )
+                # Convert new content to blocks 
+                try:
+                    children = self._markdown_to_blocks(content)
+                    if not children:
+                        logger.warning("No blocks generated from content, skipping update")
+                        return {
+                            "status": "error",
+                            "message": "Content conversion failed: no valid blocks generated",
+                        }
+                except Exception as e:
+                    logger.error(f"Failed to convert markdown to blocks: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"Failed to parse content: {str(e)}",
+                    }
 
-                # Add new content
-                children = self._markdown_to_blocks(content)
-                for i in range(0, len(children), 100):
-                    batch = children[i : i + 100]
-                    await self._api_call_with_retry(
-                        notion.blocks.children.append,
-                        block_id=page_id,
-                        children=batch
+                # Store block count for logging
+                block_count = len(existing_blocks.get("results", []))
+                
+                # Delete existing blocks
+                try:
+                    for block in existing_blocks.get("results", []):
+                        await self._api_call_with_retry(
+                            notion.blocks.delete,
+                            block_id=block["id"]
+                        )
+                    logger.info(f"Deleted {block_count} existing blocks from page {page_id}")
+                except Exception as e:
+                    logger.error(f"Failed to delete existing blocks: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"Failed to clear existing content: {str(e)}",
+                    }
+
+                # Add new content (CRITICAL: if this fails, content is lost) Need improvement to handle this better.
+                try:
+                    for i in range(0, len(children), 100):
+                        batch = children[i : i + 100]
+                        await self._api_call_with_retry(
+                            notion.blocks.children.append,
+                            block_id=page_id,
+                            children=batch
+                        )
+                    logger.info(f"Successfully added {len(children)} new blocks to page {page_id}")
+                except Exception as e:
+                    # CRITICAL ERROR: Content was deleted but new content failed to add
+                    logger.error(
+                        f"CRITICAL: Failed to add new content after deleting {block_count} blocks. "
+                        f"Page {page_id} content is lost! Error: {e}"
                     )
+                    
+                    # Attempt to add an error placeholder block so page isn't completely empty
+                    try:
+                        await self._api_call_with_retry(
+                            notion.blocks.children.append,
+                            block_id=page_id,
+                            children=[{
+                                "object": "block",
+                                "type": "paragraph",
+                                "paragraph": {
+                                    "rich_text": [{
+                                        "type": "text",
+                                        "text": {
+                                            "content": "[ERROR] Content update failed. Original content was lost. "
+                                                      "Please check your SurfSense logs for details."
+                                        }
+                                    }]
+                                },
+                            }]
+                        )
+                        logger.info(f"Added error placeholder to page {page_id}")
+                    except Exception as placeholder_error:
+                        logger.error(f"Failed to add error placeholder: {placeholder_error}")
+                    
+                    return {
+                        "status": "error",
+                        "message": f"CRITICAL: Failed to update page content. Original content ({block_count} blocks) "
+                                  f"was deleted but new content could not be added: {str(e)}",
+                    }
 
             # Get updated page
             response = await self._api_call_with_retry(
