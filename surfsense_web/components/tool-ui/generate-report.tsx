@@ -1,20 +1,18 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
-	CheckIcon,
-	ClipboardIcon,
-	DownloadIcon,
 	FileTextIcon,
 	Loader2Icon,
 } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { z } from "zod";
-import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
-import { MarkdownViewer } from "@/components/markdown-viewer";
+import {
+	openReportPanelAtom,
+	reportPanelAtom,
+} from "@/atoms/chat/report-panel.atom";
 import { baseApiService } from "@/lib/apis/base-api.service";
-import { authenticatedFetch } from "@/lib/auth-utils";
 
 /**
  * Zod schemas for runtime validation
@@ -35,22 +33,12 @@ const GenerateReportResultSchema = z.object({
 	error: z.string().nullish(),
 });
 
-const ReportContentResponseSchema = z.object({
+const ReportMetadataResponseSchema = z.object({
 	id: z.number(),
 	title: z.string(),
-	content: z.string().nullish(),
 	report_metadata: z
 		.object({
-			sections: z
-				.array(
-					z.object({
-						level: z.number(),
-						title: z.string(),
-					})
-				)
-				.nullish(),
 			word_count: z.number().nullish(),
-			char_count: z.number().nullish(),
 			section_count: z.number().nullish(),
 		})
 		.nullish(),
@@ -61,37 +49,69 @@ const ReportContentResponseSchema = z.object({
  */
 type GenerateReportArgs = z.infer<typeof GenerateReportArgsSchema>;
 type GenerateReportResult = z.infer<typeof GenerateReportResultSchema>;
-type ReportContentResponse = z.infer<typeof ReportContentResponseSchema>;
 
 /**
- * Loading state component shown while report is being generated
+ * Shimmer line used in the skeleton loading state.
+ * Each line has a staggered delay and random-ish width to mimic real paragraphs.
+ */
+function ShimmerLine({ width, delay }: { width: string; delay: string }) {
+	return (
+		<div
+			className="h-2.5 rounded-md bg-muted/60"
+			style={{
+				width,
+				animation: `pulse 2s cubic-bezier(0.4,0,0.6,1) infinite`,
+				animationDelay: delay,
+			}}
+		/>
+	);
+}
+
+/**
+ * Loading state component shown while report is being generated.
+ * Renders a card with a skeleton that looks like report content being written.
  */
 function ReportGeneratingState({ topic }: { topic: string }) {
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10 p-4 sm:p-6">
-			<div className="flex items-center gap-3 sm:gap-4">
-				<div className="relative shrink-0">
-					<div className="flex size-12 sm:size-16 items-center justify-center rounded-full bg-primary/20">
-						<FileTextIcon className="size-6 sm:size-8 text-primary" />
-					</div>
-					<div className="absolute inset-1 animate-ping rounded-full bg-primary/20" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<h3 className="font-semibold text-foreground text-sm sm:text-lg leading-tight truncate">
+		<div className="my-4 overflow-hidden rounded-xl border bg-card">
+			{/* Header */}
+			<div className="flex items-center gap-2 sm:gap-3 border-b bg-muted/30 px-4 py-3 sm:px-6 sm:py-4">
+				<div className="min-w-0 flex-1">
+					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight truncate">
 						{topic}
 					</h3>
-					<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
-						<Spinner size="sm" className="size-3 sm:size-4" />
-						<span className="text-xs sm:text-sm">
-							Generating report. This may take a moment...
-						</span>
-					</div>
-					<div className="mt-2 sm:mt-3">
-						<div className="h-1 sm:h-1.5 w-full overflow-hidden rounded-full bg-primary/10">
-							<div className="h-full w-1/3 animate-pulse rounded-full bg-primary" />
-						</div>
+					<div className="mt-1 flex items-center gap-1.5 text-muted-foreground">
+						<Loader2Icon className="size-3 animate-spin" />
+						<span className="text-[11px] sm:text-xs">Writing report…</span>
 					</div>
 				</div>
+			</div>
+
+			{/* Skeleton body – simulates paragraphs being written */}
+			<div className="px-4 py-4 sm:px-6 sm:py-5 space-y-4 max-h-52 overflow-hidden relative">
+				{/* "Heading" */}
+				<ShimmerLine width="40%" delay="0ms" />
+
+				{/* Paragraph 1 */}
+				<div className="space-y-2">
+					<ShimmerLine width="100%" delay="100ms" />
+					<ShimmerLine width="92%" delay="150ms" />
+					<ShimmerLine width="97%" delay="200ms" />
+					<ShimmerLine width="60%" delay="250ms" />
+				</div>
+
+				{/* "Heading 2" */}
+				<ShimmerLine width="35%" delay="300ms" />
+
+				{/* Paragraph 2 */}
+				<div className="space-y-2">
+					<ShimmerLine width="95%" delay="350ms" />
+					<ShimmerLine width="100%" delay="400ms" />
+					<ShimmerLine width="88%" delay="450ms" />
+				</div>
+
+				{/* Bottom fade-out */}
+				<div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
 			</div>
 		</div>
 	);
@@ -121,9 +141,10 @@ function ReportErrorState({ title, error }: { title: string; error: string }) {
 }
 
 /**
- * Report viewer component that fetches and renders the full Markdown report
+ * Compact report card shown inline in the chat.
+ * Clicking it opens the report in the right-side panel (desktop) or Vaul drawer (mobile).
  */
-function ReportViewer({
+function ReportCard({
 	reportId,
 	title,
 	wordCount,
@@ -132,188 +153,87 @@ function ReportViewer({
 	title: string;
 	wordCount?: number;
 }) {
-	const [reportContent, setReportContent] = useState<ReportContentResponse | null>(null);
+	const openPanel = useSetAtom(openReportPanelAtom);
+	const panelState = useAtomValue(reportPanelAtom);
+	const [metadata, setMetadata] = useState<{
+		title: string;
+		wordCount: number | null;
+		sectionCount: number | null;
+	}>({ title, wordCount: wordCount ?? null, sectionCount: null });
 	const [isLoading, setIsLoading] = useState(true);
-	const [error, setError] = useState<string | null>(null);
-	const [copied, setCopied] = useState(false);
-	const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
 
-	// Fetch report content
+	// Fetch lightweight metadata (title + counts only, no content)
 	useEffect(() => {
-		const fetchContent = async () => {
+		let cancelled = false;
+		const fetchMetadata = async () => {
 			setIsLoading(true);
-			setError(null);
 			try {
 				const rawData = await baseApiService.get<unknown>(
 					`/api/v1/reports/${reportId}/content`
 				);
-				const parsed = ReportContentResponseSchema.safeParse(rawData);
+				if (cancelled) return;
+				const parsed = ReportMetadataResponseSchema.safeParse(rawData);
 				if (parsed.success) {
-					setReportContent(parsed.data);
-				} else {
-					console.warn("Invalid report content response:", parsed.error.issues);
-					setError("Invalid response format");
+					setMetadata({
+						title: parsed.data.title || title,
+						wordCount:
+							parsed.data.report_metadata?.word_count ?? wordCount ?? null,
+						sectionCount:
+							parsed.data.report_metadata?.section_count ?? null,
+					});
 				}
-			} catch (err) {
-				console.error("Error fetching report content:", err);
-				setError(err instanceof Error ? err.message : "Failed to load report");
+			} catch {
+				// Silently fail — we already have the title and word count from the tool result
 			} finally {
-				setIsLoading(false);
+				if (!cancelled) setIsLoading(false);
 			}
 		};
+		fetchMetadata();
+		return () => {
+			cancelled = true;
+		};
+	}, [reportId, title, wordCount]);
 
-		fetchContent();
-	}, [reportId]);
+	const isActive = panelState.isOpen && panelState.reportId === reportId;
 
-	// Copy markdown content
-	const handleCopy = useCallback(async () => {
-		if (!reportContent?.content) return;
-		try {
-			await navigator.clipboard.writeText(reportContent.content);
-			setCopied(true);
-			setTimeout(() => setCopied(false), 2000);
-		} catch (err) {
-			console.error("Failed to copy:", err);
-		}
-	}, [reportContent?.content]);
-
-	// Export report
-	const handleExport = useCallback(
-		async (format: "pdf" | "docx") => {
-			setExporting(format);
-			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${reportId}/export?format=${format}`,
-					{ method: "GET" }
-				);
-
-				if (!response.ok) {
-					throw new Error(`Export failed: ${response.status}`);
-				}
-
-				const blob = await response.blob();
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				a.download = `${title.replace(/[^a-zA-Z0-9 _-]/g, "_").trim().slice(0, 80) || "report"}.${format}`;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
-			} catch (err) {
-				console.error(`Export ${format} failed:`, err);
-			} finally {
-				setExporting(null);
-			}
-		},
-		[reportId, title]
-	);
-
-	if (isLoading) {
-		return (
-			<div className="my-4 overflow-hidden rounded-xl border bg-muted/30 p-4 sm:p-6">
-				<div className="flex items-center gap-3 sm:gap-4">
-					<div className="flex size-12 sm:size-16 shrink-0 items-center justify-center rounded-full bg-primary/10">
-						<FileTextIcon className="size-6 sm:size-8 text-primary/50" />
-					</div>
-					<div className="flex-1 min-w-0">
-						<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight">
-							{title}
-						</h3>
-						<div className="mt-1.5 sm:mt-2 flex items-center gap-1.5 sm:gap-2 text-muted-foreground">
-							<Spinner size="sm" className="size-3 sm:size-4" />
-							<span className="text-xs sm:text-sm">Loading report...</span>
-						</div>
-					</div>
-				</div>
-			</div>
-		);
-	}
-
-	if (error || !reportContent) {
-		return <ReportErrorState title={title} error={error || "Failed to load report"} />;
-	}
-
-	const displayWordCount =
-		wordCount ?? reportContent.report_metadata?.word_count ?? null;
+	const handleOpen = () => {
+		openPanel({
+			reportId,
+			title: metadata.title,
+			wordCount: metadata.wordCount ?? undefined,
+		});
+	};
 
 	return (
-		<div className="my-4 overflow-hidden rounded-xl border bg-card">
-			{/* Header */}
-			<div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b bg-muted/30 px-4 py-3 sm:px-6 sm:py-4">
-				<div className="flex items-center gap-2 sm:gap-3 min-w-0">
-					<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-						<FileTextIcon className="size-4 sm:size-5 text-primary" />
-					</div>
-					<div className="min-w-0">
-						<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight truncate">
-							{reportContent.title || title}
-						</h3>
-						{displayWordCount != null && (
-							<p className="text-muted-foreground text-[10px] sm:text-xs mt-0.5">
-								{displayWordCount.toLocaleString()} words
-								{reportContent.report_metadata?.section_count
-									? ` · ${reportContent.report_metadata.section_count} sections`
-									: ""}
-							</p>
-						)}
-					</div>
+		<div
+			className={`my-4 overflow-hidden rounded-xl border bg-card transition-colors ${isActive ? "ring-2 ring-primary/50" : ""}`}
+		>
+			<button
+				type="button"
+				onClick={handleOpen}
+				className="flex w-full items-center gap-2 sm:gap-3 bg-muted/30 px-4 py-3 sm:px-6 sm:py-4 text-left transition-colors hover:bg-muted/50 focus:outline-none focus-visible:outline-none"
+			>
+				<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+					<FileTextIcon className="size-4 sm:size-5 text-primary" />
 				</div>
-
-				{/* Action buttons */}
-				<div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={handleCopy}
-						className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
-					>
-						{copied ? (
-							<CheckIcon className="size-3.5 mr-1" />
+				<div className="min-w-0 flex-1">
+					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight truncate">
+						{isLoading ? title : metadata.title}
+					</h3>
+					<p className="text-muted-foreground text-[10px] sm:text-xs mt-0.5">
+						{isLoading ? (
+							<span className="inline-block h-3 w-24 rounded bg-muted/60 animate-pulse" />
 						) : (
-							<ClipboardIcon className="size-3.5 mr-1" />
+							<>
+								{metadata.wordCount != null &&
+									`${metadata.wordCount.toLocaleString()} words`}
+								{metadata.sectionCount != null &&
+									` · ${metadata.sectionCount} sections`}
+							</>
 						)}
-						{copied ? "Copied" : "Copy MD"}
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => handleExport("pdf")}
-						disabled={exporting !== null}
-						className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
-					>
-						{exporting === "pdf" ? (
-							<Loader2Icon className="size-3.5 mr-1 animate-spin" />
-						) : (
-							<DownloadIcon className="size-3.5 mr-1" />
-						)}
-						PDF
-					</Button>
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={() => handleExport("docx")}
-						disabled={exporting !== null}
-						className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
-					>
-						{exporting === "docx" ? (
-							<Loader2Icon className="size-3.5 mr-1 animate-spin" />
-						) : (
-							<DownloadIcon className="size-3.5 mr-1" />
-						)}
-						DOCX
-					</Button>
+					</p>
 				</div>
-			</div>
-
-			{/* Markdown content */}
-			<div className="px-4 py-4 sm:px-6 sm:py-5 overflow-x-auto">
-				{reportContent.content ? (
-					<MarkdownViewer content={reportContent.content} />
-				) : (
-					<p className="text-muted-foreground italic">No content available.</p>
-				)}
-			</div>
+			</button>
 		</div>
 	);
 }
@@ -375,7 +295,7 @@ export const GenerateReportToolUI = makeAssistantToolUI<
 		// Ready with report_id
 		if (result.status === "ready" && result.report_id) {
 			return (
-				<ReportViewer
+				<ReportCard
 					reportId={result.report_id}
 					title={result.title || topic}
 					wordCount={result.word_count ?? undefined}

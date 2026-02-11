@@ -39,6 +39,7 @@ import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
+import { ReportPanel } from "@/components/report-panel/report-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
@@ -1436,11 +1437,14 @@ export default function NewChatPage() {
 			<SaveMemoryToolUI />
 			<RecallMemoryToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
-			<div className="flex flex-col h-[calc(100dvh-64px)] overflow-hidden">
-				<Thread
-					messageThinkingSteps={messageThinkingSteps}
-					header={<ChatHeader searchSpaceId={searchSpaceId} />}
-				/>
+			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
+				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+					<Thread
+						messageThinkingSteps={messageThinkingSteps}
+						header={<ChatHeader searchSpaceId={searchSpaceId} />}
+					/>
+				</div>
+				<ReportPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);

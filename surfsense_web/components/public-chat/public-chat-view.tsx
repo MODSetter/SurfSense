@@ -7,6 +7,7 @@ import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
+import { ReportPanel } from "@/components/report-panel/report-panel";
 import { Spinner } from "@/components/ui/spinner";
 import { usePublicChat } from "@/hooks/use-public-chat";
 import { usePublicChatRuntime } from "@/hooks/use-public-chat-runtime";
@@ -48,8 +49,11 @@ export function PublicChatView({ shareToken }: PublicChatViewProps) {
 				<DisplayImageToolUI />
 				<ScrapeWebpageToolUI />
 
-				<div className="flex h-screen flex-col pt-16">
-					<PublicThread footer={<PublicChatFooter shareToken={shareToken} />} />
+				<div className="flex h-screen pt-16 overflow-hidden">
+					<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+						<PublicThread footer={<PublicChatFooter shareToken={shareToken} />} />
+					</div>
+					<ReportPanel />
 				</div>
 			</AssistantRuntimeProvider>
 		</main>
