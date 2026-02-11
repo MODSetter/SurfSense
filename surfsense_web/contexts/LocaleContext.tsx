@@ -3,9 +3,20 @@
 import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import enMessages from "../messages/en.json";
+import esMessages from "../messages/es.json";
+import ptMessages from "../messages/pt.json";
+import hiMessages from "../messages/hi.json";
 import zhMessages from "../messages/zh.json";
 
-type Locale = "en" | "zh";
+type Locale = "en" | "es" | "pt" | "hi" | "zh";
+
+const messagesMap: Record<Locale, typeof enMessages> = {
+	en: enMessages,
+	es: esMessages as typeof enMessages,
+	pt: ptMessages as typeof enMessages,
+	hi: hiMessages as typeof enMessages,
+	zh: zhMessages as typeof enMessages,
+};
 
 interface LocaleContextType {
 	locale: Locale;
@@ -24,15 +35,15 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 	const [mounted, setMounted] = useState(false);
 
 	// Get messages based on current locale
-	const messages = locale === "zh" ? zhMessages : enMessages;
+	const messages = messagesMap[locale] || enMessages;
 
 	// Load locale from localStorage after component mounts (client-side only)
 	useEffect(() => {
 		setMounted(true);
 		if (typeof window !== "undefined") {
 			const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
-			if (stored === "zh") {
-				setLocaleState("zh");
+			if (stored && (["en", "es", "pt", "hi", "zh"] as const).includes(stored as Locale)) {
+				setLocaleState(stored as Locale);
 			}
 		}
 	}, []);
