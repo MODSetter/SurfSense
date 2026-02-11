@@ -1,13 +1,15 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { CheckIcon, FileTextIcon, Loader2Icon, XIcon } from "lucide-react";
+import { AlertTriangleIcon, CheckIcon, FileTextIcon, Loader2Icon, PencilIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface InterruptResult {
 	__interrupt__: true;
-	__decided__?: "approve" | "reject";
+	__decided__?: "approve" | "reject" | "edit";
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -24,6 +26,9 @@ interface SuccessResult {
 	page_id: string;
 	title: string;
 	url: string;
+	content_preview?: string;
+	content_length?: number;
+	message?: string;
 }
 
 type CreateNotionPageResult = InterruptResult | SuccessResult;
@@ -44,50 +49,114 @@ function ApprovalCard({
 }: {
 	args: Record<string, unknown>;
 	interruptData: InterruptResult;
-	onDecision: (decision: { type: "approve" | "reject"; message?: string }) => void;
+	onDecision: (decision: { type: "approve" | "reject" | "edit"; message?: string; edited_action?: { name: string; args: Record<string, unknown> } }) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | null>(
+	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const [isEditing, setIsEditing] = useState(false);
+	const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>(args);
+	
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
+	const canEdit = allowedDecisions.includes("edit");
 
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
-			<div className="flex items-center gap-3 border-b border-border px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-					<FileTextIcon className="size-4 text-primary" />
+		<div className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
+			decided 
+				? "border border-border bg-card shadow-sm" 
+				: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
+		}`}>
+			<div className={`flex items-center gap-3 border-b ${
+				decided
+					? "border-border bg-card"
+					: "border-foreground/15 bg-muted/40 dark:bg-muted/20"
+			} px-4 py-3`}>
+				<div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+					decided
+						? "bg-muted"
+						: "bg-muted animate-pulse"
+				}`}>
+					<AlertTriangleIcon className={`size-4 ${
+						decided
+							? "text-muted-foreground"
+							: "text-foreground"
+					}`} />
 				</div>
 				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium">Create Notion Page</p>
-					<p className="truncate text-xs text-muted-foreground">
-						Requires your approval to proceed
+					<p className={`text-sm font-medium ${
+						decided
+							? "text-foreground"
+							: "text-foreground"
+					}`}>Create Notion Page</p>
+					<p className={`truncate text-xs ${
+						decided
+							? "text-muted-foreground"
+							: "text-muted-foreground"
+					}`}>
+						{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
 					</p>
 				</div>
 			</div>
 
-		<div className="space-y-2 px-4 py-3">
-			{args.title != null && (
-				<div>
-					<p className="text-xs font-medium text-muted-foreground">Title</p>
-					<p className="text-sm">{String(args.title)}</p>
+			{/* Display mode - show args as read-only */}
+			{!isEditing && (
+				<div className="space-y-2 px-4 py-3 bg-card">
+					{args.title != null && (
+						<div>
+							<p className="text-xs font-medium text-muted-foreground">Title</p>
+							<p className="text-sm text-foreground">{String(args.title)}</p>
+						</div>
+					)}
+					{args.content != null && (
+						<div>
+							<p className="text-xs font-medium text-muted-foreground">Content</p>
+							<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">{String(args.content)}</p>
+						</div>
+					)}
 				</div>
 			)}
-			{args.content != null && (
-				<div>
-					<p className="text-xs font-medium text-muted-foreground">Content</p>
-					<p className="line-clamp-4 text-sm whitespace-pre-wrap">{String(args.content)}</p>
-				</div>
-			)}
-		</div>
 
-			<div className="flex items-center gap-2 border-t border-border px-4 py-3">
+			{/* Edit mode - show editable form fields */}
+			{isEditing && (
+				<div className="space-y-3 px-4 py-3 bg-card">
+					<div>
+						<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+							Title
+						</label>
+						<Input
+							value={String(editedArgs.title ?? "")}
+							onChange={(e) => setEditedArgs({ ...editedArgs, title: e.target.value })}
+							placeholder="Enter page title"
+						/>
+					</div>
+					<div>
+						<label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+							Content
+						</label>
+						<Textarea
+							value={String(editedArgs.content ?? "")}
+							onChange={(e) => setEditedArgs({ ...editedArgs, content: e.target.value })}
+							placeholder="Enter page content"
+							rows={6}
+							className="resize-none"
+						/>
+					</div>
+				</div>
+			)}
+
+			{/* Action buttons */}
+			<div className={`flex items-center gap-2 border-t ${
+				decided
+					? "border-border bg-card"
+					: "border-foreground/15 bg-muted/20 dark:bg-muted/10"
+			} px-4 py-3`}>
 				{decided ? (
 					<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-						{decided === "approve" ? (
+						{decided === "approve" || decided === "edit" ? (
 							<>
 								<CheckIcon className="size-3.5 text-green-500" />
-								Approved
+								{decided === "edit" ? "Approved with Changes" : "Approved"}
 							</>
 						) : (
 							<>
@@ -96,6 +165,35 @@ function ApprovalCard({
 							</>
 						)}
 					</p>
+				) : isEditing ? (
+					<>
+						<Button
+							size="sm"
+							onClick={() => {
+								setDecided("edit");
+								onDecision({
+									type: "edit",
+									edited_action: {
+										name: interruptData.action_requests[0].name,
+										args: editedArgs,
+									},
+								});
+							}}
+						>
+							<CheckIcon />
+							Approve with Changes
+						</Button>
+						<Button
+							size="sm"
+							variant="outline"
+							onClick={() => {
+								setIsEditing(false);
+								setEditedArgs(args); // Reset to original args
+							}}
+						>
+							Cancel
+						</Button>
+					</>
 				) : (
 					<>
 						{allowedDecisions.includes("approve") && (
@@ -108,6 +206,16 @@ function ApprovalCard({
 							>
 								<CheckIcon />
 								Approve
+							</Button>
+						)}
+						{canEdit && (
+							<Button
+								size="sm"
+								variant="outline"
+								onClick={() => setIsEditing(true)}
+							>
+								<PencilIcon />
+								Edit
 							</Button>
 						)}
 						{allowedDecisions.includes("reject") && (
@@ -133,14 +241,36 @@ function ApprovalCard({
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
 		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
-			<div className="flex items-center gap-3 px-4 py-3">
+			<div className="flex items-center gap-3 border-b border-border px-4 py-3">
 				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
 					<CheckIcon className="size-4 text-green-500" />
 				</div>
 				<div className="min-w-0 flex-1">
 					<p className="text-sm font-medium">{result.title}</p>
-					<p className="text-xs text-muted-foreground">Notion page created</p>
+					<p className="text-xs text-muted-foreground">
+						{result.message || "Notion page created successfully"}
+					</p>
 				</div>
+			</div>
+			
+			{/* Show details to verify the arguments were used */}
+			<div className="space-y-2 px-4 py-3 text-xs">
+				<div>
+					<span className="font-medium text-muted-foreground">Page ID: </span>
+					<span className="font-mono">{result.page_id}</span>
+				</div>
+				{result.content_length != null && (
+					<div>
+						<span className="font-medium text-muted-foreground">Content: </span>
+						<span>{result.content_length} characters</span>
+					</div>
+				)}
+				{result.content_preview && (
+					<div>
+						<span className="font-medium text-muted-foreground">Preview: </span>
+						<span className="text-muted-foreground italic">{result.content_preview}</span>
+					</div>
+				)}
 			</div>
 		</div>
 	);

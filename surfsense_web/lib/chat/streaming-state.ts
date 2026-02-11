@@ -1,9 +1,5 @@
 import type { ThreadMessageLike } from "@assistant-ui/react";
 
-/**
- * Extracted from page.tsx lines 131-136.
- * Used across onNew, handleResume, and handleRegenerate.
- */
 export interface ThinkingStepData {
 	id: string;
 	title: string;
@@ -11,10 +7,7 @@ export interface ThinkingStepData {
 	items: string[];
 }
 
-/**
- * Extracted from page.tsx lines 537-545.
- * Duplicated in onNew, handleResume, and handleRegenerate.
- */
+
 export type ContentPart =
 	| { type: "text"; text: string }
 	| {
@@ -25,21 +18,14 @@ export type ContentPart =
 			result?: unknown;
 	  };
 
-/**
- * Mutable state shared by the content-part helpers (appendText, addToolCall, etc.).
- * All handlers create this same set of variables -- this groups them into one object
- * so helpers can read/write them by reference.
- */
+
 export interface ContentPartsState {
 	contentParts: ContentPart[];
 	currentTextPartIndex: number;
 	toolCallIndices: Map<string, number>;
 }
 
-/**
- * Extracted from page.tsx lines 556-573 (onNew).
- * Identical in handleResume (lines 1057-1064) and handleRegenerate (lines 1445-1452).
- */
+
 export function appendText(state: ContentPartsState, delta: string): void {
 	if (state.currentTextPartIndex >= 0 && state.contentParts[state.currentTextPartIndex]?.type === "text") {
 		(state.contentParts[state.currentTextPartIndex] as { type: "text"; text: string }).text += delta;
@@ -49,10 +35,7 @@ export function appendText(state: ContentPartsState, delta: string): void {
 	}
 }
 
-/**
- * Extracted from page.tsx line 540 (onNew).
- * Identical in handleResume (line 1029) and handleRegenerate (line 1407).
- */
+
 export function addToolCall(
 	state: ContentPartsState,
 	toolsWithUI: Set<string>,
@@ -72,10 +55,7 @@ export function addToolCall(
 	}
 }
 
-/**
- * Extracted from page.tsx line 540 (onNew).
- * Identical in handleResume (line 1027) and handleRegenerate (line 1387).
- */
+
 export function updateToolCall(
 	state: ContentPartsState,
 	toolCallId: string,
@@ -89,10 +69,7 @@ export function updateToolCall(
 	}
 }
 
-/**
- * Extracted from page.tsx line 539 (onNew).
- * Identical in handleResume and handleRegenerate.
- */
+
 export function buildContentForUI(
 	state: ContentPartsState,
 	toolsWithUI: Set<string>
@@ -107,10 +84,7 @@ export function buildContentForUI(
 		: [{ type: "text", text: "" }];
 }
 
-/**
- * Extracted from page.tsx line 553 (onNew).
- * Identical in handleResume and handleRegenerate.
- */
+
 export function buildContentForPersistence(
 	state: ContentPartsState,
 	toolsWithUI: Set<string>,
@@ -139,11 +113,7 @@ export function buildContentForPersistence(
 /**
  * Async generator that reads an SSE stream and yields parsed JSON objects.
  * Handles buffering, event splitting, and skips malformed JSON / [DONE] lines.
- *
- * Extracted from the identical SSE reading boilerplate in onNew, handleResume,
- * and handleRegenerate.
  */
-// biome-ignore lint/suspicious/noExplicitAny: matches JSON.parse return type
 export async function* readSSEStream(response: Response): AsyncGenerator<any> {
 	if (!response.body) {
 		throw new Error("No response body");

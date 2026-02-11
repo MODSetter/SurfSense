@@ -187,5 +187,21 @@ button {
 	background-color: hsl(var(--muted-foreground) / 0.4);
 }
 
+/* Human-in-the-loop approval card animations */
+@keyframes pulse-subtle {
+	0%, 100% {
+		opacity: 1;
+		box-shadow: 0 0 0 0 rgb(0 0 0 / 0.15);
+	}
+	50% {
+		opacity: 1;
+		box-shadow: 0 0 20px 4px rgb(0 0 0 / 0.12);
+	}
+}
+
+.animate-pulse-subtle {
+	animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
 @source '../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}';
 @source '../node_modules/streamdown/dist/*.js';

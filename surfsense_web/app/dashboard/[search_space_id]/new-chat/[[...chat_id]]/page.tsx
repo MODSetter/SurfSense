@@ -864,7 +864,7 @@ export default function NewChatPage() {
 	);
 
 	const handleResume = useCallback(
-		async (decisions: Array<{ type: string; message?: string }>) => {
+		async (decisions: Array<{ type: string; message?: string; edited_action?: { name: string; args: Record<string, unknown> } }>) => {
 			if (!pendingInterrupt) return;
 			const { threadId: resumeThreadId, assistantMsgId } = pendingInterrupt;
 			setPendingInterrupt(null);
@@ -1098,10 +1098,16 @@ export default function NewChatPage() {
 	useEffect(() => {
 		const handler = (e: Event) => {
 			const detail = (e as CustomEvent).detail as {
-				decisions: Array<{ type: string; message?: string }>;
+				decisions: Array<{ 
+					type: string; 
+					message?: string; 
+					edited_action?: { name: string; args: Record<string, unknown> };
+				}>;
 			};
 			if (detail?.decisions && pendingInterrupt) {
-				const decisionType = detail.decisions[0]?.type as "approve" | "reject";
+				const decision = detail.decisions[0];
+				const decisionType = decision?.type as "approve" | "reject" | "edit";
+				
 				setMessages((prev) =>
 					prev.map((m) => {
 						if (m.id !== pendingInterrupt.assistantMsgId) return m;
@@ -1113,9 +1119,23 @@ export default function NewChatPage() {
 								part.result !== null &&
 								"__interrupt__" in part.result
 							) {
+								// For edit decisions, also update the displayed args
+								if (decisionType === "edit" && decision.edited_action) {
+									return {
+										...part,
+										args: decision.edited_action.args,  // Update displayed args
+										result: { 
+											...(part.result as Record<string, unknown>), 
+											__decided__: decisionType 
+										},
+									};
+								}
 								return {
 									...part,
-									result: { ...(part.result as Record<string, unknown>), __decided__: decisionType },
+									result: { 
+										...(part.result as Record<string, unknown>), 
+										__decided__: decisionType 
+									},
 								};
 							}
 							return part;
