@@ -200,7 +200,7 @@ function ReportCard({
 
 	return (
 		<div
-			className={`my-4 overflow-hidden rounded-xl border bg-card transition-colors ${isActive ? "ring-2 ring-primary/50" : ""}`}
+			className={`my-4 overflow-hidden rounded-xl border bg-card transition-colors ${isActive ? "ring-1 ring-primary/50" : ""}`}
 		>
 			<button
 				type="button"

@@ -249,20 +249,29 @@ function ReportPanelContent({
 	);
 
 
-	if (isLoading) {
-		return <ReportPanelSkeleton />;
-	}
+	// Show full-page skeleton only on initial load (no data loaded yet).
+	// Once we have versions/content from a prior fetch, keep the action bar visible.
+	const hasLoadedBefore = versions.length > 0 || reportContent !== null;
 
-	if (error || !reportContent) {
+	if (isLoading && !hasLoadedBefore) {
 		return (
-			<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-				<div>
-					<p className="font-medium text-foreground">Failed to load report</p>
-					<p className="text-sm text-red-500 mt-1">
-						{error || "An unknown error occurred"}
-					</p>
+			<>
+				{/* Minimal top bar with close button even during initial load */}
+				<div className="flex items-center justify-end px-4 py-2 shrink-0">
+					{onClose && (
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={onClose}
+							className="size-7 shrink-0"
+						>
+							<XIcon className="size-4" />
+							<span className="sr-only">Close report panel</span>
+						</Button>
+					)}
 				</div>
-			</div>
+				<ReportPanelSkeleton />
+			</>
 		);
 	}
 
@@ -270,7 +279,7 @@ function ReportPanelContent({
 
 	return (
 		<>
-			{/* Action bar */}
+			{/* Action bar — always visible after initial load */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
 				{/* Copy button */}
@@ -278,6 +287,7 @@ function ReportPanelContent({
 					variant="outline"
 					size="sm"
 					onClick={handleCopy}
+					disabled={isLoading || !reportContent?.content}
 					className="h-8 min-w-[80px] px-3.5 py-4 text-[15px]"
 				>
 					{copied ? "Copied" : "Copy"}
@@ -289,6 +299,7 @@ function ReportPanelContent({
 						<Button
 							variant="outline"
 							size="sm"
+							disabled={isLoading || !reportContent?.content}
 							className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
 						>
 							Export
@@ -364,17 +375,30 @@ function ReportPanelContent({
 				)}
 			</div>
 
-			{/* Report content */}
+			{/* Report content — skeleton/error/content shown only in this area */}
 			<div className="flex-1 overflow-y-auto scrollbar-thin">
-				<div className="px-5 py-5">
-				{reportContent.content ? (
-						<MarkdownViewer content={reportContent.content} />
-					) : (
-						<p className="text-muted-foreground italic">
-							No content available.
-						</p>
-					)}
-				</div>
+				{isLoading ? (
+					<ReportPanelSkeleton />
+				) : error || !reportContent ? (
+					<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+						<div>
+							<p className="font-medium text-foreground">Failed to load report</p>
+							<p className="text-sm text-red-500 mt-1">
+								{error || "An unknown error occurred"}
+							</p>
+						</div>
+					</div>
+				) : (
+					<div className="px-5 py-5">
+						{reportContent.content ? (
+							<MarkdownViewer content={reportContent.content} />
+						) : (
+							<p className="text-muted-foreground italic">
+								No content available.
+							</p>
+						)}
+					</div>
+				)}
 			</div>
 		</>
 	);
