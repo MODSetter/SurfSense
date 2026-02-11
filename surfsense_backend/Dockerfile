@@ -70,6 +70,12 @@ COPY . .
 COPY scripts/docker/entrypoint.sh /app/scripts/docker/entrypoint.sh
 RUN dos2unix /app/scripts/docker/entrypoint.sh && chmod +x /app/scripts/docker/entrypoint.sh
 
+# Shared temp directory for file uploads between API and Worker containers.
+# Python's tempfile module uses TMPDIR, so uploaded files land here.
+# Mount the SAME volume at /shared_tmp on both API and Worker in Coolify.
+RUN mkdir -p /shared_tmp
+ENV TMPDIR=/shared_tmp
+
 # Prevent uvloop compatibility issues
 ENV PYTHONPATH=/app
 ENV UVICORN_LOOP=asyncio
