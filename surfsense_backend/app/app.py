@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIASGIMiddleware
+from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -200,9 +200,11 @@ app = FastAPI(lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# Add SlowAPI ASGI middleware for automatic rate limiting
-# This applies default_limits to all routes and enables per-route overrides
-app.add_middleware(SlowAPIASGIMiddleware)
+# Add SlowAPI middleware for automatic rate limiting
+# Uses Starlette BaseHTTPMiddleware (not the raw ASGI variant) to avoid
+# corrupting StreamingResponse — SlowAPIASGIMiddleware re-sends
+# http.response.start on every body chunk, breaking SSE/streaming endpoints.
+app.add_middleware(SlowAPIMiddleware)
 
 # Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
 # This ensures FastAPI uses HTTPS in redirects when behind a proxy
