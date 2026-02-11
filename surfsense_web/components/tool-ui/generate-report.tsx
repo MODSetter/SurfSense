@@ -2,7 +2,7 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import { FileTextIcon } from "lucide-react";
+import { Dot, FileTextIcon } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { z } from "zod";
@@ -21,6 +21,7 @@ const GenerateReportArgsSchema = z.object({
 	source_content: z.string(),
 	report_style: z.string().nullish(),
 	user_instructions: z.string().nullish(),
+	parent_report_id: z.number().nullish(),
 });
 
 const GenerateReportResultSchema = z.object({
@@ -42,6 +43,15 @@ const ReportMetadataResponseSchema = z.object({
 			word_count: z.number().nullish(),
 			section_count: z.number().nullish(),
 		})
+		.nullish(),
+	report_group_id: z.number().nullish(),
+	versions: z
+		.array(
+			z.object({
+				id: z.number(),
+				created_at: z.string().nullish(),
+			})
+		)
 		.nullish(),
 });
 
@@ -117,11 +127,12 @@ function ReportCard({
 	const [metadata, setMetadata] = useState<{
 		title: string;
 		wordCount: number | null;
-	}>({ title, wordCount: wordCount ?? null });
+		versionLabel: string | null;
+	}>({ title, wordCount: wordCount ?? null, versionLabel: null });
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
-	// Fetch lightweight metadata (title + counts only, no content)
+	// Fetch lightweight metadata (title + counts + version info)
 	useEffect(() => {
 		let cancelled = false;
 		const fetchMetadata = async () => {
@@ -142,10 +153,20 @@ function ReportCard({
 								"Report generation failed"
 						);
 					} else {
+						// Determine version label from versions array
+						let versionLabel: string | null = null;
+						const versions = parsed.data.versions;
+						if (versions && versions.length > 1) {
+							const idx = versions.findIndex((v) => v.id === reportId);
+							if (idx >= 0) {
+								versionLabel = `version ${idx + 1}`;
+							}
+						}
 						setMetadata({
 							title: parsed.data.title || title,
 							wordCount:
 								parsed.data.report_metadata?.word_count ?? wordCount ?? null,
+							versionLabel,
 						});
 					}
 				}
@@ -200,6 +221,8 @@ function ReportCard({
 							<>
 								{metadata.wordCount != null &&
 									`${metadata.wordCount.toLocaleString()} words`}
+								{metadata.wordCount != null && metadata.versionLabel && <Dot className="inline size-4" />}
+								{metadata.versionLabel}
 							</>
 						)}
 					</p>
@@ -284,4 +307,3 @@ export const GenerateReportToolUI = makeAssistantToolUI<
 		return <ReportErrorState title={topic} error="Missing report ID" />;
 	},
 });
-

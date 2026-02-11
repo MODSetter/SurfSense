@@ -344,6 +344,8 @@ async def _get_report_for_snapshot(
         "title": report.title,
         "content": report.content,
         "report_metadata": report.report_metadata,
+        "report_group_id": report.report_group_id,
+        "created_at": report.created_at.isoformat() if report.created_at else None,
     }
 
 
@@ -715,6 +717,9 @@ async def clone_from_snapshot(
                             )
                             session.add(new_report)
                             await session.flush()
+                            # For cloned reports, set report_group_id = own id
+                            # (each cloned report starts as its own v1)
+                            new_report.report_group_id = new_report.id
                             report_id_mapping[old_report_id] = new_report.id
 
                     if old_report_id and old_report_id in report_id_mapping:
@@ -790,3 +795,35 @@ async def get_snapshot_report(
             return report
 
     return None
+
+
+async def get_snapshot_report_versions(
+    session: AsyncSession,
+    share_token: str,
+    report_group_id: int | None,
+) -> list[dict]:
+    """
+    Get all report versions in the same group from a snapshot.
+
+    Returns a list of lightweight version entries (id + created_at)
+    for the version switcher UI, sorted by original_id (insertion order).
+    """
+    if not report_group_id:
+        return []
+
+    snapshot = await get_snapshot_by_token(session, share_token)
+    if not snapshot:
+        return []
+
+    reports = snapshot.snapshot_data.get("reports", [])
+    siblings = [
+        r for r in reports if r.get("report_group_id") == report_group_id
+    ]
+
+    # Sort by original_id (ascending = insertion order ≈ created_at order)
+    siblings.sort(key=lambda r: r.get("original_id", 0))
+
+    return [
+        {"id": r.get("original_id"), "created_at": r.get("created_at")}
+        for r in siblings
+    ]

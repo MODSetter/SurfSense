@@ -1046,6 +1046,10 @@ class Report(BaseModel, TimestampMixin):
     )
     search_space = relationship("SearchSpace", back_populates="reports")
 
+    # Versioning: reports sharing the same report_group_id are versions of the same report.
+    # For v1, report_group_id = the report's own id (set after insert).
+    report_group_id = Column(Integer, nullable=True, index=True)
+
     thread_id = Column(
         Integer,
         ForeignKey("new_chat_threads.id", ondelete="SET NULL"),

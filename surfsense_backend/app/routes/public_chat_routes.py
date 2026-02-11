@@ -127,16 +127,25 @@ async def get_public_report_content(
     Get report content from a public chat snapshot.
 
     No authentication required - the share_token provides access.
-    Returns report content including title, markdown body, and metadata.
+    Returns report content including title, markdown body, metadata, and versions.
     """
+    from app.services.public_chat_service import get_snapshot_report_versions
+
     report_info = await get_snapshot_report(session, share_token, report_id)
 
     if not report_info:
         raise HTTPException(status_code=404, detail="Report not found")
+
+    # Get version siblings from the same snapshot
+    versions = await get_snapshot_report_versions(
+        session, share_token, report_info.get("report_group_id")
+    )
 
     return {
         "id": report_info.get("original_id"),
         "title": report_info.get("title"),
         "content": report_info.get("content"),
         "report_metadata": report_info.get("report_metadata"),
+        "report_group_id": report_info.get("report_group_id"),
+        "versions": versions,
     }

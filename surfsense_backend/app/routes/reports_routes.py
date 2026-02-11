@@ -29,6 +29,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas import ReportContentRead, ReportRead
+from app.schemas.reports import ReportVersionInfo
 from app.users import current_active_user
 from app.utils.rbac import check_search_space_access
 
@@ -68,6 +69,24 @@ async def _get_report_with_access(
     await check_search_space_access(session, user, report.search_space_id)
 
     return report
+
+
+async def _get_version_siblings(
+    session: AsyncSession,
+    report: Report,
+) -> list[ReportVersionInfo]:
+    """Get all versions in the same report group, ordered by created_at."""
+    if not report.report_group_id:
+        # Legacy report without group — it's the only version
+        return [ReportVersionInfo(id=report.id, created_at=report.created_at)]
+
+    result = await session.execute(
+        select(Report.id, Report.created_at)
+        .filter(Report.report_group_id == report.report_group_id)
+        .order_by(Report.created_at.asc())
+    )
+    rows = result.all()
+    return [ReportVersionInfo(id=row[0], created_at=row[1]) for row in rows]
 
 
 # ---------------------------------------------------------------------------
@@ -144,10 +163,20 @@ async def read_report_content(
     user: User = Depends(current_active_user),
 ):
     """
-    Get full Markdown content of a report.
+    Get full Markdown content of a report, including version siblings.
     """
     try:
-        return await _get_report_with_access(report_id, session, user)
+        report = await _get_report_with_access(report_id, session, user)
+        versions = await _get_version_siblings(session, report)
+
+        return ReportContentRead(
+            id=report.id,
+            title=report.title,
+            content=report.content,
+            report_metadata=report.report_metadata,
+            report_group_id=report.report_group_id,
+            versions=versions,
+        )
     except HTTPException:
         raise
     except SQLAlchemyError:

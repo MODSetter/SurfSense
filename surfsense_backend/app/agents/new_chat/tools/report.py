@@ -22,7 +22,7 @@ from app.services.llm_service import get_document_summary_llm
 
 logger = logging.getLogger(__name__)
 
-# Prompt template for report generation
+# Prompt template for report generation (new report from scratch)
 _REPORT_PROMPT = """You are an expert report writer. Generate a well-structured, comprehensive Markdown report based on the provided information.
 
 **Topic:** {topic}
@@ -30,6 +30,8 @@ _REPORT_PROMPT = """You are an expert report writer. Generate a well-structured,
 **Report Style:** {report_style}
 
 {user_instructions_section}
+
+{previous_version_section}
 
 **Source Content:**
 {source_content}
@@ -94,6 +96,7 @@ def create_generate_report_tool(
         source_content: str,
         report_style: str = "detailed",
         user_instructions: str | None = None,
+        parent_report_id: int | None = None,
     ) -> dict[str, Any]:
         """
         Generate a structured Markdown report from provided content.
@@ -106,6 +109,29 @@ def create_generate_report_tool(
         - "Make a research report on..."
         - "Summarize this into a report"
 
+        VERSIONING — parent_report_id:
+        - Set parent_report_id ONLY when the user explicitly asks to MODIFY,
+          REVISE, IMPROVE, or UPDATE an existing report that was already
+          generated in this conversation.
+        - The value must be the report_id from a previous generate_report
+          result in this same conversation.
+        - Do NOT set parent_report_id when:
+          * The user asks for a report on a NEW/DIFFERENT topic
+          * The user says "generate another report" (new report, not a revision)
+          * There is no prior report to reference
+        - When parent_report_id is set, the previous report's content will be
+          used as a base. Your user_instructions should describe WHAT TO CHANGE.
+
+        Examples of when to SET parent_report_id:
+          User: "Make that report shorter" → parent_report_id = <previous report_id>
+          User: "Add a cost analysis section to the report" → parent_report_id = <previous report_id>
+          User: "Rewrite the report in a more formal tone" → parent_report_id = <previous report_id>
+
+        Examples of when to LEAVE parent_report_id as None:
+          User: "Generate a report on climate change" → parent_report_id = None (new topic)
+          User: "Write me a report about the budget" → parent_report_id = None (new topic)
+          User: "Create another report, this time about marketing" → parent_report_id = None
+
         Args:
             topic: A short, concise title for the report (maximum 8 words). Keep it brief and descriptive — e.g. "AI in Healthcare Analysis: A Comprehensive Report" instead of "Comprehensive Analysis of Artificial Intelligence Applications in Modern Healthcare Systems".
             source_content: The text content to base the report on. This MUST be comprehensive and include:
@@ -114,7 +140,8 @@ def create_generate_report_tool(
                 * You can combine both: conversation context + search results for richer reports
                 * The more detailed the source_content, the better the report quality
             report_style: Style of the report. Options: "detailed", "executive_summary", "deep_research", "brief". Default: "detailed"
-            user_instructions: Optional specific instructions for the report (e.g., "focus on financial impacts", "include recommendations")
+            user_instructions: Optional specific instructions for the report (e.g., "focus on financial impacts", "include recommendations"). When revising an existing report (parent_report_id is set), this should describe the changes to make.
+            parent_report_id: Optional ID of a previously generated report to revise. When set, the new report is created as a new version in the same version group. The previous report's content is included as context for the LLM to refine.
 
         Returns:
             A dictionary containing:
@@ -124,6 +151,24 @@ def create_generate_report_tool(
             - word_count: Number of words in the report
             - message: Status message (or "error" field if failed)
         """
+        # Resolve the parent report and its group (if versioning)
+        parent_report: Report | None = None
+        report_group_id: int | None = None
+
+        if parent_report_id:
+            parent_report = await db_session.get(Report, parent_report_id)
+            if parent_report:
+                report_group_id = parent_report.report_group_id
+                logger.info(
+                    f"[generate_report] Creating new version from parent {parent_report_id} "
+                    f"(group {report_group_id})"
+                )
+            else:
+                logger.warning(
+                    f"[generate_report] parent_report_id={parent_report_id} not found, "
+                    "creating standalone report"
+                )
+
         async def _save_failed_report(error_msg: str) -> int | None:
             """Persist a failed report row so the error is visible later."""
             try:
@@ -137,10 +182,15 @@ def create_generate_report_tool(
                     report_style=report_style,
                     search_space_id=search_space_id,
                     thread_id=thread_id,
+                    report_group_id=report_group_id,
                 )
                 db_session.add(failed_report)
                 await db_session.commit()
                 await db_session.refresh(failed_report)
+                # If this is a new group (v1 failed), set group to self
+                if not failed_report.report_group_id:
+                    failed_report.report_group_id = failed_report.id
+                    await db_session.commit()
                 logger.info(
                     f"[generate_report] Saved failed report {failed_report.id}: {error_msg}"
                 )
@@ -169,10 +219,20 @@ def create_generate_report_tool(
                     f"**Additional Instructions:** {user_instructions}"
                 )
 
+            # If revising, include previous version content
+            previous_version_section = ""
+            if parent_report and parent_report.content:
+                previous_version_section = (
+                    "**Previous Version of This Report (refine this based on the instructions above — "
+                    "preserve structure and quality, apply only the requested changes):**\n\n"
+                    f"{parent_report.content}"
+                )
+
             prompt = _REPORT_PROMPT.format(
                 topic=topic,
                 report_style=report_style,
                 user_instructions_section=user_instructions_section,
+                previous_version_section=previous_version_section,
                 source_content=source_content[:100000],  # Cap source content
             )
 
@@ -203,13 +263,20 @@ def create_generate_report_tool(
                 report_style=report_style,
                 search_space_id=search_space_id,
                 thread_id=thread_id,
+                report_group_id=report_group_id,  # None for v1, inherited for v2+
             )
             db_session.add(report)
             await db_session.commit()
             await db_session.refresh(report)
 
+            # If this is a brand-new report (v1), set report_group_id = own id
+            if not report.report_group_id:
+                report.report_group_id = report.id
+                await db_session.commit()
+
             logger.info(
-                f"[generate_report] Created report {report.id}: "
+                f"[generate_report] Created report {report.id} "
+                f"(group={report.report_group_id}): "
                 f"{metadata.get('word_count', 0)} words, "
                 f"{metadata.get('section_count', 0)} sections"
             )
@@ -235,4 +302,3 @@ def create_generate_report_tool(
             }
 
     return generate_report
-

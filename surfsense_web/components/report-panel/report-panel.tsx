@@ -2,9 +2,7 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import {
-	CheckIcon,
 	ChevronDownIcon,
-	ClipboardIcon,
 	FileTextIcon,
 	XIcon,
 } from "lucide-react";
@@ -33,6 +31,14 @@ import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 /**
+ * Zod schema for a single version entry
+ */
+const VersionInfoSchema = z.object({
+	id: z.number(),
+	created_at: z.string().nullish(),
+});
+
+/**
  * Zod schema for the report content API response
  */
 const ReportContentResponseSchema = z.object({
@@ -48,9 +54,12 @@ const ReportContentResponseSchema = z.object({
 			section_count: z.number().nullish(),
 		})
 		.nullish(),
+	report_group_id: z.number().nullish(),
+	versions: z.array(VersionInfoSchema).nullish(),
 });
 
 type ReportContentResponse = z.infer<typeof ReportContentResponseSchema>;
+type VersionInfo = z.infer<typeof VersionInfoSchema>;
 
 /**
  * Shimmer loading skeleton for report panel
@@ -117,7 +126,16 @@ function ReportPanelContent({
 	const [copied, setCopied] = useState(false);
 	const [exporting, setExporting] = useState<"pdf" | "docx" | "md" | null>(null);
 
-	// Fetch report content
+	// Version state
+	const [activeReportId, setActiveReportId] = useState(reportId);
+	const [versions, setVersions] = useState<VersionInfo[]>([]);
+
+	// Reset active version when the external reportId changes (e.g. clicking a different card)
+	useEffect(() => {
+		setActiveReportId(reportId);
+	}, [reportId]);
+
+	// Fetch report content (re-runs when activeReportId changes for version switching)
 	useEffect(() => {
 		let cancelled = false;
 		const fetchContent = async () => {
@@ -125,8 +143,8 @@ function ReportPanelContent({
 			setError(null);
 			try {
 				const url = shareToken
-					? `/api/v1/public/${shareToken}/reports/${reportId}/content`
-					: `/api/v1/reports/${reportId}/content`;
+					? `/api/v1/public/${shareToken}/reports/${activeReportId}/content`
+					: `/api/v1/reports/${activeReportId}/content`;
 				const rawData = await baseApiService.get<unknown>(url);
 				if (cancelled) return;
 				const parsed = ReportContentResponseSchema.safeParse(rawData);
@@ -139,6 +157,10 @@ function ReportPanelContent({
 						);
 					} else {
 						setReportContent(parsed.data);
+						// Update versions from the response
+						if (parsed.data.versions && parsed.data.versions.length > 0) {
+							setVersions(parsed.data.versions);
+						}
 					}
 				} else {
 					console.warn(
@@ -162,7 +184,7 @@ function ReportPanelContent({
 		return () => {
 			cancelled = true;
 		};
-	}, [reportId, shareToken]);
+	}, [activeReportId, shareToken]);
 
 	// Copy markdown content
 	const handleCopy = useCallback(async () => {
@@ -200,7 +222,7 @@ function ReportPanelContent({
 					URL.revokeObjectURL(url);
 				} else {
 					const response = await authenticatedFetch(
-						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${reportId}/export?format=${format}`,
+						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${activeReportId}/export?format=${format}`,
 						{ method: "GET" }
 					);
 
@@ -224,7 +246,7 @@ function ReportPanelContent({
 				setExporting(null);
 			}
 		},
-		[reportId, title, reportContent?.content]
+		[activeReportId, title, reportContent?.content]
 	);
 
 
@@ -248,35 +270,35 @@ function ReportPanelContent({
 		);
 	}
 
+	const activeVersionIndex = versions.findIndex((v) => v.id === activeReportId);
+
 	return (
 		<>
 			{/* Action bar */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
-				<div className="flex items-center">
-					<Button
-						variant="outline"
-						size="sm"
-						onClick={handleCopy}
-						className="h-7 min-w-[80px] px-2.5 py-4 text-xs gap-1.5 rounded-r-none border-r-0"
-					>
-						{copied ? (
-							<CheckIcon className="size-3.5" />
-						) : (
-							<ClipboardIcon className="size-3.5" />
-						)}
-						{copied ? "Copied" : "Copy"}
-					</Button>
-					<DropdownMenu modal={insideDrawer ? false : undefined}>
-						<DropdownMenuTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								className="h-7 py-4 px-1.5 rounded-l-none"
-							>
-								<ChevronDownIcon className="size-3" />
-								<span className="sr-only">Download options</span>
-							</Button>
-						</DropdownMenuTrigger>
+				<div className="flex items-center gap-2">
+				{/* Copy button */}
+				<Button
+					variant="outline"
+					size="sm"
+					onClick={handleCopy}
+					className="h-8 min-w-[80px] px-3.5 py-4 text-[15px]"
+				>
+					{copied ? "Copied" : "Copy"}
+				</Button>
+
+				{/* Export dropdown */}
+				<DropdownMenu modal={insideDrawer ? false : undefined}>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="outline"
+							size="sm"
+							className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
+						>
+							Export
+							<ChevronDownIcon className="size-3" />
+						</Button>
+					</DropdownMenuTrigger>
 					<DropdownMenuContent align="start" className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}>
 						<DropdownMenuItem onClick={() => handleExport("md")}>
 							Download Markdown
@@ -306,7 +328,32 @@ function ReportPanelContent({
 							</>
 						)}
 					</DropdownMenuContent>
-					</DropdownMenu>
+				</DropdownMenu>
+
+					{/* Version switcher — only shown when multiple versions exist */}
+					{versions.length > 1 && (
+						<div className="flex items-center gap-1">
+							<div className="flex items-center gap-0.5 rounded-lg border bg-muted/30 p-0.5">
+								{versions.map((v, i) => (
+									<button
+										key={v.id}
+										type="button"
+										onClick={() => setActiveReportId(v.id)}
+										className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
+											v.id === activeReportId
+												? "bg-primary text-primary-foreground shadow-sm"
+												: "text-muted-foreground hover:bg-muted hover:text-foreground"
+										}`}
+									>
+										v{i + 1}
+									</button>
+								))}
+							</div>
+							<span className="text-[10px] text-muted-foreground tabular-nums ml-1">
+								{activeVersionIndex + 1} of {versions.length}
+							</span>
+						</div>
+					)}
 				</div>
 				{onClose && (
 					<Button
@@ -430,4 +477,3 @@ export function ReportPanel() {
 
 	return <MobileReportDrawer />;
 }
-
