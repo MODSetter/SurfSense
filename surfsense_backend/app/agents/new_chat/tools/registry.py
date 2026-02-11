@@ -45,12 +45,16 @@ from langchain_core.tools import BaseTool
 
 from app.db import ChatVisibility
 
-from .create_notion_page import create_create_notion_page_tool
 from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
 from .knowledge_base import create_search_knowledge_base_tool
 from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
+from .notion import (
+    create_create_notion_page_tool,
+    create_delete_notion_page_tool,
+    create_update_notion_page_tool,
+)
 from .podcast import create_generate_podcast_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
@@ -201,13 +205,34 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
     ),
     # =========================================================================
-    # ADD YOUR CUSTOM TOOLS BELOW
+    # NOTION TOOLS - create, update, delete pages
     # =========================================================================
     ToolDefinition(
         name="create_notion_page",
         description="Create a new page in the user's Notion workspace",
-        factory=lambda deps: create_create_notion_page_tool(),
-        requires=[],
+        factory=lambda deps: create_create_notion_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+        ),
+        requires=["db_session", "search_space_id"],
+    ),
+    ToolDefinition(
+        name="update_notion_page",
+        description="Update an existing Notion page's title or content",
+        factory=lambda deps: create_update_notion_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+        ),
+        requires=["db_session", "search_space_id"],
+    ),
+    ToolDefinition(
+        name="delete_notion_page",
+        description="Delete (archive) a Notion page",
+        factory=lambda deps: create_delete_notion_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+        ),
+        requires=["db_session", "search_space_id"],
     ),
 ]
 
