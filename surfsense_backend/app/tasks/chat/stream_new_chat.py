@@ -693,6 +693,11 @@ async def _stream_agent_events(
                 yield streaming_service.format_terminal_info(
                     "Knowledge base search completed", "success"
                 )
+            elif tool_name in ("create_notion_page", "update_notion_page", "delete_notion_page"):
+                yield streaming_service.format_tool_output_available(
+                    tool_call_id,
+                    tool_output if isinstance(tool_output, dict) else {"result": tool_output},
+                )
             else:
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
