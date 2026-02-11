@@ -10,7 +10,6 @@ from sqlalchemy.future import select
 
 from app.config import config
 from app.db import SearchSourceConnector
-from app.routes.notion_add_connector_route import refresh_notion_token
 from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
@@ -219,6 +218,7 @@ class NotionHistoryConnector:
                     )
 
                 # Refresh token
+                from app.routes.notion_add_connector_route import refresh_notion_token
                 connector = await refresh_notion_token(self._session, connector)
 
                 # Reload credentials after refresh
@@ -782,6 +782,34 @@ class NotionHistoryConnector:
     # WRITE OPERATIONS (create, update, delete pages)
     # =========================================================================
 
+    async def _get_first_accessible_parent(self) -> str | None:
+        """
+        Get the first accessible page ID that can be used as a parent.
+
+        Returns:
+            Page ID string, or None if no accessible pages found
+        """
+        try:
+            notion = await self._get_client()
+
+            # Search for pages, get most recently edited first
+            response = await self._api_call_with_retry(
+                notion.search,
+                filter={"property": "object", "value": "page"},
+                sort={"direction": "descending", "timestamp": "last_edited_time"},
+                page_size=1,  # We only need the first one
+            )
+
+            results = response.get("results", [])
+            if results:
+                return results[0]["id"]
+            
+            return None
+
+        except Exception as e:
+            logger.error(f"Error finding accessible parent page: {e}")
+            return None
+
     def _markdown_to_blocks(self, markdown: str) -> list[dict[str, Any]]:
         """
         Convert markdown content to Notion blocks.
@@ -884,40 +912,40 @@ class NotionHistoryConnector:
             APIResponseError: If Notion API returns an error
         """
         try:
+            logger.info(f"Creating Notion page: title='{title}', parent_page_id={parent_page_id}")
+            
             # Get Notion client
-            notion = await self._get_notion_client()
+            notion = await self._get_client()
 
             # Convert markdown content to Notion blocks
             children = self._markdown_to_blocks(content)
 
-            # Prepare parent
-            if parent_page_id:
-                parent = {"type": "page_id", "page_id": parent_page_id}
-            else:
-                # Try to use workspace root
-                # Note: This requires proper permissions
-                result = await self._session.execute(
-                    select(SearchSourceConnector).filter(
-                        SearchSourceConnector.id == self._connector_id
-                    )
-                )
-                connector = result.scalars().first()
-                if connector and connector.config.get("workspace_id"):
-                    parent = {"type": "workspace", "workspace": True}
-                else:
-                    raise ValueError(
-                        "parent_page_id is required. "
-                        "Please specify a parent page where the new page should be created."
-                    )
-
-            # Create the page
-            response = await notion.pages.create(
-                parent=parent,
-                properties={
-                    "title": {
-                        "title": [{"type": "text", "text": {"content": title}}]
+            # Prepare parent - find first available page if not provided
+            if not parent_page_id:
+                logger.info("No parent_page_id provided, searching for first accessible page...")
+                parent_page_id = await self._get_first_accessible_parent()
+                if not parent_page_id:
+                    logger.warning("No accessible parent pages found")
+                    return {
+                        "status": "error",
+                        "message": "Could not find any accessible Notion pages to use as parent. "
+                                  "Please make sure your Notion integration has access to at least one page.",
                     }
-                },
+                logger.info(f"Using parent_page_id: {parent_page_id}")
+
+            parent = {"type": "page_id", "page_id": parent_page_id}
+
+            # Create the page with standard title property
+            properties = {
+                "title": {
+                    "title": [{"type": "text", "text": {"content": title}}]
+                }
+            }
+
+            response = await self._api_call_with_retry(
+                notion.pages.create,
+                parent=parent,
+                properties=properties,
                 children=children[:100],  # Notion API limit: 100 blocks per request
             )
 
@@ -928,8 +956,10 @@ class NotionHistoryConnector:
             if len(children) > 100:
                 for i in range(100, len(children), 100):
                     batch = children[i : i + 100]
-                    await notion.blocks.children.append(
-                        block_id=page_id, children=batch
+                    await self._api_call_with_retry(
+                        notion.blocks.children.append,
+                        block_id=page_id,
+                        children=batch
                     )
 
             return {
@@ -972,11 +1002,12 @@ class NotionHistoryConnector:
             APIResponseError: If Notion API returns an error
         """
         try:
-            notion = await self._get_notion_client()
+            notion = await self._get_client()
 
             # Update title if provided
             if title:
-                await notion.pages.update(
+                await self._api_call_with_retry(
+                    notion.pages.update,
                     page_id=page_id,
                     properties={
                         "title": {
@@ -988,22 +1019,33 @@ class NotionHistoryConnector:
             # Update content if provided
             if content:
                 # First, get existing blocks
-                existing_blocks = await notion.blocks.children.list(block_id=page_id)
+                existing_blocks = await self._api_call_with_retry(
+                    notion.blocks.children.list,
+                    block_id=page_id
+                )
 
                 # Delete existing blocks
                 for block in existing_blocks.get("results", []):
-                    await notion.blocks.delete(block_id=block["id"])
+                    await self._api_call_with_retry(
+                        notion.blocks.delete,
+                        block_id=block["id"]
+                    )
 
                 # Add new content
                 children = self._markdown_to_blocks(content)
                 for i in range(0, len(children), 100):
                     batch = children[i : i + 100]
-                    await notion.blocks.children.append(
-                        block_id=page_id, children=batch
+                    await self._api_call_with_retry(
+                        notion.blocks.children.append,
+                        block_id=page_id,
+                        children=batch
                     )
 
             # Get updated page
-            response = await notion.pages.retrieve(page_id=page_id)
+            response = await self._api_call_with_retry(
+                notion.pages.retrieve,
+                page_id=page_id
+            )
             page_url = response["url"]
             page_title = response["properties"]["title"]["title"][0]["text"]["content"]
 
@@ -1045,10 +1087,14 @@ class NotionHistoryConnector:
             APIResponseError: If Notion API returns an error
         """
         try:
-            notion = await self._get_notion_client()
+            notion = await self._get_client()
 
             # Archive the page (Notion's way of "deleting")
-            response = await notion.pages.update(page_id=page_id, archived=True)
+            response = await self._api_call_with_retry(
+                notion.pages.update,
+                page_id=page_id,
+                archived=True
+            )
 
             page_title = "Unknown"
             try:

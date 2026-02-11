@@ -65,7 +65,6 @@ def create_delete_notion_page_tool(
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.connector_type
                         == SearchSourceConnectorType.NOTION_CONNECTOR,
-                        SearchSourceConnector.is_enabled == True,
                     )
                 )
                 connector = result.scalars().first()
