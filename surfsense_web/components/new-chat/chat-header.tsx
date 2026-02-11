@@ -8,7 +8,6 @@ import type {
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
 import { ImageConfigSidebar } from "./image-config-sidebar";
-import { ImageModelSelector } from "./image-model-selector";
 import { ModelConfigSidebar } from "./model-config-sidebar";
 import { ModelSelector } from "./model-selector";
 
@@ -34,7 +33,7 @@ export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
 	const [imageSidebarMode, setImageSidebarMode] = useState<"create" | "edit" | "view">("view");
 
 	// LLM handlers
-	const handleEditConfig = useCallback(
+	const handleEditLLMConfig = useCallback(
 		(config: NewLLMConfigPublic | GlobalNewLLMConfig, global: boolean) => {
 			setSelectedConfig(config);
 			setIsGlobal(global);
@@ -44,7 +43,7 @@ export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
 		[]
 	);
 
-	const handleAddNew = useCallback(() => {
+	const handleAddNewLLM = useCallback(() => {
 		setSelectedConfig(null);
 		setIsGlobal(false);
 		setSidebarMode("create");
@@ -81,8 +80,12 @@ export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
 
 	return (
 		<div className="flex items-center gap-2">
-			<ModelSelector onEdit={handleEditConfig} onAddNew={handleAddNew} />
-			<ImageModelSelector onEdit={handleEditImageConfig} onAddNew={handleAddImageModel} />
+			<ModelSelector
+				onEditLLM={handleEditLLMConfig}
+				onAddNewLLM={handleAddNewLLM}
+				onEditImage={handleEditImageConfig}
+				onAddNewImage={handleAddImageModel}
+			/>
 			<ModelConfigSidebar
 				open={sidebarOpen}
 				onOpenChange={handleSidebarClose}

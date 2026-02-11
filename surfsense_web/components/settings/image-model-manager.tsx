@@ -5,19 +5,17 @@ import {
 	AlertCircle,
 	Check,
 	ChevronsUpDown,
-	Clock,
 	Edit3,
-	ImageIcon,
+	Info,
 	Key,
 	Plus,
 	RefreshCw,
-	Shuffle,
-	Sparkles,
 	Trash2,
 	Wand2,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import Image from "next/image";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	createImageGenConfigMutationAtom,
@@ -28,8 +26,8 @@ import {
 	globalImageGenConfigsAtom,
 	imageGenConfigsAtom,
 } from "@/atoms/image-gen-config/image-gen-config-query.atoms";
+import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import { updateLLMPreferencesMutationAtom } from "@/atoms/new-llm-config/new-llm-config-mutation.atoms";
-import { llmPreferencesAtom } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
 	AlertDialog,
@@ -41,9 +39,8 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
 	Command,
 	CommandEmpty,
@@ -70,6 +67,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
@@ -77,6 +75,7 @@ import {
 	IMAGE_GEN_PROVIDERS,
 } from "@/contracts/enums/image-gen-providers";
 import type { ImageGenerationConfig } from "@/contracts/types/new-llm-config.types";
+import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
 interface ImageModelManagerProps {
@@ -92,6 +91,14 @@ const item = {
 	hidden: { opacity: 0, y: 20 },
 	show: { opacity: 1, y: 0 },
 };
+
+function getInitials(name: string): string {
+	const parts = name.trim().split(/\s+/);
+	if (parts.length >= 2) {
+		return (parts[0][0] + parts[1][0]).toUpperCase();
+	}
+	return name.slice(0, 2).toUpperCase();
+}
 
 export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 	// Image gen config atoms
@@ -120,27 +127,46 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 	} = useAtomValue(imageGenConfigsAtom);
 	const { data: globalConfigs = [], isFetching: globalLoading } =
 		useAtomValue(globalImageGenConfigsAtom);
-	const { data: preferences = {}, isFetching: prefsLoading } = useAtomValue(llmPreferencesAtom);
+
+	// Members for user resolution
+	const { data: members } = useAtomValue(membersAtom);
+	const memberMap = useMemo(() => {
+		const map = new Map<string, { name: string; email?: string; avatarUrl?: string }>();
+		if (members) {
+			for (const m of members) {
+				map.set(m.user_id, {
+					name: m.user_display_name || m.user_email || "Unknown",
+					email: m.user_email || undefined,
+					avatarUrl: m.user_avatar_url || undefined,
+				});
+			}
+		}
+		return map;
+	}, [members]);
+
+	// Permissions
+	const { data: access } = useAtomValue(myAccessAtom);
+	const canCreate = useMemo(() => {
+		if (!access) return false;
+		if (access.is_owner) return true;
+		return access.permissions?.includes("image_generations:create") ?? false;
+	}, [access]);
+	const canDelete = useMemo(() => {
+		if (!access) return false;
+		if (access.is_owner) return true;
+		return access.permissions?.includes("image_generations:delete") ?? false;
+	}, [access]);
+	// Backend uses image_generations:create for update as well
+	const canUpdate = canCreate;
+	const isReadOnly = !canCreate && !canDelete;
 
 	// Local state
 	const [isDialogOpen, setIsDialogOpen] = useState(false);
 	const [editingConfig, setEditingConfig] = useState<ImageGenerationConfig | null>(null);
 	const [configToDelete, setConfigToDelete] = useState<ImageGenerationConfig | null>(null);
 
-	// Preference state
-	const [selectedPrefId, setSelectedPrefId] = useState<string | number>(
-		preferences.image_generation_config_id ?? ""
-	);
-	const [hasPrefChanges, setHasPrefChanges] = useState(false);
-	const [isSavingPref, setIsSavingPref] = useState(false);
-
-	useEffect(() => {
-		setSelectedPrefId(preferences.image_generation_config_id ?? "");
-		setHasPrefChanges(false);
-	}, [preferences]);
-
 	const isSubmitting = isCreating || isUpdating;
-	const isLoading = configsLoading || globalLoading || prefsLoading;
+	const isLoading = configsLoading || globalLoading;
 	const errors = [createError, updateError, deleteError, fetchError].filter(Boolean) as Error[];
 
 	// Form state for create/edit dialog
@@ -248,40 +274,6 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 		setIsDialogOpen(true);
 	};
 
-	const handlePrefChange = (value: string) => {
-		const newVal = value === "unassigned" ? "" : parseInt(value);
-		setSelectedPrefId(newVal);
-		setHasPrefChanges(newVal !== (preferences.image_generation_config_id ?? ""));
-	};
-
-	const handleSavePref = async () => {
-		setIsSavingPref(true);
-		try {
-			await updatePreferences({
-				search_space_id: searchSpaceId,
-				data: {
-					image_generation_config_id:
-						typeof selectedPrefId === "string"
-							? selectedPrefId
-								? parseInt(selectedPrefId)
-								: undefined
-							: selectedPrefId,
-				},
-			});
-			setHasPrefChanges(false);
-			toast.success("Image generation model preference saved!");
-		} catch {
-			toast.error("Failed to save preference");
-		} finally {
-			setIsSavingPref(false);
-		}
-	};
-
-	const allConfigs = [
-		...globalConfigs.map((c) => ({ ...c, _source: "global" as const })),
-		...(userConfigs ?? []).map((c) => ({ ...c, _source: "user" as const })),
-	];
-
 	const selectedProvider = IMAGE_GEN_PROVIDERS.find((p) => p.value === formData.provider);
 	const suggestedModels = getImageGenModelsByProvider(formData.provider);
 
@@ -299,6 +291,14 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 					<RefreshCw className={cn("h-3 w-3 md:h-4 md:w-4", configsLoading && "animate-spin")} />
 					Refresh
 				</Button>
+				{canCreate && (
+					<Button
+						onClick={openNewDialog}
+						className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
+					>
+						Add Image Model
+					</Button>
+				)}
 			</div>
 
 			{/* Errors */}
@@ -318,11 +318,39 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				))}
 			</AnimatePresence>
 
+			{/* Read-only / Limited permissions notice */}
+			{access && !isLoading && isReadOnly && (
+				<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+					<Alert className="bg-muted/50 py-3 md:py-4">
+						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+						<AlertDescription className="text-xs md:text-sm">
+							You have <span className="font-medium">read-only</span> access to image generation
+							configurations. Contact a space owner to request additional permissions.
+						</AlertDescription>
+					</Alert>
+				</motion.div>
+			)}
+			{access && !isLoading && !isReadOnly && (!canCreate || !canDelete) && (
+				<motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
+					<Alert className="bg-muted/50 py-3 md:py-4">
+						<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+						<AlertDescription className="text-xs md:text-sm">
+							You can{" "}
+							{[canCreate && "create and edit", canDelete && "delete"]
+								.filter(Boolean)
+								.join(" and ")}{" "}
+							image model configurations
+							{!canDelete && ", but cannot delete them"}.
+						</AlertDescription>
+					</Alert>
+				</motion.div>
+			)}
+
 			{/* Global info */}
 			{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length > 0 && (
-				<Alert className="border-teal-500/30 bg-teal-500/5 py-3">
-					<Sparkles className="h-3 w-3 md:h-4 md:w-4 text-teal-600 dark:text-teal-400 shrink-0" />
-					<AlertDescription className="text-teal-800 dark:text-teal-200 text-xs md:text-sm">
+				<Alert className="flex flex-row items-center gap-2 bg-muted/50 py-3 [&>svg]:static [&>svg+div]:translate-y-0 [&>svg~*]:pl-0">
+					<Info className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+					<AlertDescription className="text-xs md:text-sm">
 						<span className="font-medium">
 							{globalConfigs.filter((g) => !("is_auto_mode" in g && g.is_auto_mode)).length} global
 							image model(s)
@@ -332,139 +360,50 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 				</Alert>
 			)}
 
-			{/* Active Preference Card */}
-			{!isLoading && allConfigs.length > 0 && (
-				<motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-					<Card className="border-l-4 border-l-teal-500">
-						<CardHeader className="pb-2 px-3 md:px-6 pt-3 md:pt-6">
-							<div className="flex items-center gap-2 md:gap-3">
-								<div className="p-1.5 md:p-2 rounded-lg bg-teal-100 text-teal-800">
-									<ImageIcon className="w-4 h-4 md:w-5 md:h-5" />
-								</div>
-								<div>
-									<CardTitle className="text-base md:text-lg">Active Image Model</CardTitle>
-									<CardDescription className="text-xs md:text-sm">
-										Select which model to use for image generation
-									</CardDescription>
-								</div>
-							</div>
-						</CardHeader>
-						<CardContent className="space-y-3 px-3 md:px-6 pb-3 md:pb-6">
-							<Select
-								value={selectedPrefId?.toString() || "unassigned"}
-								onValueChange={handlePrefChange}
-							>
-								<SelectTrigger className="h-9 md:h-10 text-xs md:text-sm">
-									<SelectValue placeholder="Select an image model" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="unassigned">
-										<span className="text-muted-foreground">Unassigned</span>
-									</SelectItem>
-									{globalConfigs.length > 0 && (
-										<>
-											<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-												Global
-											</div>
-											{globalConfigs.map((c) => {
-												const isAuto = "is_auto_mode" in c && c.is_auto_mode;
-												return (
-													<SelectItem key={`g-${c.id}`} value={c.id.toString()}>
-														<div className="flex items-center gap-2">
-															{isAuto ? (
-																<Badge
-																	variant="outline"
-																	className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300 border-violet-200"
-																>
-																	<Shuffle className="size-3 mr-1" />
-																	AUTO
-																</Badge>
-															) : (
-																<Badge
-																	variant="outline"
-																	className="text-xs bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300 border-teal-200"
-																>
-																	{c.provider}
-																</Badge>
-															)}
-															<span>{c.name}</span>
-														</div>
-													</SelectItem>
-												);
-											})}
-										</>
-									)}
-									{(userConfigs?.length ?? 0) > 0 && (
-										<>
-											<div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground">
-												Your Models
-											</div>
-											{userConfigs?.map((c) => (
-												<SelectItem key={`u-${c.id}`} value={c.id.toString()}>
-													<div className="flex items-center gap-2">
-														<Badge variant="outline" className="text-xs">
-															{c.provider}
-														</Badge>
-														<span>{c.name}</span>
-														<span className="text-muted-foreground">({c.model_name})</span>
-													</div>
-												</SelectItem>
-											))}
-										</>
-									)}
-								</SelectContent>
-							</Select>
-							{hasPrefChanges && (
-								<div className="flex gap-2 pt-1">
-									<Button
-										size="sm"
-										onClick={handleSavePref}
-										disabled={isSavingPref}
-										className="text-xs h-8"
-									>
-										{isSavingPref ? "Saving..." : "Save"}
-									</Button>
-									<Button
-										size="sm"
-										variant="outline"
-										onClick={() => {
-											setSelectedPrefId(preferences.image_generation_config_id ?? "");
-											setHasPrefChanges(false);
-										}}
-										className="text-xs h-8"
-									>
-										Reset
-									</Button>
-								</div>
-							)}
-						</CardContent>
-					</Card>
-				</motion.div>
-			)}
-
-			{/* Loading */}
+			{/* Loading Skeleton */}
 			{isLoading && (
-				<Card>
-					<CardContent className="flex items-center justify-center py-10">
-						<Spinner size="md" className="text-muted-foreground" />
-					</CardContent>
-				</Card>
+				<div className="space-y-4 md:space-y-6">
+					{/* Your Image Models Section Skeleton */}
+					<div className="space-y-4">
+						<div className="flex items-center justify-between">
+							<Skeleton className="h-6 md:h-7 w-40 md:w-48" />
+							<Skeleton className="h-8 md:h-9 w-32 md:w-36 rounded-md" />
+						</div>
+
+						{/* Cards Grid Skeleton */}
+						<div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3">
+							{["skeleton-a", "skeleton-b", "skeleton-c"].map((key) => (
+								<Card key={key} className="border-border/60">
+									<CardContent className="p-4 flex flex-col gap-3">
+										{/* Header */}
+										<div className="flex items-start justify-between gap-2">
+											<div className="space-y-1.5 flex-1 min-w-0">
+												<Skeleton className="h-4 w-28 md:w-32" />
+												<Skeleton className="h-3 w-40 md:w-48" />
+											</div>
+										</div>
+										{/* Provider + Model */}
+										<div className="flex items-center gap-2">
+											<Skeleton className="h-5 w-16 rounded-full" />
+											<Skeleton className="h-5 w-24 rounded-md" />
+										</div>
+										{/* Footer */}
+										<div className="flex items-center gap-2 pt-2 border-t border-border/40">
+											<Skeleton className="h-3 w-20" />
+											<Skeleton className="h-4 w-4 rounded-full" />
+											<Skeleton className="h-3 w-16" />
+										</div>
+									</CardContent>
+								</Card>
+							))}
+						</div>
+					</div>
+				</div>
 			)}
 
 			{/* User Configs */}
 			{!isLoading && (
 				<div className="space-y-4 md:space-y-6">
-					<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-						<h3 className="text-lg md:text-xl font-semibold tracking-tight">Your Image Models</h3>
-						<Button
-							onClick={openNewDialog}
-							className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
-						>
-							<Plus className="h-3 w-3 md:h-4 md:w-4" />
-							Add Image Model
-						</Button>
-					</div>
-
 					{(userConfigs?.length ?? 0) === 0 ? (
 						<Card className="border-dashed border-2 border-muted-foreground/25">
 							<CardContent className="flex flex-col items-center justify-center py-10 md:py-16 text-center">
@@ -473,99 +412,151 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 								</div>
 								<h3 className="text-lg font-semibold mb-2">No Image Models Yet</h3>
 								<p className="text-xs md:text-sm text-muted-foreground max-w-sm mb-4">
-									Add your own image generation model (DALL-E 3, GPT Image 1, etc.)
+									{canCreate
+										? "Add your own image generation model (DALL-E 3, GPT Image 1, etc.)"
+										: "No image models have been added to this space yet. Contact a space owner to add one."}
 								</p>
-								<Button onClick={openNewDialog} size="lg" className="gap-2 text-xs md:text-sm">
-									<Plus className="h-3 w-3 md:h-4 md:w-4" />
-									Add First Image Model
-								</Button>
+								{canCreate && (
+									<Button
+										onClick={openNewDialog}
+										size="lg"
+										className="gap-2 text-xs md:text-sm h-9 md:h-10"
+									>
+										<Plus className="h-3 w-3 md:h-4 md:w-4" />
+										Add First Image Model
+									</Button>
+								)}
 							</CardContent>
 						</Card>
 					) : (
-						<motion.div variants={container} initial="hidden" animate="show" className="grid gap-4">
+						<motion.div
+							variants={container}
+							initial="hidden"
+							animate="show"
+							className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-3"
+						>
 							<AnimatePresence mode="popLayout">
-								{userConfigs?.map((config) => (
-									<motion.div
-										key={config.id}
-										variants={item}
-										layout
-										exit={{ opacity: 0, scale: 0.95 }}
-									>
-										<Card className="group overflow-hidden hover:shadow-lg transition-all duration-300 border-muted-foreground/10 hover:border-teal-500/30">
-											<CardContent className="p-0">
-												<div className="flex">
-													<div className="w-1 md:w-1.5 bg-gradient-to-b from-teal-500/50 to-cyan-500/50 group-hover:from-teal-500 group-hover:to-cyan-500 transition-colors" />
-													<div className="flex-1 p-3 md:p-5">
-														<div className="flex items-start justify-between gap-2">
-															<div className="flex items-start gap-2 md:gap-4 flex-1 min-w-0">
-																<div className="flex h-10 w-10 md:h-12 md:w-12 items-center justify-center rounded-lg md:rounded-xl bg-gradient-to-br from-teal-500/10 to-cyan-500/10 shrink-0">
-																	<ImageIcon className="h-5 w-5 md:h-6 md:w-6 text-teal-600 dark:text-teal-400" />
-																</div>
-																<div className="flex-1 min-w-0 space-y-2">
-																	<div className="flex items-center gap-1.5 flex-wrap">
-																		<h4 className="text-sm md:text-base font-semibold truncate">
-																			{config.name}
-																		</h4>
-																		<Badge
-																			variant="secondary"
-																			className="text-[9px] md:text-[10px] px-1.5 py-0.5 bg-teal-500/10 text-teal-700 dark:text-teal-300 border-teal-500/20"
-																		>
-																			{config.provider}
-																		</Badge>
-																	</div>
-																	<code className="text-[10px] md:text-xs font-mono text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded-md inline-block">
-																		{config.model_name}
-																	</code>
-																	{config.description && (
-																		<p className="text-[10px] md:text-xs text-muted-foreground line-clamp-1">
-																			{config.description}
-																		</p>
-																	)}
-																	<div className="flex items-center gap-1 text-[10px] md:text-xs text-muted-foreground pt-1">
-																		<Clock className="h-2.5 w-2.5 md:h-3 md:w-3" />
-																		{new Date(config.created_at).toLocaleDateString()}
-																	</div>
-																</div>
-															</div>
-															<div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-																<TooltipProvider>
-																	<Tooltip>
-																		<TooltipTrigger asChild>
-																			<Button
-																				variant="ghost"
-																				size="sm"
-																				onClick={() => openEditDialog(config)}
-																				className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
-																			>
-																				<Edit3 className="h-3.5 w-3.5" />
-																			</Button>
-																		</TooltipTrigger>
-																		<TooltipContent>Edit</TooltipContent>
-																	</Tooltip>
-																</TooltipProvider>
-																<TooltipProvider>
-																	<Tooltip>
-																		<TooltipTrigger asChild>
-																			<Button
-																				variant="ghost"
-																				size="sm"
-																				onClick={() => setConfigToDelete(config)}
-																				className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
-																			>
-																				<Trash2 className="h-3.5 w-3.5" />
-																			</Button>
-																		</TooltipTrigger>
-																		<TooltipContent>Delete</TooltipContent>
-																	</Tooltip>
-																</TooltipProvider>
-															</div>
+								{userConfigs?.map((config) => {
+									const member = config.user_id ? memberMap.get(config.user_id) : null;
+
+									return (
+										<motion.div
+											key={config.id}
+											variants={item}
+											layout
+											exit={{ opacity: 0, scale: 0.95 }}
+										>
+											<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
+												<CardContent className="p-4 flex flex-col gap-3 h-full">
+													{/* Header: Name + Actions */}
+													<div className="flex items-start justify-between gap-2">
+														<div className="min-w-0 flex-1">
+															<h4 className="text-sm font-semibold tracking-tight truncate">
+																{config.name}
+															</h4>
+															{config.description && (
+																<p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
+																	{config.description}
+																</p>
+															)}
 														</div>
+														{(canUpdate || canDelete) && (
+															<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+																{canUpdate && (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<Button
+																					variant="ghost"
+																					size="icon"
+																					onClick={() => openEditDialog(config)}
+																					className="h-7 w-7 text-muted-foreground hover:text-foreground"
+																				>
+																					<Edit3 className="h-3 w-3" />
+																				</Button>
+																			</TooltipTrigger>
+																			<TooltipContent>Edit</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																)}
+																{canDelete && (
+																	<TooltipProvider>
+																		<Tooltip>
+																			<TooltipTrigger asChild>
+																				<Button
+																					variant="ghost"
+																					size="icon"
+																					onClick={() => setConfigToDelete(config)}
+																					className="h-7 w-7 text-muted-foreground hover:text-destructive"
+																				>
+																					<Trash2 className="h-3 w-3" />
+																				</Button>
+																			</TooltipTrigger>
+																			<TooltipContent>Delete</TooltipContent>
+																		</Tooltip>
+																	</TooltipProvider>
+																)}
+															</div>
+														)}
 													</div>
-												</div>
-											</CardContent>
-										</Card>
-									</motion.div>
-								))}
+
+													{/* Provider + Model */}
+													<div className="flex items-center gap-2 flex-wrap">
+														{getProviderIcon(config.provider, { className: "size-3.5 shrink-0" })}
+														<code className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md truncate max-w-[160px]">
+															{config.model_name}
+														</code>
+													</div>
+
+													{/* Footer: Date + Creator */}
+													<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
+														<span className="text-[11px] text-muted-foreground/60">
+															{new Date(config.created_at).toLocaleDateString(undefined, {
+																year: "numeric",
+																month: "short",
+																day: "numeric",
+															})}
+														</span>
+														{member && (
+															<>
+																<span className="text-muted-foreground/30">·</span>
+																<TooltipProvider>
+																	<Tooltip>
+																		<TooltipTrigger asChild>
+																			<div className="flex items-center gap-1.5 cursor-default">
+																				{member.avatarUrl ? (
+																					<Image
+																						src={member.avatarUrl}
+																						alt={member.name}
+																						width={18}
+																						height={18}
+																						className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
+																					/>
+																				) : (
+																					<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
+																						<span className="text-[9px] font-semibold text-primary">
+																							{getInitials(member.name)}
+																						</span>
+																					</div>
+																				)}
+																				<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
+																					{member.name}
+																				</span>
+																			</div>
+																		</TooltipTrigger>
+																		<TooltipContent side="bottom">
+																			{member.email || member.name}
+																		</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															</>
+														)}
+													</div>
+												</CardContent>
+											</Card>
+										</motion.div>
+									);
+								})}
 							</AnimatePresence>
 						</motion.div>
 					)}
@@ -583,16 +574,12 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 					}
 				}}
 			>
-				<DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+				<DialogContent
+					className="max-w-lg max-h-[90vh] overflow-y-auto"
+					onOpenAutoFocus={(e) => e.preventDefault()}
+				>
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							{editingConfig ? (
-								<Edit3 className="w-5 h-5 text-teal-600" />
-							) : (
-								<Plus className="w-5 h-5 text-teal-600" />
-							)}
-							{editingConfig ? "Edit Image Model" : "Add Image Model"}
-						</DialogTitle>
+						<DialogTitle>{editingConfig ? "Edit Image Model" : "Add Image Model"}</DialogTitle>
 						<DialogDescription>
 							{editingConfig
 								? "Update your image generation model"

@@ -64,7 +64,7 @@ async def get_global_new_llm_configs(
             safe_configs.append(
                 {
                     "id": 0,
-                    "name": "Auto (Load Balanced)",
+                    "name": "Auto (Fastest)",
                     "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling. Recommended for most users.",
                     "provider": "AUTO",
                     "custom_provider": None,
@@ -149,8 +149,8 @@ async def create_new_llm_config(
                 detail=f"Invalid LLM configuration: {error_message}",
             )
 
-        # Create the config
-        db_config = NewLLMConfig(**config_data.model_dump())
+        # Create the config with user association
+        db_config = NewLLMConfig(**config_data.model_dump(), user_id=user.id)
         session.add(db_config)
         await session.commit()
         await session.refresh(db_config)

@@ -324,7 +324,7 @@ async def _get_llm_config_by_id(
     if config_id == 0:
         return {
             "id": 0,
-            "name": "Auto (Load Balanced)",
+            "name": "Auto (Fastest)",
             "description": "Automatically routes requests across available LLM providers for optimal performance and rate limit handling",
             "provider": "AUTO",
             "custom_provider": None,
@@ -402,7 +402,7 @@ async def _get_image_gen_config_by_id(
     if config_id == 0:
         return {
             "id": 0,
-            "name": "Auto (Load Balanced)",
+            "name": "Auto (Fastest)",
             "description": "Automatically routes requests across available image generation providers",
             "provider": "AUTO",
             "model_name": "auto",

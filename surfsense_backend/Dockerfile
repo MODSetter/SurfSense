@@ -70,9 +70,32 @@ COPY . .
 COPY scripts/docker/entrypoint.sh /app/scripts/docker/entrypoint.sh
 RUN dos2unix /app/scripts/docker/entrypoint.sh && chmod +x /app/scripts/docker/entrypoint.sh
 
+# Shared temp directory for file uploads between API and Worker containers.
+# Python's tempfile module uses TMPDIR, so uploaded files land here.
+# Mount the SAME volume at /shared_tmp on both API and Worker in Coolify.
+RUN mkdir -p /shared_tmp
+ENV TMPDIR=/shared_tmp
+
 # Prevent uvloop compatibility issues
 ENV PYTHONPATH=/app
 ENV UVICORN_LOOP=asyncio
+
+# SERVICE_ROLE controls which process this container runs:
+#   api     – FastAPI backend only (runs migrations on startup)
+#   worker  – Celery worker only
+#   beat    – Celery beat scheduler only
+#   all     – All three (legacy / dev default)
+ENV SERVICE_ROLE=all
+
+# Celery worker tuning (only used when SERVICE_ROLE=worker or all)
+ENV CELERY_MAX_WORKERS=10
+ENV CELERY_MIN_WORKERS=2
+ENV CELERY_MAX_TASKS_PER_CHILD=50
+# CELERY_QUEUES: comma-separated queues to consume (empty = all queues)
+#   "surfsense"              – fast tasks only (file uploads, podcasts, etc.)
+#   "surfsense.connectors"   – slow connector indexing tasks only
+#   ""                       – both queues (default, for single-worker setups)
+ENV CELERY_QUEUES=""
 
 # Run
 EXPOSE 8000-8001

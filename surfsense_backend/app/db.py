@@ -1066,6 +1066,12 @@ class ImageGenerationConfig(BaseModel, TimestampMixin):
         "SearchSpace", back_populates="image_generation_configs"
     )
 
+    # User who created this config
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    user = relationship("User", back_populates="image_generation_configs")
+
 
 class ImageGeneration(BaseModel, TimestampMixin):
     """
@@ -1284,6 +1290,7 @@ class SearchSourceConnector(BaseModel, TimestampMixin):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
+    user = relationship("User", back_populates="search_source_connectors")
 
     # Documents created by this connector (for cleanup on connector deletion)
     documents = relationship("Document", back_populates="connector")
@@ -1339,6 +1346,12 @@ class NewLLMConfig(BaseModel, TimestampMixin):
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
     )
     search_space = relationship("SearchSpace", back_populates="new_llm_configs")
+
+    # User who created this config
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
+    )
+    user = relationship("User", back_populates="new_llm_configs")
 
 
 class Log(BaseModel, TimestampMixin):
@@ -1608,6 +1621,27 @@ if config.AUTH_TYPE == "GOOGLE":
             passive_deletes=True,
         )
 
+        # Connectors created by this user
+        search_source_connectors = relationship(
+            "SearchSourceConnector",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
+        # LLM configs created by this user
+        new_llm_configs = relationship(
+            "NewLLMConfig",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
+        # Image generation configs created by this user
+        image_generation_configs = relationship(
+            "ImageGenerationConfig",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
         # User memories for personalized AI responses
         memories = relationship(
             "UserMemory",
@@ -1684,6 +1718,27 @@ else:
         image_generations = relationship(
             "ImageGeneration",
             back_populates="created_by",
+            passive_deletes=True,
+        )
+
+        # Connectors created by this user
+        search_source_connectors = relationship(
+            "SearchSourceConnector",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
+        # LLM configs created by this user
+        new_llm_configs = relationship(
+            "NewLLMConfig",
+            back_populates="user",
+            passive_deletes=True,
+        )
+
+        # Image generation configs created by this user
+        image_generation_configs = relationship(
+            "ImageGenerationConfig",
+            back_populates="user",
             passive_deletes=True,
         )
 

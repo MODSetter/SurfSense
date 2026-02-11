@@ -69,7 +69,7 @@ def _get_global_image_gen_config(config_id: int) -> dict | None:
     if config_id == IMAGE_GEN_AUTO_MODE_ID:
         return {
             "id": IMAGE_GEN_AUTO_MODE_ID,
-            "name": "Auto (Load Balanced)",
+            "name": "Auto (Fastest)",
             "provider": "AUTO",
             "model_name": "auto",
             "is_auto_mode": True,
@@ -215,7 +215,7 @@ async def get_global_image_gen_configs(
             safe_configs.append(
                 {
                     "id": 0,
-                    "name": "Auto (Load Balanced)",
+                    "name": "Auto (Fastest)",
                     "description": "Automatically routes across available image generation providers.",
                     "provider": "AUTO",
                     "custom_provider": None,
@@ -273,7 +273,7 @@ async def create_image_gen_config(
             "You don't have permission to create image generation configs in this search space",
         )
 
-        db_config = ImageGenerationConfig(**config_data.model_dump())
+        db_config = ImageGenerationConfig(**config_data.model_dump(), user_id=user.id)
         session.add(db_config)
         await session.commit()
         await session.refresh(db_config)
