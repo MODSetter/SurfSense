@@ -51,11 +51,8 @@ Write the report now:
 
 def _extract_metadata(content: str) -> dict[str, Any]:
     """Extract metadata from generated Markdown content."""
-    # Extract section headings
+    # Count section headings
     headings = re.findall(r"^(#{1,6})\s+(.+)$", content, re.MULTILINE)
-    sections = [
-        {"level": len(h[0]), "title": h[1].strip()} for h in headings
-    ]
 
     # Word count
     word_count = len(content.split())
@@ -64,10 +61,10 @@ def _extract_metadata(content: str) -> dict[str, Any]:
     char_count = len(content)
 
     return {
-        "sections": sections,
+        "status": "ready",
         "word_count": word_count,
         "char_count": char_count,
-        "section_count": len(sections),
+        "section_count": len(headings),
     }
 
 
@@ -110,7 +107,7 @@ def create_generate_report_tool(
         - "Summarize this into a report"
 
         Args:
-            topic: The main topic or title of the report.
+            topic: A short, concise title for the report (maximum 8 words). Keep it brief and descriptive — e.g. "AI in Healthcare Analysis: A Comprehensive Report" instead of "Comprehensive Analysis of Artificial Intelligence Applications in Modern Healthcare Systems".
             source_content: The text content to base the report on. This MUST be comprehensive and include:
                 * If discussing the current conversation: a detailed summary of the FULL chat history
                 * If based on knowledge base search: the key findings and insights from search results
@@ -127,14 +124,41 @@ def create_generate_report_tool(
             - word_count: Number of words in the report
             - message: Status message (or "error" field if failed)
         """
+        async def _save_failed_report(error_msg: str) -> int | None:
+            """Persist a failed report row so the error is visible later."""
+            try:
+                failed_report = Report(
+                    title=topic,
+                    content=None,
+                    report_metadata={
+                        "status": "failed",
+                        "error_message": error_msg,
+                    },
+                    report_style=report_style,
+                    search_space_id=search_space_id,
+                    thread_id=thread_id,
+                )
+                db_session.add(failed_report)
+                await db_session.commit()
+                await db_session.refresh(failed_report)
+                logger.info(
+                    f"[generate_report] Saved failed report {failed_report.id}: {error_msg}"
+                )
+                return failed_report.id
+            except Exception:
+                logger.exception("[generate_report] Could not persist failed report row")
+                return None
+
         try:
             # Get the LLM instance for this search space
             llm = await get_document_summary_llm(db_session, search_space_id)
             if not llm:
+                error_msg = "No LLM configured. Please configure a language model in Settings."
+                report_id = await _save_failed_report(error_msg)
                 return {
                     "status": "failed",
-                    "error": "No LLM configured. Please configure a language model in Settings.",
-                    "report_id": None,
+                    "error": error_msg,
+                    "report_id": report_id,
                     "title": topic,
                 }
 
@@ -159,14 +183,16 @@ def create_generate_report_tool(
             report_content = response.content
 
             if not report_content or not isinstance(report_content, str):
+                error_msg = "LLM returned empty or invalid content"
+                report_id = await _save_failed_report(error_msg)
                 return {
                     "status": "failed",
-                    "error": "LLM returned empty or invalid content",
-                    "report_id": None,
+                    "error": error_msg,
+                    "report_id": report_id,
                     "title": topic,
                 }
 
-            # Extract metadata
+            # Extract metadata (includes "status": "ready")
             metadata = _extract_metadata(report_content)
 
             # Save to database
@@ -199,11 +225,12 @@ def create_generate_report_tool(
         except Exception as e:
             error_message = str(e)
             logger.exception(f"[generate_report] Error: {error_message}")
+            report_id = await _save_failed_report(error_message)
 
             return {
                 "status": "failed",
                 "error": error_message,
-                "report_id": None,
+                "report_id": report_id,
                 "title": topic,
             }
 

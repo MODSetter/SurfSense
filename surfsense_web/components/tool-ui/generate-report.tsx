@@ -2,12 +2,10 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-	FileTextIcon,
-	Loader2Icon,
-} from "lucide-react";
+import { FileTextIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import { z } from "zod";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import {
 	openReportPanelAtom,
 	reportPanelAtom,
@@ -38,6 +36,8 @@ const ReportMetadataResponseSchema = z.object({
 	title: z.string(),
 	report_metadata: z
 		.object({
+			status: z.enum(["ready", "failed"]).nullish(),
+			error_message: z.string().nullish(),
 			word_count: z.number().nullish(),
 			section_count: z.number().nullish(),
 		})
@@ -51,67 +51,22 @@ type GenerateReportArgs = z.infer<typeof GenerateReportArgsSchema>;
 type GenerateReportResult = z.infer<typeof GenerateReportResultSchema>;
 
 /**
- * Shimmer line used in the skeleton loading state.
- * Each line has a staggered delay and random-ish width to mimic real paragraphs.
- */
-function ShimmerLine({ width, delay }: { width: string; delay: string }) {
-	return (
-		<div
-			className="h-2.5 rounded-md bg-muted/60"
-			style={{
-				width,
-				animation: `pulse 2s cubic-bezier(0.4,0,0.6,1) infinite`,
-				animationDelay: delay,
-			}}
-		/>
-	);
-}
-
-/**
  * Loading state component shown while report is being generated.
- * Renders a card with a skeleton that looks like report content being written.
+ * Matches the compact card layout of the completed ReportCard.
  */
 function ReportGeneratingState({ topic }: { topic: string }) {
 	return (
 		<div className="my-4 overflow-hidden rounded-xl border bg-card">
-			{/* Header */}
-			<div className="flex items-center gap-2 sm:gap-3 border-b bg-muted/30 px-4 py-3 sm:px-6 sm:py-4">
+			<div className="flex w-full items-center gap-2 sm:gap-3 bg-muted/30 px-4 py-3 sm:px-6 sm:py-4">
+				<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+					<FileTextIcon className="size-4 sm:size-5 text-primary" />
+				</div>
 				<div className="min-w-0 flex-1">
 					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight truncate">
 						{topic}
 					</h3>
-					<div className="mt-1 flex items-center gap-1.5 text-muted-foreground">
-						<Loader2Icon className="size-3 animate-spin" />
-						<span className="text-[11px] sm:text-xs">Writing report…</span>
-					</div>
+					<TextShimmerLoader text="Writing report…" size="sm" />
 				</div>
-			</div>
-
-			{/* Skeleton body – simulates paragraphs being written */}
-			<div className="px-4 py-4 sm:px-6 sm:py-5 space-y-4 max-h-52 overflow-hidden relative">
-				{/* "Heading" */}
-				<ShimmerLine width="40%" delay="0ms" />
-
-				{/* Paragraph 1 */}
-				<div className="space-y-2">
-					<ShimmerLine width="100%" delay="100ms" />
-					<ShimmerLine width="92%" delay="150ms" />
-					<ShimmerLine width="97%" delay="200ms" />
-					<ShimmerLine width="60%" delay="250ms" />
-				</div>
-
-				{/* "Heading 2" */}
-				<ShimmerLine width="35%" delay="300ms" />
-
-				{/* Paragraph 2 */}
-				<div className="space-y-2">
-					<ShimmerLine width="95%" delay="350ms" />
-					<ShimmerLine width="100%" delay="400ms" />
-					<ShimmerLine width="88%" delay="450ms" />
-				</div>
-
-				{/* Bottom fade-out */}
-				<div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
 			</div>
 		</div>
 	);
@@ -125,7 +80,7 @@ function ReportErrorState({ title, error }: { title: string; error: string }) {
 		<div className="my-4 overflow-hidden rounded-xl border bg-card">
 			<div className="flex items-center gap-2 sm:gap-3 bg-muted/30 px-4 py-3 sm:px-6 sm:py-4">
 				<div className="flex size-8 sm:size-10 shrink-0 items-center justify-center rounded-lg bg-muted/60">
-					<FileTextIcon className="size-4 sm:size-5 text-muted-foreground/50" />
+					<FileTextIcon className="size-4 sm:size-5 text-muted-foreground" />
 				</div>
 				<div className="min-w-0 flex-1">
 					<h3 className="font-semibold text-muted-foreground text-sm sm:text-base leading-tight truncate">
@@ -161,12 +116,14 @@ function ReportCard({
 		sectionCount: number | null;
 	}>({ title, wordCount: wordCount ?? null, sectionCount: null });
 	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
 
 	// Fetch lightweight metadata (title + counts only, no content)
 	useEffect(() => {
 		let cancelled = false;
 		const fetchMetadata = async () => {
 			setIsLoading(true);
+			setError(null);
 			try {
 				const rawData = await baseApiService.get<unknown>(
 					`/api/v1/reports/${reportId}/content`
@@ -174,16 +131,24 @@ function ReportCard({
 				if (cancelled) return;
 				const parsed = ReportMetadataResponseSchema.safeParse(rawData);
 				if (parsed.success) {
-					setMetadata({
-						title: parsed.data.title || title,
-						wordCount:
-							parsed.data.report_metadata?.word_count ?? wordCount ?? null,
-						sectionCount:
-							parsed.data.report_metadata?.section_count ?? null,
-					});
+					// Check if report was marked as failed in metadata
+					if (parsed.data.report_metadata?.status === "failed") {
+						setError(
+							parsed.data.report_metadata?.error_message ||
+								"Report generation failed"
+						);
+					} else {
+						setMetadata({
+							title: parsed.data.title || title,
+							wordCount:
+								parsed.data.report_metadata?.word_count ?? wordCount ?? null,
+							sectionCount:
+								parsed.data.report_metadata?.section_count ?? null,
+						});
+					}
 				}
 			} catch {
-				// Silently fail — we already have the title and word count from the tool result
+				if (!cancelled) setError("No report found");
 			} finally {
 				if (!cancelled) setIsLoading(false);
 			}
@@ -193,6 +158,11 @@ function ReportCard({
 			cancelled = true;
 		};
 	}, [reportId, title, wordCount]);
+
+	// Show non-clickable error card for any error (failed status, not found, etc.)
+	if (!isLoading && error) {
+		return <ReportErrorState title={title} error={error} />;
+	}
 
 	const isActive = panelState.isOpen && panelState.reportId === reportId;
 

@@ -35,14 +35,8 @@ const ReportContentResponseSchema = z.object({
 	content: z.string().nullish(),
 	report_metadata: z
 		.object({
-			sections: z
-				.array(
-					z.object({
-						level: z.number(),
-						title: z.string(),
-					})
-				)
-				.nullish(),
+			status: z.enum(["ready", "failed"]).nullish(),
+			error_message: z.string().nullish(),
 			word_count: z.number().nullish(),
 			char_count: z.number().nullish(),
 			section_count: z.number().nullish(),
@@ -126,7 +120,15 @@ function ReportPanelContent({
 				if (cancelled) return;
 				const parsed = ReportContentResponseSchema.safeParse(rawData);
 				if (parsed.success) {
-					setReportContent(parsed.data);
+					// Check if the report was marked as failed in metadata
+					if (parsed.data.report_metadata?.status === "failed") {
+						setError(
+							parsed.data.report_metadata?.error_message ||
+								"Report generation failed"
+						);
+					} else {
+						setReportContent(parsed.data);
+					}
 				} else {
 					console.warn(
 						"Invalid report content response:",
