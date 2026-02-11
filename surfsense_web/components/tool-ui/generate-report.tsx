@@ -3,6 +3,7 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { FileTextIcon } from "lucide-react";
+import { useParams, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -103,10 +104,13 @@ function ReportCard({
 	reportId,
 	title,
 	wordCount,
+	shareToken,
 }: {
 	reportId: number;
 	title: string;
 	wordCount?: number;
+	/** When set, uses public endpoint for fetching report data */
+	shareToken?: string | null;
 }) {
 	const openPanel = useSetAtom(openReportPanelAtom);
 	const panelState = useAtomValue(reportPanelAtom);
@@ -124,9 +128,10 @@ function ReportCard({
 			setIsLoading(true);
 			setError(null);
 			try {
-				const rawData = await baseApiService.get<unknown>(
-					`/api/v1/reports/${reportId}/content`
-				);
+				const url = shareToken
+					? `/api/v1/public/${shareToken}/reports/${reportId}/content`
+					: `/api/v1/reports/${reportId}/content`;
+				const rawData = await baseApiService.get<unknown>(url);
 				if (cancelled) return;
 				const parsed = ReportMetadataResponseSchema.safeParse(rawData);
 				if (parsed.success) {
@@ -154,7 +159,7 @@ function ReportCard({
 		return () => {
 			cancelled = true;
 		};
-	}, [reportId, title, wordCount]);
+	}, [reportId, title, wordCount, shareToken]);
 
 	// Show non-clickable error card for any error (failed status, not found, etc.)
 	if (!isLoading && error) {
@@ -168,6 +173,7 @@ function ReportCard({
 			reportId,
 			title: metadata.title,
 			wordCount: metadata.wordCount ?? undefined,
+			shareToken,
 		});
 	};
 
@@ -218,6 +224,11 @@ export const GenerateReportToolUI = makeAssistantToolUI<
 >({
 	toolName: "generate_report",
 	render: function GenerateReportUI({ args, result, status }) {
+		const params = useParams();
+		const pathname = usePathname();
+		const isPublicRoute = pathname?.startsWith("/public/");
+		const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
+
 		const topic = args.topic || "Report";
 
 		// Loading state - tool is still running (LLM generating report)
@@ -264,6 +275,7 @@ export const GenerateReportToolUI = makeAssistantToolUI<
 					reportId={result.report_id}
 					title={result.title || topic}
 					wordCount={result.word_count ?? undefined}
+					shareToken={shareToken}
 				/>
 			);
 		}

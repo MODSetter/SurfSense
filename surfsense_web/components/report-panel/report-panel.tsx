@@ -101,12 +101,15 @@ function ReportPanelContent({
 	title,
 	onClose,
 	insideDrawer = false,
+	shareToken,
 }: {
 	reportId: number;
 	title: string;
 	onClose?: () => void;
 	/** When true, adjusts dropdown behavior to work inside a Vaul drawer on mobile */
 	insideDrawer?: boolean;
+	/** When set, uses public endpoint for fetching report data (public shared chat) */
+	shareToken?: string | null;
 }) {
 	const [reportContent, setReportContent] =
 		useState<ReportContentResponse | null>(null);
@@ -122,9 +125,10 @@ function ReportPanelContent({
 			setIsLoading(true);
 			setError(null);
 			try {
-				const rawData = await baseApiService.get<unknown>(
-					`/api/v1/reports/${reportId}/content`
-				);
+				const url = shareToken
+					? `/api/v1/public/${shareToken}/reports/${reportId}/content`
+					: `/api/v1/reports/${reportId}/content`;
+				const rawData = await baseApiService.get<unknown>(url);
 				if (cancelled) return;
 				const parsed = ReportContentResponseSchema.safeParse(rawData);
 				if (parsed.success) {
@@ -159,7 +163,7 @@ function ReportPanelContent({
 		return () => {
 			cancelled = true;
 		};
-	}, [reportId]);
+	}, [reportId, shareToken]);
 
 	// Copy markdown content
 	const handleCopy = useCallback(async () => {
@@ -274,34 +278,40 @@ function ReportPanelContent({
 								<span className="sr-only">Download options</span>
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="start" className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}>
-							<DropdownMenuItem onClick={() => handleExport("md")}>
-								<DownloadIcon className="size-4" />
-								Download Markdown
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={() => handleExport("pdf")}
-								disabled={exporting !== null}
-							>
-								{exporting === "pdf" ? (
-									<Loader2Icon className="size-4 animate-spin" />
-								) : (
-									<DownloadIcon className="size-4" />
-								)}
-								Download PDF
-							</DropdownMenuItem>
-							<DropdownMenuItem
-								onClick={() => handleExport("docx")}
-								disabled={exporting !== null}
-							>
-								{exporting === "docx" ? (
-									<Loader2Icon className="size-4 animate-spin" />
-								) : (
-									<DownloadIcon className="size-4" />
-								)}
-								Download DOCX
-							</DropdownMenuItem>
-						</DropdownMenuContent>
+					<DropdownMenuContent align="start" className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}>
+						<DropdownMenuItem onClick={() => handleExport("md")}>
+							<DownloadIcon className="size-4" />
+							Download Markdown
+						</DropdownMenuItem>
+						{/* PDF/DOCX export requires server-side conversion via authenticated endpoint.
+						    Hide for public viewers who have no auth token. */}
+						{!shareToken && (
+							<>
+								<DropdownMenuItem
+									onClick={() => handleExport("pdf")}
+									disabled={exporting !== null}
+								>
+									{exporting === "pdf" ? (
+										<Loader2Icon className="size-4 animate-spin" />
+									) : (
+										<DownloadIcon className="size-4" />
+									)}
+									Download PDF
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={() => handleExport("docx")}
+									disabled={exporting !== null}
+								>
+									{exporting === "docx" ? (
+										<Loader2Icon className="size-4 animate-spin" />
+									) : (
+										<DownloadIcon className="size-4" />
+									)}
+									Download DOCX
+								</DropdownMenuItem>
+							</>
+						)}
+					</DropdownMenuContent>
 					</DropdownMenu>
 				</div>
 				{onClose && (
@@ -363,6 +373,7 @@ function DesktopReportPanel() {
 				reportId={panelState.reportId}
 				title={panelState.title || "Report"}
 				onClose={closePanel}
+				shareToken={panelState.shareToken}
 			/>
 		</div>
 	);
@@ -395,6 +406,7 @@ function MobileReportDrawer() {
 						reportId={panelState.reportId}
 						title={panelState.title || "Report"}
 						insideDrawer
+						shareToken={panelState.shareToken}
 					/>
 				</div>
 			</DrawerContent>

@@ -5,6 +5,8 @@ interface ReportPanelState {
 	reportId: number | null;
 	title: string | null;
 	wordCount: number | null;
+	/** When set, uses public endpoints for fetching report data (public shared chat) */
+	shareToken: string | null;
 }
 
 const initialState: ReportPanelState = {
@@ -12,6 +14,7 @@ const initialState: ReportPanelState = {
 	reportId: null,
 	title: null,
 	wordCount: null,
+	shareToken: null,
 };
 
 /** Core atom holding the report panel state */
@@ -30,13 +33,15 @@ export const openReportPanelAtom = atom(
 			reportId,
 			title,
 			wordCount,
-		}: { reportId: number; title: string; wordCount?: number }
+			shareToken,
+		}: { reportId: number; title: string; wordCount?: number; shareToken?: string | null }
 	) => {
 		set(reportPanelAtom, {
 			isOpen: true,
 			reportId,
 			title,
 			wordCount: wordCount ?? null,
+			shareToken: shareToken ?? null,
 		});
 	}
 );
