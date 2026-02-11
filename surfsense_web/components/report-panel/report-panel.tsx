@@ -3,6 +3,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import {
 	CheckIcon,
+	ChevronDownIcon,
 	ClipboardIcon,
 	DownloadIcon,
 	FileTextIcon,
@@ -21,6 +22,12 @@ import {
 	DrawerContent,
 	DrawerHandle,
 } from "@/components/ui/drawer";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
@@ -92,12 +99,10 @@ function ReportPanelSkeleton() {
 function ReportPanelContent({
 	reportId,
 	title,
-	wordCount,
 	onClose,
 }: {
 	reportId: number;
 	title: string;
-	wordCount: number | null;
 	onClose?: () => void;
 }) {
 	const [reportContent, setReportContent] =
@@ -105,7 +110,7 @@ function ReportPanelContent({
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
-	const [exporting, setExporting] = useState<"pdf" | "docx" | null>(null);
+	const [exporting, setExporting] = useState<"pdf" | "docx" | "md" | null>(null);
 
 	// Fetch report content
 	useEffect(() => {
@@ -167,39 +172,55 @@ function ReportPanelContent({
 
 	// Export report
 	const handleExport = useCallback(
-		async (format: "pdf" | "docx") => {
+		async (format: "pdf" | "docx" | "md") => {
 			setExporting(format);
+			const safeTitle =
+				title.replace(/[^a-zA-Z0-9 _-]/g, "_").trim().slice(0, 80) ||
+				"report";
 			try {
-				const response = await authenticatedFetch(
-					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${reportId}/export?format=${format}`,
-					{ method: "GET" }
-				);
+				if (format === "md") {
+					// Download markdown content directly as a .md file
+					if (!reportContent?.content) return;
+					const blob = new Blob([reportContent.content], {
+						type: "text/markdown;charset=utf-8",
+					});
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement("a");
+					a.href = url;
+					a.download = `${safeTitle}.md`;
+					document.body.appendChild(a);
+					a.click();
+					document.body.removeChild(a);
+					URL.revokeObjectURL(url);
+				} else {
+					const response = await authenticatedFetch(
+						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${reportId}/export?format=${format}`,
+						{ method: "GET" }
+					);
 
-				if (!response.ok) {
-					throw new Error(`Export failed: ${response.status}`);
+					if (!response.ok) {
+						throw new Error(`Export failed: ${response.status}`);
+					}
+
+					const blob = await response.blob();
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement("a");
+					a.href = url;
+					a.download = `${safeTitle}.${format}`;
+					document.body.appendChild(a);
+					a.click();
+					document.body.removeChild(a);
+					URL.revokeObjectURL(url);
 				}
-
-				const blob = await response.blob();
-				const url = URL.createObjectURL(blob);
-				const a = document.createElement("a");
-				a.href = url;
-				a.download = `${title.replace(/[^a-zA-Z0-9 _-]/g, "_").trim().slice(0, 80) || "report"}.${format}`;
-				document.body.appendChild(a);
-				a.click();
-				document.body.removeChild(a);
-				URL.revokeObjectURL(url);
 			} catch (err) {
 				console.error(`Export ${format} failed:`, err);
 			} finally {
 				setExporting(null);
 			}
 		},
-		[reportId, title]
+		[reportId, title, reportContent?.content]
 	);
 
-	const displayWordCount =
-		wordCount ?? reportContent?.report_metadata?.word_count ?? null;
-	const displayTitle = reportContent?.title || title;
 
 	if (isLoading) {
 		return <ReportPanelSkeleton />;
@@ -224,64 +245,68 @@ function ReportPanelContent({
 	return (
 		<>
 			{/* Action bar */}
-			<div className="flex items-center gap-1.5 border-b bg-muted/20 px-4 py-2 shrink-0">
-				<div className="min-w-0 flex-1">
-					{displayWordCount != null && (
-						<p className="text-muted-foreground text-xs">
-							{displayWordCount.toLocaleString()} words
-							{reportContent.report_metadata?.section_count
-								? ` · ${reportContent.report_metadata.section_count} sections`
-								: ""}
-						</p>
-					)}
+			<div className="flex items-center justify-between px-4 py-2 shrink-0">
+				<div className="flex items-center">
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleCopy}
+						className="h-7 min-w-[80px] px-2.5 py-4 text-xs gap-1.5 rounded-r-none border-r-0"
+					>
+						{copied ? (
+							<CheckIcon className="size-3.5" />
+						) : (
+							<ClipboardIcon className="size-3.5" />
+						)}
+						{copied ? "Copied" : "Copy"}
+					</Button>
+					<DropdownMenu>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								className="h-7 py-4 px-1.5 rounded-l-none"
+							>
+								<ChevronDownIcon className="size-3" />
+								<span className="sr-only">Download options</span>
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent align="start" className="min-w-[180px]">
+							<DropdownMenuItem onClick={() => handleExport("md")}>
+								<DownloadIcon className="size-4" />
+								Download Markdown
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => handleExport("pdf")}
+								disabled={exporting !== null}
+							>
+								{exporting === "pdf" ? (
+									<Loader2Icon className="size-4 animate-spin" />
+								) : (
+									<DownloadIcon className="size-4" />
+								)}
+								Download PDF
+							</DropdownMenuItem>
+							<DropdownMenuItem
+								onClick={() => handleExport("docx")}
+								disabled={exporting !== null}
+							>
+								{exporting === "docx" ? (
+									<Loader2Icon className="size-4 animate-spin" />
+								) : (
+									<DownloadIcon className="size-4" />
+								)}
+								Download DOCX
+							</DropdownMenuItem>
+						</DropdownMenuContent>
+					</DropdownMenu>
 				</div>
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={handleCopy}
-					className="h-7 px-2 text-xs"
-				>
-					{copied ? (
-						<CheckIcon className="size-3.5 mr-1" />
-					) : (
-						<ClipboardIcon className="size-3.5 mr-1" />
-					)}
-					{copied ? "Copied" : "Copy MD"}
-				</Button>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => handleExport("pdf")}
-					disabled={exporting !== null}
-					className="h-7 px-2 text-xs"
-				>
-					{exporting === "pdf" ? (
-						<Loader2Icon className="size-3.5 mr-1 animate-spin" />
-					) : (
-						<DownloadIcon className="size-3.5 mr-1" />
-					)}
-					PDF
-				</Button>
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => handleExport("docx")}
-					disabled={exporting !== null}
-					className="h-7 px-2 text-xs"
-				>
-					{exporting === "docx" ? (
-						<Loader2Icon className="size-3.5 mr-1 animate-spin" />
-					) : (
-						<DownloadIcon className="size-3.5 mr-1" />
-					)}
-					DOCX
-				</Button>
 				{onClose && (
 					<Button
 						variant="ghost"
 						size="icon"
 						onClick={onClose}
-						className="size-7 shrink-0 ml-1"
+						className="size-7 shrink-0"
 					>
 						<XIcon className="size-4" />
 						<span className="sr-only">Close report panel</span>
@@ -292,8 +317,7 @@ function ReportPanelContent({
 			{/* Report content */}
 			<div className="flex-1 overflow-y-auto scrollbar-thin">
 				<div className="px-5 py-5">
-					<h1 className="text-xl font-bold mb-4">{displayTitle}</h1>
-					{reportContent.content ? (
+				{reportContent.content ? (
 						<MarkdownViewer content={reportContent.content} />
 					) : (
 						<p className="text-muted-foreground italic">
@@ -335,7 +359,6 @@ function DesktopReportPanel() {
 			<ReportPanelContent
 				reportId={panelState.reportId}
 				title={panelState.title || "Report"}
-				wordCount={panelState.wordCount}
 				onClose={closePanel}
 			/>
 		</div>
@@ -368,7 +391,6 @@ function MobileReportDrawer() {
 					<ReportPanelContent
 						reportId={panelState.reportId}
 						title={panelState.title || "Report"}
-						wordCount={panelState.wordCount}
 					/>
 				</div>
 			</DrawerContent>

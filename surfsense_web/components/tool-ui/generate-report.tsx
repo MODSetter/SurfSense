@@ -113,8 +113,7 @@ function ReportCard({
 	const [metadata, setMetadata] = useState<{
 		title: string;
 		wordCount: number | null;
-		sectionCount: number | null;
-	}>({ title, wordCount: wordCount ?? null, sectionCount: null });
+	}>({ title, wordCount: wordCount ?? null });
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 
@@ -142,8 +141,6 @@ function ReportCard({
 							title: parsed.data.title || title,
 							wordCount:
 								parsed.data.report_metadata?.word_count ?? wordCount ?? null,
-							sectionCount:
-								parsed.data.report_metadata?.section_count ?? null,
 						});
 					}
 				}
@@ -197,8 +194,6 @@ function ReportCard({
 							<>
 								{metadata.wordCount != null &&
 									`${metadata.wordCount.toLocaleString()} words`}
-								{metadata.sectionCount != null &&
-									` · ${metadata.sectionCount} sections`}
 							</>
 						)}
 					</p>
