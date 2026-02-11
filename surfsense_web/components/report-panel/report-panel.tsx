@@ -100,10 +100,13 @@ function ReportPanelContent({
 	reportId,
 	title,
 	onClose,
+	insideDrawer = false,
 }: {
 	reportId: number;
 	title: string;
 	onClose?: () => void;
+	/** When true, adjusts dropdown behavior to work inside a Vaul drawer on mobile */
+	insideDrawer?: boolean;
 }) {
 	const [reportContent, setReportContent] =
 		useState<ReportContentResponse | null>(null);
@@ -260,7 +263,7 @@ function ReportPanelContent({
 						)}
 						{copied ? "Copied" : "Copy"}
 					</Button>
-					<DropdownMenu>
+					<DropdownMenu modal={insideDrawer ? false : undefined}>
 						<DropdownMenuTrigger asChild>
 							<Button
 								variant="outline"
@@ -271,7 +274,7 @@ function ReportPanelContent({
 								<span className="sr-only">Download options</span>
 							</Button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="start" className="min-w-[180px]">
+						<DropdownMenuContent align="start" className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}>
 							<DropdownMenuItem onClick={() => handleExport("md")}>
 								<DownloadIcon className="size-4" />
 								Download Markdown
@@ -391,6 +394,7 @@ function MobileReportDrawer() {
 					<ReportPanelContent
 						reportId={panelState.reportId}
 						title={panelState.title || "Report"}
+						insideDrawer
 					/>
 				</div>
 			</DrawerContent>

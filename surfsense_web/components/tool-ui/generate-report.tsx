@@ -65,7 +65,7 @@ function ReportGeneratingState({ topic }: { topic: string }) {
 					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight truncate">
 						{topic}
 					</h3>
-					<TextShimmerLoader text="Writing report…" size="sm" />
+					<TextShimmerLoader text="Putting things together" size="sm" />
 				</div>
 			</div>
 		</div>
