@@ -12,7 +12,6 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-import { addToolCall, appendText, buildContentForPersistence, buildContentForUI, type ContentPart, type ContentPartsState, readSSEStream, type ThinkingStepData, updateToolCall } from "@/lib/chat/streaming-state";
 import {
 	clearTargetCommentIdAtom,
 	currentThreadAtom,
@@ -35,6 +34,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { CreateNotionPageToolUI } from "@/components/tool-ui/create-notion-page";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
+import { DeleteNotionPageToolUI } from "@/components/tool-ui/delete-notion-page";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
@@ -52,6 +52,17 @@ import {
 	looksLikePodcastRequest,
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
+import {
+	addToolCall,
+	appendText,
+	buildContentForPersistence,
+	buildContentForUI,
+	type ContentPart,
+	type ContentPartsState,
+	readSSEStream,
+	type ThinkingStepData,
+	updateToolCall,
+} from "@/lib/chat/streaming-state";
 import {
 	appendMessage,
 	createThread,
@@ -121,11 +132,11 @@ const TOOLS_WITH_UI = new Set([
 	"generate_podcast",
 	"link_preview",
 	"display_image",
+	"delete_notion_page",
 	"scrape_webpage",
 	"create_notion_page",
 	// "write_todos", // Disabled for now
 ]);
-
 
 export default function NewChatPage() {
 	const params = useParams();
@@ -532,11 +543,13 @@ export default function NewChatPage() {
 			const assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 
-			const contentPartsState: ContentPartsState = { contentParts: [], currentTextPartIndex: -1, toolCallIndices: new Map() };
+			const contentPartsState: ContentPartsState = {
+				contentParts: [],
+				currentTextPartIndex: -1,
+				toolCallIndices: new Map(),
+			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 			let wasInterrupted = false;
-
-
 
 			// Add placeholder assistant message
 			setMessages((prev) => [
@@ -603,154 +616,170 @@ export default function NewChatPage() {
 				}
 
 				for await (const parsed of readSSEStream(response)) {
-									switch (parsed.type) {
-										case "text-delta":
-											appendText(contentPartsState, parsed.delta);
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "tool-input-start":
-											// Add tool call inline - this breaks the current text segment
-											addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+						case "tool-input-start":
+							// Add tool call inline - this breaks the current text segment
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "tool-input-available": {
-											// Update existing tool call's args, or add if not exists
-											if (toolCallIndices.has(parsed.toolCallId)) {
-												updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
-											} else {
-												addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, parsed.input || {});
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
-										}
+						case "tool-input-available": {
+							// Update existing tool call's args, or add if not exists
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+						}
 
-										case "tool-output-available": {
-											// Update the tool call with its result
-											updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
-											// Handle podcast-specific logic
-											if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-												// Check if this is a podcast tool by looking at the content part
-												const idx = toolCallIndices.get(parsed.toolCallId);
-												if (idx !== undefined) {
-													const part = contentParts[idx];
-													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-														setActivePodcastTaskId(String(parsed.output.podcast_id));
-													}
-												}
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
-										}
-
-										case "data-thinking-step": {
-											// Handle thinking step events for chain-of-thought display
-											const stepData = parsed.data as ThinkingStepData;
-											if (stepData?.id) {
-												currentThinkingSteps.set(stepData.id, stepData);
-												// Update thinking steps state for rendering
-												// The ThinkingStepsScrollHandler in Thread component
-												// will handle auto-scrolling when this state changes
-												setMessageThinkingSteps((prev) => {
-													const newMap = new Map(prev);
-													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
-													return newMap;
-												});
-											}
-											break;
-										}
-
-										case "data-thread-title-update": {
-											// Handle thread title update from LLM-generated title
-											const titleData = parsed.data as { threadId: number; title: string };
-											if (titleData?.title && titleData?.threadId === currentThreadId) {
-												// Update current thread state with new title
-												setCurrentThread((prev) =>
-													prev ? { ...prev, title: titleData.title } : prev
-												);
-												// Invalidate thread list to refresh sidebar
-												queryClient.invalidateQueries({
-													queryKey: ["threads", String(searchSpaceId)],
-												});
-												// Invalidate thread detail for breadcrumb update
-												queryClient.invalidateQueries({
-													queryKey: [
-														"threads",
-														String(searchSpaceId),
-														"detail",
-														String(titleData.threadId),
-													],
-												});
-										}
-											break;
-										}
-
-										case "data-interrupt-request": {
-											wasInterrupted = true;
-											const interruptData = parsed.data as Record<string, unknown>;
-											const actionRequests = (interruptData.action_requests ?? []) as Array<{
-												name: string;
-												args: Record<string, unknown>;
-											}>;
-											for (const action of actionRequests) {
-												const existingIdx = Array.from(toolCallIndices.entries()).find(
-													([, idx]) => {
-														const part = contentParts[idx];
-														return part?.type === "tool-call" && part.toolName === action.name;
-													}
-												);
-												if (existingIdx) {
-													updateToolCall(contentPartsState, existingIdx[0], {
-														result: { __interrupt__: true, ...interruptData },
-													});
-												} else {
-													const tcId = `interrupt-${action.name}`;
-													addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
-													updateToolCall(contentPartsState, tcId, {
-														result: { __interrupt__: true, ...interruptData },
-													});
-												}
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											if (currentThreadId) {
-												setPendingInterrupt({
-													threadId: currentThreadId,
-													assistantMsgId,
-													interruptData,
-												});
-											}
-											break;
-										}
-
-										case "error":
-											throw new Error(parsed.errorText || "Server error");
+						case "tool-output-available": {
+							// Update the tool call with its result
+							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							// Handle podcast-specific logic
+							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
+								// Check if this is a podcast tool by looking at the content part
+								const idx = toolCallIndices.get(parsed.toolCallId);
+								if (idx !== undefined) {
+									const part = contentParts[idx];
+									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+										setActivePodcastTaskId(String(parsed.output.podcast_id));
+									}
 								}
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+						}
+
+						case "data-thinking-step": {
+							// Handle thinking step events for chain-of-thought display
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								// Update thinking steps state for rendering
+								// The ThinkingStepsScrollHandler in Thread component
+								// will handle auto-scrolling when this state changes
+								setMessageThinkingSteps((prev) => {
+									const newMap = new Map(prev);
+									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
+									return newMap;
+								});
+							}
+							break;
+						}
+
+						case "data-thread-title-update": {
+							// Handle thread title update from LLM-generated title
+							const titleData = parsed.data as { threadId: number; title: string };
+							if (titleData?.title && titleData?.threadId === currentThreadId) {
+								// Update current thread state with new title
+								setCurrentThread((prev) => (prev ? { ...prev, title: titleData.title } : prev));
+								// Invalidate thread list to refresh sidebar
+								queryClient.invalidateQueries({
+									queryKey: ["threads", String(searchSpaceId)],
+								});
+								// Invalidate thread detail for breadcrumb update
+								queryClient.invalidateQueries({
+									queryKey: [
+										"threads",
+										String(searchSpaceId),
+										"detail",
+										String(titleData.threadId),
+									],
+								});
+							}
+							break;
+						}
+
+						case "data-interrupt-request": {
+							wasInterrupted = true;
+							const interruptData = parsed.data as Record<string, unknown>;
+							const actionRequests = (interruptData.action_requests ?? []) as Array<{
+								name: string;
+								args: Record<string, unknown>;
+							}>;
+							for (const action of actionRequests) {
+								const existingIdx = Array.from(toolCallIndices.entries()).find(([, idx]) => {
+									const part = contentParts[idx];
+									return part?.type === "tool-call" && part.toolName === action.name;
+								});
+								if (existingIdx) {
+									updateToolCall(contentPartsState, existingIdx[0], {
+										result: { __interrupt__: true, ...interruptData },
+									});
+								} else {
+									const tcId = `interrupt-${action.name}`;
+									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
+									updateToolCall(contentPartsState, tcId, {
+										result: { __interrupt__: true, ...interruptData },
+									});
+								}
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							if (currentThreadId) {
+								setPendingInterrupt({
+									threadId: currentThreadId,
+									assistantMsgId,
+									interruptData,
+								});
+							}
+							break;
+						}
+
+						case "error":
+							throw new Error(parsed.errorText || "Server error");
+					}
 				}
 
 				// Persist assistant message (with thinking steps for restoration on refresh)
 				// Skip persistence for interrupted messages -- handleResume will persist the final version
-				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI, currentThinkingSteps);
+				const finalContent = buildContentForPersistence(
+					contentPartsState,
+					TOOLS_WITH_UI,
+					currentThinkingSteps
+				);
 				if (contentParts.length > 0 && !wasInterrupted) {
 					try {
 						const savedMessage = await appendMessage(currentThreadId, {
@@ -798,7 +827,11 @@ export default function NewChatPage() {
 							(part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName))
 					);
 					if (hasContent && currentThreadId) {
-						const partialContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI, currentThinkingSteps);
+						const partialContent = buildContentForPersistence(
+							contentPartsState,
+							TOOLS_WITH_UI,
+							currentThinkingSteps
+						);
 						try {
 							const savedMessage = await appendMessage(currentThreadId, {
 								role: "assistant",
@@ -864,7 +897,13 @@ export default function NewChatPage() {
 	);
 
 	const handleResume = useCallback(
-		async (decisions: Array<{ type: string; message?: string; edited_action?: { name: string; args: Record<string, unknown> } }>) => {
+		async (
+			decisions: Array<{
+				type: string;
+				message?: string;
+				edited_action?: { name: string; args: Record<string, unknown> };
+			}>
+		) => {
 			if (!pendingInterrupt) return;
 			const { threadId: resumeThreadId, assistantMsgId } = pendingInterrupt;
 			setPendingInterrupt(null);
@@ -884,7 +923,11 @@ export default function NewChatPage() {
 				(messageThinkingSteps.get(assistantMsgId) ?? []).map((s) => [s.id, s])
 			);
 
-			const contentPartsState: ContentPartsState = { contentParts: [], currentTextPartIndex: -1, toolCallIndices: new Map() };
+			const contentPartsState: ContentPartsState = {
+				contentParts: [],
+				currentTextPartIndex: -1,
+				toolCallIndices: new Map(),
+			};
 			const { contentParts, toolCallIndices } = contentPartsState;
 
 			const existingMsg = messages.find((m) => m.id === assistantMsgId);
@@ -927,8 +970,6 @@ export default function NewChatPage() {
 				}
 			}
 
-
-
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
@@ -949,114 +990,132 @@ export default function NewChatPage() {
 				}
 
 				for await (const parsed of readSSEStream(response)) {
-									switch (parsed.type) {
-										case "text-delta":
-											appendText(contentPartsState, parsed.delta);
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "tool-input-start":
-											addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+						case "tool-input-start":
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "tool-input-available":
-											if (toolCallIndices.has(parsed.toolCallId)) {
-												updateToolCall(contentPartsState, parsed.toolCallId, {
-													args: parsed.input || {},
-												});
-											} else {
-												addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, parsed.input || {});
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+						case "tool-input-available":
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									args: parsed.input || {},
+								});
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "tool-output-available":
-											updateToolCall(contentPartsState, parsed.toolCallId, {
-												result: parsed.output,
-											});
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+						case "tool-output-available":
+							updateToolCall(contentPartsState, parsed.toolCallId, {
+								result: parsed.output,
+							});
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "data-thinking-step": {
-											const stepData = parsed.data as ThinkingStepData;
-											if (stepData?.id) {
-												currentThinkingSteps.set(stepData.id, stepData);
-												setMessageThinkingSteps((prev) => {
-													const newMap = new Map(prev);
-													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
-													return newMap;
-												});
-											}
-											break;
-										}
+						case "data-thinking-step": {
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								setMessageThinkingSteps((prev) => {
+									const newMap = new Map(prev);
+									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
+									return newMap;
+								});
+							}
+							break;
+						}
 
-										case "data-interrupt-request": {
-											const interruptData = parsed.data as Record<string, unknown>;
-											const actionRequests = (interruptData.action_requests ?? []) as Array<{
-												name: string;
-												args: Record<string, unknown>;
-											}>;
-											for (const action of actionRequests) {
-												const existingIdx = Array.from(toolCallIndices.entries()).find(
-													([, idx]) => {
-														const part = contentParts[idx];
-														return part?.type === "tool-call" && part.toolName === action.name;
-													}
-												);
-												if (existingIdx) {
-													updateToolCall(contentPartsState, existingIdx[0], {
-														result: {
-															__interrupt__: true,
-															...interruptData,
-														},
-													});
-												} else {
-													const tcId = `interrupt-${action.name}`;
-													addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
-													updateToolCall(contentPartsState, tcId, {
-														result: {
-															__interrupt__: true,
-															...interruptData,
-														},
-													});
-												}
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											setPendingInterrupt({
-												threadId: resumeThreadId,
-												assistantMsgId,
-												interruptData,
-											});
-											break;
-										}
-
-										case "error":
-											throw new Error(parsed.errorText || "Server error");
+						case "data-interrupt-request": {
+							const interruptData = parsed.data as Record<string, unknown>;
+							const actionRequests = (interruptData.action_requests ?? []) as Array<{
+								name: string;
+								args: Record<string, unknown>;
+							}>;
+							for (const action of actionRequests) {
+								const existingIdx = Array.from(toolCallIndices.entries()).find(([, idx]) => {
+									const part = contentParts[idx];
+									return part?.type === "tool-call" && part.toolName === action.name;
+								});
+								if (existingIdx) {
+									updateToolCall(contentPartsState, existingIdx[0], {
+										result: {
+											__interrupt__: true,
+											...interruptData,
+										},
+									});
+								} else {
+									const tcId = `interrupt-${action.name}`;
+									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
+									updateToolCall(contentPartsState, tcId, {
+										result: {
+											__interrupt__: true,
+											...interruptData,
+										},
+									});
 								}
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							setPendingInterrupt({
+								threadId: resumeThreadId,
+								assistantMsgId,
+								interruptData,
+							});
+							break;
+						}
+
+						case "error":
+							throw new Error(parsed.errorText || "Server error");
+					}
 				}
 
-				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI, currentThinkingSteps);
+				const finalContent = buildContentForPersistence(
+					contentPartsState,
+					TOOLS_WITH_UI,
+					currentThinkingSteps
+				);
 				if (contentParts.length > 0) {
 					try {
 						const savedMessage = await appendMessage(resumeThreadId, {
@@ -1098,16 +1157,16 @@ export default function NewChatPage() {
 	useEffect(() => {
 		const handler = (e: Event) => {
 			const detail = (e as CustomEvent).detail as {
-				decisions: Array<{ 
-					type: string; 
-					message?: string; 
+				decisions: Array<{
+					type: string;
+					message?: string;
 					edited_action?: { name: string; args: Record<string, unknown> };
 				}>;
 			};
 			if (detail?.decisions && pendingInterrupt) {
 				const decision = detail.decisions[0];
 				const decisionType = decision?.type as "approve" | "reject" | "edit";
-				
+
 				setMessages((prev) =>
 					prev.map((m) => {
 						if (m.id !== pendingInterrupt.assistantMsgId) return m;
@@ -1123,18 +1182,18 @@ export default function NewChatPage() {
 								if (decisionType === "edit" && decision.edited_action) {
 									return {
 										...part,
-										args: decision.edited_action.args,  // Update displayed args
-										result: { 
-											...(part.result as Record<string, unknown>), 
-											__decided__: decisionType 
+										args: decision.edited_action.args, // Update displayed args
+										result: {
+											...(part.result as Record<string, unknown>),
+											__decided__: decisionType,
 										},
 									};
 								}
 								return {
 									...part,
-									result: { 
-										...(part.result as Record<string, unknown>), 
-										__decided__: decisionType 
+									result: {
+										...(part.result as Record<string, unknown>),
+										__decided__: decisionType,
 									},
 								};
 							}
@@ -1235,10 +1294,12 @@ export default function NewChatPage() {
 			const assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 
-			const contentPartsState: ContentPartsState = { contentParts: [], currentTextPartIndex: -1, toolCallIndices: new Map() };
+			const contentPartsState: ContentPartsState = {
+				contentParts: [],
+				currentTextPartIndex: -1,
+				toolCallIndices: new Map(),
+			};
 			const { contentParts, toolCallIndices } = contentPartsState;
-
-
 
 			// Add placeholder messages to UI
 			// Always add back the user message (with new query for edit, or original content for reload)
@@ -1283,76 +1344,94 @@ export default function NewChatPage() {
 				}
 
 				for await (const parsed of readSSEStream(response)) {
-									switch (parsed.type) {
-										case "text-delta":
-											appendText(contentPartsState, parsed.delta);
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "tool-input-start":
-											addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+						case "tool-input-start":
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "tool-input-available":
-											if (toolCallIndices.has(parsed.toolCallId)) {
-												updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
-											} else {
-												addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, parsed.input || {});
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
+						case "tool-input-available":
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-										case "tool-output-available":
-											updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
-											if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-												const idx = toolCallIndices.get(parsed.toolCallId);
-												if (idx !== undefined) {
-													const part = contentParts[idx];
-													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-														setActivePodcastTaskId(String(parsed.output.podcast_id));
-													}
-												}
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) } : m
-												)
-											);
-											break;
-
-										case "data-thinking-step": {
-											const stepData = parsed.data as ThinkingStepData;
-											if (stepData?.id) {
-												currentThinkingSteps.set(stepData.id, stepData);
-												setMessageThinkingSteps((prev) => {
-													const newMap = new Map(prev);
-													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
-													return newMap;
-												});
-											}
-											break;
-										}
-
-										case "error":
-											throw new Error(parsed.errorText || "Server error");
+						case "tool-output-available":
+							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
+								const idx = toolCallIndices.get(parsed.toolCallId);
+								if (idx !== undefined) {
+									const part = contentParts[idx];
+									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+										setActivePodcastTaskId(String(parsed.output.podcast_id));
+									}
 								}
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+
+						case "data-thinking-step": {
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								setMessageThinkingSteps((prev) => {
+									const newMap = new Map(prev);
+									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
+									return newMap;
+								});
+							}
+							break;
+						}
+
+						case "error":
+							throw new Error(parsed.errorText || "Server error");
+					}
 				}
 
 				// Persist messages after streaming completes
-				const finalContent = buildContentForPersistence(contentPartsState, TOOLS_WITH_UI, currentThinkingSteps);
+				const finalContent = buildContentForPersistence(
+					contentPartsState,
+					TOOLS_WITH_UI,
+					currentThinkingSteps
+				);
 				if (contentParts.length > 0) {
 					try {
 						// Persist user message (for both edit and reload modes, since backend deleted it)
@@ -1539,6 +1618,7 @@ export default function NewChatPage() {
 			<SaveMemoryToolUI />
 			<RecallMemoryToolUI />
 			<CreateNotionPageToolUI />
+			<DeleteNotionPageToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex flex-col h-[calc(100dvh-64px)] overflow-hidden">
 				<Thread

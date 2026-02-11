@@ -967,7 +967,7 @@ class NotionHistoryConnector:
                 "page_id": page_id,
                 "url": page_url,
                 "title": title,
-                "message": f"✅ Created Notion page '{title}'",
+                "message": f"Created Notion page '{title}'",
             }
 
         except APIResponseError as e:
@@ -1054,7 +1054,7 @@ class NotionHistoryConnector:
                 "page_id": page_id,
                 "url": page_url,
                 "title": page_title,
-                "message": f"✅ Updated Notion page '{page_title}'",
+                "message": f"Updated Notion page '{page_title}'",
             }
 
         except APIResponseError as e:
@@ -1107,7 +1107,7 @@ class NotionHistoryConnector:
             return {
                 "status": "success",
                 "page_id": page_id,
-                "message": f"✅ Deleted Notion page '{page_title}'",
+                "message": f"Deleted Notion page '{page_title}'",
             }
 
         except APIResponseError as e:

@@ -67,7 +67,8 @@ def create_update_notion_page_tool(
 
         try:
             # Get connector ID if not provided
-            if connector_id is None:
+            actual_connector_id = connector_id
+            if actual_connector_id is None:
                 from sqlalchemy.future import select
 
                 from app.db import SearchSourceConnector, SearchSourceConnectorType
@@ -87,12 +88,12 @@ def create_update_notion_page_tool(
                         "message": "No Notion connector found. Please connect Notion in your workspace settings.",
                     }
 
-                connector_id = connector.id
+                actual_connector_id = connector.id
 
             # Create connector instance
             notion_connector = NotionHistoryConnector(
                 session=db_session,
-                connector_id=connector_id,
+                connector_id=actual_connector_id,
             )
 
             # Update the page
@@ -109,7 +110,7 @@ def create_update_notion_page_tool(
         except Exception as e:
             return {
                 "status": "error",
-                "message": f"Unexpected error updating Notion page: {str(e)}",
+                "message": f"Unexpected error updating Notion page: {e!s}",
             }
 
     return update_notion_page

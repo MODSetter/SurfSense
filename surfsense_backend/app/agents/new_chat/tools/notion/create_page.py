@@ -115,7 +115,7 @@ def create_create_notion_page_tool(
             logger.error(f"Unexpected error creating Notion page: {e}", exc_info=True)
             return {
                 "status": "error",
-                "message": f"Unexpected error creating Notion page: {str(e)}",
+                "message": f"Unexpected error creating Notion page: {e!s}",
             }
 
     return create_notion_page
