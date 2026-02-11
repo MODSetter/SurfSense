@@ -5,9 +5,7 @@ import {
 	CheckIcon,
 	ChevronDownIcon,
 	ClipboardIcon,
-	DownloadIcon,
 	FileTextIcon,
-	Loader2Icon,
 	XIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -17,6 +15,7 @@ import {
 	reportPanelAtom,
 } from "@/atoms/chat/report-panel.atom";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
 	Drawer,
 	DrawerContent,
@@ -280,7 +279,6 @@ function ReportPanelContent({
 						</DropdownMenuTrigger>
 					<DropdownMenuContent align="start" className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}>
 						<DropdownMenuItem onClick={() => handleExport("md")}>
-							<DownloadIcon className="size-4" />
 							Download Markdown
 						</DropdownMenuItem>
 						{/* PDF/DOCX export requires server-side conversion via authenticated endpoint.
@@ -291,10 +289,8 @@ function ReportPanelContent({
 									onClick={() => handleExport("pdf")}
 									disabled={exporting !== null}
 								>
-									{exporting === "pdf" ? (
-										<Loader2Icon className="size-4 animate-spin" />
-									) : (
-										<DownloadIcon className="size-4" />
+									{exporting === "pdf" && (
+										<Spinner size="xs" />
 									)}
 									Download PDF
 								</DropdownMenuItem>
@@ -302,10 +298,8 @@ function ReportPanelContent({
 									onClick={() => handleExport("docx")}
 									disabled={exporting !== null}
 								>
-									{exporting === "docx" ? (
-										<Loader2Icon className="size-4 animate-spin" />
-									) : (
-										<DownloadIcon className="size-4" />
+									{exporting === "docx" && (
+										<Spinner size="xs" />
 									)}
 									Download DOCX
 								</DropdownMenuItem>
