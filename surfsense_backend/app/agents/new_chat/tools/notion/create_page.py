@@ -2,9 +2,11 @@ import logging
 from typing import Any
 
 from langchain_core.tools import tool
+from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.notion_history import NotionHistoryConnector
+from app.services.notion import NotionToolMetadataService
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +14,7 @@ logger = logging.getLogger(__name__)
 def create_create_notion_page_tool(
     db_session: AsyncSession | None = None,
     search_space_id: int | None = None,
+    user_id: str | None = None,
     connector_id: int | None = None,
 ):
     """
@@ -20,6 +23,7 @@ def create_create_notion_page_tool(
     Args:
         db_session: Database session for accessing Notion connector
         search_space_id: Search space ID to find the Notion connector
+        user_id: User ID for fetching user-specific context
         connector_id: Optional specific connector ID (if known)
 
     Returns:
@@ -58,16 +62,74 @@ def create_create_notion_page_tool(
         """
         logger.info(f"create_notion_page called: title='{title}', parent_page_id={parent_page_id}")
         
-        if db_session is None or search_space_id is None:
-            logger.error("Notion tool not properly configured - missing db_session or search_space_id")
+        if db_session is None or search_space_id is None or user_id is None:
+            logger.error("Notion tool not properly configured - missing required parameters")
             return {
                 "status": "error",
                 "message": "Notion tool not properly configured. Please contact support.",
             }
 
         try:
-            # Get connector ID if not provided
-            actual_connector_id = connector_id
+            metadata_service = NotionToolMetadataService(db_session)
+            context = await metadata_service.get_creation_context(search_space_id, user_id)
+            
+            if "error" in context:
+                logger.error(f"Failed to fetch creation context: {context['error']}")
+                return {
+                    "status": "error",
+                    "message": context["error"],
+                }
+            
+            logger.info("Requesting approval for creating Notion page")
+            approval = interrupt({
+                "type": "notion_page_creation",
+                "message": f"Approve creating Notion page: '{title}'",
+                "action": {
+                    "tool": "create_notion_page",
+                    "params": {
+                        "title": title,
+                        "content": content,
+                        "parent_page_id": parent_page_id,
+                        "connector_id": connector_id,
+                    },
+                },
+                "context": context,
+            })
+            
+            decisions = approval.get("decisions", [])
+            if not decisions:
+                logger.warning("No approval decision received")
+                return {
+                    "status": "error",
+                    "message": "No approval decision received",
+                }
+            
+            decision = decisions[0]
+            decision_type = decision.get("decision_type")
+            
+            if decision_type == "reject":
+                logger.info("Notion page creation rejected by user")
+                return {
+                    "status": "rejected",
+                    "message": "Page creation was rejected",
+                }
+            
+            edited_action = decision.get("edited_action", {})
+            final_params = edited_action if edited_action else {
+                "title": title,
+                "content": content,
+                "parent_page_id": parent_page_id,
+                "connector_id": connector_id,
+            }
+            
+            final_title = final_params.get("title", title)
+            final_content = final_params.get("content", content)
+            final_parent_page_id = final_params.get("parent_page_id", parent_page_id)
+            final_connector_id = final_params.get("connector_id", connector_id)
+            
+            logger.info(f"Creating Notion page with final params: title='{final_title}'")
+            
+            actual_connector_id = final_connector_id
             if actual_connector_id is None:
                 from sqlalchemy.future import select
 
@@ -92,30 +154,29 @@ def create_create_notion_page_tool(
                 actual_connector_id = connector.id
                 logger.info(f"Found Notion connector: id={actual_connector_id}")
 
-            # Create connector instance
             notion_connector = NotionHistoryConnector(
                 session=db_session,
                 connector_id=actual_connector_id,
             )
 
-            # Create the page
             result = await notion_connector.create_page(
-                title=title, content=content, parent_page_id=parent_page_id
+                title=final_title,
+                content=final_content,
+                parent_page_id=final_parent_page_id,
             )
             logger.info(f"create_page result: {result.get('status')} - {result.get('message', '')}")
             return result
 
-        except ValueError as e:
-            logger.error(f"ValueError creating Notion page: {e}")
-            return {
-                "status": "error",
-                "message": str(e),
-            }
         except Exception as e:
-            logger.error(f"Unexpected error creating Notion page: {e}", exc_info=True)
+            from langgraph.errors import GraphInterrupt
+            
+            if isinstance(e, GraphInterrupt):
+                raise
+            
+            logger.error(f"Error creating Notion page: {e}", exc_info=True)
             return {
                 "status": "error",
-                "message": f"Unexpected error creating Notion page: {e!s}",
+                "message": str(e) if isinstance(e, ValueError) else f"Unexpected error: {e!s}",
             }
 
     return create_notion_page

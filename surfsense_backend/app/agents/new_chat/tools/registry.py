@@ -213,8 +213,9 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         factory=lambda deps: create_create_notion_page_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
         ),
-        requires=["db_session", "search_space_id"],
+        requires=["db_session", "search_space_id", "user_id"],
     ),
     ToolDefinition(
         name="update_notion_page",

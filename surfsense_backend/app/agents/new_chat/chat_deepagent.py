@@ -274,7 +274,6 @@ async def create_surfsense_deep_agent(
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
         interrupt_on={
-            "create_notion_page": True,
             "delete_notion_page": {"allowed_decisions": ["approve", "reject"]},
         },
     )

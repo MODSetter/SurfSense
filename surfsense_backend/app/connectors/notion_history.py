@@ -983,7 +983,7 @@ class NotionHistoryConnector:
             logger.error(f"Unexpected error creating Notion page: {e}")
             return {
                 "status": "error",
-                "message": f"Failed to create Notion page: {str(e)}",
+                "message": f"Failed to create Notion page: {e!s}",
             }
 
     async def update_page(
@@ -1039,7 +1039,7 @@ class NotionHistoryConnector:
                     logger.error(f"Failed to convert markdown to blocks: {e}")
                     return {
                         "status": "error",
-                        "message": f"Failed to parse content: {str(e)}",
+                        "message": f"Failed to parse content: {e!s}",
                     }
 
                 # Store block count for logging
@@ -1057,7 +1057,7 @@ class NotionHistoryConnector:
                     logger.error(f"Failed to delete existing blocks: {e}")
                     return {
                         "status": "error",
-                        "message": f"Failed to clear existing content: {str(e)}",
+                        "message": f"Failed to clear existing content: {e!s}",
                     }
 
                 # Add new content (CRITICAL: if this fails, content is lost) Need improvement to handle this better.
@@ -1103,7 +1103,7 @@ class NotionHistoryConnector:
                     return {
                         "status": "error",
                         "message": f"CRITICAL: Failed to update page content. Original content ({block_count} blocks) "
-                                  f"was deleted but new content could not be added: {str(e)}",
+                                  f"was deleted but new content could not be added: {e!s}",
                     }
 
             # Get updated page
@@ -1133,7 +1133,7 @@ class NotionHistoryConnector:
             logger.error(f"Unexpected error updating Notion page: {e}")
             return {
                 "status": "error",
-                "message": f"Failed to update Notion page: {str(e)}",
+                "message": f"Failed to update Notion page: {e!s}",
             }
 
     async def delete_page(self, page_id: str) -> dict[str, Any]:
@@ -1186,5 +1186,5 @@ class NotionHistoryConnector:
             logger.error(f"Unexpected error deleting Notion page: {e}")
             return {
                 "status": "error",
-                "message": f"Failed to delete Notion page: {str(e)}",
+                "message": f"Failed to delete Notion page: {e!s}",
             }
