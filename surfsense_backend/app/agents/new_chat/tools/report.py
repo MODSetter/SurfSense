@@ -46,6 +46,13 @@ _REPORT_PROMPT = """You are an expert report writer. Generate a well-structured,
 5. Be thorough and comprehensive — include all relevant information from the source content.
 6. End with a conclusion or key takeaways section.
 7. The report should be professional and ready to export.
+8. When including code examples, ALWAYS format them as proper fenced code blocks with the correct language identifier (e.g. ```java, ```python). Code inside code blocks MUST have proper line breaks and indentation — NEVER put multiple statements on a single line. Each statement, brace, and logical block must be on its own line with correct indentation.
+9. When including Mermaid diagrams, use ```mermaid fenced code blocks. Each Mermaid statement MUST be on its own line — NEVER use semicolons to join multiple statements on one line. For line breaks inside node labels, use <br> (NOT <br/>). Example:
+   ```mermaid
+   graph TD
+       A[Source Code] --> B[Compiler]
+       B --> C[Bytecode]
+   ```
 
 Write the report now:
 """

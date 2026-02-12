@@ -9,15 +9,6 @@ interface MarkdownViewerProps {
 
 export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 	const components: StreamdownProps["components"] = {
-		// Define custom components for markdown elements
-		callout: ({ children, ...props }) => (
-			<div
-				className="my-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
-				{...props}
-			>
-				{children}
-			</div>
-		),
 		p: ({ children, ...props }) => (
 			<p className="my-2" {...props}>
 				{children}
@@ -77,35 +68,21 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 		),
 		th: ({ ...props }) => <th className="px-3 py-2 text-left font-medium bg-muted" {...props} />,
 		td: ({ ...props }) => <td className="px-3 py-2 border-t border-border" {...props} />,
-		code: ({ className, children, ...props }) => {
-			const match = /language-(\w+)/.exec(className || "");
-			const isInline = !match;
-
-			if (isInline) {
-				return (
-					<code className="bg-muted px-1 py-0.5 rounded text-xs" {...props}>
-						{children}
-					</code>
-				);
-			}
-
-			// For code blocks, let Streamdown handle syntax highlighting
-			return (
-				<code className={className} {...props}>
-					{children}
-				</code>
-			);
-		},
 	};
 
 	return (
 		<div
 			className={cn(
-				"prose prose-sm dark:prose-invert max-w-none overflow-hidden [&_pre]:overflow-x-auto [&_code]:wrap-break-word [&_table]:block [&_table]:overflow-x-auto",
+				"prose prose-sm dark:prose-invert max-w-none overflow-hidden [&_table]:block [&_table]:overflow-x-auto",
 				className
 			)}
 		>
-			<Streamdown components={components} shikiTheme={["github-light", "github-dark"]}>
+			<Streamdown
+				components={components}
+				shikiTheme={["github-light", "github-dark"]}
+				controls={{ code: true }}
+				mode="static"
+			>
 				{content}
 			</Streamdown>
 		</div>
