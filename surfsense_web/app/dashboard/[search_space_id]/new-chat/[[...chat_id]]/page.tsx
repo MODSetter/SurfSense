@@ -40,6 +40,7 @@ import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { ReportPanel } from "@/components/report-panel/report-panel";
+import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
@@ -161,6 +162,7 @@ export default function NewChatPage() {
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
+	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -254,6 +256,7 @@ export default function NewChatPage() {
 		setMentionedDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
+		closeReportPanel(); // Close report panel when switching chats
 
 		try {
 			if (urlChatId > 0) {
@@ -318,6 +321,7 @@ export default function NewChatPage() {
 		setMentionedDocumentIds,
 		setMentionedDocuments,
 		hydratePlanState,
+		closeReportPanel,
 	]);
 
 	// Initialize on mount
