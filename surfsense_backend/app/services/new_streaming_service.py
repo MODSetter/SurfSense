@@ -508,13 +508,55 @@ class VercelStreamingService:
         """Format an interrupt request for human-in-the-loop approval.
 
         Args:
-            interrupt_value: The interrupt payload from HumanInTheLoopMiddleware
-                containing action_requests and review_configs.
+            interrupt_value: The interrupt payload from either:
+                - interrupt_on config: {action_requests: [...], review_configs: [...]}
+                - interrupt() primitive: {type: "...", message: "...", action: {...}, context: {...}}
 
         Returns:
             str: SSE formatted interrupt request data part
         """
-        return self.format_data("interrupt-request", interrupt_value)
+        normalized_payload = self._normalize_interrupt_payload(interrupt_value)
+        return self.format_data("interrupt-request", normalized_payload)
+
+    def _normalize_interrupt_payload(self, interrupt_value: dict[str, Any]) -> dict[str, Any]:
+        """Normalize interrupt payloads from different sources into a consistent format.
+
+        Handles two interrupt sources:
+        1. interrupt_on config (Deep Agent built-in): Already has action_requests/review_configs
+        2. interrupt() primitive (custom tool code): Has type/message/action/context
+
+        Args:
+            interrupt_value: Raw interrupt payload from Deep Agent
+
+        Returns:
+            dict: Normalized payload with action_requests, review_configs, and optional context
+        """
+        if "action_requests" in interrupt_value and "review_configs" in interrupt_value:
+            return interrupt_value
+
+        interrupt_type = interrupt_value.get("type", "unknown")
+        message = interrupt_value.get("message", "Approval required")
+        action = interrupt_value.get("action", {})
+        context = interrupt_value.get("context", {})
+
+        normalized = {
+            "action_requests": [
+                {
+                    "name": action.get("tool", "unknown_tool"),
+                    "args": action.get("params", {}),
+                }
+            ],
+            "review_configs": [
+                {
+                    "action_name": action.get("tool", "unknown_tool"),
+                    "allowed_decisions": ["approve", "edit", "reject"],
+                }
+            ],
+            "interrupt_type": interrupt_type,
+            "message": message,
+            "context": context,
+        }
+        return normalized
 
     # =========================================================================
     # Error Part
