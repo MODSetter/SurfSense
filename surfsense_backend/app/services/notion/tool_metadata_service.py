@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import and_
+from sqlalchemy import String, and_, cast
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -96,7 +96,7 @@ class NotionToolMetadataService:
                 and_(
                     Document.search_space_id == search_space_id,
                     Document.document_type == DocumentType.NOTION_CONNECTOR,
-                    Document.document_metadata["page_id"].astext == page_id,
+                    cast(Document.document_metadata["page_id"], String) == page_id,
                     SearchSourceConnector.user_id == user_id,
                 )
             )
