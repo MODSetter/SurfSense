@@ -2,9 +2,16 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { AlertTriangleIcon, CheckIcon, Loader2Icon, PencilIcon, XIcon } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 interface InterruptResult {
@@ -19,6 +26,27 @@ interface InterruptResult {
 		action_name: string;
 		allowed_decisions: Array<"approve" | "edit" | "reject">;
 	}>;
+	interrupt_type?: string;
+	message?: string;
+	context?: {
+		accounts?: Array<{
+			id: number;
+			name: string;
+			workspace_id: string | null;
+			workspace_name: string;
+			workspace_icon: string;
+		}>;
+		parent_pages?: Record<
+			number,
+			Array<{
+				page_id: string;
+				title: string;
+				document_id: number;
+			}>
+		>;
+		total_pages_per_account?: Record<number, number>;
+		error?: string;
+	};
 }
 
 interface SuccessResult {
@@ -75,6 +103,26 @@ function ApprovalCard({
 	const [isEditing, setIsEditing] = useState(false);
 	const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>(args);
 
+	const accounts = interruptData.context?.accounts ?? [];
+	const parentPages = interruptData.context?.parent_pages ?? {};
+	const totalPagesPerAccount = interruptData.context?.total_pages_per_account ?? {};
+
+	const defaultAccountId = useMemo(() => {
+		if (args.connector_id) return String(args.connector_id);
+		if (accounts.length === 1) return String(accounts[0].id);
+		return "";
+	}, [args.connector_id, accounts]);
+
+	const [selectedAccountId, setSelectedAccountId] = useState<string>(defaultAccountId);
+	const [selectedParentPageId, setSelectedParentPageId] = useState<string>(
+		args.parent_page_id ? String(args.parent_page_id) : ""
+	);
+
+	const availableParentPages = useMemo(() => {
+		if (!selectedAccountId) return [];
+		return parentPages[Number(selectedAccountId)] ?? [];
+	}, [selectedAccountId, parentPages]);
+
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
@@ -114,6 +162,79 @@ function ApprovalCard({
 					</p>
 				</div>
 			</div>
+
+			{/* Context section - account and parent page selection */}
+			{!decided && interruptData.context && (
+				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
+					{interruptData.message && (
+						<p className="text-sm text-foreground">{interruptData.message}</p>
+					)}
+
+					{interruptData.context.error ? (
+						<p className="text-sm text-destructive">{interruptData.context.error}</p>
+					) : (
+						<>
+							{accounts.length > 0 && (
+								<div className="space-y-2">
+									<label className="text-xs font-medium text-muted-foreground">
+										Notion Account <span className="text-destructive">*</span>
+									</label>
+									<Select
+										value={selectedAccountId}
+										onValueChange={(value) => {
+											setSelectedAccountId(value);
+											setSelectedParentPageId("");
+										}}
+									>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="Select an account" />
+										</SelectTrigger>
+										<SelectContent>
+											{accounts.map((account) => (
+												<SelectItem key={account.id} value={String(account.id)}>
+													<div className="flex items-center gap-2">
+														<span>{account.workspace_icon}</span>
+														<span>{account.workspace_name}</span>
+														<span className="text-xs text-muted-foreground">
+															({totalPagesPerAccount[account.id] ?? 0} pages)
+														</span>
+													</div>
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
+
+							{selectedAccountId && (
+								<div className="space-y-2">
+									<label className="text-xs font-medium text-muted-foreground">
+										Parent Page (optional)
+									</label>
+									<Select value={selectedParentPageId} onValueChange={setSelectedParentPageId}>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="None (create at root level)" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="">None (create at root level)</SelectItem>
+											{availableParentPages.map((page) => (
+												<SelectItem key={page.page_id} value={page.page_id}>
+													📄 {page.title}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									{availableParentPages.length === 0 && selectedAccountId && (
+										<p className="text-xs text-muted-foreground">
+											No pages available. Page will be created at root level.
+										</p>
+									)}
+								</div>
+							)}
+						</>
+					)}
+				</div>
+			)}
 
 			{/* Display mode - show args as read-only */}
 			{!isEditing && (
@@ -201,7 +322,11 @@ function ApprovalCard({
 									type: "edit",
 									edited_action: {
 										name: interruptData.action_requests[0].name,
-										args: editedArgs,
+										args: {
+											...editedArgs,
+											connector_id: selectedAccountId ? Number(selectedAccountId) : null,
+											parent_page_id: selectedParentPageId || null,
+										},
 									},
 								});
 							}}
@@ -227,8 +352,19 @@ function ApprovalCard({
 								size="sm"
 								onClick={() => {
 									setDecided("approve");
-									onDecision({ type: "approve" });
+									onDecision({
+										type: "approve",
+										edited_action: {
+											name: interruptData.action_requests[0].name,
+											args: {
+												...args,
+												connector_id: selectedAccountId ? Number(selectedAccountId) : null,
+												parent_page_id: selectedParentPageId || null,
+											},
+										},
+									});
 								}}
+								disabled={!selectedAccountId}
 							>
 								<CheckIcon />
 								Approve
