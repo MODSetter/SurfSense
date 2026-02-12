@@ -44,7 +44,6 @@ interface InterruptResult {
 				document_id: number;
 			}>
 		>;
-		total_pages_per_account?: Record<number, number>;
 		error?: string;
 	};
 }
@@ -105,7 +104,6 @@ function ApprovalCard({
 
 	const accounts = interruptData.context?.accounts ?? [];
 	const parentPages = interruptData.context?.parent_pages ?? {};
-	const totalPagesPerAccount = interruptData.context?.total_pages_per_account ?? {};
 
 	const defaultAccountId = useMemo(() => {
 		if (args.connector_id) return String(args.connector_id);
@@ -115,7 +113,7 @@ function ApprovalCard({
 
 	const [selectedAccountId, setSelectedAccountId] = useState<string>(defaultAccountId);
 	const [selectedParentPageId, setSelectedParentPageId] = useState<string>(
-		args.parent_page_id ? String(args.parent_page_id) : ""
+		args.parent_page_id ? String(args.parent_page_id) : "__none__"
 	);
 
 	const availableParentPages = useMemo(() => {
@@ -183,7 +181,7 @@ function ApprovalCard({
 										value={selectedAccountId}
 										onValueChange={(value) => {
 											setSelectedAccountId(value);
-											setSelectedParentPageId("");
+											setSelectedParentPageId("__none__");
 										}}
 									>
 										<SelectTrigger className="w-full">
@@ -192,13 +190,7 @@ function ApprovalCard({
 										<SelectContent>
 											{accounts.map((account) => (
 												<SelectItem key={account.id} value={String(account.id)}>
-													<div className="flex items-center gap-2">
-														<span>{account.workspace_icon}</span>
-														<span>{account.workspace_name}</span>
-														<span className="text-xs text-muted-foreground">
-															({totalPagesPerAccount[account.id] ?? 0} pages)
-														</span>
-													</div>
+												{account.workspace_name}
 												</SelectItem>
 											))}
 										</SelectContent>
@@ -216,7 +208,7 @@ function ApprovalCard({
 											<SelectValue placeholder="None (create at root level)" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="">None (create at root level)</SelectItem>
+											<SelectItem value="__none__">None (create at root level)</SelectItem>
 											{availableParentPages.map((page) => (
 												<SelectItem key={page.page_id} value={page.page_id}>
 													📄 {page.title}
@@ -325,7 +317,7 @@ function ApprovalCard({
 										args: {
 											...editedArgs,
 											connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-											parent_page_id: selectedParentPageId || null,
+											parent_page_id: selectedParentPageId === "__none__" ? null : selectedParentPageId,
 										},
 									},
 								});
@@ -359,7 +351,7 @@ function ApprovalCard({
 											args: {
 												...args,
 												connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-												parent_page_id: selectedParentPageId || null,
+												parent_page_id: selectedParentPageId === "__none__" ? null : selectedParentPageId,
 											},
 										},
 									});

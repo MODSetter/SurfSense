@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import and_, func
+from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -76,17 +76,14 @@ class NotionToolMetadataService:
             return {
                 "accounts": [],
                 "parent_pages": {},
-                "total_pages_per_account": {},
                 "error": "No Notion accounts connected",
             }
 
         parent_pages = await self._get_parent_pages_by_account(search_space_id, accounts)
-        page_counts = await self._get_page_counts_by_account(search_space_id, accounts)
 
         return {
             "accounts": [acc.to_dict() for acc in accounts],
             "parent_pages": parent_pages,
-            "total_pages_per_account": page_counts,
         }
 
     async def get_update_context(
@@ -183,23 +180,3 @@ class NotionToolMetadataService:
             ]
 
         return parent_pages
-
-    async def _get_page_counts_by_account(
-        self, search_space_id: int, accounts: list[NotionAccount]
-    ) -> dict:
-        counts = {}
-
-        for account in accounts:
-            result = await self._db_session.execute(
-                select(func.count(Document.id)).filter(
-                    and_(
-                        Document.search_space_id == search_space_id,
-                        Document.connector_id == account.id,
-                        Document.document_type == DocumentType.NOTION_CONNECTOR,
-                    )
-                )
-            )
-            count = result.scalar()
-            counts[account.id] = count
-
-        return counts
