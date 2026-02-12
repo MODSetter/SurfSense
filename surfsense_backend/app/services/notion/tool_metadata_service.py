@@ -90,31 +90,37 @@ class NotionToolMetadataService:
         self, search_space_id: int, user_id: str, page_id: str
     ) -> dict:
         result = await self._db_session.execute(
-            select(Document).filter(
+            select(Document)
+            .join(SearchSourceConnector, Document.connector_id == SearchSourceConnector.id)
+            .filter(
                 and_(
                     Document.search_space_id == search_space_id,
                     Document.document_type == DocumentType.NOTION_CONNECTOR,
                     Document.document_metadata["page_id"].astext == page_id,
+                    SearchSourceConnector.user_id == user_id,
                 )
             )
         )
         document = result.scalars().first()
 
         if not document:
-            return {"error": f"Page {page_id} not found in indexed documents"}
+            return {"error": f"Page {page_id} not found in your indexed documents"}
 
         if not document.connector_id:
             return {"error": "Document has no associated connector"}
 
         result = await self._db_session.execute(
             select(SearchSourceConnector).filter(
-                SearchSourceConnector.id == document.connector_id
+                and_(
+                    SearchSourceConnector.id == document.connector_id,
+                    SearchSourceConnector.user_id == user_id,
+                )
             )
         )
         connector = result.scalars().first()
 
         if not connector:
-            return {"error": "Connector not found"}
+            return {"error": "Connector not found or access denied"}
 
         account = NotionAccount.from_connector(connector)
 
@@ -177,6 +183,7 @@ class NotionToolMetadataService:
                     "document_id": doc.id,
                 }
                 for doc in documents
+                if doc.document_metadata.get("page_id")
             ]
 
         return parent_pages
