@@ -1,13 +1,68 @@
 import Image from "next/image";
 import { Streamdown, type StreamdownProps } from "streamdown";
+import { createCodePlugin } from "@streamdown/code";
+import { createMathPlugin } from "@streamdown/math";
+import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
+
+const code = createCodePlugin({
+	themes: ["nord", "nord"]
+});
+
+const math = createMathPlugin({
+	singleDollarTextMath: true,
+});
 
 interface MarkdownViewerProps {
 	content: string;
 	className?: string;
 }
 
+/**
+ * If the entire content is wrapped in a single ```markdown or ```md
+ * code fence, strip the fence so the inner markdown renders properly.
+ */
+function stripOuterMarkdownFence(content: string): string {
+	const trimmed = content.trim();
+	const match = trimmed.match(
+		/^```(?:markdown|md)?\s*\n([\s\S]+?)\n```\s*$/
+	);
+	return match ? match[1] : content;
+}
+
+/**
+ * Convert various LaTeX delimiter styles to the dollar-sign syntax
+ * that remark-math understands, and normalise edge-cases that
+ * commonly appear in LLM-generated markdown.
+ *
+ *   \[...\]          → $$ ... $$   (block / display math)
+ *   \(...\)          → $ ... $     (inline math)
+ *   same-line $$…$$  → $ ... $     (inline math — display math
+ *                                    can't live inside table cells)
+ *   `$$ … $$`        → $$ … $$     (strip wrapping backtick code)
+ *   `$ … $`          → $ … $       (strip wrapping backtick code)
+ */
+function convertLatexDelimiters(content: string): string {
+	// 1. Block math: \[...\] → $$...$$
+	content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner) => {
+		return `$$${inner}$$`;
+	});
+	// 2. Inline math: \(...\) → $...$
+	content = content.replace(/\\\(([\s\S]*?)\\\)/g, (_match, inner) => {
+		return `$${inner}$`;
+	});
+	// 3. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
+	content = content.replace(/`(\${1,2})((?:(?!\1).)+)\1`/g, "$1$2$1");
+	// 4. Same-line $$...$$ → $...$ (inline math) so it works inside table cells.
+	//    True display math has $$ on its own line, so this only affects inline usage.
+	content = content.replace(/\$\$([^\n]+?)\$\$/g, (_match, inner) => {
+		return `$${inner}$`;
+	});
+	return content;
+}
+
 export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
+	const processedContent = convertLatexDelimiters(stripOuterMarkdownFence(content));
 	const components: StreamdownProps["components"] = {
 		p: ({ children, ...props }) => (
 			<p className="my-2" {...props}>
@@ -62,28 +117,31 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			/>
 		),
 		table: ({ ...props }) => (
-			<div className="overflow-x-auto my-4">
-				<table className="min-w-full divide-y divide-border" {...props} />
+			<div className="overflow-x-auto my-4 rounded-lg border border-border w-full">
+				<table className="w-full divide-y divide-border" {...props} />
 			</div>
 		),
-		th: ({ ...props }) => <th className="px-3 py-2 text-left font-medium bg-muted" {...props} />,
-		td: ({ ...props }) => <td className="px-3 py-2 border-t border-border" {...props} />,
+		th: ({ ...props }) => <th className="px-4 py-2.5 text-left text-sm font-semibold text-muted-foreground/80 bg-muted/30 border-r border-border/40 last:border-r-0" {...props} />,
+		td: ({ ...props }) => <td className="px-4 py-2.5 text-sm border-t border-r border-border/40 last:border-r-0" {...props} />,
 	};
 
 	return (
 		<div
 			className={cn(
-				"prose prose-sm dark:prose-invert max-w-none overflow-hidden [&_table]:block [&_table]:overflow-x-auto",
+				"max-w-none overflow-hidden",
+				"[&_[data-streamdown=code-block-header]]:!bg-transparent",
+				"[&_[data-streamdown=code-block]>*]:!border-none [&_[data-streamdown=code-block]>*]:![box-shadow:none]",
+				"[&_[data-streamdown=code-block-download-button]]:!hidden",
 				className
 			)}
 		>
 			<Streamdown
 				components={components}
-				shikiTheme={["github-light", "github-dark"]}
+				plugins={{ code, math }}
 				controls={{ code: true }}
 				mode="static"
 			>
-				{content}
+				{processedContent}
 			</Streamdown>
 		</div>
 	);
