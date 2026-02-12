@@ -122,13 +122,20 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libpango-1.0-0 \
     # ============================
-    # Report export (Pandoc + WeasyPrint runtime libs)
+    # Report export (WeasyPrint runtime libs — Pandoc installed separately below)
     # ============================
-    pandoc \
     libpangoft2-1.0-0 \
     libharfbuzz0b \
-    libharfbuzz-subset0 \
+    # Try to install libharfbuzz-subset0 (WeasyPrint font subsetting for smaller PDFs).
+    # Available on Debian Bookworm+ / Ubuntu 24.04+; gracefully skipped on older distros.
+    && (apt-get install -y --no-install-recommends libharfbuzz-subset0 || true) \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Pandoc 3.x from GitHub (apt ships 2.9 which has broken table rendering).
+RUN ARCH=$(dpkg --print-architecture) && \
+    wget -qO /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/3.9/pandoc-3.9-1-${ARCH}.deb" && \
+    dpkg -i /tmp/pandoc.deb && \
+    rm /tmp/pandoc.deb
 
 # Install Node.js 20.x (for running frontend)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \

@@ -20,11 +20,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     dos2unix \
     git \
-    pandoc \
     libpango-1.0-0 \
     libpangoft2-1.0-0 \
-    libharfbuzz-subset0 \
+    # Try to install libharfbuzz-subset0 (WeasyPrint font subsetting for smaller PDFs).
+    # Available on Debian Bookworm+ / Ubuntu 24.04+; gracefully skipped on older distros.
+    && (apt-get install -y --no-install-recommends libharfbuzz-subset0 || true) \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Pandoc 3.x from GitHub (apt ships 2.17 which has broken table rendering).
+RUN ARCH=$(dpkg --print-architecture) && \
+    wget -qO /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/3.9/pandoc-3.9-1-${ARCH}.deb" && \
+    dpkg -i /tmp/pandoc.deb && \
+    rm /tmp/pandoc.deb
 
 # Update certificates and install SSL tools
 RUN update-ca-certificates
