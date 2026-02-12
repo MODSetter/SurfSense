@@ -78,6 +78,7 @@ export {
 	ScrapeWebpageResultSchema,
 	ScrapeWebpageToolUI,
 } from "./scrape-webpage";
+export { UpdateNotionPageToolUI } from "./update-notion-page";
 export {
 	type MemoryItem,
 	type RecallMemoryArgs,

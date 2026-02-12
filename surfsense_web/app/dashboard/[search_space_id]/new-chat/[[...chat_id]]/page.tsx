@@ -39,6 +39,7 @@ import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
+import { UpdateNotionPageToolUI } from "@/components/tool-ui/update-notion-page";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
@@ -1618,6 +1619,7 @@ export default function NewChatPage() {
 			<SaveMemoryToolUI />
 			<RecallMemoryToolUI />
 			<CreateNotionPageToolUI />
+			<UpdateNotionPageToolUI />
 			<DeleteNotionPageToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex flex-col h-[calc(100dvh-64px)] overflow-hidden">
