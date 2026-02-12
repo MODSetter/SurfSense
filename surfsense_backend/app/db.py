@@ -1039,7 +1039,9 @@ class Report(BaseModel, TimestampMixin):
     title = Column(String(500), nullable=False)
     content = Column(Text, nullable=True)  # Markdown body
     report_metadata = Column(JSONB, nullable=True)  # section headings, word count, etc.
-    report_style = Column(String(100), nullable=True)  # e.g. "executive_summary", "deep_research"
+    report_style = Column(
+        String(100), nullable=True
+    )  # e.g. "executive_summary", "deep_research"
 
     search_space_id = Column(
         Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False

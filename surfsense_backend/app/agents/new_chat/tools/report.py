@@ -212,14 +212,18 @@ def create_generate_report_tool(
                 )
                 return failed_report.id
             except Exception:
-                logger.exception("[generate_report] Could not persist failed report row")
+                logger.exception(
+                    "[generate_report] Could not persist failed report row"
+                )
                 return None
 
         try:
             # Get the LLM instance for this search space
             llm = await get_document_summary_llm(db_session, search_space_id)
             if not llm:
-                error_msg = "No LLM configured. Please configure a language model in Settings."
+                error_msg = (
+                    "No LLM configured. Please configure a language model in Settings."
+                )
                 report_id = await _save_failed_report(error_msg)
                 return {
                     "status": "failed",

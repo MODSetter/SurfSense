@@ -50,4 +50,3 @@ export const openReportPanelAtom = atom(
 export const closeReportPanelAtom = atom(null, (_, set) => {
 	set(reportPanelAtom, initialState);
 });
-

@@ -89,12 +89,7 @@ function ScrapeCancelledState({ url }: { url: string }) {
 function ParsedArticle({ result }: { result: unknown }) {
 	const { description, ...article } = parseSerializableArticle(result);
 
-	return (
-		<Article
-			{...article}
-			maxWidth="480px"
-		/>
-	);
+	return <Article {...article} maxWidth="480px" />;
 }
 
 /**

@@ -67,4 +67,3 @@ def downgrade() -> None:
         END $$;
         """
     )
-

@@ -59,7 +59,6 @@ from .new_llm_config import (
     NewLLMConfigUpdate,
 )
 from .podcasts import PodcastBase, PodcastCreate, PodcastRead, PodcastUpdate
-from .reports import ReportBase, ReportContentRead, ReportRead, ReportVersionInfo
 from .rbac_schemas import (
     InviteAcceptRequest,
     InviteAcceptResponse,
@@ -77,6 +76,7 @@ from .rbac_schemas import (
     RoleUpdate,
     UserSearchSpaceAccess,
 )
+from .reports import ReportBase, ReportContentRead, ReportRead, ReportVersionInfo
 from .search_source_connector import (
     MCPConnectorCreate,
     MCPConnectorRead,

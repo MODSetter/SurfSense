@@ -7,10 +7,7 @@ import { useParams, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import {
-	openReportPanelAtom,
-	reportPanelAtom,
-} from "@/atoms/chat/report-panel.atom";
+import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
 /**
@@ -97,9 +94,7 @@ function ReportErrorState({ title, error }: { title: string; error: string }) {
 					<h3 className="font-semibold text-muted-foreground text-sm sm:text-base leading-tight line-clamp-2">
 						{title}
 					</h3>
-					<p className="text-muted-foreground/60 text-[11px] sm:text-xs mt-0.5 truncate">
-						{error}
-					</p>
+					<p className="text-muted-foreground/60 text-[11px] sm:text-xs mt-0.5 truncate">{error}</p>
 				</div>
 			</div>
 		</div>
@@ -148,10 +143,7 @@ function ReportCard({
 				if (parsed.success) {
 					// Check if report was marked as failed in metadata
 					if (parsed.data.report_metadata?.status === "failed") {
-						setError(
-							parsed.data.report_metadata?.error_message ||
-								"Report generation failed"
-						);
+						setError(parsed.data.report_metadata?.error_message || "Report generation failed");
 					} else {
 						// Determine version label from versions array
 						let versionLabel: string | null = null;
@@ -164,8 +156,7 @@ function ReportCard({
 						}
 						setMetadata({
 							title: parsed.data.title || title,
-							wordCount:
-								parsed.data.report_metadata?.word_count ?? wordCount ?? null,
+							wordCount: parsed.data.report_metadata?.word_count ?? wordCount ?? null,
 							versionLabel,
 						});
 					}
@@ -219,9 +210,10 @@ function ReportCard({
 							<span className="inline-block h-3 w-24 rounded bg-muted/60 animate-pulse" />
 						) : (
 							<>
-								{metadata.wordCount != null &&
-									`${metadata.wordCount.toLocaleString()} words`}
-								{metadata.wordCount != null && metadata.versionLabel && <Dot className="inline size-4" />}
+								{metadata.wordCount != null && `${metadata.wordCount.toLocaleString()} words`}
+								{metadata.wordCount != null && metadata.versionLabel && (
+									<Dot className="inline size-4" />
+								)}
 								{metadata.versionLabel}
 							</>
 						)}
@@ -241,10 +233,7 @@ function ReportCard({
  * Unlike podcast (which uses polling), the report is generated inline
  * and the result contains status: "ready" immediately.
  */
-export const GenerateReportToolUI = makeAssistantToolUI<
-	GenerateReportArgs,
-	GenerateReportResult
->({
+export const GenerateReportToolUI = makeAssistantToolUI<GenerateReportArgs, GenerateReportResult>({
 	toolName: "generate_report",
 	render: function GenerateReportUI({ args, result, status }) {
 		const params = useParams();
@@ -288,7 +277,12 @@ export const GenerateReportToolUI = makeAssistantToolUI<
 
 		// Failed result
 		if (result.status === "failed") {
-			return <ReportErrorState title={result.title || topic} error={result.error || "Generation failed"} />;
+			return (
+				<ReportErrorState
+					title={result.title || topic}
+					error={result.error || "Generation failed"}
+				/>
+			);
 		}
 
 		// Ready with report_id

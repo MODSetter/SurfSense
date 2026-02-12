@@ -1,23 +1,13 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import {
-	ChevronDownIcon,
-	XIcon,
-} from "lucide-react";
+import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
-import {
-	closeReportPanelAtom,
-	reportPanelAtom,
-} from "@/atoms/chat/report-panel.atom";
+import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import {
-	Drawer,
-	DrawerContent,
-	DrawerHandle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHandle } from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -118,8 +108,7 @@ function ReportPanelContent({
 	/** When set, uses public endpoint for fetching report data (public shared chat) */
 	shareToken?: string | null;
 }) {
-	const [reportContent, setReportContent] =
-		useState<ReportContentResponse | null>(null);
+	const [reportContent, setReportContent] = useState<ReportContentResponse | null>(null);
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
@@ -150,10 +139,7 @@ function ReportPanelContent({
 				if (parsed.success) {
 					// Check if the report was marked as failed in metadata
 					if (parsed.data.report_metadata?.status === "failed") {
-						setError(
-							parsed.data.report_metadata?.error_message ||
-								"Report generation failed"
-						);
+						setError(parsed.data.report_metadata?.error_message || "Report generation failed");
 					} else {
 						setReportContent(parsed.data);
 						// Update versions from the response
@@ -162,18 +148,13 @@ function ReportPanelContent({
 						}
 					}
 				} else {
-					console.warn(
-						"Invalid report content response:",
-						parsed.error.issues
-					);
+					console.warn("Invalid report content response:", parsed.error.issues);
 					setError("Invalid response format");
 				}
 			} catch (err) {
 				if (cancelled) return;
 				console.error("Error fetching report content:", err);
-				setError(
-					err instanceof Error ? err.message : "Failed to load report"
-				);
+				setError(err instanceof Error ? err.message : "Failed to load report");
 			} finally {
 				if (!cancelled) setIsLoading(false);
 			}
@@ -202,8 +183,10 @@ function ReportPanelContent({
 		async (format: "pdf" | "docx" | "md") => {
 			setExporting(format);
 			const safeTitle =
-				title.replace(/[^a-zA-Z0-9 _-]/g, "_").trim().slice(0, 80) ||
-				"report";
+				title
+					.replace(/[^a-zA-Z0-9 _-]/g, "_")
+					.trim()
+					.slice(0, 80) || "report";
 			try {
 				if (format === "md") {
 					// Download markdown content directly as a .md file
@@ -248,7 +231,6 @@ function ReportPanelContent({
 		[activeReportId, title, reportContent?.content]
 	);
 
-
 	// Show full-page skeleton only on initial load (no data loaded yet).
 	// Once we have versions/content from a prior fetch, keep the action bar visible.
 	const hasLoadedBefore = versions.length > 0 || reportContent !== null;
@@ -259,12 +241,7 @@ function ReportPanelContent({
 				{/* Minimal top bar with close button even during initial load */}
 				<div className="flex items-center justify-end px-4 py-2 shrink-0">
 					{onClose && (
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={onClose}
-							className="size-7 shrink-0"
-						>
+						<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
 							<XIcon className="size-4" />
 							<span className="sr-only">Close report panel</span>
 						</Button>
@@ -282,64 +259,63 @@ function ReportPanelContent({
 			{/* Action bar — always visible after initial load */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
-				{/* Copy button */}
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={handleCopy}
-					disabled={isLoading || !reportContent?.content}
-					className="h-8 min-w-[80px] px-3.5 py-4 text-[15px]"
-				>
-					{copied ? "Copied" : "Copy"}
-				</Button>
+					{/* Copy button */}
+					<Button
+						variant="outline"
+						size="sm"
+						onClick={handleCopy}
+						disabled={isLoading || !reportContent?.content}
+						className="h-8 min-w-[80px] px-3.5 py-4 text-[15px]"
+					>
+						{copied ? "Copied" : "Copy"}
+					</Button>
 
-				{/* Export dropdown */}
-				<DropdownMenu modal={insideDrawer ? false : undefined}>
-					<DropdownMenuTrigger asChild>
-						<Button
-							variant="outline"
-							size="sm"
-							disabled={isLoading || !reportContent?.content}
-							className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
+					{/* Export dropdown */}
+					<DropdownMenu modal={insideDrawer ? false : undefined}>
+						<DropdownMenuTrigger asChild>
+							<Button
+								variant="outline"
+								size="sm"
+								disabled={isLoading || !reportContent?.content}
+								className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
+							>
+								Export
+								<ChevronDownIcon className="size-3" />
+							</Button>
+						</DropdownMenuTrigger>
+						<DropdownMenuContent
+							align="start"
+							className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}
 						>
-							Export
-							<ChevronDownIcon className="size-3" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="start" className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}>
-						<DropdownMenuItem onClick={() => handleExport("md")}>
-							Download Markdown
-						</DropdownMenuItem>
-						{/* PDF/DOCX export requires server-side conversion via authenticated endpoint.
+							<DropdownMenuItem onClick={() => handleExport("md")}>
+								Download Markdown
+							</DropdownMenuItem>
+							{/* PDF/DOCX export requires server-side conversion via authenticated endpoint.
 						    Hide for public viewers who have no auth token. */}
-						{!shareToken && (
-							<>
-								<DropdownMenuItem
-									onClick={() => handleExport("pdf")}
-									disabled={exporting !== null}
-								>
-									{exporting === "pdf" && (
-										<Spinner size="xs" />
-									)}
-									Download PDF
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									onClick={() => handleExport("docx")}
-									disabled={exporting !== null}
-								>
-									{exporting === "docx" && (
-										<Spinner size="xs" />
-									)}
-									Download DOCX
-								</DropdownMenuItem>
-							</>
-						)}
-					</DropdownMenuContent>
-				</DropdownMenu>
+							{!shareToken && (
+								<>
+									<DropdownMenuItem
+										onClick={() => handleExport("pdf")}
+										disabled={exporting !== null}
+									>
+										{exporting === "pdf" && <Spinner size="xs" />}
+										Download PDF
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onClick={() => handleExport("docx")}
+										disabled={exporting !== null}
+									>
+										{exporting === "docx" && <Spinner size="xs" />}
+										Download DOCX
+									</DropdownMenuItem>
+								</>
+							)}
+						</DropdownMenuContent>
+					</DropdownMenu>
 
 					{/* Version switcher — only shown when multiple versions exist */}
-					{versions.length > 1 && (
-						insideDrawer ? (
+					{versions.length > 1 &&
+						(insideDrawer ? (
 							/* Mobile: compact dropdown */
 							<DropdownMenu modal={false}>
 								<DropdownMenuTrigger asChild>
@@ -387,16 +363,10 @@ function ReportPanelContent({
 									{activeVersionIndex + 1} of {versions.length}
 								</span>
 							</div>
-						)
-					)}
+						))}
 				</div>
 				{onClose && (
-					<Button
-						variant="ghost"
-						size="icon"
-						onClick={onClose}
-						className="size-7 shrink-0"
-					>
+					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
 						<XIcon className="size-4" />
 						<span className="sr-only">Close report panel</span>
 					</Button>
@@ -411,9 +381,7 @@ function ReportPanelContent({
 					<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
 						<div>
 							<p className="font-medium text-foreground">Failed to load report</p>
-							<p className="text-sm text-red-500 mt-1">
-								{error || "An unknown error occurred"}
-							</p>
+							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
 						</div>
 					</div>
 				) : (
@@ -421,9 +389,7 @@ function ReportPanelContent({
 						{reportContent.content ? (
 							<MarkdownViewer content={reportContent.content} />
 						) : (
-							<p className="text-muted-foreground italic">
-								No content available.
-							</p>
+							<p className="text-muted-foreground italic">No content available.</p>
 						)}
 					</div>
 				)}
@@ -485,10 +451,7 @@ function MobileReportDrawer() {
 			}}
 			shouldScaleBackground={false}
 		>
-			<DrawerContent
-				className="h-[90vh] max-h-[90vh] z-80"
-				overlayClassName="z-80"
-			>
+			<DrawerContent className="h-[90vh] max-h-[90vh] z-80" overlayClassName="z-80">
 				<DrawerHandle />
 				<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
 					<ReportPanelContent

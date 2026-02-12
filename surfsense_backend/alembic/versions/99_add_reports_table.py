@@ -64,4 +64,3 @@ def downgrade() -> None:
     op.execute("DROP INDEX IF EXISTS ix_reports_thread_id")
     op.execute("DROP INDEX IF EXISTS ix_reports_search_space_id")
     op.execute("DROP TABLE IF EXISTS reports")
-

@@ -229,9 +229,7 @@ async def create_snapshot(
                     result_data = part.get("result", {})
                     report_id = result_data.get("report_id")
                     if report_id and report_id not in report_ids_seen:
-                        report_info = await _get_report_for_snapshot(
-                            session, report_id
-                        )
+                        report_info = await _get_report_for_snapshot(session, report_id)
                         if report_info:
                             reports_data.append(report_info)
                             report_ids_seen.add(report_id)
@@ -816,9 +814,7 @@ async def get_snapshot_report_versions(
         return []
 
     reports = snapshot.snapshot_data.get("reports", [])
-    siblings = [
-        r for r in reports if r.get("report_group_id") == report_group_id
-    ]
+    siblings = [r for r in reports if r.get("report_group_id") == report_group_id]
 
     # Sort by original_id (ascending = insertion order ≈ created_at order)
     siblings.sort(key=lambda r: r.get("original_id", 0))

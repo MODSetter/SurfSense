@@ -245,7 +245,9 @@ export function Article({
 
 							{/* Description */}
 							{description && (
-								<p className="text-muted-foreground text-[10px] sm:text-xs mt-1 line-clamp-2">{description}</p>
+								<p className="text-muted-foreground text-[10px] sm:text-xs mt-1 line-clamp-2">
+									{description}
+								</p>
 							)}
 
 							{/* Metadata row */}
@@ -305,7 +307,6 @@ export function Article({
 								)}
 							</div>
 						</div>
-
 					</div>
 
 					{/* Response actions */}

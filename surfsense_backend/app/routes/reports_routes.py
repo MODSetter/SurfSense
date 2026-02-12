@@ -51,6 +51,7 @@ class ExportFormat(str, Enum):
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 async def _get_report_with_access(
     report_id: int,
     session: AsyncSession,
@@ -66,7 +67,7 @@ async def _get_report_with_access(
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
 
-    # Lightweight membership check – no granular RBAC, just "is the user a
+    # Lightweight membership check - no granular RBAC, just "is the user a
     # member of the search space this report belongs to?"
     await check_search_space_access(session, user, report.search_space_id)
 
@@ -191,7 +192,9 @@ async def read_report_content(
 @router.get("/reports/{report_id}/export")
 async def export_report(
     report_id: int,
-    format: ExportFormat = Query(ExportFormat.PDF, description="Export format: pdf or docx"),
+    format: ExportFormat = Query(
+        ExportFormat.PDF, description="Export format: pdf or docx"
+    ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -243,8 +246,9 @@ async def export_report(
 
         # Sanitize filename
         safe_title = (
-            "".join(c if c.isalnum() or c in " -_" else "_" for c in report.title)
-            .strip()[:80]
+            "".join(
+                c if c.isalnum() or c in " -_" else "_" for c in report.title
+            ).strip()[:80]
             or "report"
         )
 
@@ -265,9 +269,7 @@ async def export_report(
         raise
     except Exception as e:
         logger.exception("Report export failed")
-        raise HTTPException(
-            status_code=500, detail=f"Export failed: {e!s}"
-        ) from e
+        raise HTTPException(status_code=500, detail=f"Export failed: {e!s}") from e
 
 
 @router.delete("/reports/{report_id}", response_model=dict)

@@ -6,7 +6,7 @@ import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 
 const code = createCodePlugin({
-	themes: ["nord", "nord"]
+	themes: ["nord", "nord"],
 });
 
 const math = createMathPlugin({
@@ -24,9 +24,7 @@ interface MarkdownViewerProps {
  */
 function stripOuterMarkdownFence(content: string): string {
 	const trimmed = content.trim();
-	const match = trimmed.match(
-		/^```(?:markdown|md)?\s*\n([\s\S]+?)\n```\s*$/
-	);
+	const match = trimmed.match(/^```(?:markdown|md)?\s*\n([\s\S]+?)\n```\s*$/);
 	return match ? match[1] : content;
 }
 
@@ -121,8 +119,18 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 				<table className="w-full divide-y divide-border" {...props} />
 			</div>
 		),
-		th: ({ ...props }) => <th className="px-4 py-2.5 text-left text-sm font-semibold text-muted-foreground/80 bg-muted/30 border-r border-border/40 last:border-r-0" {...props} />,
-		td: ({ ...props }) => <td className="px-4 py-2.5 text-sm border-t border-r border-border/40 last:border-r-0" {...props} />,
+		th: ({ ...props }) => (
+			<th
+				className="px-4 py-2.5 text-left text-sm font-semibold text-muted-foreground/80 bg-muted/30 border-r border-border/40 last:border-r-0"
+				{...props}
+			/>
+		),
+		td: ({ ...props }) => (
+			<td
+				className="px-4 py-2.5 text-sm border-t border-r border-border/40 last:border-r-0"
+				{...props}
+			/>
+		),
 	};
 
 	return (
