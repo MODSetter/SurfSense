@@ -64,7 +64,6 @@ dependencies = [
     "langchain-unstructured>=1.0.1",
     "slowapi>=0.1.9",
     "pypandoc>=1.16.2",
-    "weasyprint>=68.1",
 ]
 
 [dependency-groups]

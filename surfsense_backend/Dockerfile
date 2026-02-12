@@ -20,11 +20,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxrender1 \
     dos2unix \
     git \
-    libpango-1.0-0 \
-    libpangoft2-1.0-0 \
-    # Try to install libharfbuzz-subset0 (WeasyPrint font subsetting for smaller PDFs).
-    # Available on Debian Bookworm+ / Ubuntu 24.04+; gracefully skipped on older distros.
-    && (apt-get install -y --no-install-recommends libharfbuzz-subset0 || true) \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Pandoc 3.x from GitHub (apt ships 2.17 which has broken table rendering).
@@ -32,6 +27,17 @@ RUN ARCH=$(dpkg --print-architecture) && \
     wget -qO /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/3.9/pandoc-3.9-1-${ARCH}.deb" && \
     dpkg -i /tmp/pandoc.deb && \
     rm /tmp/pandoc.deb
+
+# Install Typst for PDF rendering (Typst has built-in professional styling
+# for tables, headings, code blocks, etc., no CSS needed).
+RUN ARCH=$(dpkg --print-architecture) && \
+    if [ "$ARCH" = "amd64" ]; then TYPST_ARCH="x86_64-unknown-linux-musl"; \
+    else TYPST_ARCH="aarch64-unknown-linux-musl"; fi && \
+    wget -qO /tmp/typst.tar.xz "https://github.com/typst/typst/releases/download/v0.13.1/typst-${TYPST_ARCH}.tar.xz" && \
+    tar -xf /tmp/typst.tar.xz -C /tmp && \
+    cp /tmp/typst-*/typst /usr/local/bin/typst && \
+    rm -rf /tmp/typst* && \
+    typst --version
 
 # Update certificates and install SSL tools
 RUN update-ca-certificates

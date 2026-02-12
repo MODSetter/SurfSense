@@ -3,7 +3,7 @@ Report routes for read, export (PDF/DOCX), and delete operations.
 
 No create or update endpoints here — reports are generated inline by the
 agent tool during chat and stored as Markdown in the database.
-Export to PDF/DOCX is on-demand via pypandoc.
+Export to PDF/DOCX is on-demand via pypandoc (PDF uses Typst as the engine).
 
 Authorization: lightweight search-space membership checks (no granular RBAC)
 since reports are chat-generated artifacts, not standalone managed resources.
@@ -210,9 +210,16 @@ async def export_report(
         # pypandoc spawns a pandoc subprocess (blocking), so we run the
         # entire convert → read → cleanup pipeline in a thread executor
         # to avoid blocking the async event loop on any file I/O.
+        #
+        # PDF uses Typst as the rendering engine — Typst has built-in
+        # professional styling for tables, headings, code blocks, etc.,
+        # so no CSS injection is needed.
+        #
+        # Use "gfm" because LLM output uses GFM-style pipe tables that
+        # pandoc's stricter default "markdown" format may fail to parse.
         extra_args = ["--standalone"]
         if format == ExportFormat.PDF:
-            extra_args.append("--pdf-engine=weasyprint")
+            extra_args.append("--pdf-engine=typst")
 
         def _convert_and_read() -> bytes:
             """Run all blocking I/O (tempfile, pandoc, file read, cleanup) in a thread."""
@@ -222,7 +229,7 @@ async def export_report(
                 pypandoc.convert_text(
                     report.content,
                     format.value,
-                    format="md",
+                    format="gfm",
                     extra_args=extra_args,
                     outputfile=tmp_path,
                 )
