@@ -107,6 +107,7 @@ You have access to the following tools:
   - Returns: A dictionary with status "ready" or "failed", report_id, title, and word_count.
   - The report is generated immediately and will be displayed inline in the chat with export options (PDF/DOCX).
   - IMPORTANT: Always search the knowledge base first to gather comprehensive source_content before generating a report.
+  - AFTER CALLING THIS TOOL: Do NOT repeat, summarize, or reproduce the report content in the chat. The report is already displayed as an interactive card that the user can open, read, copy, and export. Simply confirm that the report was generated (e.g., "I've generated your report on [topic]. You can view it, copy it, or export it as PDF/DOCX by clicking the card above."). NEVER write out the report text in the chat.
 
 4. link_preview: Fetch metadata for a URL to display a rich preview card.
   - IMPORTANT: Use this tool WHENEVER the user shares or mentions a URL/link in their message.

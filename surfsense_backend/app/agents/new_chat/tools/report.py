@@ -110,13 +110,17 @@ def create_generate_report_tool(
         - "Summarize this into a report"
 
         VERSIONING — parent_report_id:
-        - Set parent_report_id ONLY when the user explicitly asks to MODIFY,
-          REVISE, IMPROVE, or UPDATE an existing report that was already
+        - Set parent_report_id when the user wants to MODIFY, REVISE, IMPROVE,
+          UPDATE, EXPAND, or ADD CONTENT TO an existing report that was already
           generated in this conversation.
+        - This includes both explicit AND implicit modification requests. If the
+          user references the existing report using words like "it", "this",
+          "here", "the report", or clearly refers to a previously generated
+          report, treat it as a revision request.
         - The value must be the report_id from a previous generate_report
           result in this same conversation.
         - Do NOT set parent_report_id when:
-          * The user asks for a report on a NEW/DIFFERENT topic
+          * The user asks for a report on a completely NEW/DIFFERENT topic
           * The user says "generate another report" (new report, not a revision)
           * There is no prior report to reference
         - When parent_report_id is set, the previous report's content will be
@@ -126,6 +130,11 @@ def create_generate_report_tool(
           User: "Make that report shorter" → parent_report_id = <previous report_id>
           User: "Add a cost analysis section to the report" → parent_report_id = <previous report_id>
           User: "Rewrite the report in a more formal tone" → parent_report_id = <previous report_id>
+          User: "I want more details about pricing in here" → parent_report_id = <previous report_id>
+          User: "Include more examples" → parent_report_id = <previous report_id>
+          User: "Can you also cover security in this?" → parent_report_id = <previous report_id>
+          User: "Make it more detailed" → parent_report_id = <previous report_id>
+          User: "I want more about X for in here" → parent_report_id = <previous report_id>
 
         Examples of when to LEAVE parent_report_id as None:
           User: "Generate a report on climate change" → parent_report_id = None (new topic)
