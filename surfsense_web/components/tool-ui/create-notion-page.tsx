@@ -164,19 +164,15 @@ function ApprovalCard({
 			{/* Context section - account and parent page selection */}
 			{!decided && interruptData.context && (
 				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
-					{interruptData.message && (
-						<p className="text-sm text-foreground">{interruptData.message}</p>
-					)}
-
 					{interruptData.context.error ? (
 						<p className="text-sm text-destructive">{interruptData.context.error}</p>
 					) : (
 						<>
 							{accounts.length > 0 && (
 								<div className="space-y-2">
-									<label className="text-xs font-medium text-muted-foreground">
+									<div className="text-xs font-medium text-muted-foreground">
 										Notion Account <span className="text-destructive">*</span>
-									</label>
+									</div>
 									<Select
 										value={selectedAccountId}
 										onValueChange={(value) => {
@@ -190,7 +186,7 @@ function ApprovalCard({
 										<SelectContent>
 											{accounts.map((account) => (
 												<SelectItem key={account.id} value={String(account.id)}>
-												{account.workspace_name}
+													{account.workspace_name}
 												</SelectItem>
 											))}
 										</SelectContent>
@@ -200,15 +196,15 @@ function ApprovalCard({
 
 							{selectedAccountId && (
 								<div className="space-y-2">
-									<label className="text-xs font-medium text-muted-foreground">
+									<div className="text-xs font-medium text-muted-foreground">
 										Parent Page (optional)
-									</label>
+									</div>
 									<Select value={selectedParentPageId} onValueChange={setSelectedParentPageId}>
 										<SelectTrigger className="w-full">
-											<SelectValue placeholder="None (create at root level)" />
+											<SelectValue placeholder="None" />
 										</SelectTrigger>
 										<SelectContent>
-											<SelectItem value="__none__">None (create at root level)</SelectItem>
+											<SelectItem value="__none__">None</SelectItem>
 											{availableParentPages.map((page) => (
 												<SelectItem key={page.page_id} value={page.page_id}>
 													📄 {page.title}
@@ -218,7 +214,7 @@ function ApprovalCard({
 									</Select>
 									{availableParentPages.length === 0 && selectedAccountId && (
 										<p className="text-xs text-muted-foreground">
-											No pages available. Page will be created at root level.
+											No pages available. Page will be created at workspace root.
 										</p>
 									)}
 								</div>
@@ -249,7 +245,7 @@ function ApprovalCard({
 			)}
 
 			{/* Edit mode - show editable form fields */}
-			{isEditing && (
+			{isEditing && !decided && (
 				<div className="space-y-3 px-4 py-3 bg-card">
 					<div>
 						<label
@@ -310,6 +306,7 @@ function ApprovalCard({
 							size="sm"
 							onClick={() => {
 								setDecided("edit");
+								setIsEditing(false);
 								onDecision({
 									type: "edit",
 									edited_action: {
@@ -317,11 +314,13 @@ function ApprovalCard({
 										args: {
 											...editedArgs,
 											connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-											parent_page_id: selectedParentPageId === "__none__" ? null : selectedParentPageId,
+											parent_page_id:
+												selectedParentPageId === "__none__" ? null : selectedParentPageId,
 										},
 									},
 								});
 							}}
+							disabled={!selectedAccountId}
 						>
 							<CheckIcon />
 							Approve with Changes
@@ -351,7 +350,8 @@ function ApprovalCard({
 											args: {
 												...args,
 												connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-												parent_page_id: selectedParentPageId === "__none__" ? null : selectedParentPageId,
+												parent_page_id:
+													selectedParentPageId === "__none__" ? null : selectedParentPageId,
 											},
 										},
 									});
@@ -475,6 +475,15 @@ export const CreateNotionPageToolUI = makeAssistantToolUI<
 					}}
 				/>
 			);
+		}
+
+		if (
+			typeof result === "object" &&
+			result !== null &&
+			"status" in result &&
+			(result as { status: string }).status === "rejected"
+		) {
+			return null;
 		}
 
 		if (isErrorResult(result)) {

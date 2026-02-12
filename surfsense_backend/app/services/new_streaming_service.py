@@ -523,19 +523,19 @@ class VercelStreamingService:
 
         Handles two interrupt sources:
         1. interrupt_on config (Deep Agent built-in): Already has action_requests/review_configs
-        2. interrupt() primitive (custom tool code): Has type/message/action/context
+        2. interrupt() primitive (custom tool code): Has type/action/context (message is optional)
 
         Args:
             interrupt_value: Raw interrupt payload from Deep Agent
 
         Returns:
-            dict: Normalized payload with action_requests, review_configs, and optional context
+            dict: Normalized payload with action_requests, review_configs, and optional context/message
         """
         if "action_requests" in interrupt_value and "review_configs" in interrupt_value:
             return interrupt_value
 
         interrupt_type = interrupt_value.get("type", "unknown")
-        message = interrupt_value.get("message", "Approval required")
+        message = interrupt_value.get("message")
         action = interrupt_value.get("action", {})
         context = interrupt_value.get("context", {})
 
@@ -553,9 +553,10 @@ class VercelStreamingService:
                 }
             ],
             "interrupt_type": interrupt_type,
-            "message": message,
             "context": context,
         }
+        if message:
+            normalized["message"] = message
         return normalized
 
     # =========================================================================

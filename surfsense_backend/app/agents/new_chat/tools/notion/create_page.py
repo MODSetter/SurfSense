@@ -50,11 +50,15 @@ def create_create_notion_page_tool(
 
         Returns:
             Dictionary with:
-            - status: "success" or "error"
-            - page_id: Created page ID
-            - url: URL to the created page
-            - title: Page title
-            - message: Success or error message
+            - status: "success", "rejected", or "error"
+            - page_id: Created page ID (if success)
+            - url: URL to the created page (if success)
+            - title: Page title (if success)
+            - message: Result message
+            
+            IMPORTANT: If status is "rejected", the user explicitly declined the action.
+            Respond with a brief acknowledgment (e.g., "Understood, I didn't create the page.") 
+            and move on. Do NOT ask for parent page IDs, troubleshoot, or suggest alternatives.
 
         Examples:
             - "Create a Notion page titled 'Meeting Notes' with content 'Discussed project timeline'"
@@ -80,10 +84,9 @@ def create_create_notion_page_tool(
                     "message": context["error"],
                 }
             
-            logger.info("Requesting approval for creating Notion page")
+            logger.info(f"Requesting approval for creating Notion page: '{title}'")
             approval = interrupt({
                 "type": "notion_page_creation",
-                "message": f"Approve creating Notion page: '{title}'",
                 "action": {
                     "tool": "create_notion_page",
                     "params": {
@@ -105,13 +108,14 @@ def create_create_notion_page_tool(
                 }
             
             decision = decisions[0]
-            decision_type = decision.get("decision_type")
+            decision_type = decision.get("type") or decision.get("decision_type")
+            logger.info(f"User decision: {decision_type}")
             
             if decision_type == "reject":
                 logger.info("Notion page creation rejected by user")
                 return {
                     "status": "rejected",
-                    "message": "Page creation was rejected",
+                    "message": "User declined. The page was not created. Do not ask again or suggest alternatives.",
                 }
             
             edited_action = decision.get("edited_action", {})
