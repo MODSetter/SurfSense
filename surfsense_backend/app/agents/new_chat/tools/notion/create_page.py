@@ -115,12 +115,7 @@ def create_create_notion_page_tool(
                 }
             
             edited_action = decision.get("edited_action", {})
-            final_params = edited_action if edited_action else {
-                "title": title,
-                "content": content,
-                "parent_page_id": parent_page_id,
-                "connector_id": connector_id,
-            }
+            final_params = edited_action.get("args", {}) if edited_action else {}
             
             final_title = final_params.get("title", title)
             final_content = final_params.get("content", content)
