@@ -121,6 +121,11 @@ function ApprovalCard({
 		return parentPages[Number(selectedAccountId)] ?? [];
 	}, [selectedAccountId, parentPages]);
 
+	const isTitleValid = useMemo(() => {
+		const currentTitle = isEditing ? editedArgs.title : args.title;
+		return currentTitle && typeof currentTitle === "string" && currentTitle.trim().length > 0;
+	}, [isEditing, editedArgs.title, args.title]);
+
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
@@ -252,14 +257,18 @@ function ApprovalCard({
 							htmlFor="notion-title"
 							className="text-xs font-medium text-muted-foreground mb-1.5 block"
 						>
-							Title
+							Title <span className="text-destructive">*</span>
 						</label>
 						<Input
 							id="notion-title"
 							value={String(editedArgs.title ?? "")}
 							onChange={(e) => setEditedArgs({ ...editedArgs, title: e.target.value })}
 							placeholder="Enter page title"
+							className={!isTitleValid ? "border-destructive" : ""}
 						/>
+						{!isTitleValid && (
+							<p className="text-xs text-destructive mt-1">Title is required and cannot be empty</p>
+						)}
 					</div>
 					<div>
 						<label
@@ -320,7 +329,7 @@ function ApprovalCard({
 									},
 								});
 							}}
-							disabled={!selectedAccountId}
+							disabled={!selectedAccountId || !isTitleValid}
 						>
 							<CheckIcon />
 							Approve with Changes
@@ -356,7 +365,7 @@ function ApprovalCard({
 										},
 									});
 								}}
-								disabled={!selectedAccountId}
+								disabled={!selectedAccountId || !isTitleValid}
 							>
 								<CheckIcon />
 								Approve

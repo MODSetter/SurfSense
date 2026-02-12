@@ -126,14 +126,21 @@ def create_create_notion_page_tool(
             final_parent_page_id = final_params.get("parent_page_id", parent_page_id)
             final_connector_id = final_params.get("connector_id", connector_id)
             
+            if not final_title or not final_title.strip():
+                logger.error("Title is empty or contains only whitespace")
+                return {
+                    "status": "error",
+                    "message": "Page title cannot be empty. Please provide a valid title.",
+                }
+            
             logger.info(f"Creating Notion page with final params: title='{final_title}'")
             
+            from sqlalchemy.future import select
+
+            from app.db import SearchSourceConnector, SearchSourceConnectorType
+
             actual_connector_id = final_connector_id
             if actual_connector_id is None:
-                from sqlalchemy.future import select
-
-                from app.db import SearchSourceConnector, SearchSourceConnectorType
-
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.search_space_id == search_space_id,
@@ -152,6 +159,26 @@ def create_create_notion_page_tool(
 
                 actual_connector_id = connector.id
                 logger.info(f"Found Notion connector: id={actual_connector_id}")
+            else:
+                result = await db_session.execute(
+                    select(SearchSourceConnector).filter(
+                        SearchSourceConnector.id == actual_connector_id,
+                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.NOTION_CONNECTOR,
+                    )
+                )
+                connector = result.scalars().first()
+
+                if not connector:
+                    logger.error(
+                        f"Invalid connector_id={actual_connector_id} for search_space_id={search_space_id}"
+                    )
+                    return {
+                        "status": "error",
+                        "message": "Selected Notion account is invalid or has been disconnected. Please select a valid account.",
+                    }
+                logger.info(f"Validated Notion connector: id={actual_connector_id}")
 
             notion_connector = NotionHistoryConnector(
                 session=db_session,
