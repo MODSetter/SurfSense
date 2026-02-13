@@ -125,13 +125,16 @@ function ApprovalCard({
 		<>
 			{/* Backdrop for full-screen mode */}
 			{isFullScreen && (
-				<div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setIsFullScreen(false)} />
+				<div
+					className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+					onClick={() => setIsFullScreen(false)}
+				/>
 			)}
-			
+
 			<div
 				className={`${
-					isFullScreen 
-						? "fixed left-1/2 top-1/2 z-50 h-[90vh] flex max-h-300 w-[90vw] max-w-350 -translate-x-1/2 -translate-y-1/2 flex-col" 
+					isFullScreen
+						? "fixed left-1/2 top-1/2 z-50 h-[90vh] flex max-h-300 w-[90vw] max-w-350 -translate-x-1/2 -translate-y-1/2 flex-col"
 						: "my-4 max-w-full"
 				} overflow-hidden rounded-xl bg-background shadow-xl transition-all duration-300 ${
 					decided
@@ -139,184 +142,153 @@ function ApprovalCard({
 						: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
 				}`}
 			>
-			<div
-				className={`flex items-center gap-3 border-b ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
-				} px-4 py-3`}
-			>
 				<div
-					className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-						decided ? "bg-muted" : "bg-muted animate-pulse"
-					}`}
+					className={`flex items-center gap-3 border-b ${
+						decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
+					} px-4 py-3`}
 				>
-					<AlertTriangleIcon
-						className={`size-4 ${decided ? "text-muted-foreground" : "text-foreground"}`}
-					/>
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className={`text-sm font-medium ${decided ? "text-foreground" : "text-foreground"}`}>
-						Update Notion Page
-					</p>
-					<p
-						className={`truncate text-xs ${
-							decided ? "text-muted-foreground" : "text-muted-foreground"
+					<div
+						className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
+							decided ? "bg-muted" : "bg-muted animate-pulse"
 						}`}
 					>
-						{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
-					</p>
-				</div>
-				{isEditing && (
-					<Button
-						size="sm"
-						variant="ghost"
-						onClick={() => setIsFullScreen(!isFullScreen)}
-						className="shrink-0"
-					>
-						{isFullScreen ? <MinimizeIcon className="size-4" /> : <MaximizeIcon className="size-4" />}
-					</Button>
-				)}
-			</div>
-
-			{/* Context section - READ ONLY account and page info */}
-			{!decided && interruptData.context && (
-				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
-					{interruptData.context.error ? (
-						<p className="text-sm text-destructive">{interruptData.context.error}</p>
-					) : (
-						<>
-							{account && (
-								<div className="space-y-2">
-									<div className="text-xs font-medium text-muted-foreground">Notion Account</div>
-									<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-										{account.workspace_icon} {account.workspace_name}
-									</div>
-								</div>
+						<AlertTriangleIcon
+							className={`size-4 ${decided ? "text-muted-foreground" : "text-foreground"}`}
+						/>
+					</div>
+					<div className="min-w-0 flex-1">
+						<p className={`text-sm font-medium ${decided ? "text-foreground" : "text-foreground"}`}>
+							Update Notion Page
+						</p>
+						<p
+							className={`truncate text-xs ${
+								decided ? "text-muted-foreground" : "text-muted-foreground"
+							}`}
+						>
+							{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
+						</p>
+					</div>
+					{isEditing && (
+						<Button
+							size="sm"
+							variant="ghost"
+							onClick={() => setIsFullScreen(!isFullScreen)}
+							className="shrink-0"
+						>
+							{isFullScreen ? (
+								<MinimizeIcon className="size-4" />
+							) : (
+								<MaximizeIcon className="size-4" />
 							)}
-
-							{currentTitle && (
-								<div className="space-y-2">
-									<div className="text-xs font-medium text-muted-foreground">Current Page</div>
-									<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-										📄 {currentTitle}
-									</div>
-								</div>
-							)}
-						</>
+						</Button>
 					)}
 				</div>
-			)}
 
-			{/* Display mode - show proposed changes as read-only */}
-			{!isEditing && (
-				<div
-					className={`space-y-2 px-4 py-3 bg-card ${isFullScreen ? "flex-1 overflow-y-auto" : ""}`}
-				>
-					{args.content != null && (
-						<div>
-							<p className="text-xs font-medium text-muted-foreground">New Content</p>
-							<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">
-								{String(args.content)}
-							</p>
-						</div>
-					)}
-					{args.content == null && (
-						<p className="text-sm text-muted-foreground italic">No content update specified</p>
-					)}
-				</div>
-			)}
-
-			{/* Edit mode - show editable form fields */}
-			{isEditing && !decided && (
-				<div
-					className={`px-4 py-3 bg-card ${isFullScreen ? "flex-1 flex flex-col overflow-hidden" : ""}`}
-				>
-					<label
-						htmlFor="notion-content"
-						className="text-xs font-medium text-muted-foreground mb-1.5 block"
-					>
-						New Content
-					</label>
-					<Textarea
-						id="notion-content"
-						value={String(editedArgs.content ?? "")}
-						onChange={(e) => setEditedArgs({ ...editedArgs, content: e.target.value || null })}
-						placeholder="Enter content to append to the page"
-						rows={isFullScreen ? undefined : 12}
-						className={`resize-none ${isFullScreen ? "flex-1 min-h-0" : ""}`}
-					/>
-				</div>
-			)}
-
-			{/* Action buttons */}
-			<div
-				className={`flex items-center gap-2 border-t ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
-				} px-4 py-3`}
-			>
-				{decided ? (
-					<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-						{decided === "approve" || decided === "edit" ? (
-							<>
-								<CheckIcon className="size-3.5 text-green-500" />
-								{decided === "edit" ? "Approved with Changes" : "Approved"}
-							</>
+				{/* Context section - READ ONLY account and page info */}
+				{!decided && interruptData.context && (
+					<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
+						{interruptData.context.error ? (
+							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
 							<>
-								<XIcon className="size-3.5 text-destructive" />
-								Rejected
+								{account && (
+									<div className="space-y-2">
+										<div className="text-xs font-medium text-muted-foreground">Notion Account</div>
+										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
+											{account.workspace_icon} {account.workspace_name}
+										</div>
+									</div>
+								)}
+
+								{currentTitle && (
+									<div className="space-y-2">
+										<div className="text-xs font-medium text-muted-foreground">Current Page</div>
+										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
+											📄 {currentTitle}
+										</div>
+									</div>
+								)}
 							</>
 						)}
-					</p>
-				) : isEditing ? (
-					<>
-						<Button
-							size="sm"
-							onClick={() => {
-								setDecided("edit");
-								setIsEditing(false);
-								setIsFullScreen(false);
-								onDecision({
-									type: "edit",
-									edited_action: {
-										name: interruptData.action_requests[0].name,
-										args: {
-											page_id: args.page_id,
-											content: editedArgs.content,
-											connector_id: account?.id,
-										},
-									},
-								});
-							}}
+					</div>
+				)}
+
+				{/* Display mode - show proposed changes as read-only */}
+				{!isEditing && (
+					<div
+						className={`space-y-2 px-4 py-3 bg-card ${isFullScreen ? "flex-1 overflow-y-auto" : ""}`}
+					>
+						{args.content != null && (
+							<div>
+								<p className="text-xs font-medium text-muted-foreground">New Content</p>
+								<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">
+									{String(args.content)}
+								</p>
+							</div>
+						)}
+						{args.content == null && (
+							<p className="text-sm text-muted-foreground italic">No content update specified</p>
+						)}
+					</div>
+				)}
+
+				{/* Edit mode - show editable form fields */}
+				{isEditing && !decided && (
+					<div
+						className={`px-4 py-3 bg-card ${isFullScreen ? "flex-1 flex flex-col overflow-hidden" : ""}`}
+					>
+						<label
+							htmlFor="notion-content"
+							className="text-xs font-medium text-muted-foreground mb-1.5 block"
 						>
-							<CheckIcon />
-							Approve with Changes
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => {
-								setIsEditing(false);
-								setIsFullScreen(false);
-								setEditedArgs(args); // Reset to original args
-							}}
-						>
-							Cancel
-						</Button>
-					</>
-				) : (
-					<>
-						{allowedDecisions.includes("approve") && (
+							New Content
+						</label>
+						<Textarea
+							id="notion-content"
+							value={String(editedArgs.content ?? "")}
+							onChange={(e) => setEditedArgs({ ...editedArgs, content: e.target.value || null })}
+							placeholder="Enter content to append to the page"
+							rows={isFullScreen ? undefined : 12}
+							className={`resize-none ${isFullScreen ? "flex-1 min-h-0" : ""}`}
+						/>
+					</div>
+				)}
+
+				{/* Action buttons */}
+				<div
+					className={`flex items-center gap-2 border-t ${
+						decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
+					} px-4 py-3`}
+				>
+					{decided ? (
+						<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+							{decided === "approve" || decided === "edit" ? (
+								<>
+									<CheckIcon className="size-3.5 text-green-500" />
+									{decided === "edit" ? "Approved with Changes" : "Approved"}
+								</>
+							) : (
+								<>
+									<XIcon className="size-3.5 text-destructive" />
+									Rejected
+								</>
+							)}
+						</p>
+					) : isEditing ? (
+						<>
 							<Button
 								size="sm"
 								onClick={() => {
-									setDecided("approve");
+									setDecided("edit");
+									setIsEditing(false);
+									setIsFullScreen(false);
 									onDecision({
-										type: "approve",
+										type: "edit",
 										edited_action: {
 											name: interruptData.action_requests[0].name,
 											args: {
 												page_id: args.page_id,
-												content: args.content,
+												content: editedArgs.content,
 												connector_id: account?.id,
 											},
 										},
@@ -324,32 +296,67 @@ function ApprovalCard({
 								}}
 							>
 								<CheckIcon />
-								Approve
+								Approve with Changes
 							</Button>
-						)}
-						{canEdit && (
-							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-								<PencilIcon />
-								Edit
-							</Button>
-						)}
-						{allowedDecisions.includes("reject") && (
 							<Button
 								size="sm"
 								variant="outline"
 								onClick={() => {
-									setDecided("reject");
-									onDecision({ type: "reject", message: "User rejected the action." });
+									setIsEditing(false);
+									setIsFullScreen(false);
+									setEditedArgs(args); // Reset to original args
 								}}
 							>
-								<XIcon />
-								Reject
+								Cancel
 							</Button>
-						)}
-					</>
-				)}
+						</>
+					) : (
+						<>
+							{allowedDecisions.includes("approve") && (
+								<Button
+									size="sm"
+									onClick={() => {
+										setDecided("approve");
+										onDecision({
+											type: "approve",
+											edited_action: {
+												name: interruptData.action_requests[0].name,
+												args: {
+													page_id: args.page_id,
+													content: args.content,
+													connector_id: account?.id,
+												},
+											},
+										});
+									}}
+								>
+									<CheckIcon />
+									Approve
+								</Button>
+							)}
+							{canEdit && (
+								<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
+									<PencilIcon />
+									Edit
+								</Button>
+							)}
+							{allowedDecisions.includes("reject") && (
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={() => {
+										setDecided("reject");
+										onDecision({ type: "reject", message: "User rejected the action." });
+									}}
+								>
+									<XIcon />
+									Reject
+								</Button>
+							)}
+						</>
+					)}
+				</div>
 			</div>
-		</div>
 		</>
 	);
 }

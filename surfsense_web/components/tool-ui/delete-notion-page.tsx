@@ -17,6 +17,20 @@ interface InterruptResult {
 		action_name: string;
 		allowed_decisions: Array<"approve" | "reject">;
 	}>;
+	context?: {
+		account?: {
+			id: number;
+			name: string;
+			workspace_id: string | null;
+			workspace_name: string;
+			workspace_icon: string;
+		};
+		page_id?: string;
+		current_title?: string;
+		document_id?: number;
+		indexed_at?: string;
+		error?: string;
+	};
 }
 
 interface SuccessResult {
@@ -57,11 +71,16 @@ function ApprovalCard({
 }: {
 	args: Record<string, unknown>;
 	interruptData: InterruptResult;
-	onDecision: (decision: { type: "approve" | "reject"; message?: string }) => void;
+	onDecision: (decision: {
+		type: "approve" | "reject";
+		message?: string;
+		edited_action?: { name: string; args: Record<string, unknown> };
+	}) => void;
 }) {
 	const [decided, setDecided] = useState<"approve" | "reject" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const [deleteFromDb, setDeleteFromDb] = useState(false);
 
 	return (
 		<div
@@ -98,13 +117,42 @@ function ApprovalCard({
 			</div>
 
 			<div className="space-y-2 px-4 py-3 bg-card">
-				{args.page_id != null && (
+				{interruptData.context?.account && (
 					<div>
-						<p className="text-xs font-medium text-muted-foreground">Page ID</p>
-						<p className="text-sm text-foreground font-mono">{String(args.page_id)}</p>
+						<p className="text-xs font-medium text-muted-foreground">Notion Account</p>
+						<p className="text-sm text-foreground">
+							{interruptData.context.account.workspace_icon}{" "}
+							{interruptData.context.account.workspace_name}
+						</p>
+					</div>
+				)}
+				{interruptData.context?.current_title && (
+					<div>
+						<p className="text-xs font-medium text-muted-foreground">Page</p>
+						<p className="text-sm text-foreground">📄 {interruptData.context.current_title}</p>
 					</div>
 				)}
 			</div>
+
+			{/* Checkbox for deleting from knowledge base */}
+			{!decided && (
+				<div className="px-4 py-3 border-t border-border bg-muted/20">
+					<label className="flex items-start gap-2 cursor-pointer">
+						<input
+							type="checkbox"
+							checked={deleteFromDb}
+							onChange={(e) => setDeleteFromDb(e.target.checked)}
+							className="mt-0.5"
+						/>
+						<div className="flex-1">
+							<span className="text-sm text-foreground">Also remove from knowledge base</span>
+							<p className="text-xs text-muted-foreground mt-1">
+								⚠️ This will permanently delete the page from your knowledge base (cannot be undone)
+							</p>
+						</div>
+					</label>
+				</div>
+			)}
 
 			<div
 				className={`flex items-center gap-2 border-t ${
@@ -131,7 +179,16 @@ function ApprovalCard({
 							size="sm"
 							onClick={() => {
 								setDecided("approve");
-								onDecision({ type: "approve" });
+								onDecision({
+									type: "approve",
+									edited_action: {
+										name: interruptData.action_requests[0].name,
+										args: {
+											...interruptData.action_requests[0].args,
+											delete_from_db: deleteFromDb,
+										},
+									},
+								});
 							}}
 						>
 							<CheckIcon />
@@ -198,7 +255,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 }
 
 export const DeleteNotionPageToolUI = makeAssistantToolUI<
-	{ page_id: string },
+	{ page_title: string; delete_from_db?: boolean },
 	DeleteNotionPageResult
 >({
 	toolName: "delete_notion_page",
