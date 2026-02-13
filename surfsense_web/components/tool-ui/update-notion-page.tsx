@@ -4,6 +4,7 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
 	AlertTriangleIcon,
 	CheckIcon,
+	InfoIcon,
 	Loader2Icon,
 	MaximizeIcon,
 	MinimizeIcon,
@@ -59,7 +60,12 @@ interface ErrorResult {
 	message: string;
 }
 
-type UpdateNotionPageResult = InterruptResult | SuccessResult | ErrorResult;
+interface InfoResult {
+	status: "not_found";
+	message: string;
+}
+
+type UpdateNotionPageResult = InterruptResult | SuccessResult | ErrorResult | InfoResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -76,6 +82,15 @@ function isErrorResult(result: unknown): result is ErrorResult {
 		result !== null &&
 		"status" in result &&
 		(result as ErrorResult).status === "error"
+	);
+}
+
+function isInfoResult(result: unknown): result is InfoResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as InfoResult).status === "not_found"
 	);
 }
 
@@ -349,6 +364,21 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 	);
 }
 
+function InfoCard({ result }: { result: InfoResult }) {
+	return (
+		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-amber-500/50 bg-card">
+			<div className="flex items-start gap-3 px-4 py-3">
+				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
+					<InfoIcon className="size-4 text-amber-500" />
+				</div>
+				<div className="min-w-0 flex-1 pt-2">
+					<p className="text-sm text-muted-foreground">{result.message}</p>
+				</div>
+			</div>
+		</div>
+	);
+}
+
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
 		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
@@ -444,6 +474,10 @@ export const UpdateNotionPageToolUI = makeAssistantToolUI<
 			(result as { status: string }).status === "rejected"
 		) {
 			return null;
+		}
+
+		if (isInfoResult(result)) {
+			return <InfoCard result={result} />;
 		}
 
 		if (isErrorResult(result)) {
