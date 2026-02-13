@@ -6,8 +6,8 @@ import { Dot, FileTextIcon } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
 /**

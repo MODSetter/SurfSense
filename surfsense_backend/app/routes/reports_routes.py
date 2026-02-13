@@ -3,7 +3,8 @@ Report routes for read, export (PDF/DOCX), and delete operations.
 
 No create or update endpoints here — reports are generated inline by the
 agent tool during chat and stored as Markdown in the database.
-Export to PDF/DOCX is on-demand via pypandoc (PDF uses Typst as the engine).
+Export to PDF/DOCX is on-demand — PDF uses pypandoc (Markdown→Typst) + typst-py
+(Typst→PDF); DOCX uses pypandoc directly.
 
 Authorization: lightweight search-space membership checks (no granular RBAC)
 since reports are chat-generated artifacts, not standalone managed resources.
@@ -13,10 +14,12 @@ import asyncio
 import io
 import logging
 import os
+import re
 import tempfile
 from enum import Enum
 
 import pypandoc
+import typst
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -50,6 +53,17 @@ class ExportFormat(str, Enum):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+_CODE_FENCE_RE = re.compile(r"^```(?:markdown|md)?\s*\n", re.MULTILINE)
+
+
+def _strip_wrapping_code_fences(text: str) -> str:
+    """Remove wrapping code fences (```markdown...```) that LLMs often add."""
+    stripped = text.strip()
+    m = _CODE_FENCE_RE.match(stripped)
+    if m and stripped.endswith("```"):
+        stripped = stripped[m.end() : -3].rstrip()
+    return stripped
 
 
 async def _get_report_with_access(
@@ -209,37 +223,64 @@ async def export_report(
                 status_code=400, detail="Report has no content to export"
             )
 
-        # Convert Markdown to the requested format via pypandoc.
-        # pypandoc spawns a pandoc subprocess (blocking), so we run the
-        # entire convert → read → cleanup pipeline in a thread executor
-        # to avoid blocking the async event loop on any file I/O.
+        # Strip wrapping code fences that LLMs sometimes add around Markdown.
+        # Without this, pandoc treats the entire content as a code block.
+        markdown_content = _strip_wrapping_code_fences(report.content)
+
+        # Convert Markdown to the requested format.
         #
-        # PDF uses Typst as the rendering engine — Typst has built-in
-        # professional styling for tables, headings, code blocks, etc.,
-        # so no CSS injection is needed.
+        # DOCX: pypandoc (pandoc) handles the full conversion directly.
         #
-        # Use "gfm" because LLM output uses GFM-style pipe tables that
-        # pandoc's stricter default "markdown" format may fail to parse.
-        extra_args = ["--standalone"]
-        if format == ExportFormat.PDF:
-            extra_args.append("--pdf-engine=typst")
+        # PDF: two-step pipeline — pypandoc converts Markdown → Typst markup,
+        # then the `typst` Python library compiles Typst → PDF.  This avoids
+        # requiring the Typst CLI on the system PATH; the typst pip package
+        # bundles the compiler as a native extension.  Typst produces
+        # professional styling for tables, headings, code blocks, etc.
+        #
+        # Use "gfm" as the input format because LLM output uses GFM-style
+        # pipe tables that pandoc's stricter default "markdown" may mangle.
 
         def _convert_and_read() -> bytes:
-            """Run all blocking I/O (tempfile, pandoc, file read, cleanup) in a thread."""
-            fd, tmp_path = tempfile.mkstemp(suffix=f".{format.value}")
-            os.close(fd)
-            try:
-                pypandoc.convert_text(
-                    report.content,
-                    format.value,
+            """Run all blocking I/O (tempfile, pandoc/typst, file read, cleanup) in a thread."""
+            if format == ExportFormat.PDF:
+                # Step 1: Markdown → Typst markup via pandoc.
+                # We must set mainfont / monofont so the generated template's
+                # `font` parameter is non-empty; without it pandoc emits
+                # `font: ()` which makes Typst error with
+                # "font fallback list must not be empty".
+                # We use fonts that ship embedded inside typst-py so this
+                # works even on systems with no fonts installed.
+                typst_markup: str = pypandoc.convert_text(
+                    markdown_content,
+                    "typst",
                     format="gfm",
-                    extra_args=extra_args,
-                    outputfile=tmp_path,
+                    extra_args=[
+                        "--standalone",
+                        "-V",
+                        "mainfont:Libertinus Serif",
+                        "-V",
+                        "monofont:DejaVu Sans Mono",
+                    ],
                 )
-                with open(tmp_path, "rb") as f:
-                    return f.read()
-            finally:
-                os.unlink(tmp_path)
+                # Step 2: Typst markup → PDF via typst Python library
+                pdf_bytes: bytes = typst.compile(typst_markup.encode("utf-8"))
+                return pdf_bytes
+            else:
+                # DOCX: let pandoc handle the full conversion
+                fd, tmp_path = tempfile.mkstemp(suffix=f".{format.value}")
+                os.close(fd)
+                try:
+                    pypandoc.convert_text(
+                        markdown_content,
+                        format.value,
+                        format="gfm",
+                        extra_args=["--standalone"],
+                        outputfile=tmp_path,
+                    )
+                    with open(tmp_path, "rb") as f:
+                        return f.read()
+                finally:
+                    os.unlink(tmp_path)
 
         loop = asyncio.get_running_loop()
         output = await loop.run_in_executor(None, _convert_and_read)
