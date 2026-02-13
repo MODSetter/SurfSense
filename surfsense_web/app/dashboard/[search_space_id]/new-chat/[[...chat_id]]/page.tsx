@@ -390,6 +390,16 @@ export default function NewChatPage() {
 		}));
 	}, [currentThread, setCurrentThreadState]);
 
+	// Cleanup on unmount - abort any in-flight requests
+	useEffect(() => {
+		return () => {
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+				abortControllerRef.current = null;
+			}
+		};
+	}, []);
+
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
 		if (abortControllerRef.current) {
@@ -952,25 +962,36 @@ export default function NewChatPage() {
 							contentPartsState.currentTextPartIndex = -1;
 						}
 					}
-				}
 			}
+		}
 
-			const decisionType = decisions[0]?.type as "approve" | "reject" | undefined;
-			if (decisionType) {
-				for (const part of contentParts) {
-					if (
-						part.type === "tool-call" &&
-						typeof part.result === "object" &&
-						part.result !== null &&
-						"__interrupt__" in (part.result as Record<string, unknown>)
-					) {
-						part.result = {
-							...(part.result as Record<string, unknown>),
-							__decided__: decisionType,
-						};
-					}
+		// Merge edited args if present to fix race condition
+		if (decisions.length > 0 && decisions[0].type === "edit" && decisions[0].edited_action) {
+			const editedAction = decisions[0].edited_action;
+			for (const part of contentParts) {
+				if (part.type === "tool-call" && part.toolName === editedAction.name) {
+					part.args = { ...part.args, ...editedAction.args };
+					break;
 				}
 			}
+		}
+
+		const decisionType = decisions[0]?.type as "approve" | "reject" | undefined;
+		if (decisionType) {
+			for (const part of contentParts) {
+				if (
+					part.type === "tool-call" &&
+					typeof part.result === "object" &&
+					part.result !== null &&
+					"__interrupt__" in (part.result as Record<string, unknown>)
+				) {
+					part.result = {
+						...(part.result as Record<string, unknown>),
+						__decided__: decisionType,
+					};
+				}
+			}
+		}
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";

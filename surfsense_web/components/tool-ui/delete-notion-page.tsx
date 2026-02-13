@@ -341,7 +341,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 					</p>
 				</div>
 			</div>
-{result.deleted_from_db || result.title && (
+{(result.deleted_from_db || result.title) && (
 			<div className="space-y-2 px-4 py-3 text-xs">
 				{result.title && (
 					<div>
