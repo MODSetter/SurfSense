@@ -1113,7 +1113,14 @@ class NotionHistoryConnector:
 
         except APIResponseError as e:
             logger.error(f"Notion API error deleting page: {e}")
-            error_msg = e.body.get("message", str(e)) if hasattr(e, "body") else str(e)
+            # Handle both dict and string body formats
+            if hasattr(e, "body"):
+                if isinstance(e.body, dict):
+                    error_msg = e.body.get("message", str(e))
+                else:
+                    error_msg = str(e.body) if e.body else str(e)
+            else:
+                error_msg = str(e)
             return {
                 "status": "error",
                 "message": f"Failed to delete Notion page: {error_msg}",

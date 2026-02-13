@@ -229,7 +229,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ),
     ToolDefinition(
         name="delete_notion_page",
-        description="Delete a Notion page by title",
+        description="Delete an existing Notion page",
         factory=lambda deps: create_delete_notion_page_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],

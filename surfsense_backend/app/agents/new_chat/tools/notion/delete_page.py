@@ -96,6 +96,7 @@ def create_delete_notion_page_tool(
             document_id = context.get("document_id")
 
             logger.info(f"Requesting approval for deleting Notion page: '{page_title}' (page_id={page_id}, delete_from_db={delete_from_db})")
+            
             # Request approval before deleting
             approval = interrupt(
                 {
@@ -131,21 +132,63 @@ def create_delete_notion_page_tool(
                     "message": "User declined. The page was not deleted. Do not ask again or suggest alternatives.",
                 }
 
-            logger.info(f"Deleting Notion page: page_id={page_id}")
+            # Extract edited action arguments (if user modified the checkbox)
+            edited_action = decision.get("edited_action", {})
+            final_params = edited_action.get("args", {}) if edited_action else {}
+
+            final_page_id = final_params.get("page_id", page_id)
+            final_connector_id = final_params.get("connector_id", connector_id_from_context)
+            final_delete_from_db = final_params.get("delete_from_db", delete_from_db)
+            
+            logger.info(f"Deleting Notion page with final params: page_id={final_page_id}, connector_id={final_connector_id}, delete_from_db={final_delete_from_db}")
+
+            from sqlalchemy.future import select
+
+            from app.db import SearchSourceConnector, SearchSourceConnectorType
+
+            # Validate the connector
+            if final_connector_id:
+                result = await db_session.execute(
+                    select(SearchSourceConnector).filter(
+                        SearchSourceConnector.id == final_connector_id,
+                        SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.user_id == user_id,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.NOTION_CONNECTOR,
+                    )
+                )
+                connector = result.scalars().first()
+
+                if not connector:
+                    logger.error(
+                        f"Invalid connector_id={final_connector_id} for search_space_id={search_space_id}"
+                    )
+                    return {
+                        "status": "error",
+                        "message": "Selected Notion account is invalid or has been disconnected. Please select a valid account.",
+                    }
+                actual_connector_id = connector.id
+                logger.info(f"Validated Notion connector: id={actual_connector_id}")
+            else:
+                logger.error("No connector found for this page")
+                return {
+                    "status": "error",
+                    "message": "No connector found for this page.",
+                }
 
             # Create connector instance
             notion_connector = NotionHistoryConnector(
                 session=db_session,
-                connector_id=connector_id_from_context,
+                connector_id=actual_connector_id,
             )
 
             # Delete the page from Notion
-            result = await notion_connector.delete_page(page_id=page_id)
+            result = await notion_connector.delete_page(page_id=final_page_id)
             logger.info(f"delete_page result: {result.get('status')} - {result.get('message', '')}")
             
             # If deletion was successful and user wants to delete from DB
             deleted_from_db = False
-            if result.get("status") == "success" and delete_from_db and document_id:
+            if result.get("status") == "success" and final_delete_from_db and document_id:
                 try:
                     from sqlalchemy.future import select
 
@@ -178,17 +221,18 @@ def create_delete_notion_page_tool(
             
             return result
 
-        except ValueError as e:
-            logger.error(f"ValueError in delete_notion_page: {e}")
-            return {
-                "status": "error",
-                "message": str(e),
-            }
         except Exception as e:
-            logger.error(f"Unexpected error in delete_notion_page: {e}")
+            from langgraph.errors import GraphInterrupt
+
+            if isinstance(e, GraphInterrupt):
+                raise
+
+            logger.error(f"Error deleting Notion page: {e}", exc_info=True)
             return {
                 "status": "error",
-                "message": f"Unexpected error deleting Notion page: {e!s}",
+                "message": str(e)
+                if isinstance(e, ValueError)
+                else f"Unexpected error: {e!s}",
             }
 
     return delete_notion_page
