@@ -144,6 +144,7 @@ def create_create_notion_page_tool(
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type
                         == SearchSourceConnectorType.NOTION_CONNECTOR,
                     )
@@ -164,6 +165,7 @@ def create_create_notion_page_tool(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.id == actual_connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
+                        SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type
                         == SearchSourceConnectorType.NOTION_CONNECTOR,
                     )
