@@ -117,21 +117,28 @@ function ApprovalCard({
 	const account = interruptData.context?.account;
 	const currentTitle = interruptData.context?.current_title;
 
-	// Title is not editable, so it's always valid
-	const isTitleValid = true;
-
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
 	return (
-		<div
-			className={`my-4 ${isFullScreen ? "fixed inset-0 z-50 m-0 flex flex-col bg-background" : "max-w-full"} overflow-hidden rounded-xl transition-all duration-300 ${
-				decided
-					? "border border-border bg-card shadow-sm"
-					: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
-			}`}
-		>
+		<>
+			{/* Backdrop for full-screen mode */}
+			{isFullScreen && (
+				<div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={() => setIsFullScreen(false)} />
+			)}
+			
+			<div
+				className={`${
+					isFullScreen 
+						? "fixed left-1/2 top-1/2 z-50 h-[90vh] flex max-h-300 w-[90vw] max-w-350 -translate-x-1/2 -translate-y-1/2 flex-col" 
+						: "my-4 max-w-full"
+				} overflow-hidden rounded-xl bg-background shadow-xl transition-all duration-300 ${
+					decided
+						? "border border-border bg-card shadow-sm"
+						: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
+				}`}
+			>
 			<div
 				className={`flex items-center gap-3 border-b ${
 					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
@@ -343,6 +350,7 @@ function ApprovalCard({
 				)}
 			</div>
 		</div>
+		</>
 	);
 }
 
