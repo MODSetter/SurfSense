@@ -197,14 +197,17 @@ def create_generate_report_tool(
           User: "Rewrite the report in a more formal tone" → parent_report_id = <previous report_id>
           User: "I want more details about pricing in here" → parent_report_id = <previous report_id>
           User: "Include more examples" → parent_report_id = <previous report_id>
-          User: "Can you also cover security in this?" → parent_report_id = <previous report_id>
+          User: "Can you also cover nutrition in this?" → parent_report_id = <previous report_id>
           User: "Make it more detailed" → parent_report_id = <previous report_id>
-          User: "I want more about X for in here" → parent_report_id = <previous report_id>
+          User: "Not bad, but expand on the budget section" → parent_report_id = <previous report_id>
+          User: "Also mention the competitor landscape" → parent_report_id = <previous report_id>
 
         Examples of when to LEAVE parent_report_id as None:
           User: "Generate a report on climate change" → parent_report_id = None (new topic)
           User: "Write me a report about the budget" → parent_report_id = None (new topic)
           User: "Create another report, this time about marketing" → parent_report_id = None
+          User: "Now write one about travel trends in Europe" → parent_report_id = None (new topic despite "now")
+          User: "Do the same kind of report but for the fitness industry" → parent_report_id = None (new topic, different subject)
 
         Args:
             topic: A short, concise title for the report (maximum 8 words). Keep it brief and descriptive — e.g. "AI in Healthcare Analysis: A Comprehensive Report" instead of "Comprehensive Analysis of Artificial Intelligence Applications in Modern Healthcare Systems".
