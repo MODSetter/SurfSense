@@ -424,7 +424,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 }
 
 export const UpdateNotionPageToolUI = makeAssistantToolUI<
-	{ page_id: string; content: string },
+	{ page_title: string; content: string },
 	UpdateNotionPageResult
 >({
 	toolName: "update_notion_page",
