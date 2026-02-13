@@ -108,13 +108,39 @@ def create_generate_report_tool(
         """
         Generate a structured Markdown report from provided content.
 
-        Use this tool when the user asks to create, generate, or write a report.
+        Use this tool when the user asks to create, generate, write, produce, draft,
+        or summarize into a report-style deliverable.
+        Trigger classes include:
+        - Direct trigger words: report, document, memo, letter, template
+        - Creation-intent phrases: "write a document/report/post/article"
+        - File-intent words: requests containing "save", "file", or "document" when
+          intent is to create a report-like deliverable
+        - Word-doc specific triggers: professional report-style deliverable,
+          professional document, Word doc, .docx
+        - Other report-like output intents: one-pager, blog post, article,
+          standalone written content, comprehensive guide
+        - General artifact-style intents: analysis / writing as substantial deliverables
         Common triggers include phrases like:
         - "Generate a report about this"
         - "Write a report from this conversation"
         - "Create a detailed report about..."
         - "Make a research report on..."
         - "Summarize this into a report"
+        - "Turn this into a report"
+        - "Write a report/document"
+        - "Draft a report"
+        - "Create an executive summary"
+        - "Make a briefing note"
+        - "Write a one-pager"
+        - "Write a blog post"
+        - "Write an article"
+        - "Create a comprehensive guide"
+        - "Prepare a report"
+
+        FORMAT/EXPORT RULE:
+        - Always generate the report content in Markdown.
+        - If the user requests DOCX/Word/PDF or another file format, export from
+          the generated Markdown report.
 
         VERSIONING — parent_report_id:
         - Set parent_report_id when the user wants to MODIFY, REVISE, IMPROVE,
