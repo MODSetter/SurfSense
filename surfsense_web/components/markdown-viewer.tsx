@@ -29,33 +29,45 @@ function stripOuterMarkdownFence(content: string): string {
 }
 
 /**
- * Convert various LaTeX delimiter styles to the dollar-sign syntax
+ * Convert all LaTeX delimiter styles to the dollar-sign syntax
  * that remark-math understands, and normalise edge-cases that
  * commonly appear in LLM-generated markdown.
  *
- *   \[...\]          → $$ ... $$   (block / display math)
- *   \(...\)          → $ ... $     (inline math)
- *   same-line $$…$$  → $ ... $     (inline math — display math
- *                                    can't live inside table cells)
- *   `$$ … $$`        → $$ … $$     (strip wrapping backtick code)
- *   `$ … $`          → $ … $       (strip wrapping backtick code)
+ *   \[...\]                              → $$ ... $$  (block / display math)
+ *   \(...\)                              → $ ... $    (inline math)
+ *   \begin{equation}...\end{equation}    → $$ ... $$  (block math)
+ *   \begin{displaymath}...\end{displaymath} → $$ ... $$ (block math)
+ *   \begin{math}...\end{math}            → $ ... $    (inline math)
+ *   same-line $$…$$                       → $ ... $    (inline math — display math
+ *                                                        can't live inside table cells)
+ *   `$$ … $$`                             → $$ … $$    (strip wrapping backtick code)
+ *   `$ … $`                               → $ … $      (strip wrapping backtick code)
  */
 function convertLatexDelimiters(content: string): string {
 	// 1. Block math: \[...\] → $$...$$
-	content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_match, inner) => {
-		return `$$${inner}$$`;
-	});
+	content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_, inner) => `$$${inner}$$`);
 	// 2. Inline math: \(...\) → $...$
-	content = content.replace(/\\\(([\s\S]*?)\\\)/g, (_match, inner) => {
-		return `$${inner}$`;
-	});
-	// 3. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
+	content = content.replace(/\\\(([\s\S]*?)\\\)/g, (_, inner) => `$${inner}$`);
+	// 3. Block: \begin{equation}...\end{equation} → $$...$$
+	content = content.replace(
+		/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g,
+		(_, inner) => `$$${inner}$$`,
+	);
+	// 4. Block: \begin{displaymath}...\end{displaymath} → $$...$$
+	content = content.replace(
+		/\\begin\{displaymath\}([\s\S]*?)\\end\{displaymath\}/g,
+		(_, inner) => `$$${inner}$$`,
+	);
+	// 5. Inline: \begin{math}...\end{math} → $...$
+	content = content.replace(
+		/\\begin\{math\}([\s\S]*?)\\end\{math\}/g,
+		(_, inner) => `$${inner}$`,
+	);
+	// 6. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
 	content = content.replace(/`(\${1,2})((?:(?!\1).)+)\1`/g, "$1$2$1");
-	// 4. Same-line $$...$$ → $...$ (inline math) so it works inside table cells.
+	// 7. Same-line $$...$$ → $...$ (inline math) so it works inside table cells.
 	//    True display math has $$ on its own line, so this only affects inline usage.
-	content = content.replace(/\$\$([^\n]+?)\$\$/g, (_match, inner) => {
-		return `$${inner}$`;
-	});
+	content = content.replace(/\$\$([^\n]+?)\$\$/g, (_, inner) => `$${inner}$`);
 	return content;
 }
 
