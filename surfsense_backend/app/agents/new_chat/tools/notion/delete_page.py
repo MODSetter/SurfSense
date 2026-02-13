@@ -33,6 +33,7 @@ def create_delete_notion_page_tool(
     @tool
     async def delete_notion_page(
         page_title: str,
+        delete_from_db: bool = False,
     ) -> dict[str, Any]:
         """Delete (archive) a Notion page.
 
@@ -42,19 +43,23 @@ def create_delete_notion_page_tool(
 
         Args:
             page_title: The title of the Notion page to delete.
+            delete_from_db: Whether to also remove the page from the knowledge base.
+                          Default is False (in Notion).
+                          Set to True to permanently remove from both Notion and knowledge base.
 
         Returns:
             Dictionary with:
-            - status: "success" or "error"
-            - page_id: Deleted page ID
+            - status: "success", "rejected", "not_found", or "error"
+            - page_id: Deleted page ID (if success)
             - message: Success or error message
+            - deleted_from_db: Whether the page was also removed from knowledge base (if success)
 
         Examples:
             - "Delete the 'Meeting Notes' Notion page"
             - "Remove the 'Old Project Plan' Notion page"
             - "Archive the 'Draft Ideas' Notion page"
         """
-        logger.info(f"delete_notion_page called: page_title='{page_title}'")
+        logger.info(f"delete_notion_page called: page_title='{page_title}', delete_from_db={delete_from_db}")
         
         if db_session is None or search_space_id is None or user_id is None:
             logger.error("Notion tool not properly configured - missing required parameters")
@@ -88,8 +93,9 @@ def create_delete_notion_page_tool(
 
             page_id = context.get("page_id")
             connector_id_from_context = context.get("account", {}).get("id")
+            document_id = context.get("document_id")
 
-            logger.info(f"Requesting approval for deleting Notion page: '{page_title}' (page_id={page_id})")
+            logger.info(f"Requesting approval for deleting Notion page: '{page_title}' (page_id={page_id}, delete_from_db={delete_from_db})")
             # Request approval before deleting
             approval = interrupt(
                 {
@@ -99,6 +105,7 @@ def create_delete_notion_page_tool(
                         "params": {
                             "page_id": page_id,
                             "connector_id": connector_id_from_context,
+                            "delete_from_db": delete_from_db,
                         },
                     },
                     "context": context,
@@ -132,9 +139,43 @@ def create_delete_notion_page_tool(
                 connector_id=connector_id_from_context,
             )
 
-            # Delete the page
+            # Delete the page from Notion
             result = await notion_connector.delete_page(page_id=page_id)
             logger.info(f"delete_page result: {result.get('status')} - {result.get('message', '')}")
+            
+            # If deletion was successful and user wants to delete from DB
+            deleted_from_db = False
+            if result.get("status") == "success" and delete_from_db and document_id:
+                try:
+                    from sqlalchemy.future import select
+
+                    from app.db import Document
+
+                    # Get the document
+                    doc_result = await db_session.execute(
+                        select(Document).filter(Document.id == document_id)
+                    )
+                    document = doc_result.scalars().first()
+
+                    if document:
+                        await db_session.delete(document)
+                        await db_session.commit()
+                        deleted_from_db = True
+                        logger.info(f"Deleted document {document_id} from knowledge base")
+                    else:
+                        logger.warning(f"Document {document_id} not found in DB")
+                except Exception as e:
+                    logger.error(f"Failed to delete document from DB: {e}")
+                    # Don't fail the whole operation if DB deletion fails
+                    # The page is already deleted from Notion, so inform the user
+                    result["warning"] = f"Page deleted from Notion, but failed to remove from knowledge base: {e!s}"
+
+            # Update result with DB deletion status
+            if result.get("status") == "success":
+                result["deleted_from_db"] = deleted_from_db
+                if deleted_from_db:
+                    result["message"] = f"{result.get('message', '')} (also removed from knowledge base)"
+            
             return result
 
         except ValueError as e:
