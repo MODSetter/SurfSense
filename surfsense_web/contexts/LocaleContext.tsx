@@ -4,8 +4,8 @@ import type React from "react";
 import { createContext, useContext, useEffect, useState } from "react";
 import enMessages from "../messages/en.json";
 import esMessages from "../messages/es.json";
-import ptMessages from "../messages/pt.json";
 import hiMessages from "../messages/hi.json";
+import ptMessages from "../messages/pt.json";
 import zhMessages from "../messages/zh.json";
 
 type Locale = "en" | "es" | "pt" | "hi" | "zh";
