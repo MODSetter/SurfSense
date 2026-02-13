@@ -393,19 +393,13 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 				</div>
 			</div>
 
-			{/* Show details to verify the update */}
 			<div className="space-y-2 px-4 py-3 text-xs">
-				<div>
-					<span className="font-medium text-muted-foreground">Page ID: </span>
-					<span className="font-mono">{result.page_id}</span>
-				</div>
 				<div>
 					<span className="font-medium text-muted-foreground">Title: </span>
 					<span>{result.title}</span>
 				</div>
 				{result.url && (
 					<div>
-						<span className="font-medium text-muted-foreground">URL: </span>
 						<a
 							href={result.url}
 							target="_blank"
@@ -414,18 +408,6 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 						>
 							Open in Notion
 						</a>
-					</div>
-				)}
-				{result.content_length != null && (
-					<div>
-						<span className="font-medium text-muted-foreground">Content: </span>
-						<span>{result.content_length} characters</span>
-					</div>
-				)}
-				{result.content_preview && (
-					<div>
-						<span className="font-medium text-muted-foreground">Preview: </span>
-						<span className="text-muted-foreground italic">{result.content_preview}</span>
 					</div>
 				)}
 			</div>

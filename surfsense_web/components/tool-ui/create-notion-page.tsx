@@ -423,28 +423,27 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 					<CheckIcon className="size-4 text-green-500" />
 				</div>
 				<div className="min-w-0 flex-1">
-					<p className=" text-[.8rem] text-muted-foreground">
+					<p className="text-[.8rem] text-muted-foreground">
 						{result.message || "Notion page created successfully"}
 					</p>
 				</div>
 			</div>
 
-			{/* Show details to verify the arguments were used */}
 			<div className="space-y-2 px-4 py-3 text-xs">
 				<div>
-					<span className="font-medium text-muted-foreground">Page ID: </span>
-					<span className="font-mono">{result.page_id}</span>
+					<span className="font-medium text-muted-foreground">Title: </span>
+					<span>{result.title}</span>
 				</div>
-				{result.content_length != null && (
+				{result.url && (
 					<div>
-						<span className="font-medium text-muted-foreground">Content: </span>
-						<span>{result.content_length} characters</span>
-					</div>
-				)}
-				{result.content_preview && (
-					<div>
-						<span className="font-medium text-muted-foreground">Preview: </span>
-						<span className="text-muted-foreground italic">{result.content_preview}</span>
+						<a
+							href={result.url}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-primary hover:underline"
+						>
+							Open in Notion
+						</a>
 					</div>
 				)}
 			</div>
