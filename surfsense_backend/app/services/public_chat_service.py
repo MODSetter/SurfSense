@@ -29,6 +29,7 @@ from app.db import (
     Podcast,
     PodcastStatus,
     PublicChatSnapshot,
+    Report,
     SearchSpaceMembership,
     User,
 )
@@ -38,6 +39,7 @@ UI_TOOLS = {
     "display_image",
     "link_preview",
     "generate_podcast",
+    "generate_report",
     "scrape_webpage",
     "multi_link_preview",
 }
@@ -195,19 +197,22 @@ async def create_snapshot(
     message_ids = []
     podcasts_data = []
     podcast_ids_seen: set[int] = set()
+    reports_data = []
+    report_ids_seen: set[int] = set()
 
     for msg in sorted(thread.messages, key=lambda m: m.created_at):
         author = await get_author_display(session, msg.author_id, user_cache)
         sanitized_content = sanitize_content_for_public(msg.content)
 
-        # Extract podcast references and update status to "ready" for completed podcasts
+        # Extract podcast/report references and update status to "ready" for completed ones
         if isinstance(sanitized_content, list):
             for part in sanitized_content:
-                if (
-                    isinstance(part, dict)
-                    and part.get("type") == "tool-call"
-                    and part.get("toolName") == "generate_podcast"
-                ):
+                if not isinstance(part, dict) or part.get("type") != "tool-call":
+                    continue
+
+                tool_name = part.get("toolName")
+
+                if tool_name == "generate_podcast":
                     result_data = part.get("result", {})
                     podcast_id = result_data.get("podcast_id")
                     if podcast_id and podcast_id not in podcast_ids_seen:
@@ -218,6 +223,17 @@ async def create_snapshot(
                             podcasts_data.append(podcast_info)
                             podcast_ids_seen.add(podcast_id)
                             # Update status to "ready" so frontend renders PodcastPlayer
+                            part["result"] = {**result_data, "status": "ready"}
+
+                elif tool_name == "generate_report":
+                    result_data = part.get("result", {})
+                    report_id = result_data.get("report_id")
+                    if report_id and report_id not in report_ids_seen:
+                        report_info = await _get_report_for_snapshot(session, report_id)
+                        if report_info:
+                            reports_data.append(report_info)
+                            report_ids_seen.add(report_id)
+                            # Update status to "ready" so frontend renders ReportCard
                             part["result"] = {**result_data, "status": "ready"}
 
         messages_data.append(
@@ -266,6 +282,7 @@ async def create_snapshot(
         "author": thread_author,
         "messages": messages_data,
         "podcasts": podcasts_data,
+        "reports": reports_data,
     }
 
     # Create new snapshot
@@ -306,6 +323,27 @@ async def _get_podcast_for_snapshot(
         "title": podcast.title,
         "transcript": podcast.podcast_transcript,
         "file_path": podcast.file_location,
+    }
+
+
+async def _get_report_for_snapshot(
+    session: AsyncSession,
+    report_id: int,
+) -> dict | None:
+    """Get report info for embedding in snapshot_data."""
+    result = await session.execute(select(Report).filter(Report.id == report_id))
+    report = result.scalars().first()
+
+    if not report:
+        return None
+
+    return {
+        "original_id": report.id,
+        "title": report.title,
+        "content": report.content,
+        "report_metadata": report.report_metadata,
+        "report_group_id": report.report_group_id,
+        "created_at": report.created_at.isoformat() if report.created_at else None,
     }
 
 
@@ -578,6 +616,7 @@ async def clone_from_snapshot(
     data = snapshot.snapshot_data
     messages_data = data.get("messages", [])
     podcasts_lookup = {p.get("original_id"): p for p in data.get("podcasts", [])}
+    reports_lookup = {r.get("original_id"): r for r in data.get("reports", [])}
 
     new_thread = NewChatThread(
         title=data.get("title", "Cloned Chat"),
@@ -594,6 +633,7 @@ async def clone_from_snapshot(
     await session.flush()
 
     podcast_id_mapping: dict[int, int] = {}
+    report_id_mapping: dict[int, int] = {}
 
     # Check which authors from snapshot still exist in DB
     author_ids_from_snapshot: set[UUID] = set()
@@ -655,6 +695,37 @@ async def clone_from_snapshot(
                             "podcast_id": podcast_id_mapping[old_podcast_id],
                         }
 
+                if (
+                    isinstance(part, dict)
+                    and part.get("type") == "tool-call"
+                    and part.get("toolName") == "generate_report"
+                ):
+                    result = part.get("result", {})
+                    old_report_id = result.get("report_id")
+
+                    if old_report_id and old_report_id not in report_id_mapping:
+                        report_info = reports_lookup.get(old_report_id)
+                        if report_info:
+                            new_report = Report(
+                                title=report_info.get("title", "Cloned Report"),
+                                content=report_info.get("content"),
+                                report_metadata=report_info.get("report_metadata"),
+                                search_space_id=target_search_space_id,
+                                thread_id=new_thread.id,
+                            )
+                            session.add(new_report)
+                            await session.flush()
+                            # For cloned reports, set report_group_id = own id
+                            # (each cloned report starts as its own v1)
+                            new_report.report_group_id = new_report.id
+                            report_id_mapping[old_report_id] = new_report.id
+
+                    if old_report_id and old_report_id in report_id_mapping:
+                        part["result"] = {
+                            **result,
+                            "report_id": report_id_mapping[old_report_id],
+                        }
+
         new_message = NewChatMessage(
             thread_id=new_thread.id,
             role=role,
@@ -696,3 +767,59 @@ async def get_snapshot_podcast(
             return podcast
 
     return None
+
+
+async def get_snapshot_report(
+    session: AsyncSession,
+    share_token: str,
+    report_id: int,
+) -> dict | None:
+    """
+    Get report info from a snapshot by original report ID.
+
+    Used for displaying report content in public view.
+    Looks up the report by its original_id in the snapshot's reports array.
+    """
+    snapshot = await get_snapshot_by_token(session, share_token)
+
+    if not snapshot:
+        return None
+
+    reports = snapshot.snapshot_data.get("reports", [])
+
+    # Find report by original_id
+    for report in reports:
+        if report.get("original_id") == report_id:
+            return report
+
+    return None
+
+
+async def get_snapshot_report_versions(
+    session: AsyncSession,
+    share_token: str,
+    report_group_id: int | None,
+) -> list[dict]:
+    """
+    Get all report versions in the same group from a snapshot.
+
+    Returns a list of lightweight version entries (id + created_at)
+    for the version switcher UI, sorted by original_id (insertion order).
+    """
+    if not report_group_id:
+        return []
+
+    snapshot = await get_snapshot_by_token(session, share_token)
+    if not snapshot:
+        return []
+
+    reports = snapshot.snapshot_data.get("reports", [])
+    siblings = [r for r in reports if r.get("report_group_id") == report_group_id]
+
+    # Sort by original_id (ascending = insertion order ≈ created_at order)
+    siblings.sort(key=lambda r: r.get("original_id", 0))
+
+    return [
+        {"id": r.get("original_id"), "created_at": r.get("created_at")}
+        for r in siblings
+    ]

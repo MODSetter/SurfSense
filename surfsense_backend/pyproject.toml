@@ -63,6 +63,8 @@ dependencies = [
     "unstructured-client>=0.42.3",
     "langchain-unstructured>=1.0.1",
     "slowapi>=0.1.9",
+    "pypandoc_binary>=1.16.2",
+    "typst>=0.14.0",
 ]
 
 [dependency-groups]

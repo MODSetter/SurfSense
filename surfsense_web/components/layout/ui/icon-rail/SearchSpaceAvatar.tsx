@@ -126,7 +126,7 @@ export function SearchSpaceAvatar({
 			type="button"
 			onClick={onClick}
 			className={cn(
-				"relative flex items-center justify-center rounded-lg font-semibold text-white transition-all",
+				"relative flex items-center justify-center rounded-lg font-semibold text-white transition-all select-none",
 				"hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
 				sizeClasses,
 				isActive && "ring-2 ring-primary ring-offset-1 ring-offset-background"

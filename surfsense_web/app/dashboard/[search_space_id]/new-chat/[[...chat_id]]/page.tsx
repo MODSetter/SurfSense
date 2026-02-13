@@ -28,13 +28,16 @@ import {
 	// extractWriteTodosFromContent,
 	hydratePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
+import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
+import { ReportPanel } from "@/components/report-panel/report-panel";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
+import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
@@ -117,6 +120,7 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
  */
 const TOOLS_WITH_UI = new Set([
 	"generate_podcast",
+	"generate_report",
 	"link_preview",
 	"display_image",
 	"scrape_webpage",
@@ -158,6 +162,7 @@ export default function NewChatPage() {
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
+	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -251,6 +256,7 @@ export default function NewChatPage() {
 		setMentionedDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
+		closeReportPanel(); // Close report panel when switching chats
 
 		try {
 			if (urlChatId > 0) {
@@ -315,6 +321,7 @@ export default function NewChatPage() {
 		setMentionedDocumentIds,
 		setMentionedDocuments,
 		hydratePlanState,
+		closeReportPanel,
 	]);
 
 	// Initialize on mount
@@ -1427,17 +1434,21 @@ export default function NewChatPage() {
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
 			<GeneratePodcastToolUI />
+			<GenerateReportToolUI />
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
 			<SaveMemoryToolUI />
 			<RecallMemoryToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
-			<div className="flex flex-col h-[calc(100dvh-64px)] overflow-hidden">
-				<Thread
-					messageThinkingSteps={messageThinkingSteps}
-					header={<ChatHeader searchSpaceId={searchSpaceId} />}
-				/>
+			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
+				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+					<Thread
+						messageThinkingSteps={messageThinkingSteps}
+						header={<ChatHeader searchSpaceId={searchSpaceId} />}
+					/>
+				</div>
+				<ReportPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);
