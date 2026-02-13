@@ -1,7 +1,7 @@
-import Image from "next/image";
-import { Streamdown, type StreamdownProps } from "streamdown";
 import { createCodePlugin } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
+import Image from "next/image";
+import { Streamdown, type StreamdownProps } from "streamdown";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 

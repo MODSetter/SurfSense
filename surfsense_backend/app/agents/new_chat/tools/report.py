@@ -58,6 +58,23 @@ Write the report now:
 """
 
 
+def _strip_wrapping_code_fences(text: str) -> str:
+    """Remove wrapping code fences that LLMs often add around Markdown output.
+
+    Handles patterns like:
+        ```markdown\\n...content...\\n```
+        ```md\\n...content...\\n```
+        ```\\n...content...\\n```
+    """
+    stripped = text.strip()
+    # Match opening fence with optional language tag (markdown, md, or bare)
+    m = re.match(r"^```(?:markdown|md)?\s*\n", stripped)
+    if m and stripped.endswith("```"):
+        stripped = stripped[m.end() :]  # remove opening fence
+        stripped = stripped[:-3].rstrip()  # remove closing fence
+    return stripped
+
+
 def _extract_metadata(content: str) -> dict[str, Any]:
     """Extract metadata from generated Markdown content."""
     # Count section headings
@@ -108,13 +125,54 @@ def create_generate_report_tool(
         """
         Generate a structured Markdown report from provided content.
 
-        Use this tool when the user asks to create, generate, or write a report.
+        Use this tool when the user asks to create, generate, write, produce, draft,
+        or summarize into a report-style deliverable.
+        HIGH-PRIORITY DECISION RULE:
+        - If the user asks for a report in any form,
+          call this tool rather than writing the full report directly in chat.
+        - Only skip this tool when the user explicitly requests chat-only output and
+          says they do not want a generated report card.
+        Trigger classes include:
+        - Direct trigger words: report, document, memo, letter, template
+        - Creation-intent phrases: "write a document/report/post/article"
+        - File-intent words: requests containing "save", "file", or "document" when
+          intent is to create a report-like deliverable
+        - Word-doc specific triggers: professional report-style deliverable,
+          professional document, Word doc, .docx
+        - Other report-like output intents: one-pager, blog post, article,
+          standalone written content, comprehensive guide
+        - General artifact-style intents: analysis / writing as substantial deliverables
         Common triggers include phrases like:
         - "Generate a report about this"
         - "Write a report from this conversation"
         - "Create a detailed report about..."
         - "Make a research report on..."
         - "Summarize this into a report"
+        - "Turn this into a report"
+        - "Write a report/document"
+        - "Draft a report"
+        - "Create an executive summary"
+        - "Make a briefing note"
+        - "Write a one-pager"
+        - "Write a blog post"
+        - "Write an article"
+        - "Create a comprehensive guide"
+        - "Prepare a report"
+        - "Create a small report"
+        - "Write a short report"
+        - "Make a quick report"
+        - "Brief report for class"
+
+        FORMAT/EXPORT RULE:
+        - Always generate the report content in Markdown.
+        - If the user requests DOCX/Word/PDF or another file format, export from
+          the generated Markdown report.
+        SOURCE-COLLECTION RULE:
+        - If enough source material is already present in the conversation (chat
+          history, pasted text, uploaded files, or a provided video/article summary),
+          generate directly from that source_content.
+        - Use knowledge-base search first only when extra context is needed beyond
+          what the user already provided.
 
         VERSIONING — parent_report_id:
         - Set parent_report_id when the user wants to MODIFY, REVISE, IMPROVE,
@@ -263,6 +321,20 @@ def create_generate_report_tool(
             report_content = response.content
 
             if not report_content or not isinstance(report_content, str):
+                error_msg = "LLM returned empty or invalid content"
+                report_id = await _save_failed_report(error_msg)
+                return {
+                    "status": "failed",
+                    "error": error_msg,
+                    "report_id": report_id,
+                    "title": topic,
+                }
+
+            # LLMs often wrap output in ```markdown ... ``` fences — strip them
+            # so the stored content is clean Markdown.
+            report_content = _strip_wrapping_code_fences(report_content)
+
+            if not report_content:
                 error_msg = "LLM returned empty or invalid content"
                 report_id = await _save_failed_report(error_msg)
                 return {
