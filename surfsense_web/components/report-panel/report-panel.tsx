@@ -14,7 +14,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
@@ -294,20 +293,18 @@ function ReportPanelContent({
 						    Hide for public viewers who have no auth token. */}
 							{!shareToken && (
 								<>
-									<DropdownMenuItem
-										onClick={() => handleExport("pdf")}
-										disabled={exporting !== null}
-									>
-										{exporting === "pdf" && <Spinner size="xs" />}
-										Download PDF
-									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={() => handleExport("docx")}
-										disabled={exporting !== null}
-									>
-										{exporting === "docx" && <Spinner size="xs" />}
-										Download DOCX
-									</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={() => handleExport("pdf")}
+									disabled={exporting !== null}
+								>
+									Download PDF
+								</DropdownMenuItem>
+								<DropdownMenuItem
+									onClick={() => handleExport("docx")}
+									disabled={exporting !== null}
+								>
+									Download DOCX
+								</DropdownMenuItem>
 								</>
 							)}
 						</DropdownMenuContent>
