@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import String, and_, cast
+from sqlalchemy import and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -79,7 +79,9 @@ class NotionToolMetadataService:
                 "error": "No Notion accounts connected",
             }
 
-        parent_pages = await self._get_parent_pages_by_account(search_space_id, accounts)
+        parent_pages = await self._get_parent_pages_by_account(
+            search_space_id, accounts
+        )
 
         return {
             "accounts": [acc.to_dict() for acc in accounts],
@@ -87,16 +89,18 @@ class NotionToolMetadataService:
         }
 
     async def get_update_context(
-        self, search_space_id: int, user_id: str, page_id: str
+        self, search_space_id: int, user_id: str, page_title: str
     ) -> dict:
         result = await self._db_session.execute(
             select(Document)
-            .join(SearchSourceConnector, Document.connector_id == SearchSourceConnector.id)
+            .join(
+                SearchSourceConnector, Document.connector_id == SearchSourceConnector.id
+            )
             .filter(
                 and_(
                     Document.search_space_id == search_space_id,
                     Document.document_type == DocumentType.NOTION_CONNECTOR,
-                    cast(Document.document_metadata["page_id"], String) == page_id,
+                    func.lower(Document.title) == func.lower(page_title),
                     SearchSourceConnector.user_id == user_id,
                 )
             )
@@ -104,7 +108,11 @@ class NotionToolMetadataService:
         document = result.scalars().first()
 
         if not document:
-            return {"error": f"Page {page_id} not found in your indexed documents"}
+            return {
+                "error": f"Page '{page_title}' not found in your indexed Notion pages. "
+                "This could mean: (1) the page doesn't exist, (2) it hasn't been indexed yet, "
+                "or (3) the page title is different. Please check the exact page title in Notion."
+            }
 
         if not document.connector_id:
             return {"error": "Document has no associated connector"}
@@ -124,6 +132,10 @@ class NotionToolMetadataService:
 
         account = NotionAccount.from_connector(connector)
 
+        page_id = document.document_metadata.get("page_id")
+        if not page_id:
+            return {"error": "Page ID not found in document metadata"}
+
         return {
             "account": account.to_dict(),
             "page_id": page_id,
@@ -134,9 +146,9 @@ class NotionToolMetadataService:
         }
 
     async def get_delete_context(
-        self, search_space_id: int, user_id: str, page_id: str
+        self, search_space_id: int, user_id: str, page_title: str
     ) -> dict:
-        return await self.get_update_context(search_space_id, user_id, page_id)
+        return await self.get_update_context(search_space_id, user_id, page_title)
 
     async def _get_notion_accounts(
         self, search_space_id: int, user_id: str

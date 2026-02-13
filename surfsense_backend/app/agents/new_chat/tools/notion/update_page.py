@@ -1,3 +1,4 @@
+import logging
 from typing import Any
 
 from langchain_core.tools import tool
@@ -6,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.notion_history import NotionHistoryConnector
 from app.services.notion import NotionToolMetadataService
+
+logger = logging.getLogger(__name__)
 
 
 def create_update_notion_page_tool(
@@ -29,20 +32,20 @@ def create_update_notion_page_tool(
 
     @tool
     async def update_notion_page(
-        page_id: str,
-        title: str | None = None,
-        content: str | None = None,
+        page_title: str,
+        new_title: str | None = None,
+        new_content: str | None = None,
     ) -> dict[str, Any]:
         """Update an existing Notion page's title and/or content.
 
         Use this tool when the user asks you to modify, edit, or update
-        a Notion page. At least one of title or content must be provided.
+        a Notion page. At least one of new_title or new_content must be provided.
 
         Args:
-            page_id: The ID of the Notion page to update (required).
-            title: New title for the page (optional).
-            content: New markdown content for the page body (optional).
-                    If provided, replaces all existing content.
+            page_title: The current title of the Notion page to update (required).
+            new_title: New title for the page (optional).
+            new_content: New markdown content for the page body (optional).
+                        If provided, replaces all existing content.
 
         Returns:
             Dictionary with:
@@ -57,49 +60,61 @@ def create_update_notion_page_tool(
             and move on. Do NOT ask for alternatives or troubleshoot.
 
         Examples:
-            - "Update the Notion page abc123 with title 'Updated Meeting Notes'"
-            - "Change the content of page xyz789 to 'New content here'"
-            - "Update page abc123 with new title 'Final Report' and content '# Summary...'"
+            - "Update the 'Meeting Notes' page with new title 'Updated Meeting Notes'"
+            - "Change the content of 'Project Plan' page to 'New content here'"
+            - "Update 'Weekly Report' with new title 'Final Report' and content '# Summary...'"
         """
+        logger.info(f"update_notion_page called: page_title='{page_title}', new_title={new_title}, has_content={new_content is not None}")
+        
         if db_session is None or search_space_id is None or user_id is None:
+            logger.error("Notion tool not properly configured - missing required parameters")
             return {
                 "status": "error",
                 "message": "Notion tool not properly configured. Please contact support.",
             }
 
-        if not title and not content:
+        if not new_title and not new_content:
             return {
                 "status": "error",
-                "message": "At least one of 'title' or 'content' must be provided to update the page.",
+                "message": "At least one of 'new_title' or 'new_content' must be provided to update the page.",
             }
 
         try:
             metadata_service = NotionToolMetadataService(db_session)
             context = await metadata_service.get_update_context(
-                search_space_id, user_id, page_id
+                search_space_id, user_id, page_title
             )
 
             if "error" in context:
+                logger.error(f"Failed to fetch update context: {context['error']}")
                 return {
                     "status": "error",
                     "message": context["error"],
                 }
 
-            approval = interrupt({
-                "type": "notion_page_update",
-                "action": {
-                    "tool": "update_notion_page",
-                    "params": {
-                        "page_id": page_id,
-                        "title": title,
-                        "content": content,
+            page_id = context.get("page_id")
+            connector_id_from_context = context.get("account", {}).get("id")
+
+            logger.info(f"Requesting approval for updating Notion page: '{page_title}' (page_id={page_id})")
+            approval = interrupt(
+                {
+                    "type": "notion_page_update",
+                    "action": {
+                        "tool": "update_notion_page",
+                        "params": {
+                            "page_id": page_id,
+                            "title": new_title,
+                            "content": new_content,
+                            "connector_id": connector_id_from_context,
+                        },
                     },
-                },
-                "context": context,
-            })
+                    "context": context,
+                }
+            )
 
             decisions = approval.get("decisions", [])
             if not decisions:
+                logger.warning("No approval decision received")
                 return {
                     "status": "error",
                     "message": "No approval decision received",
@@ -107,8 +122,10 @@ def create_update_notion_page_tool(
 
             decision = decisions[0]
             decision_type = decision.get("type") or decision.get("decision_type")
+            logger.info(f"User decision: {decision_type}")
 
             if decision_type == "reject":
+                logger.info("Notion page update rejected by user")
                 return {
                     "status": "rejected",
                     "message": "User declined. The page was not updated. Do not ask again or suggest alternatives.",
@@ -118,25 +135,28 @@ def create_update_notion_page_tool(
             final_params = edited_action.get("args", {}) if edited_action else {}
 
             final_page_id = final_params.get("page_id", page_id)
-            final_title = final_params.get("title", title)
-            final_content = final_params.get("content", content)
+            final_title = final_params.get("title", new_title)
+            final_content = final_params.get("content", new_content)
+            final_connector_id = final_params.get("connector_id", connector_id_from_context)
 
-            if final_title and (not final_title or not final_title.strip()):
+            # Validate title if it's being updated
+            if final_title is not None and not final_title.strip():
+                logger.error("Title is empty or contains only whitespace")
                 return {
                     "status": "error",
                     "message": "Page title cannot be empty. Please provide a valid title.",
                 }
 
+            logger.info(f"Updating Notion page with final params: page_id={final_page_id}, title={final_title}, has_content={final_content is not None}")
+
             from sqlalchemy.future import select
 
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
-            connector_id_from_context = context.get("account", {}).get("id")
-            
-            if connector_id_from_context:
+            if final_connector_id:
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
-                        SearchSourceConnector.id == connector_id_from_context,
+                        SearchSourceConnector.id == final_connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
                         SearchSourceConnector.connector_type
@@ -146,12 +166,17 @@ def create_update_notion_page_tool(
                 connector = result.scalars().first()
 
                 if not connector:
+                    logger.error(
+                        f"Invalid connector_id={final_connector_id} for search_space_id={search_space_id}"
+                    )
                     return {
                         "status": "error",
                         "message": "Selected Notion account is invalid or has been disconnected. Please select a valid account.",
                     }
                 actual_connector_id = connector.id
+                logger.info(f"Validated Notion connector: id={actual_connector_id}")
             else:
+                logger.error("No connector found for this page")
                 return {
                     "status": "error",
                     "message": "No connector found for this page.",
@@ -167,6 +192,7 @@ def create_update_notion_page_tool(
                 title=final_title,
                 content=final_content,
             )
+            logger.info(f"update_page result: {result.get('status')} - {result.get('message', '')}")
             return result
 
         except Exception as e:
@@ -175,9 +201,12 @@ def create_update_notion_page_tool(
             if isinstance(e, GraphInterrupt):
                 raise
 
+            logger.error(f"Error updating Notion page: {e}", exc_info=True)
             return {
                 "status": "error",
-                "message": str(e) if isinstance(e, ValueError) else f"Unexpected error: {e!s}",
+                "message": str(e)
+                if isinstance(e, ValueError)
+                else f"Unexpected error: {e!s}",
             }
 
     return update_notion_page

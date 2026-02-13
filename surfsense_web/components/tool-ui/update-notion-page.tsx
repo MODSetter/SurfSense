@@ -5,14 +5,13 @@ import {
 	AlertTriangleIcon,
 	CheckIcon,
 	Loader2Icon,
-	Maximize2Icon,
+	MaximizeIcon,
+	MinimizeIcon,
 	PencilIcon,
 	XIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 interface InterruptResult {
@@ -51,6 +50,8 @@ interface SuccessResult {
 	page_id: string;
 	title: string;
 	url: string;
+	content_preview?: string;
+	content_length?: number;
 	message?: string;
 }
 
@@ -79,109 +80,6 @@ function isErrorResult(result: unknown): result is ErrorResult {
 	);
 }
 
-function PageContextDisplay({
-	account,
-	currentTitle,
-	currentContent,
-}: {
-	account?: {
-		id: number;
-		name: string;
-		workspace_id: string | null;
-		workspace_name: string;
-		workspace_icon: string;
-	};
-	currentTitle?: string;
-	currentContent?: string;
-}) {
-	return (
-		<>
-			{account && (
-				<div className="space-y-2">
-					<div className="text-xs font-medium text-muted-foreground">Notion Account</div>
-					<div className="text-sm text-foreground p-2 bg-card rounded border border-border">
-						{account.workspace_name}
-					</div>
-				</div>
-			)}
-
-			{currentTitle && (
-				<div className="space-y-2">
-					<div className="text-xs font-medium text-muted-foreground">Current Page Title</div>
-					<div className="text-sm text-foreground p-2 bg-card rounded border border-border">
-						{currentTitle}
-					</div>
-				</div>
-			)}
-
-			{currentContent && (
-				<div className="space-y-2">
-					<div className="text-xs font-medium text-muted-foreground">
-						Current Content (first 200 chars)
-					</div>
-					<div className="text-sm text-muted-foreground p-2 bg-card rounded border border-border font-mono text-xs">
-						{currentContent.slice(0, 200)}
-						{currentContent.length > 200 && "..."}
-					</div>
-				</div>
-			)}
-		</>
-	);
-}
-
-function EditFormFields({
-	editedArgs,
-	setEditedArgs,
-	isTitleValid,
-	idPrefix = "",
-	rows = 8,
-}: {
-	editedArgs: Record<string, unknown>;
-	setEditedArgs: (args: Record<string, unknown>) => void;
-	isTitleValid: boolean;
-	idPrefix?: string;
-	rows?: number;
-}) {
-	return (
-		<>
-			<div>
-				<label
-					htmlFor={`${idPrefix}notion-title`}
-					className="text-xs font-medium text-muted-foreground mb-1.5 block"
-				>
-					Title <span className="text-destructive">*</span>
-				</label>
-				<Input
-					id={`${idPrefix}notion-title`}
-					value={String(editedArgs.title ?? "")}
-					onChange={(e) => setEditedArgs({ ...editedArgs, title: e.target.value })}
-					placeholder="Enter page title"
-					className={!isTitleValid ? "border-destructive" : ""}
-				/>
-				{!isTitleValid && (
-					<p className="text-xs text-destructive mt-1">Title is required and cannot be empty</p>
-				)}
-			</div>
-			<div>
-				<label
-					htmlFor={`${idPrefix}notion-content`}
-					className="text-xs font-medium text-muted-foreground mb-1.5 block"
-				>
-					Content (optional)
-				</label>
-				<Textarea
-					id={`${idPrefix}notion-content`}
-					value={String(editedArgs.content ?? "")}
-					onChange={(e) => setEditedArgs({ ...editedArgs, content: e.target.value })}
-					placeholder="Enter page content"
-					rows={rows}
-					className="resize-none font-mono text-xs"
-				/>
-			</div>
-		</>
-	);
-}
-
 function ApprovalCard({
 	args,
 	interruptData,
@@ -200,21 +98,14 @@ function ApprovalCard({
 	);
 	const [isEditing, setIsEditing] = useState(false);
 	const [isFullScreen, setIsFullScreen] = useState(false);
+	const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>(args);
 
 	const account = interruptData.context?.account;
 	const currentTitle = interruptData.context?.current_title;
 	const currentContent = interruptData.context?.current_content;
 
-	const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>({
-		...args,
-		title: args.title || currentTitle || "",
-		content: args.content || currentContent || "",
-	});
-
-	const isTitleValid = useMemo((): boolean => {
-		const title = isEditing ? editedArgs.title : args.title || currentTitle;
-		return Boolean(title && typeof title === "string" && title.trim().length > 0);
-	}, [isEditing, editedArgs.title, args.title, currentTitle]);
+	// Title is not editable, so it's always valid
+	const isTitleValid = true;
 
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
@@ -222,7 +113,7 @@ function ApprovalCard({
 
 	return (
 		<div
-			className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
+			className={`my-4 ${isFullScreen ? "fixed inset-0 z-50 m-0 flex flex-col bg-background" : "max-w-full"} overflow-hidden rounded-xl transition-all duration-300 ${
 				decided
 					? "border border-border bg-card shadow-sm"
 					: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
@@ -254,68 +145,89 @@ function ApprovalCard({
 						{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
 					</p>
 				</div>
-				{canEdit && !decided && !isEditing && (
-					<>
-						<Button size="sm" variant="ghost" onClick={() => setIsFullScreen(true)}>
-							<Maximize2Icon className="size-4" />
-						</Button>
-						<Button size="sm" variant="ghost" onClick={() => setIsEditing(true)}>
-							<PencilIcon className="size-4" />
-							Edit
-						</Button>
-					</>
+				{isEditing && (
+					<Button
+						size="sm"
+						variant="ghost"
+						onClick={() => setIsFullScreen(!isFullScreen)}
+						className="shrink-0"
+					>
+						{isFullScreen ? <MinimizeIcon className="size-4" /> : <MaximizeIcon className="size-4" />}
+					</Button>
 				)}
 			</div>
 
+			{/* Context section - READ ONLY account and page info */}
 			{!decided && interruptData.context && (
 				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
 					{interruptData.context.error ? (
 						<p className="text-sm text-destructive">{interruptData.context.error}</p>
 					) : (
-						<PageContextDisplay
-							account={account}
-							currentTitle={currentTitle}
-							currentContent={currentContent}
-						/>
+						<>
+							{account && (
+								<div className="space-y-2">
+									<div className="text-xs font-medium text-muted-foreground">Notion Account</div>
+									<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
+										{account.workspace_icon} {account.workspace_name}
+									</div>
+								</div>
+							)}
+
+							{currentTitle && (
+								<div className="space-y-2">
+									<div className="text-xs font-medium text-muted-foreground">Current Page</div>
+									<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
+										📄 {currentTitle}
+									</div>
+								</div>
+							)}
+						</>
 					)}
 				</div>
 			)}
 
+			{/* Display mode - show proposed changes as read-only */}
 			{!isEditing && (
-				<div className="space-y-2 px-4 py-3 bg-card">
-					{args.title != null && (
-						<div>
-							<div className="text-xs font-medium text-muted-foreground mb-1.5 block">
-								New Title
-							</div>
-							<p className="text-sm text-foreground">{String(args.title)}</p>
-						</div>
-					)}
+				<div
+					className={`space-y-2 px-4 py-3 bg-card ${isFullScreen ? "flex-1 overflow-y-auto" : ""}`}
+				>
 					{args.content != null && (
 						<div>
-							<div className="text-xs font-medium text-muted-foreground mb-1.5 block">
-								New Content
-							</div>
-							<p className="text-sm text-foreground whitespace-pre-wrap font-mono text-xs">
-								{String(args.content).slice(0, 300)}
-								{String(args.content).length > 300 && "..."}
+							<p className="text-xs font-medium text-muted-foreground">New Content</p>
+							<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">
+								{String(args.content)}
 							</p>
 						</div>
 					)}
+					{args.content == null && (
+						<p className="text-sm text-muted-foreground italic">No content update specified</p>
+					)}
 				</div>
 			)}
 
+			{/* Edit mode - show editable form fields */}
 			{isEditing && !decided && (
-				<div className="space-y-3 px-4 py-3 bg-card">
-					<EditFormFields
-						editedArgs={editedArgs}
-						setEditedArgs={setEditedArgs}
-						isTitleValid={isTitleValid}
-						rows={8}
+				<div
+					className={`px-4 py-3 bg-card ${isFullScreen ? "flex-1 flex flex-col overflow-hidden" : ""}`}
+				>
+					<label
+						htmlFor="notion-content"
+						className="text-xs font-medium text-muted-foreground mb-1.5 block"
+					>
+						New Content
+					</label>
+					<Textarea
+						id="notion-content"
+						value={String(editedArgs.content ?? "")}
+						onChange={(e) => setEditedArgs({ ...editedArgs, content: e.target.value || null })}
+						placeholder={currentContent || "Enter new content"}
+						rows={isFullScreen ? undefined : 12}
+						className={`resize-none ${isFullScreen ? "flex-1 min-h-0" : ""}`}
 					/>
 				</div>
 			)}
 
+			{/* Action buttons */}
 			<div
 				className={`flex items-center gap-2 border-t ${
 					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
@@ -342,15 +254,19 @@ function ApprovalCard({
 							onClick={() => {
 								setDecided("edit");
 								setIsEditing(false);
+								setIsFullScreen(false);
 								onDecision({
 									type: "edit",
 									edited_action: {
 										name: interruptData.action_requests[0].name,
-										args: editedArgs,
+										args: {
+											page_id: args.page_id,
+											content: editedArgs.content,
+											connector_id: account?.id,
+										},
 									},
 								});
 							}}
-							disabled={!isTitleValid}
 						>
 							<CheckIcon />
 							Approve with Changes
@@ -360,11 +276,8 @@ function ApprovalCard({
 							variant="outline"
 							onClick={() => {
 								setIsEditing(false);
-								setEditedArgs({
-									...args,
-									title: args.title || currentTitle || "",
-									content: args.content || currentContent || "",
-								});
+								setIsFullScreen(false);
+								setEditedArgs(args); // Reset to original args
 							}}
 						>
 							Cancel
@@ -381,23 +294,32 @@ function ApprovalCard({
 										type: "approve",
 										edited_action: {
 											name: interruptData.action_requests[0].name,
-											args: args,
+											args: {
+												page_id: args.page_id,
+												content: args.content,
+												connector_id: account?.id,
+											},
 										},
 									});
 								}}
-								disabled={!isTitleValid}
 							>
 								<CheckIcon />
 								Approve
 							</Button>
 						)}
+						{canEdit && (
+							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
+								<PencilIcon />
+								Edit
+							</Button>
+						)}
 						{allowedDecisions.includes("reject") && (
 							<Button
 								size="sm"
-								variant="destructive"
+								variant="outline"
 								onClick={() => {
 									setDecided("reject");
-									onDecision({ type: "reject" });
+									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
 								<XIcon />
@@ -407,114 +329,77 @@ function ApprovalCard({
 					</>
 				)}
 			</div>
-
-			<Dialog open={isFullScreen} onOpenChange={setIsFullScreen}>
-				<DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>Update Notion Page</DialogTitle>
-					</DialogHeader>
-
-					<PageContextDisplay
-						account={account}
-						currentTitle={currentTitle}
-						currentContent={undefined}
-					/>
-
-					<div className="space-y-4">
-						<EditFormFields
-							editedArgs={editedArgs}
-							setEditedArgs={setEditedArgs}
-							isTitleValid={isTitleValid}
-							idPrefix="fullscreen-"
-							rows={20}
-						/>
-					</div>
-
-					<div className="flex items-center gap-2 justify-end pt-4 border-t">
-						<Button
-							size="sm"
-							onClick={() => {
-								setDecided("edit");
-								setIsFullScreen(false);
-								onDecision({
-									type: "edit",
-									edited_action: {
-										name: interruptData.action_requests[0].name,
-										args: editedArgs,
-									},
-								});
-							}}
-							disabled={!isTitleValid}
-						>
-							<CheckIcon />
-							Approve with Changes
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => {
-								setIsFullScreen(false);
-								setEditedArgs({
-									...args,
-									title: args.title || currentTitle || "",
-									content: args.content || currentContent || "",
-								});
-							}}
-						>
-							Cancel
-						</Button>
-					</div>
-				</DialogContent>
-			</Dialog>
-		</div>
-	);
-}
-
-function LoadingCard() {
-	return (
-		<div className="my-4 flex items-center gap-3 rounded-xl border-2 border-blue-200 bg-blue-50 px-4 py-3 dark:border-blue-900 dark:bg-blue-950">
-			<Loader2Icon className="size-5 animate-spin text-blue-600 dark:text-blue-400" />
-			<p className="text-sm text-blue-900 dark:text-blue-100">Updating Notion page...</p>
-		</div>
-	);
-}
-
-function SuccessCard({ result }: { result: SuccessResult }) {
-	return (
-		<div className="my-4 rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950">
-			<div className="flex items-start gap-3">
-				<CheckIcon className="size-5 shrink-0 text-green-600 dark:text-green-400" />
-				<div className="flex-1 space-y-2">
-					<p className="text-sm font-medium text-green-900 dark:text-green-100">
-						Updated Notion page '{result.title}'
-					</p>
-					{result.url && (
-						<a
-							href={result.url}
-							target="_blank"
-							rel="noopener noreferrer"
-							className="inline-block text-sm text-green-700 underline hover:text-green-800 dark:text-green-300 dark:hover:text-green-200"
-						>
-							Open in Notion →
-						</a>
-					)}
-				</div>
-			</div>
 		</div>
 	);
 }
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
-			<div className="flex items-start gap-3">
-				<XIcon className="size-5 shrink-0 text-red-600 dark:text-red-400" />
-				<div className="flex-1">
-					<p className="text-sm font-medium text-red-900 dark:text-red-100">
-						Failed to update page
-					</p>
-					<p className="mt-1 text-sm text-red-700 dark:text-red-300">{result.message}</p>
+		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-destructive/50 bg-card">
+			<div className="flex items-center gap-3 border-b border-destructive/50 px-4 py-3">
+				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
+					<XIcon className="size-4 text-destructive" />
 				</div>
+				<div className="min-w-0 flex-1">
+					<p className="text-sm font-medium text-destructive">Failed to update Notion page</p>
+				</div>
+			</div>
+			<div className="px-4 py-3">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
+		</div>
+	);
+}
+
+function SuccessCard({ result }: { result: SuccessResult }) {
+	return (
+		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
+			<div className="flex items-center gap-3 border-b border-border px-4 py-3">
+				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
+					<CheckIcon className="size-4 text-green-500" />
+				</div>
+				<div className="min-w-0 flex-1">
+					<p className="text-[.8rem] text-muted-foreground">
+						{result.message || "Notion page updated successfully"}
+					</p>
+				</div>
+			</div>
+
+			{/* Show details to verify the update */}
+			<div className="space-y-2 px-4 py-3 text-xs">
+				<div>
+					<span className="font-medium text-muted-foreground">Page ID: </span>
+					<span className="font-mono">{result.page_id}</span>
+				</div>
+				<div>
+					<span className="font-medium text-muted-foreground">Title: </span>
+					<span>{result.title}</span>
+				</div>
+				{result.url && (
+					<div>
+						<span className="font-medium text-muted-foreground">URL: </span>
+						<a
+							href={result.url}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="text-primary hover:underline"
+						>
+							Open in Notion
+						</a>
+					</div>
+				)}
+				{result.content_length != null && (
+					<div>
+						<span className="font-medium text-muted-foreground">Content: </span>
+						<span>{result.content_length} characters</span>
+					</div>
+				)}
+				{result.content_preview && (
+					<div>
+						<span className="font-medium text-muted-foreground">Preview: </span>
+						<span className="text-muted-foreground italic">{result.content_preview}</span>
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -525,14 +410,21 @@ export const UpdateNotionPageToolUI = makeAssistantToolUI<
 	UpdateNotionPageResult
 >({
 	toolName: "update_notion_page",
-	render: function UpdateNotionPageUI({ result, addResult, status }) {
+	render: function UpdateNotionPageUI({ args, result, status }) {
 		if (status.type === "running") {
-			return <LoadingCard />;
+			return (
+				<div className="my-4 flex max-w-md items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+					<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+					<p className="text-sm text-muted-foreground">Updating Notion page...</p>
+				</div>
+			);
+		}
+
+		if (!result) {
+			return null;
 		}
 
 		if (isInterruptResult(result)) {
-			const args = result.action_requests[0]?.args || {};
-
 			return (
 				<ApprovalCard
 					args={args}
@@ -560,13 +452,6 @@ export const UpdateNotionPageToolUI = makeAssistantToolUI<
 			return <ErrorCard result={result} />;
 		}
 
-		if (typeof result === "object" && result !== null && "status" in result) {
-			const successResult = result as SuccessResult;
-			if (successResult.status === "success") {
-				return <SuccessCard result={successResult} />;
-			}
-		}
-
-		return null;
+		return <SuccessCard result={result as SuccessResult} />;
 	},
 });

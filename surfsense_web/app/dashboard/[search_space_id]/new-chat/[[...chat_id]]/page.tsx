@@ -136,6 +136,7 @@ const TOOLS_WITH_UI = new Set([
 	"delete_notion_page",
 	"scrape_webpage",
 	"create_notion_page",
+	"update_notion_page",
 	// "write_todos", // Disabled for now
 ]);
 

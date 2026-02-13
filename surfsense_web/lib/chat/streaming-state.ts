@@ -7,7 +7,6 @@ export interface ThinkingStepData {
 	items: string[];
 }
 
-
 export type ContentPart =
 	| { type: "text"; text: string }
 	| {
@@ -18,23 +17,24 @@ export type ContentPart =
 			result?: unknown;
 	  };
 
-
 export interface ContentPartsState {
 	contentParts: ContentPart[];
 	currentTextPartIndex: number;
 	toolCallIndices: Map<string, number>;
 }
 
-
 export function appendText(state: ContentPartsState, delta: string): void {
-	if (state.currentTextPartIndex >= 0 && state.contentParts[state.currentTextPartIndex]?.type === "text") {
-		(state.contentParts[state.currentTextPartIndex] as { type: "text"; text: string }).text += delta;
+	if (
+		state.currentTextPartIndex >= 0 &&
+		state.contentParts[state.currentTextPartIndex]?.type === "text"
+	) {
+		(state.contentParts[state.currentTextPartIndex] as { type: "text"; text: string }).text +=
+			delta;
 	} else {
 		state.contentParts.push({ type: "text", text: delta });
 		state.currentTextPartIndex = state.contentParts.length - 1;
 	}
 }
-
 
 export function addToolCall(
 	state: ContentPartsState,
@@ -55,7 +55,6 @@ export function addToolCall(
 	}
 }
 
-
 export function updateToolCall(
 	state: ContentPartsState,
 	toolCallId: string,
@@ -68,7 +67,6 @@ export function updateToolCall(
 		if (update.result !== undefined) tc.result = update.result;
 	}
 }
-
 
 export function buildContentForUI(
 	state: ContentPartsState,
@@ -83,7 +81,6 @@ export function buildContentForUI(
 		? (filtered as ThreadMessageLike["content"])
 		: [{ type: "text", text: "" }];
 }
-
 
 export function buildContentForPersistence(
 	state: ContentPartsState,
