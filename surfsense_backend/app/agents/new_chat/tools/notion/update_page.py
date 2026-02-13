@@ -46,15 +46,20 @@ def create_update_notion_page_tool(
 
         Returns:
             Dictionary with:
-            - status: "success", "rejected", or "error"
+            - status: "success", "rejected", "not_found", or "error"
             - page_id: Updated page ID (if success)
             - url: URL to the updated page (if success)
             - title: Current page title (if success)
             - message: Result message
             
-            IMPORTANT: If status is "rejected", the user explicitly declined the action.
-            Respond with a brief acknowledgment (e.g., "Understood, I didn't update the page.") 
-            and move on. Do NOT ask for alternatives or troubleshoot.
+            IMPORTANT: 
+            - If status is "rejected", the user explicitly declined the action.
+              Respond with a brief acknowledgment (e.g., "Understood, I didn't update the page.") 
+              and move on. Do NOT ask for alternatives or troubleshoot.
+            - If status is "not_found", inform the user conversationally using the exact message provided.
+              Example: "I couldn't find the page '[page_title]' in your indexed Notion pages. [message details]"
+              Do NOT treat this as an error. Do NOT invent information. Simply relay the message and 
+              ask the user to verify the page title or check if it's been indexed.
 
         Examples:
             - "Add 'New meeting notes from today' to the 'Meeting Notes' page"
@@ -83,11 +88,20 @@ def create_update_notion_page_tool(
             )
 
             if "error" in context:
-                logger.error(f"Failed to fetch update context: {context['error']}")
-                return {
-                    "status": "error",
-                    "message": context["error"],
-                }
+                error_msg = context["error"]
+                # Check if it's a "not found" error (softer handling for LLM)
+                if "not found" in error_msg.lower():
+                    logger.warning(f"Page not found: {error_msg}")
+                    return {
+                        "status": "not_found",
+                        "message": error_msg,
+                    }
+                else:
+                    logger.error(f"Failed to fetch update context: {error_msg}")
+                    return {
+                        "status": "error",
+                        "message": error_msg,
+                    }
 
             page_id = context.get("page_id")
             connector_id_from_context = context.get("account", {}).get("id")
