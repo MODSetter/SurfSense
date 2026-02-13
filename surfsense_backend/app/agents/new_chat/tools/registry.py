@@ -219,7 +219,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     ),
     ToolDefinition(
         name="update_notion_page",
-        description="Update an existing Notion page's title or content",
+        description="Append new content to an existing Notion page",
         factory=lambda deps: create_update_notion_page_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],

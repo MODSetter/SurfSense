@@ -38,7 +38,6 @@ interface InterruptResult {
 		};
 		page_id?: string;
 		current_title?: string;
-		current_content?: string;
 		document_id?: number;
 		indexed_at?: string;
 		error?: string;
@@ -102,7 +101,6 @@ function ApprovalCard({
 
 	const account = interruptData.context?.account;
 	const currentTitle = interruptData.context?.current_title;
-	const currentContent = interruptData.context?.current_content;
 
 	// Title is not editable, so it's always valid
 	const isTitleValid = true;
@@ -220,7 +218,7 @@ function ApprovalCard({
 						id="notion-content"
 						value={String(editedArgs.content ?? "")}
 						onChange={(e) => setEditedArgs({ ...editedArgs, content: e.target.value || null })}
-						placeholder={currentContent || "Enter new content"}
+						placeholder="Enter content to append to the page"
 						rows={isFullScreen ? undefined : 12}
 						className={`resize-none ${isFullScreen ? "flex-1 min-h-0" : ""}`}
 					/>
@@ -406,7 +404,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 }
 
 export const UpdateNotionPageToolUI = makeAssistantToolUI<
-	{ page_id: string; title?: string | null; content?: string | null },
+	{ page_id: string; content: string },
 	UpdateNotionPageResult
 >({
 	toolName: "update_notion_page",

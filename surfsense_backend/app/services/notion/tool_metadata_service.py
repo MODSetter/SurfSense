@@ -140,7 +140,6 @@ class NotionToolMetadataService:
             "account": account.to_dict(),
             "page_id": page_id,
             "current_title": document.title,
-            "current_content": document.content,
             "document_id": document.id,
             "indexed_at": document.document_metadata.get("indexed_at"),
         }

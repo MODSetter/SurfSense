@@ -33,19 +33,16 @@ def create_update_notion_page_tool(
     @tool
     async def update_notion_page(
         page_title: str,
-        new_title: str | None = None,
-        new_content: str | None = None,
+        content: str,
     ) -> dict[str, Any]:
-        """Update an existing Notion page's title and/or content.
+        """Update an existing Notion page by appending new content.
 
-        Use this tool when the user asks you to modify, edit, or update
-        a Notion page. At least one of new_title or new_content must be provided.
+        Use this tool when the user asks you to add content to, modify, or update
+        a Notion page. The new content will be appended to the existing page content.
 
         Args:
-            page_title: The current title of the Notion page to update (required).
-            new_title: New title for the page (optional).
-            new_content: New markdown content for the page body (optional).
-                        If provided, replaces all existing content.
+            page_title: The title of the Notion page to update.
+            content: The markdown content to append to the page body (supports headings, lists, paragraphs).
 
         Returns:
             Dictionary with:
@@ -54,17 +51,16 @@ def create_update_notion_page_tool(
             - url: URL to the updated page (if success)
             - title: Current page title (if success)
             - message: Result message
-
+            
             IMPORTANT: If status is "rejected", the user explicitly declined the action.
-            Respond with a brief acknowledgment (e.g., "Understood, I didn't update the page.")
+            Respond with a brief acknowledgment (e.g., "Understood, I didn't update the page.") 
             and move on. Do NOT ask for alternatives or troubleshoot.
 
         Examples:
-            - "Update the 'Meeting Notes' page with new title 'Updated Meeting Notes'"
-            - "Change the content of 'Project Plan' page to 'New content here'"
-            - "Update 'Weekly Report' with new title 'Final Report' and content '# Summary...'"
+            - "Add 'New meeting notes from today' to the 'Meeting Notes' page"
+            - "Append the following to 'Project Plan': '# Status Update\n\nCompleted phase 1'"
         """
-        logger.info(f"update_notion_page called: page_title='{page_title}', new_title={new_title}, has_content={new_content is not None}")
+        logger.info(f"update_notion_page called: page_title='{page_title}', content_length={len(content) if content else 0}")
         
         if db_session is None or search_space_id is None or user_id is None:
             logger.error("Notion tool not properly configured - missing required parameters")
@@ -73,10 +69,11 @@ def create_update_notion_page_tool(
                 "message": "Notion tool not properly configured. Please contact support.",
             }
 
-        if not new_title and not new_content:
+        if not content or not content.strip():
+            logger.error(f"Empty content provided for page '{page_title}'")
             return {
                 "status": "error",
-                "message": "At least one of 'new_title' or 'new_content' must be provided to update the page.",
+                "message": "Content is required to update the page. Please provide the actual content you want to add.",
             }
 
         try:
@@ -103,8 +100,7 @@ def create_update_notion_page_tool(
                         "tool": "update_notion_page",
                         "params": {
                             "page_id": page_id,
-                            "title": new_title,
-                            "content": new_content,
+                            "content": content,
                             "connector_id": connector_id_from_context,
                         },
                     },
@@ -135,19 +131,10 @@ def create_update_notion_page_tool(
             final_params = edited_action.get("args", {}) if edited_action else {}
 
             final_page_id = final_params.get("page_id", page_id)
-            final_title = final_params.get("title", new_title)
-            final_content = final_params.get("content", new_content)
+            final_content = final_params.get("content", content)
             final_connector_id = final_params.get("connector_id", connector_id_from_context)
 
-            # Validate title if it's being updated
-            if final_title is not None and not final_title.strip():
-                logger.error("Title is empty or contains only whitespace")
-                return {
-                    "status": "error",
-                    "message": "Page title cannot be empty. Please provide a valid title.",
-                }
-
-            logger.info(f"Updating Notion page with final params: page_id={final_page_id}, title={final_title}, has_content={final_content is not None}")
+            logger.info(f"Updating Notion page with final params: page_id={final_page_id}, has_content={final_content is not None}")
 
             from sqlalchemy.future import select
 
@@ -189,7 +176,6 @@ def create_update_notion_page_tool(
 
             result = await notion_connector.update_page(
                 page_id=final_page_id,
-                title=final_title,
                 content=final_content,
             )
             logger.info(f"update_page result: {result.get('status')} - {result.get('message', '')}")

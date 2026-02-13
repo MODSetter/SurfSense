@@ -987,15 +987,16 @@ class NotionHistoryConnector:
             }
 
     async def update_page(
-        self, page_id: str, title: str | None = None, content: str | None = None
+        self, page_id: str, content: str | None = None
     ) -> dict[str, Any]:
         """
-        Update an existing Notion page.
+        Update an existing Notion page by appending new content.
+        
+        Note: Content is appended to the page, not replaced.
 
         Args:
             page_id: Page ID to update
-            title: New page title (optional)
-            content: New page content in markdown (optional)
+            content: New markdown content to append to the page (optional)
 
         Returns:
             Dictionary with update result
@@ -1006,31 +1007,13 @@ class NotionHistoryConnector:
         try:
             notion = await self._get_client()
 
-            # Update title if provided
-            if title:
-                await self._api_call_with_retry(
-                    notion.pages.update,
-                    page_id=page_id,
-                    properties={
-                        "title": {
-                            "title": [{"type": "text", "text": {"content": title}}]
-                        }
-                    },
-                )
-
-            # Update content if provided
+            # Append content if provided
             if content:
-                # First, get existing blocks
-                existing_blocks = await self._api_call_with_retry(
-                    notion.blocks.children.list,
-                    block_id=page_id
-                )
-
-                # Convert new content to blocks 
+                # Convert new content to blocks
                 try:
                     children = self._markdown_to_blocks(content)
                     if not children:
-                        logger.warning("No blocks generated from content, skipping update")
+                        logger.warning("No blocks generated from content, skipping append")
                         return {
                             "status": "error",
                             "message": "Content conversion failed: no valid blocks generated",
@@ -1042,25 +1025,7 @@ class NotionHistoryConnector:
                         "message": f"Failed to parse content: {e!s}",
                     }
 
-                # Store block count for logging
-                block_count = len(existing_blocks.get("results", []))
-                
-                # Delete existing blocks
-                try:
-                    for block in existing_blocks.get("results", []):
-                        await self._api_call_with_retry(
-                            notion.blocks.delete,
-                            block_id=block["id"]
-                        )
-                    logger.info(f"Deleted {block_count} existing blocks from page {page_id}")
-                except Exception as e:
-                    logger.error(f"Failed to delete existing blocks: {e}")
-                    return {
-                        "status": "error",
-                        "message": f"Failed to clear existing content: {e!s}",
-                    }
-
-                # Add new content (CRITICAL: if this fails, content is lost) Need improvement to handle this better.
+                # Append new content blocks
                 try:
                     for i in range(0, len(children), 100):
                         batch = children[i : i + 100]
@@ -1069,44 +1034,15 @@ class NotionHistoryConnector:
                             block_id=page_id,
                             children=batch
                         )
-                    logger.info(f"Successfully added {len(children)} new blocks to page {page_id}")
+                    logger.info(f"Successfully appended {len(children)} new blocks to page {page_id}")
                 except Exception as e:
-                    # CRITICAL ERROR: Content was deleted but new content failed to add
-                    logger.error(
-                        f"CRITICAL: Failed to add new content after deleting {block_count} blocks. "
-                        f"Page {page_id} content is lost! Error: {e}"
-                    )
-                    
-                    # Attempt to add an error placeholder block so page isn't completely empty
-                    try:
-                        await self._api_call_with_retry(
-                            notion.blocks.children.append,
-                            block_id=page_id,
-                            children=[{
-                                "object": "block",
-                                "type": "paragraph",
-                                "paragraph": {
-                                    "rich_text": [{
-                                        "type": "text",
-                                        "text": {
-                                            "content": "[ERROR] Content update failed. Original content was lost. "
-                                                      "Please check your SurfSense logs for details."
-                                        }
-                                    }]
-                                },
-                            }]
-                        )
-                        logger.info(f"Added error placeholder to page {page_id}")
-                    except Exception as placeholder_error:
-                        logger.error(f"Failed to add error placeholder: {placeholder_error}")
-                    
+                    logger.error(f"Failed to append content blocks: {e}")
                     return {
                         "status": "error",
-                        "message": f"CRITICAL: Failed to update page content. Original content ({block_count} blocks) "
-                                  f"was deleted but new content could not be added: {e!s}",
+                        "message": f"Failed to append content: {e!s}",
                     }
 
-            # Get updated page
+            # Get updated page info
             response = await self._api_call_with_retry(
                 notion.pages.retrieve,
                 page_id=page_id
@@ -1119,7 +1055,7 @@ class NotionHistoryConnector:
                 "page_id": page_id,
                 "url": page_url,
                 "title": page_title,
-                "message": f"Updated Notion page '{page_title}'",
+                "message": f"Updated Notion page '{page_title}' (content appended)",
             }
 
         except APIResponseError as e:
