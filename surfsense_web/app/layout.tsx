@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
+import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
 import { ElectricProvider } from "@/components/providers/ElectricProvider";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
@@ -124,6 +125,7 @@ export default function RootLayout({
 										</ElectricProvider>
 									</ReactQueryClientProvider>
 									<Toaster />
+									<AnnouncementToastProvider />
 								</RootProvider>
 							</ThemeProvider>
 						</I18nProvider>

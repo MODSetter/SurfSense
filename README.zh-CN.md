@@ -1,5 +1,5 @@
+<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="readme_banner" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
-![new_header](https://github.com/user-attachments/assets/e236b764-0ddc-42ff-a1f1-8fbb3d2e0e65)
 
 
 <div align="center">
@@ -13,12 +13,11 @@
 
 <div align="center">
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [हिन्दी](README.hi.md) | [简体中文](README.zh-CN.md)
 
 </div>
 
 # SurfSense
-
 将任何 LLM 连接到您的内部知识源，并与团队成员实时聊天。NotebookLM、Perplexity 和 Glean 的开源替代方案。
 
 SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch、Obsidian 等，未来还会支持更多。
@@ -30,7 +29,7 @@ SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据
 
 # 视频演示
 
-https://github.com/user-attachments/assets/42a29ea1-d4d8-4213-9c69-972b5b806d58
+https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 
 
 ## 播客示例
@@ -44,32 +43,27 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 ### 💡 **理念**: 
 - NotebookLM、Perplexity 和 Glean 的开源替代方案。将任何 LLM 连接到您的内部知识源，并与团队实时协作。
-
 ### 📁 **支持多种文件格式上传**
 - 将您个人文件中的内容（文档、图像、视频，支持 **50+ 种文件扩展名**）保存到您自己的个人知识库。
-
 ### 🔍 **强大的搜索功能**
 - 快速研究或查找已保存内容中的任何信息。
-
 ### 💬 **与已保存内容对话**
 - 使用自然语言交互并获得引用答案。
-
 ### 📄 **引用答案**
 - 像 Perplexity 一样获得带引用的答案。
-
+### 🧩 **通用兼容性**
+- 通过 OpenAI 规范和 LiteLLM 连接几乎任何推理提供商。
 ### 🔔 **隐私保护与本地 LLM 支持**
-- 完美支持 Ollama 本地大语言模型。
-
+- 完美支持 vLLM 和 Ollama 等本地大语言模型。
 ### 🏠 **可自托管**
 - 开源且易于本地部署。
-
 ### 👥 **团队协作与 RBAC**
 - 搜索空间的基于角色的访问控制
 - 使用可自定义的角色（所有者、管理员、编辑者、查看者）邀请团队成员
 - 对文档、聊天、连接器和设置的细粒度权限控制
 - 在组织内安全共享知识库
-
-### 🎙️ **播客功能**
+- 团队聊天实时更新，支持评论线程中的"关于聊天的讨论"
+### 🎙️ 播客功能
 - 超快速播客生成代理（在 20 秒内创建 3 分钟播客）
 - 将聊天对话转换为引人入胜的音频内容
 - 支持本地 TTS 提供商（Kokoro TTS）
@@ -119,13 +113,14 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 **音频/视频**（通过 STT 服务）：`.mp3`、`.wav`、`.mp4`、`.webm` 等
 
-### 🔖 **跨浏览器扩展**
-- SurfSense 扩展可用于保存您喜欢的任何网页
-- 主要用途是保存需要身份验证的受保护网页
+### 🔖 跨浏览器扩展
+- SurfSense 扩展可用于保存您喜欢的任何网页。
+- 主要用途是保存需要身份验证的受保护网页。
 
 
 
 ## 功能请求与未来规划
+
 
 **SurfSense 正在积极开发中。** 虽然它还未达到生产就绪状态，但您可以帮助我们加快进度。
 
@@ -238,101 +233,10 @@ Docker 和手动安装指南都包含适用于 Windows、macOS 和 Linux 的详�
 - 其他根据用例需要的 API 密钥
 
 
-
-## 技术栈
-
-
- ### **后端** 
-
--  **FastAPI**：现代、快速的 Python Web 框架，用于构建 API
-  
--  **PostgreSQL with pgvector**：具有向量搜索功能的数据库，用于相似性搜索
-
--  **SQLAlchemy**：SQL 工具包和 ORM（对象关系映射），用于数据库交互
-
--  **Alembic**：SQLAlchemy 的数据库迁移工具
-
--  **FastAPI Users**：使用 JWT 和 OAuth 支持的身份验证和用户管理
-
--  **深度代理**：基于 LangGraph 构建的自定义代理框架，用于推理和行动的 AI 代理，支持可配置工具
-
--  **LangGraph**：用于开发具有对话持久性的有状态 AI 代理的框架
-
--  **LangChain**：用于开发 AI 驱动应用程序的框架
-
--  **LiteLLM**：通用 LLM 集成，支持 100+ 种模型（OpenAI、Anthropic、Ollama 等）
-
--  **Rerankers**：先进的结果排序，提高搜索相关性
-
--  **混合搜索**：结合向量相似性和全文搜索，使用倒数排名融合 (RRF) 获得最佳结果
-
--  **向量嵌入**：文档和文本嵌入，用于语义搜索
-
--  **pgvector**：PostgreSQL 扩展，用于高效的向量相似性操作
-
--  **Redis**：内存数据结构存储，用作 Celery 的消息代理和结果后端
-
--  **Celery**：分布式任务队列，用于处理异步后台任务（文档处理、播客生成等）
-
--  **Flower**：Celery 任务队列的实时监控和管理工具
-
--  **Chonkie**：先进的文档分块和嵌入库
-
-  
----
- ### **前端**
-
--  **Next.js**：React 框架，具有应用路由器、服务器组件、自动代码拆分和优化渲染功能
-
--  **React**：用于构建用户界面的 JavaScript 库
-
--  **TypeScript**：JavaScript 的静态类型检查，提升代码质量和开发体验
-
-- **Vercel AI SDK Kit UI Stream Protocol**：创建可扩展的聊天 UI
-
--  **Tailwind CSS**：实用优先的 CSS 框架，用于构建自定义 UI 设计
-
--  **Shadcn**：无头组件库
-
--  **Motion（Framer Motion）**：React 动画库
-
-
- ### **DevOps**
-
--  **Docker**：容器平台，用于跨环境的一致部署
-  
--  **Docker Compose**：用于定义和运行多容器 Docker 应用程序的工具
-
--  **pgAdmin**：Docker 设置中包含的基于 Web 的 PostgreSQL 管理工具
-
-
-### **扩展** 
-基于 Plasmo 的 Manifest v3
-
-
 ## 贡献
 
 非常欢迎贡献！贡献可以小到一个 ⭐，甚至是发现和创建问题。
 后端的微调总是受欢迎的。
-
-### 添加新的代理工具
-
-想要为 SurfSense 代理添加新工具？非常简单：
-
-1. 在 `surfsense_backend/app/agents/new_chat/tools/my_tool.py` 中创建您的工具文件
-2. 在 `registry.py` 中注册：
-
-```python
-ToolDefinition(
-    name="my_tool",
-    description="What my tool does",
-    factory=lambda deps: create_my_tool(
-        search_space_id=deps["search_space_id"],
-        db_session=deps["db_session"],
-    ),
-    requires=["search_space_id", "db_session"],
-),
-```
 
 有关详细的贡献指南，请参阅我们的 [CONTRIBUTING.md](CONTRIBUTING.md) 文件。
 
