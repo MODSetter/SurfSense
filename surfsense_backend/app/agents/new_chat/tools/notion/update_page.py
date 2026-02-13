@@ -62,8 +62,8 @@ def create_update_notion_page_tool(
               ask the user to verify the page title or check if it's been indexed.
 
         Examples:
-            - "Add 'New meeting notes from today' to the 'Meeting Notes' page"
-            - "Append the following to 'Project Plan': '# Status Update\n\nCompleted phase 1'"
+            - "Add 'New meeting notes from today' to the 'Meeting Notes' Notion page"
+            - "Append the following to the 'Project Plan' Notion page: '# Status Update\n\nCompleted phase 1'"
         """
         logger.info(f"update_notion_page called: page_title='{page_title}', content_length={len(content) if content else 0}")
         
