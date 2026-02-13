@@ -56,6 +56,7 @@ from .notion import (
     create_update_notion_page_tool,
 )
 from .podcast import create_generate_podcast_tool
+from .report import create_generate_report_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
 from .shared_memory import (
@@ -117,6 +118,17 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="generate_podcast",
         description="Generate an audio podcast from provided content",
         factory=lambda deps: create_generate_podcast_tool(
+            search_space_id=deps["search_space_id"],
+            db_session=deps["db_session"],
+            thread_id=deps["thread_id"],
+        ),
+        requires=["search_space_id", "db_session", "thread_id"],
+    ),
+    # Report generation tool (inline, no Celery)
+    ToolDefinition(
+        name="generate_report",
+        description="Generate a structured Markdown report from provided content",
+        factory=lambda deps: create_generate_report_tool(
             search_space_id=deps["search_space_id"],
             db_session=deps["db_session"],
             thread_id=deps["thread_id"],

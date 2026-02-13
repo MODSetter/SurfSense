@@ -33,6 +33,10 @@ export function FooterNew() {
 			title: "Contact Us",
 			href: "/contact",
 		},
+		{
+			title: "Announcements",
+			href: "/announcements",
+		},
 	];
 
 	const socials = [

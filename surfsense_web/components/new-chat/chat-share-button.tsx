@@ -138,6 +138,26 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 
 	return (
 		<div className={cn("flex items-center gap-1", className)}>
+			{/* Globe indicator when public snapshots exist - clicks to settings */}
+			{hasPublicSnapshots && (
+				<Tooltip>
+					<TooltipTrigger asChild>
+						<button
+							type="button"
+							onClick={() => router.push(`/dashboard/${params.search_space_id}/settings`)}
+							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+						>
+							<Globe className="h-4 w-4 text-muted-foreground" />
+						</button>
+					</TooltipTrigger>
+					<TooltipContent>
+						{snapshotCount === 1
+							? "This chat has a public link"
+							: `This chat has ${snapshotCount} public links`}
+					</TooltipContent>
+				</Tooltip>
+			)}
+
 			<Popover open={open} onOpenChange={setOpen}>
 				<Tooltip>
 					<TooltipTrigger asChild>
@@ -242,26 +262,6 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					</div>
 				</PopoverContent>
 			</Popover>
-
-			{/* Globe indicator when public snapshots exist - clicks to settings */}
-			{hasPublicSnapshots && (
-				<Tooltip>
-					<TooltipTrigger asChild>
-						<button
-							type="button"
-							onClick={() => router.push(`/dashboard/${params.search_space_id}/settings`)}
-							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
-						>
-							<Globe className="h-4 w-4 text-muted-foreground" />
-						</button>
-					</TooltipTrigger>
-					<TooltipContent>
-						{snapshotCount === 1
-							? "This chat has a public link"
-							: `This chat has ${snapshotCount} public links`}
-					</TooltipContent>
-				</Tooltip>
-			)}
 		</div>
 	);
 }

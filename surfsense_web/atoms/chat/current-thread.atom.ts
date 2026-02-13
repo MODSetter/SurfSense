@@ -1,5 +1,6 @@
 import { atom } from "jotai";
 import type { ChatVisibility } from "@/lib/chat/thread-persistence";
+import { reportPanelAtom, reportPanelOpenAtom } from "./report-panel.atom";
 
 // TODO: Update `hasComments` to true when the first comment is created on a thread.
 // Currently it only updates on thread load. The gutter still works because
@@ -39,6 +40,8 @@ export const showCommentsGutterAtom = atom((get) => {
 	const thread = get(currentThreadAtom);
 	// Hide gutter if comments are collapsed
 	if (thread.commentsCollapsed) return false;
+	// Hide gutter if report panel is open (report panel takes the right side)
+	if (get(reportPanelOpenAtom)) return false;
 	return (
 		thread.visibility === "SEARCH_SPACE" &&
 		(thread.hasComments || thread.addingCommentToMessageId !== null)
@@ -59,6 +62,8 @@ export const setThreadVisibilityAtom = atom(null, (get, set, newVisibility: Chat
 
 export const resetCurrentThreadAtom = atom(null, (_, set) => {
 	set(currentThreadAtom, initialState);
+	// Also close the report panel when resetting the thread
+	set(reportPanelAtom, { isOpen: false, reportId: null, title: null, wordCount: null });
 });
 
 /** Atom to read whether comments panel is collapsed */

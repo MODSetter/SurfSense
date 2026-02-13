@@ -2,7 +2,15 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { AlertTriangle, Inbox, LogOut, PencilIcon, SquareLibrary, Trash2 } from "lucide-react";
+import {
+	AlertTriangle,
+	Inbox,
+	LogOut,
+	Megaphone,
+	PencilIcon,
+	SquareLibrary,
+	Trash2,
+} from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -23,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
+import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
@@ -64,6 +73,9 @@ export function LayoutDataProvider({
 	const pathname = usePathname();
 	const queryClient = useQueryClient();
 	const { theme, setTheme } = useTheme();
+
+	// Announcements
+	const { unreadCount: announcementUnreadCount } = useAnnouncements();
 
 	// Atoms
 	const { data: user } = useAtomValue(currentUserAtom);
@@ -293,8 +305,15 @@ export function LayoutDataProvider({
 				icon: SquareLibrary,
 				isActive: pathname?.includes("/documents"),
 			},
+			{
+				title: "Announcements",
+				url: "/announcements",
+				icon: Megaphone,
+				isActive: pathname?.includes("/announcements"),
+				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
+			},
 		],
-		[searchSpaceId, pathname, isInboxSidebarOpen, totalUnreadCount]
+		[searchSpaceId, pathname, isInboxSidebarOpen, totalUnreadCount, announcementUnreadCount]
 	);
 
 	// Handlers

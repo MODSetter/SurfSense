@@ -13,7 +13,7 @@
 
 <div align="center">
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [हिन्दी](README.hi.md) | [简体中文](README.zh-CN.md)
 
 </div>
 
@@ -233,102 +233,10 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 - Other API keys as needed for your use case
 
 
-
-## Tech Stack
-
-
- ### **BackEnd** 
-
--  **LiteLLM**: Universal LLM integration supporting 100+ models (OpenAI, Anthropic, Ollama, etc.)
-
--  **FastAPI**: Modern, fast web framework for building APIs with Python
-  
--  **PostgreSQL with pgvector**: Database with vector search capabilities for similarity searches
-
--  **SQLAlchemy**: SQL toolkit and ORM (Object-Relational Mapping) for database interactions
-
--  **Alembic**: A database migrations tool for SQLAlchemy.
-
--  **FastAPI Users**: Authentication and user management with JWT and OAuth support
-
--  **Deep Agents**: Custom agent framework built on LangGraph for reasoning and acting AI agents with configurable tools
-
--  **LangGraph**: Framework for developing stateful AI agents with conversation persistence
-
--  **LangChain**: Framework for developing AI-powered applications.
-
--  **Rerankers**: Advanced result ranking for improved search relevance
-
--  **Hybrid Search**: Combines vector similarity and full-text search for optimal results using Reciprocal Rank Fusion (RRF)
-
--  **Vector Embeddings**: Document and text embeddings for semantic search
-
--  **pgvector**: PostgreSQL extension for efficient vector similarity operations
-
--  **Redis**: In-memory data structure store used as message broker and result backend for Celery
-
--  **Celery**: Distributed task queue for handling asynchronous background jobs (document processing, podcast generation, etc.)
-
--  **Flower**: Real-time monitoring and administration tool for Celery task queues
-
--  **Chonkie**: Advanced document chunking and embedding library
-
-  
----
- ### **FrontEnd**
-
--  **Next.js**: React framework featuring App Router, server components, automatic code-splitting, and optimized rendering.
-
--  **React**: JavaScript library for building user interfaces.
-
--  **TypeScript**: Static type-checking for JavaScript, enhancing code quality and developer experience.
-
-- **Vercel AI SDK Kit UI Stream Protocol**: To create scalable chat UI.
-
--  **Tailwind CSS**: Utility-first CSS framework for building custom UI designs.
-
--  **Shadcn**: Headless components library.
-
--  **Motion (Framer Motion)**: Animation library for React.
-
-
-
- ### **DevOps**
-
--  **Docker**: Container platform for consistent deployment across environments
-  
--  **Docker Compose**: Tool for defining and running multi-container Docker applications
-
--  **pgAdmin**: Web-based PostgreSQL administration tool included in Docker setup
-
-
-### **Extension** 
- Manifest v3 on Plasmo
-
-
 ## Contribute 
 
 Contributions are very welcome! A contribution can be as small as a ⭐ or even finding and creating issues.
 Fine-tuning the Backend is always desired.
-
-### Adding New Agent Tools
-
-Want to add a new tool to the SurfSense agent? It's easy:
-
-1. Create your tool file in `surfsense_backend/app/agents/new_chat/tools/my_tool.py`
-2. Register it in `registry.py`:
-
-```python
-ToolDefinition(
-    name="my_tool",
-    description="What my tool does",
-    factory=lambda deps: create_my_tool(
-        search_space_id=deps["search_space_id"],
-        db_session=deps["db_session"],
-    ),
-    requires=["search_space_id", "db_session"],
-),
-```
 
 For detailed contribution guidelines, please see our [CONTRIBUTING.md](CONTRIBUTING.md) file.
 
