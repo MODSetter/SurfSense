@@ -53,6 +53,7 @@ services:
       - DATABASE_URL=postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-surfsense}
       - CELERY_BROKER_URL=redis://redis:${REDIS_PORT:-6379}/0
       - CELERY_RESULT_BACKEND=redis://redis:${REDIS_PORT:-6379}/0
+      - REDIS_APP_URL=redis://redis:${REDIS_PORT:-6379}/0
       # Queue name isolation - prevents task collision if Redis is shared with other apps
       - CELERY_TASK_DEFAULT_QUEUE=surfsense
       - PYTHONPATH=/app
@@ -62,7 +63,8 @@ services:
       - LANGSMITH_TRACING=false
       - ELECTRIC_DB_USER=${ELECTRIC_DB_USER:-electric}
       - ELECTRIC_DB_PASSWORD=${ELECTRIC_DB_PASSWORD:-electric_password}
-      - NEXT_FRONTEND_URL=http://frontend:3000
+      - AUTH_TYPE=${AUTH_TYPE:-LOCAL}
+      - NEXT_FRONTEND_URL=${NEXT_FRONTEND_URL:-http://localhost:3000}
     depends_on:
       - db
       - redis
