@@ -275,9 +275,7 @@ def create_generate_report_tool(
             # so no DB connection is held during the long LLM call.
             async with async_session_maker() as read_session:
                 if parent_report_id:
-                    parent_report = await read_session.get(
-                        Report, parent_report_id
-                    )
+                    parent_report = await read_session.get(Report, parent_report_id)
                     if parent_report:
                         report_group_id = parent_report.report_group_id
                         parent_report_content = parent_report.content
@@ -291,9 +289,7 @@ def create_generate_report_tool(
                             "creating standalone report"
                         )
 
-                llm = await get_document_summary_llm(
-                    read_session, search_space_id
-                )
+                llm = await get_document_summary_llm(read_session, search_space_id)
             # read_session closed — connection returned to pool
 
             if not llm:

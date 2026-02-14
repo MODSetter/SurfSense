@@ -106,6 +106,7 @@ def _normalize_latex_delimiters(text: str) -> str:
     )
     # 6. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
     text = re.sub(r"`(\${1,2})((?:(?!\1).)+)\1`", r"\1\2\1", text)
+
     # 7. Trim whitespace inside inline math $...$.
     #    Pandoc's tex_math_dollars requires NO space after the opening $ and
     #    NO space before the closing $.  LLMs frequently produce "$ e^x $"

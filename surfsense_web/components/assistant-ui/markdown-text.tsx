@@ -32,18 +32,15 @@ function convertLatexDelimiters(content: string): string {
 	// 3. Block: \begin{equation}...\end{equation} → $$...$$
 	content = content.replace(
 		/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g,
-		(_, inner) => `$$${inner}$$`,
+		(_, inner) => `$$${inner}$$`
 	);
 	// 4. Block: \begin{displaymath}...\end{displaymath} → $$...$$
 	content = content.replace(
 		/\\begin\{displaymath\}([\s\S]*?)\\end\{displaymath\}/g,
-		(_, inner) => `$$${inner}$$`,
+		(_, inner) => `$$${inner}$$`
 	);
 	// 5. Inline: \begin{math}...\end{math} → $...$
-	content = content.replace(
-		/\\begin\{math\}([\s\S]*?)\\end\{math\}/g,
-		(_, inner) => `$${inner}$`,
-	);
+	content = content.replace(/\\begin\{math\}([\s\S]*?)\\end\{math\}/g, (_, inner) => `$${inner}$`);
 	// 6. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
 	content = content.replace(/`(\${1,2})((?:(?!\1).)+)\1`/g, "$1$2$1");
 

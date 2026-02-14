@@ -48,29 +48,23 @@ function stripOuterMarkdownFence(content: string): string {
  */
 function convertLatexDelimiters(content: string): string {
 	// 1. Block math: \[...\] → $$\n...\n$$ (display math on separate lines)
-	content = content.replace(
-		/\\\[([\s\S]*?)\\\]/g,
-		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`,
-	);
+	content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_, inner) => `\n$$\n${inner.trim()}\n$$\n`);
 	// 2. Inline math: \(...\) → $$...$$ (inline math on same line)
-	content = content.replace(
-		/\\\(([\s\S]*?)\\\)/g,
-		(_, inner) => `$$${inner.trim()}$$`,
-	);
+	content = content.replace(/\\\(([\s\S]*?)\\\)/g, (_, inner) => `$$${inner.trim()}$$`);
 	// 3. Block: \begin{equation}...\end{equation} → $$\n...\n$$
 	content = content.replace(
 		/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g,
-		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`,
+		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`
 	);
 	// 4. Block: \begin{displaymath}...\end{displaymath} → $$\n...\n$$
 	content = content.replace(
 		/\\begin\{displaymath\}([\s\S]*?)\\end\{displaymath\}/g,
-		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`,
+		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`
 	);
 	// 5. Inline: \begin{math}...\end{math} → $$...$$
 	content = content.replace(
 		/\\begin\{math\}([\s\S]*?)\\end\{math\}/g,
-		(_, inner) => `$$${inner.trim()}$$`,
+		(_, inner) => `$$${inner.trim()}$$`
 	);
 	// 6. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
 	content = content.replace(/`(\${1,2})((?:(?!\1).)+)\1`/g, "$1$2$1");
@@ -80,7 +74,7 @@ function convertLatexDelimiters(content: string): string {
 	//    to avoid converting currency like $50.
 	content = content.replace(
 		/(?<!\$)\$(?!\$)(\\[a-zA-Z][\s\S]*?)(?<!\$)\$(?!\$)/g,
-		(_, inner) => `$$${inner.trim()}$$`,
+		(_, inner) => `$$${inner.trim()}$$`
 	);
 	return content;
 }

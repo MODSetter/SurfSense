@@ -293,18 +293,18 @@ function ReportPanelContent({
 						    Hide for public viewers who have no auth token. */}
 							{!shareToken && (
 								<>
-								<DropdownMenuItem
-									onClick={() => handleExport("pdf")}
-									disabled={exporting !== null}
-								>
-									Download PDF
-								</DropdownMenuItem>
-								<DropdownMenuItem
-									onClick={() => handleExport("docx")}
-									disabled={exporting !== null}
-								>
-									Download DOCX
-								</DropdownMenuItem>
+									<DropdownMenuItem
+										onClick={() => handleExport("pdf")}
+										disabled={exporting !== null}
+									>
+										Download PDF
+									</DropdownMenuItem>
+									<DropdownMenuItem
+										onClick={() => handleExport("docx")}
+										disabled={exporting !== null}
+									>
+										Download DOCX
+									</DropdownMenuItem>
 								</>
 							)}
 						</DropdownMenuContent>
