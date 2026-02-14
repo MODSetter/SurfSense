@@ -119,16 +119,15 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["search_space_id", "db_session", "thread_id"],
     ),
-    # Report generation tool (inline, no Celery)
+    # Report generation tool (inline, short-lived sessions for DB ops)
     ToolDefinition(
         name="generate_report",
         description="Generate a structured Markdown report from provided content",
         factory=lambda deps: create_generate_report_tool(
             search_space_id=deps["search_space_id"],
-            db_session=deps["db_session"],
             thread_id=deps["thread_id"],
         ),
-        requires=["search_space_id", "db_session", "thread_id"],
+        requires=["search_space_id", "thread_id"],
     ),
     # Link preview tool - fetches Open Graph metadata for URLs
     ToolDefinition(
