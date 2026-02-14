@@ -1,0 +1,200 @@
+from dataclasses import dataclass
+
+from sqlalchemy import and_, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+
+from app.db import (
+    Document,
+    DocumentType,
+    SearchSourceConnector,
+    SearchSourceConnectorType,
+)
+
+
+@dataclass
+class NotionAccount:
+    id: int
+    name: str
+    workspace_id: str | None
+    workspace_name: str
+    workspace_icon: str
+
+    @classmethod
+    def from_connector(cls, connector: SearchSourceConnector) -> "NotionAccount":
+        return cls(
+            id=connector.id,
+            name=connector.name,
+            workspace_id=connector.config.get("workspace_id"),
+            workspace_name=connector.config.get("workspace_name", "Unnamed Workspace"),
+            workspace_icon=connector.config.get("workspace_icon", "📄"),
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "workspace_id": self.workspace_id,
+            "workspace_name": self.workspace_name,
+            "workspace_icon": self.workspace_icon,
+        }
+
+
+@dataclass
+class NotionPage:
+    page_id: str
+    title: str
+    connector_id: int
+    document_id: int
+
+    @classmethod
+    def from_document(cls, document: Document) -> "NotionPage":
+        return cls(
+            page_id=document.document_metadata.get("page_id"),
+            title=document.title,
+            connector_id=document.connector_id,
+            document_id=document.id,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "page_id": self.page_id,
+            "title": self.title,
+            "connector_id": self.connector_id,
+            "document_id": self.document_id,
+        }
+
+
+class NotionToolMetadataService:
+    def __init__(self, db_session: AsyncSession):
+        self._db_session = db_session
+
+    async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
+        accounts = await self._get_notion_accounts(search_space_id, user_id)
+
+        if not accounts:
+            return {
+                "accounts": [],
+                "parent_pages": {},
+                "error": "No Notion accounts connected",
+            }
+
+        parent_pages = await self._get_parent_pages_by_account(
+            search_space_id, accounts
+        )
+
+        return {
+            "accounts": [acc.to_dict() for acc in accounts],
+            "parent_pages": parent_pages,
+        }
+
+    async def get_update_context(
+        self, search_space_id: int, user_id: str, page_title: str
+    ) -> dict:
+        result = await self._db_session.execute(
+            select(Document)
+            .join(
+                SearchSourceConnector, Document.connector_id == SearchSourceConnector.id
+            )
+            .filter(
+                and_(
+                    Document.search_space_id == search_space_id,
+                    Document.document_type == DocumentType.NOTION_CONNECTOR,
+                    func.lower(Document.title) == func.lower(page_title),
+                    SearchSourceConnector.user_id == user_id,
+                )
+            )
+        )
+        document = result.scalars().first()
+
+        if not document:
+            return {
+                "error": f"Page '{page_title}' not found in your indexed Notion pages. "
+                "This could mean: (1) the page doesn't exist, (2) it hasn't been indexed yet, "
+                "or (3) the page title is different. Please check the exact page title in Notion."
+            }
+
+        if not document.connector_id:
+            return {"error": "Document has no associated connector"}
+
+        result = await self._db_session.execute(
+            select(SearchSourceConnector).filter(
+                and_(
+                    SearchSourceConnector.id == document.connector_id,
+                    SearchSourceConnector.user_id == user_id,
+                )
+            )
+        )
+        connector = result.scalars().first()
+
+        if not connector:
+            return {"error": "Connector not found or access denied"}
+
+        account = NotionAccount.from_connector(connector)
+
+        page_id = document.document_metadata.get("page_id")
+        if not page_id:
+            return {"error": "Page ID not found in document metadata"}
+
+        return {
+            "account": account.to_dict(),
+            "page_id": page_id,
+            "current_title": document.title,
+            "document_id": document.id,
+            "indexed_at": document.document_metadata.get("indexed_at"),
+        }
+
+    async def get_delete_context(
+        self, search_space_id: int, user_id: str, page_title: str
+    ) -> dict:
+        return await self.get_update_context(search_space_id, user_id, page_title)
+
+    async def _get_notion_accounts(
+        self, search_space_id: int, user_id: str
+    ) -> list[NotionAccount]:
+        result = await self._db_session.execute(
+            select(SearchSourceConnector)
+            .filter(
+                and_(
+                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.NOTION_CONNECTOR,
+                )
+            )
+            .order_by(SearchSourceConnector.last_indexed_at.desc())
+        )
+        connectors = result.scalars().all()
+        return [NotionAccount.from_connector(conn) for conn in connectors]
+
+    async def _get_parent_pages_by_account(
+        self, search_space_id: int, accounts: list[NotionAccount]
+    ) -> dict:
+        parent_pages = {}
+
+        for account in accounts:
+            result = await self._db_session.execute(
+                select(Document)
+                .filter(
+                    and_(
+                        Document.search_space_id == search_space_id,
+                        Document.connector_id == account.id,
+                        Document.document_type == DocumentType.NOTION_CONNECTOR,
+                    )
+                )
+                .order_by(Document.updated_at.desc())
+                .limit(50)
+            )
+            documents = result.scalars().all()
+
+            parent_pages[account.id] = [
+                {
+                    "page_id": doc.document_metadata.get("page_id"),
+                    "title": doc.title,
+                    "document_id": doc.id,
+                }
+                for doc in documents
+                if doc.document_metadata.get("page_id")
+            ]
+
+        return parent_pages

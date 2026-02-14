@@ -22,12 +22,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Pandoc 3.x from GitHub (apt ships 2.17 which has broken table rendering).
+# Install Pandoc 3.x from GitHub as a fallback for Linux where pypandoc_binary
+# may not bundle pandoc (apt ships 2.17 which has broken table rendering).
+# pypandoc_binary bundles pandoc on Windows/macOS; on Linux it picks this up.
 RUN ARCH=$(dpkg --print-architecture) && \
     wget -qO /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/3.9/pandoc-3.9-1-${ARCH}.deb" && \
     dpkg -i /tmp/pandoc.deb && \
     rm /tmp/pandoc.deb
 
+# NOTE: Typst CLI is NOT installed here. PDF rendering uses the `typst` Python
+# library (pip package) which bundles the compiler as a native extension.
+# This avoids architecture-specific binary downloads and works cross-platform.
 
 # Update certificates and install SSL tools
 RUN update-ca-certificates
