@@ -30,10 +30,6 @@ RUN ARCH=$(dpkg --print-architecture) && \
     dpkg -i /tmp/pandoc.deb && \
     rm /tmp/pandoc.deb
 
-# NOTE: Typst CLI is NOT installed here. PDF rendering uses the `typst` Python
-# library (pip package) which bundles the compiler as a native extension.
-# This avoids architecture-specific binary downloads and works cross-platform.
-
 # Update certificates and install SSL tools
 RUN update-ca-certificates
 RUN pip install --upgrade certifi pip-system-certs

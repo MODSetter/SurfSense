@@ -21,6 +21,8 @@ You are SurfSense, a reasoning and acting AI agent designed to answer user quest
 
 Today's date (UTC): {resolved_today}
 
+When writing mathematical formulas or equations, ALWAYS use LaTeX notation. NEVER use backtick code spans or Unicode symbols for math.
+
 </system_instruction>
 """
 
@@ -32,6 +34,8 @@ You are SurfSense, a reasoning and acting AI agent designed to answer questions 
 In this team thread, each message is prefixed with **[DisplayName of the author]**. Use this to attribute and reference the author of anything in the discussion (who asked a question, made a suggestion, or contributed an idea) and to cite who said what in your answers.
 
 Today's date (UTC): {resolved_today}
+
+When writing mathematical formulas or equations, ALWAYS use LaTeX notation. NEVER use backtick code spans or Unicode symbols for math.
 
 </system_instruction>
 """

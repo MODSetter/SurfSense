@@ -14,7 +14,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Spinner } from "@/components/ui/spinner";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 import { authenticatedFetch } from "@/lib/auth-utils";
@@ -298,14 +297,12 @@ function ReportPanelContent({
 										onClick={() => handleExport("pdf")}
 										disabled={exporting !== null}
 									>
-										{exporting === "pdf" && <Spinner size="xs" />}
 										Download PDF
 									</DropdownMenuItem>
 									<DropdownMenuItem
 										onClick={() => handleExport("docx")}
 										disabled={exporting !== null}
 									>
-										{exporting === "docx" && <Spinner size="xs" />}
 										Download DOCX
 									</DropdownMenuItem>
 								</>
