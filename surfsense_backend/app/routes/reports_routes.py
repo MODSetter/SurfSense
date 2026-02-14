@@ -66,6 +66,61 @@ def _strip_wrapping_code_fences(text: str) -> str:
     return stripped
 
 
+def _normalize_latex_delimiters(text: str) -> str:
+    """Convert all LaTeX math delimiters to dollar-sign form.
+
+    Pandoc's ``tex_math_dollars`` extension (on the ``gfm`` reader) handles
+    ``$…$`` and ``$$…$$`` natively.  This function converts every other
+    delimiter style that LLMs produce into dollar-sign form so pandoc can
+    parse them as math.
+
+    Supported conversions:
+      \\[…\\]                                → $$…$$  (display math)
+      \\(…\\)                                → $…$    (inline math)
+      \\begin{equation}…\\end{equation}      → $$…$$  (display math)
+      \\begin{displaymath}…\\end{displaymath}→ $$…$$  (display math)
+      \\begin{math}…\\end{math}              → $…$    (inline math)
+      `$$…$$` / `$…$`                        → strip wrapping backticks
+    """
+    # 1. Block math: \[...\] → $$...$$
+    text = re.sub(r"\\\[([\s\S]*?)\\\]", lambda m: f"$${m.group(1)}$$", text)
+    # 2. Inline math: \(...\) → $...$
+    text = re.sub(r"\\\(([\s\S]*?)\\\)", lambda m: f"${m.group(1)}$", text)
+    # 3. \begin{equation}...\end{equation} → $$...$$
+    text = re.sub(
+        r"\\begin\{equation\}([\s\S]*?)\\end\{equation\}",
+        lambda m: f"$${m.group(1)}$$",
+        text,
+    )
+    # 4. \begin{displaymath}...\end{displaymath} → $$...$$
+    text = re.sub(
+        r"\\begin\{displaymath\}([\s\S]*?)\\end\{displaymath\}",
+        lambda m: f"$${m.group(1)}$$",
+        text,
+    )
+    # 5. \begin{math}...\end{math} → $...$
+    text = re.sub(
+        r"\\begin\{math\}([\s\S]*?)\\end\{math\}",
+        lambda m: f"${m.group(1)}$",
+        text,
+    )
+    # 6. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
+    text = re.sub(r"`(\${1,2})((?:(?!\1).)+)\1`", r"\1\2\1", text)
+    # 7. Trim whitespace inside inline math $...$.
+    #    Pandoc's tex_math_dollars requires NO space after the opening $ and
+    #    NO space before the closing $.  LLMs frequently produce "$ e^x $"
+    #    or "\( e^x \)" (which step 2 converts to "$ e^x $").  Without
+    #    trimming, pandoc treats these as literal dollar-sign text.
+    #    We require spaces on BOTH sides to avoid false-positives on
+    #    currency like "$50" or "$50 and $100".
+    def _trim_inline_math(m: re.Match) -> str:
+        inner = m.group(1).strip()
+        return f"${inner}$" if inner else m.group(0)
+
+    text = re.sub(r"(?<!\$)\$(?!\$) +(.+?) +\$(?!\$)", _trim_inline_math, text)
+    return text
+
+
 async def _get_report_with_access(
     report_id: int,
     session: AsyncSession,
@@ -227,6 +282,10 @@ async def export_report(
         # Without this, pandoc treats the entire content as a code block.
         markdown_content = _strip_wrapping_code_fences(report.content)
 
+        # Normalise all LaTeX math delimiters (\(\), \[\], \begin{equation},
+        # etc.) into $/$$ form that pandoc's tex_math_dollars extension can parse.
+        markdown_content = _normalize_latex_delimiters(markdown_content)
+
         # Convert Markdown to the requested format.
         #
         # DOCX: pypandoc (pandoc) handles the full conversion directly.
@@ -237,8 +296,9 @@ async def export_report(
         # bundles the compiler as a native extension.  Typst produces
         # professional styling for tables, headings, code blocks, etc.
         #
-        # Use "gfm" as the input format because LLM output uses GFM-style
+        # Use "gfm" as the base input format because LLM output uses GFM-style
         # pipe tables that pandoc's stricter default "markdown" may mangle.
+        # The +tex_math_dollars extension enables $/$$ math recognition.
 
         def _convert_and_read() -> bytes:
             """Run all blocking I/O (tempfile, pandoc/typst, file read, cleanup) in a thread."""
@@ -253,7 +313,7 @@ async def export_report(
                 typst_markup: str = pypandoc.convert_text(
                     markdown_content,
                     "typst",
-                    format="gfm",
+                    format="gfm+tex_math_dollars",
                     extra_args=[
                         "--standalone",
                         "-V",
@@ -273,7 +333,7 @@ async def export_report(
                     pypandoc.convert_text(
                         markdown_content,
                         format.value,
-                        format="gfm",
+                        format="gfm+tex_math_dollars",
                         extra_args=["--standalone"],
                         outputfile=tmp_path,
                     )

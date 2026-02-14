@@ -53,6 +53,7 @@ _REPORT_PROMPT = """You are an expert report writer. Generate a well-structured,
        A[Source Code] --> B[Compiler]
        B --> C[Bytecode]
    ```
+10. When including mathematical formulas or equations, ALWAYS use LaTeX notation. NEVER use backtick code spans or Unicode symbols for math.
 
 Write the report now:
 """
