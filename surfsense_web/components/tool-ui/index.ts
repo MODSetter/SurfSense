@@ -16,6 +16,7 @@ export {
 	type SerializableArticle,
 } from "./article";
 export { Audio } from "./audio";
+export { CreateNotionPageToolUI } from "./create-notion-page";
 export {
 	type DeepAgentThinkingArgs,
 	type DeepAgentThinkingResult,
@@ -78,6 +79,7 @@ export {
 	ScrapeWebpageResultSchema,
 	ScrapeWebpageToolUI,
 } from "./scrape-webpage";
+export { UpdateNotionPageToolUI } from "./update-notion-page";
 export {
 	type MemoryItem,
 	type RecallMemoryArgs,
