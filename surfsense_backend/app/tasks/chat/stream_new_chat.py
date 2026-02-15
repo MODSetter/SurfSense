@@ -377,6 +377,35 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
+            elif tool_name == "generate_report":
+                report_topic = (
+                    tool_input.get("topic", "Report")
+                    if isinstance(tool_input, dict)
+                    else "Report"
+                )
+                report_style = (
+                    tool_input.get("report_style", "detailed")
+                    if isinstance(tool_input, dict)
+                    else "detailed"
+                )
+                content_len = len(
+                    tool_input.get("source_content", "")
+                    if isinstance(tool_input, dict)
+                    else ""
+                )
+                last_active_step_title = "Generating report"
+                last_active_step_items = [
+                    f"Topic: {report_topic}",
+                    f"Style: {report_style}",
+                    f"Source content: {content_len:,} characters",
+                    "Generating report with LLM...",
+                ]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Generating report",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
             else:
                 last_active_step_title = f"Using {tool_name.replace('_', ' ')}"
                 last_active_step_items = []
@@ -544,6 +573,48 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
+            elif tool_name == "generate_report":
+                report_status = (
+                    tool_output.get("status", "unknown")
+                    if isinstance(tool_output, dict)
+                    else "unknown"
+                )
+                report_title = (
+                    tool_output.get("title", "Report")
+                    if isinstance(tool_output, dict)
+                    else "Report"
+                )
+                word_count = (
+                    tool_output.get("word_count", 0)
+                    if isinstance(tool_output, dict)
+                    else 0
+                )
+
+                if report_status == "ready":
+                    completed_items = [
+                        f"Title: {report_title}",
+                        f"Words: {word_count:,}",
+                        "Report generated successfully",
+                    ]
+                elif report_status == "failed":
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    completed_items = [
+                        f"Title: {report_title}",
+                        f"Error: {error_msg[:50]}",
+                    ]
+                else:
+                    completed_items = last_active_step_items
+
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Generating report",
+                    status="completed",
+                    items=completed_items,
+                )
             elif tool_name == "ls":
                 if isinstance(tool_output, dict):
                     ls_output = tool_output.get("result", "")
@@ -693,6 +764,34 @@ async def _stream_agent_events(
                 yield streaming_service.format_terminal_info(
                     "Knowledge base search completed", "success"
                 )
+            elif tool_name == "generate_report":
+                # Stream the full report result so frontend can render the ReportCard
+                yield streaming_service.format_tool_output_available(
+                    tool_call_id,
+                    tool_output
+                    if isinstance(tool_output, dict)
+                    else {"result": tool_output},
+                )
+                # Send appropriate terminal message based on status
+                if (
+                    isinstance(tool_output, dict)
+                    and tool_output.get("status") == "ready"
+                ):
+                    word_count = tool_output.get("word_count", 0)
+                    yield streaming_service.format_terminal_info(
+                        f"Report generated: {tool_output.get('title', 'Report')} ({word_count:,} words)",
+                        "success",
+                    )
+                else:
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    yield streaming_service.format_terminal_info(
+                        f"Report generation failed: {error_msg}",
+                        "error",
+                    )
             elif tool_name in ("create_notion_page", "update_notion_page", "delete_notion_page"):
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
