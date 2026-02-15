@@ -51,3 +51,9 @@ class ReportContentRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ReportContentUpdate(BaseModel):
+    """Schema for updating a report's Markdown content."""
+
+    content: str

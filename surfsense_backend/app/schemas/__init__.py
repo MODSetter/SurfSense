@@ -76,7 +76,13 @@ from .rbac_schemas import (
     RoleUpdate,
     UserSearchSpaceAccess,
 )
-from .reports import ReportBase, ReportContentRead, ReportRead, ReportVersionInfo
+from .reports import (
+    ReportBase,
+    ReportContentRead,
+    ReportContentUpdate,
+    ReportRead,
+    ReportVersionInfo,
+)
 from .search_source_connector import (
     MCPConnectorCreate,
     MCPConnectorRead,
@@ -189,6 +195,7 @@ __all__ = [
     # Report schemas
     "ReportBase",
     "ReportContentRead",
+    "ReportContentUpdate",
     "ReportRead",
     "ReportVersionInfo",
     "RoleCreate",

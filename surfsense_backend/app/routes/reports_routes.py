@@ -1,8 +1,9 @@
 """
-Report routes for read, export (PDF/DOCX), and delete operations.
+Report routes for read, update, export (PDF/DOCX), and delete operations.
 
-No create or update endpoints here — reports are generated inline by the
-agent tool during chat and stored as Markdown in the database.
+Reports are generated inline by the agent tool during chat and stored as
+Markdown in the database.  Users can edit report content via the Plate editor
+and save changes through the PUT endpoint.
 Export to PDF/DOCX is on-demand — PDF uses pypandoc (Markdown→Typst) + typst-py
 (Typst→PDF); DOCX uses pypandoc directly.
 
@@ -33,7 +34,7 @@ from app.db import (
     User,
     get_async_session,
 )
-from app.schemas import ReportContentRead, ReportRead
+from app.schemas import ReportContentRead, ReportContentUpdate, ReportRead
 from app.schemas.reports import ReportVersionInfo
 from app.users import current_active_user
 from app.utils.rbac import check_search_space_access
@@ -256,6 +257,47 @@ async def read_report_content(
         raise HTTPException(
             status_code=500,
             detail="Database error occurred while fetching report content",
+        ) from None
+
+
+@router.put("/reports/{report_id}/content", response_model=ReportContentRead)
+async def update_report_content(
+    report_id: int,
+    body: ReportContentUpdate,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """
+    Update the Markdown content of a report.
+
+    The caller must be a member of the search space the report belongs to.
+    Returns the updated report content including version siblings.
+    """
+    try:
+        report = await _get_report_with_access(report_id, session, user)
+
+        report.content = body.content
+        session.add(report)
+        await session.commit()
+        await session.refresh(report)
+
+        versions = await _get_version_siblings(session, report)
+
+        return ReportContentRead(
+            id=report.id,
+            title=report.title,
+            content=report.content,
+            report_metadata=report.report_metadata,
+            report_group_id=report.report_group_id,
+            versions=versions,
+        )
+    except HTTPException:
+        raise
+    except SQLAlchemyError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Database error occurred while updating report content",
         ) from None
 
 

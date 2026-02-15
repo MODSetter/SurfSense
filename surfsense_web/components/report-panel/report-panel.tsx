@@ -1,11 +1,12 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { ChevronDownIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, SaveIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
-import { MarkdownViewer } from "@/components/markdown-viewer";
+import { PlateEditor } from "@/components/editor/plate-editor";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle } from "@/components/ui/drawer";
 import {
@@ -112,6 +113,10 @@ function ReportPanelContent({
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [exporting, setExporting] = useState<"pdf" | "docx" | "md" | null>(null);
+	const [saving, setSaving] = useState(false);
+
+	// Editor state — tracks the latest markdown from the Plate editor
+	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
 
 	// Version state
 	const [activeReportId, setActiveReportId] = useState(reportId);
@@ -165,17 +170,25 @@ function ReportPanelContent({
 		};
 	}, [activeReportId, shareToken]);
 
-	// Copy markdown content
+	// The current markdown: use edited version if available, otherwise original
+	const currentMarkdown = editedMarkdown ?? reportContent?.content ?? null;
+
+	// Reset edited markdown when switching versions or reports
+	useEffect(() => {
+		setEditedMarkdown(null);
+	}, [activeReportId]);
+
+	// Copy markdown content (uses latest editor content)
 	const handleCopy = useCallback(async () => {
-		if (!reportContent?.content) return;
+		if (!currentMarkdown) return;
 		try {
-			await navigator.clipboard.writeText(reportContent.content);
+			await navigator.clipboard.writeText(currentMarkdown);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		} catch (err) {
 			console.error("Failed to copy:", err);
 		}
-	}, [reportContent?.content]);
+	}, [currentMarkdown]);
 
 	// Export report
 	const handleExport = useCallback(
@@ -188,9 +201,9 @@ function ReportPanelContent({
 					.slice(0, 80) || "report";
 			try {
 				if (format === "md") {
-					// Download markdown content directly as a .md file
-					if (!reportContent?.content) return;
-					const blob = new Blob([reportContent.content], {
+					// Download markdown content directly as a .md file (uses latest editor content)
+					if (!currentMarkdown) return;
+					const blob = new Blob([currentMarkdown], {
 						type: "text/markdown;charset=utf-8",
 					});
 					const url = URL.createObjectURL(blob);
@@ -227,8 +240,39 @@ function ReportPanelContent({
 				setExporting(null);
 			}
 		},
-		[activeReportId, title, reportContent?.content]
+		[activeReportId, title, currentMarkdown]
 	);
+
+	// Save edited report content
+	const handleSave = useCallback(async () => {
+		if (!currentMarkdown || !activeReportId) return;
+		setSaving(true);
+		try {
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${activeReportId}/content`,
+				{
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ content: currentMarkdown }),
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({ detail: "Failed to save report" }));
+				throw new Error(errorData.detail || "Failed to save report");
+			}
+
+			// Update local state to reflect saved content
+			setReportContent((prev) => (prev ? { ...prev, content: currentMarkdown } : prev));
+			setEditedMarkdown(null);
+			toast.success("Report saved successfully");
+		} catch (err) {
+			console.error("Error saving report:", err);
+			toast.error(err instanceof Error ? err.message : "Failed to save report");
+		} finally {
+			setSaving(false);
+		}
+	}, [activeReportId, currentMarkdown]);
 
 	// Show full-page skeleton only on initial load (no data loaded yet).
 	// Once we have versions/content from a prior fetch, keep the action bar visible.
@@ -258,6 +302,20 @@ function ReportPanelContent({
 			{/* Action bar — always visible after initial load */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
+					{/* Save button — only shown for authenticated users with unsaved edits */}
+					{!shareToken && editedMarkdown !== null && (
+						<Button
+							variant="default"
+							size="sm"
+							onClick={handleSave}
+							disabled={saving}
+							className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
+						>
+							<SaveIcon className="size-3.5" />
+							{saving ? "Saving..." : "Save"}
+						</Button>
+					)}
+
 					{/* Copy button */}
 					<Button
 						variant="outline"
@@ -370,8 +428,8 @@ function ReportPanelContent({
 				)}
 			</div>
 
-			{/* Report content — skeleton/error/content shown only in this area */}
-			<div className="flex-1 overflow-y-auto scrollbar-thin">
+			{/* Report content — skeleton/error/editor shown only in this area */}
+			<div className="flex-1 overflow-hidden">
 				{isLoading ? (
 					<ReportPanelSkeleton />
 				) : error || !reportContent ? (
@@ -381,13 +439,17 @@ function ReportPanelContent({
 							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
 						</div>
 					</div>
+				) : reportContent.content ? (
+					<PlateEditor
+						markdown={reportContent.content}
+						onMarkdownChange={shareToken ? undefined : setEditedMarkdown}
+						readOnly={!!shareToken}
+						placeholder="Report content..."
+						editorVariant="default"
+					/>
 				) : (
 					<div className="px-5 py-5">
-						{reportContent.content ? (
-							<MarkdownViewer content={reportContent.content} />
-						) : (
-							<p className="text-muted-foreground italic">No content available.</p>
-						)}
+						<p className="text-muted-foreground italic">No content available.</p>
 					</div>
 				)}
 			</div>
