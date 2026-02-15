@@ -792,10 +792,16 @@ async def _stream_agent_events(
                         f"Report generation failed: {error_msg}",
                         "error",
                     )
-            elif tool_name in ("create_notion_page", "update_notion_page", "delete_notion_page"):
+            elif tool_name in (
+                "create_notion_page",
+                "update_notion_page",
+                "delete_notion_page",
+            ):
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
-                    tool_output if isinstance(tool_output, dict) else {"result": tool_output},
+                    tool_output
+                    if isinstance(tool_output, dict)
+                    else {"result": tool_output},
                 )
             else:
                 yield streaming_service.format_tool_output_available(
