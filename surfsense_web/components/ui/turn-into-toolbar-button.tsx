@@ -172,7 +172,7 @@ export function TurnIntoToolbarButton({ tooltip = 'Turn into', ...props }: Dropd
           {turnIntoItems.map(({ icon, label, value: itemValue }) => (
             <DropdownMenuRadioItem
               key={itemValue}
-              className="min-w-[180px] pl-2 *:first:[span]:hidden"
+              className="min-w-[180px] pl-2 *:first:[span]:hidden dark:text-white"
               value={itemValue}
             >
               <span className="pointer-events-none absolute right-2 flex size-3.5 items-center justify-center">
@@ -180,7 +180,7 @@ export function TurnIntoToolbarButton({ tooltip = 'Turn into', ...props }: Dropd
                   <CheckIcon />
                 </DropdownMenuItemIndicator>
               </span>
-              {icon}
+              <span className="text-muted-foreground">{icon}</span>
               {label}
             </DropdownMenuRadioItem>
           ))}

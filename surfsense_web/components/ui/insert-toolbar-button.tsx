@@ -195,12 +195,12 @@ export function InsertToolbarButton(props: DropdownMenuProps) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="flex max-h-[300px] min-w-0 flex-col overflow-y-scroll dark:bg-neutral-800 dark:border dark:border-neutral-700"
+        className="flex max-h-[500px] min-w-0 flex-col overflow-y-auto dark:bg-neutral-800 dark:border dark:border-neutral-700"
         align="start"
       >
         {groups.map(({ group, items }) => (
           <React.Fragment key={group}>
-            <ToolbarMenuGroup>
+            <ToolbarMenuGroup label={group}>
               {items.map(({ icon, label, value, onSelect, focusEditor }) => (
                 <DropdownMenuItem
                   key={value}
@@ -213,7 +213,7 @@ export function InsertToolbarButton(props: DropdownMenuProps) {
                   }}
                   className="group"
                 >
-                  <div className="flex items-center text-sm text-muted-foreground focus:text-accent-foreground group-aria-selected:text-accent-foreground">
+                  <div className="flex items-center text-sm dark:text-white text-muted-foreground focus:text-accent-foreground group-aria-selected:text-accent-foreground">
                     {icon}
                     <span className="ml-2">{label || value}</span>
                   </div>
