@@ -82,7 +82,6 @@ celery_app = Celery(
         "app.tasks.celery_tasks.blocknote_migration_tasks",
         "app.tasks.celery_tasks.document_reindex_tasks",
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
-        "app.tasks.celery_tasks.connector_deletion_task",
     ],
 )
 
@@ -143,7 +142,6 @@ celery_app.conf.update(
         "index_bookstack_pages": {"queue": CONNECTORS_QUEUE},
         "index_obsidian_vault": {"queue": CONNECTORS_QUEUE},
         "index_composio_connector": {"queue": CONNECTORS_QUEUE},
-        "delete_connector_with_documents": {"queue": CONNECTORS_QUEUE},
         # Everything else (document processing, podcasts, reindexing,
         # schedule checker, cleanup) stays on the default fast queue.
     },

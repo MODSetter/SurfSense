@@ -133,7 +133,10 @@ export const updateConnectorResponse = searchSourceConnector;
 export const deleteConnectorRequest = searchSourceConnector.pick({ id: true });
 
 export const deleteConnectorResponse = z.object({
-	message: z.literal("Search source connector deleted successfully"),
+	message: z.string(),
+	status: z.string().optional(),
+	connector_id: z.number().optional(),
+	connector_name: z.string().optional(),
 });
 
 /**
