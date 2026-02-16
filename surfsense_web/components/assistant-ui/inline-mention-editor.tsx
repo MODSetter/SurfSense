@@ -141,9 +141,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 
 					// Preserve mention chips as inline @title tokens.
 					if (element.hasAttribute(CHIP_DATA_ATTR)) {
-						const title = element
-							.querySelector("[data-mention-title='true']")
-							?.textContent?.trim();
+						const title = element.querySelector("[data-mention-title='true']")?.textContent?.trim();
 						if (title) {
 							return `@${title}`;
 						}
