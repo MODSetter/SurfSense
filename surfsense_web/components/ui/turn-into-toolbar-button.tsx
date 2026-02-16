@@ -126,7 +126,7 @@ export const turnIntoItems = [
   },
 ];
 
-export function TurnIntoToolbarButton(props: DropdownMenuProps) {
+export function TurnIntoToolbarButton({ tooltip = 'Turn into', ...props }: DropdownMenuProps & { tooltip?: React.ReactNode }) {
   const editor = useEditorRef();
   const [open, setOpen] = React.useState(false);
 
@@ -147,7 +147,7 @@ export function TurnIntoToolbarButton(props: DropdownMenuProps) {
         <ToolbarButton
           className="min-w-[125px]"
           pressed={open}
-          tooltip="Turn into"
+          tooltip={tooltip}
           isDropdown
         >
           {selectedItem.label}
@@ -155,7 +155,7 @@ export function TurnIntoToolbarButton(props: DropdownMenuProps) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="ignore-click-outside/toolbar min-w-0 max-h-[350px] overflow-y-scroll"
+        className="ignore-click-outside/toolbar min-w-0 max-h-[350px] overflow-y-scroll dark:bg-neutral-800 dark:border dark:border-neutral-700"
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           editor.tf.focus();

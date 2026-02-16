@@ -195,7 +195,7 @@ export function InsertToolbarButton(props: DropdownMenuProps) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="flex max-h-[300px] min-w-0 flex-col overflow-y-scroll"
+        className="flex max-h-[300px] min-w-0 flex-col overflow-y-scroll dark:bg-neutral-800 dark:border dark:border-neutral-700"
         align="start"
       >
         {groups.map(({ group, items }) => (

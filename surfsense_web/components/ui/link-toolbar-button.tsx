@@ -17,7 +17,7 @@ export function LinkToolbarButton(
   const { props: buttonProps } = useLinkToolbarButton(state);
 
   return (
-    <ToolbarButton {...props} {...buttonProps} data-plate-focus tooltip="Link">
+    <ToolbarButton tooltip="Link" {...props} {...buttonProps} data-plate-focus>
       <Link />
     </ToolbarButton>
   );

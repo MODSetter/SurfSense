@@ -328,7 +328,7 @@ function ReportPanelContent({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="start"
-							className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}
+							className={`min-w-[180px] dark:bg-neutral-800 dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
 						>
 							<DropdownMenuItem onClick={() => handleExport("md")}>
 								Download Markdown
