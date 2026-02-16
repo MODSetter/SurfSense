@@ -186,7 +186,7 @@ export function SlashInputElement({
       >
         <InlineComboboxInput />
 
-        <InlineComboboxContent>
+        <InlineComboboxContent className="dark:bg-neutral-800 dark:border dark:border-neutral-700">
           <InlineComboboxEmpty>No results found.</InlineComboboxEmpty>
 
           {slashCommandGroups.map(({ heading, items }) => (
