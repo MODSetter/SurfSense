@@ -8,7 +8,7 @@ import { z } from "zod";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHandle } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -499,8 +499,9 @@ function MobileReportDrawer() {
 			}}
 			shouldScaleBackground={false}
 		>
-			<DrawerContent className="h-[90vh] max-h-[90vh] z-80" overlayClassName="z-80">
+			<DrawerContent className="h-[90vh] max-h-[90vh] z-80 !rounded-none border-none" overlayClassName="z-80">
 				<DrawerHandle />
+				<DrawerTitle className="sr-only">{panelState.title || "Report"}</DrawerTitle>
 				<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
 					<ReportPanelContent
 						reportId={panelState.reportId}

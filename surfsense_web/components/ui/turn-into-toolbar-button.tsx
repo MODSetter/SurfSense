@@ -145,7 +145,7 @@ export function TurnIntoToolbarButton({ tooltip = 'Turn into', ...props }: Dropd
     <DropdownMenu open={open} onOpenChange={setOpen} modal={false} {...props}>
       <DropdownMenuTrigger asChild>
         <ToolbarButton
-          className="min-w-[125px]"
+          className="min-w-[80px] sm:min-w-[125px]"
           pressed={open}
           tooltip={tooltip}
           isDropdown
@@ -155,7 +155,7 @@ export function TurnIntoToolbarButton({ tooltip = 'Turn into', ...props }: Dropd
       </DropdownMenuTrigger>
 
       <DropdownMenuContent
-        className="ignore-click-outside/toolbar min-w-0 max-h-[350px] overflow-y-scroll dark:bg-neutral-800 dark:border dark:border-neutral-700"
+        className="z-[100] ignore-click-outside/toolbar min-w-0 max-h-[60vh] overflow-y-auto dark:bg-neutral-800 dark:border dark:border-neutral-700"
         onCloseAutoFocus={(e) => {
           e.preventDefault();
           editor.tf.focus();
