@@ -10,6 +10,7 @@ import { AutoformatKit } from '@/components/editor/plugins/autoformat-classic-ki
 import { BasicNodesKit } from '@/components/editor/plugins/basic-nodes-kit';
 import { CalloutKit } from '@/components/editor/plugins/callout-kit';
 import { CodeBlockKit } from '@/components/editor/plugins/code-block-kit';
+import { FixedToolbarKit } from '@/components/editor/plugins/fixed-toolbar-kit';
 import { FloatingToolbarKit } from '@/components/editor/plugins/floating-toolbar-kit';
 import { IndentKit } from '@/components/editor/plugins/indent-kit';
 import { LinkKit } from '@/components/editor/plugins/link-kit';
@@ -62,6 +63,7 @@ export function PlateEditor({
       ...MathKit,
       ...SelectionKit,
       ...SlashCommandKit,
+      ...FixedToolbarKit,
       ...FloatingToolbarKit,
       ...AutoformatKit,
       MarkdownPlugin.configure({

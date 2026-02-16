@@ -9,7 +9,6 @@ import {
   BlockSelectionPlugin,
   useBlockSelected,
 } from '@platejs/selection/react';
-import { setCellBackground } from '@platejs/table';
 import {
   TablePlugin,
   TableProvider,
@@ -27,10 +26,8 @@ import {
   ArrowRight,
   ArrowUp,
   CombineIcon,
-  EraserIcon,
   Grid2X2Icon,
   GripVertical,
-  PaintBucketIcon,
   SquareSplitHorizontalIcon,
   Trash2Icon,
   XIcon,
@@ -66,7 +63,6 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuPortal,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -74,10 +70,6 @@ import { Popover, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 import { blockSelectionVariants } from './block-selection';
-import {
-  ColorDropdownMenuItems,
-  DEFAULT_COLORS,
-} from './font-color-toolbar-button';
 import { ResizeHandle } from './resize-handle';
 import {
   BorderAllIcon,
@@ -91,8 +83,8 @@ import {
   Toolbar,
   ToolbarButton,
   ToolbarGroup,
-  ToolbarMenuGroup,
 } from './toolbar';
+
 export const TableElement = withHOC(
   TableProvider,
   function TableElement({
@@ -181,9 +173,6 @@ function TableFloatingToolbar({
           contentEditable={false}
         >
           <ToolbarGroup>
-            <ColorDropdownMenu tooltip="Background color">
-              <PaintBucketIcon />
-            </ColorDropdownMenu>
             {canMerge && (
               <ToolbarButton
                 onClick={() => tf.table.merge()}
@@ -367,59 +356,6 @@ function TableBordersDropdownMenuContent(
         </DropdownMenuCheckboxItem>
       </DropdownMenuGroup>
     </DropdownMenuContent>
-  );
-}
-
-function ColorDropdownMenu({
-  children,
-  tooltip,
-}: {
-  children: React.ReactNode;
-  tooltip: string;
-}) {
-  const [open, setOpen] = React.useState(false);
-
-  const editor = useEditorRef();
-  const selectedCells = usePluginOption(TablePlugin, 'selectedCells');
-
-  const onUpdateColor = React.useCallback(
-    (color: string) => {
-      setOpen(false);
-      setCellBackground(editor, { color, selectedCells: selectedCells ?? [] });
-    },
-    [selectedCells, editor]
-  );
-
-  const onClearColor = React.useCallback(() => {
-    setOpen(false);
-    setCellBackground(editor, {
-      color: null,
-      selectedCells: selectedCells ?? [],
-    });
-  }, [selectedCells, editor]);
-
-  return (
-    <DropdownMenu open={open} onOpenChange={setOpen} modal={false}>
-      <DropdownMenuTrigger asChild>
-        <ToolbarButton tooltip={tooltip}>{children}</ToolbarButton>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent align="start">
-        <ToolbarMenuGroup label="Colors">
-          <ColorDropdownMenuItems
-            className="px-2"
-            colors={DEFAULT_COLORS}
-            updateColor={onUpdateColor}
-          />
-        </ToolbarMenuGroup>
-        <DropdownMenuGroup>
-          <DropdownMenuItem className="p-2" onClick={onClearColor}>
-            <EraserIcon />
-            <span>Clear</span>
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
   );
 }
 
