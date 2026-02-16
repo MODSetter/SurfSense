@@ -331,7 +331,6 @@ function withTooltip<T extends React.ElementType>(Component: T) {
 function TooltipContent({
   children,
   className,
-  // CHANGE
   sideOffset = 4,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Content>) {
@@ -339,7 +338,7 @@ function TooltipContent({
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
         className={cn(
-          'z-50 w-fit origin-(--radix-tooltip-content-transform-origin) text-balance rounded-md bg-primary px-3 py-1.5 text-primary-foreground text-xs',
+          'bg-black text-white font-medium shadow-xl px-3 py-1.5 dark:bg-zinc-800 dark:text-zinc-50 border-none animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 z-50 w-fit rounded-md text-xs text-balance pointer-events-none',
           className
         )}
         data-slot="tooltip-content"
@@ -347,8 +346,6 @@ function TooltipContent({
         {...props}
       >
         {children}
-        {/* CHANGE */}
-        {/* <TooltipPrimitive.Arrow className="z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px] bg-primary fill-primary" /> */}
       </TooltipPrimitive.Content>
     </TooltipPrimitive.Portal>
   );

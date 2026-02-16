@@ -2,8 +2,6 @@
 
 import * as React from 'react';
 
-import type * as DropdownMenuPrimitive from '@radix-ui/react-dropdown-menu';
-
 import { useDraggable, useDropLine } from '@platejs/dnd';
 import {
   BlockSelectionPlugin,
@@ -12,7 +10,6 @@ import {
 import {
   TablePlugin,
   TableProvider,
-  useTableBordersDropdownMenuContentState,
   useTableCellElement,
   useTableCellElementResizable,
   useTableElement,
@@ -26,7 +23,6 @@ import {
   ArrowRight,
   ArrowUp,
   CombineIcon,
-  Grid2X2Icon,
   GripVertical,
   SquareSplitHorizontalIcon,
   Trash2Icon,
@@ -58,27 +54,11 @@ import {
 import { useElementSelector } from 'platejs/react';
 
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuPortal,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 
 import { blockSelectionVariants } from './block-selection';
 import { ResizeHandle } from './resize-handle';
-import {
-  BorderAllIcon,
-  BorderBottomIcon,
-  BorderLeftIcon,
-  BorderNoneIcon,
-  BorderRightIcon,
-  BorderTopIcon,
-} from './table-icons';
 import {
   Toolbar,
   ToolbarButton,
@@ -192,18 +172,6 @@ function TableFloatingToolbar({
               </ToolbarButton>
             )}
 
-            <DropdownMenu modal={false}>
-              <DropdownMenuTrigger asChild>
-                <ToolbarButton tooltip="Cell borders">
-                  <Grid2X2Icon />
-                </ToolbarButton>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuPortal>
-                <TableBordersDropdownMenuContent />
-              </DropdownMenuPortal>
-            </DropdownMenu>
-
             {collapsedInside && (
               <ToolbarGroup>
                 <ToolbarButton tooltip="Delete table" {...buttonProps}>
@@ -279,83 +247,6 @@ function TableFloatingToolbar({
         </Toolbar>
       </PopoverContent>
     </Popover>
-  );
-}
-
-function TableBordersDropdownMenuContent(
-  props: React.ComponentProps<typeof DropdownMenuPrimitive.Content>
-) {
-  const editor = useEditorRef();
-  const {
-    getOnSelectTableBorder,
-    hasBottomBorder,
-    hasLeftBorder,
-    hasNoBorders,
-    hasOuterBorders,
-    hasRightBorder,
-    hasTopBorder,
-  } = useTableBordersDropdownMenuContentState();
-
-  return (
-    <DropdownMenuContent
-      className="min-w-[220px]"
-      onCloseAutoFocus={(e) => {
-        e.preventDefault();
-        editor.tf.focus();
-      }}
-      align="start"
-      side="right"
-      sideOffset={0}
-      {...props}
-    >
-      <DropdownMenuGroup>
-        <DropdownMenuCheckboxItem
-          checked={hasTopBorder}
-          onCheckedChange={getOnSelectTableBorder('top')}
-        >
-          <BorderTopIcon />
-          <div>Top Border</div>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={hasRightBorder}
-          onCheckedChange={getOnSelectTableBorder('right')}
-        >
-          <BorderRightIcon />
-          <div>Right Border</div>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={hasBottomBorder}
-          onCheckedChange={getOnSelectTableBorder('bottom')}
-        >
-          <BorderBottomIcon />
-          <div>Bottom Border</div>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={hasLeftBorder}
-          onCheckedChange={getOnSelectTableBorder('left')}
-        >
-          <BorderLeftIcon />
-          <div>Left Border</div>
-        </DropdownMenuCheckboxItem>
-      </DropdownMenuGroup>
-
-      <DropdownMenuGroup>
-        <DropdownMenuCheckboxItem
-          checked={hasNoBorders}
-          onCheckedChange={getOnSelectTableBorder('none')}
-        >
-          <BorderNoneIcon />
-          <div>No Border</div>
-        </DropdownMenuCheckboxItem>
-        <DropdownMenuCheckboxItem
-          checked={hasOuterBorders}
-          onCheckedChange={getOnSelectTableBorder('outer')}
-        >
-          <BorderAllIcon />
-          <div>Outside Borders</div>
-        </DropdownMenuCheckboxItem>
-      </DropdownMenuGroup>
-    </DropdownMenuContent>
   );
 }
 
