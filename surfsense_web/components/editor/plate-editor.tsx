@@ -6,15 +6,15 @@ import { Plate, usePlateEditor } from 'platejs/react';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 
-import { AutoformatKit } from '@/components/editor/plugins/autoformat-classic-kit';
+import { AutoformatKit } from '@/components/editor/plugins/autoformat-kit';
 import { BasicNodesKit } from '@/components/editor/plugins/basic-nodes-kit';
 import { CalloutKit } from '@/components/editor/plugins/callout-kit';
 import { CodeBlockKit } from '@/components/editor/plugins/code-block-kit';
+import { DndKit } from '@/components/editor/plugins/dnd-kit';
 import { FixedToolbarKit } from '@/components/editor/plugins/fixed-toolbar-kit';
 import { FloatingToolbarKit } from '@/components/editor/plugins/floating-toolbar-kit';
-import { IndentKit } from '@/components/editor/plugins/indent-kit';
 import { LinkKit } from '@/components/editor/plugins/link-kit';
-import { ListKit } from '@/components/editor/plugins/list-classic-kit';
+import { ListKit } from '@/components/editor/plugins/list-kit';
 import { MathKit } from '@/components/editor/plugins/math-kit';
 import { SelectionKit } from '@/components/editor/plugins/selection-kit';
 import { SlashCommandKit } from '@/components/editor/plugins/slash-command-kit';
@@ -59,13 +59,13 @@ export function PlateEditor({
       ...LinkKit,
       ...CalloutKit,
       ...ToggleKit,
-      ...IndentKit,
       ...MathKit,
       ...SelectionKit,
       ...SlashCommandKit,
       ...FixedToolbarKit,
       ...FloatingToolbarKit,
       ...AutoformatKit,
+      ...DndKit,
       MarkdownPlugin.configure({
         options: {
           remarkPlugins: [remarkGfm, remarkMath],

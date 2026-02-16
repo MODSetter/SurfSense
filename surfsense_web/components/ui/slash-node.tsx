@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 
 import type { PlateElementProps } from 'platejs/react';
 
@@ -8,7 +9,6 @@ import { SlashInputPlugin } from '@platejs/slash-command/react';
 import {
   ChevronRightIcon,
   Code2Icon,
-  Columns2Icon,
   FileCodeIcon,
   Heading1Icon,
   Heading2Icon,
@@ -30,7 +30,6 @@ import {
   Command,
   CommandEmpty,
   CommandGroup,
-  CommandInput,
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
@@ -161,49 +160,71 @@ export function SlashInputElement({
   ...props
 }: PlateElementProps) {
   const { editor, setOption } = useEditorPlugin(SlashInputPlugin);
+  const anchorRef = React.useRef<HTMLSpanElement>(null);
+  const [menuPosition, setMenuPosition] = React.useState<{ top: number; left: number } | null>(null);
+
+  React.useEffect(() => {
+    const updatePosition = () => {
+      if (anchorRef.current) {
+        const rect = anchorRef.current.getBoundingClientRect();
+        setMenuPosition({
+          top: rect.bottom + window.scrollY,
+          left: rect.left + window.scrollX,
+        });
+      }
+    };
+
+    updatePosition();
+
+    // Re-position on scroll/resize since the editor may scroll
+    window.addEventListener('scroll', updatePosition, true);
+    window.addEventListener('resize', updatePosition);
+    return () => {
+      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', updatePosition);
+    };
+  }, []);
 
   return (
     <PlateElement {...props} as="span">
-      <Command
-        className="relative z-50 min-w-[280px] overflow-hidden rounded-lg border bg-popover shadow-md"
-        shouldFilter={true}
-      >
-        <CommandInput
-          className="hidden"
-          value={props.element.value as string}
-          onValueChange={(value) => {
-            // The value is managed by the slash input plugin
-          }}
-          autoFocus
-        />
-        <CommandList className="max-h-[300px] overflow-y-auto p-1">
-          <CommandEmpty>No results found.</CommandEmpty>
-          {slashCommandGroups.map(({ heading, items }) => (
-            <CommandGroup key={heading} heading={heading}>
-              {items.map(({ icon, keywords, label, onSelect }) => (
-                <CommandItem
-                  key={label}
-                  className="flex items-center gap-2 px-2"
-                  keywords={keywords}
-                  value={label}
-                  onSelect={() => {
-                    editor.tf.removeNodes({
-                      match: (n) => (n as any).type === SlashInputPlugin.key,
-                    });
-                    onSelect(editor);
-                    editor.tf.focus();
-                  }}
-                >
-                  <span className="flex size-5 items-center justify-center text-muted-foreground">
-                    {icon}
-                  </span>
-                  {label}
-                </CommandItem>
+      <span ref={anchorRef} />
+      {menuPosition &&
+        createPortal(
+          <Command
+            className="fixed z-50 w-[330px] overflow-hidden rounded-lg border bg-popover shadow-lg"
+            style={{ top: menuPosition.top, left: menuPosition.left }}
+            shouldFilter={false}
+          >
+            <CommandList className="max-h-[min(400px,40vh)] overflow-y-auto p-1">
+              <CommandEmpty>No results found.</CommandEmpty>
+              {slashCommandGroups.map(({ heading, items }) => (
+                <CommandGroup key={heading} heading={heading}>
+                  {items.map(({ icon, keywords, label, onSelect }) => (
+                    <CommandItem
+                      key={label}
+                      className="flex items-center gap-3 px-2 py-2"
+                      keywords={keywords}
+                      value={label}
+                      onSelect={() => {
+                        editor.tf.removeNodes({
+                          match: (n) => (n as any).type === SlashInputPlugin.key,
+                        });
+                        onSelect(editor);
+                        editor.tf.focus();
+                      }}
+                    >
+                      <span className="flex size-5 items-center justify-center text-muted-foreground">
+                        {icon}
+                      </span>
+                      {label}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
               ))}
-            </CommandGroup>
-          ))}
-        </CommandList>
-      </Command>
+            </CommandList>
+          </Command>,
+          document.body
+        )}
       {children}
     </PlateElement>
   );

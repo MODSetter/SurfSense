@@ -1,7 +1,6 @@
 'use client';
 
-import type { AutoformatBlockRule, AutoformatRule } from '@platejs/autoformat';
-import type { SlateEditor } from 'platejs';
+import type { AutoformatRule } from '@platejs/autoformat';
 
 import {
   autoformatArrow,
@@ -13,38 +12,9 @@ import {
   autoformatSmartQuotes,
 } from '@platejs/autoformat';
 import { insertEmptyCodeBlock } from '@platejs/code-block';
-import { toggleList, toggleTaskList, unwrapList } from '@platejs/list-classic';
+import { toggleList } from '@platejs/list';
 import { openNextToggles } from '@platejs/toggle/react';
-import { ElementApi, isType, KEYS } from 'platejs';
-
-const preFormat: AutoformatBlockRule['preFormat'] = (editor) =>
-  unwrapList(editor);
-
-const format = (editor: SlateEditor, customFormatting: any) => {
-  if (editor.selection) {
-    const parentEntry = editor.api.parent(editor.selection);
-
-    if (!parentEntry) return;
-
-    const [node] = parentEntry;
-
-    if (ElementApi.isElement(node) && !isType(editor, node, KEYS.codeBlock)) {
-      customFormatting();
-    }
-  }
-};
-
-const formatTaskList = (editor: SlateEditor, defaultChecked = false) => {
-  format(editor, () => toggleTaskList(editor, defaultChecked));
-};
-
-const formatList = (editor: SlateEditor, elementType: string) => {
-  format(editor, () =>
-    toggleList(editor, {
-      type: elementType,
-    })
-  );
-};
+import { KEYS } from 'platejs';
 
 const autoformatMarks: AutoformatRule[] = [
   {
@@ -123,49 +93,41 @@ const autoformatBlocks: AutoformatRule[] = [
   {
     match: '# ',
     mode: 'block',
-    preFormat,
     type: KEYS.h1,
   },
   {
     match: '## ',
     mode: 'block',
-    preFormat,
     type: KEYS.h2,
   },
   {
     match: '### ',
     mode: 'block',
-    preFormat,
     type: KEYS.h3,
   },
   {
     match: '#### ',
     mode: 'block',
-    preFormat,
     type: KEYS.h4,
   },
   {
     match: '##### ',
     mode: 'block',
-    preFormat,
     type: KEYS.h5,
   },
   {
     match: '###### ',
     mode: 'block',
-    preFormat,
     type: KEYS.h6,
   },
   {
     match: '> ',
     mode: 'block',
-    preFormat,
     type: KEYS.blockquote,
   },
   {
     match: '```',
     mode: 'block',
-    preFormat,
     type: KEYS.codeBlock,
     format: (editor) => {
       insertEmptyCodeBlock(editor, {
@@ -198,29 +160,52 @@ const autoformatLists: AutoformatRule[] = [
   {
     match: ['* ', '- '],
     mode: 'block',
-    preFormat,
-    type: KEYS.li,
-    format: (editor) => formatList(editor, KEYS.ulClassic),
+    type: 'list',
+    format: (editor) => {
+      toggleList(editor, {
+        listStyleType: KEYS.ul,
+      });
+    },
   },
   {
     match: [String.raw`^\d+\.$ `, String.raw`^\d+\)$ `],
     matchByRegex: true,
     mode: 'block',
-    preFormat,
-    type: KEYS.li,
-    format: (editor) => formatList(editor, KEYS.olClassic),
+    type: 'list',
+    format: (editor, { matchString }) => {
+      toggleList(editor, {
+        listRestartPolite: Number(matchString) || 1,
+        listStyleType: KEYS.ol,
+      });
+    },
   },
   {
-    match: '[] ',
+    match: ['[] '],
     mode: 'block',
-    type: KEYS.taskList,
-    format: (editor) => formatTaskList(editor, false),
+    type: 'list',
+    format: (editor) => {
+      toggleList(editor, {
+        listStyleType: KEYS.listTodo,
+      });
+      editor.tf.setNodes({
+        checked: false,
+        listStyleType: KEYS.listTodo,
+      });
+    },
   },
   {
-    match: '[x] ',
+    match: ['[x] '],
     mode: 'block',
-    type: KEYS.taskList,
-    format: (editor) => formatTaskList(editor, true),
+    type: 'list',
+    format: (editor) => {
+      toggleList(editor, {
+        listStyleType: KEYS.listTodo,
+      });
+      editor.tf.setNodes({
+        checked: true,
+        listStyleType: KEYS.listTodo,
+      });
+    },
   },
 ];
 
@@ -238,13 +223,16 @@ export const AutoformatKit = [
         ...autoformatArrow,
         ...autoformatMath,
         ...autoformatLists,
-      ].map((rule) => ({
-        ...rule,
-        query: (editor) =>
-          !editor.api.some({
-            match: { type: editor.getType(KEYS.codeBlock) },
-          }),
-      })),
+      ].map(
+        (rule): AutoformatRule => ({
+          ...rule,
+          query: (editor) =>
+            !editor.api.some({
+              match: { type: editor.getType(KEYS.codeBlock) },
+            }),
+        })
+      ),
     },
   }),
 ];
+
