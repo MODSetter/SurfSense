@@ -442,6 +442,16 @@ class NotionHistoryConnector:
         if page_title not in self._pages_with_skipped_content:
             self._pages_with_skipped_content.append(page_title)
 
+    @staticmethod
+    def _api_error_message(error: APIResponseError) -> str:
+        """Extract a stable, human-readable message from Notion API errors."""
+        body = getattr(error, "body", None)
+        if isinstance(body, dict):
+            return str(body.get("message", str(error)))
+        if body:
+            return str(body)
+        return str(error)
+
     async def __aenter__(self):
         """Async context manager entry."""
         return self
@@ -998,7 +1008,7 @@ class NotionHistoryConnector:
 
         except APIResponseError as e:
             logger.error(f"Notion API error creating page: {e}")
-            error_msg = e.body.get("message", str(e)) if hasattr(e, "body") else str(e)
+            error_msg = self._api_error_message(e)
             return {
                 "status": "error",
                 "message": f"Failed to create Notion page: {error_msg}",
@@ -1087,7 +1097,7 @@ class NotionHistoryConnector:
 
         except APIResponseError as e:
             logger.error(f"Notion API error updating page: {e}")
-            error_msg = e.body.get("message", str(e)) if hasattr(e, "body") else str(e)
+            error_msg = self._api_error_message(e)
             return {
                 "status": "error",
                 "message": f"Failed to update Notion page: {error_msg}",
@@ -1136,14 +1146,7 @@ class NotionHistoryConnector:
 
         except APIResponseError as e:
             logger.error(f"Notion API error deleting page: {e}")
-            # Handle both dict and string body formats
-            if hasattr(e, "body"):
-                if isinstance(e.body, dict):
-                    error_msg = e.body.get("message", str(e))
-                else:
-                    error_msg = str(e.body) if e.body else str(e)
-            else:
-                error_msg = str(e)
+            error_msg = self._api_error_message(e)
             return {
                 "status": "error",
                 "message": f"Failed to delete Notion page: {error_msg}",

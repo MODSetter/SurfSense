@@ -128,7 +128,9 @@ def create_update_notion_page_tool(
                 }
             )
 
-            decisions = approval.get("decisions", [])
+            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
+            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 logger.warning("No approval decision received")
                 return {
@@ -147,8 +149,15 @@ def create_update_notion_page_tool(
                     "message": "User declined. The page was not updated. Do not ask again or suggest alternatives.",
                 }
 
-            edited_action = decision.get("edited_action", {})
-            final_params = edited_action.get("args", {}) if edited_action else {}
+            edited_action = decision.get("edited_action")
+            final_params: dict[str, Any] = {}
+            if isinstance(edited_action, dict):
+                edited_args = edited_action.get("args")
+                if isinstance(edited_args, dict):
+                    final_params = edited_args
+            elif isinstance(decision.get("args"), dict):
+                # Some interrupt payloads place args directly on the decision.
+                final_params = decision["args"]
 
             final_page_id = final_params.get("page_id", page_id)
             final_content = final_params.get("content", content)
