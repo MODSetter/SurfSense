@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue, useSetAtom } from "jotai";
-import { ChevronDownIcon, SaveIcon, XIcon } from "lucide-react";
+import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -302,21 +302,7 @@ function ReportPanelContent({
 			{/* Action bar — always visible after initial load */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
-					{/* Save button — only shown for authenticated users with unsaved edits */}
-					{!shareToken && editedMarkdown !== null && (
-						<Button
-							variant="default"
-							size="sm"
-							onClick={handleSave}
-							disabled={saving}
-							className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
-						>
-							<SaveIcon className="size-3.5" />
-							{saving ? "Saving..." : "Save"}
-						</Button>
-					)}
-
-					{/* Copy button */}
+				{/* Copy button */}
 					<Button
 						variant="outline"
 						size="sm"
@@ -440,13 +426,16 @@ function ReportPanelContent({
 						</div>
 					</div>
 				) : reportContent.content ? (
-					<PlateEditor
-						markdown={reportContent.content}
-						onMarkdownChange={shareToken ? undefined : setEditedMarkdown}
-						readOnly={!!shareToken}
-						placeholder="Report content..."
-						editorVariant="default"
-					/>
+				<PlateEditor
+					markdown={reportContent.content}
+					onMarkdownChange={shareToken ? undefined : setEditedMarkdown}
+					readOnly={!!shareToken}
+					placeholder="Report content..."
+					editorVariant="default"
+					onSave={shareToken ? undefined : handleSave}
+					hasUnsavedChanges={!shareToken && editedMarkdown !== null}
+					isSaving={saving}
+				/>
 				) : (
 					<div className="px-5 py-5">
 						<p className="text-muted-foreground italic">No content available.</p>

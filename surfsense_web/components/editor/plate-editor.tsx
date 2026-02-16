@@ -22,13 +22,19 @@ import { TableKit } from '@/components/editor/plugins/table-kit';
 import { ToggleKit } from '@/components/editor/plugins/toggle-kit';
 import { Editor, EditorContainer } from '@/components/ui/editor';
 import { escapeMdxExpressions } from '@/components/editor/utils/escape-mdx';
+import { EditorSaveContext } from '@/components/editor/editor-save-context';
 
 interface PlateEditorProps {
   /** Markdown string to load as initial content */
   markdown?: string;
   /** Called when the editor content changes, with serialized markdown */
   onMarkdownChange?: (markdown: string) => void;
-  /** Whether the editor is read-only */
+  /**
+   * Force permanent read-only mode (e.g. public/shared view).
+   * When true, the editor cannot be toggled to editing mode.
+   * When false (default), the editor starts in viewing mode but
+   * the user can switch to editing via the mode toolbar button.
+   */
   readOnly?: boolean;
   /** Placeholder text */
   placeholder?: string;
@@ -38,6 +44,12 @@ interface PlateEditorProps {
   editorVariant?: 'default' | 'demo' | 'fullWidth' | 'none';
   /** Additional className for the container */
   className?: string;
+  /** Save callback. When provided, a save button appears in the toolbar on unsaved changes. */
+  onSave?: () => void;
+  /** Whether there are unsaved changes */
+  hasUnsavedChanges?: boolean;
+  /** Whether a save is in progress */
+  isSaving?: boolean;
 }
 
 export function PlateEditor({
@@ -48,10 +60,17 @@ export function PlateEditor({
   variant = 'default',
   editorVariant = 'default',
   className,
+  onSave,
+  hasUnsavedChanges = false,
+  isSaving = false,
 }: PlateEditorProps) {
   const lastMarkdownRef = useRef(markdown);
 
+  // Always initialize the editor in readOnly mode (viewing mode).
+  // For non-forced readOnly, the user can toggle to editing via ModeToolbarButton.
+  // For forced readOnly, the mode button is hidden and readOnly stays true.
   const editor = usePlateEditor({
+    readOnly: true,
     plugins: [
       ...BasicNodesKit,
       ...TableKit,
@@ -95,21 +114,36 @@ export function PlateEditor({
     }
   }, [markdown, editor]);
 
+  // When not forced read-only, the user can toggle between editing/viewing.
+  const canToggleMode = !readOnly;
+
   return (
-    <Plate
-      editor={editor}
-      readOnly={readOnly}
-      onChange={({ value }) => {
-        if (onMarkdownChange) {
-          const md = editor.getApi(MarkdownPlugin).markdown.serialize({ value });
-          lastMarkdownRef.current = md;
-          onMarkdownChange(md);
-        }
+    <EditorSaveContext.Provider
+      value={{
+        onSave,
+        hasUnsavedChanges,
+        isSaving,
+        canToggleMode,
       }}
     >
-      <EditorContainer variant={variant} className={className}>
-        <Editor variant={editorVariant} placeholder={placeholder} readOnly={readOnly} />
-      </EditorContainer>
-    </Plate>
+      <Plate
+        editor={editor}
+        // Only pass readOnly as a controlled prop when forced (permanently read-only).
+        // For non-forced mode, the Plate store manages readOnly internally
+        // (initialized to true via usePlateEditor, toggled via ModeToolbarButton).
+        {...(readOnly ? { readOnly: true } : {})}
+        onChange={({ value }) => {
+          if (onMarkdownChange) {
+            const md = editor.getApi(MarkdownPlugin).markdown.serialize({ value });
+            lastMarkdownRef.current = md;
+            onMarkdownChange(md);
+          }
+        }}
+      >
+        <EditorContainer variant={variant} className={className}>
+          <Editor variant={editorVariant} placeholder={placeholder} />
+        </EditorContainer>
+      </Plate>
+    </EditorSaveContext.Provider>
   );
 }
