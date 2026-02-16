@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { MarkdownPlugin } from '@platejs/markdown';
+import { MarkdownPlugin, remarkMdx } from '@platejs/markdown';
 import { Plate, usePlateEditor } from 'platejs/react';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -21,6 +21,7 @@ import { SlashCommandKit } from '@/components/editor/plugins/slash-command-kit';
 import { TableKit } from '@/components/editor/plugins/table-kit';
 import { ToggleKit } from '@/components/editor/plugins/toggle-kit';
 import { Editor, EditorContainer } from '@/components/ui/editor';
+import { escapeMdxExpressions } from '@/components/editor/utils/escape-mdx';
 
 interface PlateEditorProps {
   /** Markdown string to load as initial content */
@@ -68,13 +69,16 @@ export function PlateEditor({
       ...DndKit,
       MarkdownPlugin.configure({
         options: {
-          remarkPlugins: [remarkGfm, remarkMath],
+          remarkPlugins: [remarkGfm, remarkMath, remarkMdx],
         },
       }),
     ],
     // Use markdown deserialization for initial value if provided
     value: markdown
-      ? (editor) => editor.getApi(MarkdownPlugin).markdown.deserialize(markdown)
+      ? (editor) =>
+          editor
+            .getApi(MarkdownPlugin)
+            .markdown.deserialize(escapeMdxExpressions(markdown))
       : undefined,
   });
 
@@ -83,7 +87,9 @@ export function PlateEditor({
   useEffect(() => {
     if (markdown !== undefined && markdown !== lastMarkdownRef.current) {
       lastMarkdownRef.current = markdown;
-      const newValue = editor.getApi(MarkdownPlugin).markdown.deserialize(markdown);
+      const newValue = editor
+        .getApi(MarkdownPlugin)
+        .markdown.deserialize(escapeMdxExpressions(markdown));
       editor.tf.reset();
       editor.tf.setValue(newValue);
     }

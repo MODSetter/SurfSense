@@ -16,7 +16,7 @@ export function LinkElement(props: PlateElementProps<TLinkElement>) {
       {...props}
       as="a"
       className={cn(
-        'font-medium text-primary underline decoration-primary underline-offset-4'
+        'font-medium text-blue-600 underline decoration-blue-600 underline-offset-4 hover:text-blue-800 dark:text-blue-400 dark:decoration-blue-400 dark:hover:text-blue-300'
       )}
       attributes={{
         ...props.attributes,

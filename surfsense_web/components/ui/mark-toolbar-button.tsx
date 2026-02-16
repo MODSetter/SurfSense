@@ -17,5 +17,13 @@ export function MarkToolbarButton({
   const state = useMarkToolbarButtonState({ clear, nodeType });
   const { props: buttonProps } = useMarkToolbarButton(state);
 
-  return <ToolbarButton {...props} {...buttonProps} />;
+  return (
+    <ToolbarButton
+      {...props}
+      {...buttonProps}
+      onMouseDown={(e: React.MouseEvent) => {
+        e.preventDefault();
+      }}
+    />
+  );
 }
