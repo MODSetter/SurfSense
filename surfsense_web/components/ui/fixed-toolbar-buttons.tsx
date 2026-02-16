@@ -101,28 +101,30 @@ export function FixedToolbarButtons() {
             <LinkToolbarButton />
           </ToolbarGroup>
 
-          {/* Save button — appears when in editing mode with unsaved changes */}
-          {onSave && hasUnsavedChanges && (
-            <ToolbarGroup>
-              <ToolbarButton
-                tooltip={isSaving ? 'Saving...' : 'Save (⌘+S)'}
-                onClick={onSave}
-                disabled={isSaving}
-                className="text-white"
-              >
-                {isSaving ? (
-                  <Spinner size="xs" />
-                ) : (
-                  <SaveIcon />
-                )}
-              </ToolbarButton>
-            </ToolbarGroup>
-          )}
         </>
       )}
 
       <div className="grow" />
 
+      {/* Save button — only in edit mode with unsaved changes */}
+      {!readOnly && onSave && hasUnsavedChanges && (
+        <ToolbarGroup>
+          <ToolbarButton
+            tooltip={isSaving ? 'Saving...' : 'Save (⌘+S)'}
+            onClick={onSave}
+            disabled={isSaving}
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            {isSaving ? (
+              <Spinner size="xs" />
+            ) : (
+              <SaveIcon />
+            )}
+          </ToolbarButton>
+        </ToolbarGroup>
+      )}
+
+      {/* Mode toggle */}
       {canToggleMode && (
         <ToolbarGroup>
           <ModeToolbarButton />
