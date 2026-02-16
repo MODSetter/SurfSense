@@ -253,6 +253,7 @@ const Composer: FC = () => {
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const uploadInputRef = useRef<HTMLInputElement>(null);
+	const isFileDialogOpenRef = useRef(false);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
@@ -516,11 +517,18 @@ const Composer: FC = () => {
 	);
 
 	const handleUploadClick = useCallback(() => {
+		if (isFileDialogOpenRef.current) return;
+		isFileDialogOpenRef.current = true;
 		uploadInputRef.current?.click();
+		// Reset after a delay to handle cancellation (which doesn't fire the change event).
+		setTimeout(() => {
+			isFileDialogOpenRef.current = false;
+		}, 1000);
 	}, []);
 
 	const handleUploadInputChange = useCallback(
 		async (event: React.ChangeEvent<HTMLInputElement>) => {
+			isFileDialogOpenRef.current = false;
 			const files = Array.from(event.target.files ?? []);
 			event.target.value = "";
 			if (files.length === 0 || !search_space_id) return;
