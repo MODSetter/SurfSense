@@ -518,7 +518,9 @@ class VercelStreamingService:
         normalized_payload = self._normalize_interrupt_payload(interrupt_value)
         return self.format_data("interrupt-request", normalized_payload)
 
-    def _normalize_interrupt_payload(self, interrupt_value: dict[str, Any]) -> dict[str, Any]:
+    def _normalize_interrupt_payload(
+        self, interrupt_value: dict[str, Any]
+    ) -> dict[str, Any]:
         """Normalize interrupt payloads from different sources into a consistent format.
 
         Handles two interrupt sources:

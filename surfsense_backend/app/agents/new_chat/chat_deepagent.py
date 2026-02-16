@@ -249,7 +249,11 @@ async def create_surfsense_deep_agent(
         available_connectors is not None and "NOTION_CONNECTOR" in available_connectors
     )
     if not has_notion_connector:
-        notion_tools = ["create_notion_page", "update_notion_page", "delete_notion_page"]
+        notion_tools = [
+            "create_notion_page",
+            "update_notion_page",
+            "delete_notion_page",
+        ]
         modified_disabled_tools.extend(notion_tools)
 
     # Build tools using the async registry (includes MCP tools)

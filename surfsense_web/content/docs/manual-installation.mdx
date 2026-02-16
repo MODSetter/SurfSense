@@ -278,8 +278,9 @@ In a new terminal window, start the Celery worker to handle background tasks:
 # Make sure you're in the surfsense_backend directory
 cd surfsense_backend
 
-# Start Celery worker
-uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo
+# Start Celery worker (consume both default and connectors queues)
+DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
+uv run celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors"
 ```
 
 **If using pip/venv:**
@@ -293,8 +294,9 @@ source .venv/bin/activate  # Linux/macOS
 # OR
 .venv\Scripts\activate     # Windows
 
-# Start Celery worker
-celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo
+# Start Celery worker (consume both default and connectors queues)
+DEFAULT_Q="${CELERY_TASK_DEFAULT_QUEUE:-surfsense}"
+celery -A celery_worker.celery_app worker --loglevel=info --concurrency=1 --pool=solo --queues="${DEFAULT_Q},${DEFAULT_Q}.connectors"
 ```
 
 **Optional: Start Flower for monitoring Celery tasks:**

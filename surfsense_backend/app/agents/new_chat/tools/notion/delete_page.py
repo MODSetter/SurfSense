@@ -59,10 +59,14 @@ def create_delete_notion_page_tool(
             - "Remove the 'Old Project Plan' Notion page"
             - "Archive the 'Draft Ideas' Notion page"
         """
-        logger.info(f"delete_notion_page called: page_title='{page_title}', delete_from_db={delete_from_db}")
-        
+        logger.info(
+            f"delete_notion_page called: page_title='{page_title}', delete_from_db={delete_from_db}"
+        )
+
         if db_session is None or search_space_id is None or user_id is None:
-            logger.error("Notion tool not properly configured - missing required parameters")
+            logger.error(
+                "Notion tool not properly configured - missing required parameters"
+            )
             return {
                 "status": "error",
                 "message": "Notion tool not properly configured. Please contact support.",
@@ -95,8 +99,10 @@ def create_delete_notion_page_tool(
             connector_id_from_context = context.get("account", {}).get("id")
             document_id = context.get("document_id")
 
-            logger.info(f"Requesting approval for deleting Notion page: '{page_title}' (page_id={page_id}, delete_from_db={delete_from_db})")
-            
+            logger.info(
+                f"Requesting approval for deleting Notion page: '{page_title}' (page_id={page_id}, delete_from_db={delete_from_db})"
+            )
+
             # Request approval before deleting
             approval = interrupt(
                 {
@@ -113,7 +119,9 @@ def create_delete_notion_page_tool(
                 }
             )
 
-            decisions = approval.get("decisions", [])
+            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
+            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 logger.warning("No approval decision received")
                 return {
@@ -133,14 +141,25 @@ def create_delete_notion_page_tool(
                 }
 
             # Extract edited action arguments (if user modified the checkbox)
-            edited_action = decision.get("edited_action", {})
-            final_params = edited_action.get("args", {}) if edited_action else {}
+            edited_action = decision.get("edited_action")
+            final_params: dict[str, Any] = {}
+            if isinstance(edited_action, dict):
+                edited_args = edited_action.get("args")
+                if isinstance(edited_args, dict):
+                    final_params = edited_args
+            elif isinstance(decision.get("args"), dict):
+                # Some interrupt payloads place args directly on the decision.
+                final_params = decision["args"]
 
             final_page_id = final_params.get("page_id", page_id)
-            final_connector_id = final_params.get("connector_id", connector_id_from_context)
+            final_connector_id = final_params.get(
+                "connector_id", connector_id_from_context
+            )
             final_delete_from_db = final_params.get("delete_from_db", delete_from_db)
-            
-            logger.info(f"Deleting Notion page with final params: page_id={final_page_id}, connector_id={final_connector_id}, delete_from_db={final_delete_from_db}")
+
+            logger.info(
+                f"Deleting Notion page with final params: page_id={final_page_id}, connector_id={final_connector_id}, delete_from_db={final_delete_from_db}"
+            )
 
             from sqlalchemy.future import select
 
@@ -184,11 +203,17 @@ def create_delete_notion_page_tool(
 
             # Delete the page from Notion
             result = await notion_connector.delete_page(page_id=final_page_id)
-            logger.info(f"delete_page result: {result.get('status')} - {result.get('message', '')}")
-            
+            logger.info(
+                f"delete_page result: {result.get('status')} - {result.get('message', '')}"
+            )
+
             # If deletion was successful and user wants to delete from DB
             deleted_from_db = False
-            if result.get("status") == "success" and final_delete_from_db and document_id:
+            if (
+                result.get("status") == "success"
+                and final_delete_from_db
+                and document_id
+            ):
                 try:
                     from sqlalchemy.future import select
 
@@ -204,21 +229,27 @@ def create_delete_notion_page_tool(
                         await db_session.delete(document)
                         await db_session.commit()
                         deleted_from_db = True
-                        logger.info(f"Deleted document {document_id} from knowledge base")
+                        logger.info(
+                            f"Deleted document {document_id} from knowledge base"
+                        )
                     else:
                         logger.warning(f"Document {document_id} not found in DB")
                 except Exception as e:
                     logger.error(f"Failed to delete document from DB: {e}")
                     # Don't fail the whole operation if DB deletion fails
                     # The page is already deleted from Notion, so inform the user
-                    result["warning"] = f"Page deleted from Notion, but failed to remove from knowledge base: {e!s}"
+                    result["warning"] = (
+                        f"Page deleted from Notion, but failed to remove from knowledge base: {e!s}"
+                    )
 
             # Update result with DB deletion status
             if result.get("status") == "success":
                 result["deleted_from_db"] = deleted_from_db
                 if deleted_from_db:
-                    result["message"] = f"{result.get('message', '')} (also removed from knowledge base)"
-            
+                    result["message"] = (
+                        f"{result.get('message', '')} (also removed from knowledge base)"
+                    )
+
             return result
 
         except Exception as e:

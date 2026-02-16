@@ -532,14 +532,16 @@ async def delete_search_source_connector(
     """
     Delete a search source connector and all its associated documents.
 
-    The deletion runs in background via Celery task. User is notified
-    via the notification system when complete (no polling required).
+    The deletion happens inline (documents are deleted in batches,
+    then the connector record is removed).
 
     Requires CONNECTORS_DELETE permission.
     """
-    from app.tasks.celery_tasks.connector_deletion_task import (
-        delete_connector_with_documents_task,
-    )
+    from sqlalchemy import delete as sa_delete, func
+
+    from app.db import Document
+
+    deletion_batch_size = 500
 
     try:
         # Get the connector first
@@ -562,12 +564,10 @@ async def delete_search_source_connector(
             "You don't have permission to delete this connector",
         )
 
-        # Store connector info before we queue the deletion task
+        # Store connector info before deletion
         connector_name = db_connector.name
-        connector_type = db_connector.connector_type.value
-        search_space_id = db_connector.search_space_id
 
-        # Delete any periodic schedule associated with this connector (lightweight, sync)
+        # Delete any periodic schedule associated with this connector
         if db_connector.periodic_indexing_enabled:
             success = delete_periodic_schedule(connector_id)
             if not success:
@@ -575,7 +575,7 @@ async def delete_search_source_connector(
                     f"Failed to delete periodic schedule for connector {connector_id}"
                 )
 
-        # For Composio connectors, delete the connected account in Composio (lightweight API call, sync)
+        # For Composio connectors, delete the connected account in Composio
         composio_connector_types = [
             SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
             SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
@@ -602,30 +602,58 @@ async def delete_search_source_connector(
                             f"for connector {connector_id}"
                         )
                 except Exception as composio_error:
-                    # Log but don't fail the deletion - Composio account may already be deleted
                     logger.warning(
                         f"Error deleting Composio connected account {composio_connected_account_id}: {composio_error!s}"
                     )
 
-        # Queue background task to delete documents and connector
-        # This handles potentially large document counts without blocking the API
-        delete_connector_with_documents_task.delay(
-            connector_id=connector_id,
-            user_id=str(user.id),
-            search_space_id=search_space_id,
-            connector_name=connector_name,
-            connector_type=connector_type,
+        # Delete documents in batches (chunks are deleted via CASCADE)
+        total_deleted = 0
+        count_result = await session.execute(
+            select(func.count(Document.id)).where(Document.connector_id == connector_id)
         )
+        total_docs = count_result.scalar() or 0
 
         logger.info(
-            f"Queued deletion task for connector {connector_id} ({connector_name})"
+            f"Starting deletion of connector {connector_id} ({connector_name}). "
+            f"Documents to delete: {total_docs}"
         )
 
+        while True:
+            result = await session.execute(
+                select(Document.id)
+                .where(Document.connector_id == connector_id)
+                .limit(deletion_batch_size)
+            )
+            doc_ids = [row[0] for row in result.fetchall()]
+
+            if not doc_ids:
+                break
+
+            await session.execute(sa_delete(Document).where(Document.id.in_(doc_ids)))
+            await session.commit()
+
+            total_deleted += len(doc_ids)
+            logger.info(
+                f"Deleted batch of {len(doc_ids)} documents. "
+                f"Progress: {total_deleted}/{total_docs}"
+            )
+
+        # Delete the connector record
+        await session.delete(db_connector)
+        await session.commit()
+
+        logger.info(
+            f"Connector {connector_id} ({connector_name}) deleted successfully. "
+            f"Total documents deleted: {total_deleted}"
+        )
+
+        doc_text = "document" if total_deleted == 1 else "documents"
         return {
-            "message": "Connector deletion started. You will be notified when complete.",
-            "status": "queued",
+            "message": f"Connector '{connector_name}' deleted. {total_deleted} {doc_text} removed.",
+            "status": "completed",
             "connector_id": connector_id,
             "connector_name": connector_name,
+            "documents_deleted": total_deleted,
         }
     except HTTPException:
         raise

@@ -126,38 +126,39 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			selection?.addRange(range);
 		}, []);
 
-		// Get plain text content (excluding chips)
+		// Get plain text content with inline mention tokens for chips.
+		// This preserves the original query structure sent to the backend/LLM.
 		const getText = useCallback((): string => {
 			if (!editorRef.current) return "";
 
-			let text = "";
-			const walker = document.createTreeWalker(
-				editorRef.current,
-				NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT,
-				{
-					acceptNode: (node) => {
-						// Skip chip elements entirely
-						if (node.nodeType === Node.ELEMENT_NODE) {
-							const el = node as Element;
-							if (el.hasAttribute(CHIP_DATA_ATTR)) {
-								return NodeFilter.FILTER_REJECT; // Skip this subtree
-							}
-							return NodeFilter.FILTER_SKIP; // Continue into children
-						}
-						return NodeFilter.FILTER_ACCEPT;
-					},
-				}
-			);
-
-			let node: Node | null = walker.nextNode();
-			while (node) {
+			const extractText = (node: Node): string => {
 				if (node.nodeType === Node.TEXT_NODE) {
-					text += node.textContent;
+					return node.textContent ?? "";
 				}
-				node = walker.nextNode();
-			}
 
-			return text.trim();
+				if (node.nodeType === Node.ELEMENT_NODE) {
+					const element = node as Element;
+
+					// Preserve mention chips as inline @title tokens.
+					if (element.hasAttribute(CHIP_DATA_ATTR)) {
+						const title = element.querySelector("[data-mention-title='true']")?.textContent?.trim();
+						if (title) {
+							return `@${title}`;
+						}
+						return "";
+					}
+
+					let result = "";
+					for (const child of Array.from(element.childNodes)) {
+						result += extractText(child);
+					}
+					return result;
+				}
+
+				return "";
+			};
+
+			return extractText(editorRef.current).trim();
 		}, []);
 
 		// Get all mentioned documents

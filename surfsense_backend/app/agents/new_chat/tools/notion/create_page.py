@@ -55,19 +55,23 @@ def create_create_notion_page_tool(
             - url: URL to the created page (if success)
             - title: Page title (if success)
             - message: Result message
-            
+
             IMPORTANT: If status is "rejected", the user explicitly declined the action.
-            Respond with a brief acknowledgment (e.g., "Understood, I didn't create the page.") 
+            Respond with a brief acknowledgment (e.g., "Understood, I didn't create the page.")
             and move on. Do NOT ask for parent page IDs, troubleshoot, or suggest alternatives.
 
         Examples:
             - "Create a Notion page titled 'Meeting Notes' with content 'Discussed project timeline'"
             - "Save this to Notion with title 'Research Summary'"
         """
-        logger.info(f"create_notion_page called: title='{title}', parent_page_id={parent_page_id}")
-        
+        logger.info(
+            f"create_notion_page called: title='{title}', parent_page_id={parent_page_id}"
+        )
+
         if db_session is None or search_space_id is None or user_id is None:
-            logger.error("Notion tool not properly configured - missing required parameters")
+            logger.error(
+                "Notion tool not properly configured - missing required parameters"
+            )
             return {
                 "status": "error",
                 "message": "Notion tool not properly configured. Please contact support.",
@@ -75,66 +79,81 @@ def create_create_notion_page_tool(
 
         try:
             metadata_service = NotionToolMetadataService(db_session)
-            context = await metadata_service.get_creation_context(search_space_id, user_id)
-            
+            context = await metadata_service.get_creation_context(
+                search_space_id, user_id
+            )
+
             if "error" in context:
                 logger.error(f"Failed to fetch creation context: {context['error']}")
                 return {
                     "status": "error",
                     "message": context["error"],
                 }
-            
+
             logger.info(f"Requesting approval for creating Notion page: '{title}'")
-            approval = interrupt({
-                "type": "notion_page_creation",
-                "action": {
-                    "tool": "create_notion_page",
-                    "params": {
-                        "title": title,
-                        "content": content,
-                        "parent_page_id": parent_page_id,
-                        "connector_id": connector_id,
+            approval = interrupt(
+                {
+                    "type": "notion_page_creation",
+                    "action": {
+                        "tool": "create_notion_page",
+                        "params": {
+                            "title": title,
+                            "content": content,
+                            "parent_page_id": parent_page_id,
+                            "connector_id": connector_id,
+                        },
                     },
-                },
-                "context": context,
-            })
-            
-            decisions = approval.get("decisions", [])
+                    "context": context,
+                }
+            )
+
+            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
+            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 logger.warning("No approval decision received")
                 return {
                     "status": "error",
                     "message": "No approval decision received",
                 }
-            
+
             decision = decisions[0]
             decision_type = decision.get("type") or decision.get("decision_type")
             logger.info(f"User decision: {decision_type}")
-            
+
             if decision_type == "reject":
                 logger.info("Notion page creation rejected by user")
                 return {
                     "status": "rejected",
                     "message": "User declined. The page was not created. Do not ask again or suggest alternatives.",
                 }
-            
-            edited_action = decision.get("edited_action", {})
-            final_params = edited_action.get("args", {}) if edited_action else {}
-            
+
+            edited_action = decision.get("edited_action")
+            final_params: dict[str, Any] = {}
+            if isinstance(edited_action, dict):
+                edited_args = edited_action.get("args")
+                if isinstance(edited_args, dict):
+                    final_params = edited_args
+            elif isinstance(decision.get("args"), dict):
+                # Some interrupt payloads place args directly on the decision.
+                final_params = decision["args"]
+
             final_title = final_params.get("title", title)
             final_content = final_params.get("content", content)
             final_parent_page_id = final_params.get("parent_page_id", parent_page_id)
             final_connector_id = final_params.get("connector_id", connector_id)
-            
+
             if not final_title or not final_title.strip():
                 logger.error("Title is empty or contains only whitespace")
                 return {
                     "status": "error",
                     "message": "Page title cannot be empty. Please provide a valid title.",
                 }
-            
-            logger.info(f"Creating Notion page with final params: title='{final_title}'")
-            
+
+            logger.info(
+                f"Creating Notion page with final params: title='{final_title}'"
+            )
+
             from sqlalchemy.future import select
 
             from app.db import SearchSourceConnector, SearchSourceConnectorType
@@ -152,7 +171,9 @@ def create_create_notion_page_tool(
                 connector = result.scalars().first()
 
                 if not connector:
-                    logger.warning(f"No Notion connector found for search_space_id={search_space_id}")
+                    logger.warning(
+                        f"No Notion connector found for search_space_id={search_space_id}"
+                    )
                     return {
                         "status": "error",
                         "message": "No Notion connector found. Please connect Notion in your workspace settings.",
@@ -192,19 +213,23 @@ def create_create_notion_page_tool(
                 content=final_content,
                 parent_page_id=final_parent_page_id,
             )
-            logger.info(f"create_page result: {result.get('status')} - {result.get('message', '')}")
+            logger.info(
+                f"create_page result: {result.get('status')} - {result.get('message', '')}"
+            )
             return result
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt
-            
+
             if isinstance(e, GraphInterrupt):
                 raise
-            
+
             logger.error(f"Error creating Notion page: {e}", exc_info=True)
             return {
                 "status": "error",
-                "message": str(e) if isinstance(e, ValueError) else f"Unexpected error: {e!s}",
+                "message": str(e)
+                if isinstance(e, ValueError)
+                else f"Unexpected error: {e!s}",
             }
 
     return create_notion_page

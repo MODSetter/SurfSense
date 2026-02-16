@@ -71,6 +71,7 @@
                 "app.celery_app:celery_app",
                 "worker",
                 "--loglevel=info",
+                "--queues=surfsense,surfsense.connectors,surfsense-dev,surfsense-dev.connectors",
                 "--pool=solo"
             ],
             "console": "integratedTerminal",

@@ -16,107 +16,107 @@
 [English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [हिन्दी](README.hi.md) | [简体中文](README.zh-CN.md)
 
 </div>
+<div align="center">
+<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+</div>
 
 # SurfSense
 Conecte qualquer LLM às suas fontes de conhecimento internas e converse com ele em tempo real junto com sua equipe. Alternativa de código aberto ao NotebookLM, Perplexity e Glean.
 
 SurfSense é um agente de pesquisa de IA altamente personalizável, conectado a fontes externas como mecanismos de busca (SearxNG, Tavily, LinkUp), Google Drive, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian e mais por vir.
 
-<div align="center">
-<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</div>
 
 
-# Vídeo
+# Vídeo 
 
 https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
-
 
 ## Exemplo de Podcast
 
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 
+## Como Usar o SurfSense
 
+### Cloud
+
+1. Acesse [surfsense.com](https://www.surfsense.com) e faça login.
+
+<p align="center"><img src="https://github.com/user-attachments/assets/b4df25fe-db5a-43c2-9462-b75cf7f1b707" alt="Login" /></p>
+
+2. Conecte seus conectores e sincronize. Ative a sincronização periódica para manter os conectores atualizados.
+
+<p align="center"><img src="https://github.com/user-attachments/assets/59da61d7-da05-4576-b7c0-dbc09f5985e8" alt="Conectores" /></p>
+
+3. Enquanto os dados dos conectores são indexados, faça upload de documentos.
+
+<p align="center"><img src="https://github.com/user-attachments/assets/d1e8b2e2-9eac-41d8-bdc0-f0cdc405d128" alt="Upload de Documentos" /></p>
+
+4. Quando tudo estiver indexado, pergunte o que quiser (Casos de uso):
+
+   - Busca básica e citações
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/81e797a1-e01a-4003-8e60-0a0b3a9789df" alt="Busca e Citação" /></p>
+
+   - QNA com menção de documentos
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/be958295-0a8c-4707-998c-9fe1f1c007be" alt="QNA com Menção de Documentos" /></p>
+
+   - Geração de relatórios e exportações (PDF, DOCX por enquanto)
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/9836b7d6-57c9-4951-b61c-68202c9b6ace" alt="Geração de Relatórios" /></p>
+
+   - Geração de podcasts
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/58c9b057-8848-4e81-aaba-d2c617985d8c" alt="Geração de Podcasts" /></p>
+
+   - Geração de imagens
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/25f94cb3-18f8-4854-afd9-27b7bfd079cb" alt="Geração de Imagens" /></p>
+
+
+### Auto-Hospedado
+
+Execute o SurfSense na sua própria infraestrutura para controle total de dados e privacidade.
+
+**Início Rápido (Docker em um único comando):**
+
+```bash
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
+  -v surfsense-data:/data \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+
+Após iniciar, abra [http://localhost:3000](http://localhost:3000) no seu navegador.
+
+Para Docker Compose, instalação manual e outras opções de implantação, consulte a [documentação](https://www.surfsense.com/docs/).
 
 ## Funcionalidades Principais
 
-### 💡 **Ideia**: 
-- Alternativa de código aberto ao NotebookLM, Perplexity e Glean. Conecte qualquer LLM às suas fontes de conhecimento internas e colabore com sua equipe em tempo real.
-### 📁 **Suporte a Múltiplos Formatos de Arquivo**
-- Salve conteúdo dos seus arquivos pessoais *(Documentos, imagens, vídeos e suporta **mais de 50 extensões de arquivo**)* na sua própria base de conhecimento pessoal.
-### 🔍 **Pesquisa Poderosa**
-- Pesquise ou encontre rapidamente qualquer coisa no seu conteúdo salvo.
-### 💬 **Converse com seu Conteúdo Salvo**
-- Interaja em linguagem natural e obtenha respostas com citações.
-### 📄 **Respostas com Citações**
-- Obtenha respostas com citações como no Perplexity.
-### 🧩 **Compatibilidade Universal**
-- Conecte virtualmente qualquer provedor de inferência via especificação OpenAI e LiteLLM.
-### 🔔 **Privacidade e Suporte a LLM Local**
-- Funciona perfeitamente com LLMs locais como vLLM e Ollama.
-### 🏠 **Auto-Hospedável**
-- Código aberto e fácil de implantar localmente.
-### 👥 **Colaboração em Equipe com RBAC**
-- Controle de acesso baseado em funções para Espaços de Pesquisa
-- Convide membros da equipe com funções personalizáveis (Proprietário, Admin, Editor, Visualizador)
-- Permissões granulares para documentos, chats, conectores e configurações
-- Compartilhe bases de conhecimento com segurança dentro da sua organização
-- Chats de equipe atualizam em tempo real e "Converse sobre o chat" em threads de comentários
-### 🎙️ Podcasts
-- Agente de geração de podcasts ultrarrápido. (Cria um podcast de 3 minutos em menos de 20 segundos.)
-- Converta suas conversas de chat em conteúdo de áudio envolvente
-- Suporte para provedores TTS locais (Kokoro TTS)
-- Suporte para múltiplos provedores TTS (OpenAI, Azure, Google Vertex AI)
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| Alternativa OSS | Substituto direto do NotebookLM, Perplexity e Glean com colaboração em equipe em tempo real |
+| 50+ Formatos de Arquivo | Faça upload de documentos, imagens, vídeos via LlamaCloud, Unstructured ou Docling (local) |
+| Busca Híbrida | Semântica + Texto completo com Índices Hierárquicos e Reciprocal Rank Fusion |
+| Respostas com Citações | Converse com sua base de conhecimento e obtenha respostas citadas no estilo Perplexity |
+| Arquitetura de Agentes Profundos | Alimentado por [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) com planejamento, subagentes e acesso ao sistema de arquivos |
+| Suporte Universal de LLM | 100+ LLMs, 6000+ modelos de embeddings, todos os principais rerankers via OpenAI spec e LiteLLM |
+| Privacidade em Primeiro Lugar | Suporte completo a LLM local (vLLM, Ollama) seus dados ficam com você |
+| Colaboração em Equipe | RBAC com papéis de Proprietário / Admin / Editor / Visualizador, chat em tempo real e threads de comentários |
+| Geração de Podcasts | Podcast de 3 min em menos de 20 segundos; múltiplos provedores TTS (OpenAI, Azure, Kokoro) |
+| Extensão de Navegador | Extensão multi-navegador para salvar qualquer página web, incluindo páginas protegidas por autenticação |
+| 25+ Conectores | Mecanismos de busca, Google Drive, Slack, Teams, Jira, Notion, GitHub, Discord e [mais](#fontes-externas) |
+| Auto-Hospedável | Código aberto, Docker em um único comando ou Docker Compose completo para produção |
 
-### 🤖 **Arquitetura de Agentes Profundos**
-- Alimentado por [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) - agentes que podem planejar, usar subagentes e aproveitar sistemas de arquivos para tarefas complexas.
+<details>
+<summary><b>Lista completa de Fontes Externas</b></summary>
+<a id="fontes-externas"></a>
 
-### 📊 **Técnicas Avançadas de RAG**
-- Suporta mais de 100 LLMs
-- Suporta mais de 6000 modelos de embeddings
-- Suporta todos os principais rerankers (Pinecone, Cohere, Flashrank, etc.)
-- Utiliza índices hierárquicos (configuração RAG de 2 níveis)
-- Utiliza busca híbrida (Semântica + Texto completo combinado com Reciprocal Rank Fusion)
+Mecanismos de Busca (Tavily, LinkUp) · SearxNG · Google Drive · Slack · Microsoft Teams · Linear · Jira · ClickUp · Confluence · BookStack · Notion · Gmail · Vídeos do YouTube · GitHub · Discord · Airtable · Google Calendar · Luma · Circleback · Elasticsearch · Obsidian, e mais por vir.
 
-### ℹ️ **Fontes Externas**
-- Mecanismos de busca (Tavily, LinkUp)
-- SearxNG (instâncias auto-hospedadas)
-- Google Drive
-- Slack
-- Microsoft Teams
-- Linear
-- Jira
-- ClickUp
-- Confluence
-- BookStack
-- Notion
-- Gmail
-- Vídeos do YouTube
-- GitHub
-- Discord
-- Airtable
-- Google Calendar
-- Luma
-- Circleback
-- Elasticsearch
-- Obsidian
-- e mais por vir.....
-
-## 📄 **Extensões de Arquivo Suportadas**
-
-| Serviço ETL | Formatos | Notas |
-|-------------|----------|-------|
-| **LlamaCloud** | 50+ formatos | Documentos, apresentações, planilhas, imagens |
-| **Unstructured** | 34+ formatos | Formatos principais + suporte a e-mail |
-| **Docling** | Formatos principais | Processamento local, sem necessidade de chave API |
-
-**Áudio/Vídeo** (via serviço STT): `.mp3`, `.wav`, `.mp4`, `.webm`, etc.
-
-### 🔖 Extensão Multi-Navegador
-- A extensão do SurfSense pode ser usada para salvar qualquer página web que você desejar.
-- Seu principal uso é salvar páginas web protegidas por autenticação.
-
+</details>
 
 
 ## SOLICITAÇÕES DE FUNCIONALIDADES E FUTURO
@@ -126,119 +126,28 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 Junte-se ao [Discord do SurfSense](https://discord.gg/ejRNvftDp9) e ajude a moldar o futuro do SurfSense!
 
-## 🚀 Roadmap
+## Roadmap
 
 Fique atualizado com nosso progresso de desenvolvimento e próximas funcionalidades!  
 Confira nosso roadmap público e contribua com suas ideias ou feedback:
 
-**📋 Discussão do Roadmap:** [SurfSense 2025-2026 Roadmap: Deep Agents, Real-Time Collaboration & MCP Servers](https://github.com/MODSetter/SurfSense/discussions/565)
+**Discussão do Roadmap:** [SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
 
-**📊 Quadro Kanban:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
-
-
-## Como começar?
-
-### Início Rápido com Docker 🐳
-
-> [!TIP]
-> Para implantações em produção, use a configuração completa do [Docker Compose](https://www.surfsense.com/docs/docker-installation) que oferece mais controle e escalabilidade.
-
-**Linux/macOS:**
-
-```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
-```
-
-**Windows (PowerShell):**
-
-```powershell
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 `
-  -v surfsense-data:/data `
-  --name surfsense `
-  --restart unless-stopped `
-  ghcr.io/modsetter/surfsense:latest
-```
-
-**Com Configuração Personalizada:**
-
-Você pode passar qualquer variável de ambiente usando flags `-e`:
-
-```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
-  -e OPENAI_API_KEY=your_openai_api_key \
-  -e AUTH_TYPE=GOOGLE \
-  -e GOOGLE_OAUTH_CLIENT_ID=your_google_client_id \
-  -e GOOGLE_OAUTH_CLIENT_SECRET=your_google_client_secret \
-  -e ETL_SERVICE=LLAMACLOUD \
-  -e LLAMA_CLOUD_API_KEY=your_llama_cloud_key \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
-```
-
-> [!NOTE]
-> - Se estiver implantando atrás de um proxy reverso com HTTPS, adicione `-e BACKEND_URL=https://api.yourdomain.com`
-
-Após iniciar, acesse o SurfSense em:
-- **Frontend**: [http://localhost:3000](http://localhost:3000)
-- **API Backend**: [http://localhost:8000](http://localhost:8000)
-- **Documentação da API**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Electric-SQL**: [http://localhost:5133](http://localhost:5133)
-
-**Comandos Úteis:**
-
-```bash
-docker logs -f surfsense      # Ver logs
-docker stop surfsense         # Parar
-docker start surfsense        # Iniciar
-docker rm surfsense           # Remover (dados preservados no volume)
-```
-
-### Opções de Instalação
-
-O SurfSense oferece múltiplas opções para começar:
-
-1. **[SurfSense Cloud](https://www.surfsense.com/login)** - A forma mais fácil de experimentar o SurfSense sem nenhuma configuração.
-   - Sem necessidade de instalação
-   - Acesso instantâneo a todas as funcionalidades
-   - Perfeito para começar rapidamente
-
-2. **Início Rápido Docker (Acima)** - Um único comando para ter o SurfSense rodando localmente.
-   - Imagem tudo-em-um com PostgreSQL, Redis e todos os serviços incluídos
-   - Perfeito para avaliação, desenvolvimento e implantações pequenas
-   - Dados persistidos via volume Docker
-
-3. **[Docker Compose (Produção)](https://www.surfsense.com/docs/docker-installation)** - Implantação de stack completo com serviços separados.
-   - Inclui pgAdmin para gerenciamento de banco de dados via interface web
-   - Suporta personalização de variáveis de ambiente via arquivo `.env`
-   - Opções de implantação flexíveis (stack completo ou apenas serviços principais)
-   - Melhor para produção com escalamento independente de serviços
-
-4. **[Instalação Manual](https://www.surfsense.com/docs/manual-installation)** - Para usuários que preferem mais controle sobre sua configuração ou precisam personalizar sua implantação.
-
-Os guias de Docker e instalação manual incluem instruções detalhadas específicas para Windows, macOS e Linux.
-
-Antes da instalação auto-hospedada, certifique-se de completar os [passos de configuração prévia](https://www.surfsense.com/docs/) incluindo:
-- Configuração de autenticação (opcional - padrão é autenticação LOCAL)
-- **Serviço ETL de Processamento de Arquivos** (opcional - padrão é Docling):
-  - Docling (padrão, processamento local, sem necessidade de chave API, suporta PDF, documentos Office, imagens, HTML, CSV)
-  - Chave API do Unstructured.io (suporta 34+ formatos)
-  - Chave API do LlamaIndex (análise aprimorada, suporta 50+ formatos)
-- Outras chaves API conforme necessário para seu caso de uso
+**Quadro Kanban:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
 
 
-## Contribuir
+## Contribuir 
 
-Contribuições são muito bem-vindas! Uma contribuição pode ser tão pequena quanto uma ⭐ ou até mesmo encontrar e criar issues.
+Contribuições são muito bem-vindas! Uma contribuição pode ser tão pequena quanto uma estrela ou até mesmo encontrar e criar issues.
 O ajuste fino do Backend é sempre desejado.
 
 Para diretrizes detalhadas de contribuição, consulte nosso arquivo [CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Contribuidores
+
+<a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />
+</a>
 
 ## Histórico de Stars
 
