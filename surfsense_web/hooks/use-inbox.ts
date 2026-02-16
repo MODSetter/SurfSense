@@ -129,11 +129,15 @@ export function useInbox(
 				// Skip if already syncing with this key
 				if (userSyncKeyRef.current === userSyncKey) return;
 
-				// Clean up previous sync
-				if (syncHandleRef.current) {
+			// Clean up previous sync
+			if (syncHandleRef.current) {
+				try {
 					syncHandleRef.current.unsubscribe();
-					syncHandleRef.current = null;
+				} catch {
+					// PGlite may already be closed during cleanup
 				}
+				syncHandleRef.current = null;
+			}
 
 				console.log("[useInbox] Starting sync for:", userId);
 				userSyncKeyRef.current = userSyncKey;
@@ -174,7 +178,11 @@ export function useInbox(
 			mounted = false;
 			userSyncKeyRef.current = null;
 			if (syncHandleRef.current) {
-				syncHandleRef.current.unsubscribe();
+				try {
+					syncHandleRef.current.unsubscribe();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				syncHandleRef.current = null;
 			}
 		};
@@ -199,7 +207,11 @@ export function useInbox(
 		async function setupLiveQuery() {
 			// Clean up previous live query
 			if (liveQueryRef.current) {
-				liveQueryRef.current.unsubscribe();
+				try {
+					liveQueryRef.current.unsubscribe();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				liveQueryRef.current = null;
 			}
 
@@ -297,7 +309,11 @@ export function useInbox(
 		return () => {
 			mounted = false;
 			if (liveQueryRef.current) {
-				liveQueryRef.current.unsubscribe();
+				try {
+					liveQueryRef.current.unsubscribe();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				liveQueryRef.current = null;
 			}
 		};

@@ -230,11 +230,19 @@ export function useDocuments(
 		async function setupElectricRealtime() {
 			// Cleanup previous subscriptions
 			if (syncHandleRef.current) {
-				syncHandleRef.current.unsubscribe();
+				try {
+					syncHandleRef.current.unsubscribe();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				syncHandleRef.current = null;
 			}
 			if (liveQueryRef.current) {
-				liveQueryRef.current.unsubscribe?.();
+				try {
+					liveQueryRef.current.unsubscribe?.();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				liveQueryRef.current = null;
 			}
 
@@ -420,11 +428,19 @@ export function useDocuments(
 		return () => {
 			mounted = false;
 			if (syncHandleRef.current) {
-				syncHandleRef.current.unsubscribe();
+				try {
+					syncHandleRef.current.unsubscribe();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				syncHandleRef.current = null;
 			}
 			if (liveQueryRef.current) {
-				liveQueryRef.current.unsubscribe?.();
+				try {
+					liveQueryRef.current.unsubscribe?.();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				liveQueryRef.current = null;
 			}
 		};

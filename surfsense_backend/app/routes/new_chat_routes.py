@@ -635,8 +635,16 @@ async def delete_thread(
 
         # For PRIVATE threads, only the creator can delete
         # For SEARCH_SPACE threads, any member with permission can delete
+        # Legacy threads (created_by_id is NULL) have no recorded creator,
+        # so we skip strict ownership and fall through to legacy handling
+        # which allows the search space owner to delete them
         if db_thread.visibility == ChatVisibility.PRIVATE:
-            await check_thread_access(session, db_thread, user, require_ownership=True)
+            await check_thread_access(
+                session,
+                db_thread,
+                user,
+                require_ownership=(db_thread.created_by_id is not None),
+            )
 
         await session.delete(db_thread)
         await session.commit()
