@@ -51,24 +51,28 @@ def create_update_notion_page_tool(
             - url: URL to the updated page (if success)
             - title: Current page title (if success)
             - message: Result message
-            
-            IMPORTANT: 
+
+            IMPORTANT:
             - If status is "rejected", the user explicitly declined the action.
-              Respond with a brief acknowledgment (e.g., "Understood, I didn't update the page.") 
+              Respond with a brief acknowledgment (e.g., "Understood, I didn't update the page.")
               and move on. Do NOT ask for alternatives or troubleshoot.
             - If status is "not_found", inform the user conversationally using the exact message provided.
               Example: "I couldn't find the page '[page_title]' in your indexed Notion pages. [message details]"
-              Do NOT treat this as an error. Do NOT invent information. Simply relay the message and 
+              Do NOT treat this as an error. Do NOT invent information. Simply relay the message and
               ask the user to verify the page title or check if it's been indexed.
 
         Examples:
             - "Add 'New meeting notes from today' to the 'Meeting Notes' Notion page"
             - "Append the following to the 'Project Plan' Notion page: '# Status Update\n\nCompleted phase 1'"
         """
-        logger.info(f"update_notion_page called: page_title='{page_title}', content_length={len(content) if content else 0}")
-        
+        logger.info(
+            f"update_notion_page called: page_title='{page_title}', content_length={len(content) if content else 0}"
+        )
+
         if db_session is None or search_space_id is None or user_id is None:
-            logger.error("Notion tool not properly configured - missing required parameters")
+            logger.error(
+                "Notion tool not properly configured - missing required parameters"
+            )
             return {
                 "status": "error",
                 "message": "Notion tool not properly configured. Please contact support.",
@@ -106,7 +110,9 @@ def create_update_notion_page_tool(
             page_id = context.get("page_id")
             connector_id_from_context = context.get("account", {}).get("id")
 
-            logger.info(f"Requesting approval for updating Notion page: '{page_title}' (page_id={page_id})")
+            logger.info(
+                f"Requesting approval for updating Notion page: '{page_title}' (page_id={page_id})"
+            )
             approval = interrupt(
                 {
                     "type": "notion_page_update",
@@ -146,9 +152,13 @@ def create_update_notion_page_tool(
 
             final_page_id = final_params.get("page_id", page_id)
             final_content = final_params.get("content", content)
-            final_connector_id = final_params.get("connector_id", connector_id_from_context)
+            final_connector_id = final_params.get(
+                "connector_id", connector_id_from_context
+            )
 
-            logger.info(f"Updating Notion page with final params: page_id={final_page_id}, has_content={final_content is not None}")
+            logger.info(
+                f"Updating Notion page with final params: page_id={final_page_id}, has_content={final_content is not None}"
+            )
 
             from sqlalchemy.future import select
 
@@ -192,7 +202,9 @@ def create_update_notion_page_tool(
                 page_id=final_page_id,
                 content=final_content,
             )
-            logger.info(f"update_page result: {result.get('status')} - {result.get('message', '')}")
+            logger.info(
+                f"update_page result: {result.get('status')} - {result.get('message', '')}"
+            )
             return result
 
         except Exception as e:

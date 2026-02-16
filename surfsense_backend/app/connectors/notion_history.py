@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import re
 from collections.abc import Awaitable, Callable
@@ -220,6 +221,7 @@ class NotionHistoryConnector:
 
                 # Refresh token
                 from app.routes.notion_add_connector_route import refresh_notion_token
+
                 connector = await refresh_notion_token(self._session, connector)
 
                 # Reload credentials after refresh
@@ -804,7 +806,7 @@ class NotionHistoryConnector:
             results = response.get("results", [])
             if results:
                 return results[0]["id"]
-            
+
             return None
 
         except Exception as e:
@@ -835,59 +837,81 @@ class NotionHistoryConnector:
 
             # Heading 1
             if line.startswith("# "):
-                blocks.append({
-                    "object": "block",
-                    "type": "heading_1",
-                    "heading_1": {
-                        "rich_text": [{"type": "text", "text": {"content": line[2:]}}]
-                    },
-                })
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "heading_1",
+                        "heading_1": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": line[2:]}}
+                            ]
+                        },
+                    }
+                )
             # Heading 2
             elif line.startswith("## "):
-                blocks.append({
-                    "object": "block",
-                    "type": "heading_2",
-                    "heading_2": {
-                        "rich_text": [{"type": "text", "text": {"content": line[3:]}}]
-                    },
-                })
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "heading_2",
+                        "heading_2": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": line[3:]}}
+                            ]
+                        },
+                    }
+                )
             # Heading 3
             elif line.startswith("### "):
-                blocks.append({
-                    "object": "block",
-                    "type": "heading_3",
-                    "heading_3": {
-                        "rich_text": [{"type": "text", "text": {"content": line[4:]}}]
-                    },
-                })
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "heading_3",
+                        "heading_3": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": line[4:]}}
+                            ]
+                        },
+                    }
+                )
             # Bullet list
             elif line.startswith("- ") or line.startswith("* "):
-                blocks.append({
-                    "object": "block",
-                    "type": "bulleted_list_item",
-                    "bulleted_list_item": {
-                        "rich_text": [{"type": "text", "text": {"content": line[2:]}}]
-                    },
-                })
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "bulleted_list_item",
+                        "bulleted_list_item": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": line[2:]}}
+                            ]
+                        },
+                    }
+                )
             # Numbered list
-            elif (match := re.match(r'^(\d+)\.\s+(.*)$', line)):
+            elif match := re.match(r"^(\d+)\.\s+(.*)$", line):
                 content = match.group(2)  # Extract text after "number. "
-                blocks.append({
-                    "object": "block",
-                    "type": "numbered_list_item",
-                    "numbered_list_item": {
-                        "rich_text": [{"type": "text", "text": {"content": content}}]
-                    },
-                })
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "numbered_list_item",
+                        "numbered_list_item": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": content}}
+                            ]
+                        },
+                    }
+                )
             # Regular paragraph
             else:
-                blocks.append({
-                    "object": "block",
-                    "type": "paragraph",
-                    "paragraph": {
-                        "rich_text": [{"type": "text", "text": {"content": line}}]
-                    },
-                })
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [{"type": "text", "text": {"content": line}}]
+                        },
+                    }
+                )
 
         return blocks
 
@@ -914,8 +938,10 @@ class NotionHistoryConnector:
             APIResponseError: If Notion API returns an error
         """
         try:
-            logger.info(f"Creating Notion page: title='{title}', parent_page_id={parent_page_id}")
-            
+            logger.info(
+                f"Creating Notion page: title='{title}', parent_page_id={parent_page_id}"
+            )
+
             # Get Notion client
             notion = await self._get_client()
 
@@ -924,14 +950,16 @@ class NotionHistoryConnector:
 
             # Prepare parent - find first available page if not provided
             if not parent_page_id:
-                logger.info("No parent_page_id provided, searching for first accessible page...")
+                logger.info(
+                    "No parent_page_id provided, searching for first accessible page..."
+                )
                 parent_page_id = await self._get_first_accessible_parent()
                 if not parent_page_id:
                     logger.warning("No accessible parent pages found")
                     return {
                         "status": "error",
                         "message": "Could not find any accessible Notion pages to use as parent. "
-                                  "Please make sure your Notion integration has access to at least one page.",
+                        "Please make sure your Notion integration has access to at least one page.",
                     }
                 logger.info(f"Using parent_page_id: {parent_page_id}")
 
@@ -939,9 +967,7 @@ class NotionHistoryConnector:
 
             # Create the page with standard title property
             properties = {
-                "title": {
-                    "title": [{"type": "text", "text": {"content": title}}]
-                }
+                "title": {"title": [{"type": "text", "text": {"content": title}}]}
             }
 
             response = await self._api_call_with_retry(
@@ -959,9 +985,7 @@ class NotionHistoryConnector:
                 for i in range(100, len(children), 100):
                     batch = children[i : i + 100]
                     await self._api_call_with_retry(
-                        notion.blocks.children.append,
-                        block_id=page_id,
-                        children=batch
+                        notion.blocks.children.append, block_id=page_id, children=batch
                     )
 
             return {
@@ -991,7 +1015,7 @@ class NotionHistoryConnector:
     ) -> dict[str, Any]:
         """
         Update an existing Notion page by appending new content.
-        
+
         Note: Content is appended to the page, not replaced.
 
         Args:
@@ -1013,7 +1037,9 @@ class NotionHistoryConnector:
                 try:
                     children = self._markdown_to_blocks(content)
                     if not children:
-                        logger.warning("No blocks generated from content, skipping append")
+                        logger.warning(
+                            "No blocks generated from content, skipping append"
+                        )
                         return {
                             "status": "error",
                             "message": "Content conversion failed: no valid blocks generated",
@@ -1032,9 +1058,11 @@ class NotionHistoryConnector:
                         await self._api_call_with_retry(
                             notion.blocks.children.append,
                             block_id=page_id,
-                            children=batch
+                            children=batch,
                         )
-                    logger.info(f"Successfully appended {len(children)} new blocks to page {page_id}")
+                    logger.info(
+                        f"Successfully appended {len(children)} new blocks to page {page_id}"
+                    )
                 except Exception as e:
                     logger.error(f"Failed to append content blocks: {e}")
                     return {
@@ -1044,8 +1072,7 @@ class NotionHistoryConnector:
 
             # Get updated page info
             response = await self._api_call_with_retry(
-                notion.pages.retrieve,
-                page_id=page_id
+                notion.pages.retrieve, page_id=page_id
             )
             page_url = response["url"]
             page_title = response["properties"]["title"]["title"][0]["text"]["content"]
@@ -1092,18 +1119,14 @@ class NotionHistoryConnector:
 
             # Archive the page (Notion's way of "deleting")
             response = await self._api_call_with_retry(
-                notion.pages.update,
-                page_id=page_id,
-                archived=True
+                notion.pages.update, page_id=page_id, archived=True
             )
 
             page_title = "Unknown"
-            try:
+            with contextlib.suppress(KeyError, IndexError):
                 page_title = response["properties"]["title"]["title"][0]["text"][
                     "content"
                 ]
-            except (KeyError, IndexError):
-                pass
 
             return {
                 "status": "success",

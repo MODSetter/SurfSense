@@ -10,9 +10,9 @@ import {
 } from "@assistant-ui/react-markdown";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { type FC, memo, type ReactNode, useState } from "react";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { InlineCitation } from "@/components/assistant-ui/inline-citation";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";

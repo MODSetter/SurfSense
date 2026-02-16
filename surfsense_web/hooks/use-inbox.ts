@@ -129,15 +129,15 @@ export function useInbox(
 				// Skip if already syncing with this key
 				if (userSyncKeyRef.current === userSyncKey) return;
 
-			// Clean up previous sync
-			if (syncHandleRef.current) {
-				try {
-					syncHandleRef.current.unsubscribe();
-				} catch {
-					// PGlite may already be closed during cleanup
+				// Clean up previous sync
+				if (syncHandleRef.current) {
+					try {
+						syncHandleRef.current.unsubscribe();
+					} catch {
+						// PGlite may already be closed during cleanup
+					}
+					syncHandleRef.current = null;
 				}
-				syncHandleRef.current = null;
-			}
 
 				console.log("[useInbox] Starting sync for:", userId);
 				userSyncKeyRef.current = userSyncKey;

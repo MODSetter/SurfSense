@@ -33,8 +33,8 @@ import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
-import { CreateNotionPageToolUI } from "@/components/tool-ui/create-notion-page";
 import { ReportPanel } from "@/components/report-panel/report-panel";
+import { CreateNotionPageToolUI } from "@/components/tool-ui/create-notion-page";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DeleteNotionPageToolUI } from "@/components/tool-ui/delete-notion-page";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
@@ -969,36 +969,36 @@ export default function NewChatPage() {
 							contentPartsState.currentTextPartIndex = -1;
 						}
 					}
-			}
-		}
-
-		// Merge edited args if present to fix race condition
-		if (decisions.length > 0 && decisions[0].type === "edit" && decisions[0].edited_action) {
-			const editedAction = decisions[0].edited_action;
-			for (const part of contentParts) {
-				if (part.type === "tool-call" && part.toolName === editedAction.name) {
-					part.args = { ...part.args, ...editedAction.args };
-					break;
 				}
 			}
-		}
 
-		const decisionType = decisions[0]?.type as "approve" | "reject" | undefined;
-		if (decisionType) {
-			for (const part of contentParts) {
-				if (
-					part.type === "tool-call" &&
-					typeof part.result === "object" &&
-					part.result !== null &&
-					"__interrupt__" in (part.result as Record<string, unknown>)
-				) {
-					part.result = {
-						...(part.result as Record<string, unknown>),
-						__decided__: decisionType,
-					};
+			// Merge edited args if present to fix race condition
+			if (decisions.length > 0 && decisions[0].type === "edit" && decisions[0].edited_action) {
+				const editedAction = decisions[0].edited_action;
+				for (const part of contentParts) {
+					if (part.type === "tool-call" && part.toolName === editedAction.name) {
+						part.args = { ...part.args, ...editedAction.args };
+						break;
+					}
 				}
 			}
-		}
+
+			const decisionType = decisions[0]?.type as "approve" | "reject" | undefined;
+			if (decisionType) {
+				for (const part of contentParts) {
+					if (
+						part.type === "tool-call" &&
+						typeof part.result === "object" &&
+						part.result !== null &&
+						"__interrupt__" in (part.result as Record<string, unknown>)
+					) {
+						part.result = {
+							...(part.result as Record<string, unknown>),
+							__decided__: decisionType,
+						};
+					}
+				}
+			}
 
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";

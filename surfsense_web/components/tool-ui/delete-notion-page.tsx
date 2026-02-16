@@ -68,7 +68,12 @@ interface WarningResult {
 	message?: string;
 }
 
-type DeleteNotionPageResult = InterruptResult | SuccessResult | ErrorResult | InfoResult | WarningResult;
+type DeleteNotionPageResult =
+	| InterruptResult
+	| SuccessResult
+	| ErrorResult
+	| InfoResult
+	| WarningResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -341,22 +346,23 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 					</p>
 				</div>
 			</div>
-{(result.deleted_from_db || result.title) && (
-			<div className="space-y-2 px-4 py-3 text-xs">
-				{result.title && (
-					<div>
-						<span className="font-medium text-muted-foreground">Deleted page: </span>
-						<span>{result.title}</span>
-					</div>
-				)}
-				{result.deleted_from_db && (
-					<div className="pt-1">
-						<span className="text-green-600 dark:text-green-500">
-							✓ Also removed from knowledge base
-						</span>
-					</div>
-				)}
-			</div>)}
+			{(result.deleted_from_db || result.title) && (
+				<div className="space-y-2 px-4 py-3 text-xs">
+					{result.title && (
+						<div>
+							<span className="font-medium text-muted-foreground">Deleted page: </span>
+							<span>{result.title}</span>
+						</div>
+					)}
+					{result.deleted_from_db && (
+						<div className="pt-1">
+							<span className="text-green-600 dark:text-green-500">
+								✓ Also removed from knowledge base
+							</span>
+						</div>
+					)}
+				</div>
+			)}
 		</div>
 	);
 }
