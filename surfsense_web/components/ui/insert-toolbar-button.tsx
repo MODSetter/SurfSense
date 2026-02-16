@@ -19,6 +19,8 @@ import {
   QuoteIcon,
   RadicalIcon,
   SquareIcon,
+  SubscriptIcon,
+  SuperscriptIcon,
   TableIcon,
 } from 'lucide-react';
 import { KEYS } from 'platejs';
@@ -153,6 +155,28 @@ const groups: Group[] = [
         } else {
           insertBlock(editor, value);
         }
+      },
+    })),
+  },
+  {
+    group: 'Marks',
+    items: [
+      {
+        icon: <SuperscriptIcon />,
+        label: 'Superscript',
+        value: KEYS.sup,
+      },
+      {
+        icon: <SubscriptIcon />,
+        label: 'Subscript',
+        value: KEYS.sub,
+      },
+    ].map((item) => ({
+      ...item,
+      onSelect: (editor: PlateEditor, value: string) => {
+        editor.tf.toggleMark(value, {
+          remove: value === KEYS.sup ? KEYS.sub : KEYS.sup,
+        });
       },
     })),
   },

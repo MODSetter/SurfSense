@@ -23,7 +23,6 @@ import { InsertToolbarButton } from './insert-toolbar-button';
 import { LinkToolbarButton } from './link-toolbar-button';
 import { MarkToolbarButton } from './mark-toolbar-button';
 import { ModeToolbarButton } from './mode-toolbar-button';
-import { MoreToolbarButton } from './more-toolbar-button';
 import { ToolbarButton, ToolbarGroup } from './toolbar';
 import { TurnIntoToolbarButton } from './turn-into-toolbar-button';
 
@@ -100,10 +99,6 @@ export function FixedToolbarButtons() {
 
           <ToolbarGroup>
             <LinkToolbarButton />
-          </ToolbarGroup>
-
-          <ToolbarGroup>
-            <MoreToolbarButton />
           </ToolbarGroup>
 
           {/* Save button — appears when in editing mode with unsaved changes */}
