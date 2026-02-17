@@ -5,8 +5,10 @@ import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
+import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
@@ -117,6 +119,10 @@ function ReportPanelContent({
 
 	// Editor state — tracks the latest markdown from the Plate editor
 	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
+
+	// Read-only when public (shareToken) OR shared (SEARCH_SPACE visibility)
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	const isReadOnly = !!shareToken || currentThreadState.visibility === "SEARCH_SPACE";
 
 	// Version state
 	const [activeReportId, setActiveReportId] = useState(reportId);
@@ -414,7 +420,7 @@ function ReportPanelContent({
 				)}
 			</div>
 
-			{/* Report content — skeleton/error/editor shown only in this area */}
+			{/* Report content — skeleton/error/viewer/editor shown only in this area */}
 			<div className="flex-1 overflow-hidden">
 				{isLoading ? (
 					<ReportPanelSkeleton />
@@ -426,16 +432,22 @@ function ReportPanelContent({
 						</div>
 					</div>
 				) : reportContent.content ? (
-					<PlateEditor
-						markdown={reportContent.content}
-						onMarkdownChange={shareToken ? undefined : setEditedMarkdown}
-						readOnly={!!shareToken}
-						placeholder="Report content..."
-						editorVariant="default"
-						onSave={shareToken ? undefined : handleSave}
-						hasUnsavedChanges={!shareToken && editedMarkdown !== null}
-						isSaving={saving}
-					/>
+					isReadOnly ? (
+						<div className="h-full overflow-y-auto px-5 py-4">
+							<MarkdownViewer content={reportContent.content} />
+						</div>
+					) : (
+						<PlateEditor
+							markdown={reportContent.content}
+							onMarkdownChange={setEditedMarkdown}
+							readOnly={false}
+							placeholder="Report content..."
+							editorVariant="default"
+							onSave={handleSave}
+							hasUnsavedChanges={editedMarkdown !== null}
+							isSaving={saving}
+						/>
+					)
 				) : (
 					<div className="px-5 py-5">
 						<p className="text-muted-foreground italic">No content available.</p>
