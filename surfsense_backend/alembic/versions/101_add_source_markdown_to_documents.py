@@ -6,7 +6,7 @@ Create Date: 2026-02-17
 
 Adds source_markdown column and converts only documents that have
 blocknote_document data. Uses a pure-Python BlockNote JSON → Markdown
-converter. No external dependencies (no Node.js, no Celery, no HTTP calls).
+converter without external dependencies.
 
 Documents without blocknote_document keep source_markdown = NULL and
 get populated lazily by the editor route when a user first opens them.
@@ -50,22 +50,24 @@ def upgrade() -> None:
     _populate_source_markdown(conn)
 
 
-def _populate_source_markdown(conn) -> None:
-    """Populate source_markdown only for documents that have blocknote_document."""
+def _populate_source_markdown(conn, batch_size: int = 500) -> None:
+    """Populate source_markdown only for documents that have blocknote_document.
+
+    Processes in batches to avoid long-running transactions and high memory usage.
+    """
     from app.utils.blocknote_to_markdown import blocknote_to_markdown
 
-    # Only fetch documents that have blocknote_document content
-    result = conn.execute(
+    # Get total count first
+    count_result = conn.execute(
         sa.text("""
-            SELECT id, title, blocknote_document
+            SELECT count(*)
             FROM documents
             WHERE source_markdown IS NULL
               AND blocknote_document IS NOT NULL
         """)
     )
-    rows = result.fetchall()
+    total = count_result.scalar()
 
-    total = len(rows)
     if total == 0:
         print("✓ No documents with blocknote_document need migration")
         return
@@ -74,35 +76,57 @@ def _populate_source_markdown(conn) -> None:
 
     migrated = 0
     failed = 0
+    offset = 0
 
-    for row in rows:
-        doc_id = row[0]
-        doc_title = row[1]
-        blocknote_doc = row[2]
+    while offset < total:
+        # Fetch one batch at a time
+        result = conn.execute(
+            sa.text("""
+                SELECT id, title, blocknote_document
+                FROM documents
+                WHERE source_markdown IS NULL
+                  AND blocknote_document IS NOT NULL
+                ORDER BY id
+                LIMIT :limit OFFSET :offset
+            """),
+            {"limit": batch_size, "offset": offset},
+        )
+        rows = result.fetchall()
 
-        try:
-            if isinstance(blocknote_doc, str):
-                blocknote_doc = json.loads(blocknote_doc)
-            markdown = blocknote_to_markdown(blocknote_doc)
+        if not rows:
+            break
 
-            if markdown:
-                conn.execute(
-                    sa.text("""
-                        UPDATE documents SET source_markdown = :md WHERE id = :doc_id
-                    """),
-                    {"md": markdown, "doc_id": doc_id},
-                )
-                migrated += 1
-            else:
+        for row in rows:
+            doc_id = row[0]
+            doc_title = row[1]
+            blocknote_doc = row[2]
+
+            try:
+                if isinstance(blocknote_doc, str):
+                    blocknote_doc = json.loads(blocknote_doc)
+                markdown = blocknote_to_markdown(blocknote_doc)
+
+                if markdown:
+                    conn.execute(
+                        sa.text("""
+                            UPDATE documents SET source_markdown = :md WHERE id = :doc_id
+                        """),
+                        {"md": markdown, "doc_id": doc_id},
+                    )
+                    migrated += 1
+                else:
+                    logger.warning(
+                        f"  Doc {doc_id} ({doc_title}): blocknote conversion produced empty result"
+                    )
+                    failed += 1
+            except Exception as e:
                 logger.warning(
-                    f"  Doc {doc_id} ({doc_title}): blocknote conversion produced empty result"
+                    f"  Doc {doc_id} ({doc_title}): blocknote conversion failed ({e})"
                 )
                 failed += 1
-        except Exception as e:
-            logger.warning(
-                f"  Doc {doc_id} ({doc_title}): blocknote conversion failed ({e})"
-            )
-            failed += 1
+
+        print(f"  Batch complete: processed {min(offset + batch_size, total)}/{total}")
+        offset += batch_size
 
     print(
         f"✓ source_markdown migration complete: {migrated} migrated, "
