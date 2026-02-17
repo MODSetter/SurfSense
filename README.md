@@ -74,6 +74,8 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="https://github.com/user-attachments/assets/25f94cb3-18f8-4854-afd9-27b7bfd079cb" alt="Image Generation" /></p>
 
+   - And more coming soon.
+
 
 ### Self Hosted
 
@@ -92,6 +94,28 @@ docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
 After starting, open [http://localhost:3000](http://localhost:3000) in your browser.
 
 For Docker Compose, manual installation, and other deployment options, check the [docs](https://www.surfsense.com/docs/).
+
+### How to Realtime Collaborate (Beta)
+
+1. Go to Manage Members page and create an invite.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/40ed7683-5aa6-48a0-a3df-00575528c392" alt="Invite Members" /></p>
+
+2. Teammate joins and that SearchSpace becomes shared.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/ea4e1057-4d2b-4fd2-9ca0-cd19286a285e" alt="Invite Join Flow" /></p>
+
+3. Make chat shared.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/17b93904-0888-4c3a-ac12-51a24a8ea26a" alt="Make Chat Shared" /></p>
+
+4. Your team can now chat in realtime.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/83803ac2-fbce-4d93-aae3-85eb85a3053a" alt="Realtime Chat" /></p>
+
+5. Add comment to tag teammates.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="Realtime Comments" /></p>
 
 ## Key Features
 
@@ -136,14 +160,11 @@ Check out our public roadmap and contribute your ideas or feedback:
 **Kanban Board:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
 
 
-## Contribute 
+## Contribute
 
-Contributions are very welcome! A contribution can be as small as a star or even finding and creating issues.
-Fine-tuning the Backend is always desired.
+All contributions welcome, from stars and bug reports to backend improvements. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
 
-For detailed contribution guidelines, please see our [CONTRIBUTING.md](CONTRIBUTING.md) file.
-
-## Contributors
+Thanks to all our Surfers:
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />

@@ -29,6 +29,16 @@ const useCases = [
 		description: "Generate images directly from your conversations.",
 		src: "/homepage/hero_tutorial/ImageGenGif.gif",
 	},
+	{
+		title: "Realtime Chat",
+		description: "Chat together in realtime with your team.",
+		src: "/homepage/hero_realtime/RealTimeChatGif.gif",
+	},
+	{
+		title: "Realtime Comments",
+		description: "Add comments and tag teammates on any message.",
+		src: "/homepage/hero_realtime/RealTimeCommentsFlow.gif",
+	},
 ];
 
 function UseCaseCard({
@@ -85,16 +95,23 @@ export function UseCasesGrid() {
 				</h2>
 			</div>
 
-			{/* First row: 2 larger cards */}
+			{/* Row 1: 2 larger cards */}
 			<div className="grid grid-cols-1 gap-5 md:grid-cols-2">
 				{useCases.slice(0, 2).map((useCase) => (
 					<UseCaseCard key={useCase.title} {...useCase} />
 				))}
 			</div>
 
-			{/* Second row: 3 equal cards */}
+			{/* Row 2: 3 equal cards */}
 			<div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-				{useCases.slice(2).map((useCase) => (
+				{useCases.slice(2, 5).map((useCase) => (
+					<UseCaseCard key={useCase.title} {...useCase} />
+				))}
+			</div>
+
+			{/* Row 3: 2 cards */}
+			<div className="mt-5 grid grid-cols-1 gap-5 md:grid-cols-2">
+				{useCases.slice(5).map((useCase) => (
 					<UseCaseCard key={useCase.title} {...useCase} />
 				))}
 			</div>

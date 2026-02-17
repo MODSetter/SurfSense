@@ -1,5 +1,5 @@
 {
 	"title": "How to",
-	"pages": ["electric-sql"],
+	"pages": ["electric-sql", "realtime-collaboration"],
 	"defaultOpen": false
 }

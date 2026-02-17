@@ -74,6 +74,8 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="https://github.com/user-attachments/assets/25f94cb3-18f8-4854-afd9-27b7bfd079cb" alt="Geração de Imagens" /></p>
 
+   - E mais em breve.
+
 
 ### Auto-Hospedado
 
@@ -92,6 +94,28 @@ docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
 Após iniciar, abra [http://localhost:3000](http://localhost:3000) no seu navegador.
 
 Para Docker Compose, instalação manual e outras opções de implantação, consulte a [documentação](https://www.surfsense.com/docs/).
+
+### Como Colaborar em Tempo Real (Beta)
+
+1. Acesse a página de Gerenciar Membros e crie um convite.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/40ed7683-5aa6-48a0-a3df-00575528c392" alt="Convidar Membros" /></p>
+
+2. O colega aceita e aquele SearchSpace se torna compartilhado.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/ea4e1057-4d2b-4fd2-9ca0-cd19286a285e" alt="Fluxo de Entrada por Convite" /></p>
+
+3. Torne o chat compartilhado.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/17b93904-0888-4c3a-ac12-51a24a8ea26a" alt="Tornar Chat Compartilhado" /></p>
+
+4. Sua equipe agora pode conversar em tempo real.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/83803ac2-fbce-4d93-aae3-85eb85a3053a" alt="Chat em Tempo Real" /></p>
+
+5. Adicione comentários para marcar colegas de equipe.
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="Comentários em Tempo Real" /></p>
 
 ## Funcionalidades Principais
 
@@ -136,14 +160,11 @@ Confira nosso roadmap público e contribua com suas ideias ou feedback:
 **Quadro Kanban:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
 
 
-## Contribuir 
+## Contribuir
 
-Contribuições são muito bem-vindas! Uma contribuição pode ser tão pequena quanto uma estrela ou até mesmo encontrar e criar issues.
-O ajuste fino do Backend é sempre desejado.
+Todas as contribuições são bem-vindas, desde estrelas e relatórios de bugs até melhorias no backend. Consulte [CONTRIBUTING.md](CONTRIBUTING.md) para começar.
 
-Para diretrizes detalhadas de contribuição, consulte nosso arquivo [CONTRIBUTING.md](CONTRIBUTING.md).
-
-## Contribuidores
+Obrigado a todos os nossos Surfers:
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />

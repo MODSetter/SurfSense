@@ -74,6 +74,8 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    <p align="center"><img src="https://github.com/user-attachments/assets/25f94cb3-18f8-4854-afd9-27b7bfd079cb" alt="图像生成" /></p>
 
+   - 更多功能即将推出。
+
 
 ### 自托管
 
@@ -92,6 +94,28 @@ docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
 启动后，在浏览器中打开 [http://localhost:3000](http://localhost:3000)。
 
 如需 Docker Compose、手动安装及其他部署方式，请查看[文档](https://www.surfsense.com/docs/)。
+
+### 如何实时协作（Beta）
+
+1. 前往成员管理页面并创建邀请。
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/40ed7683-5aa6-48a0-a3df-00575528c392" alt="邀请成员" /></p>
+
+2. 队友加入后，该 SearchSpace 变为共享。
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/ea4e1057-4d2b-4fd2-9ca0-cd19286a285e" alt="邀请加入流程" /></p>
+
+3. 将聊天设为共享。
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/17b93904-0888-4c3a-ac12-51a24a8ea26a" alt="设为共享聊天" /></p>
+
+4. 您的团队现在可以实时聊天。
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/83803ac2-fbce-4d93-aae3-85eb85a3053a" alt="实时聊天" /></p>
+
+5. 添加评论以标记队友。
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/3b04477d-8f42-4baa-be95-867c1eaeba87" alt="实时评论" /></p>
 
 ## 核心功能
 
@@ -136,14 +160,11 @@ docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
 **看板：** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
 
 
-## 贡献 
+## 贡献
 
-非常欢迎贡献！贡献可以小到一个 Star，甚至是发现和创建问题。
-后端的微调总是受欢迎的。
+欢迎所有贡献，从 Star 和 Bug 报告到后端改进。请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 开始贡献。
 
-有关详细的贡献指南，请参阅我们的 [CONTRIBUTING.md](CONTRIBUTING.md) 文件。
-
-## 贡献者
+感谢所有 Surfers:
 
 <a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />
