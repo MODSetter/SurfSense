@@ -38,14 +38,14 @@ rate_limit_logger = logging.getLogger("surfsense.rate_limit")
 # Uses the same Redis instance as Celery for zero additional infrastructure.
 # Protects auth endpoints from brute force and user enumeration attacks.
 
-# SlowAPI limiter — provides default rate limits (60/min) for ALL routes
+# SlowAPI limiter — provides default rate limits (1024/min) for ALL routes
 # via the ASGI middleware. This is the general safety net.
 # in_memory_fallback ensures requests are still served (with per-worker
 # in-memory limiting) when Redis is unreachable, instead of hanging.
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=config.REDIS_APP_URL,
-    default_limits=["180/minute"],
+    default_limits=["1024/minute"],
     in_memory_fallback_enabled=True,
     in_memory_fallback=[MemoryStorage()],
 )
