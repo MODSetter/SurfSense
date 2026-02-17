@@ -248,15 +248,6 @@ async def add_received_markdown_file_document(
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
 
-        from app.utils.blocknote_converter import convert_markdown_to_blocknote
-
-        # Convert to BlockNote JSON
-        blocknote_json = await convert_markdown_to_blocknote(file_in_markdown)
-        if not blocknote_json:
-            logging.warning(
-                f"Failed to convert {file_name} to BlockNote JSON, document will not be editable"
-            )
-
         # Update or create document
         if existing_document:
             # Update existing document
@@ -268,7 +259,7 @@ async def add_received_markdown_file_document(
                 "FILE_NAME": file_name,
             }
             existing_document.chunks = chunks
-            existing_document.blocknote_document = blocknote_json
+            existing_document.source_markdown = file_in_markdown
             existing_document.updated_at = get_current_timestamp()
             existing_document.status = DocumentStatus.ready()  # Mark as ready
 
@@ -294,7 +285,7 @@ async def add_received_markdown_file_document(
                 chunks=chunks,
                 content_hash=content_hash,
                 unique_identifier_hash=primary_hash,
-                blocknote_document=blocknote_json,
+                source_markdown=file_in_markdown,
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
                 connector_id=connector.get("connector_id") if connector else None,

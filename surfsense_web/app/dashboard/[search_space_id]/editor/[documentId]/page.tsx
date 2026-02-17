@@ -3,11 +3,11 @@
 import { useAtom } from "jotai";
 import { AlertCircle, ArrowLeft, FileText, Save } from "lucide-react";
 import { motion } from "motion/react";
+import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { hasUnsavedEditorChangesAtom, pendingEditorNavigationAtom } from "@/atoms/editor/ui.atoms";
-import { BlockNoteEditor } from "@/components/DynamicBlockNoteEditor";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -24,54 +24,28 @@ import { Spinner } from "@/components/ui/spinner";
 import { notesApiService } from "@/lib/apis/notes-api.service";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
-// BlockNote types
-type BlockNoteInlineContent =
-	| string
-	| { text?: string; type?: string; styles?: Record<string, unknown> };
-
-interface BlockNoteBlock {
-	type: string;
-	content?: BlockNoteInlineContent[];
-	children?: BlockNoteBlock[];
-	props?: Record<string, unknown>;
-}
-
-type BlockNoteDocument = BlockNoteBlock[] | null | undefined;
+// Dynamically import PlateEditor (uses 'use client' internally)
+const PlateEditor = dynamic(
+	() => import("@/components/editor/plate-editor").then((mod) => ({ default: mod.PlateEditor })),
+	{ ssr: false, loading: () => <div className="flex items-center justify-center py-12"><Spinner size="xl" className="text-primary" /></div> }
+);
 
 interface EditorContent {
 	document_id: number;
 	title: string;
 	document_type?: string;
-	blocknote_document: BlockNoteDocument;
+	source_markdown: string;
 	updated_at: string | null;
 }
 
-// Helper function to extract title from BlockNote document
-// Takes the text content from the first block (should be a heading for notes)
-function extractTitleFromBlockNote(blocknoteDocument: BlockNoteDocument): string {
-	if (!blocknoteDocument || !Array.isArray(blocknoteDocument) || blocknoteDocument.length === 0) {
-		return "Untitled";
+/** Extract title from markdown: first # heading, or first non-empty line. */
+function extractTitleFromMarkdown(markdown: string | null | undefined): string {
+	if (!markdown) return "Untitled";
+	for (const line of markdown.split("\n")) {
+		const trimmed = line.trim();
+		if (trimmed.startsWith("# ")) return trimmed.slice(2).trim() || "Untitled";
+		if (trimmed) return trimmed.slice(0, 100);
 	}
-
-	const firstBlock = blocknoteDocument[0];
-	if (!firstBlock) {
-		return "Untitled";
-	}
-
-	// Extract text from block content
-	// BlockNote blocks have a content array with inline content
-	if (firstBlock.content && Array.isArray(firstBlock.content)) {
-		const textContent = firstBlock.content
-			.map((item: BlockNoteInlineContent) => {
-				if (typeof item === "string") return item;
-				if (typeof item === "object" && item?.text) return item.text;
-				return "";
-			})
-			.join("")
-			.trim();
-		return textContent || "Untitled";
-	}
-
 	return "Untitled";
 }
 
@@ -85,10 +59,13 @@ export default function EditorPage() {
 	const [document, setDocument] = useState<EditorContent | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
-	const [editorContent, setEditorContent] = useState<BlockNoteDocument>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+
+	// Store the latest markdown from the editor
+	const markdownRef = useRef<string>("");
+	const initialLoadDone = useRef(false);
 
 	// Global state for cross-component communication
 	const [, setGlobalHasUnsavedChanges] = useAtom(hasUnsavedEditorChangesAtom);
@@ -107,51 +84,46 @@ export default function EditorPage() {
 		};
 	}, [setGlobalHasUnsavedChanges, setPendingNavigation]);
 
-	// Handle pending navigation from sidebar (e.g., when user clicks "+" to create new note)
+	// Handle pending navigation from sidebar
 	useEffect(() => {
 		if (pendingNavigation) {
 			if (hasUnsavedChanges) {
-				// Show dialog to confirm navigation
 				setShowUnsavedDialog(true);
 			} else {
-				// No unsaved changes, navigate immediately
 				router.push(pendingNavigation);
 				setPendingNavigation(null);
 			}
 		}
 	}, [pendingNavigation, hasUnsavedChanges, router, setPendingNavigation]);
 
-	// Reset state when documentId changes (e.g., navigating from existing note to new note)
+	// Reset state when documentId changes
 	useEffect(() => {
 		setDocument(null);
-		setEditorContent(null);
 		setError(null);
 		setHasUnsavedChanges(false);
 		setLoading(true);
-	}, []);
+		initialLoadDone.current = false;
+	}, [documentId]);
 
-	// Fetch document content - DIRECT CALL TO FASTAPI
-	// Skip fetching if this is a new note
+	// Fetch document content
 	useEffect(() => {
 		async function fetchDocument() {
-			// For new notes, initialize with empty state
 			if (isNewNote) {
+				markdownRef.current = "";
 				setDocument({
 					document_id: 0,
 					title: "Untitled",
 					document_type: "NOTE",
-					blocknote_document: null,
+					source_markdown: "",
 					updated_at: null,
 				});
-				setEditorContent(null);
 				setLoading(false);
+				initialLoadDone.current = true;
 				return;
 			}
 
 			const token = getBearerToken();
 			if (!token) {
-				console.error("No auth token found");
-				// Redirect to login with current path saved
 				redirectToLogin();
 				return;
 			}
@@ -166,29 +138,28 @@ export default function EditorPage() {
 					const errorData = await response
 						.json()
 						.catch(() => ({ detail: "Failed to fetch document" }));
-					const errorMessage = errorData.detail || "Failed to fetch document";
-					throw new Error(errorMessage);
+					throw new Error(errorData.detail || "Failed to fetch document");
 				}
 
 				const data = await response.json();
 
-				// Check if blocknote_document exists
-				if (!data.blocknote_document) {
-					const errorMsg =
-						"This document does not have BlockNote content. Please re-upload the document to enable editing.";
-					setError(errorMsg);
+				if (data.source_markdown === undefined || data.source_markdown === null) {
+					setError(
+						"This document does not have editable content. Please re-upload to enable editing."
+					);
 					setLoading(false);
 					return;
 				}
 
+				markdownRef.current = data.source_markdown;
 				setDocument(data);
-				setEditorContent(data.blocknote_document);
 				setError(null);
+				initialLoadDone.current = true;
 			} catch (error) {
 				console.error("Error fetching document:", error);
-				const errorMessage =
-					error instanceof Error ? error.message : "Failed to fetch document. Please try again.";
-				setError(errorMessage);
+				setError(
+					error instanceof Error ? error.message : "Failed to fetch document. Please try again."
+				);
 			} finally {
 				setLoading(false);
 			}
@@ -199,29 +170,30 @@ export default function EditorPage() {
 		}
 	}, [documentId, params.search_space_id, isNewNote]);
 
-	// Track changes to mark as unsaved
-	useEffect(() => {
-		if (editorContent && document) {
-			setHasUnsavedChanges(true);
-		}
-	}, [editorContent, document]);
-
-	// Check if this is a NOTE type document
 	const isNote = isNewNote || document?.document_type === "NOTE";
 
-	// Extract title dynamically from editor content for notes, otherwise use document title
+	// Extract title dynamically from current markdown for notes
 	const displayTitle = useMemo(() => {
-		if (isNote && editorContent) {
-			return extractTitleFromBlockNote(editorContent);
+		if (isNote) {
+			return extractTitleFromMarkdown(markdownRef.current || document?.source_markdown);
 		}
 		return document?.title || "Untitled";
-	}, [isNote, editorContent, document?.title]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [isNote, document?.title, document?.source_markdown, hasUnsavedChanges]);
 
-	// TODO: Maybe add Auto-save every 30 seconds - DIRECT CALL TO FASTAPI
+	// Handle markdown changes from the Plate editor
+	const handleMarkdownChange = useCallback(
+		(md: string) => {
+			markdownRef.current = md;
+			if (initialLoadDone.current) {
+				setHasUnsavedChanges(true);
+			}
+		},
+		[]
+	);
 
-	// Save and exit - DIRECT CALL TO FASTAPI
-	// For new notes, create the note first, then save
-	const handleSave = async () => {
+	// Save handler
+	const handleSave = useCallback(async () => {
 		const token = getBearerToken();
 		if (!token) {
 			toast.error("Please login to save");
@@ -233,25 +205,26 @@ export default function EditorPage() {
 		setError(null);
 
 		try {
-			// If this is a new note, create it first
-			if (isNewNote) {
-				const title = extractTitleFromBlockNote(editorContent);
+			const currentMarkdown = markdownRef.current;
 
-				// Create the note first
+			if (isNewNote) {
+				const title = extractTitleFromMarkdown(currentMarkdown);
+
+				// Create the note
 				const note = await notesApiService.createNote({
 					search_space_id: searchSpaceId,
-					title: title,
-					blocknote_document: editorContent || undefined,
+					title,
+					source_markdown: currentMarkdown || undefined,
 				});
 
-				// If there's content, save it properly and trigger reindexing
-				if (editorContent) {
+				// If there's content, save & trigger reindexing
+				if (currentMarkdown) {
 					const response = await authenticatedFetch(
 						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${note.id}/save`,
 						{
 							method: "POST",
 							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({ blocknote_document: editorContent }),
+							body: JSON.stringify({ source_markdown: currentMarkdown }),
 						}
 					);
 
@@ -265,24 +238,15 @@ export default function EditorPage() {
 
 				setHasUnsavedChanges(false);
 				toast.success("Note created successfully! Reindexing in background...");
-
-				// Redirect to documents page after successful save
 				router.push(`/dashboard/${searchSpaceId}/documents`);
 			} else {
-				// Existing document - save normally
-				if (!editorContent) {
-					toast.error("No content to save");
-					setSaving(false);
-					return;
-				}
-
-				// Save blocknote_document and trigger reindexing in background
+				// Existing document — save
 				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${params.search_space_id}/documents/${documentId}/save`,
 					{
 						method: "POST",
 						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ blocknote_document: editorContent }),
+						body: JSON.stringify({ source_markdown: currentMarkdown }),
 					}
 				);
 
@@ -295,8 +259,6 @@ export default function EditorPage() {
 
 				setHasUnsavedChanges(false);
 				toast.success("Document saved! Reindexing in background...");
-
-				// Redirect to documents page after successful save
 				router.push(`/dashboard/${searchSpaceId}/documents`);
 			}
 		} catch (error) {
@@ -312,7 +274,7 @@ export default function EditorPage() {
 		} finally {
 			setSaving(false);
 		}
-	};
+	}, [isNewNote, searchSpaceId, documentId, params.search_space_id, router]);
 
 	const handleBack = () => {
 		if (hasUnsavedChanges) {
@@ -324,11 +286,9 @@ export default function EditorPage() {
 
 	const handleConfirmLeave = () => {
 		setShowUnsavedDialog(false);
-		// Clear global unsaved state
 		setGlobalHasUnsavedChanges(false);
 		setHasUnsavedChanges(false);
 
-		// If there's a pending navigation (from sidebar), use that; otherwise go back to documents
 		if (pendingNavigation) {
 			router.push(pendingNavigation);
 			setPendingNavigation(null);
@@ -339,7 +299,6 @@ export default function EditorPage() {
 
 	const handleCancelLeave = () => {
 		setShowUnsavedDialog(false);
-		// Clear pending navigation if user cancels
 		setPendingNavigation(null);
 	};
 
@@ -356,7 +315,7 @@ export default function EditorPage() {
 		);
 	}
 
-	if (error) {
+	if (error && !document) {
 		return (
 			<div className="flex items-center justify-center min-h-[400px] p-6">
 				<motion.div
@@ -465,11 +424,13 @@ export default function EditorPage() {
 						</motion.div>
 					)}
 					<div className="max-w-4xl mx-auto">
-						<BlockNoteEditor
-							key={documentId} // Force re-mount when document changes
-							initialContent={isNewNote ? undefined : editorContent}
-							onChange={setEditorContent}
-							useTitleBlock={isNote}
+						<PlateEditor
+							key={documentId}
+							markdown={document?.source_markdown ?? ""}
+							onMarkdownChange={handleMarkdownChange}
+							onSave={handleSave}
+							hasUnsavedChanges={hasUnsavedChanges}
+							isSaving={saving}
 						/>
 					</div>
 				</div>

@@ -6,7 +6,7 @@ import { baseApiService } from "./base-api.service";
 const createNoteRequest = z.object({
 	search_space_id: z.number(),
 	title: z.string().min(1),
-	blocknote_document: z.array(z.any()).optional(),
+	source_markdown: z.string().optional(),
 });
 
 const createNoteResponse = z.object({
@@ -82,12 +82,12 @@ class NotesApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		const { search_space_id, title, blocknote_document } = parsedRequest.data;
+		const { search_space_id, title, source_markdown } = parsedRequest.data;
 
-		// Send both title and blocknote_document in request body
+		// Send both title and source_markdown in request body
 		const body = {
 			title,
-			...(blocknote_document && { blocknote_document }),
+			...(source_markdown !== undefined && { source_markdown }),
 		};
 
 		return baseApiService.post(

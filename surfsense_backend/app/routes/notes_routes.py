@@ -1,9 +1,8 @@
 """
-Notes routes for creating and managing BlockNote documents.
+Notes routes for creating and managing note documents.
 """
 
 from datetime import UTC, datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -20,7 +19,7 @@ router = APIRouter()
 
 class CreateNoteRequest(BaseModel):
     title: str
-    blocknote_document: list[dict[str, Any]] | None = None
+    source_markdown: str | None = None
 
 
 @router.post("/search-spaces/{search_space_id}/notes", response_model=DocumentRead)
@@ -31,7 +30,7 @@ async def create_note(
     user: User = Depends(current_active_user),
 ):
     """
-    Create a new note (BlockNote document).
+    Create a new note document.
 
     Requires DOCUMENTS_CREATE permission.
     """
@@ -47,16 +46,8 @@ async def create_note(
     if not request.title or not request.title.strip():
         raise HTTPException(status_code=400, detail="Title is required")
 
-    # Default empty BlockNote structure if not provided
-    blocknote_document = request.blocknote_document
-    if blocknote_document is None:
-        blocknote_document = [
-            {
-                "type": "paragraph",
-                "content": [],
-                "children": [],
-            }
-        ]
+    # Default empty markdown if not provided
+    source_markdown = request.source_markdown if request.source_markdown else ""
 
     # Generate content hash (use title for now, will be updated on save)
     import hashlib
@@ -64,14 +55,13 @@ async def create_note(
     content_hash = hashlib.sha256(request.title.encode()).hexdigest()
 
     # Create document with NOTE type
-
     document = Document(
         search_space_id=search_space_id,
         title=request.title.strip(),
         document_type=DocumentType.NOTE,
         content="",  # Empty initially, will be populated on first save/reindex
         content_hash=content_hash,
-        blocknote_document=blocknote_document,
+        source_markdown=source_markdown,
         content_needs_reindexing=False,  # Will be set to True on first save
         document_metadata={"NOTE": True},
         embedding=None,  # Will be generated on first reindex

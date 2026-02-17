@@ -79,7 +79,6 @@ celery_app = Celery(
         "app.tasks.celery_tasks.podcast_tasks",
         "app.tasks.celery_tasks.connector_tasks",
         "app.tasks.celery_tasks.schedule_checker_task",
-        "app.tasks.celery_tasks.blocknote_migration_tasks",
         "app.tasks.celery_tasks.document_reindex_tasks",
         "app.tasks.celery_tasks.stale_notification_cleanup_task",
     ],

@@ -208,14 +208,7 @@ async def add_circleback_meeting_document(
         # Process chunks
         chunks = await create_document_chunks(markdown_content)
 
-        # Convert to BlockNote JSON for editing capability
-        from app.utils.blocknote_converter import convert_markdown_to_blocknote
-
-        blocknote_json = await convert_markdown_to_blocknote(markdown_content)
-        if not blocknote_json:
-            logger.warning(
-                f"Failed to convert Circleback meeting {meeting_id} to BlockNote JSON, document will not be editable"
-            )
+        # No BlockNote conversion needed — store raw markdown for Plate.js editor
 
         # Prepare final document metadata
         document_metadata = {
@@ -235,7 +228,7 @@ async def add_circleback_meeting_document(
             document.embedding = summary_embedding
         document.document_metadata = document_metadata
         safe_set_chunks(document, chunks)
-        document.blocknote_document = blocknote_json
+        document.source_markdown = markdown_content
         document.content_needs_reindexing = False
         document.updated_at = get_current_timestamp()
         document.status = DocumentStatus.ready()
