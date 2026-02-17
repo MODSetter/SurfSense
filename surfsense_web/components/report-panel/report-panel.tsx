@@ -302,7 +302,7 @@ function ReportPanelContent({
 			{/* Action bar — always visible after initial load */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
-				{/* Copy button */}
+					{/* Copy button */}
 					<Button
 						variant="outline"
 						size="sm"
@@ -426,16 +426,16 @@ function ReportPanelContent({
 						</div>
 					</div>
 				) : reportContent.content ? (
-				<PlateEditor
-					markdown={reportContent.content}
-					onMarkdownChange={shareToken ? undefined : setEditedMarkdown}
-					readOnly={!!shareToken}
-					placeholder="Report content..."
-					editorVariant="default"
-					onSave={shareToken ? undefined : handleSave}
-					hasUnsavedChanges={!shareToken && editedMarkdown !== null}
-					isSaving={saving}
-				/>
+					<PlateEditor
+						markdown={reportContent.content}
+						onMarkdownChange={shareToken ? undefined : setEditedMarkdown}
+						readOnly={!!shareToken}
+						placeholder="Report content..."
+						editorVariant="default"
+						onSave={shareToken ? undefined : handleSave}
+						hasUnsavedChanges={!shareToken && editedMarkdown !== null}
+						isSaving={saving}
+					/>
 				) : (
 					<div className="px-5 py-5">
 						<p className="text-muted-foreground italic">No content available.</p>
@@ -499,7 +499,10 @@ function MobileReportDrawer() {
 			}}
 			shouldScaleBackground={false}
 		>
-			<DrawerContent className="h-[90vh] max-h-[90vh] z-80 !rounded-none border-none" overlayClassName="z-80">
+			<DrawerContent
+				className="h-[90vh] max-h-[90vh] z-80 !rounded-none border-none"
+				overlayClassName="z-80"
+			>
 				<DrawerHandle />
 				<DrawerTitle className="sr-only">{panelState.title || "Report"}</DrawerTitle>
 				<div className="min-h-0 flex-1 flex flex-col overflow-hidden">

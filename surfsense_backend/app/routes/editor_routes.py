@@ -126,9 +126,7 @@ async def get_editor_content(
         "title": document.title,
         "document_type": document.document_type.value,
         "source_markdown": markdown_content,
-        "updated_at": document.updated_at.isoformat()
-        if document.updated_at
-        else None,
+        "updated_at": document.updated_at.isoformat() if document.updated_at else None,
     }
 
 
@@ -172,14 +170,10 @@ async def save_document(
 
     source_markdown = data.get("source_markdown")
     if source_markdown is None:
-        raise HTTPException(
-            status_code=400, detail="source_markdown is required"
-        )
+        raise HTTPException(status_code=400, detail="source_markdown is required")
 
     if not isinstance(source_markdown, str):
-        raise HTTPException(
-            status_code=400, detail="source_markdown must be a string"
-        )
+        raise HTTPException(status_code=400, detail="source_markdown must be a string")
 
     # For NOTE type, extract title from first heading line if present
     if document.document_type == DocumentType.NOTE:

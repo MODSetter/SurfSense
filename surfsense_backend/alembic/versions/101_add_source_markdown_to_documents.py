@@ -72,7 +72,9 @@ def _populate_source_markdown(conn, batch_size: int = 500) -> None:
         print("No documents with blocknote_document need migration")
         return
 
-    print(f"  Migrating {total} documents (with blocknote_document) to source_markdown...")
+    print(
+        f"  Migrating {total} documents (with blocknote_document) to source_markdown..."
+    )
 
     migrated = 0
     failed = 0

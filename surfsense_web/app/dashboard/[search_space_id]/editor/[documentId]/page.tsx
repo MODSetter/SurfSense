@@ -27,7 +27,14 @@ import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-
 // Dynamically import PlateEditor (uses 'use client' internally)
 const PlateEditor = dynamic(
 	() => import("@/components/editor/plate-editor").then((mod) => ({ default: mod.PlateEditor })),
-	{ ssr: false, loading: () => <div className="flex items-center justify-center py-12"><Spinner size="xl" className="text-primary" /></div> }
+	{
+		ssr: false,
+		loading: () => (
+			<div className="flex items-center justify-center py-12">
+				<Spinner size="xl" className="text-primary" />
+			</div>
+		),
+	}
 );
 
 interface EditorContent {
@@ -182,15 +189,12 @@ export default function EditorPage() {
 	}, [isNote, document?.title, document?.source_markdown, hasUnsavedChanges]);
 
 	// Handle markdown changes from the Plate editor
-	const handleMarkdownChange = useCallback(
-		(md: string) => {
-			markdownRef.current = md;
-			if (initialLoadDone.current) {
-				setHasUnsavedChanges(true);
-			}
-		},
-		[]
-	);
+	const handleMarkdownChange = useCallback((md: string) => {
+		markdownRef.current = md;
+		if (initialLoadDone.current) {
+			setHasUnsavedChanges(true);
+		}
+	}, []);
 
 	// Save handler
 	const handleSave = useCallback(async () => {
@@ -438,10 +442,11 @@ export default function EditorPage() {
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel onClick={handleCancelLeave}>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleSaveAndLeave}>
-							Save
-						</AlertDialogAction>
-						<AlertDialogAction onClick={handleConfirmLeave} className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground">
+						<AlertDialogAction onClick={handleSaveAndLeave}>Save</AlertDialogAction>
+						<AlertDialogAction
+							onClick={handleConfirmLeave}
+							className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+						>
 							Leave without saving
 						</AlertDialogAction>
 					</AlertDialogFooter>

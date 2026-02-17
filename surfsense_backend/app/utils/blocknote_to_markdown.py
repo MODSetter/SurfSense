@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Inline content → markdown text
 # ---------------------------------------------------------------------------
 
+
 def _render_inline_content(content: list[dict[str, Any]] | None) -> str:
     """Convert BlockNote inline content array to a markdown string."""
     if not content:
@@ -215,6 +216,7 @@ def _render_block(block: dict[str, Any], indent: int = 0) -> list[str]:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def blocknote_to_markdown(
     blocks: list[dict[str, Any]] | dict[str, Any] | None,
 ) -> str | None:
@@ -248,7 +250,9 @@ def blocknote_to_markdown(
         blocks = [blocks]
 
     if not isinstance(blocks, list):
-        logger.warning(f"blocknote_to_markdown received unexpected type: {type(blocks)}")
+        logger.warning(
+            f"blocknote_to_markdown received unexpected type: {type(blocks)}"
+        )
         return None
 
     all_lines: list[str] = []
@@ -272,10 +276,10 @@ def blocknote_to_markdown(
         # Add a blank line between blocks (standard markdown spacing)
         # Exception: consecutive list items of the same type don't get extra blank lines
         if all_lines and block_lines:
-            same_list = (
-                (block_type == prev_type and block_type in (
-                    "bulletListItem", "numberedListItem", "checkListItem"
-                ))
+            same_list = block_type == prev_type and block_type in (
+                "bulletListItem",
+                "numberedListItem",
+                "checkListItem",
             )
             if not same_list:
                 all_lines.append("")
@@ -285,4 +289,3 @@ def blocknote_to_markdown(
 
     result = "\n".join(all_lines).strip()
     return result if result else None
-
