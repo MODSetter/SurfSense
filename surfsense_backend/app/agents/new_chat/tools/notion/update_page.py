@@ -218,6 +218,38 @@ def create_update_notion_page_tool(
             logger.info(
                 f"update_page result: {result.get('status')} - {result.get('message', '')}"
             )
+
+            if result.get("status") == "success":
+                from app.services.notion import NotionKBSyncService
+
+                logger.info(f"Updating knowledge base for page {final_page_id}...")
+                kb_service = NotionKBSyncService(db_session)
+                kb_result = await kb_service.sync_after_update(
+                    page_id=final_page_id,
+                    search_space_id=search_space_id,
+                    appended_content=final_content,
+                    user_id=user_id,
+                )
+
+                if kb_result["status"] == "success":
+                    result["message"] = (
+                        f"{result['message']}. Knowledge base updated - your search results now reflect the latest content."
+                    )
+                    logger.info(
+                        f"Knowledge base successfully updated for page {final_page_id}"
+                    )
+                elif kb_result["status"] == "not_indexed":
+                    result["message"] = (
+                        f"{result['message']}. (Note: This page hasn't been indexed yet, so it won't appear in search until the next scheduled indexing.)"
+                    )
+                else:
+                    result["message"] = (
+                        f"{result['message']}. However, knowledge base update failed: {kb_result['message']}. The page will sync on the next scheduled indexing."
+                    )
+                    logger.warning(
+                        f"KB update failed for page {final_page_id}: {kb_result['message']}"
+                    )
+
             return result
 
         except Exception as e:
