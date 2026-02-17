@@ -4,14 +4,12 @@ Revision ID: 101
 Revises: 100
 Create Date: 2026-02-17
 
-Adds source_markdown column and populates it for existing documents
-using a pure-Python BlockNote JSON → Markdown converter. No external
-dependencies (no Node.js, no Celery, no HTTP calls).
+Adds source_markdown column and converts only documents that have
+blocknote_document data. Uses a pure-Python BlockNote JSON → Markdown
+converter. No external dependencies (no Node.js, no Celery, no HTTP calls).
 
-Fallback chain per document:
-  1. blocknote_document exists → convert to markdown with Python converter
-  2. blocknote_document missing/fails → reconstruct from chunks
-  3. Neither exists → skip (log warning)
+Documents without blocknote_document keep source_markdown = NULL and
+get populated lazily by the editor route when a user first opens them.
 """
 
 from __future__ import annotations
@@ -48,103 +46,67 @@ def upgrade() -> None:
             sa.Column("source_markdown", sa.Text(), nullable=True),
         )
 
-    # 2. Populate source_markdown for existing documents (inline, synchronous)
+    # 2. Convert only documents that have blocknote_document data
     _populate_source_markdown(conn)
 
 
 def _populate_source_markdown(conn) -> None:
-    """Populate source_markdown for all documents where it is NULL.
-
-    Fallback chain:
-        1. blocknote_document → pure-Python converter → source_markdown
-        2. chunks (ordered by id) → joined text → source_markdown
-        3. Neither → skip with warning
-    """
-    # Import the pure-Python converter (no external deps)
+    """Populate source_markdown only for documents that have blocknote_document."""
     from app.utils.blocknote_to_markdown import blocknote_to_markdown
 
-    # Find documents that need migration
+    # Only fetch documents that have blocknote_document content
     result = conn.execute(
         sa.text("""
             SELECT id, title, blocknote_document
             FROM documents
             WHERE source_markdown IS NULL
+              AND blocknote_document IS NOT NULL
         """)
     )
     rows = result.fetchall()
 
     total = len(rows)
     if total == 0:
-        print("✓ No documents need source_markdown migration")
+        print("✓ No documents with blocknote_document need migration")
         return
 
-    print(f"  Migrating {total} documents to source_markdown...")
+    print(f"  Migrating {total} documents (with blocknote_document) to source_markdown...")
 
     migrated = 0
-    from_blocknote = 0
-    from_chunks = 0
-    skipped = 0
+    failed = 0
 
     for row in rows:
         doc_id = row[0]
         doc_title = row[1]
         blocknote_doc = row[2]
 
-        markdown = None
+        try:
+            if isinstance(blocknote_doc, str):
+                blocknote_doc = json.loads(blocknote_doc)
+            markdown = blocknote_to_markdown(blocknote_doc)
 
-        # --- Fallback 1: Convert blocknote_document with pure Python ---
-        if blocknote_doc:
-            try:
-                # blocknote_doc may be a JSON string or already parsed
-                if isinstance(blocknote_doc, str):
-                    blocknote_doc = json.loads(blocknote_doc)
-                markdown = blocknote_to_markdown(blocknote_doc)
-                if markdown:
-                    from_blocknote += 1
-            except Exception as e:
-                logger.warning(
-                    f"  Doc {doc_id} ({doc_title}): blocknote conversion failed ({e}), "
-                    f"falling back to chunks"
+            if markdown:
+                conn.execute(
+                    sa.text("""
+                        UPDATE documents SET source_markdown = :md WHERE id = :doc_id
+                    """),
+                    {"md": markdown, "doc_id": doc_id},
                 )
-
-        # --- Fallback 2: Reconstruct from chunks ---
-        if not markdown:
-            chunk_result = conn.execute(
-                sa.text("""
-                    SELECT content FROM chunks
-                    WHERE document_id = :doc_id
-                    ORDER BY id
-                """),
-                {"doc_id": doc_id},
-            )
-            chunk_rows = chunk_result.fetchall()
-            if chunk_rows:
-                chunk_texts = [r[0] for r in chunk_rows if r[0]]
-                if chunk_texts:
-                    markdown = "\n\n".join(chunk_texts)
-                    from_chunks += 1
-
-        # --- Fallback 3: Nothing to migrate from ---
-        if not markdown or not markdown.strip():
+                migrated += 1
+            else:
+                logger.warning(
+                    f"  Doc {doc_id} ({doc_title}): blocknote conversion produced empty result"
+                )
+                failed += 1
+        except Exception as e:
             logger.warning(
-                f"  Doc {doc_id} ({doc_title}): no blocknote_document or chunks — skipped"
+                f"  Doc {doc_id} ({doc_title}): blocknote conversion failed ({e})"
             )
-            skipped += 1
-            continue
-
-        # Write source_markdown
-        conn.execute(
-            sa.text("""
-                UPDATE documents SET source_markdown = :md WHERE id = :doc_id
-            """),
-            {"md": markdown, "doc_id": doc_id},
-        )
-        migrated += 1
+            failed += 1
 
     print(
-        f"✓ source_markdown migration complete: {migrated} migrated "
-        f"({from_blocknote} from blocknote, {from_chunks} from chunks), "
-        f"{skipped} skipped out of {total} total"
+        f"✓ source_markdown migration complete: {migrated} migrated, "
+        f"{failed} failed out of {total} total"
     )
 
 
