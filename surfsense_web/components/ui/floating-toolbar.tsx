@@ -18,6 +18,7 @@ import {
 } from 'platejs/react';
 
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 import { Toolbar } from './toolbar';
 
@@ -32,6 +33,7 @@ export function FloatingToolbar({
   const editorId = useEditorId();
   const focusedEditorId = useEventEditorValue('focus');
   const isFloatingLinkOpen = !!usePluginOption({ key: KEYS.link }, 'mode');
+  const isMobile = useIsMobile();
 
   const floatingToolbarState = useFloatingToolbarState({
     editorId,
@@ -65,7 +67,7 @@ export function FloatingToolbar({
 
   const ref = useComposedRef<HTMLDivElement>(props.ref, floatingRef);
 
-  if (hidden) return null;
+  if (hidden || isMobile) return null;
 
   return (
     <div ref={clickOutsideRef}>
