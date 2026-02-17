@@ -10,16 +10,16 @@ import type { Announcement } from "@/contracts/types/announcement.types";
  */
 export const announcements: Announcement[] = [
 	{
-		id: "2026-02-12-announcement-syste",
+		id: "announcement-1",
 		title: "Introducing Announcements",
 		description:
-			"Stay up to date with the latest SurfSense news! Important announcements will appear as toast notifications so you never miss critical updates. Visit the Announcements page from the sidebar to browse all past announcements.",
+			"All major announcements will be posted here.",
 		category: "feature",
-		date: "2026-02-12T00:00:00Z",
+		date: "2026-02-17T00:00:00Z",
 		isImportant: true,
 		link: {
-			label: "Learn more",
-			url: "/changelog",
+			label: "Check Here",
+			url: "/announcements",
 		},
 	},
 	// {
