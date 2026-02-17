@@ -1,6 +1,6 @@
 "use client";
 
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, PenLine, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -115,7 +115,7 @@ export function RowActions({
 									isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""
 								}
 							>
-								<Pencil className="mr-2 h-4 w-4" />
+								<PenLine className="mr-2 h-4 w-4" />
 								<span>Edit</span>
 							</DropdownMenuItem>
 							{shouldShowDelete && (
@@ -170,7 +170,7 @@ export function RowActions({
 									isEditDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""
 								}
 							>
-								<Pencil className="mr-2 h-4 w-4" />
+								<PenLine className="mr-2 h-4 w-4" />
 								<span>Edit</span>
 							</DropdownMenuItem>
 							{shouldShowDelete && (

@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { notesApiService } from "@/lib/apis/notes-api.service";
 import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
 
@@ -30,8 +30,22 @@ const PlateEditor = dynamic(
 	{
 		ssr: false,
 		loading: () => (
-			<div className="flex items-center justify-center py-12">
-				<Spinner size="xl" className="text-primary" />
+			<div className="mx-auto w-full max-w-[900px] px-6 md:px-12 pt-10 space-y-4">
+				<Skeleton className="h-8 w-3/5 rounded" />
+				<div className="space-y-3 pt-4">
+					<Skeleton className="h-4 w-full rounded" />
+					<Skeleton className="h-4 w-full rounded" />
+					<Skeleton className="h-4 w-4/5 rounded" />
+				</div>
+				<div className="space-y-3 pt-3">
+					<Skeleton className="h-4 w-full rounded" />
+					<Skeleton className="h-4 w-5/6 rounded" />
+					<Skeleton className="h-4 w-3/4 rounded" />
+				</div>
+				<div className="space-y-3 pt-3">
+					<Skeleton className="h-4 w-full rounded" />
+					<Skeleton className="h-4 w-2/3 rounded" />
+				</div>
 			</div>
 		),
 	}
@@ -314,13 +328,49 @@ export default function EditorPage() {
 
 	if (loading) {
 		return (
-			<div className="flex items-center justify-center min-h-[400px] p-6">
-				<Card className="w-full max-w-md">
-					<CardContent className="flex flex-col items-center justify-center py-12">
-						<Spinner size="xl" className="text-primary mb-4" />
-						<p className="text-muted-foreground">Loading editor</p>
-					</CardContent>
-				</Card>
+			<div className="flex flex-col h-screen w-full overflow-hidden">
+				{/* Top bar skeleton — real back button & file icon, skeleton title */}
+				<div className="flex h-14 md:h-16 shrink-0 items-center border-b bg-background pl-1.5 pr-3 md:pl-3 md:pr-6">
+					<div className="flex items-center gap-1.5 md:gap-2 flex-1 min-w-0">
+						<Button
+							variant="ghost"
+							size="icon"
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/documents`)}
+							className="h-7 w-7 shrink-0 p-0"
+						>
+							<ArrowLeft className="h-4 w-4" />
+							<span className="sr-only">Back</span>
+						</Button>
+						<FileText className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground shrink-0" />
+						<Skeleton className="h-5 w-40 rounded" />
+					</div>
+				</div>
+
+				{/* Fixed toolbar placeholder — matches real toolbar styling */}
+				<div className="sticky top-0 left-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 h-10" />
+
+				{/* Content area skeleton — mimics document text lines */}
+				<div className="flex-1 min-h-0 overflow-hidden">
+					<div className="mx-auto w-full max-w-[900px] px-6 md:px-12 pt-10 space-y-4">
+						{/* Title-like line */}
+						<Skeleton className="h-8 w-3/5 rounded" />
+						{/* Paragraph lines */}
+						<div className="space-y-3 pt-4">
+							<Skeleton className="h-4 w-full rounded" />
+							<Skeleton className="h-4 w-full rounded" />
+							<Skeleton className="h-4 w-4/5 rounded" />
+						</div>
+						<div className="space-y-3 pt-3">
+							<Skeleton className="h-4 w-full rounded" />
+							<Skeleton className="h-4 w-5/6 rounded" />
+							<Skeleton className="h-4 w-3/4 rounded" />
+						</div>
+						<div className="space-y-3 pt-3">
+							<Skeleton className="h-4 w-full rounded" />
+							<Skeleton className="h-4 w-2/3 rounded" />
+						</div>
+					</div>
+				</div>
 			</div>
 		);
 	}
