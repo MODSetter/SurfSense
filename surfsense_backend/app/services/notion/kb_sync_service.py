@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import delete
+from sqlalchemy import String, cast, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -37,7 +37,7 @@ class NotionKBSyncService:
             result = await self.db_session.execute(
                 select(Document).filter(
                     Document.search_space_id == search_space_id,
-                    Document.document_metadata["page_id"].astext == page_id,
+                    cast(Document.document_metadata["page_id"], String) == page_id,
                 )
             )
             document = result.scalars().first()
