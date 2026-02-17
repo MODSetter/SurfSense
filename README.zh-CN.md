@@ -84,11 +84,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 **快速开始（Docker 一行命令）：**
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --name surfsense --restart unless-stopped ghcr.io/modsetter/surfsense:latest
 ```
 
 启动后，在浏览器中打开 [http://localhost:3000](http://localhost:3000)。

@@ -84,11 +84,7 @@ Ejecuta SurfSense en tu propia infraestructura para control total de datos y pri
 **Inicio Rápido (Docker en un solo comando):**
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --name surfsense --restart unless-stopped ghcr.io/modsetter/surfsense:latest
 ```
 
 Después de iniciar, abre [http://localhost:3000](http://localhost:3000) en tu navegador.
