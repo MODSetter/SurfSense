@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { AlertCircle, ArrowLeft, FileText, Save } from "lucide-react";
+import { AlertCircle, ArrowLeft, FileText } from "lucide-react";
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useParams, useRouter } from "next/navigation";
@@ -297,6 +297,12 @@ export default function EditorPage() {
 		}
 	};
 
+	const handleSaveAndLeave = async () => {
+		setShowUnsavedDialog(false);
+		setPendingNavigation(null);
+		await handleSave();
+	};
+
 	const handleCancelLeave = () => {
 		setShowUnsavedDialog(false);
 		setPendingNavigation(null);
@@ -364,11 +370,21 @@ export default function EditorPage() {
 		<motion.div
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
-			className="flex flex-col min-h-screen w-full"
+			className="flex flex-col h-screen w-full overflow-hidden"
 		>
 			{/* Toolbar */}
-			<div className="sticky top-0 z-40 flex h-14 md:h-16 shrink-0 items-center gap-2 md:gap-4 bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-3 md:px-6">
-				<div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+			<div className="flex h-14 md:h-16 shrink-0 items-center border-b bg-background pl-1.5 pr-3 md:pl-3 md:pr-6">
+				<div className="flex items-center gap-1.5 md:gap-2 flex-1 min-w-0">
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={handleBack}
+						disabled={saving}
+						className="h-7 w-7 shrink-0 p-0"
+					>
+						<ArrowLeft className="h-4 w-4" />
+						<span className="sr-only">Back</span>
+					</Button>
 					<FileText className="h-4 w-4 md:h-5 md:w-5 text-muted-foreground shrink-0" />
 					<div className="flex flex-col min-w-0">
 						<h1 className="text-base md:text-lg font-semibold truncate">{displayTitle}</h1>
@@ -377,62 +393,32 @@ export default function EditorPage() {
 						)}
 					</div>
 				</div>
-
-				<div className="flex items-center gap-2">
-					<Button
-						variant="outline"
-						onClick={handleBack}
-						disabled={saving}
-						className="gap-1 md:gap-2 px-2 md:px-4 h-8 md:h-10"
-					>
-						<ArrowLeft className="h-3.5 w-3.5 md:h-4 md:w-4" />
-						<span className="text-xs md:text-sm">Back</span>
-					</Button>
-					<Button
-						onClick={handleSave}
-						disabled={saving}
-						className="gap-1 md:gap-2 px-2 md:px-4 h-8 md:h-10"
-					>
-						{saving ? (
-							<>
-								<Spinner size="sm" className="h-3.5 w-3.5 md:h-4 md:w-4" />
-								<span className="text-xs md:text-sm">{isNewNote ? "Creating" : "Saving"}</span>
-							</>
-						) : (
-							<>
-								<Save className="h-3.5 w-3.5 md:h-4 md:w-4" />
-								<span className="text-xs md:text-sm">Save</span>
-							</>
-						)}
-					</Button>
-				</div>
 			</div>
 
 			{/* Editor Container */}
-			<div className="flex-1 min-h-0 overflow-hidden relative">
-				<div className="h-full w-full overflow-auto p-3 md:p-6">
-					{error && (
-						<motion.div
-							initial={{ opacity: 0, y: -10 }}
-							animate={{ opacity: 1, y: 0 }}
-							className="mb-6 max-w-4xl mx-auto"
-						>
-							<div className="flex items-center gap-2 p-4 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive">
-								<AlertCircle className="h-5 w-5 shrink-0" />
-								<p className="text-sm">{error}</p>
-							</div>
-						</motion.div>
-					)}
-					<div className="max-w-4xl mx-auto">
-						<PlateEditor
-							key={documentId}
-							markdown={document?.source_markdown ?? ""}
-							onMarkdownChange={handleMarkdownChange}
-							onSave={handleSave}
-							hasUnsavedChanges={hasUnsavedChanges}
-							isSaving={saving}
-						/>
-					</div>
+			<div className="flex-1 min-h-0 flex flex-col overflow-hidden relative">
+				{error && (
+					<motion.div
+						initial={{ opacity: 0, y: -10 }}
+						animate={{ opacity: 1, y: 0 }}
+						className="px-3 md:px-6 pt-3 md:pt-6"
+					>
+						<div className="flex items-center gap-2 p-4 rounded-lg border border-destructive/50 bg-destructive/10 text-destructive max-w-4xl mx-auto">
+							<AlertCircle className="h-5 w-5 shrink-0" />
+							<p className="text-sm">{error}</p>
+						</div>
+					</motion.div>
+				)}
+				<div className="flex-1 min-h-0">
+					<PlateEditor
+						key={documentId}
+						markdown={document?.source_markdown ?? ""}
+						onMarkdownChange={handleMarkdownChange}
+						onSave={handleSave}
+						hasUnsavedChanges={hasUnsavedChanges}
+						isSaving={saving}
+						defaultEditing={true}
+					/>
 				</div>
 			</div>
 
@@ -452,7 +438,12 @@ export default function EditorPage() {
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel onClick={handleCancelLeave}>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleConfirmLeave}>OK</AlertDialogAction>
+						<AlertDialogAction onClick={handleSaveAndLeave}>
+							Save
+						</AlertDialogAction>
+						<AlertDialogAction onClick={handleConfirmLeave} className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground">
+							Leave without saving
+						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

@@ -50,6 +50,8 @@ interface PlateEditorProps {
   hasUnsavedChanges?: boolean;
   /** Whether a save is in progress */
   isSaving?: boolean;
+  /** Start the editor in editing mode instead of viewing mode. Ignored when readOnly is true. */
+  defaultEditing?: boolean;
 }
 
 export function PlateEditor({
@@ -63,14 +65,15 @@ export function PlateEditor({
   onSave,
   hasUnsavedChanges = false,
   isSaving = false,
+  defaultEditing = false,
 }: PlateEditorProps) {
   const lastMarkdownRef = useRef(markdown);
 
-  // Always initialize the editor in readOnly mode (viewing mode).
-  // For non-forced readOnly, the user can toggle to editing via ModeToolbarButton.
-  // For forced readOnly, the mode button is hidden and readOnly stays true.
+  // When readOnly is forced, always start in readOnly.
+  // Otherwise, respect defaultEditing to decide initial mode.
+  // The user can still toggle between editing/viewing via ModeToolbarButton.
   const editor = usePlateEditor({
-    readOnly: true,
+    readOnly: readOnly || !defaultEditing,
     plugins: [
       ...BasicNodesKit,
       ...TableKit,
