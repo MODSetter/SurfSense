@@ -155,6 +155,13 @@ def _render_block(block: dict[str, Any], indent: int = 0) -> list[str]:
                     if isinstance(cell, list):
                         # Cell is a list of inline content
                         cell_texts.append(_render_inline_content(cell))
+                    elif isinstance(cell, dict):
+                        # Cell is a tableCell object with its own content
+                        cell_content = cell.get("content")
+                        if isinstance(cell_content, list):
+                            cell_texts.append(_render_inline_content(cell_content))
+                        else:
+                            cell_texts.append("")
                     elif isinstance(cell, str):
                         cell_texts.append(cell)
                     else:
