@@ -10,9 +10,9 @@ from app.db import Chunk, Document
 from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
+    generate_content_hash,
     generate_document_summary,
 )
-from app.utils.hash_utils import generate_content_hash
 
 logger = logging.getLogger(__name__)
 
