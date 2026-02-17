@@ -168,6 +168,7 @@ NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE="${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE:-
 NEXT_PUBLIC_ETL_SERVICE="${NEXT_PUBLIC_ETL_SERVICE:-DOCLING}"
 NEXT_PUBLIC_ELECTRIC_URL="${NEXT_PUBLIC_ELECTRIC_URL:-http://localhost:5133}"
 NEXT_PUBLIC_ELECTRIC_AUTH_MODE="${NEXT_PUBLIC_ELECTRIC_AUTH_MODE:-insecure}"
+NEXT_PUBLIC_DEPLOYMENT_MODE="${NEXT_PUBLIC_DEPLOYMENT_MODE:-self-hosted}"
 
 # Replace placeholders in all JS files
 find /app/frontend -type f \( -name "*.js" -o -name "*.json" \) -exec sed -i \
@@ -176,13 +177,15 @@ find /app/frontend -type f \( -name "*.js" -o -name "*.json" \) -exec sed -i \
     -e "s|__NEXT_PUBLIC_ETL_SERVICE__|${NEXT_PUBLIC_ETL_SERVICE}|g" \
     -e "s|__NEXT_PUBLIC_ELECTRIC_URL__|${NEXT_PUBLIC_ELECTRIC_URL}|g" \
     -e "s|__NEXT_PUBLIC_ELECTRIC_AUTH_MODE__|${NEXT_PUBLIC_ELECTRIC_AUTH_MODE}|g" \
+    -e "s|__NEXT_PUBLIC_DEPLOYMENT_MODE__|${NEXT_PUBLIC_DEPLOYMENT_MODE}|g" \
     {} +
 
 echo "✅ Environment configuration applied"
-echo "   Backend URL:   ${NEXT_PUBLIC_FASTAPI_BACKEND_URL}"
-echo "   Auth Type:     ${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE}"
-echo "   ETL Service:   ${NEXT_PUBLIC_ETL_SERVICE}"
-echo "   Electric URL:  ${NEXT_PUBLIC_ELECTRIC_URL}"
+echo "   Backend URL:      ${NEXT_PUBLIC_FASTAPI_BACKEND_URL}"
+echo "   Auth Type:        ${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE}"
+echo "   ETL Service:      ${NEXT_PUBLIC_ETL_SERVICE}"
+echo "   Electric URL:     ${NEXT_PUBLIC_ELECTRIC_URL}"
+echo "   Deployment Mode:  ${NEXT_PUBLIC_DEPLOYMENT_MODE}"
 
 # ================================================
 # Run database migrations

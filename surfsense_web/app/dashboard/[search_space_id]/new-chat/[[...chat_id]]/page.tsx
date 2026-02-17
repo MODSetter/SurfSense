@@ -28,15 +28,21 @@ import {
 	// extractWriteTodosFromContent,
 	hydratePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
+import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
+import { ReportPanel } from "@/components/report-panel/report-panel";
+import { CreateNotionPageToolUI } from "@/components/tool-ui/create-notion-page";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
+import { DeleteNotionPageToolUI } from "@/components/tool-ui/delete-notion-page";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
+import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
+import { UpdateNotionPageToolUI } from "@/components/tool-ui/update-notion-page";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
@@ -50,6 +56,17 @@ import {
 	looksLikePodcastRequest,
 	setActivePodcastTaskId,
 } from "@/lib/chat/podcast-state";
+import {
+	addToolCall,
+	appendText,
+	buildContentForPersistence,
+	buildContentForUI,
+	type ContentPart,
+	type ContentPartsState,
+	readSSEStream,
+	type ThinkingStepData,
+	updateToolCall,
+} from "@/lib/chat/streaming-state";
 import {
 	appendMessage,
 	createThread,
@@ -117,21 +134,15 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
  */
 const TOOLS_WITH_UI = new Set([
 	"generate_podcast",
+	"generate_report",
 	"link_preview",
 	"display_image",
+	"delete_notion_page",
 	"scrape_webpage",
+	"create_notion_page",
+	"update_notion_page",
 	// "write_todos", // Disabled for now
 ]);
-
-/**
- * Type for thinking step data from the backend
- */
-interface ThinkingStepData {
-	id: string;
-	title: string;
-	status: "pending" | "in_progress" | "completed";
-	items: string[];
-}
 
 export default function NewChatPage() {
 	const params = useParams();
@@ -147,6 +158,11 @@ export default function NewChatPage() {
 		new Map()
 	);
 	const abortControllerRef = useRef<AbortController | null>(null);
+	const [pendingInterrupt, setPendingInterrupt] = useState<{
+		threadId: number;
+		assistantMsgId: string;
+		interruptData: Record<string, unknown>;
+	} | null>(null);
 
 	// Get mentioned document IDs from the composer
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
@@ -158,6 +174,7 @@ export default function NewChatPage() {
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
+	const closeReportPanel = useSetAtom(closeReportPanelAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -251,6 +268,7 @@ export default function NewChatPage() {
 		setMentionedDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
+		closeReportPanel(); // Close report panel when switching chats
 
 		try {
 			if (urlChatId > 0) {
@@ -315,6 +333,7 @@ export default function NewChatPage() {
 		setMentionedDocumentIds,
 		setMentionedDocuments,
 		hydratePlanState,
+		closeReportPanel,
 	]);
 
 	// Initialize on mount
@@ -377,6 +396,16 @@ export default function NewChatPage() {
 			addingCommentToMessageId: null,
 		}));
 	}, [currentThread, setCurrentThreadState]);
+
+	// Cleanup on unmount - abort any in-flight requests
+	useEffect(() => {
+		return () => {
+			if (abortControllerRef.current) {
+				abortControllerRef.current.abort();
+				abortControllerRef.current = null;
+			}
+		};
+	}, []);
 
 	// Cancel ongoing request
 	const cancelRun = useCallback(async () => {
@@ -533,101 +562,13 @@ export default function NewChatPage() {
 			const assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 
-			// Ordered content parts to preserve inline tool call positions
-			// Each part is either a text segment or a tool call
-			type ContentPart =
-				| { type: "text"; text: string }
-				| {
-						type: "tool-call";
-						toolCallId: string;
-						toolName: string;
-						args: Record<string, unknown>;
-						result?: unknown;
-				  };
-			const contentParts: ContentPart[] = [];
-
-			// Track the current text segment index (for appending text deltas)
-			let currentTextPartIndex = -1;
-
-			// Map to track tool call indices for updating results
-			const toolCallIndices = new Map<string, number>();
-
-			// Helper to get or create the current text part for appending text
-			const appendText = (delta: string) => {
-				if (currentTextPartIndex >= 0 && contentParts[currentTextPartIndex]?.type === "text") {
-					// Append to existing text part
-					(contentParts[currentTextPartIndex] as { type: "text"; text: string }).text += delta;
-				} else {
-					// Create new text part
-					contentParts.push({ type: "text", text: delta });
-					currentTextPartIndex = contentParts.length - 1;
-				}
+			const contentPartsState: ContentPartsState = {
+				contentParts: [],
+				currentTextPartIndex: -1,
+				toolCallIndices: new Map(),
 			};
-
-			// Helper to add a tool call (this "breaks" the current text segment)
-			const addToolCall = (toolCallId: string, toolName: string, args: Record<string, unknown>) => {
-				if (TOOLS_WITH_UI.has(toolName)) {
-					contentParts.push({
-						type: "tool-call",
-						toolCallId,
-						toolName,
-						args,
-					});
-					toolCallIndices.set(toolCallId, contentParts.length - 1);
-					// Reset text part index so next text creates a new segment
-					currentTextPartIndex = -1;
-				}
-			};
-
-			// Helper to update a tool call's args or result
-			const updateToolCall = (
-				toolCallId: string,
-				update: { args?: Record<string, unknown>; result?: unknown }
-			) => {
-				const index = toolCallIndices.get(toolCallId);
-				if (index !== undefined && contentParts[index]?.type === "tool-call") {
-					const tc = contentParts[index] as ContentPart & { type: "tool-call" };
-					if (update.args) tc.args = update.args;
-					if (update.result !== undefined) tc.result = update.result;
-				}
-			};
-
-			// Helper to build content for UI (without thinking-steps to avoid assistant-ui errors)
-			const buildContentForUI = (): ThreadMessageLike["content"] => {
-				// Filter to only include text parts with content and tool-calls with UI
-				const filtered = contentParts.filter((part) => {
-					if (part.type === "text") return part.text.length > 0;
-					if (part.type === "tool-call") return TOOLS_WITH_UI.has(part.toolName);
-					return false;
-				});
-				return filtered.length > 0
-					? (filtered as ThreadMessageLike["content"])
-					: [{ type: "text", text: "" }];
-			};
-
-			// Helper to build content for persistence (includes thinking-steps for restoration)
-			const buildContentForPersistence = (): unknown[] => {
-				const parts: unknown[] = [];
-
-				// Include thinking steps for persistence
-				if (currentThinkingSteps.size > 0) {
-					parts.push({
-						type: "thinking-steps",
-						steps: Array.from(currentThinkingSteps.values()),
-					});
-				}
-
-				// Add content parts (filtered)
-				for (const part of contentParts) {
-					if (part.type === "text" && part.text.length > 0) {
-						parts.push(part);
-					} else if (part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName)) {
-						parts.push(part);
-					}
-				}
-
-				return parts.length > 0 ? parts : [{ type: "text", text: "" }];
-			};
+			const { contentParts, toolCallIndices } = contentPartsState;
+			let wasInterrupted = false;
 
 			// Add placeholder assistant message
 			setMessages((prev) => [
@@ -693,150 +634,172 @@ export default function NewChatPage() {
 					throw new Error(`Backend error: ${response.status}`);
 				}
 
-				if (!response.body) {
-					throw new Error("No response body");
-				}
+				for await (const parsed of readSSEStream(response)) {
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-				// Parse SSE stream
-				const reader = response.body.getReader();
-				const decoder = new TextDecoder();
-				let buffer = "";
+						case "tool-input-start":
+							// Add tool call inline - this breaks the current text segment
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-				try {
-					while (true) {
-						const { done, value } = await reader.read();
-						if (done) break;
+						case "tool-input-available": {
+							// Update existing tool call's args, or add if not exists
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+						}
 
-						buffer += decoder.decode(value, { stream: true });
-						const events = buffer.split(/\r?\n\r?\n/);
-						buffer = events.pop() || "";
-
-						for (const event of events) {
-							const lines = event.split(/\r?\n/);
-							for (const line of lines) {
-								if (!line.startsWith("data: ")) continue;
-								const data = line.slice(6).trim();
-								if (!data || data === "[DONE]") continue;
-
-								try {
-									const parsed = JSON.parse(data);
-
-									switch (parsed.type) {
-										case "text-delta":
-											appendText(parsed.delta);
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
-												)
-											);
-											break;
-
-										case "tool-input-start":
-											// Add tool call inline - this breaks the current text segment
-											addToolCall(parsed.toolCallId, parsed.toolName, {});
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
-												)
-											);
-											break;
-
-										case "tool-input-available": {
-											// Update existing tool call's args, or add if not exists
-											if (toolCallIndices.has(parsed.toolCallId)) {
-												updateToolCall(parsed.toolCallId, { args: parsed.input || {} });
-											} else {
-												addToolCall(parsed.toolCallId, parsed.toolName, parsed.input || {});
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
-												)
-											);
-											break;
-										}
-
-										case "tool-output-available": {
-											// Update the tool call with its result
-											updateToolCall(parsed.toolCallId, { result: parsed.output });
-											// Handle podcast-specific logic
-											if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-												// Check if this is a podcast tool by looking at the content part
-												const idx = toolCallIndices.get(parsed.toolCallId);
-												if (idx !== undefined) {
-													const part = contentParts[idx];
-													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-														setActivePodcastTaskId(String(parsed.output.podcast_id));
-													}
-												}
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
-												)
-											);
-											break;
-										}
-
-										case "data-thinking-step": {
-											// Handle thinking step events for chain-of-thought display
-											const stepData = parsed.data as ThinkingStepData;
-											if (stepData?.id) {
-												currentThinkingSteps.set(stepData.id, stepData);
-												// Update thinking steps state for rendering
-												// The ThinkingStepsScrollHandler in Thread component
-												// will handle auto-scrolling when this state changes
-												setMessageThinkingSteps((prev) => {
-													const newMap = new Map(prev);
-													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
-													return newMap;
-												});
-											}
-											break;
-										}
-
-										case "data-thread-title-update": {
-											// Handle thread title update from LLM-generated title
-											const titleData = parsed.data as { threadId: number; title: string };
-											if (titleData?.title && titleData?.threadId === currentThreadId) {
-												// Update current thread state with new title
-												setCurrentThread((prev) =>
-													prev ? { ...prev, title: titleData.title } : prev
-												);
-												// Invalidate thread list to refresh sidebar
-												queryClient.invalidateQueries({
-													queryKey: ["threads", String(searchSpaceId)],
-												});
-												// Invalidate thread detail for breadcrumb update
-												queryClient.invalidateQueries({
-													queryKey: [
-														"threads",
-														String(searchSpaceId),
-														"detail",
-														String(titleData.threadId),
-													],
-												});
-											}
-											break;
-										}
-
-										case "error":
-											throw new Error(parsed.errorText || "Server error");
+						case "tool-output-available": {
+							// Update the tool call with its result
+							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							// Handle podcast-specific logic
+							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
+								// Check if this is a podcast tool by looking at the content part
+								const idx = toolCallIndices.get(parsed.toolCallId);
+								if (idx !== undefined) {
+									const part = contentParts[idx];
+									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+										setActivePodcastTaskId(String(parsed.output.podcast_id));
 									}
-								} catch (e) {
-									if (e instanceof SyntaxError) continue;
-									throw e;
 								}
 							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 						}
+
+						case "data-thinking-step": {
+							// Handle thinking step events for chain-of-thought display
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								// Update thinking steps state for rendering
+								// The ThinkingStepsScrollHandler in Thread component
+								// will handle auto-scrolling when this state changes
+								setMessageThinkingSteps((prev) => {
+									const newMap = new Map(prev);
+									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
+									return newMap;
+								});
+							}
+							break;
+						}
+
+						case "data-thread-title-update": {
+							// Handle thread title update from LLM-generated title
+							const titleData = parsed.data as { threadId: number; title: string };
+							if (titleData?.title && titleData?.threadId === currentThreadId) {
+								// Update current thread state with new title
+								setCurrentThread((prev) => (prev ? { ...prev, title: titleData.title } : prev));
+								// Invalidate thread list to refresh sidebar
+								queryClient.invalidateQueries({
+									queryKey: ["threads", String(searchSpaceId)],
+								});
+								// Invalidate thread detail for breadcrumb update
+								queryClient.invalidateQueries({
+									queryKey: [
+										"threads",
+										String(searchSpaceId),
+										"detail",
+										String(titleData.threadId),
+									],
+								});
+							}
+							break;
+						}
+
+						case "data-interrupt-request": {
+							wasInterrupted = true;
+							const interruptData = parsed.data as Record<string, unknown>;
+							const actionRequests = (interruptData.action_requests ?? []) as Array<{
+								name: string;
+								args: Record<string, unknown>;
+							}>;
+							for (const action of actionRequests) {
+								const existingIdx = Array.from(toolCallIndices.entries()).find(([, idx]) => {
+									const part = contentParts[idx];
+									return part?.type === "tool-call" && part.toolName === action.name;
+								});
+								if (existingIdx) {
+									updateToolCall(contentPartsState, existingIdx[0], {
+										result: { __interrupt__: true, ...interruptData },
+									});
+								} else {
+									const tcId = `interrupt-${action.name}`;
+									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
+									updateToolCall(contentPartsState, tcId, {
+										result: { __interrupt__: true, ...interruptData },
+									});
+								}
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							if (currentThreadId) {
+								setPendingInterrupt({
+									threadId: currentThreadId,
+									assistantMsgId,
+									interruptData,
+								});
+							}
+							break;
+						}
+
+						case "error":
+							throw new Error(parsed.errorText || "Server error");
 					}
-				} finally {
-					reader.releaseLock();
 				}
 
 				// Persist assistant message (with thinking steps for restoration on refresh)
-				const finalContent = buildContentForPersistence();
-				if (contentParts.length > 0) {
+				// Skip persistence for interrupted messages -- handleResume will persist the final version
+				const finalContent = buildContentForPersistence(
+					contentPartsState,
+					TOOLS_WITH_UI,
+					currentThinkingSteps
+				);
+				if (contentParts.length > 0 && !wasInterrupted) {
 					try {
 						const savedMessage = await appendMessage(currentThreadId, {
 							role: "assistant",
@@ -847,6 +810,13 @@ export default function NewChatPage() {
 						const newMsgId = `msg-${savedMessage.id}`;
 						setMessages((prev) =>
 							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+						);
+
+						// Update pending interrupt with the new persisted message ID
+						setPendingInterrupt((prev) =>
+							prev && prev.assistantMsgId === assistantMsgId
+								? { ...prev, assistantMsgId: newMsgId }
+								: prev
 						);
 
 						// Also update thinking steps map with new ID
@@ -876,7 +846,11 @@ export default function NewChatPage() {
 							(part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName))
 					);
 					if (hasContent && currentThreadId) {
-						const partialContent = buildContentForPersistence();
+						const partialContent = buildContentForPersistence(
+							contentPartsState,
+							TOOLS_WITH_UI,
+							currentThinkingSteps
+						);
 						try {
 							const savedMessage = await appendMessage(currentThreadId, {
 								role: "assistant",
@@ -940,6 +914,330 @@ export default function NewChatPage() {
 			currentUser,
 		]
 	);
+
+	const handleResume = useCallback(
+		async (
+			decisions: Array<{
+				type: string;
+				message?: string;
+				edited_action?: { name: string; args: Record<string, unknown> };
+			}>
+		) => {
+			if (!pendingInterrupt) return;
+			const { threadId: resumeThreadId, assistantMsgId } = pendingInterrupt;
+			setPendingInterrupt(null);
+			setIsRunning(true);
+
+			const token = getBearerToken();
+			if (!token) {
+				toast.error("Not authenticated. Please log in again.");
+				setIsRunning(false);
+				return;
+			}
+
+			const controller = new AbortController();
+			abortControllerRef.current = controller;
+
+			const currentThinkingSteps = new Map<string, ThinkingStepData>(
+				(messageThinkingSteps.get(assistantMsgId) ?? []).map((s) => [s.id, s])
+			);
+
+			const contentPartsState: ContentPartsState = {
+				contentParts: [],
+				currentTextPartIndex: -1,
+				toolCallIndices: new Map(),
+			};
+			const { contentParts, toolCallIndices } = contentPartsState;
+
+			const existingMsg = messages.find((m) => m.id === assistantMsgId);
+			if (existingMsg && Array.isArray(existingMsg.content)) {
+				for (const part of existingMsg.content) {
+					if (typeof part === "object" && part !== null) {
+						const p = part as Record<string, unknown>;
+						if (p.type === "text") {
+							contentParts.push({ type: "text", text: String(p.text ?? "") });
+							contentPartsState.currentTextPartIndex = contentParts.length - 1;
+						} else if (p.type === "tool-call") {
+							toolCallIndices.set(String(p.toolCallId), contentParts.length);
+							contentParts.push({
+								type: "tool-call",
+								toolCallId: String(p.toolCallId),
+								toolName: String(p.toolName),
+								args: (p.args as Record<string, unknown>) ?? {},
+								result: p.result as unknown,
+							});
+							contentPartsState.currentTextPartIndex = -1;
+						}
+					}
+				}
+			}
+
+			// Merge edited args if present to fix race condition
+			if (decisions.length > 0 && decisions[0].type === "edit" && decisions[0].edited_action) {
+				const editedAction = decisions[0].edited_action;
+				for (const part of contentParts) {
+					if (part.type === "tool-call" && part.toolName === editedAction.name) {
+						part.args = { ...part.args, ...editedAction.args };
+						break;
+					}
+				}
+			}
+
+			const decisionType = decisions[0]?.type as "approve" | "reject" | undefined;
+			if (decisionType) {
+				for (const part of contentParts) {
+					if (
+						part.type === "tool-call" &&
+						typeof part.result === "object" &&
+						part.result !== null &&
+						"__interrupt__" in (part.result as Record<string, unknown>)
+					) {
+						part.result = {
+							...(part.result as Record<string, unknown>),
+							__decided__: decisionType,
+						};
+					}
+				}
+			}
+
+			try {
+				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+				const response = await fetch(`${backendUrl}/api/v1/threads/${resumeThreadId}/resume`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${token}`,
+					},
+					body: JSON.stringify({
+						search_space_id: searchSpaceId,
+						decisions,
+					}),
+					signal: controller.signal,
+				});
+
+				if (!response.ok) {
+					throw new Error(`Backend error: ${response.status}`);
+				}
+
+				for await (const parsed of readSSEStream(response)) {
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+
+						case "tool-input-start":
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+
+						case "tool-input-available":
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, {
+									args: parsed.input || {},
+								});
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+
+						case "tool-output-available":
+							updateToolCall(contentPartsState, parsed.toolCallId, {
+								result: parsed.output,
+							});
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+
+						case "data-thinking-step": {
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								setMessageThinkingSteps((prev) => {
+									const newMap = new Map(prev);
+									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
+									return newMap;
+								});
+							}
+							break;
+						}
+
+						case "data-interrupt-request": {
+							const interruptData = parsed.data as Record<string, unknown>;
+							const actionRequests = (interruptData.action_requests ?? []) as Array<{
+								name: string;
+								args: Record<string, unknown>;
+							}>;
+							for (const action of actionRequests) {
+								const existingIdx = Array.from(toolCallIndices.entries()).find(([, idx]) => {
+									const part = contentParts[idx];
+									return part?.type === "tool-call" && part.toolName === action.name;
+								});
+								if (existingIdx) {
+									updateToolCall(contentPartsState, existingIdx[0], {
+										result: {
+											__interrupt__: true,
+											...interruptData,
+										},
+									});
+								} else {
+									const tcId = `interrupt-${action.name}`;
+									addToolCall(contentPartsState, TOOLS_WITH_UI, tcId, action.name, action.args);
+									updateToolCall(contentPartsState, tcId, {
+										result: {
+											__interrupt__: true,
+											...interruptData,
+										},
+									});
+								}
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							setPendingInterrupt({
+								threadId: resumeThreadId,
+								assistantMsgId,
+								interruptData,
+							});
+							break;
+						}
+
+						case "error":
+							throw new Error(parsed.errorText || "Server error");
+					}
+				}
+
+				const finalContent = buildContentForPersistence(
+					contentPartsState,
+					TOOLS_WITH_UI,
+					currentThinkingSteps
+				);
+				if (contentParts.length > 0) {
+					try {
+						const savedMessage = await appendMessage(resumeThreadId, {
+							role: "assistant",
+							content: finalContent,
+						});
+						const newMsgId = `msg-${savedMessage.id}`;
+						setMessages((prev) =>
+							prev.map((m) => (m.id === assistantMsgId ? { ...m, id: newMsgId } : m))
+						);
+						setMessageThinkingSteps((prev) => {
+							const steps = prev.get(assistantMsgId);
+							if (steps) {
+								const newMap = new Map(prev);
+								newMap.delete(assistantMsgId);
+								newMap.set(newMsgId, steps);
+								return newMap;
+							}
+							return prev;
+						});
+					} catch (err) {
+						console.error("Failed to persist resumed assistant message:", err);
+					}
+				}
+			} catch (error) {
+				if (error instanceof Error && error.name === "AbortError") {
+					return;
+				}
+				console.error("[NewChatPage] Resume error:", error);
+				toast.error("Failed to resume. Please try again.");
+			} finally {
+				setIsRunning(false);
+				abortControllerRef.current = null;
+			}
+		},
+		[pendingInterrupt, messages, searchSpaceId, messageThinkingSteps]
+	);
+
+	useEffect(() => {
+		const handler = (e: Event) => {
+			const detail = (e as CustomEvent).detail as {
+				decisions: Array<{
+					type: string;
+					message?: string;
+					edited_action?: { name: string; args: Record<string, unknown> };
+				}>;
+			};
+			if (detail?.decisions && pendingInterrupt) {
+				const decision = detail.decisions[0];
+				const decisionType = decision?.type as "approve" | "reject" | "edit";
+
+				setMessages((prev) =>
+					prev.map((m) => {
+						if (m.id !== pendingInterrupt.assistantMsgId) return m;
+						const parts = m.content as unknown as Array<Record<string, unknown>>;
+						const newContent = parts.map((part) => {
+							if (
+								part.type === "tool-call" &&
+								typeof part.result === "object" &&
+								part.result !== null &&
+								"__interrupt__" in part.result
+							) {
+								// For edit decisions, also update the displayed args
+								if (decisionType === "edit" && decision.edited_action) {
+									return {
+										...part,
+										args: decision.edited_action.args, // Update displayed args
+										result: {
+											...(part.result as Record<string, unknown>),
+											__decided__: decisionType,
+										},
+									};
+								}
+								return {
+									...part,
+									result: {
+										...(part.result as Record<string, unknown>),
+										__decided__: decisionType,
+									},
+								};
+							}
+							return part;
+						});
+						return { ...m, content: newContent as unknown as ThreadMessageLike["content"] };
+					})
+				);
+				handleResume(detail.decisions);
+			}
+		};
+		window.addEventListener("hitl-decision", handler);
+		return () => window.removeEventListener("hitl-decision", handler);
+	}, [handleResume, pendingInterrupt]);
 
 	// Convert message (pass through since already in correct format)
 	const convertMessage = useCallback(
@@ -1026,77 +1324,12 @@ export default function NewChatPage() {
 			const assistantMsgId = `msg-assistant-${Date.now()}`;
 			const currentThinkingSteps = new Map<string, ThinkingStepData>();
 
-			// Content parts tracking (same as onNew)
-			type ContentPart =
-				| { type: "text"; text: string }
-				| {
-						type: "tool-call";
-						toolCallId: string;
-						toolName: string;
-						args: Record<string, unknown>;
-						result?: unknown;
-				  };
-			const contentParts: ContentPart[] = [];
-			let currentTextPartIndex = -1;
-			const toolCallIndices = new Map<string, number>();
-
-			const appendText = (delta: string) => {
-				if (currentTextPartIndex >= 0 && contentParts[currentTextPartIndex]?.type === "text") {
-					(contentParts[currentTextPartIndex] as { type: "text"; text: string }).text += delta;
-				} else {
-					contentParts.push({ type: "text", text: delta });
-					currentTextPartIndex = contentParts.length - 1;
-				}
+			const contentPartsState: ContentPartsState = {
+				contentParts: [],
+				currentTextPartIndex: -1,
+				toolCallIndices: new Map(),
 			};
-
-			const addToolCall = (toolCallId: string, toolName: string, args: Record<string, unknown>) => {
-				if (TOOLS_WITH_UI.has(toolName)) {
-					contentParts.push({ type: "tool-call", toolCallId, toolName, args });
-					toolCallIndices.set(toolCallId, contentParts.length - 1);
-					currentTextPartIndex = -1;
-				}
-			};
-
-			const updateToolCall = (
-				toolCallId: string,
-				update: { args?: Record<string, unknown>; result?: unknown }
-			) => {
-				const index = toolCallIndices.get(toolCallId);
-				if (index !== undefined && contentParts[index]?.type === "tool-call") {
-					const tc = contentParts[index] as ContentPart & { type: "tool-call" };
-					if (update.args) tc.args = update.args;
-					if (update.result !== undefined) tc.result = update.result;
-				}
-			};
-
-			const buildContentForUI = (): ThreadMessageLike["content"] => {
-				const filtered = contentParts.filter((part) => {
-					if (part.type === "text") return part.text.length > 0;
-					if (part.type === "tool-call") return TOOLS_WITH_UI.has(part.toolName);
-					return false;
-				});
-				return filtered.length > 0
-					? (filtered as ThreadMessageLike["content"])
-					: [{ type: "text", text: "" }];
-			};
-
-			const buildContentForPersistence = (): unknown[] => {
-				const parts: unknown[] = [];
-				if (currentThinkingSteps.size > 0) {
-					parts.push({
-						type: "thinking-steps",
-						steps: Array.from(currentThinkingSteps.values()),
-					});
-				}
-				for (const part of contentParts) {
-					if (part.type === "text" && part.text.length > 0) {
-						parts.push(part);
-					} else if (part.type === "tool-call" && TOOLS_WITH_UI.has(part.toolName)) {
-						parts.push(part);
-					}
-				}
-				return parts.length > 0 ? parts : [{ type: "text", text: "" }];
-			};
+			const { contentParts, toolCallIndices } = contentPartsState;
 
 			// Add placeholder messages to UI
 			// Always add back the user message (with new query for edit, or original content for reload)
@@ -1140,113 +1373,95 @@ export default function NewChatPage() {
 					throw new Error(`Backend error: ${response.status}`);
 				}
 
-				if (!response.body) {
-					throw new Error("No response body");
-				}
+				for await (const parsed of readSSEStream(response)) {
+					switch (parsed.type) {
+						case "text-delta":
+							appendText(contentPartsState, parsed.delta);
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-				// Parse SSE stream (same logic as onNew)
-				const reader = response.body.getReader();
-				const decoder = new TextDecoder();
-				let buffer = "";
+						case "tool-input-start":
+							addToolCall(contentPartsState, TOOLS_WITH_UI, parsed.toolCallId, parsed.toolName, {});
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-				try {
-					while (true) {
-						const { done, value } = await reader.read();
-						if (done) break;
+						case "tool-input-available":
+							if (toolCallIndices.has(parsed.toolCallId)) {
+								updateToolCall(contentPartsState, parsed.toolCallId, { args: parsed.input || {} });
+							} else {
+								addToolCall(
+									contentPartsState,
+									TOOLS_WITH_UI,
+									parsed.toolCallId,
+									parsed.toolName,
+									parsed.input || {}
+								);
+							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
 
-						buffer += decoder.decode(value, { stream: true });
-						const events = buffer.split(/\r?\n\r?\n/);
-						buffer = events.pop() || "";
-
-						for (const event of events) {
-							const lines = event.split(/\r?\n/);
-							for (const line of lines) {
-								if (!line.startsWith("data: ")) continue;
-								const data = line.slice(6).trim();
-								if (!data || data === "[DONE]") continue;
-
-								try {
-									const parsed = JSON.parse(data);
-
-									switch (parsed.type) {
-										case "text-delta":
-											appendText(parsed.delta);
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
-												)
-											);
-											break;
-
-										case "tool-input-start":
-											addToolCall(parsed.toolCallId, parsed.toolName, {});
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
-												)
-											);
-											break;
-
-										case "tool-input-available":
-											if (toolCallIndices.has(parsed.toolCallId)) {
-												updateToolCall(parsed.toolCallId, { args: parsed.input || {} });
-											} else {
-												addToolCall(parsed.toolCallId, parsed.toolName, parsed.input || {});
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
-												)
-											);
-											break;
-
-										case "tool-output-available":
-											updateToolCall(parsed.toolCallId, { result: parsed.output });
-											if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
-												const idx = toolCallIndices.get(parsed.toolCallId);
-												if (idx !== undefined) {
-													const part = contentParts[idx];
-													if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
-														setActivePodcastTaskId(String(parsed.output.podcast_id));
-													}
-												}
-											}
-											setMessages((prev) =>
-												prev.map((m) =>
-													m.id === assistantMsgId ? { ...m, content: buildContentForUI() } : m
-												)
-											);
-											break;
-
-										case "data-thinking-step": {
-											const stepData = parsed.data as ThinkingStepData;
-											if (stepData?.id) {
-												currentThinkingSteps.set(stepData.id, stepData);
-												setMessageThinkingSteps((prev) => {
-													const newMap = new Map(prev);
-													newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
-													return newMap;
-												});
-											}
-											break;
-										}
-
-										case "error":
-											throw new Error(parsed.errorText || "Server error");
+						case "tool-output-available":
+							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
+								const idx = toolCallIndices.get(parsed.toolCallId);
+								if (idx !== undefined) {
+									const part = contentParts[idx];
+									if (part?.type === "tool-call" && part.toolName === "generate_podcast") {
+										setActivePodcastTaskId(String(parsed.output.podcast_id));
 									}
-								} catch (e) {
-									if (e instanceof SyntaxError) continue;
-									throw e;
 								}
 							}
+							setMessages((prev) =>
+								prev.map((m) =>
+									m.id === assistantMsgId
+										? { ...m, content: buildContentForUI(contentPartsState, TOOLS_WITH_UI) }
+										: m
+								)
+							);
+							break;
+
+						case "data-thinking-step": {
+							const stepData = parsed.data as ThinkingStepData;
+							if (stepData?.id) {
+								currentThinkingSteps.set(stepData.id, stepData);
+								setMessageThinkingSteps((prev) => {
+									const newMap = new Map(prev);
+									newMap.set(assistantMsgId, Array.from(currentThinkingSteps.values()));
+									return newMap;
+								});
+							}
+							break;
 						}
+
+						case "error":
+							throw new Error(parsed.errorText || "Server error");
 					}
-				} finally {
-					reader.releaseLock();
 				}
 
 				// Persist messages after streaming completes
-				const finalContent = buildContentForPersistence();
+				const finalContent = buildContentForPersistence(
+					contentPartsState,
+					TOOLS_WITH_UI,
+					currentThinkingSteps
+				);
 				if (contentParts.length > 0) {
 					try {
 						// Persist user message (for both edit and reload modes, since backend deleted it)
@@ -1427,17 +1642,24 @@ export default function NewChatPage() {
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
 			<GeneratePodcastToolUI />
+			<GenerateReportToolUI />
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
 			<SaveMemoryToolUI />
 			<RecallMemoryToolUI />
+			<CreateNotionPageToolUI />
+			<UpdateNotionPageToolUI />
+			<DeleteNotionPageToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
-			<div className="flex flex-col h-[calc(100dvh-64px)] overflow-hidden">
-				<Thread
-					messageThinkingSteps={messageThinkingSteps}
-					header={<ChatHeader searchSpaceId={searchSpaceId} />}
-				/>
+			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
+				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+					<Thread
+						messageThinkingSteps={messageThinkingSteps}
+						header={<ChatHeader searchSpaceId={searchSpaceId} />}
+					/>
+				</div>
+				<ReportPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);

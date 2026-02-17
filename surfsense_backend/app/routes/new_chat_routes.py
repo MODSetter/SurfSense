@@ -43,11 +43,12 @@ from app.schemas.new_chat import (
     PublicChatSnapshotCreateResponse,
     PublicChatSnapshotListResponse,
     RegenerateRequest,
+    ResumeRequest,
     ThreadHistoryLoadResponse,
     ThreadListItem,
     ThreadListResponse,
 )
-from app.tasks.chat.stream_new_chat import stream_new_chat
+from app.tasks.chat.stream_new_chat import stream_new_chat, stream_resume_chat
 from app.users import current_active_user
 from app.utils.rbac import check_permission
 
@@ -634,8 +635,16 @@ async def delete_thread(
 
         # For PRIVATE threads, only the creator can delete
         # For SEARCH_SPACE threads, any member with permission can delete
+        # Legacy threads (created_by_id is NULL) have no recorded creator,
+        # so we skip strict ownership and fall through to legacy handling
+        # which allows the search space owner to delete them
         if db_thread.visibility == ChatVisibility.PRIVATE:
-            await check_thread_access(session, db_thread, user, require_ownership=True)
+            await check_thread_access(
+                session,
+                db_thread,
+                user,
+                require_ownership=(db_thread.created_by_id is not None),
+            )
 
         await session.delete(db_thread)
         await session.commit()
@@ -1325,4 +1334,79 @@ async def regenerate_response(
         raise HTTPException(
             status_code=500,
             detail=f"An unexpected error occurred during regeneration: {e!s}",
+        ) from None
+
+
+# =============================================================================
+# Resume Interrupted Chat Endpoint
+# =============================================================================
+
+
+@router.post("/threads/{thread_id}/resume")
+async def resume_chat(
+    thread_id: int,
+    request: ResumeRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    try:
+        result = await session.execute(
+            select(NewChatThread).filter(NewChatThread.id == thread_id)
+        )
+        thread = result.scalars().first()
+
+        if not thread:
+            raise HTTPException(status_code=404, detail="Thread not found")
+
+        await check_permission(
+            session,
+            user,
+            thread.search_space_id,
+            Permission.CHATS_CREATE.value,
+            "You don't have permission to chat in this search space",
+        )
+
+        await check_thread_access(session, thread, user)
+
+        search_space_result = await session.execute(
+            select(SearchSpace).filter(SearchSpace.id == request.search_space_id)
+        )
+        search_space = search_space_result.scalars().first()
+
+        if not search_space:
+            raise HTTPException(status_code=404, detail="Search space not found")
+
+        llm_config_id = (
+            search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
+        )
+
+        decisions = [d.model_dump() for d in request.decisions]
+
+        return StreamingResponse(
+            stream_resume_chat(
+                chat_id=thread_id,
+                search_space_id=request.search_space_id,
+                decisions=decisions,
+                session=session,
+                user_id=str(user.id),
+                llm_config_id=llm_config_id,
+                thread_visibility=thread.visibility,
+            ),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occurred during resume: {e!s}",
         ) from None

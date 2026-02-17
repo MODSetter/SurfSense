@@ -1,10 +1,11 @@
 "use client";
 import { useFeatureFlagVariantKey } from "@posthog/react";
 import { AnimatePresence, motion } from "motion/react";
-import Image from "next/image";
 import Link from "next/link";
-import React, { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
+import { WalkthroughScroll } from "@/components/ui/walkthrough-scroll";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -40,41 +41,37 @@ export function HeroSection() {
 	return (
 		<div
 			ref={parentRef}
-			className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-20 md:px-8 md:py-40"
+			className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-12 md:px-8 md:py-24"
 		>
 			<BackgroundGrids />
 			<CollisionMechanism
+				parentRef={parentRef}
 				beamOptions={{
 					initialX: -400,
 					translateX: 600,
 					duration: 7,
 					repeatDelay: 3,
 				}}
-				containerRef={containerRef}
-				parentRef={parentRef}
 			/>
 			<CollisionMechanism
+				parentRef={parentRef}
 				beamOptions={{
 					initialX: -200,
 					translateX: 800,
 					duration: 4,
 					repeatDelay: 3,
 				}}
-				containerRef={containerRef}
-				parentRef={parentRef}
 			/>
 			<CollisionMechanism
+				parentRef={parentRef}
 				beamOptions={{
 					initialX: 200,
 					translateX: 1200,
 					duration: 5,
 					repeatDelay: 3,
 				}}
-				containerRef={containerRef}
-				parentRef={parentRef}
 			/>
 			<CollisionMechanism
-				containerRef={containerRef}
 				parentRef={parentRef}
 				beamOptions={{
 					initialX: 400,
@@ -106,34 +103,12 @@ export function HeroSection() {
 			<p className="relative z-50 mx-auto mt-0 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
 				Then chat with it in real-time, even alongside your team.
 			</p>
-			<div className="mb-10 mt-8 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-20">
+			<div className="mb-6 mt-6 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-10">
 				<GetStartedButton />
 				<ContactSalesButton />
 			</div>
-			<div
-				ref={containerRef}
-				className="relative mx-auto max-w-7xl rounded-[32px] border border-neutral-200/50 bg-neutral-100 p-2 backdrop-blur-lg md:p-4 dark:border-neutral-700 dark:bg-neutral-800/50"
-			>
-				<div className="rounded-[24px] border border-neutral-200 bg-white p-2 dark:border-neutral-700 dark:bg-black">
-					{/* Light mode image */}
-					<Image
-						src="/homepage/main_demo.webp"
-						alt="header"
-						width={1920}
-						height={1080}
-						className="rounded-[20px] block dark:hidden"
-						unoptimized
-					/>
-					{/* Dark mode image */}
-					<Image
-						src="/homepage/main_demo.webp"
-						alt="header"
-						width={1920}
-						height={1080}
-						className="rounded-[20px] hidden dark:block"
-						unoptimized
-					/>
-				</div>
+			<div ref={containerRef} className="relative w-full">
+				<WalkthroughScroll />
 			</div>
 		</div>
 	);
@@ -236,24 +211,23 @@ const BackgroundGrids = () => {
 	);
 };
 
-const CollisionMechanism = React.forwardRef<
-	HTMLDivElement,
-	{
-		containerRef: React.RefObject<HTMLDivElement | null>;
-		parentRef: React.RefObject<HTMLDivElement | null>;
-		beamOptions?: {
-			initialX?: number;
-			translateX?: number;
-			initialY?: number;
-			translateY?: number;
-			rotate?: number;
-			className?: string;
-			duration?: number;
-			delay?: number;
-			repeatDelay?: number;
-		};
-	}
->(({ parentRef, containerRef, beamOptions = {} }, ref) => {
+const CollisionMechanism = ({
+	parentRef,
+	beamOptions = {},
+}: {
+	parentRef: React.RefObject<HTMLDivElement | null>;
+	beamOptions?: {
+		initialX?: number;
+		translateX?: number;
+		initialY?: number;
+		translateY?: number;
+		rotate?: number;
+		className?: string;
+		duration?: number;
+		delay?: number;
+		repeatDelay?: number;
+	};
+}) => {
 	const beamRef = useRef<HTMLDivElement>(null);
 	const [collision, setCollision] = useState<{
 		detected: boolean;
@@ -264,14 +238,14 @@ const CollisionMechanism = React.forwardRef<
 
 	useEffect(() => {
 		const checkCollision = () => {
-			if (beamRef.current && containerRef.current && parentRef.current && !cycleCollisionDetected) {
+			if (beamRef.current && parentRef.current && !cycleCollisionDetected) {
 				const beamRect = beamRef.current.getBoundingClientRect();
-				const containerRect = containerRef.current.getBoundingClientRect();
 				const parentRect = parentRef.current.getBoundingClientRect();
+				const rightEdge = parentRect.right;
 
-				if (beamRect.bottom >= containerRect.top) {
-					const relativeX = beamRect.left - parentRect.left + beamRect.width / 2;
-					const relativeY = beamRect.bottom - parentRect.top;
+				if (beamRect.right >= rightEdge - 20) {
+					const relativeX = parentRect.width - 20;
+					const relativeY = beamRect.top - parentRect.top + beamRect.height / 2;
 
 					setCollision({
 						detected: true,
@@ -288,7 +262,7 @@ const CollisionMechanism = React.forwardRef<
 		const animationInterval = setInterval(checkCollision, 100);
 
 		return () => clearInterval(animationInterval);
-	}, [cycleCollisionDetected, containerRef]);
+	}, [cycleCollisionDetected, parentRef]);
 
 	useEffect(() => {
 		if (collision.detected && collision.coordinates) {
@@ -354,9 +328,7 @@ const CollisionMechanism = React.forwardRef<
 			</AnimatePresence>
 		</>
 	);
-});
-
-CollisionMechanism.displayName = "CollisionMechanism";
+};
 
 const Explosion = ({ ...props }: React.HTMLProps<HTMLDivElement>) => {
 	const spans = Array.from({ length: 20 }, (_, index) => ({

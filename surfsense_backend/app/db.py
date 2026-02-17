@@ -1031,6 +1031,36 @@ class Podcast(BaseModel, TimestampMixin):
     thread = relationship("NewChatThread")
 
 
+class Report(BaseModel, TimestampMixin):
+    """Report model for storing generated Markdown reports."""
+
+    __tablename__ = "reports"
+
+    title = Column(String(500), nullable=False)
+    content = Column(Text, nullable=True)  # Markdown body
+    report_metadata = Column(JSONB, nullable=True)  # section headings, word count, etc.
+    report_style = Column(
+        String(100), nullable=True
+    )  # e.g. "executive_summary", "deep_research"
+
+    search_space_id = Column(
+        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=False
+    )
+    search_space = relationship("SearchSpace", back_populates="reports")
+
+    # Versioning: reports sharing the same report_group_id are versions of the same report.
+    # For v1, report_group_id = the report's own id (set after insert).
+    report_group_id = Column(Integer, nullable=True, index=True)
+
+    thread_id = Column(
+        Integer,
+        ForeignKey("new_chat_threads.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    thread = relationship("NewChatThread")
+
+
 class ImageGenerationConfig(BaseModel, TimestampMixin):
     """
     Dedicated configuration table for image generation models.
@@ -1183,6 +1213,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         "Podcast",
         back_populates="search_space",
         order_by="Podcast.id.desc()",
+        cascade="all, delete-orphan",
+    )
+    reports = relationship(
+        "Report",
+        back_populates="search_space",
+        order_by="Report.id.desc()",
         cascade="all, delete-orphan",
     )
     image_generations = relationship(

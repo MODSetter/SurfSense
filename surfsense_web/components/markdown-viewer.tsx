@@ -1,23 +1,87 @@
+import { createCodePlugin } from "@streamdown/code";
+import { createMathPlugin } from "@streamdown/math";
 import Image from "next/image";
 import { Streamdown, type StreamdownProps } from "streamdown";
+import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
+
+const code = createCodePlugin({
+	themes: ["nord", "nord"],
+});
+
+const math = createMathPlugin({
+	singleDollarTextMath: true,
+});
 
 interface MarkdownViewerProps {
 	content: string;
 	className?: string;
 }
 
+/**
+ * If the entire content is wrapped in a single ```markdown or ```md
+ * code fence, strip the fence so the inner markdown renders properly.
+ */
+function stripOuterMarkdownFence(content: string): string {
+	const trimmed = content.trim();
+	const match = trimmed.match(/^```(?:markdown|md)?\s*\n([\s\S]+?)\n```\s*$/);
+	return match ? match[1] : content;
+}
+
+/**
+ * Convert all LaTeX delimiter styles to the double-dollar syntax
+ * that Streamdown's @streamdown/math plugin understands.
+ *
+ * Streamdown math conventions (different from remark-math!):
+ *   $$...$$  on the SAME line     → inline math
+ *   $$\n...\n$$  on SEPARATE lines → block (display) math
+ *
+ * Conversions performed:
+ *   \[...\]                              → $$\n ... \n$$  (block math)
+ *   \(...\)                              → $$...$$        (inline math, same line)
+ *   \begin{equation}...\end{equation}    → $$\n ... \n$$  (block math)
+ *   \begin{displaymath}...\end{displaymath} → $$\n ... \n$$ (block math)
+ *   \begin{math}...\end{math}            → $$...$$        (inline math, same line)
+ *   `$$ … $$`                             → $$ … $$       (strip wrapping backtick code)
+ *   `$ … $`                               → $ … $         (strip wrapping backtick code)
+ *   $...$                                 → $$...$$        (normalise single-$ to double-$$)
+ */
+function convertLatexDelimiters(content: string): string {
+	// 1. Block math: \[...\] → $$\n...\n$$ (display math on separate lines)
+	content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_, inner) => `\n$$\n${inner.trim()}\n$$\n`);
+	// 2. Inline math: \(...\) → $$...$$ (inline math on same line)
+	content = content.replace(/\\\(([\s\S]*?)\\\)/g, (_, inner) => `$$${inner.trim()}$$`);
+	// 3. Block: \begin{equation}...\end{equation} → $$\n...\n$$
+	content = content.replace(
+		/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g,
+		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`
+	);
+	// 4. Block: \begin{displaymath}...\end{displaymath} → $$\n...\n$$
+	content = content.replace(
+		/\\begin\{displaymath\}([\s\S]*?)\\end\{displaymath\}/g,
+		(_, inner) => `\n$$\n${inner.trim()}\n$$\n`
+	);
+	// 5. Inline: \begin{math}...\end{math} → $$...$$
+	content = content.replace(
+		/\\begin\{math\}([\s\S]*?)\\end\{math\}/g,
+		(_, inner) => `$$${inner.trim()}$$`
+	);
+	// 6. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
+	content = content.replace(/`(\${1,2})((?:(?!\1).)+)\1`/g, "$1$2$1");
+	// 7. Normalise single-dollar $...$ to double-dollar $$...$$ so they render
+	//    reliably in Streamdown (single-$ has strict no-space rules that often fail).
+	//    We match $…$ where the content starts with a backslash (LaTeX command)
+	//    to avoid converting currency like $50.
+	content = content.replace(
+		/(?<!\$)\$(?!\$)(\\[a-zA-Z][\s\S]*?)(?<!\$)\$(?!\$)/g,
+		(_, inner) => `$$${inner.trim()}$$`
+	);
+	return content;
+}
+
 export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
+	const processedContent = convertLatexDelimiters(stripOuterMarkdownFence(content));
 	const components: StreamdownProps["components"] = {
-		// Define custom components for markdown elements
-		callout: ({ children, ...props }) => (
-			<div
-				className="my-4 rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-950"
-				{...props}
-			>
-				{children}
-			</div>
-		),
 		p: ({ children, ...props }) => (
 			<p className="my-2" {...props}>
 				{children}
@@ -71,42 +135,41 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 			/>
 		),
 		table: ({ ...props }) => (
-			<div className="overflow-x-auto my-4">
-				<table className="min-w-full divide-y divide-border" {...props} />
+			<div className="overflow-x-auto my-4 rounded-lg border border-border w-full">
+				<table className="w-full divide-y divide-border" {...props} />
 			</div>
 		),
-		th: ({ ...props }) => <th className="px-3 py-2 text-left font-medium bg-muted" {...props} />,
-		td: ({ ...props }) => <td className="px-3 py-2 border-t border-border" {...props} />,
-		code: ({ className, children, ...props }) => {
-			const match = /language-(\w+)/.exec(className || "");
-			const isInline = !match;
-
-			if (isInline) {
-				return (
-					<code className="bg-muted px-1 py-0.5 rounded text-xs" {...props}>
-						{children}
-					</code>
-				);
-			}
-
-			// For code blocks, let Streamdown handle syntax highlighting
-			return (
-				<code className={className} {...props}>
-					{children}
-				</code>
-			);
-		},
+		th: ({ ...props }) => (
+			<th
+				className="px-4 py-2.5 text-left text-sm font-semibold text-muted-foreground/80 bg-muted/30 border-r border-border/40 last:border-r-0"
+				{...props}
+			/>
+		),
+		td: ({ ...props }) => (
+			<td
+				className="px-4 py-2.5 text-sm border-t border-r border-border/40 last:border-r-0"
+				{...props}
+			/>
+		),
 	};
 
 	return (
 		<div
 			className={cn(
-				"prose prose-sm dark:prose-invert max-w-none overflow-hidden [&_pre]:overflow-x-auto [&_code]:wrap-break-word [&_table]:block [&_table]:overflow-x-auto",
+				"max-w-none overflow-hidden",
+				"[&_[data-streamdown=code-block-header]]:!bg-transparent",
+				"[&_[data-streamdown=code-block]>*]:!border-none [&_[data-streamdown=code-block]>*]:![box-shadow:none]",
+				"[&_[data-streamdown=code-block-download-button]]:!hidden",
 				className
 			)}
 		>
-			<Streamdown components={components} shikiTheme={["github-light", "github-dark"]}>
-				{content}
+			<Streamdown
+				components={components}
+				plugins={{ code, math }}
+				controls={{ code: true }}
+				mode="static"
+			>
+				{processedContent}
 			</Streamdown>
 		</div>
 	);

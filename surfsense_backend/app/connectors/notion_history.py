@@ -1,5 +1,7 @@
 import asyncio
+import contextlib
 import logging
+import re
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
@@ -10,7 +12,6 @@ from sqlalchemy.future import select
 
 from app.config import config
 from app.db import SearchSourceConnector
-from app.routes.notion_add_connector_route import refresh_notion_token
 from app.schemas.notion_auth_credentials import NotionAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
@@ -219,6 +220,8 @@ class NotionHistoryConnector:
                     )
 
                 # Refresh token
+                from app.routes.notion_add_connector_route import refresh_notion_token
+
                 connector = await refresh_notion_token(self._session, connector)
 
                 # Reload credentials after refresh
@@ -438,6 +441,16 @@ class NotionHistoryConnector:
         """
         if page_title not in self._pages_with_skipped_content:
             self._pages_with_skipped_content.append(page_title)
+
+    @staticmethod
+    def _api_error_message(error: APIResponseError) -> str:
+        """Extract a stable, human-readable message from Notion API errors."""
+        body = getattr(error, "body", None)
+        if isinstance(body, dict):
+            return str(body.get("message", str(error)))
+        if body:
+            return str(body)
+        return str(error)
 
     async def __aenter__(self):
         """Async context manager entry."""
@@ -777,3 +790,370 @@ class NotionHistoryConnector:
 
         # Return empty string for unsupported block types
         return ""
+
+    # =========================================================================
+    # WRITE OPERATIONS (create, update, delete pages)
+    # =========================================================================
+
+    async def _get_first_accessible_parent(self) -> str | None:
+        """
+        Get the first accessible page ID that can be used as a parent.
+
+        Returns:
+            Page ID string, or None if no accessible pages found
+        """
+        try:
+            notion = await self._get_client()
+
+            # Search for pages, get most recently edited first
+            response = await self._api_call_with_retry(
+                notion.search,
+                filter={"property": "object", "value": "page"},
+                sort={"direction": "descending", "timestamp": "last_edited_time"},
+                page_size=1,  # We only need the first one
+            )
+
+            results = response.get("results", [])
+            if results:
+                return results[0]["id"]
+
+            return None
+
+        except Exception as e:
+            logger.error(f"Error finding accessible parent page: {e}")
+            return None
+
+    def _markdown_to_blocks(self, markdown: str) -> list[dict[str, Any]]:
+        """
+        Convert markdown content to Notion blocks.
+
+        This is a simple converter that handles basic markdown.
+        For more complex markdown, consider using a proper markdown parser.
+
+        Args:
+            markdown: Markdown content
+
+        Returns:
+            List of Notion block objects
+        """
+        blocks = []
+        lines = markdown.split("\n")
+
+        for line in lines:
+            line = line.strip()
+
+            if not line:
+                continue
+
+            # Heading 1
+            if line.startswith("# "):
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "heading_1",
+                        "heading_1": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": line[2:]}}
+                            ]
+                        },
+                    }
+                )
+            # Heading 2
+            elif line.startswith("## "):
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "heading_2",
+                        "heading_2": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": line[3:]}}
+                            ]
+                        },
+                    }
+                )
+            # Heading 3
+            elif line.startswith("### "):
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "heading_3",
+                        "heading_3": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": line[4:]}}
+                            ]
+                        },
+                    }
+                )
+            # Bullet list
+            elif line.startswith("- ") or line.startswith("* "):
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "bulleted_list_item",
+                        "bulleted_list_item": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": line[2:]}}
+                            ]
+                        },
+                    }
+                )
+            # Numbered list
+            elif match := re.match(r"^(\d+)\.\s+(.*)$", line):
+                content = match.group(2)  # Extract text after "number. "
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "numbered_list_item",
+                        "numbered_list_item": {
+                            "rich_text": [
+                                {"type": "text", "text": {"content": content}}
+                            ]
+                        },
+                    }
+                )
+            # Regular paragraph
+            else:
+                blocks.append(
+                    {
+                        "object": "block",
+                        "type": "paragraph",
+                        "paragraph": {
+                            "rich_text": [{"type": "text", "text": {"content": line}}]
+                        },
+                    }
+                )
+
+        return blocks
+
+    async def create_page(
+        self, title: str, content: str, parent_page_id: str | None = None
+    ) -> dict[str, Any]:
+        """
+        Create a new Notion page.
+
+        Args:
+            title: Page title
+            content: Page content (markdown format)
+            parent_page_id: Optional parent page ID (creates as subpage if provided)
+
+        Returns:
+            Dictionary with page details:
+            - page_id: Created page ID
+            - url: Page URL
+            - title: Page title
+            - status: "success" or "error"
+            - message: Success/error message
+
+        Raises:
+            APIResponseError: If Notion API returns an error
+        """
+        try:
+            logger.info(
+                f"Creating Notion page: title='{title}', parent_page_id={parent_page_id}"
+            )
+
+            # Get Notion client
+            notion = await self._get_client()
+
+            # Convert markdown content to Notion blocks
+            children = self._markdown_to_blocks(content)
+
+            # Prepare parent - find first available page if not provided
+            if not parent_page_id:
+                logger.info(
+                    "No parent_page_id provided, searching for first accessible page..."
+                )
+                parent_page_id = await self._get_first_accessible_parent()
+                if not parent_page_id:
+                    logger.warning("No accessible parent pages found")
+                    return {
+                        "status": "error",
+                        "message": "Could not find any accessible Notion pages to use as parent. "
+                        "Please make sure your Notion integration has access to at least one page.",
+                    }
+                logger.info(f"Using parent_page_id: {parent_page_id}")
+
+            parent = {"type": "page_id", "page_id": parent_page_id}
+
+            # Create the page with standard title property
+            properties = {
+                "title": {"title": [{"type": "text", "text": {"content": title}}]}
+            }
+
+            response = await self._api_call_with_retry(
+                notion.pages.create,
+                parent=parent,
+                properties=properties,
+                children=children[:100],  # Notion API limit: 100 blocks per request
+            )
+
+            page_id = response["id"]
+            page_url = response["url"]
+
+            # If content has more than 100 blocks, append them
+            if len(children) > 100:
+                for i in range(100, len(children), 100):
+                    batch = children[i : i + 100]
+                    await self._api_call_with_retry(
+                        notion.blocks.children.append, block_id=page_id, children=batch
+                    )
+
+            return {
+                "status": "success",
+                "page_id": page_id,
+                "url": page_url,
+                "title": title,
+                "message": f"Created Notion page '{title}'",
+            }
+
+        except APIResponseError as e:
+            logger.error(f"Notion API error creating page: {e}")
+            error_msg = self._api_error_message(e)
+            return {
+                "status": "error",
+                "message": f"Failed to create Notion page: {error_msg}",
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error creating Notion page: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to create Notion page: {e!s}",
+            }
+
+    async def update_page(
+        self, page_id: str, content: str | None = None
+    ) -> dict[str, Any]:
+        """
+        Update an existing Notion page by appending new content.
+
+        Note: Content is appended to the page, not replaced.
+
+        Args:
+            page_id: Page ID to update
+            content: New markdown content to append to the page (optional)
+
+        Returns:
+            Dictionary with update result
+
+        Raises:
+            APIResponseError: If Notion API returns an error
+        """
+        try:
+            notion = await self._get_client()
+
+            # Append content if provided
+            if content:
+                # Convert new content to blocks
+                try:
+                    children = self._markdown_to_blocks(content)
+                    if not children:
+                        logger.warning(
+                            "No blocks generated from content, skipping append"
+                        )
+                        return {
+                            "status": "error",
+                            "message": "Content conversion failed: no valid blocks generated",
+                        }
+                except Exception as e:
+                    logger.error(f"Failed to convert markdown to blocks: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"Failed to parse content: {e!s}",
+                    }
+
+                # Append new content blocks
+                try:
+                    for i in range(0, len(children), 100):
+                        batch = children[i : i + 100]
+                        await self._api_call_with_retry(
+                            notion.blocks.children.append,
+                            block_id=page_id,
+                            children=batch,
+                        )
+                    logger.info(
+                        f"Successfully appended {len(children)} new blocks to page {page_id}"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to append content blocks: {e}")
+                    return {
+                        "status": "error",
+                        "message": f"Failed to append content: {e!s}",
+                    }
+
+            # Get updated page info
+            response = await self._api_call_with_retry(
+                notion.pages.retrieve, page_id=page_id
+            )
+            page_url = response["url"]
+            page_title = response["properties"]["title"]["title"][0]["text"]["content"]
+
+            return {
+                "status": "success",
+                "page_id": page_id,
+                "url": page_url,
+                "title": page_title,
+                "message": f"Updated Notion page '{page_title}' (content appended)",
+            }
+
+        except APIResponseError as e:
+            logger.error(f"Notion API error updating page: {e}")
+            error_msg = self._api_error_message(e)
+            return {
+                "status": "error",
+                "message": f"Failed to update Notion page: {error_msg}",
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error updating Notion page: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to update Notion page: {e!s}",
+            }
+
+    async def delete_page(self, page_id: str) -> dict[str, Any]:
+        """
+        Delete (archive) a Notion page.
+
+        Note: Notion doesn't truly delete pages, it archives them.
+
+        Args:
+            page_id: Page ID to delete
+
+        Returns:
+            Dictionary with deletion result
+
+        Raises:
+            APIResponseError: If Notion API returns an error
+        """
+        try:
+            notion = await self._get_client()
+
+            # Archive the page (Notion's way of "deleting")
+            response = await self._api_call_with_retry(
+                notion.pages.update, page_id=page_id, archived=True
+            )
+
+            page_title = "Unknown"
+            with contextlib.suppress(KeyError, IndexError):
+                page_title = response["properties"]["title"]["title"][0]["text"][
+                    "content"
+                ]
+
+            return {
+                "status": "success",
+                "page_id": page_id,
+                "message": f"Deleted Notion page '{page_title}'",
+            }
+
+        except APIResponseError as e:
+            logger.error(f"Notion API error deleting page: {e}")
+            error_msg = self._api_error_message(e)
+            return {
+                "status": "error",
+                "message": f"Failed to delete Notion page: {error_msg}",
+            }
+        except Exception as e:
+            logger.error(f"Unexpected error deleting Notion page: {e}")
+            return {
+                "status": "error",
+                "message": f"Failed to delete Notion page: {e!s}",
+            }

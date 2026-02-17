@@ -50,6 +50,7 @@ ENV NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYP
 ENV NEXT_PUBLIC_ETL_SERVICE=__NEXT_PUBLIC_ETL_SERVICE__
 ENV NEXT_PUBLIC_ELECTRIC_URL=__NEXT_PUBLIC_ELECTRIC_URL__
 ENV NEXT_PUBLIC_ELECTRIC_AUTH_MODE=__NEXT_PUBLIC_ELECTRIC_AUTH_MODE__
+ENV NEXT_PUBLIC_DEPLOYMENT_MODE=__NEXT_PUBLIC_DEPLOYMENT_MODE__
 
 # Build
 RUN pnpm run build
@@ -122,6 +123,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libcairo2 \
     libpango-1.0-0 \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Pandoc 3.x from GitHub (apt ships 2.9 which has broken table rendering).
+RUN ARCH=$(dpkg --print-architecture) && \
+    wget -qO /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/3.9/pandoc-3.9-1-${ARCH}.deb" && \
+    dpkg -i /tmp/pandoc.deb && \
+    rm /tmp/pandoc.deb
+
 
 # Install Node.js 20.x (for running frontend)
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \

@@ -393,11 +393,19 @@ export function useCommentsElectric(threadId: number | null) {
 			}
 
 			if (syncHandleRef.current) {
-				syncHandleRef.current.unsubscribe();
+				try {
+					syncHandleRef.current.unsubscribe();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				syncHandleRef.current = null;
 			}
 			if (liveQueryRef.current) {
-				liveQueryRef.current.unsubscribe();
+				try {
+					liveQueryRef.current.unsubscribe();
+				} catch {
+					// PGlite may already be closed during cleanup
+				}
 				liveQueryRef.current = null;
 			}
 		};

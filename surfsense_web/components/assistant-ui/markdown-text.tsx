@@ -10,10 +10,45 @@ import {
 } from "@assistant-ui/react-markdown";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { type FC, memo, type ReactNode, useState } from "react";
+import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import "katex/dist/katex.min.css";
 import { InlineCitation } from "@/components/assistant-ui/inline-citation";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
+
+/**
+ * Convert all LaTeX delimiter styles to the dollar-sign syntax
+ * that remark-math understands. LLMs use various delimiters
+ * (\(...\), \[...\], \begin{equation}, etc.) and we need to
+ * normalise them all to $ / $$ before the markdown parser runs.
+ */
+function convertLatexDelimiters(content: string): string {
+	// 1. Block math: \[...\] → $$...$$
+	content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_, inner) => `$$${inner}$$`);
+	// 2. Inline math: \(...\) → $...$
+	content = content.replace(/\\\(([\s\S]*?)\\\)/g, (_, inner) => `$${inner}$`);
+	// 3. Block: \begin{equation}...\end{equation} → $$...$$
+	content = content.replace(
+		/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g,
+		(_, inner) => `$$${inner}$$`
+	);
+	// 4. Block: \begin{displaymath}...\end{displaymath} → $$...$$
+	content = content.replace(
+		/\\begin\{displaymath\}([\s\S]*?)\\end\{displaymath\}/g,
+		(_, inner) => `$$${inner}$$`
+	);
+	// 5. Inline: \begin{math}...\end{math} → $...$
+	content = content.replace(/\\begin\{math\}([\s\S]*?)\\end\{math\}/g, (_, inner) => `$${inner}$`);
+	// 6. Strip backtick wrapping around math: `$$...$$` → $$...$$ and `$...$` → $...$
+	content = content.replace(/`(\${1,2})((?:(?!\1).)+)\1`/g, "$1$2$1");
+
+	// Ensure markdown headings (## ...) always start on their own line.
+	content = content.replace(/([^\n])(#{1,6}\s)/g, "$1\n\n$2");
+
+	return content;
+}
 
 // Citation pattern: [citation:CHUNK_ID] or [citation:doc-CHUNK_ID]
 // Also matches Chinese brackets 【】 and handles zero-width spaces that LLM sometimes inserts
@@ -59,7 +94,8 @@ function parseTextWithCitations(text: string): ReactNode[] {
 	// Reset regex state
 	CITATION_REGEX.lastIndex = 0;
 
-	while ((match = CITATION_REGEX.exec(text)) !== null) {
+	match = CITATION_REGEX.exec(text);
+	while (match !== null) {
 		// Add text before the citation
 		if (match.index > lastIndex) {
 			parts.push(text.substring(lastIndex, match.index));
@@ -80,6 +116,7 @@ function parseTextWithCitations(text: string): ReactNode[] {
 
 		lastIndex = match.index + match[0].length;
 		instanceIndex++;
+		match = CITATION_REGEX.exec(text);
 	}
 
 	// Add any remaining text after the last citation
@@ -93,9 +130,11 @@ function parseTextWithCitations(text: string): ReactNode[] {
 const MarkdownTextImpl = () => {
 	return (
 		<MarkdownTextPrimitive
-			remarkPlugins={[remarkGfm]}
+			remarkPlugins={[remarkGfm, remarkMath]}
+			rehypePlugins={[rehypeKatex]}
 			className="aui-md"
 			components={defaultComponents}
+			preprocess={convertLatexDelimiters}
 		/>
 	);
 };

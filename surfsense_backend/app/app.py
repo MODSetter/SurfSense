@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import time
 from collections import defaultdict
@@ -8,6 +9,7 @@ import redis
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from limits.storage import MemoryStorage
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
@@ -36,12 +38,16 @@ rate_limit_logger = logging.getLogger("surfsense.rate_limit")
 # Uses the same Redis instance as Celery for zero additional infrastructure.
 # Protects auth endpoints from brute force and user enumeration attacks.
 
-# SlowAPI limiter — provides default rate limits (60/min) for ALL routes
+# SlowAPI limiter — provides default rate limits (1024/min) for ALL routes
 # via the ASGI middleware. This is the general safety net.
+# in_memory_fallback ensures requests are still served (with per-worker
+# in-memory limiting) when Redis is unreachable, instead of hanging.
 limiter = Limiter(
     key_func=get_remote_address,
     storage_uri=config.REDIS_APP_URL,
-    default_limits=["60/minute"],
+    default_limits=["1024/minute"],
+    in_memory_fallback_enabled=True,
+    in_memory_fallback=[MemoryStorage()],
 )
 
 
@@ -179,8 +185,15 @@ async def lifespan(app: FastAPI):
     initialize_llm_router()
     # Initialize Image Generation Router for Auto mode load balancing
     initialize_image_gen_router()
-    # Seed Surfsense documentation
-    await seed_surfsense_docs()
+    # Seed Surfsense documentation (with timeout so a slow embedding API
+    # doesn't block startup indefinitely and make the container unresponsive)
+    try:
+        await asyncio.wait_for(seed_surfsense_docs(), timeout=120)
+    except TimeoutError:
+        logging.getLogger(__name__).warning(
+            "Surfsense docs seeding timed out after 120s — skipping. "
+            "Docs will be indexed on the next restart."
+        )
     yield
     # Cleanup: close checkpointer connection on shutdown
     await close_checkpointer()
@@ -395,6 +408,13 @@ if config.AUTH_TYPE == "GOOGLE":
 
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
+
+
+@app.get("/health", tags=["health"])
+@limiter.exempt
+async def health_check():
+    """Lightweight liveness probe exempt from rate limiting."""
+    return {"status": "ok"}
 
 
 @app.get("/verify-token")

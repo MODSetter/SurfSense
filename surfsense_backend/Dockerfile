@@ -22,6 +22,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Pandoc 3.x from GitHub as a fallback for Linux where pypandoc_binary
+# may not bundle pandoc (apt ships 2.17 which has broken table rendering).
+# pypandoc_binary bundles pandoc on Windows/macOS; on Linux it picks this up.
+RUN ARCH=$(dpkg --print-architecture) && \
+    wget -qO /tmp/pandoc.deb "https://github.com/jgm/pandoc/releases/download/3.9/pandoc-3.9-1-${ARCH}.deb" && \
+    dpkg -i /tmp/pandoc.deb && \
+    rm /tmp/pandoc.deb
+
 # Update certificates and install SSL tools
 RUN update-ca-certificates
 RUN pip install --upgrade certifi pip-system-certs
@@ -99,4 +107,4 @@ ENV CELERY_QUEUES=""
 
 # Run
 EXPOSE 8000-8001
-CMD ["/app/scripts/docker/entrypoint.sh"] 
+CMD ["/app/scripts/docker/entrypoint.sh"]

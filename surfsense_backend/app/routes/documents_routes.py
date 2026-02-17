@@ -97,7 +97,10 @@ async def create_documents(
             raise HTTPException(status_code=400, detail="Invalid document type")
 
         await session.commit()
-        return {"message": "Documents processed successfully"}
+        return {
+            "message": "Documents queued for background processing",
+            "status": "queued",
+        }
     except HTTPException:
         raise
     except Exception as e:
