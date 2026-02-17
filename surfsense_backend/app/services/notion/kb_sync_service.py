@@ -8,7 +8,6 @@ from sqlalchemy.future import select
 from app.config import config
 from app.db import Chunk, Document
 from app.services.llm_service import get_user_long_context_llm
-from app.tasks.connector_indexers.base import get_current_timestamp, safe_set_chunks
 from app.utils.document_converters import (
     create_document_chunks,
     generate_document_summary,
@@ -29,6 +28,11 @@ class NotionKBSyncService:
         appended_content: str,
         user_id: str,
     ) -> dict:
+        from app.tasks.connector_indexers.base import (
+            get_current_timestamp,
+            safe_set_chunks,
+        )
+
         try:
             result = await self.db_session.execute(
                 select(Document).filter(
