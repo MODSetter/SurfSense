@@ -84,11 +84,7 @@ Run SurfSense on your own infrastructure for full data control and privacy.
 **Quick Start (Docker one-liner):**
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --name surfsense --restart unless-stopped ghcr.io/modsetter/surfsense:latest
 ```
 
 After starting, open [http://localhost:3000](http://localhost:3000) in your browser.

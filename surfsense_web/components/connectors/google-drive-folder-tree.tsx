@@ -27,7 +27,7 @@ interface DriveItem {
 	isFolder: boolean;
 	parents?: string[];
 	size?: number;
-	iconLink?: string;
+	iconLink?: string | null;
 }
 
 interface ItemTreeNode {

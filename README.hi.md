@@ -84,11 +84,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 **त्वरित शुरुआत (Docker एक कमांड में):**
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --name surfsense --restart unless-stopped ghcr.io/modsetter/surfsense:latest
 ```
 
 शुरू करने के बाद, अपने ब्राउज़र में [http://localhost:3000](http://localhost:3000) खोलें।
