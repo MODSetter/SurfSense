@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { MarkdownPlugin, remarkMdx } from "@platejs/markdown";
-import { Plate, usePlateEditor } from "platejs/react";
+import { createPlatePlugin, Key, Plate, usePlateEditor } from "platejs/react";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
@@ -69,6 +69,31 @@ export function PlateEditor({
 }: PlateEditorProps) {
 	const lastMarkdownRef = useRef(markdown);
 
+	// Keep a stable ref to the latest onSave callback so the plugin shortcut
+	// always calls the most recent version without re-creating the editor.
+	const onSaveRef = useRef(onSave);
+	useEffect(() => {
+		onSaveRef.current = onSave;
+	}, [onSave]);
+
+	// Stable Plate plugin for ⌘+S / Ctrl+S save shortcut
+	const SaveShortcutPlugin = useMemo(
+		() =>
+			createPlatePlugin({
+				key: "save-shortcut",
+				shortcuts: {
+					save: {
+						keys: [[Key.Mod, "s"]],
+						handler: () => {
+							onSaveRef.current?.();
+						},
+						preventDefault: true,
+					},
+				},
+			}),
+		[]
+	);
+
 	// When readOnly is forced, always start in readOnly.
 	// Otherwise, respect defaultEditing to decide initial mode.
 	// The user can still toggle between editing/viewing via ModeToolbarButton.
@@ -89,6 +114,7 @@ export function PlateEditor({
 			...FloatingToolbarKit,
 			...AutoformatKit,
 			...DndKit,
+			SaveShortcutPlugin,
 			MarkdownPlugin.configure({
 				options: {
 					remarkPlugins: [remarkGfm, remarkMath, remarkMdx],
