@@ -108,6 +108,7 @@ def create_update_notion_page_tool(
                     }
 
             page_id = context.get("page_id")
+            document_id = context.get("document_id")
             connector_id_from_context = context.get("account", {}).get("id")
 
             logger.info(
@@ -222,13 +223,13 @@ def create_update_notion_page_tool(
             if result.get("status") == "success":
                 from app.services.notion import NotionKBSyncService
 
-                logger.info(f"Updating knowledge base for page {final_page_id}...")
+                logger.info(f"Updating knowledge base for document {document_id}...")
                 kb_service = NotionKBSyncService(db_session)
                 kb_result = await kb_service.sync_after_update(
-                    page_id=final_page_id,
-                    search_space_id=search_space_id,
+                    document_id=document_id,
                     appended_content=final_content,
                     user_id=user_id,
+                    search_space_id=search_space_id,
                 )
 
                 if kb_result["status"] == "success":

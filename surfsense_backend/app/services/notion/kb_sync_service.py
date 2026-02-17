@@ -1,9 +1,8 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import String, cast, delete
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 
 from app.config import config
 from app.db import Chunk, Document
@@ -23,10 +22,10 @@ class NotionKBSyncService:
 
     async def sync_after_update(
         self,
-        page_id: str,
-        search_space_id: int,
+        document_id: int,
         appended_content: str,
         user_id: str,
+        search_space_id: int,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
             get_current_timestamp,
@@ -34,13 +33,7 @@ class NotionKBSyncService:
         )
 
         try:
-            result = await self.db_session.execute(
-                select(Document).filter(
-                    Document.search_space_id == search_space_id,
-                    cast(Document.document_metadata["page_id"], String) == page_id,
-                )
-            )
-            document = result.scalars().first()
+            document = await self.db_session.get(Document, document_id)
 
             if not document:
                 return {"status": "not_indexed"}
@@ -54,7 +47,7 @@ class NotionKBSyncService:
             if user_llm:
                 document_metadata_for_summary = {
                     "page_title": document.document_metadata.get("page_title"),
-                    "page_id": page_id,
+                    "page_id": document.document_metadata.get("page_id"),
                     "document_type": "Notion Page",
                     "connector_type": "Notion",
                 }
@@ -85,9 +78,11 @@ class NotionKBSyncService:
 
             await self.db_session.commit()
 
-            logger.info(f"Successfully synced KB for Notion page {page_id}")
+            logger.info(f"Successfully synced KB for document {document_id}")
             return {"status": "success"}
 
         except Exception as e:
-            logger.error(f"Failed to sync KB for page {page_id}: {e}", exc_info=True)
+            logger.error(
+                f"Failed to sync KB for document {document_id}: {e}", exc_info=True
+            )
             return {"status": "error", "message": str(e)}
