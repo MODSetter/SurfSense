@@ -107,4 +107,4 @@ ENV CELERY_QUEUES=""
 
 # Run
 EXPOSE 8000-8001
-CMD ["/app/scripts/docker/entrypoint.sh"] 
+CMD ["/app/scripts/docker/entrypoint.sh"]
