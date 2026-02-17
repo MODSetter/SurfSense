@@ -189,7 +189,7 @@ async def lifespan(app: FastAPI):
     # doesn't block startup indefinitely and make the container unresponsive)
     try:
         await asyncio.wait_for(seed_surfsense_docs(), timeout=120)
-    except asyncio.TimeoutError:
+    except TimeoutError:
         logging.getLogger(__name__).warning(
             "Surfsense docs seeding timed out after 120s — skipping. "
             "Docs will be indexed on the next restart."

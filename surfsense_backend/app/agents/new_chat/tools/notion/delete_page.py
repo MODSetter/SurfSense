@@ -119,8 +119,12 @@ def create_delete_notion_page_tool(
                 }
             )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 logger.warning("No approval decision received")

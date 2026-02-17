@@ -12,8 +12,7 @@ export const announcements: Announcement[] = [
 	{
 		id: "announcement-1",
 		title: "Introducing Announcements",
-		description:
-			"All major announcements will be posted here.",
+		description: "All major announcements will be posted here.",
 		category: "feature",
 		date: "2026-02-17T00:00:00Z",
 		isImportant: true,

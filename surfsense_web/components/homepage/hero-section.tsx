@@ -2,7 +2,8 @@
 import { useFeatureFlagVariantKey } from "@posthog/react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import React, { useEffect, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
 import { WalkthroughScroll } from "@/components/ui/walkthrough-scroll";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
