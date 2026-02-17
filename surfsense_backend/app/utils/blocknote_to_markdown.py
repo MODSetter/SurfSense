@@ -72,22 +72,21 @@ def _render_inline_content(content: list[dict[str, Any]] | None) -> str:
 # Block → markdown lines
 # ---------------------------------------------------------------------------
 
-# Track numbered list state for consecutive numberedListItem blocks
-_numbered_list_counter: int = 0
 
-
-def _render_block(block: dict[str, Any], indent: int = 0) -> list[str]:
+def _render_block(
+    block: dict[str, Any], indent: int = 0, numbered_list_counter: int = 0
+) -> tuple[list[str], int]:
     """Convert a single BlockNote block (and its children) to markdown lines.
 
     Args:
         block: A BlockNote block dict.
         indent: Current indentation level (for nested children).
+        numbered_list_counter: Current counter for consecutive numbered list items.
 
     Returns:
-        A list of markdown lines (without trailing newlines).
+        A tuple of (list of markdown lines without trailing newlines,
+        updated numbered_list_counter).
     """
-    global _numbered_list_counter
-
     block_type = block.get("type", "paragraph")
     props: dict[str, Any] = block.get("props", {})
     content = block.get("content")
@@ -116,11 +115,11 @@ def _render_block(block: dict[str, Any], indent: int = 0) -> list[str]:
         # Use props.start if present, otherwise increment counter
         start = props.get("start")
         if start is not None:
-            _numbered_list_counter = int(start)
+            numbered_list_counter = int(start)
         else:
-            _numbered_list_counter += 1
+            numbered_list_counter += 1
         text = _render_inline_content(content) if content else ""
-        lines.append(f"{prefix}{_numbered_list_counter}. {text}")
+        lines.append(f"{prefix}{numbered_list_counter}. {text}")
 
     elif block_type == "checkListItem":
         checked = props.get("checked", False)
@@ -207,9 +206,12 @@ def _render_block(block: dict[str, Any], indent: int = 0) -> list[str]:
     # --- Render nested children (indented) ---
     if children:
         for child in children:
-            lines.extend(_render_block(child, indent=indent + 1))
+            child_lines, numbered_list_counter = _render_block(
+                child, indent=indent + 1, numbered_list_counter=numbered_list_counter
+            )
+            lines.extend(child_lines)
 
-    return lines
+    return lines, numbered_list_counter
 
 
 # ---------------------------------------------------------------------------
@@ -240,8 +242,6 @@ def blocknote_to_markdown(
         ... ])
         '## Hello\\n\\nWorld'
     """
-    global _numbered_list_counter
-
     if not blocks:
         return None
 
@@ -257,9 +257,7 @@ def blocknote_to_markdown(
 
     all_lines: list[str] = []
     prev_type: str | None = None
-
-    # Reset numbered list counter for each document
-    _numbered_list_counter = 0
+    numbered_list_counter: int = 0
 
     for block in blocks:
         if not isinstance(block, dict):
@@ -269,9 +267,11 @@ def blocknote_to_markdown(
 
         # Reset numbered list counter when we leave a numbered list run
         if block_type != "numberedListItem" and prev_type == "numberedListItem":
-            _numbered_list_counter = 0
+            numbered_list_counter = 0
 
-        block_lines = _render_block(block)
+        block_lines, numbered_list_counter = _render_block(
+            block, numbered_list_counter=numbered_list_counter
+        )
 
         # Add a blank line between blocks (standard markdown spacing)
         # Exception: consecutive list items of the same type don't get extra blank lines
