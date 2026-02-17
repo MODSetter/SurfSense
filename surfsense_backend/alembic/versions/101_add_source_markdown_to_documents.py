@@ -69,7 +69,7 @@ def _populate_source_markdown(conn, batch_size: int = 500) -> None:
     total = count_result.scalar()
 
     if total == 0:
-        print("✓ No documents with blocknote_document need migration")
+        print("No documents with blocknote_document need migration")
         return
 
     print(f"  Migrating {total} documents (with blocknote_document) to source_markdown...")
@@ -129,7 +129,7 @@ def _populate_source_markdown(conn, batch_size: int = 500) -> None:
         offset += batch_size
 
     print(
-        f"✓ source_markdown migration complete: {migrated} migrated, "
+        f"source_markdown migration complete: {migrated} migrated, "
         f"{failed} failed out of {total} total"
     )
 
