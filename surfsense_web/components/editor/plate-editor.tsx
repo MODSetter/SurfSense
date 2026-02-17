@@ -2,29 +2,17 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { MarkdownPlugin, remarkMdx } from "@platejs/markdown";
+import type { AnyPluginConfig } from "platejs";
 import { createPlatePlugin, Key, Plate, usePlateEditor } from "platejs/react";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 
-import { AutoformatKit } from "@/components/editor/plugins/autoformat-kit";
-import { BasicNodesKit } from "@/components/editor/plugins/basic-nodes-kit";
-import { CalloutKit } from "@/components/editor/plugins/callout-kit";
-import { CodeBlockKit } from "@/components/editor/plugins/code-block-kit";
-import { DndKit } from "@/components/editor/plugins/dnd-kit";
-import { FixedToolbarKit } from "@/components/editor/plugins/fixed-toolbar-kit";
-import { FloatingToolbarKit } from "@/components/editor/plugins/floating-toolbar-kit";
-import { LinkKit } from "@/components/editor/plugins/link-kit";
-import { ListKit } from "@/components/editor/plugins/list-kit";
-import { MathKit } from "@/components/editor/plugins/math-kit";
-import { SelectionKit } from "@/components/editor/plugins/selection-kit";
-import { SlashCommandKit } from "@/components/editor/plugins/slash-command-kit";
-import { TableKit } from "@/components/editor/plugins/table-kit";
-import { ToggleKit } from "@/components/editor/plugins/toggle-kit";
+import { type EditorPreset, presetMap } from "@/components/editor/presets";
 import { Editor, EditorContainer } from "@/components/ui/editor";
 import { escapeMdxExpressions } from "@/components/editor/utils/escape-mdx";
 import { EditorSaveContext } from "@/components/editor/editor-save-context";
 
-interface PlateEditorProps {
+export interface PlateEditorProps {
 	/** Markdown string to load as initial content */
 	markdown?: string;
 	/** Called when the editor content changes, with serialized markdown */
@@ -44,7 +32,7 @@ interface PlateEditorProps {
 	editorVariant?: "default" | "demo" | "fullWidth" | "none";
 	/** Additional className for the container */
 	className?: string;
-	/** Save callback. When provided, a save button appears in the toolbar on unsaved changes. */
+	/** Save callback. When provided, ⌘+S / Ctrl+S shortcut is registered and save button appears. */
 	onSave?: () => void;
 	/** Whether there are unsaved changes */
 	hasUnsavedChanges?: boolean;
@@ -52,6 +40,20 @@ interface PlateEditorProps {
 	isSaving?: boolean;
 	/** Start the editor in editing mode instead of viewing mode. Ignored when readOnly is true. */
 	defaultEditing?: boolean;
+	/**
+	 * Plugin preset to use. Controls which plugin kits are loaded.
+	 * - "full"     – all plugins (toolbars, slash commands, DnD, etc.)
+	 * - "minimal"  – core formatting only (no fixed toolbar, slash commands, DnD, block selection)
+	 * - "readonly" – rendering support for all rich content, no editing UI
+	 * @default "full"
+	 */
+	preset?: EditorPreset;
+	/**
+	 * Additional plugins to append after the preset plugins.
+	 * Use this to inject feature-specific plugins (e.g. approve/reject blocks)
+	 * without modifying the core editor component.
+	 */
+	extraPlugins?: AnyPluginConfig[];
 }
 
 export function PlateEditor({
@@ -66,6 +68,8 @@ export function PlateEditor({
 	hasUnsavedChanges = false,
 	isSaving = false,
 	defaultEditing = false,
+	preset = "full",
+	extraPlugins = [],
 }: PlateEditorProps) {
 	const lastMarkdownRef = useRef(markdown);
 
@@ -76,7 +80,8 @@ export function PlateEditor({
 		onSaveRef.current = onSave;
 	}, [onSave]);
 
-	// Stable Plate plugin for ⌘+S / Ctrl+S save shortcut
+	// Stable Plate plugin for ⌘+S / Ctrl+S save shortcut.
+	// Only included when onSave is provided.
 	const SaveShortcutPlugin = useMemo(
 		() =>
 			createPlatePlugin({
@@ -94,27 +99,20 @@ export function PlateEditor({
 		[]
 	);
 
+	// Resolve the plugin set from the chosen preset
+	const presetPlugins = presetMap[preset];
+
 	// When readOnly is forced, always start in readOnly.
 	// Otherwise, respect defaultEditing to decide initial mode.
 	// The user can still toggle between editing/viewing via ModeToolbarButton.
 	const editor = usePlateEditor({
 		readOnly: readOnly || !defaultEditing,
 		plugins: [
-			...BasicNodesKit,
-			...TableKit,
-			...ListKit,
-			...CodeBlockKit,
-			...LinkKit,
-			...CalloutKit,
-			...ToggleKit,
-			...MathKit,
-			...SelectionKit,
-			...SlashCommandKit,
-			...FixedToolbarKit,
-			...FloatingToolbarKit,
-			...AutoformatKit,
-			...DndKit,
-			SaveShortcutPlugin,
+			...presetPlugins,
+			// Only register save shortcut when a save handler is provided
+			...(onSave ? [SaveShortcutPlugin] : []),
+			// Consumer-provided extra plugins
+			...extraPlugins,
 			MarkdownPlugin.configure({
 				options: {
 					remarkPlugins: [remarkGfm, remarkMath, remarkMdx],

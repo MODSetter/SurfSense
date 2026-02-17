@@ -438,6 +438,7 @@ function ReportPanelContent({
 						</div>
 					) : (
 						<PlateEditor
+							preset="full"
 							markdown={reportContent.content}
 							onMarkdownChange={setEditedMarkdown}
 							readOnly={false}

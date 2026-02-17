@@ -466,6 +466,7 @@ export default function EditorPage() {
 				<div className="flex-1 min-h-0">
 					<PlateEditor
 						key={documentId}
+						preset="full"
 						markdown={document?.source_markdown ?? ""}
 						onMarkdownChange={handleMarkdownChange}
 						onSave={handleSave}
