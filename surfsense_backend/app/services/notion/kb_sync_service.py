@@ -64,6 +64,11 @@ class NotionKBSyncService:
             fetched_content = process_blocks(blocks)
             logger.debug(f"Fetched content length: {len(fetched_content)} chars")
 
+            if not fetched_content or not fetched_content.strip():
+                logger.warning(
+                    f"Fetched empty content for page {page_id} - document will have minimal searchable text"
+                )
+
             content_verified = False
             if appended_block_ids:
                 fetched_block_ids = set(extract_all_block_ids(blocks))
@@ -78,9 +83,9 @@ class NotionKBSyncService:
                     f"Appended IDs (first 3): {appended_block_ids[:3]}, Fetched IDs count: {len(fetched_block_ids)}"
                 )
 
-                if len(found_blocks) >= 1:
+                if len(found_blocks) >= len(appended_block_ids) * 0.8: # 80% threshold
                     logger.info(
-                        f"Content verified fresh: found {len(found_blocks)} appended blocks"
+                        f"Content verified fresh: found {len(found_blocks)}/{len(appended_block_ids)} appended blocks"
                     )
                     full_content = fetched_content
                     content_verified = True
@@ -154,4 +159,5 @@ class NotionKBSyncService:
             logger.error(
                 f"Failed to sync KB for document {document_id}: {e}", exc_info=True
             )
+            await self.db_session.rollback()
             return {"status": "error", "message": str(e)}
