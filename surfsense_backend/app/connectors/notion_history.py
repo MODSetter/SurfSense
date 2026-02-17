@@ -1041,7 +1041,7 @@ class NotionHistoryConnector:
         try:
             notion = await self._get_client()
 
-            # Append content if provided
+            appended_block_ids = []
             if content:
                 # Convert new content to blocks
                 try:
@@ -1065,13 +1065,22 @@ class NotionHistoryConnector:
                 try:
                     for i in range(0, len(children), 100):
                         batch = children[i : i + 100]
-                        await self._api_call_with_retry(
+                        response = await self._api_call_with_retry(
                             notion.blocks.children.append,
                             block_id=page_id,
                             children=batch,
                         )
+                        batch_block_ids = [
+                            block["id"] for block in response.get("results", [])
+                        ]
+                        appended_block_ids.extend(batch_block_ids)
                     logger.info(
                         f"Successfully appended {len(children)} new blocks to page {page_id}"
+                    )
+                    logger.debug(
+                        f"Appended block IDs: {appended_block_ids[:5]}..."
+                        if len(appended_block_ids) > 5
+                        else f"Appended block IDs: {appended_block_ids}"
                     )
                 except Exception as e:
                     logger.error(f"Failed to append content blocks: {e}")
@@ -1092,6 +1101,7 @@ class NotionHistoryConnector:
                 "page_id": page_id,
                 "url": page_url,
                 "title": page_title,
+                "appended_block_ids": appended_block_ids,
                 "message": f"Updated Notion page '{page_title}' (content appended)",
             }
 
