@@ -16,6 +16,7 @@ export {
 	type SerializableArticle,
 } from "./article";
 export { Audio } from "./audio";
+export { CreateLinearIssueToolUI } from "./create-linear-issue";
 export { CreateNotionPageToolUI } from "./create-notion-page";
 export {
 	type DeepAgentThinkingArgs,
@@ -24,6 +25,7 @@ export {
 	InlineThinkingDisplay,
 	type ThinkingStep,
 } from "./deepagent-thinking";
+export { DeleteLinearIssueToolUI } from "./delete-linear-issue";
 export {
 	type DisplayImageArgs,
 	DisplayImageArgsSchema,
@@ -79,6 +81,7 @@ export {
 	ScrapeWebpageResultSchema,
 	ScrapeWebpageToolUI,
 } from "./scrape-webpage";
+export { UpdateLinearIssueToolUI } from "./update-linear-issue";
 export { UpdateNotionPageToolUI } from "./update-notion-page";
 export {
 	type MemoryItem,
