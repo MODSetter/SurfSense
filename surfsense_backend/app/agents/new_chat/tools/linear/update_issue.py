@@ -234,6 +234,16 @@ def create_update_linear_issue_tool(
                 if final_new_label_ids is not None
                 else None,
             )
+
+            if updated_issue.get("status") == "error":
+                logger.error(
+                    f"Failed to update Linear issue: {updated_issue.get('message')}"
+                )
+                return {
+                    "status": "error",
+                    "message": updated_issue.get("message"),
+                }
+
             logger.info(
                 f"update_issue result: {updated_issue.get('identifier')} - {updated_issue.get('title')}"
             )
@@ -262,11 +272,13 @@ def create_update_linear_issue_tool(
             else:
                 kb_message = ""
 
+            identifier = updated_issue.get("identifier")
+            default_msg = f"Issue {identifier} updated successfully."
             return {
                 "status": "success",
-                "identifier": updated_issue.get("identifier"),
+                "identifier": identifier,
                 "url": updated_issue.get("url"),
-                "message": f"Issue {updated_issue.get('identifier')} updated successfully.{kb_message}",
+                "message": f"{updated_issue.get('message', default_msg)}{kb_message}",
             }
 
         except Exception as e:

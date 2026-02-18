@@ -598,35 +598,49 @@ class LinearConnector:
         priority: int | None = None,
         label_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        mutation = """
-        mutation IssueCreate($input: IssueCreateInput!) {
-            issueCreate(input: $input) {
-                success
-                issue { id identifier title url }
+        try:
+            mutation = """
+            mutation IssueCreate($input: IssueCreateInput!) {
+                issueCreate(input: $input) {
+                    success
+                    issue { id identifier title url }
+                }
             }
-        }
-        """
-        input_data: dict[str, Any] = {"teamId": team_id, "title": title}
-        if description is not None:
-            input_data["description"] = description
-        if state_id is not None:
-            input_data["stateId"] = state_id
-        if assignee_id is not None:
-            input_data["assigneeId"] = assignee_id
-        if priority is not None:
-            input_data["priority"] = priority
-        if label_ids:
-            input_data["labelIds"] = label_ids
+            """
+            input_data: dict[str, Any] = {"teamId": team_id, "title": title}
+            if description is not None:
+                input_data["description"] = description
+            if state_id is not None:
+                input_data["stateId"] = state_id
+            if assignee_id is not None:
+                input_data["assigneeId"] = assignee_id
+            if priority is not None:
+                input_data["priority"] = priority
+            if label_ids:
+                input_data["labelIds"] = label_ids
 
-        result = await self.execute_graphql_query(mutation, {"input": input_data})
-        payload = result.get("data", {}).get("issueCreate", {})
-        if not payload.get("success"):
-            errors = result.get("errors", [])
-            msg = (
-                errors[0].get("message", "Unknown error") if errors else "Unknown error"
-            )
-            raise Exception(f"issueCreate failed: {msg}")
-        return payload.get("issue", {})
+            result = await self.execute_graphql_query(mutation, {"input": input_data})
+            payload = result.get("data", {}).get("issueCreate", {})
+            if not payload.get("success"):
+                errors = result.get("errors", [])
+                msg = (
+                    errors[0].get("message", "Unknown error")
+                    if errors
+                    else "Unknown error"
+                )
+                return {"status": "error", "message": f"issueCreate failed: {msg}"}
+            issue = payload.get("issue", {})
+            return {
+                "status": "success",
+                "id": issue.get("id"),
+                "identifier": issue.get("identifier"),
+                "title": issue.get("title"),
+                "url": issue.get("url"),
+                "message": f"Issue {issue.get('identifier')} created successfully.",
+            }
+        except Exception as e:
+            logger.error(f"Error creating Linear issue: {e}")
+            return {"status": "error", "message": str(e)}
 
     async def update_issue(
         self,
@@ -638,57 +652,77 @@ class LinearConnector:
         priority: int | None = None,
         label_ids: list[str] | None = None,
     ) -> dict[str, Any]:
-        mutation = """
-        mutation IssueUpdate($id: String!, $input: IssueUpdateInput!) {
-            issueUpdate(id: $id, input: $input) {
-                success
-                issue { id identifier title url }
+        try:
+            mutation = """
+            mutation IssueUpdate($id: String!, $input: IssueUpdateInput!) {
+                issueUpdate(id: $id, input: $input) {
+                    success
+                    issue { id identifier title url }
+                }
             }
-        }
-        """
-        input_data: dict[str, Any] = {}
-        if title is not None:
-            input_data["title"] = title
-        if description is not None:
-            input_data["description"] = description
-        if state_id is not None:
-            input_data["stateId"] = state_id
-        if assignee_id is not None:
-            input_data["assigneeId"] = assignee_id
-        if priority is not None:
-            input_data["priority"] = priority
-        if label_ids is not None:
-            input_data["labelIds"] = label_ids
+            """
+            input_data: dict[str, Any] = {}
+            if title is not None:
+                input_data["title"] = title
+            if description is not None:
+                input_data["description"] = description
+            if state_id is not None:
+                input_data["stateId"] = state_id
+            if assignee_id is not None:
+                input_data["assigneeId"] = assignee_id
+            if priority is not None:
+                input_data["priority"] = priority
+            if label_ids is not None:
+                input_data["labelIds"] = label_ids
 
-        result = await self.execute_graphql_query(
-            mutation, {"id": issue_id, "input": input_data}
-        )
-        payload = result.get("data", {}).get("issueUpdate", {})
-        if not payload.get("success"):
-            errors = result.get("errors", [])
-            msg = (
-                errors[0].get("message", "Unknown error") if errors else "Unknown error"
+            result = await self.execute_graphql_query(
+                mutation, {"id": issue_id, "input": input_data}
             )
-            raise Exception(f"issueUpdate failed: {msg}")
-        return payload.get("issue", {})
-
-    async def archive_issue(self, issue_id: str) -> bool:
-        mutation = """
-        mutation IssueArchive($id: String!) {
-            issueArchive(id: $id) {
-                success
+            payload = result.get("data", {}).get("issueUpdate", {})
+            if not payload.get("success"):
+                errors = result.get("errors", [])
+                msg = (
+                    errors[0].get("message", "Unknown error")
+                    if errors
+                    else "Unknown error"
+                )
+                return {"status": "error", "message": f"issueUpdate failed: {msg}"}
+            issue = payload.get("issue", {})
+            return {
+                "status": "success",
+                "id": issue.get("id"),
+                "identifier": issue.get("identifier"),
+                "title": issue.get("title"),
+                "url": issue.get("url"),
+                "message": f"Issue {issue.get('identifier')} updated successfully.",
             }
-        }
-        """
-        result = await self.execute_graphql_query(mutation, {"id": issue_id})
-        payload = result.get("data", {}).get("issueArchive", {})
-        if not payload.get("success"):
-            errors = result.get("errors", [])
-            msg = (
-                errors[0].get("message", "Unknown error") if errors else "Unknown error"
-            )
-            raise Exception(f"issueArchive failed: {msg}")
-        return True
+        except Exception as e:
+            logger.error(f"Error updating Linear issue: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def archive_issue(self, issue_id: str) -> dict[str, Any]:
+        try:
+            mutation = """
+            mutation IssueArchive($id: String!) {
+                issueArchive(id: $id) {
+                    success
+                }
+            }
+            """
+            result = await self.execute_graphql_query(mutation, {"id": issue_id})
+            payload = result.get("data", {}).get("issueArchive", {})
+            if not payload.get("success"):
+                errors = result.get("errors", [])
+                msg = (
+                    errors[0].get("message", "Unknown error")
+                    if errors
+                    else "Unknown error"
+                )
+                return {"status": "error", "message": f"issueArchive failed: {msg}"}
+            return {"status": "success", "message": "Issue archived successfully."}
+        except Exception as e:
+            logger.error(f"Error archiving Linear issue: {e}")
+            return {"status": "error", "message": str(e)}
 
     def format_issue_to_markdown(self, issue: dict[str, Any]) -> str:
         """

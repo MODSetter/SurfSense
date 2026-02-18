@@ -197,7 +197,7 @@ def create_create_linear_issue_tool(
             linear_client = LinearConnector(
                 session=db_session, connector_id=actual_connector_id
             )
-            issue = await linear_client.create_issue(
+            result = await linear_client.create_issue(
                 team_id=final_team_id,
                 title=final_title,
                 description=final_description,
@@ -207,15 +207,19 @@ def create_create_linear_issue_tool(
                 label_ids=final_label_ids if final_label_ids else None,
             )
 
+            if result.get("status") == "error":
+                logger.error(f"Failed to create Linear issue: {result.get('message')}")
+                return {"status": "error", "message": result.get("message")}
+
             logger.info(
-                f"Linear issue created: {issue.get('identifier')} - {issue.get('title')}"
+                f"Linear issue created: {result.get('identifier')} - {result.get('title')}"
             )
             return {
                 "status": "success",
-                "issue_id": issue.get("id"),
-                "identifier": issue.get("identifier"),
-                "url": issue.get("url"),
-                "message": f"Issue {issue.get('identifier')} created successfully.",
+                "issue_id": result.get("id"),
+                "identifier": result.get("identifier"),
+                "url": result.get("url"),
+                "message": result.get("message"),
             }
 
         except Exception as e:
