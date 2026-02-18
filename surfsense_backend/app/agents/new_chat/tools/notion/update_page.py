@@ -220,7 +220,7 @@ def create_update_notion_page_tool(
                 f"update_page result: {result.get('status')} - {result.get('message', '')}"
             )
 
-            if result.get("status") == "success":
+            if result.get("status") == "success" and document_id is not None:
                 from app.services.notion import NotionKBSyncService
 
                 logger.info(f"Updating knowledge base for document {document_id}...")

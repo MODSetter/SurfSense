@@ -83,7 +83,7 @@ class NotionKBSyncService:
                     f"Appended IDs (first 3): {appended_block_ids[:3]}, Fetched IDs count: {len(fetched_block_ids)}"
                 )
 
-                if len(found_blocks) >= len(appended_block_ids) * 0.8: # 80% threshold
+                if len(found_blocks) >= len(appended_block_ids) * 0.8:  # 80% threshold
                     logger.info(
                         f"Content verified fresh: found {len(found_blocks)}/{len(appended_block_ids)} appended blocks"
                     )
