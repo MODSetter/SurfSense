@@ -89,32 +89,36 @@ class LinearToolMetadataService:
     async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
         """Return context needed to create a new Linear issue.
 
-        Fetches all teams with their states, members, and labels from the
-        Linear API, along with workspace info from the DB connector.
+        Fetches all connected Linear workspaces, and for each one fetches
+        its teams with states, members, and labels from the Linear API.
 
-        Returns a dict with keys: workspace, priorities, teams.
+        Returns a dict with key: workspaces (each entry has id, name, organization_name, teams, priorities).
         Returns a dict with key 'error' on failure.
         """
-        connector = await self._get_linear_connector(search_space_id, user_id)
-        if not connector:
+        connectors = await self._get_all_linear_connectors(search_space_id, user_id)
+        if not connectors:
             return {"error": "No Linear account connected"}
 
-        workspace = LinearWorkspace.from_connector(connector)
-        linear_client = LinearConnector(
-            session=self._db_session, connector_id=connector.id
-        )
+        workspaces = []
+        for connector in connectors:
+            workspace = LinearWorkspace.from_connector(connector)
+            linear_client = LinearConnector(
+                session=self._db_session, connector_id=connector.id
+            )
+            try:
+                priorities = await self._fetch_priority_values(linear_client)
+                teams = await self._fetch_teams_context(linear_client)
+            except Exception as e:
+                return {"error": f"Failed to fetch Linear context: {e!s}"}
+            workspaces.append({
+                "id": workspace.id,
+                "name": workspace.name,
+                "organization_name": workspace.organization_name,
+                "teams": teams,
+                "priorities": priorities,
+            })
 
-        try:
-            priorities = await self._fetch_priority_values(linear_client)
-            teams_raw = await self._fetch_teams_context(linear_client)
-        except Exception as e:
-            return {"error": f"Failed to fetch Linear context: {e!s}"}
-
-        return {
-            "workspace": workspace.to_dict(),
-            "priorities": priorities,
-            "teams": teams_raw,
-        }
+        return {"workspaces": workspaces}
 
     async def get_update_context(
         self, search_space_id: int, user_id: str, issue_ref: str
@@ -309,6 +313,22 @@ class LinearToolMetadataService:
             .limit(1)
         )
         return result.scalars().first()
+
+    async def _get_all_linear_connectors(
+        self, search_space_id: int, user_id: str
+    ) -> list[SearchSourceConnector]:
+        """Fetch all Linear connectors for the given search space and user."""
+        result = await self._db_session.execute(
+            select(SearchSourceConnector).filter(
+                and_(
+                    SearchSourceConnector.search_space_id == search_space_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.LINEAR_CONNECTOR,
+                )
+            )
+        )
+        return result.scalars().all()
 
     async def _get_linear_connector(
         self, search_space_id: int, user_id: str
