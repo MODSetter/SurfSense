@@ -48,6 +48,11 @@ from app.db import ChatVisibility
 from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
 from .knowledge_base import create_search_knowledge_base_tool
+from .linear import (
+    create_create_linear_issue_tool,
+    create_delete_linear_issue_tool,
+    create_update_linear_issue_tool,
+)
 from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
 from .notion import (
@@ -214,6 +219,39 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             )
         ),
         requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
+    ),
+    # =========================================================================
+    # LINEAR TOOLS - create, update, delete issues
+    # =========================================================================
+    ToolDefinition(
+        name="create_linear_issue",
+        description="Create a new issue in the user's Linear workspace",
+        factory=lambda deps: create_create_linear_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_linear_issue",
+        description="Update an existing indexed Linear issue",
+        factory=lambda deps: create_update_linear_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_linear_issue",
+        description="Archive (delete) an existing indexed Linear issue",
+        factory=lambda deps: create_delete_linear_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
     ),
     # =========================================================================
     # NOTION TOOLS - create, update, delete pages
