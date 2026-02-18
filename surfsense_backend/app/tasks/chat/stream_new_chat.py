@@ -796,6 +796,9 @@ async def _stream_agent_events(
                 "create_notion_page",
                 "update_notion_page",
                 "delete_notion_page",
+                "create_linear_issue",
+                "update_linear_issue",
+                "delete_linear_issue",
             ):
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
