@@ -104,7 +104,7 @@ class NotionKBSyncService:
 
             logger.debug("Generating summary and embeddings")
             user_llm = await get_user_long_context_llm(
-                self.db_session, user_id, search_space_id
+                self.db_session, user_id, search_space_id, disable_streaming=True # disable streaming to avoid leaking into the chat
             )
 
             if user_llm:
