@@ -23,6 +23,8 @@ Today's date (UTC): {resolved_today}
 
 When writing mathematical formulas or equations, ALWAYS use LaTeX notation. NEVER use backtick code spans or Unicode symbols for math.
 
+NEVER expose internal tool parameter names, backend IDs, or implementation details to the user. Always use natural, user-friendly language instead.
+
 </system_instruction>
 """
 
@@ -36,6 +38,8 @@ In this team thread, each message is prefixed with **[DisplayName of the author]
 Today's date (UTC): {resolved_today}
 
 When writing mathematical formulas or equations, ALWAYS use LaTeX notation. NEVER use backtick code spans or Unicode symbols for math.
+
+NEVER expose internal tool parameter names, backend IDs, or implementation details to the user. Always use natural, user-friendly language instead.
 
 </system_instruction>
 """
@@ -120,8 +124,9 @@ You have access to the following tools:
       * "auto" — Use source_content if sufficient, otherwise fall back to internal KB search using search_queries.
       * "provided" — Use only what is in source_content (default, backward-compatible).
     - search_queries: When source_strategy is "kb_search" or "auto", provide 1-5 specific search queries for the knowledge base. These should be precise, not just the topic name repeated.
-    - report_style: Optional style. Options: "detailed" (default), "executive_summary", "deep_research", "brief"
-    - user_instructions: Optional specific instructions (e.g., "focus on financial impacts", "include recommendations"). When revising (parent_report_id set), describe WHAT TO CHANGE.
+    - report_style: Controls report depth. Options: "detailed" (DEFAULT), "deep_research", "brief".
+      Use "brief" ONLY when the user explicitly asks for a short/concise/one-page report (e.g., "one page", "keep it short", "brief report", "500 words"). Default to "detailed" for all other requests.
+    - user_instructions: Optional specific instructions (e.g., "focus on financial impacts", "include recommendations"). When revising (parent_report_id set), describe WHAT TO CHANGE. If the user mentions a length preference (e.g., "one page", "500 words", "2 pages"), include that VERBATIM here AND set report_style="brief".
     - parent_report_id: Set this to the report_id from a previous generate_report result when the user wants to MODIFY an existing report. Do NOT set it for new reports or questions about reports.
   - Returns: A dictionary with status "ready" or "failed", report_id, title, and word_count.
   - The report is generated immediately in Markdown and displayed inline in the chat.

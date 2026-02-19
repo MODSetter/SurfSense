@@ -78,6 +78,8 @@ _REPORT_PROMPT = """You are an expert report writer. Generate a comprehensive Ma
 
 ---
 
+{length_instruction}
+
 Write a well-structured Markdown report with a # title, executive summary, organized sections, and conclusion. Cite facts from the source content. Be thorough and professional.
 
 {formatting_rules}
@@ -101,6 +103,8 @@ _REVISION_PROMPT = """You are an expert report editor. Apply ONLY the requested 
 {previous_report_content}
 
 ---
+
+{length_instruction}
 
 Preserve all structure and content not affected by the modification.
 
@@ -696,8 +700,7 @@ def create_generate_report_tool(
             search_queries: When source_strategy is "kb_search" or "auto",
                 provide 1-5 targeted search queries for the knowledge base.
                 These should be specific, not just the topic repeated.
-            report_style: "detailed", "executive_summary", "deep_research",
-                or "brief".
+            report_style: "detailed", "deep_research", or "brief".
             user_instructions: Optional focus or modification instructions.
                 When revising (parent_report_id set), describe WHAT TO CHANGE.
             parent_report_id: ID of a previous report to revise (creates new
@@ -897,6 +900,16 @@ def create_generate_report_tool(
 
             capped_source = effective_source[:100000]  # Cap source content
 
+            # Length constraint — only when user explicitly asks for brevity
+            length_instruction = ""
+            if report_style == "brief":
+                length_instruction = (
+                    "**LENGTH CONSTRAINT (MANDATORY):** The user wants a SHORT report. "
+                    "Keep it concise — aim for ~500 words (~1 page) unless a different "
+                    "length is specified in the Additional Instructions above. "
+                    "Prioritize brevity over thoroughness. Do NOT write a long report."
+                )
+
             # ── Phase 2: LLM GENERATION (no DB connection held) ──────────
 
             report_content: str | None = None
@@ -944,6 +957,7 @@ def create_generate_report_tool(
                         or "Improve and refine the report.",
                         source_content=capped_source,
                         previous_report_content=parent_report_content,
+                        length_instruction=length_instruction,
                         formatting_rules=_FORMATTING_RULES,
                     )
                     response = await llm.ainvoke([HumanMessage(content=prompt)])
@@ -966,6 +980,7 @@ def create_generate_report_tool(
                     user_instructions_section=user_instructions_section,
                     previous_version_section="",
                     source_content=capped_source,
+                    length_instruction=length_instruction,
                     formatting_rules=_FORMATTING_RULES,
                 )
                 response = await llm.ainvoke([HumanMessage(content=prompt)])
