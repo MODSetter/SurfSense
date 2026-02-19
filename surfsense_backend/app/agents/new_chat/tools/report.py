@@ -55,6 +55,11 @@ on one line. For line breaks inside node labels, use <br> (NOT <br/>).
 - When including mathematical formulas or equations, ALWAYS use LaTeX notation. \
 NEVER use backtick code spans or Unicode symbols for math."""
 
+# ─── Standard Report Footer ─────────────────────────────────────────────────
+# Appended to every generated report after content generation.
+
+_REPORT_FOOTER = "Powered by SurfSense AI."
+
 # ─── Prompt: Single-Shot Report Generation ───────────────────────────────────
 
 _REPORT_PROMPT = """You are an expert report writer. Generate a comprehensive Markdown report.
@@ -962,6 +967,9 @@ def create_generate_report_tool(
                     "report_id": report_id,
                     "title": topic,
                 }
+
+            # Append standard disclaimer to every report
+            report_content += "\n\n---\n\n" + _REPORT_FOOTER
 
             # Extract metadata (includes "status": "ready")
             metadata = _extract_metadata(report_content)
