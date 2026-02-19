@@ -43,6 +43,10 @@ logger = logging.getLogger(__name__)
 # Reusable formatting instructions appended to section-level and review prompts.
 
 _FORMATTING_RULES = """\
+- IMPORTANT: Output raw Markdown directly. Do NOT wrap the entire output in a \
+code fence (e.g. ```markdown, ````markdown, or any backtick fence). Individual \
+code examples and diagrams inside the report should still use fenced code blocks, \
+but the report itself must NOT be enclosed in one.
 - Maintain proper Markdown formatting throughout.
 - When including code examples, ALWAYS format them as proper fenced code blocks \
 with the correct language identifier (e.g. ```java, ```python). Code inside code \
@@ -188,16 +192,20 @@ def _strip_wrapping_code_fences(text: str) -> str:
 
     Handles patterns like:
         ```markdown\\n...content...\\n```
+        ````markdown\\n...content...\\n````
         ```md\\n...content...\\n```
         ```\\n...content...\\n```
         ```json\\n...content...\\n```
+    Supports 3 or more backticks (LLMs escalate when content has triple-backtick blocks).
     """
     stripped = text.strip()
-    # Match opening fence with optional language tag
-    m = re.match(r"^```(?:markdown|md|json)?\s*\n", stripped)
-    if m and stripped.endswith("```"):
-        stripped = stripped[m.end() :]  # remove opening fence
-        stripped = stripped[:-3].rstrip()  # remove closing fence
+    # Match opening fence with 3+ backticks and optional language tag
+    m = re.match(r"^(`{3,})(?:markdown|md|json)?\s*\n", stripped)
+    if m:
+        fence = m.group(1)  # e.g. "```" or "````"
+        if stripped.endswith(fence):
+            stripped = stripped[m.end() :]  # remove opening fence
+            stripped = stripped[: -len(fence)].rstrip()  # remove closing fence
     return stripped
 
 
