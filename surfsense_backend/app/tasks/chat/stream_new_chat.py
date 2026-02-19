@@ -226,6 +226,7 @@ async def _stream_agent_events(
     last_active_step_title: str = initial_step_title
     last_active_step_items: list[str] = initial_step_items or []
     just_finished_tool: bool = False
+    active_tool_depth: int = 0  # Track nesting: >0 means we're inside a tool
 
     def next_thinking_step_id() -> str:
         nonlocal thinking_step_counter
@@ -250,6 +251,8 @@ async def _stream_agent_events(
         event_type = event.get("event", "")
 
         if event_type == "on_chat_model_stream":
+            if active_tool_depth > 0:
+                continue  # Suppress inner-tool LLM tokens from leaking into chat
             chunk = event.get("data", {}).get("chunk")
             if chunk and hasattr(chunk, "content"):
                 content = chunk.content
@@ -269,6 +272,7 @@ async def _stream_agent_events(
                     accumulated_text += content
 
         elif event_type == "on_tool_start":
+            active_tool_depth += 1
             tool_name = event.get("name", "unknown_tool")
             run_id = event.get("run_id", "")
             tool_input = event.get("data", {}).get("input", {})
@@ -428,6 +432,7 @@ async def _stream_agent_events(
             )
 
         elif event_type == "on_tool_end":
+            active_tool_depth = max(0, active_tool_depth - 1)
             run_id = event.get("run_id", "")
             tool_name = event.get("name", "unknown_tool")
             raw_output = event.get("data", {}).get("output", "")
