@@ -30,8 +30,7 @@ interface InterruptResult {
 			id: string;
 			identifier: string;
 			title: string;
-			url?: string;
-			current_state?: string;
+			state?: string;
 			document_id?: number;
 			indexed_at?: string;
 		};
@@ -182,18 +181,8 @@ function ApprovalCard({
 										<div className="font-medium">
 											{issue.identifier}: {issue.title}
 										</div>
-										{issue.current_state && (
-											<div className="text-xs text-muted-foreground">{issue.current_state}</div>
-										)}
-										{issue.url && (
-											<a
-												href={issue.url}
-												target="_blank"
-												rel="noopener noreferrer"
-												className="text-xs text-primary hover:underline"
-											>
-												Open in Linear ↗
-											</a>
+										{issue.state && (
+											<div className="text-xs text-muted-foreground">{issue.state}</div>
 										)}
 									</div>
 								</div>

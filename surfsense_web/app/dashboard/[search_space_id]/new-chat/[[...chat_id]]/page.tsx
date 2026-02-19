@@ -34,15 +34,22 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ReportPanel } from "@/components/report-panel/report-panel";
-import { CreateNotionPageToolUI } from "@/components/tool-ui/create-notion-page";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
-import { DeleteNotionPageToolUI } from "@/components/tool-ui/delete-notion-page";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
+import {
+	CreateLinearIssueToolUI,
+	DeleteLinearIssueToolUI,
+	UpdateLinearIssueToolUI,
+} from "@/components/tool-ui/linear";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
+import {
+	CreateNotionPageToolUI,
+	DeleteNotionPageToolUI,
+	UpdateNotionPageToolUI,
+} from "@/components/tool-ui/notion";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
-import { UpdateNotionPageToolUI } from "@/components/tool-ui/update-notion-page";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
@@ -1651,6 +1658,9 @@ export default function NewChatPage() {
 			<CreateNotionPageToolUI />
 			<UpdateNotionPageToolUI />
 			<DeleteNotionPageToolUI />
+			<CreateLinearIssueToolUI />
+			<UpdateLinearIssueToolUI />
+			<DeleteLinearIssueToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
