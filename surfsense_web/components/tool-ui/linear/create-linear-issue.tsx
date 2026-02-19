@@ -132,7 +132,7 @@ function ApprovalCard({
 	const [selectedTeamId, setSelectedTeamId] = useState("");
 	const [selectedStateId, setSelectedStateId] = useState("__none__");
 	const [selectedAssigneeId, setSelectedAssigneeId] = useState("__none__");
-	const [selectedPriority, setSelectedPriority] = useState("__none__");
+	const [selectedPriority, setSelectedPriority] = useState("0");
 	const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
 
 	const workspaces = interruptData.context?.workspaces ?? [];
@@ -162,7 +162,7 @@ function ApprovalCard({
 			team_id: selectedTeamId || null,
 			state_id: selectedStateId === "__none__" ? null : selectedStateId,
 			assignee_id: selectedAssigneeId === "__none__" ? null : selectedAssigneeId,
-			priority: selectedPriority === "__none__" ? null : Number(selectedPriority),
+			priority: Number(selectedPriority),
 			label_ids: selectedLabelIds,
 		};
 	}
@@ -215,9 +215,9 @@ function ApprovalCard({
 										onValueChange={(v) => {
 											setSelectedWorkspaceId(v);
 											setSelectedTeamId("");
-											setSelectedStateId("__none__");
-											setSelectedAssigneeId("__none__");
-											setSelectedPriority("__none__");
+										setSelectedStateId("__none__");
+										setSelectedAssigneeId("__none__");
+										setSelectedPriority("0");
 											setSelectedLabelIds([]);
 										}}
 									>
@@ -243,12 +243,13 @@ function ApprovalCard({
 										</div>
 										<Select
 											value={selectedTeamId}
-											onValueChange={(v) => {
-												setSelectedTeamId(v);
-												setSelectedStateId("__none__");
-												setSelectedAssigneeId("__none__");
-												setSelectedLabelIds([]);
-											}}
+										onValueChange={(v) => {
+											setSelectedTeamId(v);
+											const newTeam = selectedWorkspace.teams.find((t) => t.id === v);
+											setSelectedStateId(newTeam?.states?.[0]?.id ?? "__none__");
+											setSelectedAssigneeId("__none__");
+											setSelectedLabelIds([]);
+										}}
 										>
 											<SelectTrigger className="w-full">
 												<SelectValue placeholder="Select a team" />
@@ -272,7 +273,6 @@ function ApprovalCard({
 														<SelectValue placeholder="Default" />
 													</SelectTrigger>
 													<SelectContent>
-														<SelectItem value="__none__">Default</SelectItem>
 														{selectedTeam.states.map((s) => (
 															<SelectItem key={s.id} value={s.id}>
 																{s.name}
@@ -308,7 +308,6 @@ function ApprovalCard({
 														<SelectValue placeholder="No priority" />
 													</SelectTrigger>
 													<SelectContent>
-														<SelectItem value="__none__">No priority</SelectItem>
 														{selectedWorkspace.priorities.map((p) => (
 															<SelectItem key={p.priority} value={String(p.priority)}>
 																{p.label}
