@@ -47,7 +47,7 @@ interface SuccessResult {
 	page_id: string;
 	title?: string;
 	message?: string;
-	deleted_from_db?: boolean;
+	deleted_from_kb?: boolean;
 }
 
 interface ErrorResult {
@@ -129,7 +129,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | null>(
 		interruptData.__decided__ ?? null
 	);
-	const [deleteFromDb, setDeleteFromDb] = useState(false);
+	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
 	const account = interruptData.context?.account;
 	const currentTitle = interruptData.context?.current_title;
@@ -203,8 +203,8 @@ function ApprovalCard({
 					<label className="flex items-start gap-2 cursor-pointer">
 						<input
 							type="checkbox"
-							checked={deleteFromDb}
-							onChange={(e) => setDeleteFromDb(e.target.checked)}
+							checked={deleteFromKb}
+							onChange={(e) => setDeleteFromKb(e.target.checked)}
 							className="mt-0.5"
 						/>
 						<div className="flex-1">
@@ -249,7 +249,7 @@ function ApprovalCard({
 										args: {
 											page_id: interruptData.context?.page_id,
 											connector_id: account?.id,
-											delete_from_db: deleteFromDb,
+											delete_from_kb: deleteFromKb,
 										},
 									},
 								});
@@ -346,7 +346,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 					</p>
 				</div>
 			</div>
-			{(result.deleted_from_db || result.title) && (
+			{(result.deleted_from_kb || result.title) && (
 				<div className="space-y-2 px-4 py-3 text-xs">
 					{result.title && (
 						<div>
@@ -354,7 +354,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 							<span>{result.title}</span>
 						</div>
 					)}
-					{result.deleted_from_db && (
+					{result.deleted_from_kb && (
 						<div className="pt-1">
 							<span className="text-green-600 dark:text-green-500">
 								✓ Also removed from knowledge base
@@ -368,7 +368,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 }
 
 export const DeleteNotionPageToolUI = makeAssistantToolUI<
-	{ page_title: string; delete_from_db?: boolean },
+	{ page_title: string; delete_from_kb?: boolean },
 	DeleteNotionPageResult
 >({
 	toolName: "delete_notion_page",

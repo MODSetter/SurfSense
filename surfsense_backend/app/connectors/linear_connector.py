@@ -675,6 +675,12 @@ class LinearConnector:
             if label_ids is not None:
                 input_data["labelIds"] = label_ids
 
+            if not input_data:
+                return {
+                    "status": "error",
+                    "message": "No fields provided for update. Please specify at least one field to change.",
+                }
+
             result = await self.execute_graphql_query(
                 mutation, {"id": issue_id, "input": input_data}
             )
