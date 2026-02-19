@@ -240,8 +240,7 @@ def create_delete_notion_page_tool(
                         logger.warning(f"Document {document_id} not found in KB")
                 except Exception as e:
                     logger.error(f"Failed to delete document from KB: {e}")
-                    # Don't fail the whole operation if KB deletion fails
-                    # The page is already deleted from Notion, so inform the user
+                    await db_session.rollback()
                     result["warning"] = (
                         f"Page deleted from Notion, but failed to remove from knowledge base: {e!s}"
                     )

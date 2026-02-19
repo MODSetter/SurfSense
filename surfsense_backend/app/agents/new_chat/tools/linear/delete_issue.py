@@ -99,6 +99,7 @@ def create_delete_linear_issue_tool(
                     return {"status": "error", "message": error_msg}
 
             issue_id = context["issue"]["id"]
+            issue_identifier = context["issue"].get("identifier", "")
             document_id = context["issue"]["document_id"]
             connector_id_from_context = context.get("workspace", {}).get("id")
 
@@ -229,12 +230,15 @@ def create_delete_linear_issue_tool(
                         logger.warning(f"Document {document_id} not found in KB")
                 except Exception as e:
                     logger.error(f"Failed to delete document from KB: {e}")
+                    await db_session.rollback()
                     result["warning"] = (
                         f"Issue archived in Linear, but failed to remove from knowledge base: {e!s}"
                     )
 
             if result.get("status") == "success":
                 result["deleted_from_kb"] = deleted_from_kb
+                if issue_identifier:
+                    result["message"] = f"Issue {issue_identifier} archived successfully."
                 if deleted_from_kb:
                     result["message"] = (
                         f"{result.get('message', '')} Also removed from the knowledge base."

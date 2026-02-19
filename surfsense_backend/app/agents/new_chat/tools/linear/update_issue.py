@@ -232,9 +232,7 @@ def create_update_linear_issue_tool(
                 state_id=final_new_state_id,
                 assignee_id=final_new_assignee_id,
                 priority=final_new_priority,
-                label_ids=final_new_label_ids
-                if final_new_label_ids is not None
-                else None,
+                label_ids=final_new_label_ids,
             )
 
             if updated_issue.get("status") == "error":

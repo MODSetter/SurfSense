@@ -144,6 +144,7 @@ def create_create_linear_issue_tool(
             final_connector_id = final_params.get("connector_id", connector_id)
 
             if not final_title or not final_title.strip():
+                logger.error("Title is empty or contains only whitespace")
                 return {"status": "error", "message": "Issue title cannot be empty."}
             if not final_team_id:
                 return {
