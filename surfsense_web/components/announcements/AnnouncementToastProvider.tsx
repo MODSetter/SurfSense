@@ -10,6 +10,8 @@ import {
 	markAnnouncementRead,
 	markAnnouncementToasted,
 } from "@/lib/announcements/announcements-storage";
+import { getActiveAnnouncements } from "@/lib/announcements/announcements-utils";
+import { isAuthenticated } from "@/lib/auth-utils";
 
 /** Map announcement category to the Sonner toast method */
 const categoryToVariant: Record<string, "info" | "warning" | "success"> = {
@@ -52,34 +54,33 @@ function showAnnouncementToast(announcement: Announcement) {
  * Global provider that shows important announcements as toast notifications.
  *
  * Place this component once at the root layout level (alongside <Toaster />).
- * On mount, it checks for unread important announcements that haven't been
- * shown as toasts yet, and displays them with a short stagger delay.
+ * On mount, it checks for active, audience-matched, unread important
+ * announcements that haven't been shown as toasts yet, and displays them
+ * with a short stagger delay.
  */
 export function AnnouncementToastProvider() {
 	const hasChecked = useRef(false);
 
 	useEffect(() => {
-		// Only run once per page load
 		if (hasChecked.current) return;
 		hasChecked.current = true;
 
-		// Small delay to let the page settle before showing toasts
 		const timer = setTimeout(() => {
-			const importantUntoasted = announcements.filter(
-				(a) => a.isImportant && !isAnnouncementToasted(a.id)
+			const authed = isAuthenticated();
+			const active = getActiveAnnouncements(announcements, authed);
+			const importantUntoasted = active.filter(
+				(a) => a.isImportant && !isAnnouncementToasted(a.id),
 			);
 
-			// Show each important announcement as a toast with stagger
 			for (let i = 0; i < importantUntoasted.length; i++) {
 				const announcement = importantUntoasted[i];
 				setTimeout(() => showAnnouncementToast(announcement), i * 800);
 			}
-		}, 1500); // Initial delay for page to settle
+		}, 1500);
 
 		return () => clearTimeout(timer);
 	}, []);
 
-	// This component renders nothing — it only triggers side effects
 	return null;
 }
 
