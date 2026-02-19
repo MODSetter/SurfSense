@@ -968,7 +968,14 @@ def create_generate_report_tool(
                     "title": topic,
                 }
 
-            # Append standard disclaimer to every report
+            # Strip any existing footer(s) carried over from parent version(s)
+            while report_content.rstrip().endswith(_REPORT_FOOTER):
+                idx = report_content.rstrip().rfind(_REPORT_FOOTER)
+                report_content = report_content[:idx].rstrip()
+                if report_content.rstrip().endswith("---"):
+                    report_content = report_content.rstrip()[:-3].rstrip()
+
+            # Append exactly one standard disclaimer
             report_content += "\n\n---\n\n" + _REPORT_FOOTER
 
             # Extract metadata (includes "status": "ready")
