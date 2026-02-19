@@ -28,7 +28,7 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
-from app.db import ChatVisibility, Document, SurfsenseDocsDocument
+from app.db import ChatVisibility, Document, Report, SurfsenseDocsDocument
 from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
 from app.services.chat_session_state_service import (
     clear_ai_responding,
@@ -1033,6 +1033,20 @@ async def stream_new_chat(
             )
             mentioned_surfsense_docs = list(result.scalars().all())
 
+        # Fetch the most recent report(s) in this thread so the LLM can
+        # easily find report_id for versioning decisions, instead of
+        # having to dig through conversation history.
+        recent_reports_result = await session.execute(
+            select(Report)
+            .filter(
+                Report.thread_id == chat_id,
+                Report.content.isnot(None),  # exclude failed reports
+            )
+            .order_by(Report.id.desc())
+            .limit(3)
+        )
+        recent_reports = list(recent_reports_result.scalars().all())
+
         # Format the user query with context (mentioned documents + SurfSense docs)
         final_query = user_query
         context_parts = []
@@ -1045,6 +1059,27 @@ async def stream_new_chat(
         if mentioned_surfsense_docs:
             context_parts.append(
                 format_mentioned_surfsense_docs_as_context(mentioned_surfsense_docs)
+            )
+
+        # Surface report IDs prominently so the LLM doesn't have to
+        # retrieve them from old tool responses in conversation history.
+        if recent_reports:
+            report_lines = []
+            for r in recent_reports:
+                report_lines.append(
+                    f'  - report_id={r.id}, title="{r.title}", '
+                    f'style="{r.report_style or "detailed"}"'
+                )
+            reports_listing = "\n".join(report_lines)
+            context_parts.append(
+                "<report_context>\n"
+                "Previously generated reports in this conversation:\n"
+                f"{reports_listing}\n\n"
+                "If the user wants to MODIFY, REVISE, UPDATE, or ADD to one of "
+                "these reports, set parent_report_id to the relevant report_id above.\n"
+                "If the user wants a completely NEW report on a different topic, "
+                "leave parent_report_id unset.\n"
+                "</report_context>"
             )
 
         if context_parts:
