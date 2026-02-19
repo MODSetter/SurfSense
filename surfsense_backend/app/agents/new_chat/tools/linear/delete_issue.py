@@ -226,7 +226,7 @@ def create_delete_linear_issue_tool(
                             f"Deleted document {document_id} from knowledge base"
                         )
                     else:
-                        logger.warning(f"Document {document_id} not found in DB")
+                        logger.warning(f"Document {document_id} not found in KB")
                 except Exception as e:
                     logger.error(f"Failed to delete document from KB: {e}")
                     result["warning"] = (

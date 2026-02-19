@@ -266,6 +266,8 @@ def create_update_linear_issue_tool(
                         f"Knowledge base successfully updated for issue {final_issue_id}"
                     )
                     kb_message = " Your knowledge base has also been updated."
+                elif kb_result["status"] == "not_indexed":
+                    kb_message = " This issue will be added to your knowledge base in the next scheduled sync."
                 else:
                     logger.warning(
                         f"KB update failed for issue {final_issue_id}: {kb_result.get('message')}"
