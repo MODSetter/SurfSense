@@ -5,7 +5,7 @@ from langchain_core.tools import tool
 from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.connectors.linear_connector import LinearConnector
+from app.connectors.linear_connector import LinearAPIError, LinearConnector
 from app.services.linear import LinearKBSyncService, LinearToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -290,12 +290,11 @@ def create_update_linear_issue_tool(
                 raise
 
             logger.error(f"Error updating Linear issue: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "message": str(e)
-                if isinstance(e, ValueError)
-                else f"Unexpected error: {e!s}",
-            }
+            if isinstance(e, (ValueError, LinearAPIError)):
+                message = str(e)
+            else:
+                message = "Something went wrong while updating the issue. Please try again."
+            return {"status": "error", "message": message}
 
     return update_linear_issue
 

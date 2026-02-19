@@ -227,7 +227,7 @@ function ApprovalCard({
 										<SelectContent>
 											{workspaces.map((w) => (
 												<SelectItem key={w.id} value={String(w.id)}>
-													{w.organization_name}
+													{w.name}
 												</SelectItem>
 											))}
 										</SelectContent>

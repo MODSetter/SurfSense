@@ -78,7 +78,7 @@ class LinearKBSyncService:
             issue_identifier = formatted_issue.get("identifier", "")
             issue_title = formatted_issue.get("title", "")
             state = formatted_issue.get("state", "Unknown")
-            priority = issue_raw.get("priority", 0)
+            priority = issue_raw.get("priorityLabel", "Unknown")
             comment_count = len(formatted_issue.get("comments", []))
             description = formatted_issue.get("description", "")
 
@@ -125,16 +125,20 @@ class LinearKBSyncService:
                 issue_content, search_space_id
             )
             document.embedding = summary_embedding
+            from sqlalchemy.orm.attributes import flag_modified
+
             document.document_metadata = {
-                **document.document_metadata,
+                **(document.document_metadata or {}),
                 "issue_id": issue_id,
                 "issue_identifier": issue_identifier,
                 "issue_title": issue_title,
                 "state": state,
+                "priority": priority,
                 "comment_count": comment_count,
                 "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "connector_id": connector_id,
             }
+            flag_modified(document, "document_metadata")
             safe_set_chunks(document, chunks)
             document.updated_at = get_current_timestamp()
 
@@ -159,7 +163,7 @@ class LinearKBSyncService:
         query = """
         query LinearIssueSync($id: String!) {
             issue(id: $id) {
-                id identifier title description priority
+                id identifier title description priority priorityLabel
                 createdAt updatedAt url
                 state { id name type color }
                 creator { id name email }

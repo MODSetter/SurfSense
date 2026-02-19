@@ -22,6 +22,14 @@ logger = logging.getLogger(__name__)
 
 LINEAR_GRAPHQL_URL = "https://api.linear.app/graphql"
 
+
+class LinearAPIError(Exception):
+    """Raised when the Linear API returns a non-200 response.
+
+    The message is always user-presentable; callers should surface it directly
+    without any additional prefix or wrapping.
+    """
+
 ORGANIZATION_QUERY = """
 query {
     organization {
@@ -243,6 +251,37 @@ class LinearConnector:
             "Authorization": f"Bearer {self._credentials.access_token}",
         }
 
+    @staticmethod
+    def _raise_api_error(status_code: int, body: str) -> None:
+        """Parse a non-200 Linear API response and raise a clean exception.
+
+        Translates known Linear error codes into user-readable messages so that
+        raw GraphQL payloads never reach the end user.
+        """
+        import json as _json
+
+        friendly = None
+        try:
+            payload = _json.loads(body)
+            errors = payload.get("errors", [])
+            if errors:
+                ext = errors[0].get("extensions", {})
+                code = ext.get("code", "")
+                if code == "INPUT_ERROR" and "too complex" in errors[0].get("message", "").lower():
+                    friendly = (
+                        "Linear rejected the request because the workspace is too large "
+                        "to fetch in one query. Please try again — if the problem persists, "
+                        "contact support."
+                    )
+                elif ext.get("userPresentableMessage"):
+                    friendly = ext["userPresentableMessage"]
+                elif errors[0].get("message"):
+                    friendly = errors[0]["message"]
+        except Exception:
+            pass
+
+        raise LinearAPIError(friendly or f"Linear API error (HTTP {status_code})")
+
     async def execute_graphql_query(
         self, query: str, variables: dict[str, Any] | None = None
     ) -> dict[str, Any]:
@@ -281,9 +320,7 @@ class LinearConnector:
         if response.status_code == 200:
             return response.json()
         else:
-            raise Exception(
-                f"Query failed with status code {response.status_code}: {response.text}"
-            )
+            self._raise_api_error(response.status_code, response.text)
 
     async def get_all_issues(
         self, include_comments: bool = True

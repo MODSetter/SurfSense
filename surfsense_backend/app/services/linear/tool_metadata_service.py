@@ -237,7 +237,7 @@ class LinearToolMetadataService:
         """Fetch all teams with their states, members, and labels."""
         query = """
         query {
-            teams {
+            teams(first: 25) {
                 nodes {
                     id name key
                     states { nodes { id name type color position } }
@@ -248,7 +248,19 @@ class LinearToolMetadataService:
         }
         """
         result = await client.execute_graphql_query(query)
-        return result.get("data", {}).get("teams", {}).get("nodes", [])
+        raw_teams = result.get("data", {}).get("teams", {}).get("nodes", [])
+
+        return [
+            {
+                "id": t.get("id"),
+                "name": t.get("name"),
+                "key": t.get("key"),
+                "states": (t.get("states") or {}).get("nodes", []),
+                "members": (t.get("members") or {}).get("nodes", []),
+                "labels": (t.get("labels") or {}).get("nodes", []),
+            }
+            for t in raw_teams
+        ]
 
     @staticmethod
     async def _fetch_issue_context(
@@ -296,11 +308,15 @@ class LinearToolMetadataService:
                     SearchSourceConnector.user_id == user_id,
                     or_(
                         func.lower(
-                            Document.document_metadata["issue_title"].astext
+                            Document.document_metadata.op("->>")(
+                                "issue_title"
+                            )
                         )
                         == ref_lower,
                         func.lower(
-                            Document.document_metadata["issue_identifier"].astext
+                            Document.document_metadata.op("->>")(
+                                "issue_identifier"
+                            )
                         )
                         == ref_lower,
                         func.lower(Document.title) == ref_lower,

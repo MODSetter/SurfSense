@@ -150,28 +150,31 @@ function ApprovalCard({
 	const priorities = context?.priorities ?? [];
 	const issue = context?.issue;
 
+	const initialEditState = {
+		title: actionArgs.new_title ? String(actionArgs.new_title) : (issue?.title ?? ""),
+		description: actionArgs.new_description
+			? String(actionArgs.new_description)
+			: (issue?.description ?? ""),
+		stateId: actionArgs.new_state_id
+			? String(actionArgs.new_state_id)
+			: (issue?.current_state?.id ?? "__none__"),
+		assigneeId: actionArgs.new_assignee_id
+			? String(actionArgs.new_assignee_id)
+			: (issue?.current_assignee?.id ?? "__none__"),
+		priority:
+			actionArgs.new_priority != null
+				? String(actionArgs.new_priority)
+				: String(issue?.priority ?? 0),
+		labelIds: Array.isArray(actionArgs.new_label_ids)
+			? (actionArgs.new_label_ids as string[])
+			: (issue?.current_labels?.map((l) => l.id) ?? []),
+	};
+
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
 	const [isEditing, setIsEditing] = useState(false);
-	const [editedTitle, setEditedTitle] = useState(
-		actionArgs.new_title ? String(actionArgs.new_title) : ""
-	);
-	const [editedDescription, setEditedDescription] = useState(
-		actionArgs.new_description ? String(actionArgs.new_description) : ""
-	);
-	const [selectedStateId, setSelectedStateId] = useState(
-		actionArgs.new_state_id ? String(actionArgs.new_state_id) : "__none__"
-	);
-	const [selectedAssigneeId, setSelectedAssigneeId] = useState(
-		actionArgs.new_assignee_id ? String(actionArgs.new_assignee_id) : "__none__"
-	);
-	const [selectedPriority, setSelectedPriority] = useState(
-		actionArgs.new_priority != null ? String(actionArgs.new_priority) : "__none__"
-	);
-	const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>(
-		Array.isArray(actionArgs.new_label_ids) ? (actionArgs.new_label_ids as string[]) : []
-	);
+	const [editedArgs, setEditedArgs] = useState(initialEditState);
 
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
@@ -203,12 +206,13 @@ function ApprovalCard({
 			issue_id: issue?.id,
 			document_id: issue?.document_id,
 			connector_id: context?.workspace?.id,
-			new_title: editedTitle || null,
-			new_description: editedDescription || null,
-			new_state_id: selectedStateId === "__none__" ? null : selectedStateId,
-			new_assignee_id: selectedAssigneeId === "__none__" ? null : selectedAssigneeId,
-			new_priority: selectedPriority === "__none__" ? null : Number(selectedPriority),
-			new_label_ids: labelsWereProposed || selectedLabelIds.length > 0 ? selectedLabelIds : null,
+			new_title: editedArgs.title || null,
+			new_description: editedArgs.description || null,
+			new_state_id: editedArgs.stateId === "__none__" ? null : editedArgs.stateId,
+			new_assignee_id: editedArgs.assigneeId === "__none__" ? null : editedArgs.assigneeId,
+			new_priority: Number(editedArgs.priority),
+			new_label_ids:
+				labelsWereProposed || editedArgs.labelIds.length > 0 ? editedArgs.labelIds : null,
 		};
 	}
 
@@ -411,126 +415,134 @@ function ApprovalCard({
 						>
 							New Title
 						</label>
-						<Input
-							id="linear-update-title"
-							value={editedTitle}
-							onChange={(e) => setEditedTitle(e.target.value)}
-							placeholder="Leave empty to keep current title"
-						/>
-					</div>
+				<Input
+					id="linear-update-title"
+					value={editedArgs.title}
+					onChange={(e) => setEditedArgs({ ...editedArgs, title: e.target.value })}
+					placeholder="Issue title"
+				/>
+				</div>
 
-					<div>
-						<label
-							htmlFor="linear-update-description"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							New Description
-						</label>
-						<Textarea
-							id="linear-update-description"
-							value={editedDescription}
-							onChange={(e) => setEditedDescription(e.target.value)}
-							placeholder="Leave empty to keep current description"
-							rows={5}
-							className="resize-none"
-						/>
-					</div>
+				<div>
+					<label
+						htmlFor="linear-update-description"
+						className="text-xs font-medium text-muted-foreground mb-1.5 block"
+					>
+						Description
+					</label>
+					<Textarea
+						id="linear-update-description"
+						value={editedArgs.description}
+						onChange={(e) => setEditedArgs({ ...editedArgs, description: e.target.value })}
+						placeholder="Issue description"
+						rows={5}
+						className="resize-none"
+					/>
+				</div>
 
-					{team && (
-						<>
-							<div className="space-y-1.5">
-								<div className="text-xs font-medium text-muted-foreground">State</div>
-								<Select value={selectedStateId} onValueChange={setSelectedStateId}>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Unchanged" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="__none__">Unchanged</SelectItem>
-										{team.states.map((s) => (
-											<SelectItem key={s.id} value={s.id}>
-												{s.name}
+				{team && (
+					<>
+						<div className="space-y-1.5">
+							<div className="text-xs font-medium text-muted-foreground">State</div>
+							<Select
+								value={editedArgs.stateId}
+								onValueChange={(v) => setEditedArgs({ ...editedArgs, stateId: v })}
+							>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select state" />
+								</SelectTrigger>
+							<SelectContent>
+								{team.states.map((s) => (
+										<SelectItem key={s.id} value={s.id}>
+											{s.name}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						<div className="space-y-1.5">
+							<div className="text-xs font-medium text-muted-foreground">Assignee</div>
+							<Select
+								value={editedArgs.assigneeId}
+								onValueChange={(v) => setEditedArgs({ ...editedArgs, assigneeId: v })}
+							>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select assignee" />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="__none__">Unassigned</SelectItem>
+									{team.members
+										.filter((m) => m.active)
+										.map((m) => (
+											<SelectItem key={m.id} value={m.id}>
+												{m.name} ({m.email})
 											</SelectItem>
 										))}
-									</SelectContent>
-								</Select>
-							</div>
+								</SelectContent>
+							</Select>
+						</div>
 
+						<div className="space-y-1.5">
+							<div className="text-xs font-medium text-muted-foreground">Priority</div>
+							<Select
+								value={editedArgs.priority}
+								onValueChange={(v) => setEditedArgs({ ...editedArgs, priority: v })}
+							>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select priority" />
+								</SelectTrigger>
+							<SelectContent>
+								{priorities.map((p) => (
+										<SelectItem key={p.priority} value={String(p.priority)}>
+											{p.label}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+
+						{team.labels.length > 0 && (
 							<div className="space-y-1.5">
-								<div className="text-xs font-medium text-muted-foreground">Assignee</div>
-								<Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Unchanged" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="__none__">Unchanged</SelectItem>
-										{team.members
-											.filter((m) => m.active)
-											.map((m) => (
-												<SelectItem key={m.id} value={m.id}>
-													{m.name} ({m.email})
-												</SelectItem>
-											))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-1.5">
-								<div className="text-xs font-medium text-muted-foreground">Priority</div>
-								<Select value={selectedPriority} onValueChange={setSelectedPriority}>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Unchanged" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="__none__">Unchanged</SelectItem>
-										{priorities.map((p) => (
-											<SelectItem key={p.priority} value={String(p.priority)}>
-												{p.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							{team.labels.length > 0 && (
-								<div className="space-y-1.5">
-									<div className="text-xs font-medium text-muted-foreground">Labels</div>
-									<div className="flex flex-wrap gap-1.5">
-										{team.labels.map((label) => {
-											const isSelected = selectedLabelIds.includes(label.id);
-											return (
-												<button
-													key={label.id}
-													type="button"
-													onClick={() =>
-														setSelectedLabelIds((prev) =>
-															isSelected
-																? prev.filter((id) => id !== label.id)
-																: [...prev, label.id]
-														)
-													}
-													className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity ${
-														isSelected
-															? "opacity-100 ring-2 ring-foreground/30"
-															: "opacity-50 hover:opacity-80"
-													}`}
-													style={{
-														backgroundColor: `${label.color}33`,
-														color: label.color,
-													}}
-												>
-													<span
-														className="size-1.5 rounded-full"
-														style={{ backgroundColor: label.color }}
-													/>
-													{label.name}
-												</button>
-											);
-										})}
-									</div>
+								<div className="text-xs font-medium text-muted-foreground">Labels</div>
+								<div className="flex flex-wrap gap-1.5">
+									{team.labels.map((label) => {
+										const isSelected = editedArgs.labelIds.includes(label.id);
+										return (
+											<button
+												key={label.id}
+												type="button"
+												onClick={() =>
+													setEditedArgs({
+														...editedArgs,
+														labelIds: isSelected
+															? editedArgs.labelIds.filter((id) => id !== label.id)
+															: [...editedArgs.labelIds, label.id],
+													})
+												}
+												className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity ${
+													isSelected
+														? "opacity-100 ring-2 ring-foreground/30"
+														: "opacity-50 hover:opacity-80"
+												}`}
+												style={{
+													backgroundColor: `${label.color}33`,
+													color: label.color,
+												}}
+											>
+												<span
+													className="size-1.5 rounded-full"
+													style={{ backgroundColor: label.color }}
+												/>
+												{label.name}
+											</button>
+										);
+									})}
 								</div>
-							)}
-						</>
-					)}
+							</div>
+						)}
+					</>
+				)}
 				</div>
 			)}
 
@@ -576,27 +588,10 @@ function ApprovalCard({
 						<Button
 							size="sm"
 							variant="outline"
-							onClick={() => {
-								setIsEditing(false);
-								setEditedTitle(actionArgs.new_title ? String(actionArgs.new_title) : "");
-								setEditedDescription(
-									actionArgs.new_description ? String(actionArgs.new_description) : ""
-								);
-								setSelectedStateId(
-									actionArgs.new_state_id ? String(actionArgs.new_state_id) : "__none__"
-								);
-								setSelectedAssigneeId(
-									actionArgs.new_assignee_id ? String(actionArgs.new_assignee_id) : "__none__"
-								);
-								setSelectedPriority(
-									actionArgs.new_priority != null ? String(actionArgs.new_priority) : "__none__"
-								);
-								setSelectedLabelIds(
-									Array.isArray(actionArgs.new_label_ids)
-										? (actionArgs.new_label_ids as string[])
-										: []
-								);
-							}}
+						onClick={() => {
+						setIsEditing(false);
+						setEditedArgs(initialEditState); // Reset to original args
+					}}
 						>
 							Cancel
 						</Button>

@@ -5,7 +5,7 @@ from langchain_core.tools import tool
 from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.connectors.notion_history import NotionHistoryConnector
+from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
 from app.services.notion.tool_metadata_service import NotionToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -262,11 +262,10 @@ def create_delete_notion_page_tool(
                 raise
 
             logger.error(f"Error deleting Notion page: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "message": str(e)
-                if isinstance(e, ValueError)
-                else f"Unexpected error: {e!s}",
-            }
+            if isinstance(e, (ValueError, NotionAPIError)):
+                message = str(e)
+            else:
+                message = "Something went wrong while deleting the page. Please try again."
+            return {"status": "error", "message": message}
 
     return delete_notion_page

@@ -17,6 +17,15 @@ from app.utils.oauth_security import TokenEncryption
 
 logger = logging.getLogger(__name__)
 
+
+class NotionAPIError(Exception):
+    """Raised when the Notion API returns a non-200 response.
+
+    The message is always user-presentable; callers should surface it directly
+    without any additional prefix or wrapping.
+    """
+
+
 # Type variable for generic return type
 T = TypeVar("T")
 
@@ -250,8 +259,9 @@ class NotionHistoryConnector:
                 logger.error(
                     f"Failed to refresh Notion token for connector {self._connector_id}: {e!s}"
                 )
-                raise Exception(
-                    f"Failed to refresh Notion OAuth credentials: {e!s}"
+                raise NotionAPIError(
+                    "Failed to refresh your Notion connection. "
+                    "Please try again or reconnect your Notion account."
                 ) from e
 
         return self._credentials.access_token

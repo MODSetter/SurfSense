@@ -5,7 +5,7 @@ from langchain_core.tools import tool
 from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.connectors.notion_history import NotionHistoryConnector
+from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
 from app.services.notion import NotionToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -224,11 +224,10 @@ def create_create_notion_page_tool(
                 raise
 
             logger.error(f"Error creating Notion page: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "message": str(e)
-                if isinstance(e, ValueError)
-                else f"Unexpected error: {e!s}",
-            }
+            if isinstance(e, (ValueError, NotionAPIError)):
+                message = str(e)
+            else:
+                message = "Something went wrong while creating the page. Please try again."
+            return {"status": "error", "message": message}
 
     return create_notion_page
