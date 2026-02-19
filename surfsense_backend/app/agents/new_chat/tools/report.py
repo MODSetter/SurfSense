@@ -905,7 +905,7 @@ def create_generate_report_tool(
             if report_style == "brief":
                 length_instruction = (
                     "**LENGTH CONSTRAINT (MANDATORY):** The user wants a SHORT report. "
-                    "Keep it concise — aim for ~500 words (~1 page) unless a different "
+                    "Keep it concise — aim for ~400 words (~1 page) unless a different "
                     "length is specified in the Additional Instructions above. "
                     "Prioritize brevity over thoroughness. Do NOT write a long report."
                 )
