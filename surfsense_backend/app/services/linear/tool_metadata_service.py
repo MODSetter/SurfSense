@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from sqlalchemy import String, and_, cast, func, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -296,11 +296,11 @@ class LinearToolMetadataService:
                     SearchSourceConnector.user_id == user_id,
                     or_(
                         func.lower(
-                            cast(Document.document_metadata["issue_title"], String)
+                            Document.document_metadata["issue_title"].astext
                         )
                         == ref_lower,
                         func.lower(
-                            cast(Document.document_metadata["issue_identifier"], String)
+                            Document.document_metadata["issue_identifier"].astext
                         )
                         == ref_lower,
                         func.lower(Document.title) == ref_lower,
