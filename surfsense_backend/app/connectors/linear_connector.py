@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-import requests
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -274,7 +273,10 @@ class LinearConnector:
         if variables:
             payload["variables"] = variables
 
-        response = requests.post(self.api_url, headers=headers, json=payload)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.api_url, headers=headers, json=payload, timeout=30.0
+            )
 
         if response.status_code == 200:
             return response.json()
