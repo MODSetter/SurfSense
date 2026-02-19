@@ -387,26 +387,19 @@ async def _stream_agent_events(
                     if isinstance(tool_input, dict)
                     else "Report"
                 )
-                report_style = (
-                    tool_input.get("report_style", "detailed")
-                    if isinstance(tool_input, dict)
-                    else "detailed"
+                is_revision = bool(
+                    isinstance(tool_input, dict)
+                    and tool_input.get("parent_report_id")
                 )
-                content_len = len(
-                    tool_input.get("source_content", "")
-                    if isinstance(tool_input, dict)
-                    else ""
-                )
-                last_active_step_title = "Generating report"
+                step_title = "Revising report" if is_revision else "Generating report"
+                last_active_step_title = step_title
                 last_active_step_items = [
                     f"Topic: {report_topic}",
-                    f"Style: {report_style}",
-                    f"Source content: {content_len:,} characters",
-                    "Generating report with LLM...",
+                    "Analyzing source content...",
                 ]
                 yield streaming_service.format_thinking_step(
                     step_id=tool_step_id,
-                    title="Generating report",
+                    title=step_title,
                     status="in_progress",
                     items=last_active_step_items,
                 )
@@ -594,12 +587,18 @@ async def _stream_agent_events(
                     if isinstance(tool_output, dict)
                     else 0
                 )
+                is_revision = (
+                    tool_output.get("is_revision", False)
+                    if isinstance(tool_output, dict)
+                    else False
+                )
+                step_title = "Revising report" if is_revision else "Generating report"
 
                 if report_status == "ready":
                     completed_items = [
-                        f"Title: {report_title}",
-                        f"Words: {word_count:,}",
-                        "Report generated successfully",
+                        f"Topic: {report_title}",
+                        f"{word_count:,} words",
+                        "Report ready",
                     ]
                 elif report_status == "failed":
                     error_msg = (
@@ -608,7 +607,7 @@ async def _stream_agent_events(
                         else "Unknown error"
                     )
                     completed_items = [
-                        f"Title: {report_title}",
+                        f"Topic: {report_title}",
                         f"Error: {error_msg[:50]}",
                     ]
                 else:
@@ -616,7 +615,7 @@ async def _stream_agent_events(
 
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
-                    title="Generating report",
+                    title=step_title,
                     status="completed",
                     items=completed_items,
                 )
@@ -815,6 +814,42 @@ async def _stream_agent_events(
                 )
                 yield streaming_service.format_terminal_info(
                     f"Tool {tool_name} completed", "success"
+                )
+
+        elif event_type == "on_custom_event" and event.get("name") == "report_progress":
+            # Live progress updates from inside the generate_report tool
+            data = event.get("data", {})
+            message = data.get("message", "")
+            if message and last_active_step_id:
+                phase = data.get("phase", "")
+                # Always keep the "Topic: ..." line
+                topic_items = [
+                    item for item in last_active_step_items
+                    if item.startswith("Topic:")
+                ]
+
+                if phase in ("revising_section", "adding_section"):
+                    # During section-level ops: keep plan summary + show current op
+                    plan_items = [
+                        item for item in last_active_step_items
+                        if item.startswith("Topic:") or item.startswith("Modifying ")
+                        or item.startswith("Adding ") or item.startswith("Removing ")
+                    ]
+                    # Only keep plan_items that don't end with "..." (not progress lines)
+                    plan_items = [
+                        item for item in plan_items
+                        if not item.endswith("...")
+                    ]
+                    last_active_step_items = [*plan_items, message]
+                else:
+                    # Phase transitions: replace everything after topic
+                    last_active_step_items = [*topic_items, message]
+
+                yield streaming_service.format_thinking_step(
+                    step_id=last_active_step_id,
+                    title=last_active_step_title,
+                    status="in_progress",
+                    items=last_active_step_items,
                 )
 
         elif event_type in ("on_chain_end", "on_agent_end"):
