@@ -388,8 +388,7 @@ async def _stream_agent_events(
                     else "Report"
                 )
                 is_revision = bool(
-                    isinstance(tool_input, dict)
-                    and tool_input.get("parent_report_id")
+                    isinstance(tool_input, dict) and tool_input.get("parent_report_id")
                 )
                 step_title = "Revising report" if is_revision else "Generating report"
                 last_active_step_title = step_title
@@ -824,21 +823,22 @@ async def _stream_agent_events(
                 phase = data.get("phase", "")
                 # Always keep the "Topic: ..." line
                 topic_items = [
-                    item for item in last_active_step_items
-                    if item.startswith("Topic:")
+                    item for item in last_active_step_items if item.startswith("Topic:")
                 ]
 
                 if phase in ("revising_section", "adding_section"):
                     # During section-level ops: keep plan summary + show current op
                     plan_items = [
-                        item for item in last_active_step_items
-                        if item.startswith("Topic:") or item.startswith("Modifying ")
-                        or item.startswith("Adding ") or item.startswith("Removing ")
+                        item
+                        for item in last_active_step_items
+                        if item.startswith("Topic:")
+                        or item.startswith("Modifying ")
+                        or item.startswith("Adding ")
+                        or item.startswith("Removing ")
                     ]
                     # Only keep plan_items that don't end with "..." (not progress lines)
                     plan_items = [
-                        item for item in plan_items
-                        if not item.endswith("...")
+                        item for item in plan_items if not item.endswith("...")
                     ]
                     last_active_step_items = [*plan_items, message]
                 else:

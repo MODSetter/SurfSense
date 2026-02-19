@@ -257,10 +257,12 @@ def _parse_sections(content: str) -> list[dict[str, str]]:
         if is_section_heading:
             # Save previous section
             if current_heading or current_body_lines:
-                sections.append({
-                    "heading": current_heading,
-                    "body": "\n".join(current_body_lines).strip(),
-                })
+                sections.append(
+                    {
+                        "heading": current_heading,
+                        "body": "\n".join(current_body_lines).strip(),
+                    }
+                )
             current_heading = line.strip()
             current_body_lines = []
         else:
@@ -268,10 +270,12 @@ def _parse_sections(content: str) -> list[dict[str, str]]:
 
     # Save last section
     if current_heading or current_body_lines:
-        sections.append({
-            "heading": current_heading,
-            "body": "\n".join(current_body_lines).strip(),
-        })
+        sections.append(
+            {
+                "heading": current_heading,
+                "body": "\n".join(current_body_lines).strip(),
+            }
+        )
 
     return sections
 
@@ -370,11 +374,17 @@ async def _revise_with_sections(
     # Emit plan summary
     parts = []
     if modify_indices:
-        parts.append(f"modifying {len(modify_indices)} section{'s' if len(modify_indices) > 1 else ''}")
+        parts.append(
+            f"modifying {len(modify_indices)} section{'s' if len(modify_indices) > 1 else ''}"
+        )
     if add_sections:
-        parts.append(f"adding {len(add_sections)} new section{'s' if len(add_sections) > 1 else ''}")
+        parts.append(
+            f"adding {len(add_sections)} new section{'s' if len(add_sections) > 1 else ''}"
+        )
     if remove_indices:
-        parts.append(f"removing {len(remove_indices)} section{'s' if len(remove_indices) > 1 else ''}")
+        parts.append(
+            f"removing {len(remove_indices)} section{'s' if len(remove_indices) > 1 else ''}"
+        )
     plan_summary = ", ".join(parts) if parts else "no changes needed"
 
     dispatch_custom_event(
@@ -400,7 +410,11 @@ async def _revise_with_sections(
         sec = sections[idx]
 
         # Extract plain section name (strip markdown heading markers)
-        section_name = re.sub(r"^#+\s*", "", sec["heading"]).strip() if sec["heading"] else "Preamble"
+        section_name = (
+            re.sub(r"^#+\s*", "", sec["heading"]).strip()
+            if sec["heading"]
+            else "Preamble"
+        )
         dispatch_custom_event(
             "report_progress",
             {
@@ -417,20 +431,18 @@ async def _revise_with_sections(
         context_parts = []
         if idx > 0:
             prev = sections[idx - 1]
-            prev_preview = prev["body"][:300] + ("..." if len(prev["body"]) > 300 else "")
+            prev_preview = prev["body"][:300] + (
+                "..." if len(prev["body"]) > 300 else ""
+            )
             context_parts.append(
                 f"**Previous section:** {prev['heading']}\n{prev_preview}"
             )
         if idx < len(sections) - 1:
             nxt = sections[idx + 1]
             nxt_preview = nxt["body"][:300] + ("..." if len(nxt["body"]) > 300 else "")
-            context_parts.append(
-                f"**Next section:** {nxt['heading']}\n{nxt_preview}"
-            )
+            context_parts.append(f"**Next section:** {nxt['heading']}\n{nxt_preview}")
         context = (
-            "\n\n".join(context_parts)
-            if context_parts
-            else "(No surrounding sections)"
+            "\n\n".join(context_parts) if context_parts else "(No surrounding sections)"
         )
 
         revise_prompt = _REVISE_SECTION_PROMPT.format(
@@ -455,9 +467,7 @@ async def _revise_with_sections(
                     "body": revised_text,
                 }
 
-        logger.info(
-            f"[generate_report] Revised section [{idx}]: {sec['heading']}"
-        )
+        logger.info(f"[generate_report] Revised section [{idx}]: {sec['heading']}")
 
     # Step 3: Handle new section additions (insert in reverse order to preserve indices)
     for add_info in sorted(
@@ -513,10 +523,13 @@ async def _revise_with_sections(
             if new_parsed:
                 revised_sections.insert(insert_idx, new_parsed[0])
             else:
-                revised_sections.insert(insert_idx, {
-                    "heading": heading,
-                    "body": new_content,
-                })
+                revised_sections.insert(
+                    insert_idx,
+                    {
+                        "heading": heading,
+                        "body": new_content,
+                    },
+                )
 
         logger.info(
             f"[generate_report] Added new section after [{after_idx}]: {heading}"
@@ -859,7 +872,10 @@ def create_generate_report_tool(
                     else:
                         dispatch_custom_event(
                             "report_progress",
-                            {"phase": "kb_search_done", "message": "No results found in knowledge base"},
+                            {
+                                "phase": "kb_search_done",
+                                "message": "No results found in knowledge base",
+                            },
                         )
                         logger.info("[generate_report] KB search returned no results")
 
@@ -893,7 +909,10 @@ def create_generate_report_tool(
                 # all sections need changes.
                 dispatch_custom_event(
                     "report_progress",
-                    {"phase": "revision_start", "message": "Analyzing sections to modify..."},
+                    {
+                        "phase": "revision_start",
+                        "message": "Analyzing sections to modify...",
+                    },
                 )
                 logger.info(
                     "[generate_report] Revision mode — attempting section-level revision"
@@ -901,7 +920,8 @@ def create_generate_report_tool(
                 report_content = await _revise_with_sections(
                     llm=llm,
                     parent_content=parent_report_content,
-                    user_instructions=user_instructions or "Improve and refine the report.",
+                    user_instructions=user_instructions
+                    or "Improve and refine the report.",
                     source_content=capped_source,
                     topic=topic,
                     report_style=report_style,
