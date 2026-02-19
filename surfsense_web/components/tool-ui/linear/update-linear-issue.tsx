@@ -198,6 +198,7 @@ function ApprovalCard({
 	}
 
 	function buildFinalArgs() {
+		const labelsWereProposed = Array.isArray(actionArgs.new_label_ids);
 		return {
 			issue_id: issue?.id,
 			document_id: issue?.document_id,
@@ -207,7 +208,7 @@ function ApprovalCard({
 			new_state_id: selectedStateId === "__none__" ? null : selectedStateId,
 			new_assignee_id: selectedAssigneeId === "__none__" ? null : selectedAssigneeId,
 			new_priority: selectedPriority === "__none__" ? null : Number(selectedPriority),
-			new_label_ids: selectedLabelIds,
+			new_label_ids: labelsWereProposed || selectedLabelIds.length > 0 ? selectedLabelIds : null,
 		};
 	}
 

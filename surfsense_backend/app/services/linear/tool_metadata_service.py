@@ -222,10 +222,7 @@ class LinearToolMetadataService:
 
         return {
             "workspace": workspace.to_dict(),
-            "issue": {
-                **issue.to_dict(),
-                "url": f"https://linear.app/issue/{issue.identifier}",
-            },
+            "issue": issue.to_dict(),
         }
 
     @staticmethod
@@ -329,22 +326,6 @@ class LinearToolMetadataService:
             )
         )
         return result.scalars().all()
-
-    async def _get_linear_connector(
-        self, search_space_id: int, user_id: str
-    ) -> SearchSourceConnector | None:
-        """Fetch the first Linear connector for the given search space and user."""
-        result = await self._db_session.execute(
-            select(SearchSourceConnector).filter(
-                and_(
-                    SearchSourceConnector.search_space_id == search_space_id,
-                    SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type
-                    == SearchSourceConnectorType.LINEAR_CONNECTOR,
-                )
-            )
-        )
-        return result.scalars().first()
 
     async def _get_connector_for_document(
         self, document: Document, user_id: str

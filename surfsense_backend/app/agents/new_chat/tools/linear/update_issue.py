@@ -181,7 +181,9 @@ def create_update_linear_issue_tool(
             final_new_state_id = final_params.get("new_state_id", new_state_id)
             final_new_assignee_id = final_params.get("new_assignee_id", new_assignee_id)
             final_new_priority = final_params.get("new_priority", new_priority)
-            final_new_label_ids = final_params.get("new_label_ids", new_label_ids)
+            final_new_label_ids: list[str] | None = final_params.get(
+                "new_label_ids", new_label_ids
+            )
             final_connector_id = final_params.get(
                 "connector_id", connector_id_from_context
             )
@@ -318,7 +320,9 @@ def _resolve_assignee(team: dict, assignee_email: str | None) -> str | None:
     return None
 
 
-def _resolve_labels(team: dict, label_names: list[str] | None) -> list[str]:
+def _resolve_labels(team: dict, label_names: list[str] | None) -> list[str] | None:
+    if label_names is None:
+        return None
     if not label_names:
         return []
     name_set = {n.lower() for n in label_names}
