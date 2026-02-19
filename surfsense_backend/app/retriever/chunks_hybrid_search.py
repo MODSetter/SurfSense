@@ -1,7 +1,10 @@
+import logging
 from datetime import datetime
 
+logger = logging.getLogger(__name__)
 
-class ChucksHybridSearchRetriever:
+
+class ChunksHybridSearchRetriever:
     def __init__(self, db_session):
         """
         Initialize the hybrid search retriever with a database session.
@@ -39,8 +42,12 @@ class ChucksHybridSearchRetriever:
         from app.db import Chunk, Document
 
         # Get embedding for the query
-        embedding_model = config.embedding_model_instance
-        query_embedding = embedding_model.embed(query_text)
+        try:
+            embedding_model = config.embedding_model_instance
+            query_embedding = embedding_model.embed(query_text)
+        except Exception as e:
+            logger.error(f"fail to call embedding model: {e!s}")
+            return []
 
         # Build the query filtered by search space
         query = (
