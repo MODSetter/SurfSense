@@ -195,7 +195,7 @@ function ApprovalCard({
 									<div className="space-y-2">
 										<div className="text-xs font-medium text-muted-foreground">Notion Account</div>
 										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-											{account.workspace_icon} {account.workspace_name}
+											{account.workspace_name}
 										</div>
 									</div>
 								)}

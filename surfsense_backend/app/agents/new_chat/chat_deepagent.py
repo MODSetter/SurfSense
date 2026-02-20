@@ -256,6 +256,18 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(notion_tools)
 
+    # Disable Linear action tools if no Linear connector is configured
+    has_linear_connector = (
+        available_connectors is not None and "LINEAR_CONNECTOR" in available_connectors
+    )
+    if not has_linear_connector:
+        linear_tools = [
+            "create_linear_issue",
+            "update_linear_issue",
+            "delete_linear_issue",
+        ]
+        modified_disabled_tools.extend(linear_tools)
+
     # Build tools using the async registry (includes MCP tools)
     tools = await build_tools_async(
         dependencies=dependencies,

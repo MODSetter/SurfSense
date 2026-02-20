@@ -17,6 +17,15 @@ from app.utils.oauth_security import TokenEncryption
 
 logger = logging.getLogger(__name__)
 
+
+class NotionAPIError(Exception):
+    """Raised when the Notion API returns a non-200 response.
+
+    The message is always user-presentable; callers should surface it directly
+    without any additional prefix or wrapping.
+    """
+
+
 # Type variable for generic return type
 T = TypeVar("T")
 
@@ -250,8 +259,9 @@ class NotionHistoryConnector:
                 logger.error(
                     f"Failed to refresh Notion token for connector {self._connector_id}: {e!s}"
                 )
-                raise Exception(
-                    f"Failed to refresh Notion OAuth credentials: {e!s}"
+                raise NotionAPIError(
+                    "Failed to refresh your Notion connection. "
+                    "Please try again or reconnect your Notion account."
                 ) from e
 
         return self._credentials.access_token
@@ -1041,7 +1051,7 @@ class NotionHistoryConnector:
         try:
             notion = await self._get_client()
 
-            # Append content if provided
+            appended_block_ids = []
             if content:
                 # Convert new content to blocks
                 try:
@@ -1065,13 +1075,22 @@ class NotionHistoryConnector:
                 try:
                     for i in range(0, len(children), 100):
                         batch = children[i : i + 100]
-                        await self._api_call_with_retry(
+                        response = await self._api_call_with_retry(
                             notion.blocks.children.append,
                             block_id=page_id,
                             children=batch,
                         )
+                        batch_block_ids = [
+                            block["id"] for block in response.get("results", [])
+                        ]
+                        appended_block_ids.extend(batch_block_ids)
                     logger.info(
                         f"Successfully appended {len(children)} new blocks to page {page_id}"
+                    )
+                    logger.debug(
+                        f"Appended block IDs: {appended_block_ids[:5]}..."
+                        if len(appended_block_ids) > 5
+                        else f"Appended block IDs: {appended_block_ids}"
                     )
                 except Exception as e:
                     logger.error(f"Failed to append content blocks: {e}")
@@ -1092,6 +1111,7 @@ class NotionHistoryConnector:
                 "page_id": page_id,
                 "url": page_url,
                 "title": page_title,
+                "appended_block_ids": appended_block_ids,
                 "message": f"Updated Notion page '{page_title}' (content appended)",
             }
 

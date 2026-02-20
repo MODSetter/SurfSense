@@ -5,7 +5,7 @@ from langchain_core.tools import tool
 from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.connectors.notion_history import NotionHistoryConnector
+from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
 from app.services.notion import NotionToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -34,7 +34,6 @@ def create_create_notion_page_tool(
     async def create_notion_page(
         title: str,
         content: str,
-        parent_page_id: str | None = None,
     ) -> dict[str, Any]:
         """Create a new page in Notion with the given title and content.
 
@@ -45,8 +44,6 @@ def create_create_notion_page_tool(
         Args:
             title: The title of the Notion page.
             content: The markdown content for the page body (supports headings, lists, paragraphs).
-            parent_page_id: Optional parent page ID to create as a subpage.
-                           If not provided, will ask for one.
 
         Returns:
             Dictionary with:
@@ -58,15 +55,13 @@ def create_create_notion_page_tool(
 
             IMPORTANT: If status is "rejected", the user explicitly declined the action.
             Respond with a brief acknowledgment (e.g., "Understood, I didn't create the page.")
-            and move on. Do NOT ask for parent page IDs, troubleshoot, or suggest alternatives.
+            and move on. Do NOT troubleshoot or suggest alternatives.
 
         Examples:
             - "Create a Notion page titled 'Meeting Notes' with content 'Discussed project timeline'"
             - "Save this to Notion with title 'Research Summary'"
         """
-        logger.info(
-            f"create_notion_page called: title='{title}', parent_page_id={parent_page_id}"
-        )
+        logger.info(f"create_notion_page called: title='{title}'")
 
         if db_session is None or search_space_id is None or user_id is None:
             logger.error(
@@ -99,7 +94,7 @@ def create_create_notion_page_tool(
                         "params": {
                             "title": title,
                             "content": content,
-                            "parent_page_id": parent_page_id,
+                            "parent_page_id": None,
                             "connector_id": connector_id,
                         },
                     },
@@ -144,7 +139,7 @@ def create_create_notion_page_tool(
 
             final_title = final_params.get("title", title)
             final_content = final_params.get("content", content)
-            final_parent_page_id = final_params.get("parent_page_id", parent_page_id)
+            final_parent_page_id = final_params.get("parent_page_id")
             final_connector_id = final_params.get("connector_id", connector_id)
 
             if not final_title or not final_title.strip():
@@ -229,11 +224,10 @@ def create_create_notion_page_tool(
                 raise
 
             logger.error(f"Error creating Notion page: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "message": str(e)
-                if isinstance(e, ValueError)
-                else f"Unexpected error: {e!s}",
-            }
+            if isinstance(e, (ValueError, NotionAPIError)):
+                message = str(e)
+            else:
+                message = "Something went wrong while creating the page. Please try again."
+            return {"status": "error", "message": message}
 
     return create_notion_page
