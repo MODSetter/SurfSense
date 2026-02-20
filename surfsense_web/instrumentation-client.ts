@@ -12,6 +12,15 @@ if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
 		capture_pageview: "history_change",
 		// Enable session recording
 		capture_pageleave: true,
+		before_send: (event) => {
+			if (event.properties) {
+				event.properties.$set = {
+					...event.properties.$set,
+					last_seen_at: new Date().toISOString(),
+				};
+			}
+			return event;
+		},
 		loaded: (posthog) => {
 			// Expose PostHog to window for console access and toolbar
 			if (typeof window !== "undefined") {
