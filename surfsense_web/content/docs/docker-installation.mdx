@@ -4,9 +4,6 @@ description: Setting up SurfSense using Docker
 ---
 
 
-
-# Docker Installation
-
 This guide explains how to run SurfSense using Docker, with options ranging from quick single-command deployment to full production setups.
 
 ## Quick Start with Docker 🐳
@@ -124,6 +121,53 @@ docker rm surfsense
 
 # Remove container AND data
 docker rm surfsense && docker volume rm surfsense-data
+```
+
+### Updating
+
+To update SurfSense to the latest version, you can use either of the following methods:
+
+<Callout type="info">
+Your data is safe! The `surfsense-data` volume persists across updates, and database migrations are applied automatically on every startup.
+</Callout>
+
+**Option 1: Using Watchtower (one-time auto-update)**
+
+[Watchtower](https://github.com/nicholas-fedor/watchtower) can automatically pull the latest image, stop the old container, and restart it with the same options:
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower \
+  --run-once surfsense
+```
+
+<Callout type="warn">
+Use the `nickfedor/watchtower` fork. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
+</Callout>
+
+**Option 2: Manual Update**
+
+```bash
+# Stop and remove the current container
+docker rm -f surfsense
+
+# Pull the latest image
+docker pull ghcr.io/modsetter/surfsense:latest
+
+# Start with the new image
+docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
+  -v surfsense-data:/data \
+  --name surfsense \
+  --restart unless-stopped \
+  ghcr.io/modsetter/surfsense:latest
+```
+
+If you used Docker Compose for the quick start, updating is simpler:
+
+```bash
+docker compose -f docker-compose.quickstart.yml pull
+docker compose -f docker-compose.quickstart.yml up -d
 ```
 
 ---
@@ -394,6 +438,20 @@ pgAdmin is included in the Docker setup to help manage your PostgreSQL database.
    - Username: `postgres` (or your custom POSTGRES_USER)
    - Password: `postgres` (or your custom POSTGRES_PASSWORD)
 6. Click "Save" to connect
+
+## Updating (Full Docker Compose)
+
+To update the full Docker Compose production setup to the latest version:
+
+```bash
+# Pull latest changes
+git pull
+
+# Rebuild and restart containers
+docker compose up --build -d
+```
+
+Database migrations are applied automatically on startup.
 
 ## Useful Docker Commands
 
