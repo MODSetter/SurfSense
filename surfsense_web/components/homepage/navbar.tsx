@@ -22,9 +22,9 @@ export const Navbar = () => {
 
 	const navItems = [
 		{ name: "Pricing", link: "/pricing" },
-		{ name: "Contact\u00A0Us", link: "/contact" },
 		{ name: "Changelog", link: "/changelog" },
 		{ name: "Docs", link: "/docs" },
+		{ name: "Contact\u00A0Us", link: "/contact" },
 	];
 
 	useEffect(() => {

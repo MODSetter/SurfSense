@@ -1,16 +1,19 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Announcement, AnnouncementCategory } from "@/contracts/types/announcement.types";
 import { announcements } from "@/lib/announcements/announcements-data";
 import {
-	dismissAnnouncement,
 	getAnnouncementState,
-	isAnnouncementDismissed,
 	isAnnouncementRead,
 	markAllAnnouncementsRead,
 	markAnnouncementRead,
 } from "@/lib/announcements/announcements-storage";
+import {
+	getActiveAnnouncements,
+	msUntilNextTransition,
+} from "@/lib/announcements/announcements-utils";
+import { isAuthenticated } from "@/lib/auth-utils";
 
 // ---------------------------------------------------------------------------
 // External-store plumbing so React re-renders when localStorage changes
@@ -39,12 +42,11 @@ function notify() {
 }
 
 // ---------------------------------------------------------------------------
-// Enriched announcement with read/dismissed state
+// Enriched announcement with read state
 // ---------------------------------------------------------------------------
 
 export interface AnnouncementWithState extends Announcement {
 	isRead: boolean;
-	isDismissed: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -54,42 +56,54 @@ export interface AnnouncementWithState extends Announcement {
 interface UseAnnouncementsOptions {
 	/** Filter by category */
 	category?: AnnouncementCategory;
-	/** If true, include dismissed announcements (default: false) */
-	includeDismissed?: boolean;
 }
 
 export function useAnnouncements(options: UseAnnouncementsOptions = {}) {
-	const { category, includeDismissed = false } = options;
+	const { category } = options;
 
 	// Subscribe to state changes (re-renders when localStorage state is bumped)
 	useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+	// Tick counter that increments when a start/end boundary is crossed,
+	// so useMemo re-evaluates and expired announcements disappear.
+	const [tick, setTick] = useState(0);
+
 	const enriched: AnnouncementWithState[] = useMemo(() => {
-		let items = announcements.map((a) => ({
-			...a,
-			isRead: isAnnouncementRead(a.id),
-			isDismissed: isAnnouncementDismissed(a.id),
-		}));
+		const authed = isAuthenticated();
+		const now = new Date();
+		let items: AnnouncementWithState[] = getActiveAnnouncements(announcements, authed, now).map(
+			(a) => ({
+				...a,
+				isRead: isAnnouncementRead(a.id),
+			}),
+		);
 
 		if (category) {
 			items = items.filter((a) => a.category === category);
 		}
 
-		if (!includeDismissed) {
-			items = items.filter((a) => !a.isDismissed);
-		}
-
-		// Sort by date descending (newest first)
 		items.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
 		return items;
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [category, includeDismissed, stateVersion]);
+	}, [category, stateVersion, tick]);
 
-	const unreadCount = useMemo(
-		() => enriched.filter((a) => !a.isRead && !a.isDismissed).length,
-		[enriched]
-	);
+	// Schedule a re-render when the next announcement starts or expires
+	useEffect(() => {
+		const ms = msUntilNextTransition(announcements);
+		if (ms === null) return;
+
+		// Cap at 60 s so we don't hold a very long timer; we'll re-check then.
+		const delay = Math.min(ms + 500, 60_000);
+		const id = setTimeout(() => setTick((t) => t + 1), delay);
+		return () => clearTimeout(id);
+	}, [tick]);
+
+	const unreadCount = useMemo(() => enriched.filter((a) => !a.isRead).length, [enriched]);
+
+	// Keep a ref so callbacks are stable and don't cause re-render loops
+	const enrichedRef = useRef(enriched);
+	enrichedRef.current = enriched;
 
 	const handleMarkRead = useCallback((id: string) => {
 		markAnnouncementRead(id);
@@ -98,14 +112,10 @@ export function useAnnouncements(options: UseAnnouncementsOptions = {}) {
 
 	const handleMarkAllRead = useCallback(() => {
 		const state = getAnnouncementState();
-		const unreadIds = announcements.filter((a) => !state.readIds.includes(a.id)).map((a) => a.id);
+		const activeIds = enrichedRef.current.map((a) => a.id);
+		const unreadIds = activeIds.filter((id) => !state.readIds.includes(id));
+		if (unreadIds.length === 0) return;
 		markAllAnnouncementsRead(unreadIds);
-		notify();
-	}, []);
-
-	const handleDismiss = useCallback((id: string) => {
-		dismissAnnouncement(id);
-		markAnnouncementRead(id);
 		notify();
 	}, []);
 
@@ -114,6 +124,5 @@ export function useAnnouncements(options: UseAnnouncementsOptions = {}) {
 		unreadCount,
 		markRead: handleMarkRead,
 		markAllRead: handleMarkAllRead,
-		dismiss: handleDismiss,
 	};
 }

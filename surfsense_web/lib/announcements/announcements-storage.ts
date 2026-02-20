@@ -5,11 +5,11 @@ const STORAGE_KEY = "surfsense_announcements_state";
 const defaultState: AnnouncementUserState = {
 	readIds: [],
 	toastedIds: [],
-	dismissedIds: [],
 };
 
 /**
- * Get the current announcement user state from localStorage
+ * Get the current announcement user state from localStorage.
+ * Gracefully ignores legacy `dismissedIds` from older versions.
  */
 export function getAnnouncementState(): AnnouncementUserState {
 	if (typeof window === "undefined") return defaultState;
@@ -21,7 +21,6 @@ export function getAnnouncementState(): AnnouncementUserState {
 		return {
 			readIds: Array.isArray(parsed.readIds) ? parsed.readIds : [],
 			toastedIds: Array.isArray(parsed.toastedIds) ? parsed.toastedIds : [],
-			dismissedIds: Array.isArray(parsed.dismissedIds) ? parsed.dismissedIds : [],
 		};
 	} catch {
 		return defaultState;
@@ -64,17 +63,6 @@ export function markAllAnnouncementsRead(ids: string[]): void {
 }
 
 /**
- * Dismiss an announcement (hide it from the list)
- */
-export function dismissAnnouncement(id: string): void {
-	const state = getAnnouncementState();
-	if (!state.dismissedIds.includes(id)) {
-		state.dismissedIds.push(id);
-		saveAnnouncementState(state);
-	}
-}
-
-/**
  * Mark an important announcement as already toasted (shown as toast)
  */
 export function markAnnouncementToasted(id: string): void {
@@ -97,11 +85,4 @@ export function isAnnouncementRead(id: string): boolean {
  */
 export function isAnnouncementToasted(id: string): boolean {
 	return getAnnouncementState().toastedIds.includes(id);
-}
-
-/**
- * Check if an announcement has been dismissed
- */
-export function isAnnouncementDismissed(id: string): boolean {
-	return getAnnouncementState().dismissedIds.includes(id);
 }
