@@ -41,7 +41,7 @@ export function HeroSection() {
 	return (
 		<div
 			ref={parentRef}
-			className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-12 md:px-8 md:py-24"
+			className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-24 md:px-8 md:py-48"
 		>
 			<BackgroundGrids />
 			<CollisionMechanism
@@ -81,7 +81,7 @@ export function HeroSection() {
 				}}
 			/>
 
-			<h2 className="relative z-50 mx-auto mb-4 mt-4 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
+			<h2 className="relative z-50 mx-auto mb-4 mt-8 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
 				{isNotebookLMVariant ? (
 					<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
 						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
@@ -98,14 +98,14 @@ export function HeroSection() {
 			</h2>
 			{/* // TODO:aCTUAL DESCRITION */}
 			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				Connect any AI to your documents and knowledge sources.
+				Connect any AI to your documents and knowledge sources,
 			</p>
 			<p className="relative z-50 mx-auto mt-0 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				Then chat with it in real-time, even alongside your team.
+				then chat with it, invite your team, or generate podcasts and reports.
 			</p>
 			<div className="mb-6 mt-6 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-10">
 				<GetStartedButton />
-				<ContactSalesButton />
+				{/* <ContactSalesButton /> */}
 			</div>
 			<div ref={containerRef} className="relative w-full">
 				<WalkthroughScroll />
