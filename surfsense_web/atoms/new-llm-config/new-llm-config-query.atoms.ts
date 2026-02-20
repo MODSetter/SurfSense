@@ -1,4 +1,6 @@
 import { atomWithQuery } from "jotai-tanstack-query";
+import type { LLMModel } from "@/contracts/enums/llm-models";
+import { LLM_MODELS } from "@/contracts/enums/llm-models";
 import { newLLMConfigApiService } from "@/lib/apis/new-llm-config-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { activeSearchSpaceIdAtom } from "../search-spaces/search-space-query.atoms";
@@ -59,6 +61,36 @@ export const defaultSystemInstructionsAtom = atomWithQuery(() => {
 		staleTime: 60 * 60 * 1000, // 1 hour - this rarely changes
 		queryFn: async () => {
 			return newLLMConfigApiService.getDefaultSystemInstructions();
+		},
+	};
+});
+
+/**
+ * Query atom for the dynamic LLM model catalogue.
+ * Fetched from the backend (which proxies OpenRouter's public API).
+ * Falls back to the static hardcoded list on error.
+ */
+export const modelListAtom = atomWithQuery(() => {
+	return {
+		queryKey: cacheKeys.newLLMConfigs.modelList(),
+		staleTime: 60 * 60 * 1000, // 1 hour - models don't change often
+		placeholderData: LLM_MODELS,
+		queryFn: async (): Promise<LLMModel[]> => {
+			const data = await newLLMConfigApiService.getModels();
+			const dynamicModels = data.map((m) => ({
+				value: m.value,
+				label: m.label,
+				provider: m.provider,
+				contextWindow: m.context_window ?? undefined,
+			}));
+
+			// Providers covered by the dynamic API (from OpenRouter mapping).
+			// For uncovered providers (Ollama, Groq, Bedrock, etc.) keep the
+			// hand-curated static suggestions so users still see model options.
+			const coveredProviders = new Set(dynamicModels.map((m) => m.provider));
+			const staticFallbacks = LLM_MODELS.filter((m) => !coveredProviders.has(m.provider));
+
+			return [...dynamicModels, ...staticFallbacks];
 		},
 	};
 });

@@ -262,10 +262,12 @@ def create_delete_notion_page_tool(
                 raise
 
             logger.error(f"Error deleting Notion page: {e}", exc_info=True)
-            if isinstance(e, (ValueError, NotionAPIError)):
+            if isinstance(e, ValueError | NotionAPIError):
                 message = str(e)
             else:
-                message = "Something went wrong while deleting the page. Please try again."
+                message = (
+                    "Something went wrong while deleting the page. Please try again."
+                )
             return {"status": "error", "message": message}
 
     return delete_notion_page

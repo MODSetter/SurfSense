@@ -30,6 +30,7 @@ class LinearAPIError(Exception):
     without any additional prefix or wrapping.
     """
 
+
 ORGANIZATION_QUERY = """
 query {
     organization {
@@ -267,7 +268,10 @@ class LinearConnector:
             if errors:
                 ext = errors[0].get("extensions", {})
                 code = ext.get("code", "")
-                if code == "INPUT_ERROR" and "too complex" in errors[0].get("message", "").lower():
+                if (
+                    code == "INPUT_ERROR"
+                    and "too complex" in errors[0].get("message", "").lower()
+                ):
                     friendly = (
                         "Linear rejected the request because the workspace is too large "
                         "to fetch in one query. Please try again — if the problem persists, "

@@ -147,7 +147,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							onClick={() => router.push(`/dashboard/${params.search_space_id}/settings`)}
 							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
 						>
-							<Globe className="h-4 w-4 text-muted-foreground" />
+							<Earth className="h-4 w-4 text-muted-foreground" />
 						</button>
 					</TooltipTrigger>
 					<TooltipContent>

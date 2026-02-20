@@ -224,10 +224,12 @@ def create_create_notion_page_tool(
                 raise
 
             logger.error(f"Error creating Notion page: {e}", exc_info=True)
-            if isinstance(e, (ValueError, NotionAPIError)):
+            if isinstance(e, ValueError | NotionAPIError):
                 message = str(e)
             else:
-                message = "Something went wrong while creating the page. Please try again."
+                message = (
+                    "Something went wrong while creating the page. Please try again."
+                )
             return {"status": "error", "message": message}
 
     return create_notion_page

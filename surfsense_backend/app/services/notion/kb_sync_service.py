@@ -57,7 +57,9 @@ class NotionKBSyncService:
             )
 
             logger.debug(f"Fetching page content from Notion for page {page_id}")
-            blocks, _ = await notion_connector.get_page_content(page_id, page_title=None)
+            blocks, _ = await notion_connector.get_page_content(
+                page_id, page_title=None
+            )
 
             from app.utils.notion_utils import extract_all_block_ids, process_blocks
 
@@ -100,11 +102,16 @@ class NotionKBSyncService:
                 full_content = fetched_content
                 content_verified = False
 
-            logger.debug(f"Final content length: {len(full_content)} chars, verified={content_verified}")
+            logger.debug(
+                f"Final content length: {len(full_content)} chars, verified={content_verified}"
+            )
 
             logger.debug("Generating summary and embeddings")
             user_llm = await get_user_long_context_llm(
-                self.db_session, user_id, search_space_id, disable_streaming=True # disable streaming to avoid leaking into the chat
+                self.db_session,
+                user_id,
+                search_space_id,
+                disable_streaming=True,  # disable streaming to avoid leaking into the chat
             )
 
             if user_llm:

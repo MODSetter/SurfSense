@@ -110,13 +110,15 @@ class LinearToolMetadataService:
                 teams = await self._fetch_teams_context(linear_client)
             except Exception as e:
                 return {"error": f"Failed to fetch Linear context: {e!s}"}
-            workspaces.append({
-                "id": workspace.id,
-                "name": workspace.name,
-                "organization_name": workspace.organization_name,
-                "teams": teams,
-                "priorities": priorities,
-            })
+            workspaces.append(
+                {
+                    "id": workspace.id,
+                    "name": workspace.name,
+                    "organization_name": workspace.organization_name,
+                    "teams": teams,
+                    "priorities": priorities,
+                }
+            )
 
         return {"workspaces": workspaces}
 
@@ -307,16 +309,10 @@ class LinearToolMetadataService:
                     Document.document_type == DocumentType.LINEAR_CONNECTOR,
                     SearchSourceConnector.user_id == user_id,
                     or_(
-                        func.lower(
-                            Document.document_metadata.op("->>")(
-                                "issue_title"
-                            )
-                        )
+                        func.lower(Document.document_metadata.op("->>")("issue_title"))
                         == ref_lower,
                         func.lower(
-                            Document.document_metadata.op("->>")(
-                                "issue_identifier"
-                            )
+                            Document.document_metadata.op("->>")("issue_identifier")
                         )
                         == ref_lower,
                         func.lower(Document.title) == ref_lower,

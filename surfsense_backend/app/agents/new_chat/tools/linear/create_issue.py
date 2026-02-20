@@ -230,10 +230,12 @@ def create_create_linear_issue_tool(
                 raise
 
             logger.error(f"Error creating Linear issue: {e}", exc_info=True)
-            if isinstance(e, (ValueError, LinearAPIError)):
+            if isinstance(e, ValueError | LinearAPIError):
                 message = str(e)
             else:
-                message = "Something went wrong while creating the issue. Please try again."
+                message = (
+                    "Something went wrong while creating the issue. Please try again."
+                )
             return {"status": "error", "message": message}
 
     return create_linear_issue

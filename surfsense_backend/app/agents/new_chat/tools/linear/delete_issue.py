@@ -238,7 +238,9 @@ def create_delete_linear_issue_tool(
             if result.get("status") == "success":
                 result["deleted_from_kb"] = deleted_from_kb
                 if issue_identifier:
-                    result["message"] = f"Issue {issue_identifier} archived successfully."
+                    result["message"] = (
+                        f"Issue {issue_identifier} archived successfully."
+                    )
                 if deleted_from_kb:
                     result["message"] = (
                         f"{result.get('message', '')} Also removed from the knowledge base."
@@ -253,10 +255,12 @@ def create_delete_linear_issue_tool(
                 raise
 
             logger.error(f"Error deleting Linear issue: {e}", exc_info=True)
-            if isinstance(e, (ValueError, LinearAPIError)):
+            if isinstance(e, ValueError | LinearAPIError):
                 message = str(e)
             else:
-                message = "Something went wrong while deleting the issue. Please try again."
+                message = (
+                    "Something went wrong while deleting the issue. Please try again."
+                )
             return {"status": "error", "message": message}
 
     return delete_linear_issue
