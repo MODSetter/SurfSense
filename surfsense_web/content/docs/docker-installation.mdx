@@ -131,7 +131,22 @@ To update SurfSense to the latest version, you can use either of the following m
 Your data is safe! The `surfsense-data` volume persists across updates, and database migrations are applied automatically on every startup.
 </Callout>
 
-**Option 1: Manual Update**
+**Option 1: Using Watchtower (one-time auto-update)**
+
+[Watchtower](https://github.com/nicholas-fedor/watchtower) can automatically pull the latest image, stop the old container, and restart it with the same options:
+
+```bash
+docker run --rm \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower \
+  --run-once surfsense
+```
+
+<Callout type="warn">
+Use the `nickfedor/watchtower` fork. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
+</Callout>
+
+**Option 2: Manual Update**
 
 ```bash
 # Stop and remove the current container
@@ -147,21 +162,6 @@ docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
   --restart unless-stopped \
   ghcr.io/modsetter/surfsense:latest
 ```
-
-**Option 2: Using Watchtower (one-time auto-update)**
-
-[Watchtower](https://github.com/nicholas-fedor/watchtower) can automatically pull the latest image, stop the old container, and restart it with the same options:
-
-```bash
-docker run --rm \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  nickfedor/watchtower \
-  --run-once surfsense
-```
-
-<Callout type="warn">
-Use the `nickfedor/watchtower` fork. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
-</Callout>
 
 If you used Docker Compose for the quick start, updating is simpler:
 
