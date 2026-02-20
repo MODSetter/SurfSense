@@ -4,6 +4,7 @@ import { PanelLeft, PanelLeftClose } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { usePlatformShortcut } from "@/hooks/use-platform-shortcut";
 
 interface SidebarCollapseButtonProps {
 	isCollapsed: boolean;
@@ -17,6 +18,7 @@ export function SidebarCollapseButton({
 	disableTooltip = false,
 }: SidebarCollapseButtonProps) {
 	const t = useTranslations("sidebar");
+	const { shortcut } = usePlatformShortcut();
 
 	const button = (
 		<Button variant="ghost" size="icon" onClick={onToggle} className="h-8 w-8 shrink-0">
@@ -33,7 +35,9 @@ export function SidebarCollapseButton({
 		<Tooltip>
 			<TooltipTrigger asChild>{button}</TooltipTrigger>
 			<TooltipContent side={isCollapsed ? "right" : "bottom"}>
-				{isCollapsed ? `${t("expand_sidebar")} (⌘B)` : `${t("collapse_sidebar")} (⌘B)`}
+				{isCollapsed
+					? `${t("expand_sidebar")} ${shortcut("Mod", "\\")}`
+					: `${t("collapse_sidebar")} ${shortcut("Mod", "\\")}`}
 			</TooltipContent>
 		</Tooltip>
 	);

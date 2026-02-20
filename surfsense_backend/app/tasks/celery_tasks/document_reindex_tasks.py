@@ -13,7 +13,6 @@ from app.config import config
 from app.db import Document
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
-from app.utils.blocknote_converter import convert_blocknote_to_markdown
 from app.utils.document_converters import (
     create_document_chunks,
     generate_document_summary,
@@ -84,48 +83,37 @@ async def _reindex_document(document_id: int, user_id: str):
         )
 
         try:
-            if not document.blocknote_document:
+            # Read markdown directly from source_markdown
+            markdown_content = document.source_markdown
+
+            if not markdown_content:
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"Document {document_id} has no BlockNote content to reindex",
-                    "No BlockNote content",
-                    {"error_type": "NoBlockNoteContent"},
+                    f"Document {document_id} has no source_markdown to reindex",
+                    "No source_markdown content",
+                    {"error_type": "NoSourceMarkdown"},
                 )
                 return
 
             logger.info(f"Reindexing document {document_id} ({document.title})")
 
-            # 1. Convert BlockNote → Markdown
-            markdown_content = await convert_blocknote_to_markdown(
-                document.blocknote_document
-            )
-
-            if not markdown_content:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"Failed to convert document {document_id} to markdown",
-                    "Markdown conversion failed",
-                    {"error_type": "ConversionError"},
-                )
-                return
-
-            # 2. Delete old chunks explicitly
+            # 1. Delete old chunks explicitly
             from app.db import Chunk
 
             await session.execute(delete(Chunk).where(Chunk.document_id == document_id))
             await session.flush()  # Ensure old chunks are deleted
 
-            # 3. Create new chunks
+            # 2. Create new chunks from source_markdown
             new_chunks = await create_document_chunks(markdown_content)
 
-            # 4. Add new chunks to session
+            # 3. Add new chunks to session
             for chunk in new_chunks:
                 chunk.document_id = document_id
                 session.add(chunk)
 
             logger.info(f"Created {len(new_chunks)} chunks for document {document_id}")
 
-            # 5. Regenerate summary
+            # 4. Regenerate summary
             user_llm = await get_user_long_context_llm(
                 session, user_id, document.search_space_id
             )
@@ -139,7 +127,7 @@ async def _reindex_document(document_id: int, user_id: str):
                 markdown_content, user_llm, document_metadata
             )
 
-            # 6. Update document
+            # 5. Update document
             document.content = summary_content
             document.embedding = summary_embedding
             document.content_needs_reindexing = False

@@ -3,11 +3,14 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { ChevronDownIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
+import { currentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
-import { Drawer, DrawerContent, DrawerHandle } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -112,6 +115,14 @@ function ReportPanelContent({
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
 	const [exporting, setExporting] = useState<"pdf" | "docx" | "md" | null>(null);
+	const [saving, setSaving] = useState(false);
+
+	// Editor state — tracks the latest markdown from the Plate editor
+	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
+
+	// Read-only when public (shareToken) OR shared (SEARCH_SPACE visibility)
+	const currentThreadState = useAtomValue(currentThreadAtom);
+	const isReadOnly = !!shareToken || currentThreadState.visibility === "SEARCH_SPACE";
 
 	// Version state
 	const [activeReportId, setActiveReportId] = useState(reportId);
@@ -165,17 +176,25 @@ function ReportPanelContent({
 		};
 	}, [activeReportId, shareToken]);
 
-	// Copy markdown content
+	// The current markdown: use edited version if available, otherwise original
+	const currentMarkdown = editedMarkdown ?? reportContent?.content ?? null;
+
+	// Reset edited markdown when switching versions or reports
+	useEffect(() => {
+		setEditedMarkdown(null);
+	}, [activeReportId]);
+
+	// Copy markdown content (uses latest editor content)
 	const handleCopy = useCallback(async () => {
-		if (!reportContent?.content) return;
+		if (!currentMarkdown) return;
 		try {
-			await navigator.clipboard.writeText(reportContent.content);
+			await navigator.clipboard.writeText(currentMarkdown);
 			setCopied(true);
 			setTimeout(() => setCopied(false), 2000);
 		} catch (err) {
 			console.error("Failed to copy:", err);
 		}
-	}, [reportContent?.content]);
+	}, [currentMarkdown]);
 
 	// Export report
 	const handleExport = useCallback(
@@ -188,9 +207,9 @@ function ReportPanelContent({
 					.slice(0, 80) || "report";
 			try {
 				if (format === "md") {
-					// Download markdown content directly as a .md file
-					if (!reportContent?.content) return;
-					const blob = new Blob([reportContent.content], {
+					// Download markdown content directly as a .md file (uses latest editor content)
+					if (!currentMarkdown) return;
+					const blob = new Blob([currentMarkdown], {
 						type: "text/markdown;charset=utf-8",
 					});
 					const url = URL.createObjectURL(blob);
@@ -227,8 +246,39 @@ function ReportPanelContent({
 				setExporting(null);
 			}
 		},
-		[activeReportId, title, reportContent?.content]
+		[activeReportId, title, currentMarkdown]
 	);
+
+	// Save edited report content
+	const handleSave = useCallback(async () => {
+		if (!currentMarkdown || !activeReportId) return;
+		setSaving(true);
+		try {
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/reports/${activeReportId}/content`,
+				{
+					method: "PUT",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ content: currentMarkdown }),
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({ detail: "Failed to save report" }));
+				throw new Error(errorData.detail || "Failed to save report");
+			}
+
+			// Update local state to reflect saved content
+			setReportContent((prev) => (prev ? { ...prev, content: currentMarkdown } : prev));
+			setEditedMarkdown(null);
+			toast.success("Report saved successfully");
+		} catch (err) {
+			console.error("Error saving report:", err);
+			toast.error(err instanceof Error ? err.message : "Failed to save report");
+		} finally {
+			setSaving(false);
+		}
+	}, [activeReportId, currentMarkdown]);
 
 	// Show full-page skeleton only on initial load (no data loaded yet).
 	// Once we have versions/content from a prior fetch, keep the action bar visible.
@@ -284,7 +334,7 @@ function ReportPanelContent({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="start"
-							className={`min-w-[180px]${insideDrawer ? " z-[100]" : ""}`}
+							className={`min-w-[180px] dark:bg-neutral-800 dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
 						>
 							<DropdownMenuItem onClick={() => handleExport("md")}>
 								Download Markdown
@@ -370,8 +420,8 @@ function ReportPanelContent({
 				)}
 			</div>
 
-			{/* Report content — skeleton/error/content shown only in this area */}
-			<div className="flex-1 overflow-y-auto scrollbar-thin">
+			{/* Report content — skeleton/error/viewer/editor shown only in this area */}
+			<div className="flex-1 overflow-hidden">
 				{isLoading ? (
 					<ReportPanelSkeleton />
 				) : error || !reportContent ? (
@@ -381,13 +431,27 @@ function ReportPanelContent({
 							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
 						</div>
 					</div>
+				) : reportContent.content ? (
+					isReadOnly ? (
+						<div className="h-full overflow-y-auto px-5 py-4">
+							<MarkdownViewer content={reportContent.content} />
+						</div>
+					) : (
+						<PlateEditor
+							preset="full"
+							markdown={reportContent.content}
+							onMarkdownChange={setEditedMarkdown}
+							readOnly={false}
+							placeholder="Report content..."
+							editorVariant="default"
+							onSave={handleSave}
+							hasUnsavedChanges={editedMarkdown !== null}
+							isSaving={saving}
+						/>
+					)
 				) : (
 					<div className="px-5 py-5">
-						{reportContent.content ? (
-							<MarkdownViewer content={reportContent.content} />
-						) : (
-							<p className="text-muted-foreground italic">No content available.</p>
-						)}
+						<p className="text-muted-foreground italic">No content available.</p>
 					</div>
 				)}
 			</div>
@@ -448,8 +512,12 @@ function MobileReportDrawer() {
 			}}
 			shouldScaleBackground={false}
 		>
-			<DrawerContent className="h-[90vh] max-h-[90vh] z-80" overlayClassName="z-80">
+			<DrawerContent
+				className="h-[90vh] max-h-[90vh] z-80 !rounded-none border-none"
+				overlayClassName="z-80"
+			>
 				<DrawerHandle />
+				<DrawerTitle className="sr-only">{panelState.title || "Report"}</DrawerTitle>
 				<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
 					<ReportPanelContent
 						reportId={panelState.reportId}
