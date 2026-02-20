@@ -130,14 +130,20 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["search_space_id", "db_session", "thread_id"],
     ),
     # Report generation tool (inline, short-lived sessions for DB ops)
+    # Supports internal KB search via source_strategy so the agent doesn't
+    # need to call search_knowledge_base separately before generating.
     ToolDefinition(
         name="generate_report",
         description="Generate a structured Markdown report from provided content",
         factory=lambda deps: create_generate_report_tool(
             search_space_id=deps["search_space_id"],
             thread_id=deps["thread_id"],
+            connector_service=deps.get("connector_service"),
+            available_connectors=deps.get("available_connectors"),
         ),
         requires=["search_space_id", "thread_id"],
+        # connector_service and available_connectors are optional —
+        # when missing, source_strategy="kb_search" degrades gracefully to "provided"
     ),
     # Link preview tool - fetches Open Graph metadata for URLs
     ToolDefinition(
