@@ -210,6 +210,7 @@ def format_documents_for_context(documents: list[dict[str, Any]]) -> str:
 
         source = (
             (doc.get("source") if isinstance(doc, dict) else None)
+            or document_info.get("document_type")
             or metadata.get("document_type")
             or "UNKNOWN"
         )
@@ -268,10 +269,20 @@ def format_documents_for_context(documents: list[dict[str, Any]]) -> str:
             continue
         grouped[doc_key]["chunks"].append({"chunk_id": chunk_id, "content": content})
 
+    # Live search connectors whose results should be cited by URL rather than
+    # a numeric chunk_id (the numeric IDs are meaningless auto-incremented counters).
+    _LIVE_SEARCH_CONNECTORS = {
+        "TAVILY_API",
+        "SEARXNG_API",
+        "LINKUP_API",
+        "BAIDU_SEARCH_API",
+    }
+
     # Render XML expected by citation instructions
     parts: list[str] = []
     for g in grouped.values():
         metadata_json = json.dumps(g["metadata"], ensure_ascii=False)
+        is_live_search = g["document_type"] in _LIVE_SEARCH_CONNECTORS
 
         parts.append("<document>")
         parts.append("<document_metadata>")
@@ -286,7 +297,10 @@ def format_documents_for_context(documents: list[dict[str, Any]]) -> str:
 
         for ch in g["chunks"]:
             ch_content = ch["content"]
-            ch_id = ch["chunk_id"]
+            # For live search connectors, use the document URL as the chunk id
+            # so the LLM outputs [citation:https://...] which the frontend
+            # renders as a clickable link.
+            ch_id = g["url"] if (is_live_search and g["url"]) else ch["chunk_id"]
             if ch_id is None:
                 parts.append(f"  <chunk><![CDATA[{ch_content}]]></chunk>")
             else:

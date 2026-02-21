@@ -51,6 +51,7 @@ export const CirclebackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmit
 				connector_type: EnumConnectorName.CIRCLEBACK_CONNECTOR,
 				config: {},
 				is_indexable: false,
+				is_active: true,
 				last_indexed_at: null,
 				periodic_indexing_enabled: false,
 				indexing_frequency_minutes: null,

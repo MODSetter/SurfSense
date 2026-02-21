@@ -1,13 +1,27 @@
 "use client";
 
 import { ArrowLeft } from "lucide-react";
-import { type FC, useMemo } from "react";
+import { type FC, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { getConnectFormComponent } from "../../connect-forms";
+
+const FORM_ID_MAP: Record<string, string> = {
+	TAVILY_API: "tavily-connect-form",
+	SEARXNG_API: "searxng-connect-form",
+	LINKUP_API: "linkup-api-connect-form",
+	BAIDU_SEARCH_API: "baidu-search-api-connect-form",
+	ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
+	BOOKSTACK_CONNECTOR: "bookstack-connect-form",
+	GITHUB_CONNECTOR: "github-connect-form",
+	LUMA_CONNECTOR: "luma-connect-form",
+	CIRCLEBACK_CONNECTOR: "circleback-connect-form",
+	MCP_CONNECTOR: "mcp-connect-form",
+	OBSIDIAN_CONNECTOR: "obsidian-connect-form",
+};
 
 interface ConnectorConnectViewProps {
 	connectorType: string;
@@ -35,6 +49,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 	onBack,
 	isSubmitting,
 }) => {
+	const formContainerRef = useRef<HTMLDivElement | null>(null);
 	// Get connector-specific form component
 	const ConnectFormComponent = useMemo(
 		() => getConnectFormComponent(connectorType),
@@ -46,26 +61,18 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 		if (isSubmitting) {
 			return;
 		}
-		// Map connector types to their form IDs
-		const formIdMap: Record<string, string> = {
-			TAVILY_API: "tavily-connect-form",
-			SEARXNG_API: "searxng-connect-form",
-			LINKUP_API: "linkup-api-connect-form",
-			BAIDU_SEARCH_API: "baidu-search-api-connect-form",
-			ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",
-			BOOKSTACK_CONNECTOR: "bookstack-connect-form",
-			GITHUB_CONNECTOR: "github-connect-form",
-			LUMA_CONNECTOR: "luma-connect-form",
-			CIRCLEBACK_CONNECTOR: "circleback-connect-form",
-			MCP_CONNECTOR: "mcp-connect-form",
-			OBSIDIAN_CONNECTOR: "obsidian-connect-form",
-		};
-		const formId = formIdMap[connectorType];
-		if (formId) {
-			const form = document.getElementById(formId) as HTMLFormElement;
-			if (form) {
-				form.requestSubmit();
-			}
+		const formId = FORM_ID_MAP[connectorType];
+		const root = formContainerRef.current;
+		const mappedForm =
+			root && formId
+				? (root.querySelector(`[id="${formId}"]`) as HTMLFormElement | null)
+				: null;
+		// Fallback to currently rendered form to avoid silent no-op
+		// when a connector type or form id mapping drifts.
+		const fallbackForm = root?.querySelector("form") as HTMLFormElement | null;
+		const form = mappedForm ?? fallbackForm;
+		if (form) {
+			form.requestSubmit();
 		}
 	};
 
@@ -114,7 +121,10 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 			</div>
 
 			{/* Form Content - Scrollable */}
-			<div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-12">
+			<div
+				ref={formContainerRef}
+				className="connector-connect-form-root flex-1 min-h-0 overflow-y-auto px-6 sm:px-12"
+			>
 				<ConnectFormComponent
 					onSubmit={onSubmit}
 					onBack={onBack}
@@ -134,6 +144,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 					Cancel
 				</Button>
 				<Button
+					type="button"
 					onClick={handleFormSubmit}
 					disabled={isSubmitting}
 					className="text-xs sm:text-sm min-w-[140px] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none"

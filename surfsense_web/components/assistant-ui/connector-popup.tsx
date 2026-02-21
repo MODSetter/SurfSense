@@ -418,7 +418,7 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 								</div>
 							</div>
 							{/* Bottom fade shadow */}
-							<div className="absolute bottom-0 left-0 right-0 h-7 bg-gradient-to-t from-muted via-muted/80 to-transparent pointer-events-none z-10" />
+							<div className="absolute bottom-0 left-0 right-0 h-7 bg-linear-to-t from-muted via-muted/80 to-transparent pointer-events-none z-10" />
 						</div>
 					</Tabs>
 				)}

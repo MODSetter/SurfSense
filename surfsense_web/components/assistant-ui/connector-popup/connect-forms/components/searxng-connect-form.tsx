@@ -110,6 +110,7 @@ export const SearxngConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmittin
 				connector_type: EnumConnectorName.SEARXNG_API,
 				config,
 				is_indexable: false,
+				is_active: true,
 				last_indexed_at: null,
 				periodic_indexing_enabled: false,
 				indexing_frequency_minutes: null,

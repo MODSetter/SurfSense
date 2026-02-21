@@ -71,6 +71,7 @@ export const LumaConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting }
 					LUMA_API_KEY: values.api_key,
 				},
 				is_indexable: true,
+				is_active: true,
 				last_indexed_at: null,
 				periodic_indexing_enabled: periodicEnabled,
 				indexing_frequency_minutes: periodicEnabled ? parseInt(frequencyMinutes, 10) : null,

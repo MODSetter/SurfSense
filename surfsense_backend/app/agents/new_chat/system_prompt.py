@@ -523,6 +523,7 @@ CRITICAL CITATION REQUIREMENTS:
 <document_structure_example>
 The documents you receive are structured like this:
 
+**Knowledge base documents (numeric chunk IDs):**
 <document>
 <document_metadata>
   <document_id>42</document_id>
@@ -538,7 +539,24 @@ The documents you receive are structured like this:
 </document_content>
 </document>
 
-IMPORTANT: You MUST cite using the chunk ids (e.g. 123, 124, doc-45). Do NOT cite document_id.
+**Live web search results (URL chunk IDs):**
+<document>
+<document_metadata>
+  <document_id>TAVILY_API::Some Title::https://example.com/article</document_id>
+  <document_type>TAVILY_API</document_type>
+  <title><![CDATA[Some web search result]]></title>
+  <url><![CDATA[https://example.com/article]]></url>
+</document_metadata>
+
+<document_content>
+  <chunk id='https://example.com/article'><![CDATA[Content from web search...]]></chunk>
+</document_content>
+</document>
+
+IMPORTANT: You MUST cite using the EXACT chunk ids from the `<chunk id='...'>` tags.
+- For knowledge base documents, chunk ids are numeric (e.g. 123, 124) or prefixed (e.g. doc-45).
+- For live web search results, chunk ids are URLs (e.g. https://example.com/article).
+Do NOT cite document_id. Always use the chunk id.
 </document_structure_example>
 
 <citation_format>
@@ -550,13 +568,15 @@ IMPORTANT: You MUST cite using the chunk ids (e.g. 123, 124, doc-45). Do NOT cit
 - NEVER format citations as clickable links or as markdown links like "([citation:5](https://example.com))". Always use plain square brackets only
 - NEVER make up chunk IDs if you are unsure about the chunk_id. It is better to omit the citation than to guess
 - Copy the EXACT chunk id from the XML - if it says `<chunk id='doc-123'>`, use [citation:doc-123]
+- If the chunk id is a URL like `<chunk id='https://example.com/page'>`, use [citation:https://example.com/page]
 </citation_format>
 
 <citation_examples>
 CORRECT citation formats:
-- [citation:5]
+- [citation:5] (numeric chunk ID from knowledge base)
 - [citation:doc-123] (for Surfsense documentation chunks)
-- [citation:chunk_id1], [citation:chunk_id2], [citation:chunk_id3]
+- [citation:https://example.com/article] (URL chunk ID from web search results)
+- [citation:chunk_id1], [citation:chunk_id2], [citation:chunk_id3] (multiple citations)
 
 INCORRECT citation formats (DO NOT use):
 - Using parentheses and markdown links: ([citation:5](https://github.com/MODSetter/SurfSense))
@@ -571,7 +591,7 @@ INCORRECT citation formats (DO NOT use):
 <citation_output_example>
 Based on your GitHub repositories and video content, Python's asyncio library provides tools for writing concurrent code using the async/await syntax [citation:5]. It's particularly useful for I/O-bound and high-level structured network code [citation:5].
 
-The key advantage of asyncio is that it can improve performance by allowing other code to run while waiting for I/O operations to complete [citation:12]. This makes it excellent for scenarios like web scraping, API calls, database operations, or any situation where your program spends time waiting for external resources.
+According to web search results, the key advantage of asyncio is that it can improve performance by allowing other code to run while waiting for I/O operations to complete [citation:https://docs.python.org/3/library/asyncio.html]. This makes it excellent for scenarios like web scraping, API calls, database operations, or any situation where your program spends time waiting for external resources.
 
 However, from your video learning, it's important to note that asyncio is not suitable for CPU-bound tasks as it runs on a single thread [citation:12]. For computationally intensive work, you'd want to use multiprocessing instead.
 </citation_output_example>
