@@ -16,7 +16,7 @@ import {
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { PublicChatSnapshotsManager } from "@/components/public-chat-snapshots/public-chat-snapshots-manager";
@@ -248,7 +248,7 @@ function SettingsContent({
 					{/* Section Header */}
 					<AnimatePresence mode="wait">
 						<motion.div
-							key={activeSection + "-header"}
+							key={`${activeSection}-header`}
 							initial={{ opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: -10 }}
@@ -317,14 +317,26 @@ function SettingsContent({
 	);
 }
 
+const VALID_SECTIONS = new Set(settingsNavItems.map((item) => item.id));
+const DEFAULT_SECTION = "general";
+
 export default function SettingsPage() {
 	const router = useRouter();
 	const params = useParams();
+	const searchParams = useSearchParams();
 	const searchSpaceId = Number(params.search_space_id);
-	const [activeSection, setActiveSection] = useState("general");
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-	// Track settings section view
+	const sectionParam = searchParams.get("section");
+	const activeSection = sectionParam && VALID_SECTIONS.has(sectionParam) ? sectionParam : DEFAULT_SECTION;
+
+	const handleSectionChange = useCallback(
+		(section: string) => {
+			router.replace(`/dashboard/${searchSpaceId}/settings?section=${section}`, { scroll: false });
+		},
+		[router, searchSpaceId]
+	);
+
 	useEffect(() => {
 		trackSettingsViewed(searchSpaceId, activeSection);
 	}, [searchSpaceId, activeSection]);
@@ -344,7 +356,7 @@ export default function SettingsPage() {
 				<div className="flex h-full w-full overflow-hidden bg-background md:rounded-xl md:border md:shadow-sm">
 					<SettingsSidebar
 						activeSection={activeSection}
-						onSectionChange={setActiveSection}
+						onSectionChange={handleSectionChange}
 						onBackToApp={handleBackToApp}
 						isOpen={isSidebarOpen}
 						onClose={() => setIsSidebarOpen(false)}

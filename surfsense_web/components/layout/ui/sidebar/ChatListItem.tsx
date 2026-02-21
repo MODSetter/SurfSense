@@ -4,7 +4,7 @@ import {
 	ArchiveIcon,
 	MessageSquare,
 	MoreHorizontal,
-	PencilIcon,
+	PenLine,
 	RotateCcwIcon,
 	Trash2,
 } from "lucide-react";
@@ -74,7 +74,7 @@ export function ChatListItem({
 									onRename();
 								}}
 							>
-								<PencilIcon className="mr-2 h-4 w-4" />
+								<PenLine className="mr-2 h-4 w-4" />
 								<span>{t("rename") || "Rename"}</span>
 							</DropdownMenuItem>
 						)}

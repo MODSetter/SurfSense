@@ -334,7 +334,7 @@ export function LayoutDataProvider({
 
 	const handleSearchSpaceSettings = useCallback(
 		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/settings`);
+			router.push(`/dashboard/${space.id}/settings?section=general`);
 		},
 		[router]
 	);
@@ -478,7 +478,7 @@ export function LayoutDataProvider({
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/settings`);
+		router.push(`/dashboard/${searchSpaceId}/settings?section=general`);
 	}, [router, searchSpaceId]);
 
 	const handleManageMembers = useCallback(() => {

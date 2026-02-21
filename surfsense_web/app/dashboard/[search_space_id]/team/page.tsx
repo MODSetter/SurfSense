@@ -731,7 +731,7 @@ function CreateInviteDialog({
 								</code>
 								<Button variant="outline" size="sm" onClick={copyLink} className="shrink-0">
 									{copiedLink ? (
-										<Check className="h-4 w-4 text-emerald-500" />
+										<Check className="h-4 w-4" />
 									) : (
 										<Copy className="h-4 w-4" />
 									)}
@@ -902,7 +902,7 @@ function AllInvitesDialog({
 					{invites.map((invite) => (
 						<div
 							key={invite.id}
-							className="rounded-lg border border-border/40 p-3 space-y-2.5 transition-colors hover:bg-muted/30"
+							className="rounded-lg border border-border/40 p-3 space-y-2.5"
 						>
 							<div className="flex items-center justify-between gap-2">
 								<div className="flex items-center gap-2 min-w-0">
@@ -929,7 +929,7 @@ function AllInvitesDialog({
 								</div>
 								<AlertDialog>
 									<AlertDialogTrigger asChild>
-										<Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive hover:text-destructive">
+										<Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive">
 											<Trash2 className="h-3.5 w-3.5" />
 										</Button>
 									</AlertDialogTrigger>
@@ -954,14 +954,16 @@ function AllInvitesDialog({
 								</AlertDialog>
 							</div>
 							<div className="flex items-center gap-2 rounded-md bg-muted p-2">
-								<code className="flex-1 min-w-0 text-sm select-all overflow-x-auto whitespace-nowrap">
-									{typeof window !== "undefined"
-										? `${window.location.origin}/invite/${invite.invite_code}`
-										: `/invite/${invite.invite_code}`}
-								</code>
-								<Button variant="outline" size="sm" className="shrink-0" onClick={() => copyLink(invite)}>
+								<div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
+									<code className="text-sm select-all whitespace-nowrap">
+										{typeof window !== "undefined"
+											? `${window.location.origin}/invite/${invite.invite_code}`
+											: `/invite/${invite.invite_code}`}
+									</code>
+								</div>
+								<Button variant="ghost" size="sm" className="shrink-0" onClick={() => copyLink(invite)}>
 									{copiedId === invite.id ? (
-										<Check className="h-4 w-4 text-emerald-500" />
+										<Check className="h-4 w-4" />
 									) : (
 										<Copy className="h-4 w-4" />
 									)}
