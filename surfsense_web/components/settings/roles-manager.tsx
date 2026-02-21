@@ -156,7 +156,6 @@ const ACTION_LABELS: Record<string, string> = {
 	manage_roles: "Manage Roles",
 };
 
-
 const ROLE_PRESETS = {
 	editor: {
 		name: "Editor",
@@ -241,13 +240,9 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 		[access]
 	);
 
-	const {
-		data: roles = [],
-		isLoading: rolesLoading,
-	} = useQuery({
+	const { data: roles = [], isLoading: rolesLoading } = useQuery({
 		queryKey: cacheKeys.roles.all(searchSpaceId.toString()),
-		queryFn: () =>
-			rolesApiService.getRoles({ search_space_id: searchSpaceId }),
+		queryFn: () => rolesApiService.getRoles({ search_space_id: searchSpaceId }),
 		enabled: !!searchSpaceId,
 	});
 
@@ -358,14 +353,10 @@ function RolePermissionsDialog({
 
 	return (
 		<Dialog>
-			<DialogTrigger asChild>
-				{children}
-			</DialogTrigger>
+			<DialogTrigger asChild>{children}</DialogTrigger>
 			<DialogContent className="w-[92vw] max-w-md p-0 gap-0">
 				<DialogHeader className="p-4 md:p-5">
-					<DialogTitle className="text-base">
-						{roleName} — Permissions
-					</DialogTitle>
+					<DialogTitle className="text-base">{roleName} — Permissions</DialogTitle>
 					<DialogDescription className="text-xs">
 						{isFullAccess
 							? "This role has unrestricted access to all resources"
@@ -379,7 +370,9 @@ function RolePermissionsDialog({
 						</div>
 						<div>
 							<p className="text-sm font-medium">Full access</p>
-							<p className="text-xs text-muted-foreground">All permissions granted across every category</p>
+							<p className="text-xs text-muted-foreground">
+								All permissions granted across every category
+							</p>
 						</div>
 					</div>
 				) : (
@@ -399,9 +392,7 @@ function RolePermissionsDialog({
 									>
 										<div className="flex items-center gap-2 shrink-0">
 											<IconComponent className="h-3.5 w-3.5 text-muted-foreground" />
-											<span className="text-sm text-muted-foreground">
-												{config.label}
-											</span>
+											<span className="text-sm text-muted-foreground">{config.label}</span>
 										</div>
 										<div className="flex flex-wrap justify-end gap-1">
 											{actions.map((action) => (
@@ -409,8 +400,7 @@ function RolePermissionsDialog({
 													key={action}
 													className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[11px] font-medium"
 												>
-													{ACTION_LABELS[action] ||
-														action.replace(/_/g, " ")}
+													{ACTION_LABELS[action] || action.replace(/_/g, " ")}
 												</span>
 											))}
 										</div>
@@ -435,7 +425,9 @@ function PermissionsBadge({ permissions }: { permissions: string[] }) {
 	}
 	return (
 		<div className="px-2.5 py-1 rounded-md border border-border/60 bg-muted/50 text-muted-foreground">
-			<span className="text-xs font-medium whitespace-nowrap">{permissions.length} permissions</span>
+			<span className="text-xs font-medium whitespace-nowrap">
+				{permissions.length} permissions
+			</span>
 		</div>
 	);
 }
@@ -514,15 +506,17 @@ function RolesContent({
 			{editingRole && (
 				<EditRoleDialog
 					open={!!editingRole}
-					onOpenChange={(open) => { if (!open) setEditingRoleId(null); }}
+					onOpenChange={(open) => {
+						if (!open) setEditingRoleId(null);
+					}}
 					role={editingRole}
 					groupedPermissions={groupedPermissions}
 					onUpdateRole={onUpdateRole}
 				/>
 			)}
 
-		<div className="space-y-3">
-			{roles.map((role, index) => (
+			<div className="space-y-3">
+				{roles.map((role, index) => (
 					<motion.div
 						key={role.id}
 						initial={{ opacity: 0, y: 6 }}
@@ -560,17 +554,19 @@ function RolesContent({
 								</div>
 
 								{!role.is_system_role && (
-									<div className="shrink-0" role="none" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+									<div
+										className="shrink-0"
+										role="none"
+										onClick={(e) => e.stopPropagation()}
+										onKeyDown={(e) => e.stopPropagation()}
+									>
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
 												<Button variant="ghost" size="icon" className="h-8 w-8">
 													<MoreHorizontal className="h-4 w-4" />
 												</Button>
 											</DropdownMenuTrigger>
-											<DropdownMenuContent
-												align="end"
-												onCloseAutoFocus={(e) => e.preventDefault()}
-											>
+											<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
 												{canUpdate && (
 													<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
 														<Edit2 className="h-4 w-4 mr-2" />
@@ -649,18 +645,14 @@ function PermissionsEditor({
 
 	const toggleCategoryExpanded = useCallback((category: string) => {
 		setExpandedCategories((prev) =>
-			prev.includes(category)
-				? prev.filter((c) => c !== category)
-				: [...prev, category]
+			prev.includes(category) ? prev.filter((c) => c !== category) : [...prev, category]
 		);
 	}, []);
 
 	const getCategoryStats = useCallback(
 		(category: string) => {
 			const perms = groupedPermissions[category] || [];
-			const selected = perms.filter((p) =>
-				selectedPermissions.includes(p.value)
-			).length;
+			const selected = perms.filter((p) => selectedPermissions.includes(p.value)).length;
 			return {
 				selected,
 				total: perms.length,
@@ -683,15 +675,11 @@ function PermissionsEditor({
 					className="text-xs h-7"
 					onClick={() =>
 						setExpandedCategories(
-							expandedCategories.length === sortedCategories.length
-								? []
-								: sortedCategories
+							expandedCategories.length === sortedCategories.length ? [] : sortedCategories
 						)
 					}
 				>
-					{expandedCategories.length === sortedCategories.length
-						? "Collapse All"
-						: "Expand All"}
+					{expandedCategories.length === sortedCategories.length ? "Collapse All" : "Expand All"}
 				</Button>
 			</div>
 
@@ -709,10 +697,7 @@ function PermissionsEditor({
 					const perms = groupedPermissions[category] || [];
 
 					return (
-						<div
-							key={category}
-							className="rounded-lg border border-border/60 overflow-hidden"
-						>
+						<div key={category} className="rounded-lg border border-border/60 overflow-hidden">
 							<button
 								type="button"
 								className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors"
@@ -775,9 +760,7 @@ function PermissionsEditor({
 													type="button"
 													className={cn(
 														"w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded-md cursor-pointer transition-colors",
-														isSelected
-															? "bg-muted/60 hover:bg-muted/80"
-															: "hover:bg-muted/40"
+														isSelected ? "bg-muted/60 hover:bg-muted/80" : "hover:bg-muted/40"
 													)}
 													onClick={() => onTogglePermission(perm.value)}
 												>
@@ -858,28 +841,19 @@ function CreateRoleDialog({
 
 	const togglePermission = useCallback((perm: string) => {
 		setSelectedPermissions((prev) =>
-			prev.includes(perm)
-				? prev.filter((p) => p !== perm)
-				: [...prev, perm]
+			prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
 		);
 	}, []);
 
 	const toggleCategory = useCallback(
 		(category: string) => {
-			const categoryPerms =
-				groupedPermissions[category]?.map((p) => p.value) || [];
-			const allSelected = categoryPerms.every((p) =>
-				selectedPermissions.includes(p)
-			);
+			const categoryPerms = groupedPermissions[category]?.map((p) => p.value) || [];
+			const allSelected = categoryPerms.every((p) => selectedPermissions.includes(p));
 
 			if (allSelected) {
-				setSelectedPermissions((prev) =>
-					prev.filter((p) => !categoryPerms.includes(p))
-				);
+				setSelectedPermissions((prev) => prev.filter((p) => !categoryPerms.includes(p)));
 			} else {
-				setSelectedPermissions((prev) => [
-					...new Set([...prev, ...categoryPerms]),
-				]);
+				setSelectedPermissions((prev) => [...new Set([...prev, ...categoryPerms])]);
 			}
 		},
 		[groupedPermissions, selectedPermissions]
@@ -1063,28 +1037,19 @@ function EditRoleDialog({
 
 	const togglePermission = useCallback((perm: string) => {
 		setSelectedPermissions((prev) =>
-			prev.includes(perm)
-				? prev.filter((p) => p !== perm)
-				: [...prev, perm]
+			prev.includes(perm) ? prev.filter((p) => p !== perm) : [...prev, perm]
 		);
 	}, []);
 
 	const toggleCategory = useCallback(
 		(category: string) => {
-			const categoryPerms =
-				groupedPermissions[category]?.map((p) => p.value) || [];
-			const allSelected = categoryPerms.every((p) =>
-				selectedPermissions.includes(p)
-			);
+			const categoryPerms = groupedPermissions[category]?.map((p) => p.value) || [];
+			const allSelected = categoryPerms.every((p) => selectedPermissions.includes(p));
 
 			if (allSelected) {
-				setSelectedPermissions((prev) =>
-					prev.filter((p) => !categoryPerms.includes(p))
-				);
+				setSelectedPermissions((prev) => prev.filter((p) => !categoryPerms.includes(p)));
 			} else {
-				setSelectedPermissions((prev) => [
-					...new Set([...prev, ...categoryPerms]),
-				]);
+				setSelectedPermissions((prev) => [...new Set([...prev, ...categoryPerms])]);
 			}
 		},
 		[groupedPermissions, selectedPermissions]

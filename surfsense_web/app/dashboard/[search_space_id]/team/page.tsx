@@ -154,10 +154,7 @@ export default function TeamManagementPage() {
 		[access]
 	);
 
-	const {
-		data: members = [],
-		isLoading: membersLoading,
-	} = useAtomValue(membersAtom);
+	const { data: members = [], isLoading: membersLoading } = useAtomValue(membersAtom);
 
 	const { mutateAsync: updateMember } = useAtomValue(updateMemberMutationAtom);
 	const { mutateAsync: deleteMember } = useAtomValue(deleteMemberMutationAtom);
@@ -211,17 +208,13 @@ export default function TeamManagementPage() {
 		[deleteMember, searchSpaceId]
 	);
 
-	const {
-		data: roles = [],
-	} = useQuery({
+	const { data: roles = [] } = useQuery({
 		queryKey: cacheKeys.roles.all(searchSpaceId.toString()),
 		queryFn: () => rolesApiService.getRoles({ search_space_id: searchSpaceId }),
 		enabled: !!searchSpaceId,
 	});
 
-	const {
-		data: invites = [],
-	} = useQuery({
+	const { data: invites = [] } = useQuery({
 		queryKey: cacheKeys.invites.all(searchSpaceId.toString()),
 		queryFn: () => invitesApiService.getInvites({ search_space_id: searchSpaceId }),
 		staleTime: 5 * 60 * 1000,
@@ -271,12 +264,12 @@ export default function TeamManagementPage() {
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ duration: 0.3 }}
-		className="bg-background select-none"
-		>
-			<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
-				<div className="space-y-6">
-					<div className="flex items-center justify-between">
-						<Skeleton className="h-9 w-36 rounded-md" />
+				className="bg-background select-none"
+			>
+				<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
+					<div className="space-y-6">
+						<div className="flex items-center justify-between">
+							<Skeleton className="h-9 w-36 rounded-md" />
 							<Skeleton className="h-4 w-20" />
 						</div>
 						<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
@@ -335,96 +328,93 @@ export default function TeamManagementPage() {
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.3 }}
-		className="bg-background select-none"
-	>
-		<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
-			<div className="space-y-6">
-				{/* Header row: Invite button on left, member count on right */}
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-2">
-						{canInvite && (
-							<CreateInviteDialog
-								roles={roles}
-								onCreateInvite={handleCreateInvite}
-								searchSpaceId={searchSpaceId}
-							/>
-						)}
-						{canInvite && activeInvites.length > 0 && (
-							<AllInvitesDialog
-								invites={activeInvites}
-								onRevokeInvite={handleRevokeInvite}
-							/>
-						)}
-					</div>
-					<p className="hidden md:block text-sm text-muted-foreground">
-						{members.length} {members.length === 1 ? "member" : "members"}
-					</p>
+			className="bg-background select-none"
+		>
+			<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
+				<div className="space-y-6">
+					{/* Header row: Invite button on left, member count on right */}
+					<div className="flex items-center justify-between">
+						<div className="flex items-center gap-2">
+							{canInvite && (
+								<CreateInviteDialog
+									roles={roles}
+									onCreateInvite={handleCreateInvite}
+									searchSpaceId={searchSpaceId}
+								/>
+							)}
+							{canInvite && activeInvites.length > 0 && (
+								<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
+							)}
+						</div>
+						<p className="hidden md:block text-sm text-muted-foreground">
+							{members.length} {members.length === 1 ? "member" : "members"}
+						</p>
 					</div>
 
 					{/* Members & Invites Table */}
 					<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
-					<Table className="table-fixed w-full">
-						<TableHeader>
-							<TableRow className="hover:bg-transparent border-b border-border/40">
-								<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
-									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-										<User size={14} className="opacity-60 text-muted-foreground" />
-										Name
-									</span>
-								</TableHead>
-								<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
-									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-										<Clock size={14} className="opacity-60 text-muted-foreground" />
-										Last logged in
-									</span>
-								</TableHead>
-								<TableHead className="w-[30%] px-4 md:px-6">
-									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70 justify-end">
-										<ShieldUser size={14} className="opacity-60 text-muted-foreground" />
-										Role
-									</span>
-								</TableHead>
-							</TableRow>
-						</TableHeader>
-						<TableBody>
-							{owners.map((member, index) => (
-								<MemberRow
-									key={`member-${member.id}`}
-									member={member}
-									roles={roles}
-									canManageRoles={canManageRoles}
-									canRemove={canRemove}
-									onUpdateRole={handleUpdateMember}
-									onRemoveMember={handleRemoveMember}
-									searchSpaceId={searchSpaceId}
-									index={index}
-								/>
-							))}
-							{paginatedMembers.map((member, index) => (
-								<MemberRow
-									key={`member-${member.id}`}
-									member={member}
-									roles={roles}
-									canManageRoles={canManageRoles}
-									canRemove={canRemove}
-									onUpdateRole={handleUpdateMember}
-									onRemoveMember={handleRemoveMember}
-									searchSpaceId={searchSpaceId}
-									index={owners.length + index}
-								/>
-							))}
-						{members.length === 0 && (
-								<TableRow>
-									<TableCell colSpan={3} className="text-center py-12">
-										<div className="flex flex-col items-center gap-2">
-											<Users className="h-8 w-8 text-muted-foreground/50" />
-											<p className="text-muted-foreground">No members yet</p>
-										</div>
-									</TableCell>
+						<Table className="table-fixed w-full">
+							<TableHeader>
+								<TableRow className="hover:bg-transparent border-b border-border/40">
+									<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
+										<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+											<User size={14} className="opacity-60 text-muted-foreground" />
+											Name
+										</span>
+									</TableHead>
+									<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
+										<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+											<Clock size={14} className="opacity-60 text-muted-foreground" />
+											Last logged in
+										</span>
+									</TableHead>
+									<TableHead className="w-[30%] px-4 md:px-6">
+										<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70 justify-end">
+											<ShieldUser size={14} className="opacity-60 text-muted-foreground" />
+											Role
+										</span>
+									</TableHead>
 								</TableRow>
-							)}
-						</TableBody>
-					</Table>
+							</TableHeader>
+							<TableBody>
+								{owners.map((member, index) => (
+									<MemberRow
+										key={`member-${member.id}`}
+										member={member}
+										roles={roles}
+										canManageRoles={canManageRoles}
+										canRemove={canRemove}
+										onUpdateRole={handleUpdateMember}
+										onRemoveMember={handleRemoveMember}
+										searchSpaceId={searchSpaceId}
+										index={index}
+									/>
+								))}
+								{paginatedMembers.map((member, index) => (
+									<MemberRow
+										key={`member-${member.id}`}
+										member={member}
+										roles={roles}
+										canManageRoles={canManageRoles}
+										canRemove={canRemove}
+										onUpdateRole={handleUpdateMember}
+										onRemoveMember={handleRemoveMember}
+										searchSpaceId={searchSpaceId}
+										index={owners.length + index}
+									/>
+								))}
+								{members.length === 0 && (
+									<TableRow>
+										<TableCell colSpan={3} className="text-center py-12">
+											<div className="flex flex-col items-center gap-2">
+												<Users className="h-8 w-8 text-muted-foreground/50" />
+												<p className="text-muted-foreground">No members yet</p>
+											</div>
+										</TableCell>
+									</TableRow>
+								)}
+							</TableBody>
+						</Table>
 					</div>
 
 					{/* Pagination */}
@@ -513,7 +503,7 @@ function MemberRow({
 	const initials = getAvatarInitials(member);
 	const avatarColor = getAvatarColor(member.user_id);
 	const displayName = member.user_display_name || member.user_email || "Unknown";
-	const roleName = member.is_owner ? "Owner" : (member.role?.name || "No role");
+	const roleName = member.is_owner ? "Owner" : member.role?.name || "No role";
 	const showActions = !member.is_owner && (canManageRoles || canRemove);
 
 	return (
@@ -547,7 +537,9 @@ function MemberRow({
 					<div className="min-w-0">
 						<p className="font-medium text-sm truncate select-text">{displayName}</p>
 						{member.user_display_name && member.user_email && (
-							<p className="text-xs text-muted-foreground truncate select-text">{member.user_email}</p>
+							<p className="text-xs text-muted-foreground truncate select-text">
+								{member.user_email}
+							</p>
 						)}
 					</div>
 				</div>
@@ -569,7 +561,11 @@ function MemberRow({
 								<ChevronDown className="h-4 w-4" />
 							</button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()} className="min-w-[120px] bg-muted dark:border dark:border-neutral-700">
+						<DropdownMenuContent
+							align="end"
+							onCloseAutoFocus={(e) => e.preventDefault()}
+							className="min-w-[120px] bg-muted dark:border dark:border-neutral-700"
+						>
 							{canManageRoles &&
 								roles
 									.filter((r) => r.name !== "Owner")
@@ -590,40 +586,39 @@ function MemberRow({
 										>
 											Remove
 										</DropdownMenuItem>
-										</AlertDialogTrigger>
-										<AlertDialogContent>
-											<AlertDialogHeader>
-												<AlertDialogTitle>Remove member?</AlertDialogTitle>
-												<AlertDialogDescription>
-													This will remove{" "}
-													<span className="font-medium">{member.user_email}</span>{" "}
-													from this search space. They will lose access to all resources.
-												</AlertDialogDescription>
-											</AlertDialogHeader>
-											<AlertDialogFooter>
-												<AlertDialogCancel>Cancel</AlertDialogCancel>
-												<AlertDialogAction
-													onClick={() => onRemoveMember(member.id)}
-													className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-												>
-													Remove
-												</AlertDialogAction>
-											</AlertDialogFooter>
-										</AlertDialogContent>
-									</AlertDialog>
+									</AlertDialogTrigger>
+									<AlertDialogContent>
+										<AlertDialogHeader>
+											<AlertDialogTitle>Remove member?</AlertDialogTitle>
+											<AlertDialogDescription>
+												This will remove <span className="font-medium">{member.user_email}</span>{" "}
+												from this search space. They will lose access to all resources.
+											</AlertDialogDescription>
+										</AlertDialogHeader>
+										<AlertDialogFooter>
+											<AlertDialogCancel>Cancel</AlertDialogCancel>
+											<AlertDialogAction
+												onClick={() => onRemoveMember(member.id)}
+												className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+											>
+												Remove
+											</AlertDialogAction>
+										</AlertDialogFooter>
+									</AlertDialogContent>
+								</AlertDialog>
 							)}
 							<DropdownMenuSeparator className="dark:bg-neutral-700" />
 							<DropdownMenuItem
-								onClick={() => router.push(`/dashboard/${searchSpaceId}/settings?section=team-roles`)}
+								onClick={() =>
+									router.push(`/dashboard/${searchSpaceId}/settings?section=team-roles`)
+								}
 							>
 								Manage Roles
 							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				) : (
-					<span className="text-sm text-foreground">
-						{roleName}
-					</span>
+					<span className="text-sm text-foreground">{roleName}</span>
 				)}
 			</TableCell>
 		</motion.tr>
@@ -671,9 +666,7 @@ function CreateInviteDialog({
 			const invite = await onCreateInvite(data);
 			setCreatedInvite(invite);
 
-			const roleName = roleId
-				? roles.find((r) => r.id.toString() === roleId)?.name
-				: undefined;
+			const roleName = roleId ? roles.find((r) => r.id.toString() === roleId)?.name : undefined;
 			trackSearchSpaceInviteSent(searchSpaceId, {
 				roleName,
 				hasExpiry: !!expiresAt,
@@ -707,13 +700,19 @@ function CreateInviteDialog({
 	return (
 		<Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
 			<DialogTrigger asChild>
-				<Button variant="outline" className="gap-2 bg-black text-white dark:bg-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90">
+				<Button
+					variant="outline"
+					className="gap-2 bg-black text-white dark:bg-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
+				>
 					<UserPlus className="h-4 w-4" />
 					Invite members
 				</Button>
 			</DialogTrigger>
-		<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-md p-4 md:p-6 select-none" onOpenAutoFocus={(e) => e.preventDefault()}>
-			{createdInvite ? (
+			<DialogContent
+				className="w-[92vw] max-w-[92vw] sm:max-w-md p-4 md:p-6 select-none"
+				onOpenAutoFocus={(e) => e.preventDefault()}
+			>
+				{createdInvite ? (
 					<>
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
@@ -730,11 +729,7 @@ function CreateInviteDialog({
 									{window.location.origin}/invite/{createdInvite.invite_code}
 								</code>
 								<Button variant="outline" size="sm" onClick={copyLink} className="shrink-0">
-									{copiedLink ? (
-										<Check className="h-4 w-4" />
-									) : (
-										<Copy className="h-4 w-4" />
-									)}
+									{copiedLink ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
 								</Button>
 							</div>
 							<div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
@@ -891,24 +886,18 @@ function AllInvitesDialog({
 			</DialogTrigger>
 			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-lg p-4 md:p-6 select-none">
 				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2">
-						Active Invite Links
-					</DialogTitle>
+					<DialogTitle className="flex items-center gap-2">Active Invite Links</DialogTitle>
 					<DialogDescription>
-						{invites.length} active {invites.length === 1 ? "invite" : "invites"}. Copy a link or revoke access.
+						{invites.length} active {invites.length === 1 ? "invite" : "invites"}. Copy a link or
+						revoke access.
 					</DialogDescription>
 				</DialogHeader>
 				<div className="max-h-[320px] overflow-y-auto -mx-1 px-1 space-y-3 py-2">
 					{invites.map((invite) => (
-						<div
-							key={invite.id}
-							className="rounded-lg border border-border/40 p-3 space-y-2.5"
-						>
+						<div key={invite.id} className="rounded-lg border border-border/40 p-3 space-y-2.5">
 							<div className="flex items-center justify-between gap-2">
 								<div className="flex items-center gap-2 min-w-0">
-									<p className="text-sm font-medium truncate">
-										{invite.name || "Unnamed invite"}
-									</p>
+									<p className="text-sm font-medium truncate">{invite.name || "Unnamed invite"}</p>
 									<div className="flex flex-wrap gap-x-2 text-xs text-muted-foreground shrink-0">
 										{invite.role?.name && (
 											<span className="rounded bg-muted px-1.5 py-0.5">{invite.role.name}</span>
@@ -929,7 +918,11 @@ function AllInvitesDialog({
 								</div>
 								<AlertDialog>
 									<AlertDialogTrigger asChild>
-										<Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive">
+										<Button
+											variant="ghost"
+											size="icon"
+											className="h-7 w-7 shrink-0 text-muted-foreground hover:text-destructive"
+										>
 											<Trash2 className="h-3.5 w-3.5" />
 										</Button>
 									</AlertDialogTrigger>
@@ -937,8 +930,8 @@ function AllInvitesDialog({
 										<AlertDialogHeader>
 											<AlertDialogTitle>Revoke invite?</AlertDialogTitle>
 											<AlertDialogDescription>
-												This will permanently delete this invite link. Anyone with this link
-												will no longer be able to join.
+												This will permanently delete this invite link. Anyone with this link will no
+												longer be able to join.
 											</AlertDialogDescription>
 										</AlertDialogHeader>
 										<AlertDialogFooter>
@@ -961,7 +954,12 @@ function AllInvitesDialog({
 											: `/invite/${invite.invite_code}`}
 									</code>
 								</div>
-								<Button variant="ghost" size="sm" className="shrink-0" onClick={() => copyLink(invite)}>
+								<Button
+									variant="ghost"
+									size="sm"
+									className="shrink-0"
+									onClick={() => copyLink(invite)}
+								>
 									{copiedId === invite.id ? (
 										<Check className="h-4 w-4" />
 									) : (

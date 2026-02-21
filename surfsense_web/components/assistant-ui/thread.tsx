@@ -747,10 +747,14 @@ const ComposerAction: FC<ComposerActionProps> = ({
 			<div className="flex items-center gap-1">
 				<TooltipIconButton
 					tooltip={
-						isUploadingDocs ? "Uploading documents..." : (
+						isUploadingDocs ? (
+							"Uploading documents..."
+						) : (
 							<div className="flex flex-col gap-0.5">
 								<span className="font-medium">Upload and mention files</span>
-								<span className="text-xs text-muted-foreground flex items-center">Max 10 files <Dot className="size-3" /> 50 MB each</span>
+								<span className="text-xs text-muted-foreground flex items-center">
+									Max 10 files <Dot className="size-3" /> 50 MB each
+								</span>
 								<span className="text-xs text-muted-foreground">Total upload limit: 200 MB</span>
 							</div>
 						)

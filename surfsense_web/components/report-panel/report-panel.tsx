@@ -364,11 +364,7 @@ function ReportPanelContent({
 					{versions.length > 1 && (
 						<DropdownMenu modal={insideDrawer ? false : undefined}>
 							<DropdownMenuTrigger asChild>
-								<Button
-									variant="outline"
-									size="sm"
-									className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
-								>
+								<Button variant="outline" size="sm" className="h-8 px-3.5 py-4 text-[15px] gap-1.5">
 									v{activeVersionIndex + 1}
 									<ChevronDownIcon className="size-3" />
 								</Button>

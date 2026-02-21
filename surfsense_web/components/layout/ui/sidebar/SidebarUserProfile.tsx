@@ -381,11 +381,7 @@ export function SidebarUserProfile({
 					<DropdownMenuSeparator />
 
 					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-						{isLoggingOut ? (
-							<Spinner size="sm" className="mr-2" />
-						) : (
-							<LogOut className="h-4 w-4" />
-						)}
+						{isLoggingOut ? <Spinner size="sm" className="mr-2" /> : <LogOut className="h-4 w-4" />}
 						{isLoggingOut ? t("loggingOut") : t("logout")}
 					</DropdownMenuItem>
 				</DropdownMenuContent>

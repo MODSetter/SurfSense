@@ -409,20 +409,20 @@ export function AllSharedChatsSidebar({
 												<span className="sr-only">{t("more_options") || "More options"}</span>
 											</Button>
 										</DropdownMenuTrigger>
-									<DropdownMenuContent align="end" className="w-40 z-80">
-										{!thread.archived && (
+										<DropdownMenuContent align="end" className="w-40 z-80">
+											{!thread.archived && (
+												<DropdownMenuItem
+													onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
+												>
+													<PenLine className="mr-2 h-4 w-4" />
+													<span>{t("rename") || "Rename"}</span>
+												</DropdownMenuItem>
+											)}
 											<DropdownMenuItem
-												onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
+												onClick={() => handleToggleArchive(thread.id, thread.archived)}
+												disabled={isArchiving}
 											>
-												<PenLine className="mr-2 h-4 w-4" />
-												<span>{t("rename") || "Rename"}</span>
-											</DropdownMenuItem>
-										)}
-										<DropdownMenuItem
-											onClick={() => handleToggleArchive(thread.id, thread.archived)}
-											disabled={isArchiving}
-										>
-											{thread.archived ? (
+												{thread.archived ? (
 													<>
 														<RotateCcwIcon className="mr-2 h-4 w-4" />
 														<span>{t("unarchive") || "Restore"}</span>

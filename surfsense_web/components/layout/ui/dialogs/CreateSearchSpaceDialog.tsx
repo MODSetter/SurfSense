@@ -159,9 +159,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 										{t("creating")}
 									</>
 								) : (
-									<>
-										{t("create_button")}
-									</>
+									<>{t("create_button")}</>
 								)}
 							</Button>
 						</DialogFooter>

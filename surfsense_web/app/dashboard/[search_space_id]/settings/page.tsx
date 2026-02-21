@@ -306,9 +306,7 @@ function SettingsContent({
 							{activeSection === "public-links" && (
 								<PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />
 							)}
-							{activeSection === "team-roles" && (
-								<RolesManager searchSpaceId={searchSpaceId} />
-							)}
+							{activeSection === "team-roles" && <RolesManager searchSpaceId={searchSpaceId} />}
 						</motion.div>
 					</AnimatePresence>
 				</div>
@@ -328,7 +326,8 @@ export default function SettingsPage() {
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
 	const sectionParam = searchParams.get("section");
-	const activeSection = sectionParam && VALID_SECTIONS.has(sectionParam) ? sectionParam : DEFAULT_SECTION;
+	const activeSection =
+		sectionParam && VALID_SECTIONS.has(sectionParam) ? sectionParam : DEFAULT_SECTION;
 
 	const handleSectionChange = useCallback(
 		(section: string) => {
