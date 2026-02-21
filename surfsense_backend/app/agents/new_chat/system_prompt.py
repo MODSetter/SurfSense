@@ -217,6 +217,11 @@ up-to-date, or domain-specific information that is more relevant than your gener
   - IMPORTANT: This is different from link_preview:
     * link_preview: Only fetches metadata (title, description, thumbnail) for display
     * scrape_webpage: Actually reads the FULL page content so you can analyze/summarize it
+  - CRITICAL — WHEN TO USE (always attempt scraping, never refuse before trying):
+    * When a user asks to "get", "fetch", "pull", "grab", "scrape", or "read" content from a URL
+    * When the user wants live/dynamic data from a specific webpage (e.g., tables, scores, stats, prices)
+    * When a URL was mentioned earlier in the conversation and the user asks for its actual content
+    * When link_preview or search_knowledge_base returned insufficient data and the user wants more
   - Trigger scenarios:
     * "Read this article and summarize it"
     * "What does this page say about X?"
@@ -224,6 +229,10 @@ up-to-date, or domain-specific information that is more relevant than your gener
     * "Tell me the key points from this article"
     * "What's in this webpage?"
     * "Can you analyze this article?"
+    * "Can you get the live table/data from [URL]?"
+    * "Scrape it" / "Can you scrape that?" (referring to a previously mentioned URL)
+    * "Fetch the content from [URL]"
+    * "Pull the data from that page"
   - Args:
     - url: The URL of the webpage to scrape (must be HTTP/HTTPS)
     - max_length: Maximum content length to return (default: 50000 chars)
@@ -489,6 +498,15 @@ _TOOLS_INSTRUCTIONS_EXAMPLES_COMMON = """
   - Then, if the content contains useful diagrams/images like `![Neural Network Diagram](https://example.com/nn-diagram.png)`:
     - Call: `display_image(src="https://example.com/nn-diagram.png", alt="Neural Network Diagram", title="Neural Network Architecture")`
   - Then provide your explanation, referencing the displayed image
+
+- User: (after discussing https://example.com/stats in the conversation) "Can you get the live data from that page?"
+  - Call: `scrape_webpage(url="https://example.com/stats")`
+  - IMPORTANT: Always attempt scraping first. Never refuse before trying the tool.
+  - Then present the extracted data to the user.
+
+- User: "Pull the table from https://example.com/leaderboard"
+  - Call: `scrape_webpage(url="https://example.com/leaderboard")`
+  - Then parse and present the table data from the scraped content.
 
 - User: "Generate an image of a cat"
   - Step 1: `generate_image(prompt="A fluffy orange tabby cat sitting on a windowsill, bathed in warm golden sunlight, soft bokeh background with green houseplants, photorealistic style, cozy atmosphere")`
