@@ -336,7 +336,7 @@ export function DocumentsTableShell({
 
 	return (
 		<motion.div
-			className="rounded-lg border border-border/40 bg-background overflow-hidden"
+			className="rounded-lg border border-border/40 bg-background overflow-hidden select-none"
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
@@ -482,7 +482,7 @@ export function DocumentsTableShell({
 				</div>
 			) : (
 				<>
-					{/* Desktop Table View - Notion Style */}
+					{/* Desktop Table View */}
 					<div className="hidden md:flex md:flex-col">
 						{/* Fixed Header */}
 						<Table className="table-fixed w-full">
@@ -765,20 +765,20 @@ export function DocumentsTableShell({
 
 			{/* Document Content Viewer - lazy loads content on-demand */}
 			<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
-				<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-					<DialogHeader>
-						<DialogTitle>{viewingDoc?.title}</DialogTitle>
-					</DialogHeader>
-					<div className="mt-4">
-						{viewingLoading ? (
-							<div className="flex items-center justify-center py-12">
-								<Spinner size="lg" className="text-muted-foreground" />
-							</div>
-						) : (
-							<MarkdownViewer content={viewingContent} />
-						)}
-					</div>
-				</DialogContent>
+			<DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden pb-0">
+				<DialogHeader className="flex-shrink-0">
+					<DialogTitle>{viewingDoc?.title}</DialogTitle>
+				</DialogHeader>
+				<div className="mt-4 overflow-y-auto flex-1 min-h-0 px-6 select-text">
+					{viewingLoading ? (
+						<div className="flex items-center justify-center py-12">
+							<Spinner size="lg" className="text-muted-foreground" />
+						</div>
+					) : (
+						<MarkdownViewer content={viewingContent} />
+					)}
+				</div>
+			</DialogContent>
 			</Dialog>
 		</motion.div>
 	);
