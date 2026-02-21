@@ -593,6 +593,9 @@ IMPORTANT:
 - If the user requests a specific source type (e.g. "my notes", "Slack messages"), pass `connectors_to_search=[...]` using the enums below.
 - If `connectors_to_search` is omitted/empty, the system will search broadly.
 - Only connectors that are enabled/configured for this search space are available.{doc_types_info}
+- For real-time/public web queries (e.g., current exchange rates, stock prices, breaking news, weather),
+  explicitly include live web connectors in `connectors_to_search`, prioritizing:
+  ["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"].
 
 ## Available connector enums for `connectors_to_search`
 

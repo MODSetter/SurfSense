@@ -74,6 +74,14 @@ You have access to the following tools:
   - IMPORTANT: When searching for information (meetings, schedules, notes, tasks, etc.), ALWAYS search broadly 
     across ALL sources first by omitting connectors_to_search. The user may store information in various places
     including calendar apps, note-taking apps (Obsidian, Notion), chat apps (Slack, Discord), and more.
+  - IMPORTANT (REAL-TIME / PUBLIC WEB QUERIES): For questions that require current public web data
+    (e.g., live exchange rates, stock prices, breaking news, weather, current events), you MUST call
+    `search_knowledge_base` using live web connectors via `connectors_to_search`:
+    ["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"].
+  - For these real-time/public web queries, DO NOT answer from memory and DO NOT say you lack internet
+    access before attempting a live connector search.
+  - If the live connectors return no relevant results, explain that live web sources did not return enough
+    data and ask the user if they want you to retry with a refined query.
   - Only narrow to specific connectors if the user explicitly asks (e.g., "check my Slack" or "in my calendar").
   - Personal notes in Obsidian, Notion, or NOTE often contain schedules, meeting times, reminders, and other 
     important information that may not be in calendars.
@@ -357,6 +365,14 @@ _TOOLS_INSTRUCTIONS_EXAMPLES_COMMON = """
 
 - User: "What's in my Obsidian vault about project ideas?"
   - Call: `search_knowledge_base(query="project ideas", connectors_to_search=["OBSIDIAN_CONNECTOR"])`
+
+- User: "search me current usd to inr rate"
+  - Call: `search_knowledge_base(query="current USD to INR exchange rate", connectors_to_search=["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"])`
+  - Then answer using the returned live web results with citations.
+
+- User: "cant you search using linkup?"
+  - Call: `search_knowledge_base(query="<refined user request>", connectors_to_search=["LINKUP_API"])`
+  - Then answer from retrieved results (or clearly state that Linkup returned no data).
 
 - User: "Give me a podcast about AI trends based on what we discussed"
   - First search for relevant content, then call: `generate_podcast(source_content="Based on our conversation and search results: [detailed summary of chat + search findings]", podcast_title="AI Trends Podcast")`
