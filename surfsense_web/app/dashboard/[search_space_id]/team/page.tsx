@@ -6,19 +6,22 @@ import {
 	Calendar,
 	Check,
 	ChevronDown,
+	ChevronFirst,
+	ChevronLast,
+	ChevronLeft,
+	ChevronRight,
 	Clock,
 	Copy,
-	Crown,
 	Hash,
-	Shield,
+	ShieldUser,
 	Trash2,
-	UserMinus,
 	UserPlus,
+	User,
 	Users,
 } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -69,6 +72,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
 	Table,
@@ -142,6 +146,8 @@ function getInviteInitials(invite: Invite): string {
 	}
 	return "IN";
 }
+
+const PAGE_SIZE = 10;
 
 export default function TeamManagementPage() {
 	const params = useParams();
@@ -237,6 +243,39 @@ export default function TeamManagementPage() {
 	const canManageRoles = hasPermission("members:manage_roles");
 	const canRemove = hasPermission("members:remove");
 
+	const owners = useMemo(() => members.filter((m) => m.is_owner), [members]);
+	const nonOwnerMembers = useMemo(() => members.filter((m) => !m.is_owner), [members]);
+
+	const [pageIndex, setPageIndex] = useState(0);
+	const totalItems = nonOwnerMembers.length + activeInvites.length;
+	const lastPage = Math.max(0, Math.ceil(totalItems / PAGE_SIZE) - 1);
+
+	useEffect(() => {
+		if (pageIndex > lastPage) setPageIndex(lastPage);
+	}, [pageIndex, lastPage]);
+
+	const paginatedMembers = useMemo(() => {
+		const start = pageIndex * PAGE_SIZE;
+		const end = start + PAGE_SIZE;
+		return nonOwnerMembers.slice(
+			Math.min(start, nonOwnerMembers.length),
+			Math.min(end, nonOwnerMembers.length)
+		);
+	}, [nonOwnerMembers, pageIndex]);
+
+	const paginatedInvites = useMemo(() => {
+		const start = pageIndex * PAGE_SIZE;
+		const end = start + PAGE_SIZE;
+		const inviteStart = Math.max(0, start - nonOwnerMembers.length);
+		const inviteEnd = Math.max(0, end - nonOwnerMembers.length);
+		return activeInvites.slice(inviteStart, inviteEnd);
+	}, [activeInvites, nonOwnerMembers.length, pageIndex]);
+
+	const displayStart = totalItems > 0 ? pageIndex * PAGE_SIZE + 1 : 0;
+	const displayEnd = Math.min((pageIndex + 1) * PAGE_SIZE, totalItems);
+	const canPrev = pageIndex > 0;
+	const canNext = displayEnd < totalItems;
+
 	useEffect(() => {
 		if (members.length > 0 && !membersLoading) {
 			const ownerCount = members.filter((m) => m.is_owner).length;
@@ -246,16 +285,66 @@ export default function TeamManagementPage() {
 
 	if (accessLoading || membersLoading) {
 		return (
-			<div className="flex items-center justify-center min-h-[60vh]">
-				<motion.div
-					initial={{ opacity: 0, scale: 0.9 }}
-					animate={{ opacity: 1, scale: 1 }}
-					className="flex flex-col items-center gap-4"
-				>
-					<Spinner size="lg" className="text-primary" />
-					<p className="text-muted-foreground">Loading team data...</p>
-				</motion.div>
-			</div>
+			<motion.div
+				initial={{ opacity: 0 }}
+				animate={{ opacity: 1 }}
+				transition={{ duration: 0.3 }}
+				className="min-h-screen bg-background"
+			>
+				<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
+					<div className="space-y-6">
+						<div className="flex items-center justify-between">
+							<Skeleton className="h-9 w-36 rounded-md" />
+							<Skeleton className="h-4 w-20" />
+						</div>
+						<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
+							<Table className="table-fixed w-full">
+								<TableHeader>
+									<TableRow className="hover:bg-transparent border-b border-border/40">
+										<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
+											<Skeleton className="h-3 w-16" />
+										</TableHead>
+										<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
+											<Skeleton className="h-3 w-24" />
+										</TableHead>
+										<TableHead className="w-[30%] px-4 md:px-6">
+											<div className="flex justify-end">
+												<Skeleton className="h-3 w-12" />
+											</div>
+										</TableHead>
+									</TableRow>
+								</TableHeader>
+								<TableBody>
+									{Array.from({ length: PAGE_SIZE }).map((_, i) => (
+										<TableRow
+											key={`skeleton-${i}`}
+											className="border-b border-border/40 hover:bg-transparent"
+										>
+											<TableCell className="w-[45%] py-2.5 px-4 md:px-6 border-r border-border/40">
+												<div className="flex items-center gap-3">
+													<Skeleton className="h-10 w-10 rounded-full shrink-0" />
+													<div className="flex-1 min-w-0 space-y-1.5">
+														<Skeleton className="h-4 w-[60%]" />
+														<Skeleton className="h-3 w-[40%]" />
+													</div>
+												</div>
+											</TableCell>
+											<TableCell className="hidden md:table-cell w-[25%] py-2.5 border-r border-border/40">
+												<Skeleton className="h-4 w-24" />
+											</TableCell>
+											<TableCell className="w-[30%] py-2.5 px-4 md:px-6">
+												<div className="flex justify-end">
+													<Skeleton className="h-4 w-16" />
+												</div>
+											</TableCell>
+										</TableRow>
+									))}
+								</TableBody>
+							</Table>
+						</div>
+					</div>
+				</div>
+			</motion.div>
 		);
 	}
 
@@ -266,7 +355,7 @@ export default function TeamManagementPage() {
 			transition={{ duration: 0.3 }}
 			className="min-h-screen bg-background"
 		>
-			<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8">
+			<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
 				<div className="space-y-6">
 					{/* Header row: Invite button on left, member count on right */}
 					<div className="flex items-center justify-between">
@@ -284,54 +373,135 @@ export default function TeamManagementPage() {
 					</div>
 
 					{/* Members & Invites Table */}
-					<div className="rounded-xl border bg-card overflow-hidden">
-						<Table>
-							<TableHeader>
-								<TableRow className="bg-muted/30 hover:bg-muted/30">
-									<TableHead className="w-[40%] px-4 md:px-6 font-normal text-muted-foreground">
+					<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
+					<Table className="table-fixed w-full">
+						<TableHeader>
+							<TableRow className="hover:bg-transparent border-b border-border/40">
+								<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
+									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+										<User size={14} className="opacity-60 text-muted-foreground" />
 										Name
-									</TableHead>
-									<TableHead className="hidden md:table-cell font-normal text-muted-foreground">
+									</span>
+								</TableHead>
+								<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
+									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+										<Clock size={14} className="opacity-60 text-muted-foreground" />
 										Last logged in
-									</TableHead>
-									<TableHead className="text-right px-4 md:px-6 font-normal text-muted-foreground">
+									</span>
+								</TableHead>
+								<TableHead className="w-[30%] px-4 md:px-6">
+									<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70 justify-end">
+										<ShieldUser size={14} className="opacity-60 text-muted-foreground" />
 										Role
-									</TableHead>
+									</span>
+								</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{owners.map((member, index) => (
+								<MemberRow
+									key={`member-${member.id}`}
+									member={member}
+									roles={roles}
+									canManageRoles={canManageRoles}
+									canRemove={canRemove}
+									onUpdateRole={handleUpdateMember}
+									onRemoveMember={handleRemoveMember}
+									searchSpaceId={searchSpaceId}
+									index={index}
+								/>
+							))}
+							{paginatedMembers.map((member, index) => (
+								<MemberRow
+									key={`member-${member.id}`}
+									member={member}
+									roles={roles}
+									canManageRoles={canManageRoles}
+									canRemove={canRemove}
+									onUpdateRole={handleUpdateMember}
+									onRemoveMember={handleRemoveMember}
+									searchSpaceId={searchSpaceId}
+									index={owners.length + index}
+								/>
+							))}
+							{paginatedInvites.map((invite, index) => (
+								<InviteRow
+									key={`invite-${invite.id}`}
+									invite={invite}
+									canRevoke={canInvite}
+									onRevokeInvite={handleRevokeInvite}
+									index={owners.length + paginatedMembers.length + index}
+								/>
+							))}
+							{members.length === 0 && activeInvites.length === 0 && (
+								<TableRow>
+									<TableCell colSpan={3} className="text-center py-12">
+										<div className="flex flex-col items-center gap-2">
+											<Users className="h-8 w-8 text-muted-foreground/50" />
+											<p className="text-muted-foreground">No members yet</p>
+										</div>
+									</TableCell>
 								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{members.map((member) => (
-									<MemberRow
-										key={`member-${member.id}`}
-										member={member}
-										roles={roles}
-										canManageRoles={canManageRoles}
-										canRemove={canRemove}
-										onUpdateRole={handleUpdateMember}
-										onRemoveMember={handleRemoveMember}
-									/>
-								))}
-								{activeInvites.map((invite) => (
-									<InviteRow
-										key={`invite-${invite.id}`}
-										invite={invite}
-										canRevoke={canInvite}
-										onRevokeInvite={handleRevokeInvite}
-									/>
-								))}
-								{members.length === 0 && activeInvites.length === 0 && (
-									<TableRow>
-										<TableCell colSpan={3} className="text-center py-12">
-											<div className="flex flex-col items-center gap-2">
-												<Users className="h-8 w-8 text-muted-foreground/50" />
-												<p className="text-muted-foreground">No members yet</p>
-											</div>
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
+							)}
+						</TableBody>
+					</Table>
 					</div>
+
+					{/* Pagination */}
+					{totalItems > PAGE_SIZE && (
+						<motion.div
+							className="flex items-center justify-end gap-3 py-3 px-2"
+							initial={{ opacity: 0, y: 10 }}
+							animate={{ opacity: 1, y: 0 }}
+							transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.3 }}
+						>
+							<span className="text-sm text-muted-foreground tabular-nums">
+								{displayStart}-{displayEnd} of {totalItems}
+							</span>
+							<div className="flex items-center gap-1">
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 disabled:opacity-40"
+									onClick={() => setPageIndex(0)}
+									disabled={!canPrev}
+									aria-label="Go to first page"
+								>
+									<ChevronFirst size={18} strokeWidth={2} />
+								</Button>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 disabled:opacity-40"
+									onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
+									disabled={!canPrev}
+									aria-label="Go to previous page"
+								>
+									<ChevronLeft size={18} strokeWidth={2} />
+								</Button>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 disabled:opacity-40"
+									onClick={() => setPageIndex((i) => (canNext ? i + 1 : i))}
+									disabled={!canNext}
+									aria-label="Go to next page"
+								>
+									<ChevronRight size={18} strokeWidth={2} />
+								</Button>
+								<Button
+									variant="ghost"
+									size="icon"
+									className="h-8 w-8 disabled:opacity-40"
+									onClick={() => setPageIndex(lastPage)}
+									disabled={!canNext}
+									aria-label="Go to last page"
+								>
+									<ChevronLast size={18} strokeWidth={2} />
+								</Button>
+							</div>
+						</motion.div>
+					)}
 				</div>
 			</div>
 		</motion.div>
@@ -347,6 +517,8 @@ function MemberRow({
 	canRemove,
 	onUpdateRole,
 	onRemoveMember,
+	searchSpaceId,
+	index,
 }: {
 	member: Membership;
 	roles: Role[];
@@ -354,19 +526,25 @@ function MemberRow({
 	canRemove: boolean;
 	onUpdateRole: (membershipId: number, roleId: number | null) => Promise<Membership>;
 	onRemoveMember: (membershipId: number) => Promise<boolean>;
+	searchSpaceId: number;
+	index: number;
 }) {
+	const router = useRouter();
 	const initials = getAvatarInitials(member);
 	const avatarColor = getAvatarColor(member.user_id);
 	const displayName = member.user_display_name || member.user_email || "Unknown";
 	const roleName = member.is_owner ? "Owner" : (member.role?.name || "No role");
-	const showActions = canManageRoles || canRemove;
+	const showActions = !member.is_owner && (canManageRoles || canRemove);
 
 	return (
-		<TableRow className="group hover:bg-muted/30">
-			{/* Name + Avatar */}
-			<TableCell className="py-3 px-4 md:px-6">
+		<motion.tr
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1, transition: { duration: 0.2, delay: index * 0.02 } }}
+			className="border-b border-border/40 transition-colors hover:bg-muted/30"
+		>
+			<TableCell className="w-[45%] py-2.5 px-4 md:px-6 max-w-0 border-r border-border/40">
 				<div className="flex items-center gap-3">
-					<div className="relative shrink-0">
+					<div className="shrink-0">
 						{member.user_avatar_url ? (
 							<Image
 								src={member.user_avatar_url}
@@ -385,11 +563,6 @@ function MemberRow({
 								{initials}
 							</div>
 						)}
-						{member.is_owner && (
-							<div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 flex items-center justify-center ring-2 ring-background">
-								<Crown className="h-2.5 w-2.5 text-white" />
-							</div>
-						)}
 					</div>
 					<div className="min-w-0">
 						<p className="font-medium text-sm truncate">{displayName}</p>
@@ -400,14 +573,12 @@ function MemberRow({
 				</div>
 			</TableCell>
 
-			{/* Last logged in */}
-			<TableCell className="hidden md:table-cell py-3 text-sm text-muted-foreground">
+			<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/40">
 				{formatRelativeDate(member.joined_at)}
 			</TableCell>
 
-			{/* Role */}
-			<TableCell className="text-right py-3 px-4 md:px-6">
-				{showActions && !member.is_owner ? (
+			<TableCell className="w-[30%] text-right py-2.5 px-4 md:px-6">
+				{showActions ? (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<button
@@ -419,28 +590,17 @@ function MemberRow({
 							</button>
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-							{canManageRoles && (
-								<>
-									{roles.map((role) => (
+							{canManageRoles &&
+								roles
+									.filter((r) => r.name !== "Owner")
+									.map((role) => (
 										<DropdownMenuItem
 											key={role.id}
 											onClick={() => onUpdateRole(member.id, role.id)}
-											className={cn(
-												member.role_id === role.id && "bg-accent"
-											)}
 										>
-											{role.name}
+											Make {role.name}
 										</DropdownMenuItem>
 									))}
-									<DropdownMenuItem
-										onClick={() => onUpdateRole(member.id, null)}
-										className={cn(!member.role_id && "bg-accent")}
-									>
-										No role
-									</DropdownMenuItem>
-								</>
-							)}
-							{canManageRoles && canRemove && <DropdownMenuSeparator />}
 							{canRemove && (
 								<AlertDialog>
 									<AlertDialogTrigger asChild>
@@ -448,41 +608,45 @@ function MemberRow({
 											className="text-destructive focus:text-destructive"
 											onSelect={(e) => e.preventDefault()}
 										>
-											<UserMinus className="h-4 w-4 mr-2" />
-											Remove member
+											Remove
 										</DropdownMenuItem>
-									</AlertDialogTrigger>
-									<AlertDialogContent>
-										<AlertDialogHeader>
-											<AlertDialogTitle>Remove member?</AlertDialogTitle>
-											<AlertDialogDescription>
-												This will remove{" "}
-												<span className="font-medium">{member.user_email}</span>{" "}
-												from this search space. They will lose access to all resources.
-											</AlertDialogDescription>
-										</AlertDialogHeader>
-										<AlertDialogFooter>
-											<AlertDialogCancel>Cancel</AlertDialogCancel>
-											<AlertDialogAction
-												onClick={() => onRemoveMember(member.id)}
-												className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-											>
-												Remove
-											</AlertDialogAction>
-										</AlertDialogFooter>
-									</AlertDialogContent>
-								</AlertDialog>
+										</AlertDialogTrigger>
+										<AlertDialogContent>
+											<AlertDialogHeader>
+												<AlertDialogTitle>Remove member?</AlertDialogTitle>
+												<AlertDialogDescription>
+													This will remove{" "}
+													<span className="font-medium">{member.user_email}</span>{" "}
+													from this search space. They will lose access to all resources.
+												</AlertDialogDescription>
+											</AlertDialogHeader>
+											<AlertDialogFooter>
+												<AlertDialogCancel>Cancel</AlertDialogCancel>
+												<AlertDialogAction
+													onClick={() => onRemoveMember(member.id)}
+													className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+												>
+													Remove
+												</AlertDialogAction>
+											</AlertDialogFooter>
+										</AlertDialogContent>
+									</AlertDialog>
 							)}
+							<DropdownMenuSeparator />
+							<DropdownMenuItem
+								onClick={() => router.push(`/dashboard/${searchSpaceId}/settings?section=team-roles`)}
+							>
+								Manage Roles
+							</DropdownMenuItem>
 						</DropdownMenuContent>
 					</DropdownMenu>
 				) : (
-					<span className={cn("text-sm", member.is_owner ? "text-foreground" : "text-muted-foreground")}>
+					<span className="text-sm text-foreground">
 						{roleName}
-						{!member.is_owner && <ChevronDown className="inline h-4 w-4 ml-1" />}
 					</span>
 				)}
 			</TableCell>
-		</TableRow>
+		</motion.tr>
 	);
 }
 
@@ -492,18 +656,24 @@ function InviteRow({
 	invite,
 	canRevoke,
 	onRevokeInvite,
+	index,
 }: {
 	invite: Invite;
 	canRevoke: boolean;
 	onRevokeInvite: (inviteId: number) => Promise<boolean>;
+	index: number;
 }) {
 	const initials = getInviteInitials(invite);
 	const avatarColor = getAvatarColor(invite.invite_code);
 	const displayName = invite.name || "Unnamed Invite";
 
 	return (
-		<TableRow className="group hover:bg-muted/30">
-			<TableCell className="py-3 px-4 md:px-6">
+		<motion.tr
+			initial={{ opacity: 0 }}
+			animate={{ opacity: 1, transition: { duration: 0.2, delay: index * 0.02 } }}
+			className="border-b border-border/40 transition-colors hover:bg-muted/30"
+		>
+			<TableCell className="w-[45%] py-2.5 px-4 md:px-6 max-w-0 border-r border-border/40">
 				<div className="flex items-center gap-3">
 					<div
 						className={cn(
@@ -524,11 +694,11 @@ function InviteRow({
 				</div>
 			</TableCell>
 
-			<TableCell className="hidden md:table-cell py-3 text-sm text-muted-foreground">
+			<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/40">
 				Never
 			</TableCell>
 
-			<TableCell className="text-right py-3 px-4 md:px-6">
+			<TableCell className="w-[30%] text-right py-2.5 px-4 md:px-6">
 				{canRevoke ? (
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
@@ -548,7 +718,7 @@ function InviteRow({
 									toast.success("Invite link copied");
 								}}
 							>
-								<Copy className="h-4 w-4 mr-2" />
+								<Copy className="h-4 w-4" />
 								Copy invite link
 							</DropdownMenuItem>
 							<DropdownMenuSeparator />
@@ -558,7 +728,7 @@ function InviteRow({
 										className="text-destructive focus:text-destructive"
 										onSelect={(e) => e.preventDefault()}
 									>
-										<Trash2 className="h-4 w-4 mr-2" />
+										<Trash2 className="h-4 w-4" />
 										Revoke invite
 									</DropdownMenuItem>
 								</AlertDialogTrigger>
@@ -587,7 +757,7 @@ function InviteRow({
 					<span className="text-sm text-muted-foreground/60">Invited</span>
 				)}
 			</TableCell>
-		</TableRow>
+		</motion.tr>
 	);
 }
 
@@ -611,22 +781,30 @@ function CreateInviteDialog({
 	const [createdInvite, setCreatedInvite] = useState<Invite | null>(null);
 	const [copiedLink, setCopiedLink] = useState(false);
 
+	const assignableRoles = useMemo(() => roles.filter((r) => r.name !== "Owner"), [roles]);
+	const defaultRole = useMemo(() => assignableRoles.find((r) => r.is_default), [assignableRoles]);
+
+	useEffect(() => {
+		if (defaultRole && !roleId) {
+			setRoleId(defaultRole.id.toString());
+		}
+	}, [defaultRole, roleId]);
+
 	const handleCreate = async () => {
 		setCreating(true);
 		try {
 			const data: CreateInviteRequest["data"] = {};
 			if (name) data.name = name;
-			if (roleId && roleId !== "default") data.role_id = Number(roleId);
+			if (roleId) data.role_id = Number(roleId);
 			if (maxUses) data.max_uses = Number(maxUses);
 			if (expiresAt) data.expires_at = expiresAt.toISOString();
 
 			const invite = await onCreateInvite(data);
 			setCreatedInvite(invite);
 
-			const roleName =
-				roleId && roleId !== "default"
-					? roles.find((r) => r.id.toString() === roleId)?.name
-					: undefined;
+			const roleName = roleId
+				? roles.find((r) => r.id.toString() === roleId)?.name
+				: undefined;
 			trackSearchSpaceInviteSent(searchSpaceId, {
 				roleName,
 				hasExpiry: !!expiresAt,
@@ -642,7 +820,7 @@ function CreateInviteDialog({
 	const handleClose = () => {
 		setOpen(false);
 		setName("");
-		setRoleId("");
+		setRoleId(defaultRole?.id.toString() ?? "");
 		setMaxUses("");
 		setExpiresAt(undefined);
 		setCreatedInvite(null);
@@ -692,7 +870,6 @@ function CreateInviteDialog({
 							</div>
 							<div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
 								<span className="flex items-center gap-1">
-									<Shield className="h-3 w-3" />
 									{createdInvite.role?.name || "Default role"}
 								</span>
 								{createdInvite.max_uses && (
@@ -735,20 +912,19 @@ function CreateInviteDialog({
 								<Label htmlFor="invite-role">Role</Label>
 								<Select value={roleId} onValueChange={setRoleId}>
 									<SelectTrigger>
-										<SelectValue placeholder="Select a role (default: Viewer)" />
+										<SelectValue placeholder="Assign a role" />
 									</SelectTrigger>
 									<SelectContent>
-										<SelectItem value="default">Default role (Viewer)</SelectItem>
-										{roles
-											.filter((r) => r.name !== "Owner")
-											.map((role) => (
-												<SelectItem key={role.id} value={role.id.toString()}>
-													<div className="flex items-center gap-2">
-														<Shield className="h-3 w-3" />
-														{role.name}
-													</div>
-												</SelectItem>
-											))}
+										{assignableRoles.map((role) => (
+											<SelectItem key={role.id} value={role.id.toString()}>
+												<span className="flex items-center gap-2">
+													{role.name}
+													{role.is_default && (
+														<span className="text-xs text-muted-foreground">(default)</span>
+													)}
+												</span>
+											</SelectItem>
+										))}
 									</SelectContent>
 								</Select>
 							</div>
