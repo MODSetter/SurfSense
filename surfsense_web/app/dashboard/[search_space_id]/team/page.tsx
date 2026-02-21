@@ -289,12 +289,12 @@ export default function TeamManagementPage() {
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ duration: 0.3 }}
-				className="min-h-screen bg-background"
-			>
-				<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
-					<div className="space-y-6">
-						<div className="flex items-center justify-between">
-							<Skeleton className="h-9 w-36 rounded-md" />
+		className="min-h-screen bg-background select-none"
+		>
+			<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
+				<div className="space-y-6">
+					<div className="flex items-center justify-between">
+						<Skeleton className="h-9 w-36 rounded-md" />
 							<Skeleton className="h-4 w-20" />
 						</div>
 						<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
@@ -353,11 +353,11 @@ export default function TeamManagementPage() {
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.3 }}
-			className="min-h-screen bg-background"
-		>
-			<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
-				<div className="space-y-6">
-					{/* Header row: Invite button on left, member count on right */}
+		className="min-h-screen bg-background select-none"
+	>
+		<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
+			<div className="space-y-6">
+				{/* Header row: Invite button on left, member count on right */}
 					<div className="flex items-center justify-between">
 						{canInvite && (
 							<CreateInviteDialog
@@ -565,9 +565,9 @@ function MemberRow({
 						)}
 					</div>
 					<div className="min-w-0">
-						<p className="font-medium text-sm truncate">{displayName}</p>
+						<p className="font-medium text-sm truncate select-text">{displayName}</p>
 						{member.user_display_name && member.user_email && (
-							<p className="text-xs text-muted-foreground truncate">{member.user_email}</p>
+							<p className="text-xs text-muted-foreground truncate select-text">{member.user_email}</p>
 						)}
 					</div>
 				</div>
@@ -843,7 +843,7 @@ function CreateInviteDialog({
 					Invite members
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-md p-4 md:p-6">
+			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-md p-4 md:p-6 select-none">
 				{createdInvite ? (
 					<>
 						<DialogHeader>
