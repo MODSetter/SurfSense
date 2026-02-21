@@ -138,20 +138,20 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 							)}
 						/>
 
-						<DialogFooter className="flex-col sm:flex-row gap-2 pt-2 sm:pt-3">
+						<DialogFooter className="flex-row gap-2 pt-2 sm:pt-3">
 							<Button
 								type="button"
 								variant="outline"
 								onClick={() => handleOpenChange(false)}
 								disabled={isSubmitting}
-								className="w-full sm:w-auto h-9 sm:h-10 text-sm"
+								className="flex-1 sm:flex-none sm:w-auto h-8 sm:h-10 text-xs sm:text-sm"
 							>
 								{tCommon("cancel")}
 							</Button>
 							<Button
 								type="submit"
 								disabled={isSubmitting}
-								className="w-full sm:w-auto h-9 sm:h-10 text-sm"
+								className="flex-1 sm:flex-none sm:w-auto h-8 sm:h-10 text-xs sm:text-sm"
 							>
 								{isSubmitting ? (
 									<>

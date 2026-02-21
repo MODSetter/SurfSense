@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
 	ArchiveIcon,
+	ChevronLeft,
 	MessageCircleMore,
 	MoreHorizontal,
 	PenLine,
@@ -247,6 +248,17 @@ export function AllPrivateChatsSidebar({
 		>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center gap-2">
+					{isMobile && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 rounded-full"
+							onClick={() => onOpenChange(false)}
+						>
+							<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+							<span className="sr-only">{t("close") || "Close"}</span>
+						</Button>
+					)}
 					<User className="h-5 w-5 text-primary" />
 					<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
 				</div>
