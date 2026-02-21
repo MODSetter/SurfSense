@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
-import { Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -86,9 +85,6 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 			<DialogContent className="max-w-[90vw] sm:max-w-sm p-4 sm:p-5 data-[state=open]:animate-none data-[state=closed]:animate-none">
 				<DialogHeader className="space-y-2 pb-2">
 					<div className="flex items-center gap-2 sm:gap-3">
-						<div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
-							<Search className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
-						</div>
 						<div className="flex-1 min-w-0">
 							<DialogTitle className="text-base sm:text-lg">{t("create_title")}</DialogTitle>
 							<DialogDescription className="text-xs sm:text-sm mt-0.5">
@@ -164,7 +160,6 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 									</>
 								) : (
 									<>
-										<Plus className="-mr-1 h-4 w-4" />
 										{t("create_button")}
 									</>
 								)}
