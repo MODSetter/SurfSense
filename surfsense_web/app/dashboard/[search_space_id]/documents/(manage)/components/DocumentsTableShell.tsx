@@ -453,7 +453,7 @@ export function DocumentsTableShell({
 			) : error ? (
 				<div className="flex h-[50vh] w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-3">
-						<AlertCircle className="h-8 w-8 text-destructive/60" />
+						<AlertCircle className="h-8 w-8 text-destructive" />
 						<p className="text-sm text-destructive">{t("error_loading")}</p>
 					</div>
 				</div>
@@ -627,11 +627,30 @@ export function DocumentsTableShell({
 														<DocumentTypeChip type={doc.document_type} />
 													</TableCell>
 												)}
-												{columnVisibility.created_by && (
-													<TableCell className="w-36 py-2.5 text-sm text-foreground truncate border-r border-border/40">
-														{doc.created_by_name || "—"}
-													</TableCell>
-												)}
+											{columnVisibility.created_by && (
+												<TableCell className="w-36 py-2.5 text-sm text-foreground truncate border-r border-border/40">
+													{doc.created_by_name ? (
+														doc.created_by_email ? (
+															<Tooltip>
+																<TooltipTrigger asChild>
+																	<span className="cursor-default truncate block">
+																		{doc.created_by_name}
+																	</span>
+																</TooltipTrigger>
+																<TooltipContent side="top" align="start">
+																	{doc.created_by_email}
+																</TooltipContent>
+															</Tooltip>
+														) : (
+															<span className="truncate block">{doc.created_by_name}</span>
+														)
+													) : (
+														<span className="truncate block">
+															{doc.created_by_email || "—"}
+														</span>
+													)}
+												</TableCell>
+											)}
 												{columnVisibility.created_at && (
 													<TableCell className="w-32 py-2.5 text-sm text-foreground border-r border-border/40">
 														<Tooltip>

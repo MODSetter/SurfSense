@@ -115,6 +115,7 @@ export default function DocumentsTable() {
 				title: item.title,
 				created_by_id: item.created_by_id ?? null,
 				created_by_name: item.created_by_name ?? null,
+				created_by_email: item.created_by_email ?? null,
 				created_at: item.created_at,
 				status: (
 					item as {
