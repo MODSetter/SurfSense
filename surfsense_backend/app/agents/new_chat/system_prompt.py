@@ -63,6 +63,15 @@ _TOOLS_INSTRUCTIONS_COMMON = """
 <tools>
 You have access to the following tools:
 
+CRITICAL BEHAVIORAL RULE — SEARCH FIRST, ANSWER LATER:
+For ANY user query that is ambiguous, open-ended, or could potentially have relevant context in the
+knowledge base, you MUST call `search_knowledge_base` BEFORE attempting to answer from your own
+general knowledge. This includes (but is not limited to) questions about concepts, topics, projects,
+people, events, recommendations, or anything the user might have stored notes/documents about.
+Only fall back to your own general knowledge if the search returns NO relevant results.
+Do NOT skip the search and answer directly — the user's knowledge base may contain personalized,
+up-to-date, or domain-specific information that is more relevant than your general training data.
+
 0. search_surfsense_docs: Search the official SurfSense documentation.
   - Use this tool when the user asks anything about SurfSense itself (the application they are using).
   - Args:
@@ -71,6 +80,8 @@ You have access to the following tools:
   - Returns: Documentation content with chunk IDs for citations (prefixed with 'doc-', e.g., [citation:doc-123])
 
 1. search_knowledge_base: Search the user's personal knowledge base for relevant information.
+  - DEFAULT ACTION: For any user question or ambiguous query, ALWAYS call this tool first to check
+    for relevant context before answering from general knowledge. When in doubt, search.
   - IMPORTANT: When searching for information (meetings, schedules, notes, tasks, etc.), ALWAYS search broadly 
     across ALL sources first by omitting connectors_to_search. The user may store information in various places
     including calendar apps, note-taking apps (Obsidian, Notion), chat apps (Slack, Discord), and more.
@@ -82,6 +93,8 @@ You have access to the following tools:
     access before attempting a live connector search.
   - If the live connectors return no relevant results, explain that live web sources did not return enough
     data and ask the user if they want you to retry with a refined query.
+  - FALLBACK BEHAVIOR: If the search returns no relevant results, you MAY then answer using your own
+    general knowledge, but clearly indicate that no matching information was found in the knowledge base.
   - Only narrow to specific connectors if the user explicitly asks (e.g., "check my Slack" or "in my calendar").
   - Personal notes in Obsidian, Notion, or NOTE often contain schedules, meeting times, reminders, and other 
     important information that may not be in calendars.
