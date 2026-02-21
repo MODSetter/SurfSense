@@ -703,7 +703,6 @@ export function LayoutDataProvider({
 				<DialogContent className="sm:max-w-md">
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2">
-							<PencilIcon className="h-5 w-5" />
 							<span>{tSidebar("rename_chat") || "Rename Chat"}</span>
 						</DialogTitle>
 						<DialogDescription>
@@ -736,7 +735,7 @@ export function LayoutDataProvider({
 							{isRenamingChat ? (
 								<>
 									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-									{tSidebar("renaming") || "Renaming..."}
+									{tSidebar("renaming") || "Renaming"}
 								</>
 							) : (
 								<>

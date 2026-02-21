@@ -720,7 +720,8 @@
 		"unread": "Não lido",
 		"connectors": "Conectores",
 		"all_connectors": "Todos os conectores",
-		"close": "Fechar"
+		"close": "Fechar",
+		"cancel": "Cancelar"
 	},
 	"errors": {
 		"something_went_wrong": "Algo deu errado",

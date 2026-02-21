@@ -129,9 +129,6 @@ const DocumentUploadPopupContent: FC<{
 					<div className="sticky top-0 z-20 bg-muted px-4 sm:px-12 pt-4 sm:pt-10 pb-2 sm:pb-0">
 						{/* Upload header */}
 						<div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-6">
-							<div className="flex h-9 w-9 sm:h-14 sm:w-14 items-center justify-center rounded-lg sm:rounded-xl bg-primary/10 border border-primary/20 flex-shrink-0">
-								<Upload className="size-4 sm:size-7 text-primary" />
-							</div>
 							<div className="flex-1 min-w-0 pr-8 sm:pr-0">
 								<h2 className="text-base sm:text-2xl font-semibold tracking-tight">
 									Upload Documents

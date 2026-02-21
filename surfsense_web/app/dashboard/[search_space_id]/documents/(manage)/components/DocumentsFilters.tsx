@@ -3,12 +3,12 @@
 import { useSetAtom } from "jotai";
 import {
 	CircleAlert,
-	FilePlus2,
 	FileType,
 	ListFilter,
 	Search,
 	SlidersHorizontal,
 	Trash,
+	Upload,
 	X,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -96,7 +96,7 @@ export function DocumentsFilters({
 						size="sm"
 						className="h-9 gap-2 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
 					>
-						<FilePlus2 size={16} />
+						<Upload size={16} />
 						<span>Upload documents</span>
 					</Button>
 					<Button
