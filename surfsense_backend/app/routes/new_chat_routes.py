@@ -1042,7 +1042,11 @@ async def handle_new_chat(
             search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
         )
 
-        # Return streaming response
+        # Release the read-transaction so we don't hold ACCESS SHARE locks
+        # on searchspaces/documents for the entire duration of the stream.
+        # expire_on_commit=False keeps loaded ORM attrs usable.
+        await session.commit()
+
         return StreamingResponse(
             stream_new_chat(
                 user_query=request.user_query,
@@ -1269,6 +1273,11 @@ async def regenerate_response(
             search_space.agent_llm_id if search_space.agent_llm_id is not None else -1
         )
 
+        # Release the read-transaction so we don't hold ACCESS SHARE locks
+        # on searchspaces/documents for the entire duration of the stream.
+        # expire_on_commit=False keeps loaded ORM attrs (including messages_to_delete PKs) usable.
+        await session.commit()
+
         # Create a wrapper generator that deletes messages only AFTER streaming succeeds
         # This prevents data loss if streaming fails (network error, LLM error, etc.)
         async def stream_with_cleanup():
@@ -1381,6 +1390,10 @@ async def resume_chat(
         )
 
         decisions = [d.model_dump() for d in request.decisions]
+
+        # Release the read-transaction so we don't hold ACCESS SHARE locks
+        # on searchspaces/documents for the entire duration of the stream.
+        await session.commit()
 
         return StreamingResponse(
             stream_resume_chat(

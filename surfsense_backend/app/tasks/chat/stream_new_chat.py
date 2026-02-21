@@ -1110,6 +1110,13 @@ async def stream_new_chat(
             "search_space_id": search_space_id,
         }
 
+        # All pre-streaming DB reads are done.  Commit to release the
+        # transaction and its ACCESS SHARE locks so we don't block DDL
+        # (e.g. migrations) for the entire duration of LLM streaming.
+        # Tools that need DB access during streaming will start their own
+        # short-lived transactions (or use isolated sessions).
+        await session.commit()
+
         # Configure LangGraph with thread_id for memory
         # If checkpoint_id is provided, fork from that checkpoint (for edit/reload)
         configurable = {"thread_id": str(chat_id)}
@@ -1344,6 +1351,9 @@ async def stream_resume_chat(
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
         )
+
+        # Release the transaction before streaming (same rationale as stream_new_chat).
+        await session.commit()
 
         from langgraph.types import Command
 
