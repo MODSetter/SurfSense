@@ -746,6 +746,8 @@
 		"nav_system_instructions_desc": "SearchSpace-wide AI instructions",
 		"nav_public_links": "Public Chat Links",
 		"nav_public_links_desc": "Manage publicly shared chat links",
+		"nav_team_roles": "Team Roles",
+		"nav_team_roles_desc": "Manage team roles & permissions",
 		"general_name_label": "Name",
 		"general_name_placeholder": "Enter search space name",
 		"general_name_description": "A unique name for your search space.",

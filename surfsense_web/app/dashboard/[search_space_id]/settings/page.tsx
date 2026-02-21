@@ -12,6 +12,7 @@ import {
 	Menu,
 	MessageSquare,
 	Settings,
+	Shield,
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -24,6 +25,7 @@ import { ImageModelManager } from "@/components/settings/image-model-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
+import { RolesManager } from "@/components/settings/roles-manager";
 import { Button } from "@/components/ui/button";
 import { trackSettingsViewed } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -71,6 +73,12 @@ const settingsNavItems: SettingsNavItem[] = [
 		labelKey: "nav_public_links",
 		descriptionKey: "nav_public_links_desc",
 		icon: Globe,
+	},
+	{
+		id: "team-roles",
+		labelKey: "nav_team_roles",
+		descriptionKey: "nav_team_roles_desc",
+		icon: Shield,
 	},
 ];
 
@@ -297,6 +305,9 @@ function SettingsContent({
 							{activeSection === "prompts" && <PromptConfigManager searchSpaceId={searchSpaceId} />}
 							{activeSection === "public-links" && (
 								<PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />
+							)}
+							{activeSection === "team-roles" && (
+								<RolesManager searchSpaceId={searchSpaceId} />
 							)}
 						</motion.div>
 					</AnimatePresence>
