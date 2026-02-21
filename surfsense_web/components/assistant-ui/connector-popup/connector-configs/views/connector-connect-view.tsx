@@ -64,9 +64,7 @@ export const ConnectorConnectView: FC<ConnectorConnectViewProps> = ({
 		const formId = FORM_ID_MAP[connectorType];
 		const root = formContainerRef.current;
 		const mappedForm =
-			root && formId
-				? (root.querySelector(`[id="${formId}"]`) as HTMLFormElement | null)
-				: null;
+			root && formId ? (root.querySelector(`[id="${formId}"]`) as HTMLFormElement | null) : null;
 		// Fallback to currently rendered form to avoid silent no-op
 		// when a connector type or form id mapping drifts.
 		const fallbackForm = root?.querySelector("form") as HTMLFormElement | null;

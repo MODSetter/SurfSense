@@ -1,8 +1,8 @@
 "use client";
 
+import { ExternalLink } from "lucide-react";
 import type { FC } from "react";
 import { useState } from "react";
-import { ExternalLink } from "lucide-react";
 import { SourceDetailPanel } from "@/components/new-chat/source-detail-panel";
 
 interface InlineCitationProps {
@@ -14,10 +14,7 @@ interface InlineCitationProps {
  * Inline citation for knowledge-base chunks (numeric chunk IDs).
  * Renders a clickable badge showing the actual chunk ID that opens the SourceDetailPanel.
  */
-export const InlineCitation: FC<InlineCitationProps> = ({
-	chunkId,
-	isDocsChunk = false,
-}) => {
+export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk = false }) => {
 	const [isOpen, setIsOpen] = useState(false);
 
 	return (

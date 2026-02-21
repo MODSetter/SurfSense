@@ -69,7 +69,7 @@ export function AnnouncementToastProvider() {
 			const authed = isAuthenticated();
 			const active = getActiveAnnouncements(announcements, authed);
 			const importantUntoasted = active.filter(
-				(a) => a.isImportant && !isAnnouncementToasted(a.id),
+				(a) => a.isImportant && !isAnnouncementToasted(a.id)
 			);
 
 			for (let i = 0; i < importantUntoasted.length; i++) {

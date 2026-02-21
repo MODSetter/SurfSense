@@ -23,7 +23,7 @@ export function isAnnouncementActive(announcement: Announcement, now = new Date(
  */
 export function announcementMatchesAudience(
 	announcement: Announcement,
-	isAuthenticated: boolean,
+	isAuthenticated: boolean
 ): boolean {
 	switch (announcement.audience) {
 		case "all":
@@ -44,10 +44,10 @@ export function announcementMatchesAudience(
 export function getActiveAnnouncements(
 	announcements: Announcement[],
 	isAuthenticated: boolean,
-	now = new Date(),
+	now = new Date()
 ): Announcement[] {
 	return announcements.filter(
-		(a) => isAnnouncementActive(a, now) && announcementMatchesAudience(a, isAuthenticated),
+		(a) => isAnnouncementActive(a, now) && announcementMatchesAudience(a, isAuthenticated)
 	);
 }
 
@@ -58,7 +58,7 @@ export function getActiveAnnouncements(
  */
 export function msUntilNextTransition(
 	announcements: Announcement[],
-	now = new Date(),
+	now = new Date()
 ): number | null {
 	const nowMs = now.getTime();
 	let nearest: number | null = null;

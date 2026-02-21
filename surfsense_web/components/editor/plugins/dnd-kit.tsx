@@ -1,9 +1,8 @@
 "use client";
 
+import { DndPlugin } from "@platejs/dnd";
 import { DndProvider } from "react-dnd";
 import { HTML5Backend } from "react-dnd-html5-backend";
-
-import { DndPlugin } from "@platejs/dnd";
 
 import { BlockDraggable } from "@/components/ui/block-draggable";
 

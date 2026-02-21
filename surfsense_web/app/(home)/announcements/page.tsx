@@ -69,11 +69,7 @@ const categoryConfig: Record<
 // Announcement card
 // ---------------------------------------------------------------------------
 
-function AnnouncementCard({
-	announcement,
-}: {
-	announcement: AnnouncementWithState;
-}) {
+function AnnouncementCard({ announcement }: { announcement: AnnouncementWithState }) {
 	const config = categoryConfig[announcement.category] ?? categoryConfig.info;
 	const Icon = config.icon;
 
@@ -179,10 +175,7 @@ export default function AnnouncementsPage() {
 				) : (
 					<div className="flex flex-col gap-4">
 						{announcements.map((announcement) => (
-							<AnnouncementCard
-								key={announcement.id}
-								announcement={announcement}
-							/>
+							<AnnouncementCard key={announcement.id} announcement={announcement} />
 						))}
 					</div>
 				)}

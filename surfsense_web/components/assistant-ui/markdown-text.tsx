@@ -36,7 +36,7 @@ function preprocessMarkdown(content: string): string {
 	_pendingUrlCitations = new Map();
 	_urlCiteIdx = 0;
 	content = content.replace(
-		/[[【]\u200B?citation:\s*(https?:\/\/[^\]\】\u200B]+)\s*\u200B?[\]】]/g,
+		/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+)\s*\u200B?[\]】]/g,
 		(_, url) => {
 			const key = `urlcite${_urlCiteIdx++}`;
 			_pendingUrlCitations.set(key, url.trim());
@@ -73,7 +73,7 @@ function preprocessMarkdown(content: string): string {
 // URL-based IDs from live web search, or urlciteN placeholders from preprocess.
 // Also matches Chinese brackets 【】 and handles zero-width spaces that LLM sometimes inserts.
 const CITATION_REGEX =
-	/[[【]\u200B?citation:\s*(https?:\/\/[^\]\】\u200B]+|urlcite\d+|(?:doc-)?\d+(?:\s*,\s*(?:doc-)?\d+)*)\s*\u200B?[\]】]/g;
+	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|(?:doc-)?\d+(?:\s*,\s*(?:doc-)?\d+)*)\s*\u200B?[\]】]/g;
 
 /**
  * Parses text and replaces [citation:XXX] patterns with citation components.
@@ -100,16 +100,12 @@ function parseTextWithCitations(text: string): ReactNode[] {
 		const captured = match[1];
 
 		if (captured.startsWith("http://") || captured.startsWith("https://")) {
-			parts.push(
-				<UrlCitation key={`citation-url-${instanceIndex}`} url={captured.trim()} />
-			);
+			parts.push(<UrlCitation key={`citation-url-${instanceIndex}`} url={captured.trim()} />);
 			instanceIndex++;
 		} else if (captured.startsWith("urlcite")) {
 			const url = _pendingUrlCitations.get(captured);
 			if (url) {
-				parts.push(
-					<UrlCitation key={`citation-url-${instanceIndex}`} url={url} />
-				);
+				parts.push(<UrlCitation key={`citation-url-${instanceIndex}`} url={url} />);
 			}
 			instanceIndex++;
 		} else {

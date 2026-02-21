@@ -75,7 +75,7 @@ export function useAnnouncements(options: UseAnnouncementsOptions = {}) {
 			(a) => ({
 				...a,
 				isRead: isAnnouncementRead(a.id),
-			}),
+			})
 		);
 
 		if (category) {

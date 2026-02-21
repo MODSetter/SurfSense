@@ -89,9 +89,7 @@ class WebCrawlerConnector:
                     return await self._crawl_with_firecrawl(url, formats), None
                 except Exception as exc:
                     errors.append(f"Firecrawl: {exc!s}")
-                    logger.warning(
-                        f"[webcrawler] Firecrawl failed for {url}: {exc!s}"
-                    )
+                    logger.warning(f"[webcrawler] Firecrawl failed for {url}: {exc!s}")
 
             # --- 2. HTTP + Trafilatura (no subprocess required) ---
             try:

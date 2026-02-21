@@ -1,7 +1,5 @@
 "use client";
 
-import * as React from "react";
-
 import {
 	type FloatingToolbarState,
 	flip,
@@ -12,9 +10,9 @@ import {
 import { useComposedRef } from "@udecode/cn";
 import { KEYS } from "platejs";
 import { useEditorId, useEventEditorValue, usePluginOption } from "platejs/react";
-
-import { cn } from "@/lib/utils";
+import type * as React from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 import { Toolbar } from "./toolbar";
 

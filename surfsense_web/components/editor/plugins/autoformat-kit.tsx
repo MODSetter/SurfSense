@@ -3,11 +3,11 @@
 import type { AutoformatRule } from "@platejs/autoformat";
 
 import {
+	AutoformatPlugin,
 	autoformatArrow,
 	autoformatLegal,
 	autoformatLegalHtml,
 	autoformatMath,
-	AutoformatPlugin,
 	autoformatPunctuation,
 	autoformatSmartQuotes,
 } from "@platejs/autoformat";

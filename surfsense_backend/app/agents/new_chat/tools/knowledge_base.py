@@ -271,7 +271,7 @@ def format_documents_for_context(documents: list[dict[str, Any]]) -> str:
 
     # Live search connectors whose results should be cited by URL rather than
     # a numeric chunk_id (the numeric IDs are meaningless auto-incremented counters).
-    _LIVE_SEARCH_CONNECTORS = {
+    live_search_connectors = {
         "TAVILY_API",
         "SEARXNG_API",
         "LINKUP_API",
@@ -282,7 +282,7 @@ def format_documents_for_context(documents: list[dict[str, Any]]) -> str:
     parts: list[str] = []
     for g in grouped.values():
         metadata_json = json.dumps(g["metadata"], ensure_ascii=False)
-        is_live_search = g["document_type"] in _LIVE_SEARCH_CONNECTORS
+        is_live_search = g["document_type"] in live_search_connectors
 
         parts.append("<document>")
         parts.append("<document_metadata>")

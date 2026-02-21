@@ -300,58 +300,58 @@ export function LLMConfigForm({
 										</FormControl>
 									</PopoverTrigger>
 									<PopoverContent className="w-full p-0" align="start">
-									<Command shouldFilter={false}>
-										<CommandInput
-											placeholder={selectedProvider?.example || "Type model name..."}
-											value={field.value}
-											onValueChange={field.onChange}
-										/>
-										<CommandList className="max-h-[300px]">
-											<CommandEmpty>
-												<div className="py-3 text-center text-sm text-muted-foreground">
-													{field.value ? `Using: "${field.value}"` : "Type your model name"}
-												</div>
-											</CommandEmpty>
-											{availableModels.length > 0 && (
-												<CommandGroup heading="Suggested Models">
-													{availableModels
-														.filter(
-															(model) =>
-																!field.value ||
-																model.value.toLowerCase().includes(field.value.toLowerCase()) ||
-																model.label.toLowerCase().includes(field.value.toLowerCase())
-														)
-														.slice(0, 50)
-														.map((model) => (
-															<CommandItem
-																key={model.value}
-																value={model.value}
-																onSelect={(value) => {
-																	field.onChange(value);
-																	setModelComboboxOpen(false);
-																}}
-																className="py-2"
-															>
-																<Check
-																	className={cn(
-																		"mr-2 h-4 w-4",
-																		field.value === model.value ? "opacity-100" : "opacity-0"
-																	)}
-																/>
-																<div>
-																	<div className="font-medium">{model.label}</div>
-																	{model.contextWindow && (
-																		<div className="text-xs text-muted-foreground">
-																			Context: {model.contextWindow}
-																		</div>
-																	)}
-																</div>
-															</CommandItem>
-														))}
-												</CommandGroup>
-											)}
-										</CommandList>
-									</Command>
+										<Command shouldFilter={false}>
+											<CommandInput
+												placeholder={selectedProvider?.example || "Type model name..."}
+												value={field.value}
+												onValueChange={field.onChange}
+											/>
+											<CommandList className="max-h-[300px]">
+												<CommandEmpty>
+													<div className="py-3 text-center text-sm text-muted-foreground">
+														{field.value ? `Using: "${field.value}"` : "Type your model name"}
+													</div>
+												</CommandEmpty>
+												{availableModels.length > 0 && (
+													<CommandGroup heading="Suggested Models">
+														{availableModels
+															.filter(
+																(model) =>
+																	!field.value ||
+																	model.value.toLowerCase().includes(field.value.toLowerCase()) ||
+																	model.label.toLowerCase().includes(field.value.toLowerCase())
+															)
+															.slice(0, 50)
+															.map((model) => (
+																<CommandItem
+																	key={model.value}
+																	value={model.value}
+																	onSelect={(value) => {
+																		field.onChange(value);
+																		setModelComboboxOpen(false);
+																	}}
+																	className="py-2"
+																>
+																	<Check
+																		className={cn(
+																			"mr-2 h-4 w-4",
+																			field.value === model.value ? "opacity-100" : "opacity-0"
+																		)}
+																	/>
+																	<div>
+																		<div className="font-medium">{model.label}</div>
+																		{model.contextWindow && (
+																			<div className="text-xs text-muted-foreground">
+																				Context: {model.contextWindow}
+																			</div>
+																		)}
+																	</div>
+																</CommandItem>
+															))}
+													</CommandGroup>
+												)}
+											</CommandList>
+										</Command>
 									</PopoverContent>
 								</Popover>
 								{selectedProvider?.example && (

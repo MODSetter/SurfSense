@@ -1,7 +1,5 @@
 "use client";
 
-import * as React from "react";
-
 import { useDraggable, useDropLine } from "@platejs/dnd";
 import { BlockSelectionPlugin, useBlockSelected } from "@platejs/selection/react";
 import {
@@ -26,21 +24,22 @@ import {
 	XIcon,
 } from "lucide-react";
 import {
+	KEYS,
+	PathApi,
 	type TElement,
 	type TTableCellElement,
 	type TTableElement,
 	type TTableRowElement,
-	KEYS,
-	PathApi,
 } from "platejs";
 import {
-	type PlateElementProps,
 	PlateElement,
+	type PlateElementProps,
 	useComposedRef,
 	useEditorPlugin,
 	useEditorRef,
 	useEditorSelector,
 	useElement,
+	useElementSelector,
 	useFocusedLast,
 	usePluginOption,
 	useReadOnly,
@@ -48,7 +47,7 @@ import {
 	useSelected,
 	withHOC,
 } from "platejs/react";
-import { useElementSelector } from "platejs/react";
+import type * as React from "react";
 
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent } from "@/components/ui/popover";

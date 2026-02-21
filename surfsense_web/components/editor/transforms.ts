@@ -1,13 +1,12 @@
 "use client";
 
-import type { PlateEditor } from "platejs/react";
-
 import { insertCallout } from "@platejs/callout";
 import { insertCodeBlock, toggleCodeBlock } from "@platejs/code-block";
 import { triggerFloatingLink } from "@platejs/link/react";
 import { insertInlineEquation } from "@platejs/math";
 import { TablePlugin } from "@platejs/table/react";
-import { type NodeEntry, type Path, type TElement, KEYS, PathApi } from "platejs";
+import { KEYS, type NodeEntry, type Path, PathApi, type TElement } from "platejs";
+import type { PlateEditor } from "platejs/react";
 
 const insertList = (editor: PlateEditor, type: string) => {
 	editor.tf.insertNodes(

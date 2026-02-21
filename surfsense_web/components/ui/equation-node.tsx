@@ -1,12 +1,10 @@
 "use client";
 
-import * as React from "react";
-
-import type { TEquationElement } from "platejs";
-
 import { useEquationElement, useEquationInput } from "@platejs/math/react";
 import { RadicalIcon } from "lucide-react";
-import { type PlateElementProps, PlateElement, useSelected } from "platejs/react";
+import type { TEquationElement } from "platejs";
+import { PlateElement, type PlateElementProps, useSelected } from "platejs/react";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 

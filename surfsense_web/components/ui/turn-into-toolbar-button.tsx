@@ -1,10 +1,6 @@
 "use client";
 
-import * as React from "react";
-
 import type { DropdownMenuProps } from "@radix-ui/react-dropdown-menu";
-import type { TElement } from "platejs";
-
 import { DropdownMenuItemIndicator } from "@radix-ui/react-dropdown-menu";
 import {
 	CheckIcon,
@@ -23,16 +19,17 @@ import {
 	QuoteIcon,
 	SquareIcon,
 } from "lucide-react";
+import type { TElement } from "platejs";
 import { KEYS } from "platejs";
 import { useEditorRef, useSelectionFragmentProp } from "platejs/react";
-
+import * as React from "react";
+import { getBlockType, setBlockType } from "@/components/editor/transforms";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuRadioItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { getBlockType, setBlockType } from "@/components/editor/transforms";
 
 import { ToolbarButton, ToolbarMenuGroup } from "./toolbar";
 

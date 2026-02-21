@@ -215,9 +215,9 @@ function ApprovalCard({
 										onValueChange={(v) => {
 											setSelectedWorkspaceId(v);
 											setSelectedTeamId("");
-										setSelectedStateId("__none__");
-										setSelectedAssigneeId("__none__");
-										setSelectedPriority("0");
+											setSelectedStateId("__none__");
+											setSelectedAssigneeId("__none__");
+											setSelectedPriority("0");
 											setSelectedLabelIds([]);
 										}}
 									>
@@ -243,13 +243,13 @@ function ApprovalCard({
 										</div>
 										<Select
 											value={selectedTeamId}
-										onValueChange={(v) => {
-											setSelectedTeamId(v);
-											const newTeam = selectedWorkspace.teams.find((t) => t.id === v);
-											setSelectedStateId(newTeam?.states?.[0]?.id ?? "__none__");
-											setSelectedAssigneeId("__none__");
-											setSelectedLabelIds([]);
-										}}
+											onValueChange={(v) => {
+												setSelectedTeamId(v);
+												const newTeam = selectedWorkspace.teams.find((t) => t.id === v);
+												setSelectedStateId(newTeam?.states?.[0]?.id ?? "__none__");
+												setSelectedAssigneeId("__none__");
+												setSelectedLabelIds([]);
+											}}
 										>
 											<SelectTrigger className="w-full">
 												<SelectValue placeholder="Select a team" />

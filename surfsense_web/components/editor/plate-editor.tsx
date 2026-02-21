@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
 import { MarkdownPlugin, remarkMdx } from "@platejs/markdown";
 import type { AnyPluginConfig } from "platejs";
 import { createPlatePlugin, Key, Plate, usePlateEditor } from "platejs/react";
+import { useEffect, useMemo, useRef } from "react";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
-
-import { type EditorPreset, presetMap } from "@/components/editor/presets";
-import { Editor, EditorContainer } from "@/components/ui/editor";
-import { escapeMdxExpressions } from "@/components/editor/utils/escape-mdx";
 import { EditorSaveContext } from "@/components/editor/editor-save-context";
+import { type EditorPreset, presetMap } from "@/components/editor/presets";
+import { escapeMdxExpressions } from "@/components/editor/utils/escape-mdx";
+import { Editor, EditorContainer } from "@/components/ui/editor";
 
 export interface PlateEditorProps {
 	/** Markdown string to load as initial content */

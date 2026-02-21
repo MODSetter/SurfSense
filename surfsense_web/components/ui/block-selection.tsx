@@ -1,11 +1,10 @@
 "use client";
 
-import * as React from "react";
-
 import { DndPlugin } from "@platejs/dnd";
 import { useBlockSelected } from "@platejs/selection/react";
 import { cva } from "class-variance-authority";
 import { type PlateElementProps, usePluginOption } from "platejs/react";
+import * as React from "react";
 
 export const blockSelectionVariants = cva(
 	"pointer-events-none absolute inset-0 z-1 bg-brand/[.13] transition-opacity",

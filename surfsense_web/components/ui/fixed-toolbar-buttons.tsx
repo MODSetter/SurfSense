@@ -1,7 +1,5 @@
 "use client";
 
-import * as React from "react";
-
 import {
 	BoldIcon,
 	Code2Icon,
@@ -15,10 +13,11 @@ import {
 } from "lucide-react";
 import { KEYS } from "platejs";
 import { useEditorReadOnly, useEditorRef } from "platejs/react";
+import * as React from "react";
 
 import { useEditorSave } from "@/components/editor/editor-save-context";
-import { usePlatformShortcut } from "@/hooks/use-platform-shortcut";
 import { Spinner } from "@/components/ui/spinner";
+import { usePlatformShortcut } from "@/hooks/use-platform-shortcut";
 
 import { InsertToolbarButton } from "./insert-toolbar-button";
 import { LinkToolbarButton } from "./link-toolbar-button";

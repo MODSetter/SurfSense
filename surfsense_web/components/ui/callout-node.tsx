@@ -1,12 +1,10 @@
 "use client";
 
-import * as React from "react";
-
-import type { TCalloutElement } from "platejs";
-
 import { CalloutPlugin } from "@platejs/callout/react";
 import { cva } from "class-variance-authority";
-import { type PlateElementProps, PlateElement, useEditorPlugin } from "platejs/react";
+import type { TCalloutElement } from "platejs";
+import { PlateElement, type PlateElementProps, useEditorPlugin } from "platejs/react";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 

@@ -1,9 +1,5 @@
 "use client";
 
-import * as React from "react";
-
-import type { PlateElementProps } from "platejs/react";
-
 import { SlashInputPlugin } from "@platejs/slash-command/react";
 import {
 	ChevronRightIcon,
@@ -23,8 +19,10 @@ import {
 	TableIcon,
 } from "lucide-react";
 import { KEYS } from "platejs";
+import type { PlateElementProps } from "platejs/react";
 import { PlateElement, useEditorRef } from "platejs/react";
-
+import type * as React from "react";
+import { insertBlock, insertInlineElement } from "@/components/editor/transforms";
 import {
 	InlineCombobox,
 	InlineComboboxContent,
@@ -34,7 +32,6 @@ import {
 	InlineComboboxInput,
 	InlineComboboxItem,
 } from "@/components/ui/inline-combobox";
-import { insertBlock, insertInlineElement } from "@/components/editor/transforms";
 
 interface SlashCommandItem {
 	icon: React.ReactNode;
