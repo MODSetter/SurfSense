@@ -569,7 +569,7 @@ function MemberRow({
 								<ChevronDown className="h-4 w-4" />
 							</button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()} className="min-w-[180px] dark:bg-neutral-800 dark:border dark:border-neutral-700">
+						<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()} className="min-w-[120px] bg-muted dark:border dark:border-neutral-700">
 							{canManageRoles &&
 								roles
 									.filter((r) => r.name !== "Owner")
