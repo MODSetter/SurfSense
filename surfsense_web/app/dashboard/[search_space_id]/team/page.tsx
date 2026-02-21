@@ -137,7 +137,7 @@ function getAvatarInitials(member: Membership): string {
 	return "U";
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 export default function TeamManagementPage() {
 	const params = useParams();
@@ -271,7 +271,7 @@ export default function TeamManagementPage() {
 				initial={{ opacity: 0 }}
 				animate={{ opacity: 1 }}
 				transition={{ duration: 0.3 }}
-		className="min-h-screen bg-background select-none"
+		className="bg-background select-none"
 		>
 			<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
 				<div className="space-y-6">
@@ -335,7 +335,7 @@ export default function TeamManagementPage() {
 			initial={{ opacity: 0 }}
 			animate={{ opacity: 1 }}
 			transition={{ duration: 0.3 }}
-		className="min-h-screen bg-background select-none"
+		className="bg-background select-none"
 	>
 		<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
 			<div className="space-y-6">
@@ -356,9 +356,9 @@ export default function TeamManagementPage() {
 							/>
 						)}
 					</div>
-						<p className="text-sm text-muted-foreground">
-							{members.length} {members.length === 1 ? "member" : "members"}
-						</p>
+					<p className="hidden md:block text-sm text-muted-foreground">
+						{members.length} {members.length === 1 ? "member" : "members"}
+					</p>
 					</div>
 
 					{/* Members & Invites Table */}
@@ -569,7 +569,7 @@ function MemberRow({
 								<ChevronDown className="h-4 w-4" />
 							</button>
 						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+						<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()} className="min-w-[180px] dark:bg-neutral-800 dark:border dark:border-neutral-700">
 							{canManageRoles &&
 								roles
 									.filter((r) => r.name !== "Owner")
@@ -612,7 +612,7 @@ function MemberRow({
 										</AlertDialogContent>
 									</AlertDialog>
 							)}
-							<DropdownMenuSeparator />
+							<DropdownMenuSeparator className="dark:bg-neutral-700" />
 							<DropdownMenuItem
 								onClick={() => router.push(`/dashboard/${searchSpaceId}/settings?section=team-roles`)}
 							>
@@ -707,7 +707,7 @@ function CreateInviteDialog({
 	return (
 		<Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
 			<DialogTrigger asChild>
-				<Button variant="outline" className="gap-2">
+				<Button variant="outline" className="gap-2 bg-black text-white dark:bg-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90">
 					<UserPlus className="h-4 w-4" />
 					Invite members
 				</Button>
@@ -929,7 +929,7 @@ function AllInvitesDialog({
 								</div>
 								<AlertDialog>
 									<AlertDialogTrigger asChild>
-										<Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive/60 hover:text-destructive">
+										<Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive hover:text-destructive">
 											<Trash2 className="h-3.5 w-3.5" />
 										</Button>
 									</AlertDialogTrigger>

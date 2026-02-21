@@ -4,8 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
 import {
 	Bot,
-	Check,
-	Crown,
 	Edit2,
 	FileText,
 	Globe,
@@ -19,12 +17,11 @@ import {
 	Logs,
 	Settings,
 	Shield,
-	ShieldCheck,
 	Trash2,
 	Users,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	createRoleMutationAtom,
@@ -44,15 +41,7 @@ import {
 	AlertDialogTitle,
 	AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
 	Dialog,
@@ -167,25 +156,11 @@ const ACTION_LABELS: Record<string, string> = {
 	manage_roles: "Manage Roles",
 };
 
-const ACTION_DISPLAY: Record<string, { label: string; color: string }> = {
-	create: { label: "Create", color: "text-emerald-600 bg-emerald-500/10" },
-	read: { label: "View", color: "text-blue-600 bg-blue-500/10" },
-	update: { label: "Edit", color: "text-amber-600 bg-amber-500/10" },
-	delete: { label: "Delete", color: "text-red-600 bg-red-500/10" },
-	invite: { label: "Invite", color: "text-violet-600 bg-violet-500/10" },
-	view: { label: "View", color: "text-blue-600 bg-blue-500/10" },
-	remove: { label: "Remove", color: "text-red-600 bg-red-500/10" },
-	manage_roles: {
-		label: "Manage Roles",
-		color: "text-violet-600 bg-violet-500/10",
-	},
-};
 
 const ROLE_PRESETS = {
 	editor: {
 		name: "Editor",
-		description:
-			"Can create, read, and update content, but cannot delete or manage team settings",
+		description: "Create, read, and edit content. No delete or admin access.",
 		permissions: [
 			"documents:create",
 			"documents:read",
@@ -353,32 +328,24 @@ export function RolesManager({ searchSpaceId }: { searchSpaceId: number }) {
 
 // ============ Role Permissions Display ============
 
-function RolePermissionsDisplay({
+function RolePermissionsDialog({
 	permissions,
+	roleName,
+	children,
 }: {
 	permissions: string[];
+	roleName: string;
+	children: React.ReactNode;
 }) {
-	if (permissions.includes("*")) {
-		return (
-			<div className="flex items-center gap-3 p-3 rounded-lg bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
-				<div className="h-10 w-10 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shrink-0">
-					<Crown className="h-5 w-5 text-white" />
-				</div>
-				<div className="flex-1 min-w-0">
-					<p className="text-sm font-semibold">Full Access</p>
-					<p className="text-xs text-muted-foreground">
-						All permissions granted
-					</p>
-				</div>
-			</div>
-		);
-	}
+	const isFullAccess = permissions.includes("*");
 
 	const grouped: Record<string, string[]> = {};
-	for (const perm of permissions) {
-		const [category, action] = perm.split(":");
-		if (!grouped[category]) grouped[category] = [];
-		grouped[category].push(action);
+	if (!isFullAccess) {
+		for (const perm of permissions) {
+			const [category, action] = perm.split(":");
+			if (!grouped[category]) grouped[category] = [];
+			grouped[category].push(action);
+		}
 	}
 
 	const sortedCategories = Object.keys(grouped).sort((a, b) => {
@@ -392,75 +359,84 @@ function RolePermissionsDisplay({
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<button
-					type="button"
-					className="w-full flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer text-left"
-				>
-					<div className="flex items-center gap-3">
-						<div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-							<ShieldCheck className="h-5 w-5 text-primary" />
-						</div>
-						<div>
-							<p className="text-sm font-semibold">
-								{permissions.length} Permissions
-							</p>
-							<p className="text-xs text-muted-foreground">
-								Across {categoryCount}{" "}
-								{categoryCount === 1 ? "category" : "categories"}
-							</p>
-						</div>
-					</div>
-					<div className="text-xs text-muted-foreground">View details</div>
-				</button>
+				{children}
 			</DialogTrigger>
 			<DialogContent className="w-[92vw] max-w-md p-0 gap-0">
-				<DialogHeader className="p-4 md:p-5 border-b">
-					<DialogTitle className="flex items-center gap-2 text-base">
-						<ShieldCheck className="h-4 w-4 text-primary" />
-						Role Permissions
+				<DialogHeader className="p-4 md:p-5">
+					<DialogTitle className="text-base">
+						{roleName} — Permissions
 					</DialogTitle>
 					<DialogDescription className="text-xs">
-						{permissions.length} permissions across {categoryCount} categories
+						{isFullAccess
+							? "This role has unrestricted access to all resources"
+							: `${permissions.length} permissions across ${categoryCount} categories`}
 					</DialogDescription>
 				</DialogHeader>
-				<ScrollArea className="max-h-[55vh]">
-					<div className="divide-y divide-border/50">
-						{sortedCategories.map((category) => {
-							const actions = grouped[category];
-							const config = CATEGORY_CONFIG[category] || {
-								label: category,
-								icon: FileText,
-							};
-							const IconComponent = config.icon;
-							return (
-								<div
-									key={category}
-									className="flex items-center justify-between gap-3 px-4 md:px-5 py-2.5"
-								>
-									<div className="flex items-center gap-2 shrink-0">
-										<IconComponent className="h-3.5 w-3.5 text-muted-foreground" />
-										<span className="text-sm text-muted-foreground">
-											{config.label}
-										</span>
-									</div>
-									<div className="flex flex-wrap justify-end gap-1">
-										{actions.map((action) => (
-											<span
-												key={action}
-												className="px-1.5 py-0.5 rounded bg-primary/10 text-primary text-[11px] font-medium"
-											>
-												{ACTION_LABELS[action] ||
-													action.replace(/_/g, " ")}
-											</span>
-										))}
-									</div>
-								</div>
-							);
-						})}
+				{isFullAccess ? (
+					<div className="flex items-center gap-3 px-4 md:px-5 py-6">
+						<div className="h-9 w-9 rounded-lg bg-muted/60 flex items-center justify-center shrink-0">
+							<Shield className="h-4 w-4 text-muted-foreground" />
+						</div>
+						<div>
+							<p className="text-sm font-medium">Full access</p>
+							<p className="text-xs text-muted-foreground">All permissions granted across every category</p>
+						</div>
 					</div>
-				</ScrollArea>
+				) : (
+					<ScrollArea className="max-h-[55vh]">
+						<div className="divide-y divide-border/50">
+							{sortedCategories.map((category) => {
+								const actions = grouped[category];
+								const config = CATEGORY_CONFIG[category] || {
+									label: category,
+									icon: FileText,
+								};
+								const IconComponent = config.icon;
+								return (
+									<div
+										key={category}
+										className="flex items-center justify-between gap-3 px-4 md:px-5 py-2.5"
+									>
+										<div className="flex items-center gap-2 shrink-0">
+											<IconComponent className="h-3.5 w-3.5 text-muted-foreground" />
+											<span className="text-sm text-muted-foreground">
+												{config.label}
+											</span>
+										</div>
+										<div className="flex flex-wrap justify-end gap-1">
+											{actions.map((action) => (
+												<span
+													key={action}
+													className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground text-[11px] font-medium"
+												>
+													{ACTION_LABELS[action] ||
+														action.replace(/_/g, " ")}
+												</span>
+											))}
+										</div>
+									</div>
+								);
+							})}
+						</div>
+					</ScrollArea>
+				)}
 			</DialogContent>
 		</Dialog>
+	);
+}
+
+function PermissionsBadge({ permissions }: { permissions: string[] }) {
+	if (permissions.includes("*")) {
+		return (
+			<div className="px-2.5 py-1 rounded-md bg-muted/50 border border-border/60 text-muted-foreground">
+				<span className="text-xs font-medium whitespace-nowrap">Full access</span>
+			</div>
+		);
+	}
+	return (
+		<div className="px-2.5 py-1 rounded-md border border-border/60 bg-muted/50 text-muted-foreground">
+			<span className="text-xs font-medium whitespace-nowrap">{permissions.length} permissions</span>
+		</div>
 	);
 }
 
@@ -506,6 +482,8 @@ function RolesContent({
 		);
 	}
 
+	const editingRole = editingRoleId !== null ? roles.find((r) => r.id === editingRoleId) : null;
+
 	return (
 		<motion.div
 			initial={{ opacity: 0, y: 10 }}
@@ -513,123 +491,88 @@ function RolesContent({
 			exit={{ opacity: 0, y: -10 }}
 			className="space-y-6"
 		>
-			{canCreate && !showCreateRole && (
-				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					className="flex justify-end"
-				>
-					<Button onClick={() => setShowCreateRole(true)} className="gap-2">
+			{canCreate && (
+				<div className="flex justify-end">
+					<Button
+						variant="outline"
+						onClick={() => setShowCreateRole(true)}
+						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+					>
 						<Plus className="h-4 w-4" />
 						Create Custom Role
 					</Button>
-				</motion.div>
+				</div>
 			)}
 
-			{showCreateRole && (
-				<CreateRoleSection
+			<CreateRoleDialog
+				open={showCreateRole}
+				onOpenChange={setShowCreateRole}
+				groupedPermissions={groupedPermissions}
+				onCreateRole={onCreateRole}
+			/>
+
+			{editingRole && (
+				<EditRoleDialog
+					open={!!editingRole}
+					onOpenChange={(open) => { if (!open) setEditingRoleId(null); }}
+					role={editingRole}
 					groupedPermissions={groupedPermissions}
-					onCreateRole={onCreateRole}
-					onCancel={() => setShowCreateRole(false)}
+					onUpdateRole={onUpdateRole}
 				/>
 			)}
 
-			{editingRoleId !== null &&
-				(() => {
-					const roleToEdit = roles.find((r) => r.id === editingRoleId);
-					if (!roleToEdit) return null;
-					return (
-						<EditRoleSection
-							role={roleToEdit}
-							groupedPermissions={groupedPermissions}
-							onUpdateRole={onUpdateRole}
-							onCancel={() => setEditingRoleId(null)}
-						/>
-					);
-				})()}
-
-			<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-				{roles.map((role, index) => (
+		<div className="space-y-3">
+			{roles.map((role, index) => (
 					<motion.div
 						key={role.id}
-						initial={{ opacity: 0, scale: 0.95 }}
-						animate={{ opacity: 1, scale: 1 }}
-						transition={{ delay: index * 0.05 }}
+						initial={{ opacity: 0, y: 6 }}
+						animate={{ opacity: 1, y: 0 }}
+						transition={{ delay: index * 0.04 }}
 					>
-						<Card
-							className={cn(
-								"relative overflow-hidden transition-all hover:shadow-lg",
-								role.is_system_role && "ring-1 ring-primary/20"
-							)}
-						>
-							{role.is_system_role && (
-								<div className="absolute top-0 right-0 px-2 py-1 bg-primary/10 text-primary text-xs font-medium rounded-bl-lg">
-									System Role
-								</div>
-							)}
-							<CardHeader>
-								<div className="flex items-start justify-between">
-									<div className="flex items-center gap-3">
-										<div
-											className={cn(
-												"h-10 w-10 rounded-lg flex items-center justify-center",
-												role.name === "Owner" && "bg-amber-500/20",
-												role.name === "Editor" && "bg-blue-500/20",
-												role.name === "Viewer" && "bg-gray-500/20",
-												!["Owner", "Editor", "Viewer"].includes(
-													role.name
-												) && "bg-primary/20"
-											)}
-										>
-											<ShieldCheck
-												className={cn(
-													"h-5 w-5",
-													role.name === "Owner" && "text-amber-600",
-													role.name === "Editor" && "text-blue-600",
-													role.name === "Viewer" && "text-gray-600",
-													!["Owner", "Editor", "Viewer"].includes(
-														role.name
-													) && "text-primary"
-												)}
-											/>
-										</div>
-										<div>
-											<CardTitle className="text-lg">
-												{role.name}
-											</CardTitle>
-											{role.is_default && (
-												<Badge
-													variant="outline"
-													className="text-xs mt-1"
-												>
-													Default
-												</Badge>
-											)}
-										</div>
+						<RolePermissionsDialog permissions={role.permissions} roleName={role.name}>
+							<button
+								type="button"
+								className="w-full text-left relative flex items-center gap-4 rounded-lg border border-border/60 p-4 transition-colors hover:bg-muted/30 cursor-pointer"
+							>
+								<div className="flex-1 min-w-0">
+									<div className="flex items-center gap-2">
+										<span className="font-medium text-sm">{role.name}</span>
+										{role.is_system_role && (
+											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+												System
+											</span>
+										)}
+										{role.is_default && (
+											<span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground font-medium">
+												Default
+											</span>
+										)}
 									</div>
-									{!role.is_system_role && (
+									{role.description && (
+										<p className="text-xs text-muted-foreground mt-0.5 truncate">
+											{role.description}
+										</p>
+									)}
+								</div>
+
+								<div className="shrink-0">
+									<PermissionsBadge permissions={role.permissions} />
+								</div>
+
+								{!role.is_system_role && (
+									<div className="shrink-0" role="none" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
 										<DropdownMenu>
 											<DropdownMenuTrigger asChild>
-												<Button
-													variant="ghost"
-													size="icon"
-													className="h-8 w-8"
-												>
+												<Button variant="ghost" size="icon" className="h-8 w-8">
 													<MoreHorizontal className="h-4 w-4" />
 												</Button>
 											</DropdownMenuTrigger>
 											<DropdownMenuContent
 												align="end"
-												onCloseAutoFocus={(e) =>
-													e.preventDefault()
-												}
+												onCloseAutoFocus={(e) => e.preventDefault()}
 											>
 												{canUpdate && (
-													<DropdownMenuItem
-														onClick={() =>
-															setEditingRoleId(role.id)
-														}
-													>
+													<DropdownMenuItem onClick={() => setEditingRoleId(role.id)}>
 														<Edit2 className="h-4 w-4 mr-2" />
 														Edit Role
 													</DropdownMenuItem>
@@ -641,9 +584,7 @@ function RolesContent({
 															<AlertDialogTrigger asChild>
 																<DropdownMenuItem
 																	className="text-destructive focus:text-destructive"
-																	onSelect={(e) =>
-																		e.preventDefault()
-																	}
+																	onSelect={(e) => e.preventDefault()}
 																>
 																	<Trash2 className="h-4 w-4 mr-2" />
 																	Delete Role
@@ -651,28 +592,16 @@ function RolesContent({
 															</AlertDialogTrigger>
 															<AlertDialogContent>
 																<AlertDialogHeader>
-																	<AlertDialogTitle>
-																		Delete role?
-																	</AlertDialogTitle>
+																	<AlertDialogTitle>Delete role?</AlertDialogTitle>
 																	<AlertDialogDescription>
-																		This will permanently
-																		delete the &quot;
-																		{role.name}&quot; role.
-																		Members with this role
-																		will lose their
-																		permissions.
+																		This will permanently delete the &quot;{role.name}&quot; role.
+																		Members with this role will lose their permissions.
 																	</AlertDialogDescription>
 																</AlertDialogHeader>
 																<AlertDialogFooter>
-																	<AlertDialogCancel>
-																		Cancel
-																	</AlertDialogCancel>
+																	<AlertDialogCancel>Cancel</AlertDialogCancel>
 																	<AlertDialogAction
-																		onClick={() =>
-																			onDeleteRole(
-																				role.id
-																			)
-																		}
+																		onClick={() => onDeleteRole(role.id)}
 																		className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 																	>
 																		Delete
@@ -684,20 +613,10 @@ function RolesContent({
 												)}
 											</DropdownMenuContent>
 										</DropdownMenu>
-									)}
-								</div>
-								{role.description && (
-									<CardDescription className="mt-2">
-										{role.description}
-									</CardDescription>
+									</div>
 								)}
-							</CardHeader>
-							<CardContent>
-								<RolePermissionsDisplay
-									permissions={role.permissions}
-								/>
-							</CardContent>
-						</Card>
+							</button>
+						</RolePermissionsDialog>
 					</motion.div>
 				))}
 			</div>
@@ -776,7 +695,7 @@ function PermissionsEditor({
 				</Button>
 			</div>
 
-			<div className="space-y-2">
+			<div className="space-y-1.5">
 				{sortedCategories.map((category) => {
 					const config = CATEGORY_CONFIG[category] || {
 						label: category,
@@ -792,68 +711,29 @@ function PermissionsEditor({
 					return (
 						<div
 							key={category}
-							className="rounded-lg border bg-card overflow-hidden"
+							className="rounded-lg border border-border/60 overflow-hidden"
 						>
 							<button
 								type="button"
-								className={cn(
-									"w-full flex items-center justify-between p-3 cursor-pointer hover:bg-muted/50 transition-colors",
-									stats.allSelected && "bg-primary/5"
-								)}
+								className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors"
 								onClick={() => toggleCategoryExpanded(category)}
 							>
-								<div className="flex items-center gap-3">
-									<div
-										className={cn(
-											"h-8 w-8 rounded-lg flex items-center justify-center",
-											stats.selected > 0
-												? "bg-primary/10"
-												: "bg-muted"
-										)}
-									>
-										<IconComponent
-											className={cn(
-												"h-4 w-4",
-												stats.selected > 0
-													? "text-primary"
-													: "text-muted-foreground"
-											)}
-										/>
-									</div>
-									<div>
-										<div className="flex items-center gap-2">
-											<span className="font-medium text-sm">
-												{config.label}
-											</span>
-											<Badge
-												variant={
-													stats.selected > 0
-														? "default"
-														: "secondary"
-												}
-												className="text-xs h-5"
-											>
-												{stats.selected}/{stats.total}
-											</Badge>
-										</div>
-										<p className="text-xs text-muted-foreground hidden md:block">
-											{config.description}
-										</p>
-									</div>
+								<div className="flex items-center gap-2.5">
+									<IconComponent className="h-4 w-4 text-muted-foreground shrink-0" />
+									<span className="font-medium text-sm">{config.label}</span>
+									<span className="text-[11px] text-muted-foreground tabular-nums">
+										{stats.selected}/{stats.total}
+									</span>
 								</div>
 								<div className="flex items-center gap-2">
 									<Checkbox
 										checked={stats.allSelected}
-										onCheckedChange={() =>
-											onToggleCategory(category)
-										}
+										onCheckedChange={() => onToggleCategory(category)}
 										onClick={(e) => e.stopPropagation()}
 										aria-label={`Select all ${config.label} permissions`}
 									/>
 									<motion.div
-										animate={{
-											rotate: isExpanded ? 180 : 0,
-										}}
+										animate={{ rotate: isExpanded ? 180 : 0 }}
 										transition={{ duration: 0.2 }}
 									>
 										<svg
@@ -881,70 +761,38 @@ function PermissionsEditor({
 									animate={{ height: "auto", opacity: 1 }}
 									exit={{ height: 0, opacity: 0 }}
 									transition={{ duration: 0.2 }}
-									className="border-t"
+									className="border-t border-border/60"
 								>
-									<div className="p-3 space-y-1">
+									<div className="p-2 space-y-0.5">
 										{perms.map((perm) => {
-											const action =
-												perm.value.split(":")[1];
-											const actionConfig =
-												ACTION_DISPLAY[action] || {
-													label: action,
-													color: "text-gray-600 bg-gray-500/10",
-												};
-											const isSelected =
-												selectedPermissions.includes(
-													perm.value
-												);
+											const action = perm.value.split(":")[1];
+											const actionLabel = ACTION_LABELS[action] || action.replace(/_/g, " ");
+											const isSelected = selectedPermissions.includes(perm.value);
 
 											return (
 												<button
 													key={perm.value}
 													type="button"
 													className={cn(
-														"w-full flex items-center justify-between p-2 rounded-md cursor-pointer transition-colors",
+														"w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded-md cursor-pointer transition-colors",
 														isSelected
-															? "bg-primary/10 hover:bg-primary/15"
-															: "hover:bg-muted/50"
+															? "bg-muted/60 hover:bg-muted/80"
+															: "hover:bg-muted/40"
 													)}
-													onClick={() =>
-														onTogglePermission(
-															perm.value
-														)
-													}
+													onClick={() => onTogglePermission(perm.value)}
 												>
-													<div className="flex items-center gap-3 flex-1 min-w-0">
-														<Checkbox
-															checked={isSelected}
-															onCheckedChange={() =>
-																onTogglePermission(
-																	perm.value
-																)
-															}
-															onClick={(e) =>
-																e.stopPropagation()
-															}
-														/>
-														<div className="flex-1 min-w-0">
-															<div className="flex items-center gap-2">
-																<span
-																	className={cn(
-																		"text-xs font-medium px-2 py-0.5 rounded",
-																		actionConfig.color
-																	)}
-																>
-																	{
-																		actionConfig.label
-																	}
-																</span>
-															</div>
-															<p className="text-xs text-muted-foreground mt-0.5 truncate">
-																{
-																	perm.description
-																}
-															</p>
-														</div>
+													<div className="flex-1 min-w-0 text-left">
+														<span className="text-sm font-medium">{actionLabel}</span>
+														<p className="text-xs text-muted-foreground truncate">
+															{perm.description}
+														</p>
 													</div>
+													<Checkbox
+														checked={isSelected}
+														onCheckedChange={() => onTogglePermission(perm.value)}
+														onClick={(e) => e.stopPropagation()}
+														className="shrink-0"
+													/>
 												</button>
 											);
 										})}
@@ -959,22 +807,32 @@ function PermissionsEditor({
 	);
 }
 
-// ============ Create Role Section ============
+// ============ Create Role Dialog ============
 
-function CreateRoleSection({
+function CreateRoleDialog({
+	open,
+	onOpenChange,
 	groupedPermissions,
 	onCreateRole,
-	onCancel,
 }: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	groupedPermissions: Record<string, PermissionWithDescription[]>;
 	onCreateRole: (data: CreateRoleRequest["data"]) => Promise<Role>;
-	onCancel: () => void;
 }) {
 	const [creating, setCreating] = useState(false);
 	const [name, setName] = useState("");
 	const [description, setDescription] = useState("");
 	const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
 	const [isDefault, setIsDefault] = useState(false);
+
+	const handleClose = () => {
+		onOpenChange(false);
+		setName("");
+		setDescription("");
+		setSelectedPermissions([]);
+		setIsDefault(false);
+	};
 
 	const handleCreate = async () => {
 		if (!name.trim()) {
@@ -990,7 +848,7 @@ function CreateRoleSection({
 				permissions: selectedPermissions,
 				is_default: isDefault,
 			});
-			onCancel();
+			handleClose();
 		} catch (error) {
 			console.error("Failed to create role:", error);
 		} finally {
@@ -1041,175 +899,117 @@ function CreateRoleSection({
 	);
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: -10 }}
-			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, y: -10 }}
-			className="mb-6"
-		>
-			<Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
-				<CardHeader className="pb-4">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-3">
-							<div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-								<Plus className="h-5 w-5 text-primary" />
-							</div>
-							<div>
-								<CardTitle className="text-lg">
-									Create Custom Role
-								</CardTitle>
-								<CardDescription className="text-sm">
-									Define permissions for a new role in this
-									search space
-								</CardDescription>
-							</div>
-						</div>
-						<Button variant="ghost" size="icon" onClick={onCancel}>
-							<Trash2 className="h-4 w-4" />
-						</Button>
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					{/* Quick Start with Presets */}
-					<div className="space-y-3">
-						<Label className="text-sm font-medium">
-							Quick Start with a Template
-						</Label>
-						<div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-							{Object.entries(ROLE_PRESETS).map(
-								([key, preset]) => (
+		<Dialog open={open} onOpenChange={(v) => (v ? onOpenChange(true) : handleClose())}>
+			<DialogContent className="!flex !flex-col w-[92vw] max-w-[92vw] sm:max-w-2xl p-0 gap-0 max-h-[85vh] overflow-hidden">
+				<DialogHeader className="px-5 pt-5 pb-4 shrink-0">
+					<DialogTitle className="text-lg">Create Custom Role</DialogTitle>
+					<DialogDescription className="text-sm text-muted-foreground">
+						Define permissions for a new role in this search space
+					</DialogDescription>
+				</DialogHeader>
+				<div className="flex-1 min-h-0 overflow-y-auto">
+					<div className="px-5 py-5 space-y-5">
+						<div className="space-y-2">
+							<Label className="text-sm font-medium">Start from a template</Label>
+							<div className="grid grid-cols-3 gap-2">
+								{Object.entries(ROLE_PRESETS).map(([key, preset]) => (
 									<button
 										key={key}
 										type="button"
-										onClick={() =>
-											applyPreset(
-												key as keyof typeof ROLE_PRESETS
-											)
-										}
+										onClick={() => applyPreset(key as keyof typeof ROLE_PRESETS)}
 										className={cn(
-											"p-4 rounded-lg border-2 text-left transition-all hover:border-primary/50 hover:bg-primary/5",
+											"p-3 rounded-lg border text-left transition-colors hover:bg-muted/40",
 											selectedPermissions.length > 0 &&
-												preset.permissions.every((p) =>
-													selectedPermissions.includes(
-														p
-													)
-												)
-												? "border-primary bg-primary/10"
-												: "border-border"
+												preset.permissions.every((p) => selectedPermissions.includes(p))
+												? "border-foreground/30 bg-muted/40"
+												: "border-border/60"
 										)}
 									>
-										<div className="flex items-center gap-2 mb-1">
-											<ShieldCheck
-												className={cn(
-													"h-4 w-4",
-													key === "editor" &&
-														"text-blue-600",
-													key === "viewer" &&
-														"text-gray-600",
-													key === "contributor" &&
-														"text-emerald-600"
-												)}
-											/>
-											<span className="font-medium text-sm">
-												{preset.name}
-											</span>
-										</div>
-										<p className="text-xs text-muted-foreground">
+										<span className="font-medium text-sm">{preset.name}</span>
+										<p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
 											{preset.description}
 										</p>
 									</button>
-								)
-							)}
+								))}
+							</div>
 						</div>
-					</div>
 
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="role-name">Role Name *</Label>
-							<Input
-								id="role-name"
-								placeholder="e.g., Content Manager"
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-							/>
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<Label htmlFor="role-name">Role Name *</Label>
+								<Input
+									id="role-name"
+									placeholder="e.g., Content Manager"
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+								/>
+							</div>
+							<div className="space-y-1.5">
+								<Label htmlFor="role-description">Description</Label>
+								<Input
+									id="role-description"
+									placeholder="Brief description of this role"
+									value={description}
+									onChange={(e) => setDescription(e.target.value)}
+								/>
+							</div>
 						</div>
-						<div className="space-y-2">
-							<Label htmlFor="role-description">
-								Description
-							</Label>
-							<Input
-								id="role-description"
-								placeholder="Brief description of this role"
-								value={description}
-								onChange={(e) => setDescription(e.target.value)}
-							/>
-						</div>
-					</div>
 
-					<div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-						<Checkbox
-							id="is-default"
-							checked={isDefault}
-							onCheckedChange={(checked) =>
-								setIsDefault(checked === true)
-							}
+						<div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
+							<Checkbox
+								id="is-default"
+								checked={isDefault}
+								onCheckedChange={(checked) => setIsDefault(checked === true)}
+							/>
+							<div className="flex-1">
+								<Label htmlFor="is-default" className="cursor-pointer font-medium text-sm">
+									Set as default role
+								</Label>
+								<p className="text-xs text-muted-foreground">
+									New members without a specific role will be assigned this role
+								</p>
+							</div>
+						</div>
+
+						<PermissionsEditor
+							groupedPermissions={groupedPermissions}
+							selectedPermissions={selectedPermissions}
+							onTogglePermission={togglePermission}
+							onToggleCategory={toggleCategory}
 						/>
-						<div className="flex-1">
-							<Label
-								htmlFor="is-default"
-								className="cursor-pointer font-medium"
-							>
-								Set as default role
-							</Label>
-							<p className="text-xs text-muted-foreground">
-								New members without a specific role will be
-								assigned this role
-							</p>
-						</div>
 					</div>
-
-					<PermissionsEditor
-						groupedPermissions={groupedPermissions}
-						selectedPermissions={selectedPermissions}
-						onTogglePermission={togglePermission}
-						onToggleCategory={toggleCategory}
-					/>
-
-					<div className="flex items-center justify-end gap-3 pt-4 border-t">
-						<Button variant="outline" onClick={onCancel}>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleCreate}
-							disabled={creating || !name.trim()}
-						>
-							{creating ? (
-								<>
-									<Spinner size="sm" className="mr-2" />
-									Creating...
-								</>
-							) : (
-								<>
-									<Check className="h-4 w-4 mr-2" />
-									Create Role
-								</>
-							)}
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
-		</motion.div>
+				</div>
+				<div className="flex items-center justify-end gap-3 px-5 py-3 shrink-0">
+					<Button variant="outline" onClick={handleClose}>
+						Cancel
+					</Button>
+					<Button onClick={handleCreate} disabled={creating || !name.trim()}>
+						{creating ? (
+							<>
+								<Spinner size="sm" className="mr-2" />
+								Creating
+							</>
+						) : (
+							"Create Role"
+						)}
+					</Button>
+				</div>
+			</DialogContent>
+		</Dialog>
 	);
 }
 
-// ============ Edit Role Section ============
+// ============ Edit Role Dialog ============
 
-function EditRoleSection({
+function EditRoleDialog({
+	open,
+	onOpenChange,
 	role,
 	groupedPermissions,
 	onUpdateRole,
-	onCancel,
 }: {
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
 	role: Role;
 	groupedPermissions: Record<string, PermissionWithDescription[]>;
 	onUpdateRole: (
@@ -1221,15 +1021,21 @@ function EditRoleSection({
 			is_default?: boolean;
 		}
 	) => Promise<Role>;
-	onCancel: () => void;
 }) {
 	const [saving, setSaving] = useState(false);
 	const [name, setName] = useState(role.name);
 	const [description, setDescription] = useState(role.description || "");
-	const [selectedPermissions, setSelectedPermissions] = useState<string[]>(
-		role.permissions
-	);
+	const [selectedPermissions, setSelectedPermissions] = useState<string[]>(role.permissions);
 	const [isDefault, setIsDefault] = useState(role.is_default);
+
+	useEffect(() => {
+		if (open) {
+			setName(role.name);
+			setDescription(role.description || "");
+			setSelectedPermissions(role.permissions);
+			setIsDefault(role.is_default);
+		}
+	}, [open, role]);
 
 	const handleSave = async () => {
 		if (!name.trim()) {
@@ -1246,7 +1052,7 @@ function EditRoleSection({
 				is_default: isDefault,
 			});
 			toast.success("Role updated successfully");
-			onCancel();
+			onOpenChange(false);
 		} catch (error) {
 			console.error("Failed to update role:", error);
 			toast.error("Failed to update role");
@@ -1285,112 +1091,77 @@ function EditRoleSection({
 	);
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: -10 }}
-			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, y: -10 }}
-			className="mb-6"
-		>
-			<Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background">
-				<CardHeader className="pb-4">
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-3">
-							<div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-								<Edit2 className="h-5 w-5 text-primary" />
+		<Dialog open={open} onOpenChange={onOpenChange}>
+			<DialogContent className="!flex !flex-col w-[92vw] max-w-[92vw] sm:max-w-2xl p-0 gap-0 max-h-[85vh] overflow-hidden">
+				<DialogHeader className="px-5 py-4 shrink-0">
+					<DialogTitle className="text-base">Edit Role</DialogTitle>
+					<DialogDescription className="text-xs">
+						Modify permissions for &quot;{role.name}&quot;
+					</DialogDescription>
+				</DialogHeader>
+				<div className="flex-1 min-h-0 overflow-y-auto">
+					<div className="px-5 py-5 space-y-5">
+						<div className="grid grid-cols-2 gap-3">
+							<div className="space-y-1.5">
+								<Label htmlFor="edit-role-name">Role Name *</Label>
+								<Input
+									id="edit-role-name"
+									placeholder="e.g., Content Manager"
+									value={name}
+									onChange={(e) => setName(e.target.value)}
+								/>
 							</div>
-							<div>
-								<CardTitle className="text-lg">
-									Edit Role
-								</CardTitle>
-								<CardDescription className="text-sm">
-									Modify permissions for &quot;{role.name}
-									&quot;
-								</CardDescription>
+							<div className="space-y-1.5">
+								<Label htmlFor="edit-role-description">Description</Label>
+								<Input
+									id="edit-role-description"
+									placeholder="Brief description of this role"
+									value={description}
+									onChange={(e) => setDescription(e.target.value)}
+								/>
 							</div>
 						</div>
-						<Button variant="ghost" size="icon" onClick={onCancel}>
-							<Trash2 className="h-4 w-4" />
-						</Button>
-					</div>
-				</CardHeader>
-				<CardContent className="space-y-6">
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-						<div className="space-y-2">
-							<Label htmlFor="edit-role-name">
-								Role Name *
-							</Label>
-							<Input
-								id="edit-role-name"
-								placeholder="e.g., Content Manager"
-								value={name}
-								onChange={(e) => setName(e.target.value)}
-							/>
-						</div>
-						<div className="space-y-2">
-							<Label htmlFor="edit-role-description">
-								Description
-							</Label>
-							<Input
-								id="edit-role-description"
-								placeholder="Brief description of this role"
-								value={description}
-								onChange={(e) => setDescription(e.target.value)}
-							/>
-						</div>
-					</div>
 
-					<div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-						<Checkbox
-							id="edit-is-default"
-							checked={isDefault}
-							onCheckedChange={(checked) =>
-								setIsDefault(checked === true)
-							}
+						<div className="flex items-center gap-3 p-3 rounded-lg bg-muted/40">
+							<Checkbox
+								id="edit-is-default"
+								checked={isDefault}
+								onCheckedChange={(checked) => setIsDefault(checked === true)}
+							/>
+							<div className="flex-1">
+								<Label htmlFor="edit-is-default" className="cursor-pointer font-medium text-sm">
+									Set as default role
+								</Label>
+								<p className="text-xs text-muted-foreground">
+									New members without a specific role will be assigned this role
+								</p>
+							</div>
+						</div>
+
+						<PermissionsEditor
+							groupedPermissions={groupedPermissions}
+							selectedPermissions={selectedPermissions}
+							onTogglePermission={togglePermission}
+							onToggleCategory={toggleCategory}
 						/>
-						<div className="flex-1">
-							<Label
-								htmlFor="edit-is-default"
-								className="cursor-pointer font-medium"
-							>
-								Set as default role
-							</Label>
-							<p className="text-xs text-muted-foreground">
-								New members without a specific role will be
-								assigned this role
-							</p>
-						</div>
 					</div>
-
-					<PermissionsEditor
-						groupedPermissions={groupedPermissions}
-						selectedPermissions={selectedPermissions}
-						onTogglePermission={togglePermission}
-						onToggleCategory={toggleCategory}
-					/>
-
-					<div className="flex items-center justify-end gap-3 pt-4 border-t">
-						<Button variant="outline" onClick={onCancel}>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleSave}
-							disabled={saving || !name.trim()}
-						>
-							{saving ? (
-								<>
-									<Spinner size="sm" className="mr-2" />
-									Saving...
-								</>
-							) : (
-								<>
-									<Check className="h-4 w-4 mr-2" />
-									Save Changes
-								</>
-							)}
-						</Button>
-					</div>
-				</CardContent>
-			</Card>
-		</motion.div>
+				</div>
+				<div className="flex items-center justify-end gap-3 px-5 py-3 border-t shrink-0">
+					<Button variant="outline" onClick={() => onOpenChange(false)}>
+						Cancel
+					</Button>
+					<Button onClick={handleSave} disabled={saving || !name.trim()}>
+						{saving ? (
+							<>
+								<Spinner size="sm" className="mr-2" />
+								Saving...
+							</>
+						) : (
+							"Save Changes"
+						)}
+					</Button>
+				</div>
+			</DialogContent>
+		</Dialog>
 	);
 }
