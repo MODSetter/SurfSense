@@ -315,6 +315,7 @@ class Config:
     # Azure OpenAI credentials from environment variables
     AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
     AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
+    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")
 
     # Pass Azure credentials to embeddings when using Azure OpenAI
     embedding_kwargs = {}
@@ -322,6 +323,8 @@ class Config:
         embedding_kwargs["azure_endpoint"] = AZURE_OPENAI_ENDPOINT
     if AZURE_OPENAI_API_KEY:
         embedding_kwargs["azure_api_key"] = AZURE_OPENAI_API_KEY
+    if OLLAMA_BASE_URL:
+        embedding_kwargs["base_url"] = OLLAMA_BASE_URL
 
     embedding_model_instance = AutoEmbeddings.get_embeddings(
         EMBEDDING_MODEL,
