@@ -181,7 +181,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					sideOffset={8}
 					onCloseAutoFocus={(e) => e.preventDefault()}
 				>
-					<div className="p-1.5 space-y-1">
+					<div className="p-1.5 space-y-1 select-none">
 						{/* Visibility Options */}
 						{visibilityOptions.map((option) => {
 							const isSelected = currentVisibility === option.value;

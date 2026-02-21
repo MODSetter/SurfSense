@@ -727,7 +727,7 @@ export function InboxSidebar({
 								</Tooltip>
 								<DropdownMenuContent
 									align="end"
-									className={cn("z-80", activeTab === "status" ? "w-52" : "w-44")}
+									className={cn("z-80 select-none", activeTab === "status" ? "w-52" : "w-44")}
 								>
 									<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
 										{t("filter") || "Filter"}
