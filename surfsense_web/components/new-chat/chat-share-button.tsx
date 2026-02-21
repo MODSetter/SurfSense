@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtomValue, useSetAtom } from "jotai";
-import { Globe, User, Users } from "lucide-react";
+import { Earth, User, Users } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -147,7 +147,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							onClick={() => router.push(`/dashboard/${params.search_space_id}/settings`)}
 							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
 						>
-							<Globe className="h-4 w-4 text-muted-foreground" />
+							<Earth className="h-4 w-4 text-muted-foreground" />
 						</button>
 					</TooltipTrigger>
 					<TooltipContent>
@@ -244,7 +244,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									)}
 								>
 									<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted">
-										<Globe className="size-4 block text-muted-foreground" />
+										<Earth className="size-4 block text-muted-foreground" />
 									</div>
 									<div className="flex-1 text-left min-w-0">
 										<div className="flex items-center gap-1.5">

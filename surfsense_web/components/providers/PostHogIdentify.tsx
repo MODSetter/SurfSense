@@ -28,7 +28,7 @@ export function PostHogIdentify() {
 			if (previousUserIdRef.current !== userId) {
 				identifyUser(userId, {
 					email: user.email,
-					// Add any other user properties you want to track
+					name: user.display_name,
 					is_superuser: user.is_superuser,
 					is_verified: user.is_verified,
 				});

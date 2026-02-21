@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import Any
 
 import httpx
-import requests
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
@@ -22,6 +21,15 @@ from app.utils.oauth_security import TokenEncryption
 logger = logging.getLogger(__name__)
 
 LINEAR_GRAPHQL_URL = "https://api.linear.app/graphql"
+
+
+class LinearAPIError(Exception):
+    """Raised when the Linear API returns a non-200 response.
+
+    The message is always user-presentable; callers should surface it directly
+    without any additional prefix or wrapping.
+    """
+
 
 ORGANIZATION_QUERY = """
 query {
@@ -244,6 +252,40 @@ class LinearConnector:
             "Authorization": f"Bearer {self._credentials.access_token}",
         }
 
+    @staticmethod
+    def _raise_api_error(status_code: int, body: str) -> None:
+        """Parse a non-200 Linear API response and raise a clean exception.
+
+        Translates known Linear error codes into user-readable messages so that
+        raw GraphQL payloads never reach the end user.
+        """
+        import json as _json
+
+        friendly = None
+        try:
+            payload = _json.loads(body)
+            errors = payload.get("errors", [])
+            if errors:
+                ext = errors[0].get("extensions", {})
+                code = ext.get("code", "")
+                if (
+                    code == "INPUT_ERROR"
+                    and "too complex" in errors[0].get("message", "").lower()
+                ):
+                    friendly = (
+                        "Linear rejected the request because the workspace is too large "
+                        "to fetch in one query. Please try again — if the problem persists, "
+                        "contact support."
+                    )
+                elif ext.get("userPresentableMessage"):
+                    friendly = ext["userPresentableMessage"]
+                elif errors[0].get("message"):
+                    friendly = errors[0]["message"]
+        except Exception:
+            pass
+
+        raise LinearAPIError(friendly or f"Linear API error (HTTP {status_code})")
+
     async def execute_graphql_query(
         self, query: str, variables: dict[str, Any] | None = None
     ) -> dict[str, Any]:
@@ -274,14 +316,15 @@ class LinearConnector:
         if variables:
             payload["variables"] = variables
 
-        response = requests.post(self.api_url, headers=headers, json=payload)
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                self.api_url, headers=headers, json=payload, timeout=30.0
+            )
 
         if response.status_code == 200:
             return response.json()
         else:
-            raise Exception(
-                f"Query failed with status code {response.status_code}: {response.text}"
-            )
+            self._raise_api_error(response.status_code, response.text)
 
     async def get_all_issues(
         self, include_comments: bool = True
@@ -587,6 +630,148 @@ class LinearConnector:
                 formatted["comments"].append(formatted_comment)
 
         return formatted
+
+    async def create_issue(
+        self,
+        team_id: str,
+        title: str,
+        description: str | None = None,
+        state_id: str | None = None,
+        assignee_id: str | None = None,
+        priority: int | None = None,
+        label_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        try:
+            mutation = """
+            mutation IssueCreate($input: IssueCreateInput!) {
+                issueCreate(input: $input) {
+                    success
+                    issue { id identifier title url }
+                }
+            }
+            """
+            input_data: dict[str, Any] = {"teamId": team_id, "title": title}
+            if description is not None:
+                input_data["description"] = description
+            if state_id is not None:
+                input_data["stateId"] = state_id
+            if assignee_id is not None:
+                input_data["assigneeId"] = assignee_id
+            if priority is not None:
+                input_data["priority"] = priority
+            if label_ids:
+                input_data["labelIds"] = label_ids
+
+            result = await self.execute_graphql_query(mutation, {"input": input_data})
+            payload = result.get("data", {}).get("issueCreate", {})
+            if not payload.get("success"):
+                errors = result.get("errors", [])
+                msg = (
+                    errors[0].get("message", "Unknown error")
+                    if errors
+                    else "Unknown error"
+                )
+                return {"status": "error", "message": f"issueCreate failed: {msg}"}
+            issue = payload.get("issue", {})
+            return {
+                "status": "success",
+                "id": issue.get("id"),
+                "identifier": issue.get("identifier"),
+                "title": issue.get("title"),
+                "url": issue.get("url"),
+                "message": f"Issue {issue.get('identifier')} created successfully.",
+            }
+        except Exception as e:
+            logger.error(f"Error creating Linear issue: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def update_issue(
+        self,
+        issue_id: str,
+        title: str | None = None,
+        description: str | None = None,
+        state_id: str | None = None,
+        assignee_id: str | None = None,
+        priority: int | None = None,
+        label_ids: list[str] | None = None,
+    ) -> dict[str, Any]:
+        try:
+            mutation = """
+            mutation IssueUpdate($id: String!, $input: IssueUpdateInput!) {
+                issueUpdate(id: $id, input: $input) {
+                    success
+                    issue { id identifier title url }
+                }
+            }
+            """
+            input_data: dict[str, Any] = {}
+            if title is not None:
+                input_data["title"] = title
+            if description is not None:
+                input_data["description"] = description
+            if state_id is not None:
+                input_data["stateId"] = state_id
+            if assignee_id is not None:
+                input_data["assigneeId"] = assignee_id
+            if priority is not None:
+                input_data["priority"] = priority
+            if label_ids is not None:
+                input_data["labelIds"] = label_ids
+
+            if not input_data:
+                return {
+                    "status": "error",
+                    "message": "No fields provided for update. Please specify at least one field to change.",
+                }
+
+            result = await self.execute_graphql_query(
+                mutation, {"id": issue_id, "input": input_data}
+            )
+            payload = result.get("data", {}).get("issueUpdate", {})
+            if not payload.get("success"):
+                errors = result.get("errors", [])
+                msg = (
+                    errors[0].get("message", "Unknown error")
+                    if errors
+                    else "Unknown error"
+                )
+                return {"status": "error", "message": f"issueUpdate failed: {msg}"}
+            issue = payload.get("issue", {})
+            return {
+                "status": "success",
+                "id": issue.get("id"),
+                "identifier": issue.get("identifier"),
+                "title": issue.get("title"),
+                "url": issue.get("url"),
+                "message": f"Issue {issue.get('identifier')} updated successfully.",
+            }
+        except Exception as e:
+            logger.error(f"Error updating Linear issue: {e}")
+            return {"status": "error", "message": str(e)}
+
+    async def archive_issue(self, issue_id: str) -> dict[str, Any]:
+        try:
+            mutation = """
+            mutation IssueArchive($id: String!) {
+                issueArchive(id: $id) {
+                    success
+                }
+            }
+            """
+            result = await self.execute_graphql_query(mutation, {"id": issue_id})
+            payload = result.get("data", {}).get("issueArchive", {})
+            if not payload.get("success"):
+                errors = result.get("errors", [])
+                msg = (
+                    errors[0].get("message", "Unknown error")
+                    if errors
+                    else "Unknown error"
+                )
+                return {"status": "error", "message": f"issueArchive failed: {msg}"}
+            return {"status": "success", "message": "Issue archived successfully."}
+        except Exception as e:
+            logger.error(f"Error archiving Linear issue: {e}")
+            return {"status": "error", "message": str(e)}
 
     def format_issue_to_markdown(self, issue: dict[str, Any]) -> str:
         """

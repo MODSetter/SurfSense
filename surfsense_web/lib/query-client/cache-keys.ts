@@ -33,6 +33,7 @@ export const cacheKeys = {
 		preferences: (searchSpaceId: number) => ["llm-preferences", searchSpaceId] as const,
 		defaultInstructions: () => ["new-llm-configs", "default-instructions"] as const,
 		global: () => ["new-llm-configs", "global"] as const,
+		modelList: () => ["models", "catalogue"] as const,
 	},
 	imageGenConfigs: {
 		all: (searchSpaceId: number) => ["image-gen-configs", searchSpaceId] as const,

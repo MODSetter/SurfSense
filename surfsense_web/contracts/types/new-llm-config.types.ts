@@ -292,6 +292,22 @@ export const updateLLMPreferencesRequest = z.object({
 export const updateLLMPreferencesResponse = llmPreferences;
 
 // =============================================================================
+// Model List (dynamic catalogue from OpenRouter API)
+// =============================================================================
+
+export const modelListItem = z.object({
+	value: z.string(),
+	label: z.string(),
+	provider: z.string(),
+	context_window: z.string().nullable().optional(),
+});
+
+export const getModelListResponse = z.array(modelListItem);
+
+export type ModelListItem = z.infer<typeof modelListItem>;
+export type GetModelListResponse = z.infer<typeof getModelListResponse>;
+
+// =============================================================================
 // Type Exports
 // =============================================================================
 

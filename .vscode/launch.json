@@ -25,6 +25,16 @@
             "python": "${command:python.interpreterPath}"
         },
         {
+            "name": "Backend: FastAPI (No Reload)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/surfsense_backend/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false,
+            "cwd": "${workspaceFolder}/surfsense_backend",
+            "python": "${command:python.interpreterPath}"
+        },
+        {
             "name": "Backend: FastAPI (main.py)",
             "type": "debugpy",
             "request": "launch",
@@ -123,6 +133,34 @@
                 "hidden": false,
                 "group": "Full Stack",
                 "order": 2
+            }
+        },
+        {
+            "name": "Full Stack: Backend (No Reload) + Frontend + Celery",
+            "configurations": [
+                "Backend: FastAPI (No Reload)",
+                "Frontend: Next.js",
+                "Celery: Worker",
+                "Celery: Beat Scheduler"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Full Stack",
+                "order": 3
+            }
+        },
+        {
+            "name": "Full Stack: Backend (No Reload) + Frontend",
+            "configurations": [
+                "Backend: FastAPI (No Reload)",
+                "Frontend: Next.js"
+            ],
+            "stopAll": true,
+            "presentation": {
+                "hidden": false,
+                "group": "Full Stack",
+                "order": 4
             }
         }
     ]

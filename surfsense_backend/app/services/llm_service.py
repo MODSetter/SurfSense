@@ -162,7 +162,10 @@ async def validate_llm_config(
 
 
 async def get_search_space_llm_instance(
-    session: AsyncSession, search_space_id: int, role: str
+    session: AsyncSession,
+    search_space_id: int,
+    role: str,
+    disable_streaming: bool = False,
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """
     Get a ChatLiteLLM instance for a specific search space and role.
@@ -218,7 +221,7 @@ async def get_search_space_llm_instance(
                 logger.debug(
                     f"Using Auto mode (LLM Router) for search space {search_space_id}, role {role}"
                 )
-                return ChatLiteLLMRouter()
+                return ChatLiteLLMRouter(disable_streaming=disable_streaming)
             except Exception as e:
                 logger.error(f"Failed to create ChatLiteLLMRouter: {e}")
                 return None
@@ -283,6 +286,9 @@ async def get_search_space_llm_instance(
 
             if global_config.get("litellm_params"):
                 litellm_kwargs.update(global_config["litellm_params"])
+
+            if disable_streaming:
+                litellm_kwargs["disable_streaming"] = True
 
             return ChatLiteLLM(**litellm_kwargs)
 
@@ -357,6 +363,9 @@ async def get_search_space_llm_instance(
         if llm_config.litellm_params:
             litellm_kwargs.update(llm_config.litellm_params)
 
+        if disable_streaming:
+            litellm_kwargs["disable_streaming"] = True
+
         return ChatLiteLLM(**litellm_kwargs)
 
     except Exception as e:
@@ -374,20 +383,28 @@ async def get_agent_llm(
 
 
 async def get_document_summary_llm(
-    session: AsyncSession, search_space_id: int
+    session: AsyncSession, search_space_id: int, disable_streaming: bool = False
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """Get the search space's document summary LLM instance."""
     return await get_search_space_llm_instance(
-        session, search_space_id, LLMRole.DOCUMENT_SUMMARY
+        session,
+        search_space_id,
+        LLMRole.DOCUMENT_SUMMARY,
+        disable_streaming=disable_streaming,
     )
 
 
 # Backward-compatible alias (LLM preferences are now per-search-space, not per-user)
 async def get_user_long_context_llm(
-    session: AsyncSession, user_id: str, search_space_id: int
+    session: AsyncSession,
+    user_id: str,
+    search_space_id: int,
+    disable_streaming: bool = False,
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """
     Deprecated: Use get_document_summary_llm instead.
     The user_id parameter is ignored as LLM preferences are now per-search-space.
     """
-    return await get_document_summary_llm(session, search_space_id)
+    return await get_document_summary_llm(
+        session, search_space_id, disable_streaming=disable_streaming
+    )

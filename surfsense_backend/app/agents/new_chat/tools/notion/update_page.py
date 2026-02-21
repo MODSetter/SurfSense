@@ -5,7 +5,7 @@ from langchain_core.tools import tool
 from langgraph.types import interrupt
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.connectors.notion_history import NotionHistoryConnector
+from app.connectors.notion_history import NotionAPIError, NotionHistoryConnector
 from app.services.notion import NotionToolMetadataService
 
 logger = logging.getLogger(__name__)
@@ -108,6 +108,7 @@ def create_update_notion_page_tool(
                     }
 
             page_id = context.get("page_id")
+            document_id = context.get("document_id")
             connector_id_from_context = context.get("account", {}).get("id")
 
             logger.info(
@@ -218,6 +219,39 @@ def create_update_notion_page_tool(
             logger.info(
                 f"update_page result: {result.get('status')} - {result.get('message', '')}"
             )
+
+            if result.get("status") == "success" and document_id is not None:
+                from app.services.notion import NotionKBSyncService
+
+                logger.info(f"Updating knowledge base for document {document_id}...")
+                kb_service = NotionKBSyncService(db_session)
+                kb_result = await kb_service.sync_after_update(
+                    document_id=document_id,
+                    appended_content=final_content,
+                    user_id=user_id,
+                    search_space_id=search_space_id,
+                    appended_block_ids=result.get("appended_block_ids"),
+                )
+
+                if kb_result["status"] == "success":
+                    result["message"] = (
+                        f"{result['message']}. Your knowledge base has also been updated."
+                    )
+                    logger.info(
+                        f"Knowledge base successfully updated for page {final_page_id}"
+                    )
+                elif kb_result["status"] == "not_indexed":
+                    result["message"] = (
+                        f"{result['message']}. This page will be added to your knowledge base in the next scheduled sync."
+                    )
+                else:
+                    result["message"] = (
+                        f"{result['message']}. Your knowledge base will be updated in the next scheduled sync."
+                    )
+                    logger.warning(
+                        f"KB update failed for page {final_page_id}: {kb_result['message']}"
+                    )
+
             return result
 
         except Exception as e:
@@ -227,11 +261,12 @@ def create_update_notion_page_tool(
                 raise
 
             logger.error(f"Error updating Notion page: {e}", exc_info=True)
-            return {
-                "status": "error",
-                "message": str(e)
-                if isinstance(e, ValueError)
-                else f"Unexpected error: {e!s}",
-            }
+            if isinstance(e, ValueError | NotionAPIError):
+                message = str(e)
+            else:
+                message = (
+                    "Something went wrong while updating the page. Please try again."
+                )
+            return {"status": "error", "message": message}
 
     return update_notion_page

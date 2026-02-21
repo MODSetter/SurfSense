@@ -258,30 +258,6 @@ export const LLM_MODELS: LLMModel[] = [
 		provider: "DEEPSEEK",
 		contextWindow: "128K",
 	},
-	{
-		value: "deepseek-chat",
-		label: "DeepSeek Chat V3",
-		provider: "DEEPSEEK",
-		contextWindow: "66K",
-	},
-	{
-		value: "deepseek-v3",
-		label: "DeepSeek V3",
-		provider: "DEEPSEEK",
-		contextWindow: "66K",
-	},
-	{
-		value: "deepseek-r1",
-		label: "DeepSeek R1",
-		provider: "DEEPSEEK",
-		contextWindow: "66K",
-	},
-	{
-		value: "deepseek-r1-0528",
-		label: "DeepSeek R1 (0528)",
-		provider: "DEEPSEEK",
-		contextWindow: "65K",
-	},
 
 	// xAI (Grok)
 	{ value: "grok-4", label: "Grok 4", provider: "XAI", contextWindow: "256K" },
@@ -1134,7 +1110,7 @@ export const LLM_MODELS: LLMModel[] = [
 		contextWindow: "8K",
 	},
 	{
-		value: "mixtral-8x7B-Instruct-v0.1",
+		value: "mixtral",
 		label: "Ollama Mixtral 8x7B",
 		provider: "OLLAMA",
 		contextWindow: "33K",
@@ -1236,13 +1212,13 @@ export const LLM_MODELS: LLMModel[] = [
 
 	// Zhipu (GLM)
 	{
-		value: "z-ai/glm-4.6",
+		value: "glm-4.6",
 		label: "GLM 4.6",
 		provider: "ZHIPU",
 		contextWindow: "203K",
 	},
 	{
-		value: "z-ai/glm-4.6:exacto",
+		value: "glm-4.6:exacto",
 		label: "GLM 4.6 Exacto",
 		provider: "ZHIPU",
 		contextWindow: "203K",
@@ -1350,7 +1326,7 @@ export const LLM_MODELS: LLMModel[] = [
 		contextWindow: "128K",
 	},
 	{
-		value: "openai/gpt-oss-120b",
+		value: "gpt-oss-120b",
 		label: "Cerebras GPT-OSS-120B",
 		provider: "CEREBRAS",
 		contextWindow: "131K",

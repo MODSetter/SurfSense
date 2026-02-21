@@ -894,9 +894,15 @@ class Document(BaseModel, TimestampMixin):
     embedding = Column(Vector(config.embedding_model_instance.dimension))
 
     # BlockNote live editing state (NULL when never edited)
+    # DEPRECATED: Will be removed in a future migration. Use source_markdown instead.
     blocknote_document = Column(JSONB, nullable=True)
 
-    # blocknote background reindex flag
+    # Full raw markdown content for the Plate.js editor.
+    # This is the source of truth for document content in the editor.
+    # Populated from markdown at ingestion time, or from blocknote_document migration.
+    source_markdown = Column(Text, nullable=True)
+
+    # Background reindex flag (set when editor content is saved)
     content_needs_reindexing = Column(
         Boolean, nullable=False, default=False, server_default=text("false")
     )

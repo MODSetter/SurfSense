@@ -28,7 +28,7 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
-from app.db import ChatVisibility, Document, SurfsenseDocsDocument
+from app.db import ChatVisibility, Document, Report, SurfsenseDocsDocument
 from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
 from app.services.chat_session_state_service import (
     clear_ai_responding,
@@ -226,6 +226,7 @@ async def _stream_agent_events(
     last_active_step_title: str = initial_step_title
     last_active_step_items: list[str] = initial_step_items or []
     just_finished_tool: bool = False
+    active_tool_depth: int = 0  # Track nesting: >0 means we're inside a tool
 
     def next_thinking_step_id() -> str:
         nonlocal thinking_step_counter
@@ -250,6 +251,8 @@ async def _stream_agent_events(
         event_type = event.get("event", "")
 
         if event_type == "on_chat_model_stream":
+            if active_tool_depth > 0:
+                continue  # Suppress inner-tool LLM tokens from leaking into chat
             chunk = event.get("data", {}).get("chunk")
             if chunk and hasattr(chunk, "content"):
                 content = chunk.content
@@ -269,6 +272,7 @@ async def _stream_agent_events(
                     accumulated_text += content
 
         elif event_type == "on_tool_start":
+            active_tool_depth += 1
             tool_name = event.get("name", "unknown_tool")
             run_id = event.get("run_id", "")
             tool_input = event.get("data", {}).get("input", {})
@@ -383,26 +387,18 @@ async def _stream_agent_events(
                     if isinstance(tool_input, dict)
                     else "Report"
                 )
-                report_style = (
-                    tool_input.get("report_style", "detailed")
-                    if isinstance(tool_input, dict)
-                    else "detailed"
+                is_revision = bool(
+                    isinstance(tool_input, dict) and tool_input.get("parent_report_id")
                 )
-                content_len = len(
-                    tool_input.get("source_content", "")
-                    if isinstance(tool_input, dict)
-                    else ""
-                )
-                last_active_step_title = "Generating report"
+                step_title = "Revising report" if is_revision else "Generating report"
+                last_active_step_title = step_title
                 last_active_step_items = [
                     f"Topic: {report_topic}",
-                    f"Style: {report_style}",
-                    f"Source content: {content_len:,} characters",
-                    "Generating report with LLM...",
+                    "Analyzing source content...",
                 ]
                 yield streaming_service.format_thinking_step(
                     step_id=tool_step_id,
-                    title="Generating report",
+                    title=step_title,
                     status="in_progress",
                     items=last_active_step_items,
                 )
@@ -428,6 +424,7 @@ async def _stream_agent_events(
             )
 
         elif event_type == "on_tool_end":
+            active_tool_depth = max(0, active_tool_depth - 1)
             run_id = event.get("run_id", "")
             tool_name = event.get("name", "unknown_tool")
             raw_output = event.get("data", {}).get("output", "")
@@ -589,12 +586,18 @@ async def _stream_agent_events(
                     if isinstance(tool_output, dict)
                     else 0
                 )
+                is_revision = (
+                    tool_output.get("is_revision", False)
+                    if isinstance(tool_output, dict)
+                    else False
+                )
+                step_title = "Revising report" if is_revision else "Generating report"
 
                 if report_status == "ready":
                     completed_items = [
-                        f"Title: {report_title}",
-                        f"Words: {word_count:,}",
-                        "Report generated successfully",
+                        f"Topic: {report_title}",
+                        f"{word_count:,} words",
+                        "Report ready",
                     ]
                 elif report_status == "failed":
                     error_msg = (
@@ -603,7 +606,7 @@ async def _stream_agent_events(
                         else "Unknown error"
                     )
                     completed_items = [
-                        f"Title: {report_title}",
+                        f"Topic: {report_title}",
                         f"Error: {error_msg[:50]}",
                     ]
                 else:
@@ -611,7 +614,7 @@ async def _stream_agent_events(
 
                 yield streaming_service.format_thinking_step(
                     step_id=original_step_id,
-                    title="Generating report",
+                    title=step_title,
                     status="completed",
                     items=completed_items,
                 )
@@ -796,6 +799,9 @@ async def _stream_agent_events(
                 "create_notion_page",
                 "update_notion_page",
                 "delete_notion_page",
+                "create_linear_issue",
+                "update_linear_issue",
+                "delete_linear_issue",
             ):
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
@@ -810,6 +816,43 @@ async def _stream_agent_events(
                 )
                 yield streaming_service.format_terminal_info(
                     f"Tool {tool_name} completed", "success"
+                )
+
+        elif event_type == "on_custom_event" and event.get("name") == "report_progress":
+            # Live progress updates from inside the generate_report tool
+            data = event.get("data", {})
+            message = data.get("message", "")
+            if message and last_active_step_id:
+                phase = data.get("phase", "")
+                # Always keep the "Topic: ..." line
+                topic_items = [
+                    item for item in last_active_step_items if item.startswith("Topic:")
+                ]
+
+                if phase in ("revising_section", "adding_section"):
+                    # During section-level ops: keep plan summary + show current op
+                    plan_items = [
+                        item
+                        for item in last_active_step_items
+                        if item.startswith("Topic:")
+                        or item.startswith("Modifying ")
+                        or item.startswith("Adding ")
+                        or item.startswith("Removing ")
+                    ]
+                    # Only keep plan_items that don't end with "..." (not progress lines)
+                    plan_items = [
+                        item for item in plan_items if not item.endswith("...")
+                    ]
+                    last_active_step_items = [*plan_items, message]
+                else:
+                    # Phase transitions: replace everything after topic
+                    last_active_step_items = [*topic_items, message]
+
+                yield streaming_service.format_thinking_step(
+                    step_id=last_active_step_id,
+                    title=last_active_step_title,
+                    status="in_progress",
+                    items=last_active_step_items,
                 )
 
         elif event_type in ("on_chain_end", "on_agent_end"):
@@ -993,6 +1036,20 @@ async def stream_new_chat(
             )
             mentioned_surfsense_docs = list(result.scalars().all())
 
+        # Fetch the most recent report(s) in this thread so the LLM can
+        # easily find report_id for versioning decisions, instead of
+        # having to dig through conversation history.
+        recent_reports_result = await session.execute(
+            select(Report)
+            .filter(
+                Report.thread_id == chat_id,
+                Report.content.isnot(None),  # exclude failed reports
+            )
+            .order_by(Report.id.desc())
+            .limit(3)
+        )
+        recent_reports = list(recent_reports_result.scalars().all())
+
         # Format the user query with context (mentioned documents + SurfSense docs)
         final_query = user_query
         context_parts = []
@@ -1005,6 +1062,27 @@ async def stream_new_chat(
         if mentioned_surfsense_docs:
             context_parts.append(
                 format_mentioned_surfsense_docs_as_context(mentioned_surfsense_docs)
+            )
+
+        # Surface report IDs prominently so the LLM doesn't have to
+        # retrieve them from old tool responses in conversation history.
+        if recent_reports:
+            report_lines = []
+            for r in recent_reports:
+                report_lines.append(
+                    f'  - report_id={r.id}, title="{r.title}", '
+                    f'style="{r.report_style or "detailed"}"'
+                )
+            reports_listing = "\n".join(report_lines)
+            context_parts.append(
+                "<report_context>\n"
+                "Previously generated reports in this conversation:\n"
+                f"{reports_listing}\n\n"
+                "If the user wants to MODIFY, REVISE, UPDATE, or ADD to one of "
+                "these reports, set parent_report_id to the relevant report_id above.\n"
+                "If the user wants a completely NEW report on a different topic, "
+                "leave parent_report_id unset.\n"
+                "</report_context>"
             )
 
         if context_parts:
@@ -1031,6 +1109,13 @@ async def stream_new_chat(
             "messages": langchain_messages,
             "search_space_id": search_space_id,
         }
+
+        # All pre-streaming DB reads are done.  Commit to release the
+        # transaction and its ACCESS SHARE locks so we don't block DDL
+        # (e.g. migrations) for the entire duration of LLM streaming.
+        # Tools that need DB access during streaming will start their own
+        # short-lived transactions (or use isolated sessions).
+        await session.commit()
 
         # Configure LangGraph with thread_id for memory
         # If checkpoint_id is provided, fork from that checkpoint (for edit/reload)
@@ -1266,6 +1351,9 @@ async def stream_resume_chat(
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
         )
+
+        # Release the transaction before streaming (same rationale as stream_new_chat).
+        await session.commit()
 
         from langgraph.types import Command
 

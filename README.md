@@ -89,6 +89,12 @@ docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --n
 
 After starting, open [http://localhost:3000](http://localhost:3000) in your browser.
 
+**Update (Automatic updates with Watchtower):**
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --run-once surfsense
+```
+
 For Docker Compose, manual installation, and other deployment options, check the [docs](https://www.surfsense.com/docs/).
 
 ### How to Realtime Collaborate (Beta)

@@ -40,10 +40,10 @@ export function useSidebarState(defaultCollapsed = false): UseSidebarStateReturn
 		setIsCollapsed(!isCollapsed);
 	}, [isCollapsed, setIsCollapsed]);
 
-	// Keyboard shortcut: Cmd/Ctrl + B
+	// Keyboard shortcut: Cmd/Ctrl + \
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
-			if (event.key === "b" && (event.metaKey || event.ctrlKey)) {
+			if (event.key === "\\" && (event.metaKey || event.ctrlKey)) {
 				event.preventDefault();
 				toggleCollapsed();
 			}

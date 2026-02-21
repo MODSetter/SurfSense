@@ -5,6 +5,7 @@ This module provides a tool for fetching URL metadata (title, description,
 Open Graph image, etc.) to display rich link previews in the chat UI.
 """
 
+import asyncio
 import hashlib
 import logging
 import re
@@ -15,7 +16,7 @@ import httpx
 import trafilatura
 from fake_useragent import UserAgent
 from langchain_core.tools import tool
-from playwright.async_api import async_playwright
+from playwright.sync_api import sync_playwright
 
 from app.utils.proxy_config import get_playwright_proxy, get_residential_proxy_url
 
@@ -175,6 +176,9 @@ async def fetch_with_chromium(url: str) -> dict[str, Any] | None:
     Fetch page content using headless Chromium browser via Playwright.
     Used as a fallback when simple HTTP requests are blocked (403, etc.).
 
+    Runs the sync Playwright API in a thread so it works on any event
+    loop, including Windows ``SelectorEventLoop``.
+
     Args:
         url: URL to fetch
 
@@ -182,63 +186,61 @@ async def fetch_with_chromium(url: str) -> dict[str, Any] | None:
         Dict with title, description, image, and raw_html, or None if failed
     """
     try:
-        logger.info(f"[link_preview] Falling back to Chromium for {url}")
-
-        # Generate a realistic User-Agent to avoid bot detection
-        ua = UserAgent()
-        user_agent = ua.random
-
-        # Use residential proxy if configured
-        playwright_proxy = get_playwright_proxy()
-
-        # Use Playwright to fetch the page
-        async with async_playwright() as p:
-            launch_kwargs: dict = {"headless": True}
-            if playwright_proxy:
-                launch_kwargs["proxy"] = playwright_proxy
-            browser = await p.chromium.launch(**launch_kwargs)
-            context = await browser.new_context(user_agent=user_agent)
-            page = await context.new_page()
-
-            try:
-                await page.goto(url, wait_until="domcontentloaded", timeout=30000)
-                raw_html = await page.content()
-            finally:
-                await browser.close()
-
-        if not raw_html or len(raw_html.strip()) == 0:
-            logger.warning(f"[link_preview] Chromium returned empty content for {url}")
-            return None
-
-        # Extract metadata using Trafilatura
-        trafilatura_metadata = trafilatura.extract_metadata(raw_html)
-
-        # Extract OG image from raw HTML (trafilatura doesn't extract this)
-        image = extract_image(raw_html)
-
-        result = {
-            "title": None,
-            "description": None,
-            "image": image,
-            "raw_html": raw_html,
-        }
-
-        if trafilatura_metadata:
-            result["title"] = trafilatura_metadata.title
-            result["description"] = trafilatura_metadata.description
-
-        # If trafilatura didn't get the title/description, try OG tags
-        if not result["title"]:
-            result["title"] = extract_title(raw_html)
-        if not result["description"]:
-            result["description"] = extract_description(raw_html)
-
-        logger.info(f"[link_preview] Successfully fetched {url} via Chromium")
-        return result
-
+        return await asyncio.to_thread(_fetch_with_chromium_sync, url)
     except Exception as e:
         logger.error(f"[link_preview] Chromium fallback failed for {url}: {e}")
         return None
+
+
+def _fetch_with_chromium_sync(url: str) -> dict[str, Any] | None:
+    """Synchronous Playwright fetch executed in a worker thread."""
+    logger.info(f"[link_preview] Falling back to Chromium for {url}")
+
+    ua = UserAgent()
+    user_agent = ua.random
+
+    playwright_proxy = get_playwright_proxy()
+
+    with sync_playwright() as p:
+        launch_kwargs: dict = {"headless": True}
+        if playwright_proxy:
+            launch_kwargs["proxy"] = playwright_proxy
+        browser = p.chromium.launch(**launch_kwargs)
+        context = browser.new_context(user_agent=user_agent)
+        page = context.new_page()
+
+        try:
+            page.goto(url, wait_until="domcontentloaded", timeout=30000)
+            raw_html = page.content()
+        finally:
+            browser.close()
+
+    if not raw_html or len(raw_html.strip()) == 0:
+        logger.warning(f"[link_preview] Chromium returned empty content for {url}")
+        return None
+
+    trafilatura_metadata = trafilatura.extract_metadata(raw_html)
+
+    image = extract_image(raw_html)
+
+    result: dict[str, Any] = {
+        "title": None,
+        "description": None,
+        "image": image,
+        "raw_html": raw_html,
+    }
+
+    if trafilatura_metadata:
+        result["title"] = trafilatura_metadata.title
+        result["description"] = trafilatura_metadata.description
+
+    if not result["title"]:
+        result["title"] = extract_title(raw_html)
+    if not result["description"]:
+        result["description"] = extract_description(raw_html)
+
+    logger.info(f"[link_preview] Successfully fetched {url} via Chromium")
+    return result
 
 
 def create_link_preview_tool():

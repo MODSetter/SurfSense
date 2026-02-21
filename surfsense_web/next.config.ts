@@ -7,7 +7,6 @@ const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
 const nextConfig: NextConfig = {
 	output: "standalone",
-	// Disable StrictMode for BlockNote compatibility with React 19/Next 15
 	reactStrictMode: false,
 	typescript: {
 		ignoreBuildErrors: true,
@@ -20,9 +19,6 @@ const nextConfig: NextConfig = {
 			},
 		],
 	},
-	// Mark BlockNote server packages as external
-	serverExternalPackages: ["@blocknote/server-util"],
-
 	// Turbopack config (used during `next dev --turbopack`)
 	turbopack: {
 		rules: {
@@ -33,13 +29,8 @@ const nextConfig: NextConfig = {
 		},
 	},
 
-	// Configure webpack to handle blocknote packages + SVGR
-	webpack: (config, { isServer }) => {
-		if (isServer) {
-			// Don't bundle these packages on the server
-			config.externals = [...(config.externals || []), "@blocknote/server-util"];
-		}
-
+	// Configure webpack (SVGR)
+	webpack: (config) => {
 		// SVGR: import *.svg as React components
 		const fileLoaderRule = config.module.rules.find((rule: any) => rule.test?.test?.(".svg"));
 		config.module.rules.push(

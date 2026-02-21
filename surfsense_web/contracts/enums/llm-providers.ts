@@ -128,7 +128,7 @@ export const LLM_PROVIDERS: LLMProvider[] = [
 	{
 		value: "ZHIPU",
 		label: "Zhipu (GLM)",
-		example: "openrouter/z-ai/glm-4.6",
+		example: "glm-4.6, glm-4.6:exacto",
 		description: "GLM series models",
 		apiBase: "https://open.bigmodel.cn/api/paas/v4",
 	},

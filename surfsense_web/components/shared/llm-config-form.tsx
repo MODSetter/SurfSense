@@ -13,10 +13,13 @@ import {
 	Sparkles,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { defaultSystemInstructionsAtom } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+import {
+	defaultSystemInstructionsAtom,
+	modelListAtom,
+} from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -50,7 +53,6 @@ import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { getModelsByProvider } from "@/contracts/enums/llm-models";
 import { LLM_PROVIDERS } from "@/contracts/enums/llm-providers";
 import type { CreateNewLLMConfigRequest } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
@@ -66,7 +68,7 @@ const formSchema = z.object({
 	api_key: z.string().min(1, "API key is required"),
 	api_base: z.string().max(500).optional().nullable(),
 	litellm_params: z.record(z.string(), z.any()).optional().nullable(),
-	system_instructions: z.string().optional().default(""),
+	system_instructions: z.string().default(""),
 	use_default_system_instructions: z.boolean().default(true),
 	citations_enabled: z.boolean().default(true),
 	search_space_id: z.number(),
@@ -74,7 +76,7 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-export interface LLMConfigFormData extends CreateNewLLMConfigRequest {}
+export type LLMConfigFormData = CreateNewLLMConfigRequest;
 
 interface LLMConfigFormProps {
 	initialData?: Partial<LLMConfigFormData>;
@@ -102,12 +104,14 @@ export function LLMConfigForm({
 	const { data: defaultInstructions, isSuccess: defaultInstructionsLoaded } = useAtomValue(
 		defaultSystemInstructionsAtom
 	);
+	const { data: dynamicModels } = useAtomValue(modelListAtom);
 	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
 	const [advancedOpen, setAdvancedOpen] = useState(false);
 	const [systemInstructionsOpen, setSystemInstructionsOpen] = useState(false);
 
 	const form = useForm<FormValues>({
-		resolver: zodResolver(formSchema),
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		resolver: zodResolver(formSchema) as any,
 		defaultValues: {
 			name: initialData?.name ?? "",
 			description: initialData?.description ?? "",
@@ -138,7 +142,10 @@ export function LLMConfigForm({
 
 	const watchProvider = form.watch("provider");
 	const selectedProvider = LLM_PROVIDERS.find((p) => p.value === watchProvider);
-	const availableModels = watchProvider ? getModelsByProvider(watchProvider) : [];
+	const availableModels = useMemo(
+		() => (dynamicModels ?? []).filter((m) => m.provider === watchProvider),
+		[dynamicModels, watchProvider]
+	);
 
 	const handleProviderChange = (value: string) => {
 		form.setValue("provider", value);
@@ -299,7 +306,7 @@ export function LLMConfigForm({
 												value={field.value}
 												onValueChange={field.onChange}
 											/>
-											<CommandList>
+											<CommandList className="max-h-[300px]">
 												<CommandEmpty>
 													<div className="py-3 text-center text-sm text-muted-foreground">
 														{field.value ? `Using: "${field.value}"` : "Type your model name"}
@@ -311,9 +318,10 @@ export function LLMConfigForm({
 															.filter(
 																(model) =>
 																	!field.value ||
-																	model.value.toLowerCase().includes(field.value.toLowerCase())
+																	model.value.toLowerCase().includes(field.value.toLowerCase()) ||
+																	model.label.toLowerCase().includes(field.value.toLowerCase())
 															)
-															.slice(0, 8)
+															.slice(0, 50)
 															.map((model) => (
 																<CommandItem
 																	key={model.value}
@@ -376,7 +384,7 @@ export function LLMConfigForm({
 									</FormControl>
 									{watchProvider === "OLLAMA" && (
 										<FormDescription className="text-[10px] sm:text-xs">
-											Ollama doesn't require auth — enter any value
+											Ollama doesn&apos;t require auth — enter any value
 										</FormDescription>
 									)}
 									<FormMessage />
@@ -537,7 +545,7 @@ export function LLMConfigForm({
 										/>
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
-										Use {"{resolved_today}"} to include today's date dynamically
+										Use {"{resolved_today}"} to include today&apos;s date dynamically
 									</FormDescription>
 									<FormMessage />
 								</FormItem>

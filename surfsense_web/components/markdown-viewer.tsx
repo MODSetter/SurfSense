@@ -24,8 +24,9 @@ interface MarkdownViewerProps {
  */
 function stripOuterMarkdownFence(content: string): string {
 	const trimmed = content.trim();
-	const match = trimmed.match(/^```(?:markdown|md)?\s*\n([\s\S]+?)\n```\s*$/);
-	return match ? match[1] : content;
+	// Match 3+ backtick fences (LLMs escalate to 4+ when content has triple-backtick blocks)
+	const match = trimmed.match(/^(`{3,})(?:markdown|md)?\s*\n([\s\S]+?)\n\1\s*$/);
+	return match ? match[2] : content;
 }
 
 /**

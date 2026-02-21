@@ -14,17 +14,36 @@ import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import "katex/dist/katex.min.css";
-import { InlineCitation } from "@/components/assistant-ui/inline-citation";
+import { InlineCitation, UrlCitation } from "@/components/assistant-ui/inline-citation";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
+// Storage for URL citations replaced during preprocess to avoid GFM autolink interference.
+// Populated in preprocessMarkdown, consumed in parseTextWithCitations.
+let _pendingUrlCitations = new Map<string, string>();
+let _urlCiteIdx = 0;
+
 /**
- * Convert all LaTeX delimiter styles to the dollar-sign syntax
- * that remark-math understands. LLMs use various delimiters
- * (\(...\), \[...\], \begin{equation}, etc.) and we need to
- * normalise them all to $ / $$ before the markdown parser runs.
+ * Preprocess raw markdown before it reaches the remark/rehype pipeline.
+ * - Replaces URL-based citations with safe placeholders (prevents GFM autolinks)
+ * - Normalises LaTeX delimiters to dollar-sign syntax for remark-math
  */
-function convertLatexDelimiters(content: string): string {
+function preprocessMarkdown(content: string): string {
+	// Replace URL-based citations with safe placeholders BEFORE markdown parsing.
+	// GFM autolinks would otherwise convert the https://... inside [citation:URL]
+	// into an <a> element, splitting the text and preventing our citation regex
+	// from matching the full pattern.
+	_pendingUrlCitations = new Map();
+	_urlCiteIdx = 0;
+	content = content.replace(
+		/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+)\s*\u200B?[\]】]/g,
+		(_, url) => {
+			const key = `urlcite${_urlCiteIdx++}`;
+			_pendingUrlCitations.set(key, url.trim());
+			return `[citation:${key}]`;
+		}
+	);
+
 	// 1. Block math: \[...\] → $$...$$
 	content = content.replace(/\\\[([\s\S]*?)\\\]/g, (_, inner) => `$$${inner}$$`);
 	// 2. Inline math: \(...\) → $...$
@@ -50,40 +69,19 @@ function convertLatexDelimiters(content: string): string {
 	return content;
 }
 
-// Citation pattern: [citation:CHUNK_ID] or [citation:doc-CHUNK_ID]
-// Also matches Chinese brackets 【】 and handles zero-width spaces that LLM sometimes inserts
-const CITATION_REGEX = /[[【]\u200B?citation:(doc-)?(\d+)\u200B?[\]】]/g;
-
-// Track chunk IDs to citation numbers mapping for consistent numbering
-// This map is reset when a new message starts rendering
-// Uses string keys to differentiate between doc and regular chunks (e.g., "doc-123" vs "123")
-let chunkIdToCitationNumber: Map<string, number> = new Map();
-let nextCitationNumber = 1;
+// Matches [citation:...] with numeric IDs (incl. doc- prefix, comma-separated),
+// URL-based IDs from live web search, or urlciteN placeholders from preprocess.
+// Also matches Chinese brackets 【】 and handles zero-width spaces that LLM sometimes inserts.
+const CITATION_REGEX =
+	/[[【]\u200B?citation:\s*(https?:\/\/[^\]】\u200B]+|urlcite\d+|(?:doc-)?\d+(?:\s*,\s*(?:doc-)?\d+)*)\s*\u200B?[\]】]/g;
 
 /**
- * Resets the citation counter - should be called at the start of each message
- */
-export function resetCitationCounter() {
-	chunkIdToCitationNumber = new Map();
-	nextCitationNumber = 1;
-}
-
-/**
- * Gets or assigns a citation number for a chunk ID
- * Uses string key to differentiate between doc and regular chunks
- */
-function getCitationNumber(chunkId: number, isDocsChunk: boolean): number {
-	const key = isDocsChunk ? `doc-${chunkId}` : String(chunkId);
-	const existingNumber = chunkIdToCitationNumber.get(key);
-	if (existingNumber === undefined) {
-		chunkIdToCitationNumber.set(key, nextCitationNumber++);
-	}
-	return chunkIdToCitationNumber.get(key)!;
-}
-
-/**
- * Parses text and replaces [citation:XXX] patterns with InlineCitation components
- * Supports both regular chunks [citation:123] and docs chunks [citation:doc-123]
+ * Parses text and replaces [citation:XXX] patterns with citation components.
+ * Supports:
+ *  - Numeric chunk IDs: [citation:123]
+ *  - Doc-prefixed IDs: [citation:doc-123]
+ *  - Comma-separated IDs: [citation:4149, 4150, 4151]
+ *  - URL-based citations from live search: [citation:https://example.com/page]
  */
 function parseTextWithCitations(text: string): ReactNode[] {
 	const parts: ReactNode[] = [];
@@ -91,35 +89,45 @@ function parseTextWithCitations(text: string): ReactNode[] {
 	let match: RegExpExecArray | null;
 	let instanceIndex = 0;
 
-	// Reset regex state
 	CITATION_REGEX.lastIndex = 0;
 
 	match = CITATION_REGEX.exec(text);
 	while (match !== null) {
-		// Add text before the citation
 		if (match.index > lastIndex) {
 			parts.push(text.substring(lastIndex, match.index));
 		}
 
-		// Check if this is a docs chunk (has "doc-" prefix)
-		const isDocsChunk = match[1] === "doc-";
-		const chunkId = Number.parseInt(match[2], 10);
-		const citationNumber = getCitationNumber(chunkId, isDocsChunk);
-		parts.push(
-			<InlineCitation
-				key={`citation-${isDocsChunk ? "doc-" : ""}${chunkId}-${instanceIndex}`}
-				chunkId={chunkId}
-				citationNumber={citationNumber}
-				isDocsChunk={isDocsChunk}
-			/>
-		);
+		const captured = match[1];
+
+		if (captured.startsWith("http://") || captured.startsWith("https://")) {
+			parts.push(<UrlCitation key={`citation-url-${instanceIndex}`} url={captured.trim()} />);
+			instanceIndex++;
+		} else if (captured.startsWith("urlcite")) {
+			const url = _pendingUrlCitations.get(captured);
+			if (url) {
+				parts.push(<UrlCitation key={`citation-url-${instanceIndex}`} url={url} />);
+			}
+			instanceIndex++;
+		} else {
+			const rawIds = captured.split(",").map((s) => s.trim());
+			for (const rawId of rawIds) {
+				const isDocsChunk = rawId.startsWith("doc-");
+				const chunkId = Number.parseInt(isDocsChunk ? rawId.slice(4) : rawId, 10);
+				parts.push(
+					<InlineCitation
+						key={`citation-${isDocsChunk ? "doc-" : ""}${chunkId}-${instanceIndex}`}
+						chunkId={chunkId}
+						isDocsChunk={isDocsChunk}
+					/>
+				);
+				instanceIndex++;
+			}
+		}
 
 		lastIndex = match.index + match[0].length;
-		instanceIndex++;
 		match = CITATION_REGEX.exec(text);
 	}
 
-	// Add any remaining text after the last citation
 	if (lastIndex < text.length) {
 		parts.push(text.substring(lastIndex));
 	}
@@ -134,7 +142,7 @@ const MarkdownTextImpl = () => {
 			rehypePlugins={[rehypeKatex]}
 			className="aui-md"
 			components={defaultComponents}
-			preprocess={convertLatexDelimiters}
+			preprocess={preprocessMarkdown}
 		/>
 	);
 };

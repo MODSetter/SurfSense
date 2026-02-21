@@ -212,11 +212,10 @@ run_migrations() {
     echo "✅ Database migrations complete"
 }
 
-# Run migrations on first start or when explicitly requested
-if [ ! -f /data/.migrations_run ] || [ "${FORCE_MIGRATIONS:-false}" = "true" ]; then
-    run_migrations
-    touch /data/.migrations_run
-fi
+# Always run migrations on startup - alembic upgrade head is safe to run
+# every time. It only applies pending migrations (never re-runs applied ones,
+# never calls downgrade). This ensures updates are applied automatically.
+run_migrations
 
 # ================================================
 # Environment Variables Info

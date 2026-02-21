@@ -155,6 +155,7 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 				connector_type: EnumConnectorName.ELASTICSEARCH_CONNECTOR,
 				config,
 				is_indexable: true,
+				is_active: true,
 				last_indexed_at: null,
 				periodic_indexing_enabled: periodicEnabled,
 				indexing_frequency_minutes: periodicEnabled ? parseInt(frequencyMinutes, 10) : null,

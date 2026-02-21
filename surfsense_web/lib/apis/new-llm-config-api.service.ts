@@ -10,6 +10,7 @@ import {
 	getDefaultSystemInstructionsResponse,
 	getGlobalNewLLMConfigsResponse,
 	getLLMPreferencesResponse,
+	getModelListResponse,
 	getNewLLMConfigRequest,
 	getNewLLMConfigResponse,
 	getNewLLMConfigsRequest,
@@ -143,6 +144,13 @@ class NewLLMConfigApiService {
 			`/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
 			getLLMPreferencesResponse
 		);
+	};
+
+	/**
+	 * Get the dynamic LLM model catalogue (sourced from OpenRouter API)
+	 */
+	getModels = async () => {
+		return baseApiService.get(`/api/v1/models`, getModelListResponse);
 	};
 
 	/**

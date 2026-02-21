@@ -558,7 +558,9 @@ export const useConnectorDialog = () => {
 			},
 			onIndexingStart?: (connectorId: number) => void
 		) => {
-			if (!searchSpaceId || !connectingConnectorType) return;
+			if (!searchSpaceId || !connectingConnectorType) {
+				return;
+			}
 
 			// Prevent multiple submissions using ref for immediate check
 			if (isCreatingConnectorRef.current) return;
@@ -582,7 +584,6 @@ export const useConnectorDialog = () => {
 						search_space_id: searchSpaceId,
 					},
 				});
-
 				// Refetch connectors to get the new one
 				const result = await refetchAllConnectors();
 				if (result.data) {
