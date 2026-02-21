@@ -35,12 +35,12 @@ export function PublicChatSnapshotRow({
 	memberMap,
 }: PublicChatSnapshotRowProps) {
 	const [copied, setCopied] = useState(false);
-	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>();
+	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
 
 	const handleCopyClick = useCallback(() => {
 		onCopy(snapshot);
 		setCopied(true);
-		clearTimeout(copyTimeoutRef.current);
+		if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
 		copyTimeoutRef.current = setTimeout(() => setCopied(false), 2000);
 	}, [onCopy, snapshot]);
 
@@ -117,12 +117,14 @@ export function PublicChatSnapshotRow({
 
 				{/* Public URL – selectable fallback for manual copy */}
 				<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
-					<p
-						className="min-w-0 flex-1 text-[10px] font-mono text-muted-foreground break-all select-all cursor-text"
-						title={snapshot.public_url}
-					>
-						{snapshot.public_url}
-					</p>
+					<div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
+						<p
+							className="text-[10px] font-mono text-muted-foreground whitespace-nowrap select-all cursor-text"
+							title={snapshot.public_url}
+						>
+							{snapshot.public_url}
+						</p>
+					</div>
 					<TooltipProvider>
 						<Tooltip>
 							<TooltipTrigger asChild>

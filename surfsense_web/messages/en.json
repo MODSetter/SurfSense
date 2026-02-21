@@ -682,7 +682,7 @@
 		"rename_chat": "Rename Chat",
 		"rename_chat_description": "Enter a new name for this conversation.",
 		"chat_title_placeholder": "Chat title",
-		"renaming": "Renaming...",
+		"renaming": "Renaming",
 		"no_archived_chats": "No archived chats",
 		"error_archiving_chat": "Failed to archive chat",
 		"new_chat": "New chat",
@@ -720,7 +720,8 @@
 		"unread": "Unread",
 		"connectors": "Connectors",
 		"all_connectors": "All connectors",
-		"close": "Close"
+		"close": "Close",
+		"cancel": "Cancel"
 	},
 	"errors": {
 		"something_went_wrong": "Something went wrong",
@@ -746,6 +747,8 @@
 		"nav_system_instructions_desc": "SearchSpace-wide AI instructions",
 		"nav_public_links": "Public Chat Links",
 		"nav_public_links_desc": "Manage publicly shared chat links",
+		"nav_team_roles": "Team Roles",
+		"nav_team_roles_desc": "Manage team roles & permissions",
 		"general_name_label": "Name",
 		"general_name_placeholder": "Enter search space name",
 		"general_name_description": "A unique name for your search space.",

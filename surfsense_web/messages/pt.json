@@ -720,7 +720,8 @@
 		"unread": "Não lido",
 		"connectors": "Conectores",
 		"all_connectors": "Todos os conectores",
-		"close": "Fechar"
+		"close": "Fechar",
+		"cancel": "Cancelar"
 	},
 	"errors": {
 		"something_went_wrong": "Algo deu errado",
@@ -746,6 +747,8 @@
 		"nav_system_instructions_desc": "Instruções de IA em nível do espaço de pesquisa",
 		"nav_public_links": "Links de chat públicos",
 		"nav_public_links_desc": "Gerenciar links de chat compartilhados publicamente",
+		"nav_team_roles": "Team Roles",
+		"nav_team_roles_desc": "Manage team roles & permissions",
 		"general_name_label": "Nome",
 		"general_name_placeholder": "Insira o nome do espaço de pesquisa",
 		"general_name_description": "Um nome único para seu espaço de pesquisa.",

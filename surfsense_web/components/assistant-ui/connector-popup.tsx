@@ -221,7 +221,7 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 				</TooltipIconButton>
 			)}
 
-			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5">
+			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5 select-none">
 				<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
@@ -374,7 +374,7 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 														: "You need to configure a Document Summary LLM before adding connectors. This LLM is used to process and summarize documents from your connected sources."}
 												</p>
 												<Button asChild size="sm" variant="outline">
-													<Link href={`/dashboard/${searchSpaceId}/settings`}>
+													<Link href={`/dashboard/${searchSpaceId}/settings?section=models`}>
 														<Settings className="mr-2 h-4 w-4" />
 														Go to Settings
 													</Link>

@@ -43,7 +43,7 @@ export function getProviderIcon(
 	{ isAutoMode, className = "size-4" }: { isAutoMode?: boolean; className?: string } = {}
 ) {
 	if (isAutoMode || provider?.toUpperCase() === "AUTO") {
-		return <Shuffle className={cn(className, "text-violet-800")} />;
+		return <Shuffle className={cn(className, "text-muted-foreground")} />;
 	}
 
 	switch (provider?.toUpperCase()) {

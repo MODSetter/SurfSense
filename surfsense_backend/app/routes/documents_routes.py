@@ -373,10 +373,11 @@ async def read_documents(
         # Convert database objects to API-friendly format
         api_documents = []
         for doc in db_documents:
-            # Get user name (display_name or email fallback)
             created_by_name = None
+            created_by_email = None
             if doc.created_by:
-                created_by_name = doc.created_by.display_name or doc.created_by.email
+                created_by_name = doc.created_by.display_name
+                created_by_email = doc.created_by.email
 
             # Parse status from JSONB
             status_data = None
@@ -400,6 +401,7 @@ async def read_documents(
                     search_space_id=doc.search_space_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
+                    created_by_email=created_by_email,
                     status=status_data,
                 )
             )
@@ -528,10 +530,11 @@ async def search_documents(
         # Convert database objects to API-friendly format
         api_documents = []
         for doc in db_documents:
-            # Get user name (display_name or email fallback)
             created_by_name = None
+            created_by_email = None
             if doc.created_by:
-                created_by_name = doc.created_by.display_name or doc.created_by.email
+                created_by_name = doc.created_by.display_name
+                created_by_email = doc.created_by.email
 
             # Parse status from JSONB
             status_data = None
@@ -555,6 +558,7 @@ async def search_documents(
                     search_space_id=doc.search_space_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
+                    created_by_email=created_by_email,
                     status=status_data,
                 )
             )

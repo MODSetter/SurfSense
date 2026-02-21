@@ -16,6 +16,7 @@ export type Document = {
 	search_space_id: number;
 	created_by_id?: string | null;
 	created_by_name?: string | null;
+	created_by_email?: string | null;
 	status?: DocumentStatus;
 };
 

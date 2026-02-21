@@ -704,7 +704,8 @@
 		"unread": "未读",
 		"connectors": "连接器",
 		"all_connectors": "所有连接器",
-		"close": "关闭"
+		"close": "关闭",
+		"cancel": "取消"
 	},
 	"errors": {
 		"something_went_wrong": "出错了",
@@ -730,6 +731,8 @@
 		"nav_system_instructions_desc": "搜索空间级别的 AI 指令",
 		"nav_public_links": "公开聊天链接",
 		"nav_public_links_desc": "管理公开分享的聊天链接",
+		"nav_team_roles": "Team Roles",
+		"nav_team_roles_desc": "Manage team roles & permissions",
 		"general_name_label": "名称",
 		"general_name_placeholder": "输入搜索空间名称",
 		"general_name_description": "您的搜索空间的唯一名称。",

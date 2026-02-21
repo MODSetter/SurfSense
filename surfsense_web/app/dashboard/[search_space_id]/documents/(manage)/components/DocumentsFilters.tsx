@@ -3,13 +3,13 @@
 import { useSetAtom } from "jotai";
 import {
 	CircleAlert,
-	CircleX,
-	FilePlus2,
 	FileType,
 	ListFilter,
 	Search,
 	SlidersHorizontal,
 	Trash,
+	Upload,
+	X,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
@@ -81,7 +81,7 @@ export function DocumentsFilters({
 
 	return (
 		<motion.div
-			className="flex flex-col gap-4"
+			className="flex flex-col gap-4 select-none"
 			initial={{ opacity: 0, y: 10 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }}
@@ -96,7 +96,7 @@ export function DocumentsFilters({
 						size="sm"
 						className="h-9 gap-2 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
 					>
-						<FilePlus2 size={16} />
+						<Upload size={16} />
 						<span>Upload documents</span>
 					</Button>
 					<Button
@@ -126,7 +126,7 @@ export function DocumentsFilters({
 					<Input
 						id={`${id}-input`}
 						ref={inputRef}
-						className="peer h-9 w-full pl-9 pr-9 text-sm bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30"
+						className="peer h-9 w-full pl-9 pr-9 text-sm bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30 select-none focus:select-text"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
 						placeholder="Filter by title"
@@ -135,7 +135,7 @@ export function DocumentsFilters({
 					/>
 					{Boolean(searchValue) && (
 						<motion.button
-							className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center rounded-r-md text-muted-foreground/60 hover:text-foreground transition-colors"
+							className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
 							aria-label="Clear filter"
 							onClick={() => {
 								onSearch("");
@@ -147,7 +147,7 @@ export function DocumentsFilters({
 							whileHover={{ scale: 1.1 }}
 							whileTap={{ scale: 0.9 }}
 						>
-							<CircleX size={14} strokeWidth={2} aria-hidden="true" />
+							<X size={14} strokeWidth={2} aria-hidden="true" />
 						</motion.button>
 					)}
 				</motion.div>

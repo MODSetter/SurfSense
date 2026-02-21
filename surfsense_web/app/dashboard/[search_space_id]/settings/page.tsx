@@ -12,10 +12,11 @@ import {
 	Menu,
 	MessageSquare,
 	Settings,
+	Shield,
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { PublicChatSnapshotsManager } from "@/components/public-chat-snapshots/public-chat-snapshots-manager";
@@ -24,6 +25,7 @@ import { ImageModelManager } from "@/components/settings/image-model-manager";
 import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
+import { RolesManager } from "@/components/settings/roles-manager";
 import { Button } from "@/components/ui/button";
 import { trackSettingsViewed } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -71,6 +73,12 @@ const settingsNavItems: SettingsNavItem[] = [
 		labelKey: "nav_public_links",
 		descriptionKey: "nav_public_links_desc",
 		icon: Globe,
+	},
+	{
+		id: "team-roles",
+		labelKey: "nav_team_roles",
+		descriptionKey: "nav_team_roles_desc",
+		icon: Shield,
 	},
 ];
 
@@ -240,7 +248,7 @@ function SettingsContent({
 					{/* Section Header */}
 					<AnimatePresence mode="wait">
 						<motion.div
-							key={activeSection + "-header"}
+							key={`${activeSection}-header`}
 							initial={{ opacity: 0, y: 10 }}
 							animate={{ opacity: 1, y: 0 }}
 							exit={{ opacity: 0, y: -10 }}
@@ -298,6 +306,7 @@ function SettingsContent({
 							{activeSection === "public-links" && (
 								<PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />
 							)}
+							{activeSection === "team-roles" && <RolesManager searchSpaceId={searchSpaceId} />}
 						</motion.div>
 					</AnimatePresence>
 				</div>
@@ -306,14 +315,27 @@ function SettingsContent({
 	);
 }
 
+const VALID_SECTIONS = new Set(settingsNavItems.map((item) => item.id));
+const DEFAULT_SECTION = "general";
+
 export default function SettingsPage() {
 	const router = useRouter();
 	const params = useParams();
+	const searchParams = useSearchParams();
 	const searchSpaceId = Number(params.search_space_id);
-	const [activeSection, setActiveSection] = useState("general");
 	const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-	// Track settings section view
+	const sectionParam = searchParams.get("section");
+	const activeSection =
+		sectionParam && VALID_SECTIONS.has(sectionParam) ? sectionParam : DEFAULT_SECTION;
+
+	const handleSectionChange = useCallback(
+		(section: string) => {
+			router.replace(`/dashboard/${searchSpaceId}/settings?section=${section}`, { scroll: false });
+		},
+		[router, searchSpaceId]
+	);
+
 	useEffect(() => {
 		trackSettingsViewed(searchSpaceId, activeSection);
 	}, [searchSpaceId, activeSection]);
@@ -333,7 +355,7 @@ export default function SettingsPage() {
 				<div className="flex h-full w-full overflow-hidden bg-background md:rounded-xl md:border md:shadow-sm">
 					<SettingsSidebar
 						activeSection={activeSection}
-						onSectionChange={setActiveSection}
+						onSectionChange={handleSectionChange}
 						onBackToApp={handleBackToApp}
 						isOpen={isSidebarOpen}
 						onClose={() => setIsSidebarOpen(false)}

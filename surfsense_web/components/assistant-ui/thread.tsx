@@ -18,6 +18,7 @@ import {
 	ChevronLeftIcon,
 	ChevronRightIcon,
 	CopyIcon,
+	Dot,
 	DownloadIcon,
 	FileWarning,
 	Paperclip,
@@ -745,7 +746,19 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				<TooltipIconButton
-					tooltip={isUploadingDocs ? "Uploading documents..." : "Upload and mention files"}
+					tooltip={
+						isUploadingDocs ? (
+							"Uploading documents..."
+						) : (
+							<div className="flex flex-col gap-0.5">
+								<span className="font-medium">Upload and mention files</span>
+								<span className="text-xs text-muted-foreground flex items-center">
+									Max 10 files <Dot className="size-3" /> 50 MB each
+								</span>
+								<span className="text-xs text-muted-foreground">Total upload limit: 200 MB</span>
+							</div>
+						)
+					}
 					side="bottom"
 					variant="ghost"
 					size="icon"

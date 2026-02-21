@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom } from "jotai";
-import { CheckCircle2, FileType, Info, Tag, Upload, X } from "lucide-react";
+import { CheckCircle2, FileType, Info, Upload, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -452,7 +452,6 @@ export function DocumentUploadTab({
 				<AccordionItem value="supported-file-types" className="border-0">
 					<AccordionTrigger className="px-3 sm:px-6 py-3 sm:py-4 hover:no-underline !items-center [&>svg]:!translate-y-0">
 						<div className="flex items-center gap-2 flex-1">
-							<Tag className="h-4 w-4 sm:h-5 sm:w-5 shrink-0" />
 							<div className="text-left min-w-0">
 								<div className="font-semibold text-sm sm:text-base">
 									{t("supported_file_types")}

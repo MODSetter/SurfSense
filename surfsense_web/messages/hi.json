@@ -720,7 +720,8 @@
 		"unread": "अपठित",
 		"connectors": "कनेक्टर",
 		"all_connectors": "सभी कनेक्टर",
-		"close": "बंद करें"
+		"close": "बंद करें",
+		"cancel": "रद्द करें"
 	},
 	"errors": {
 		"something_went_wrong": "कुछ गलत हो गया",
@@ -746,6 +747,8 @@
 		"nav_system_instructions_desc": "सर्च स्पेस-व्यापी AI निर्देश",
 		"nav_public_links": "सार्वजनिक चैट लिंक",
 		"nav_public_links_desc": "सार्वजनिक रूप से साझा किए गए चैट लिंक प्रबंधित करें",
+		"nav_team_roles": "Team Roles",
+		"nav_team_roles_desc": "Manage team roles & permissions",
 		"general_name_label": "नाम",
 		"general_name_placeholder": "सर्च स्पेस का नाम दर्ज करें",
 		"general_name_description": "आपके सर्च स्पेस के लिए एक अद्वितीय नाम।",

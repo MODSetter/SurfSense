@@ -60,9 +60,8 @@ class DocumentRead(BaseModel):
     updated_at: datetime | None
     search_space_id: int
     created_by_id: UUID | None = None  # User who created/uploaded this document
-    created_by_name: str | None = (
-        None  # Display name or email of the user who created this document
-    )
+    created_by_name: str | None = None
+    created_by_email: str | None = None
     status: DocumentStatusSchema | None = (
         None  # Processing status (ready, processing, failed)
     )

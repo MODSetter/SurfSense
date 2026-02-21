@@ -4,8 +4,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
 	ArchiveIcon,
+	ChevronLeft,
 	MessageCircleMore,
 	MoreHorizontal,
+	PenLine,
 	RotateCcwIcon,
 	Search,
 	Trash2,
@@ -17,6 +19,14 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -69,6 +79,10 @@ export function AllPrivateChatsSidebar({
 	const [searchQuery, setSearchQuery] = useState("");
 	const [showArchived, setShowArchived] = useState(false);
 	const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
+	const [showRenameDialog, setShowRenameDialog] = useState(false);
+	const [renamingThread, setRenamingThread] = useState<{ id: number; title: string } | null>(null);
+	const [newTitle, setNewTitle] = useState("");
+	const [isRenaming, setIsRenaming] = useState(false);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
@@ -187,6 +201,35 @@ export function AllPrivateChatsSidebar({
 		[queryClient, searchSpaceId, t]
 	);
 
+	const handleStartRename = useCallback((threadId: number, title: string) => {
+		setRenamingThread({ id: threadId, title });
+		setNewTitle(title);
+		setShowRenameDialog(true);
+	}, []);
+
+	const handleConfirmRename = useCallback(async () => {
+		if (!renamingThread || !newTitle.trim()) return;
+		setIsRenaming(true);
+		try {
+			await updateThread(renamingThread.id, { title: newTitle.trim() });
+			toast.success(t("chat_renamed") || "Chat renamed");
+			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
+			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
+			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
+			queryClient.invalidateQueries({
+				queryKey: ["threads", searchSpaceId, "detail", String(renamingThread.id)],
+			});
+		} catch (error) {
+			console.error("Error renaming thread:", error);
+			toast.error(t("error_renaming_chat") || "Failed to rename chat");
+		} finally {
+			setIsRenaming(false);
+			setShowRenameDialog(false);
+			setRenamingThread(null);
+			setNewTitle("");
+		}
+	}, [renamingThread, newTitle, queryClient, searchSpaceId, t]);
+
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
 	}, []);
@@ -205,6 +248,17 @@ export function AllPrivateChatsSidebar({
 		>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center gap-2">
+					{isMobile && (
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 rounded-full"
+							onClick={() => onOpenChange(false)}
+						>
+							<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+							<span className="sr-only">{t("close") || "Close"}</span>
+						</Button>
+					)}
 					<User className="h-5 w-5 text-primary" />
 					<h2 className="text-lg font-semibold">{t("chats") || "Private Chats"}</h2>
 				</div>
@@ -356,6 +410,14 @@ export function AllPrivateChatsSidebar({
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end" className="w-40 z-80">
+											{!thread.archived && (
+												<DropdownMenuItem
+													onClick={() => handleStartRename(thread.id, thread.title || "New Chat")}
+												>
+													<PenLine className="mr-2 h-4 w-4" />
+													<span>{t("rename") || "Rename"}</span>
+												</DropdownMenuItem>
+											)}
 											<DropdownMenuItem
 												onClick={() => handleToggleArchive(thread.id, thread.archived)}
 												disabled={isArchiving}
@@ -412,6 +474,51 @@ export function AllPrivateChatsSidebar({
 					</div>
 				)}
 			</div>
+			<Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
+				<DialogContent className="sm:max-w-md">
+					<DialogHeader>
+						<DialogTitle className="flex items-center gap-2">
+							<span>{t("rename_chat") || "Rename Chat"}</span>
+						</DialogTitle>
+						<DialogDescription>
+							{t("rename_chat_description") || "Enter a new name for this conversation."}
+						</DialogDescription>
+					</DialogHeader>
+					<Input
+						value={newTitle}
+						onChange={(e) => setNewTitle(e.target.value)}
+						placeholder={t("chat_title_placeholder") || "Chat title"}
+						onKeyDown={(e) => {
+							if (e.key === "Enter" && !isRenaming && newTitle.trim()) {
+								handleConfirmRename();
+							}
+						}}
+					/>
+					<DialogFooter className="flex gap-2 sm:justify-end">
+						<Button
+							variant="outline"
+							onClick={() => setShowRenameDialog(false)}
+							disabled={isRenaming}
+						>
+							{t("cancel")}
+						</Button>
+						<Button
+							onClick={handleConfirmRename}
+							disabled={isRenaming || !newTitle.trim()}
+							className="gap-2"
+						>
+							{isRenaming ? (
+								<>
+									<Spinner size="xs" />
+									<span>{t("renaming") || "Renaming"}</span>
+								</>
+							) : (
+								<span>{t("rename") || "Rename"}</span>
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</SidebarSlideOutPanel>
 	);
 }
