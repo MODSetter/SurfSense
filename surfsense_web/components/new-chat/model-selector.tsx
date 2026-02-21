@@ -226,7 +226,7 @@ export function ModelSelector({
 					size="sm"
 					role="combobox"
 					aria-expanded={open}
-					className={cn("h-8 gap-2 px-3 text-sm border-border/60", className)}
+					className={cn("h-8 gap-2 px-3 text-sm border-border/60 select-none", className)}
 				>
 					{isLoading ? (
 						<>
@@ -280,7 +280,7 @@ export function ModelSelector({
 			</PopoverTrigger>
 
 			<PopoverContent
-				className="w-[280px] md:w-[360px] p-0 rounded-lg shadow-lg border-border/60"
+				className="w-[280px] md:w-[360px] p-0 rounded-lg shadow-lg border-border/60 select-none"
 				align="start"
 				sideOffset={8}
 			>

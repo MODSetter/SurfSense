@@ -13,6 +13,7 @@ import {
 	Clock,
 	Copy,
 	Hash,
+	Link2,
 	ShieldUser,
 	Trash2,
 	UserPlus,
@@ -136,17 +137,6 @@ function getAvatarInitials(member: Membership): string {
 	return "U";
 }
 
-function getInviteInitials(invite: Invite): string {
-	if (invite.name) {
-		const parts = invite.name.trim().split(/\s+/);
-		if (parts.length >= 2) {
-			return (parts[0][0] + parts[1][0]).toUpperCase();
-		}
-		return invite.name.slice(0, 2).toUpperCase();
-	}
-	return "IN";
-}
-
 const PAGE_SIZE = 10;
 
 export default function TeamManagementPage() {
@@ -247,7 +237,7 @@ export default function TeamManagementPage() {
 	const nonOwnerMembers = useMemo(() => members.filter((m) => !m.is_owner), [members]);
 
 	const [pageIndex, setPageIndex] = useState(0);
-	const totalItems = nonOwnerMembers.length + activeInvites.length;
+	const totalItems = nonOwnerMembers.length;
 	const lastPage = Math.max(0, Math.ceil(totalItems / PAGE_SIZE) - 1);
 
 	useEffect(() => {
@@ -262,14 +252,6 @@ export default function TeamManagementPage() {
 			Math.min(end, nonOwnerMembers.length)
 		);
 	}, [nonOwnerMembers, pageIndex]);
-
-	const paginatedInvites = useMemo(() => {
-		const start = pageIndex * PAGE_SIZE;
-		const end = start + PAGE_SIZE;
-		const inviteStart = Math.max(0, start - nonOwnerMembers.length);
-		const inviteEnd = Math.max(0, end - nonOwnerMembers.length);
-		return activeInvites.slice(inviteStart, inviteEnd);
-	}, [activeInvites, nonOwnerMembers.length, pageIndex]);
 
 	const displayStart = totalItems > 0 ? pageIndex * PAGE_SIZE + 1 : 0;
 	const displayEnd = Math.min((pageIndex + 1) * PAGE_SIZE, totalItems);
@@ -358,7 +340,8 @@ export default function TeamManagementPage() {
 		<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
 			<div className="space-y-6">
 				{/* Header row: Invite button on left, member count on right */}
-					<div className="flex items-center justify-between">
+				<div className="flex items-center justify-between">
+					<div className="flex items-center gap-2">
 						{canInvite && (
 							<CreateInviteDialog
 								roles={roles}
@@ -366,7 +349,13 @@ export default function TeamManagementPage() {
 								searchSpaceId={searchSpaceId}
 							/>
 						)}
-						{!canInvite && <div />}
+						{canInvite && activeInvites.length > 0 && (
+							<AllInvitesDialog
+								invites={activeInvites}
+								onRevokeInvite={handleRevokeInvite}
+							/>
+						)}
+					</div>
 						<p className="text-sm text-muted-foreground">
 							{members.length} {members.length === 1 ? "member" : "members"}
 						</p>
@@ -424,16 +413,7 @@ export default function TeamManagementPage() {
 									index={owners.length + index}
 								/>
 							))}
-							{paginatedInvites.map((invite, index) => (
-								<InviteRow
-									key={`invite-${invite.id}`}
-									invite={invite}
-									canRevoke={canInvite}
-									onRevokeInvite={handleRevokeInvite}
-									index={owners.length + paginatedMembers.length + index}
-								/>
-							))}
-							{members.length === 0 && activeInvites.length === 0 && (
+						{members.length === 0 && (
 								<TableRow>
 									<TableCell colSpan={3} className="text-center py-12">
 										<div className="flex flex-col items-center gap-2">
@@ -650,117 +630,6 @@ function MemberRow({
 	);
 }
 
-// ============ Invite Row ============
-
-function InviteRow({
-	invite,
-	canRevoke,
-	onRevokeInvite,
-	index,
-}: {
-	invite: Invite;
-	canRevoke: boolean;
-	onRevokeInvite: (inviteId: number) => Promise<boolean>;
-	index: number;
-}) {
-	const initials = getInviteInitials(invite);
-	const avatarColor = getAvatarColor(invite.invite_code);
-	const displayName = invite.name || "Unnamed Invite";
-
-	return (
-		<motion.tr
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1, transition: { duration: 0.2, delay: index * 0.02 } }}
-			className="border-b border-border/40 transition-colors hover:bg-muted/30"
-		>
-			<TableCell className="w-[45%] py-2.5 px-4 md:px-6 max-w-0 border-r border-border/40">
-				<div className="flex items-center gap-3">
-					<div
-						className={cn(
-							"h-10 w-10 rounded-full flex items-center justify-center text-white font-medium text-sm shrink-0 opacity-60",
-							avatarColor
-						)}
-					>
-						{initials}
-					</div>
-					<div className="min-w-0">
-						<p className="font-medium text-sm truncate text-muted-foreground">{displayName}</p>
-						{invite.role?.name && (
-							<p className="text-xs text-muted-foreground/70 truncate">
-								Will join as {invite.role.name}
-							</p>
-						)}
-					</div>
-				</div>
-			</TableCell>
-
-			<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/40">
-				Never
-			</TableCell>
-
-			<TableCell className="w-[30%] text-right py-2.5 px-4 md:px-6">
-				{canRevoke ? (
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild>
-							<button
-								type="button"
-								className="inline-flex items-center gap-1.5 text-sm text-muted-foreground/60"
-							>
-								Invited
-								<ChevronDown className="h-4 w-4" />
-							</button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
-							<DropdownMenuItem
-								onClick={() => {
-									const link = `${window.location.origin}/invite/${invite.invite_code}`;
-									navigator.clipboard.writeText(link);
-									toast.success("Invite link copied");
-								}}
-							>
-								<Copy className="h-4 w-4" />
-								Copy invite link
-							</DropdownMenuItem>
-							<DropdownMenuSeparator />
-							<AlertDialog>
-								<AlertDialogTrigger asChild>
-									<DropdownMenuItem
-										className="text-destructive focus:text-destructive"
-										onSelect={(e) => e.preventDefault()}
-									>
-										<Trash2 className="h-4 w-4" />
-										Revoke invite
-									</DropdownMenuItem>
-								</AlertDialogTrigger>
-								<AlertDialogContent>
-									<AlertDialogHeader>
-										<AlertDialogTitle>Revoke invite?</AlertDialogTitle>
-										<AlertDialogDescription>
-											This will permanently delete this invite link. Anyone with this link
-											will no longer be able to join.
-										</AlertDialogDescription>
-									</AlertDialogHeader>
-									<AlertDialogFooter>
-										<AlertDialogCancel>Cancel</AlertDialogCancel>
-										<AlertDialogAction
-											onClick={() => onRevokeInvite(invite.id)}
-											className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-										>
-											Revoke
-										</AlertDialogAction>
-									</AlertDialogFooter>
-								</AlertDialogContent>
-							</AlertDialog>
-						</DropdownMenuContent>
-					</DropdownMenu>
-				) : (
-					<span className="text-sm text-muted-foreground/60">Invited</span>
-				)}
-			</TableCell>
-		</motion.tr>
-	);
-}
-
 // ============ Create Invite Dialog ============
 
 function CreateInviteDialog({
@@ -843,8 +712,8 @@ function CreateInviteDialog({
 					Invite members
 				</Button>
 			</DialogTrigger>
-			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-md p-4 md:p-6 select-none">
-				{createdInvite ? (
+		<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-md p-4 md:p-6 select-none" onOpenAutoFocus={(e) => e.preventDefault()}>
+			{createdInvite ? (
 					<>
 						<DialogHeader>
 							<DialogTitle className="flex items-center gap-2">
@@ -985,6 +854,122 @@ function CreateInviteDialog({
 						</DialogFooter>
 					</>
 				)}
+			</DialogContent>
+		</Dialog>
+	);
+}
+
+// ============ All Invites Dialog ============
+
+function AllInvitesDialog({
+	invites,
+	onRevokeInvite,
+}: {
+	invites: Invite[];
+	onRevokeInvite: (inviteId: number) => Promise<boolean>;
+}) {
+	const [copiedId, setCopiedId] = useState<number | null>(null);
+
+	const copyLink = (invite: Invite) => {
+		const link = `${window.location.origin}/invite/${invite.invite_code}`;
+		navigator.clipboard.writeText(link);
+		setCopiedId(invite.id);
+		toast.success("Invite link copied");
+		setTimeout(() => setCopiedId(null), 2000);
+	};
+
+	return (
+		<Dialog>
+			<DialogTrigger asChild>
+				<Button variant="outline" className="gap-2">
+					<Link2 className="h-4 w-4 rotate-315" />
+					Active invites
+					<span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-muted text-xs font-medium">
+						{invites.length}
+					</span>
+				</Button>
+			</DialogTrigger>
+			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-lg p-4 md:p-6 select-none">
+				<DialogHeader>
+					<DialogTitle className="flex items-center gap-2">
+						Active Invite Links
+					</DialogTitle>
+					<DialogDescription>
+						{invites.length} active {invites.length === 1 ? "invite" : "invites"}. Copy a link or revoke access.
+					</DialogDescription>
+				</DialogHeader>
+				<div className="max-h-[320px] overflow-y-auto -mx-1 px-1 space-y-3 py-2">
+					{invites.map((invite) => (
+						<div
+							key={invite.id}
+							className="rounded-lg border border-border/40 p-3 space-y-2.5 transition-colors hover:bg-muted/30"
+						>
+							<div className="flex items-center justify-between gap-2">
+								<div className="flex items-center gap-2 min-w-0">
+									<p className="text-sm font-medium truncate">
+										{invite.name || "Unnamed invite"}
+									</p>
+									<div className="flex flex-wrap gap-x-2 text-xs text-muted-foreground shrink-0">
+										{invite.role?.name && (
+											<span className="rounded bg-muted px-1.5 py-0.5">{invite.role.name}</span>
+										)}
+										{invite.max_uses != null && (
+											<span className="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">
+												<Hash className="h-3 w-3" />
+												{invite.uses_count}/{invite.max_uses}
+											</span>
+										)}
+										{invite.expires_at && (
+											<span className="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5">
+												<Clock className="h-3 w-3" />
+												{new Date(invite.expires_at).toLocaleDateString()}
+											</span>
+										)}
+									</div>
+								</div>
+								<AlertDialog>
+									<AlertDialogTrigger asChild>
+										<Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-destructive/60 hover:text-destructive">
+											<Trash2 className="h-3.5 w-3.5" />
+										</Button>
+									</AlertDialogTrigger>
+									<AlertDialogContent>
+										<AlertDialogHeader>
+											<AlertDialogTitle>Revoke invite?</AlertDialogTitle>
+											<AlertDialogDescription>
+												This will permanently delete this invite link. Anyone with this link
+												will no longer be able to join.
+											</AlertDialogDescription>
+										</AlertDialogHeader>
+										<AlertDialogFooter>
+											<AlertDialogCancel>Cancel</AlertDialogCancel>
+											<AlertDialogAction
+												onClick={() => onRevokeInvite(invite.id)}
+												className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+											>
+												Revoke
+											</AlertDialogAction>
+										</AlertDialogFooter>
+									</AlertDialogContent>
+								</AlertDialog>
+							</div>
+							<div className="flex items-center gap-2 rounded-md bg-muted p-2">
+								<code className="flex-1 min-w-0 text-sm select-all overflow-x-auto whitespace-nowrap">
+									{typeof window !== "undefined"
+										? `${window.location.origin}/invite/${invite.invite_code}`
+										: `/invite/${invite.invite_code}`}
+								</code>
+								<Button variant="outline" size="sm" className="shrink-0" onClick={() => copyLink(invite)}>
+									{copiedId === invite.id ? (
+										<Check className="h-4 w-4 text-emerald-500" />
+									) : (
+										<Copy className="h-4 w-4" />
+									)}
+								</Button>
+							</div>
+						</div>
+					))}
+				</div>
 			</DialogContent>
 		</Dialog>
 	);
