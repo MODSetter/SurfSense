@@ -62,13 +62,74 @@ services:
       ELECTRIC_DB_USER: electric
       ELECTRIC_DB_PASSWORD: electric_password
       NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}
-      SERVICE_ROLE: all
+      SERVICE_ROLE: api
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
     restart: unless-stopped
+
+  celery_worker:
+    image: ghcr.io/modsetter/surfsense_backend:${SURFSENSE_VERSION:-latest}
+    volumes:
+      - shared_temp:/shared_tmp
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://surfsense:${DB_PASSWORD:-surfsense}@db:5432/surfsense
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      REDIS_APP_URL: redis://redis:6379/0
+      CELERY_TASK_DEFAULT_QUEUE: surfsense
+      PYTHONPATH: /app
+      ELECTRIC_DB_USER: electric
+      ELECTRIC_DB_PASSWORD: electric_password
+      SERVICE_ROLE: worker
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  celery_beat:
+    image: ghcr.io/modsetter/surfsense_backend:${SURFSENSE_VERSION:-latest}
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://surfsense:${DB_PASSWORD:-surfsense}@db:5432/surfsense
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CELERY_TASK_DEFAULT_QUEUE: surfsense
+      PYTHONPATH: /app
+      SERVICE_ROLE: beat
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      celery_worker:
+        condition: service_started
+    restart: unless-stopped
+
+  # flower:
+  #   image: ghcr.io/modsetter/surfsense_backend:${SURFSENSE_VERSION:-latest}
+  #   ports:
+  #     - "${FLOWER_PORT:-5555}:5555"
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     CELERY_BROKER_URL: redis://redis:6379/0
+  #     CELERY_RESULT_BACKEND: redis://redis:6379/0
+  #     PYTHONPATH: /app
+  #   command: celery -A app.celery_app flower --port=5555
+  #   depends_on:
+  #     - redis
+  #     - celery_worker
+  #   restart: unless-stopped
 
   electric:
     image: electricsql/electric:latest
