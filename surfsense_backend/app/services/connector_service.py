@@ -16,14 +16,14 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
-from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
+from app.retriever.chunks_hybrid_search import ChunksHybridSearchRetriever
 from app.retriever.documents_hybrid_search import DocumentHybridSearchRetriever
 
 
 class ConnectorService:
     def __init__(self, session: AsyncSession, search_space_id: int | None = None):
         self.session = session
-        self.chunk_retriever = ChucksHybridSearchRetriever(session)
+        self.chunk_retriever = ChunksHybridSearchRetriever(session)
         self.document_retriever = DocumentHybridSearchRetriever(session)
         self.search_space_id = search_space_id
         self.source_id_counter = (
