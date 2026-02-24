@@ -32,13 +32,13 @@ fi
 # ── Download files ───────────────────────────────────────────────────────────
 
 info "Creating installation directory: ${INSTALL_DIR}"
-mkdir -p "${INSTALL_DIR}"
+mkdir -p "${INSTALL_DIR}/scripts"
 
 FILES=(
     "docker/docker-compose.yml:docker-compose.yml"
     "docker/.env.example:.env.example"
     "docker/postgresql.conf:postgresql.conf"
-    "docker/scripts/init-electric-user.sh:init-electric-user.sh"
+    "docker/scripts/init-electric-user.sh:scripts/init-electric-user.sh"
 )
 
 for entry in "${FILES[@]}"; do
@@ -48,7 +48,7 @@ for entry in "${FILES[@]}"; do
     curl -fsSL "${REPO_RAW}/${src}" -o "${INSTALL_DIR}/${dest}" || error "Failed to download ${src}"
 done
 
-chmod +x "${INSTALL_DIR}/init-electric-user.sh"
+chmod +x "${INSTALL_DIR}/scripts/init-electric-user.sh"
 
 # ── Set up .env ──────────────────────────────────────────────────────────────
 
