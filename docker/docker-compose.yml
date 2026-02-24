@@ -43,7 +43,7 @@ services:
       retries: 5
 
   backend:
-    image: ghcr.io/modsetter/surfsense_backend:${SURFSENSE_VERSION:-latest}
+    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -51,10 +51,10 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@db:5432/${DB_NAME:-surfsense}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      REDIS_APP_URL: redis://redis:6379/0
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_APP_URL: ${REDIS_URL:-redis://redis:6379/0}
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
       UVICORN_LOOP: asyncio
@@ -71,16 +71,16 @@ services:
     restart: unless-stopped
 
   celery_worker:
-    image: ghcr.io/modsetter/surfsense_backend:${SURFSENSE_VERSION:-latest}
+    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
     volumes:
       - shared_temp:/shared_tmp
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@db:5432/${DB_NAME:-surfsense}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
-      REDIS_APP_URL: redis://redis:6379/0
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
+      REDIS_APP_URL: ${REDIS_URL:-redis://redis:6379/0}
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
       ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
@@ -96,13 +96,13 @@ services:
     restart: unless-stopped
 
   celery_beat:
-    image: ghcr.io/modsetter/surfsense_backend:${SURFSENSE_VERSION:-latest}
+    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@db:5432/${DB_NAME:-surfsense}
-      CELERY_BROKER_URL: redis://redis:6379/0
-      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
       SERVICE_ROLE: beat
@@ -116,14 +116,14 @@ services:
     restart: unless-stopped
 
   # flower:
-  #   image: ghcr.io/modsetter/surfsense_backend:${SURFSENSE_VERSION:-latest}
+  #   image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
   #   ports:
   #     - "${FLOWER_PORT:-5555}:5555"
   #   env_file:
   #     - .env
   #   environment:
-  #     CELERY_BROKER_URL: redis://redis:6379/0
-  #     CELERY_RESULT_BACKEND: redis://redis:6379/0
+  #     CELERY_BROKER_URL: ${REDIS_URL:-redis://redis:6379/0}
+  #     CELERY_RESULT_BACKEND: ${REDIS_URL:-redis://redis:6379/0}
   #     PYTHONPATH: /app
   #   command: celery -A app.celery_app flower --port=5555
   #   depends_on:
@@ -136,7 +136,7 @@ services:
     ports:
       - "${ELECTRIC_PORT:-5133}:3000"
     environment:
-      DATABASE_URL: ${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@db:5432/${DB_NAME:-surfsense}?sslmode=disable}
+      DATABASE_URL: ${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
       ELECTRIC_INSECURE: "true"
       ELECTRIC_WRITE_TO_PG_MODE: direct
     restart: unless-stopped
@@ -150,7 +150,7 @@ services:
       retries: 5
 
   frontend:
-    image: ghcr.io/modsetter/surfsense_web:${SURFSENSE_VERSION:-latest}
+    image: ghcr.io/modsetter/surfsense-web:${SURFSENSE_VERSION:-latest}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:

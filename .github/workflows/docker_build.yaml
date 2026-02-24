@@ -83,7 +83,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [linux/amd64, linux/arm64]
-        image: [backend, frontend]
+        image: [backend, web]
         include:
           - platform: linux/amd64
             suffix: amd64
@@ -92,11 +92,11 @@ jobs:
             suffix: arm64
             os: ubuntu-24.04-arm
           - image: backend
-            name: surfsense_backend
+            name: surfsense-backend
             context: ./surfsense_backend
             file: ./surfsense_backend/Dockerfile
-          - image: frontend
-            name: surfsense_web
+          - image: web
+            name: surfsense-web
             context: ./surfsense_web
             file: ./surfsense_web/Dockerfile
     env:
@@ -141,7 +141,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.suffix }}
           provenance: false
           build-args: |
-            ${{ matrix.image == 'frontend' && format('NEXT_PUBLIC_FASTAPI_BACKEND_URL=__NEXT_PUBLIC_FASTAPI_BACKEND_URL__{0}NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__{0}NEXT_PUBLIC_ETL_SERVICE=__NEXT_PUBLIC_ETL_SERVICE__{0}NEXT_PUBLIC_ELECTRIC_URL=__NEXT_PUBLIC_ELECTRIC_URL__{0}NEXT_PUBLIC_ELECTRIC_AUTH_MODE=__NEXT_PUBLIC_ELECTRIC_AUTH_MODE__{0}NEXT_PUBLIC_DEPLOYMENT_MODE=__NEXT_PUBLIC_DEPLOYMENT_MODE__', '\n') || '' }}
+            ${{ matrix.image == 'web' && format('NEXT_PUBLIC_FASTAPI_BACKEND_URL=__NEXT_PUBLIC_FASTAPI_BACKEND_URL__{0}NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__{0}NEXT_PUBLIC_ETL_SERVICE=__NEXT_PUBLIC_ETL_SERVICE__{0}NEXT_PUBLIC_ELECTRIC_URL=__NEXT_PUBLIC_ELECTRIC_URL__{0}NEXT_PUBLIC_ELECTRIC_AUTH_MODE=__NEXT_PUBLIC_ELECTRIC_AUTH_MODE__{0}NEXT_PUBLIC_DEPLOYMENT_MODE=__NEXT_PUBLIC_DEPLOYMENT_MODE__', '\n') || '' }}
 
   create_manifest:
     runs-on: ubuntu-latest
@@ -153,8 +153,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: surfsense_backend
-          - name: surfsense_web
+          - name: surfsense-backend
+          - name: surfsense-web
     env:
       REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
 

@@ -67,10 +67,10 @@ services:
     env_file:
       - ../surfsense_backend/.env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-surfsense}
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - REDIS_APP_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${REDIS_URL:-redis://redis:6379/0}
+      - REDIS_APP_URL=${REDIS_URL:-redis://redis:6379/0}
       - CELERY_TASK_DEFAULT_QUEUE=surfsense
       - PYTHONPATH=/app
       - UVICORN_LOOP=asyncio
@@ -96,10 +96,10 @@ services:
     env_file:
       - ../surfsense_backend/.env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-surfsense}
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - REDIS_APP_URL=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${REDIS_URL:-redis://redis:6379/0}
+      - REDIS_APP_URL=${REDIS_URL:-redis://redis:6379/0}
       - CELERY_TASK_DEFAULT_QUEUE=surfsense
       - PYTHONPATH=/app
       - ELECTRIC_DB_USER=${ELECTRIC_DB_USER:-electric}
@@ -118,9 +118,9 @@ services:
     env_file:
       - ../surfsense_backend/.env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@db:5432/${DB_NAME:-surfsense}
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - DATABASE_URL=${DATABASE_URL:-postgresql+asyncpg://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}}
+      - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${REDIS_URL:-redis://redis:6379/0}
       - CELERY_TASK_DEFAULT_QUEUE=surfsense
       - PYTHONPATH=/app
       - SERVICE_ROLE=beat
@@ -139,8 +139,8 @@ services:
   #   env_file:
   #     - ../surfsense_backend/.env
   #   environment:
-  #     - CELERY_BROKER_URL=redis://redis:6379/0
-  #     - CELERY_RESULT_BACKEND=redis://redis:6379/0
+  #     - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
+  #     - CELERY_RESULT_BACKEND=${REDIS_URL:-redis://redis:6379/0}
   #     - PYTHONPATH=/app
   #   command: celery -A app.celery_app flower --port=5555
   #   depends_on:
@@ -154,7 +154,7 @@ services:
     # depends_on:
     #   - db
     environment:
-      - DATABASE_URL=${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${POSTGRES_HOST:-db}:5432/${DB_NAME:-surfsense}?sslmode=disable}
+      - DATABASE_URL=${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
       - ELECTRIC_INSECURE=true
       - ELECTRIC_WRITE_TO_PG_MODE=direct
     restart: unless-stopped
