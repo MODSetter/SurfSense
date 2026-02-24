@@ -17,15 +17,15 @@ services:
       - ./postgresql.conf:/etc/postgresql/postgresql.conf:ro
       - ./scripts/init-electric-user.sh:/docker-entrypoint-initdb.d/init-electric-user.sh:ro
     environment:
-      POSTGRES_USER: surfsense
+      POSTGRES_USER: ${DB_USER:-surfsense}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-surfsense}
-      POSTGRES_DB: surfsense
-      ELECTRIC_DB_USER: electric
-      ELECTRIC_DB_PASSWORD: electric_password
+      POSTGRES_DB: ${DB_NAME:-surfsense}
+      ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
+      ELECTRIC_DB_PASSWORD: ${ELECTRIC_DB_PASSWORD:-electric_password}
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U surfsense -d surfsense"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-surfsense} -d ${DB_NAME:-surfsense}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,7 +51,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://surfsense:${DB_PASSWORD:-surfsense}@db:5432/surfsense
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@db:5432/${DB_NAME:-surfsense}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       REDIS_APP_URL: redis://redis:6379/0
@@ -59,8 +59,8 @@ services:
       PYTHONPATH: /app
       UVICORN_LOOP: asyncio
       UNSTRUCTURED_HAS_PATCHED_LOOP: "1"
-      ELECTRIC_DB_USER: electric
-      ELECTRIC_DB_PASSWORD: electric_password
+      ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
+      ELECTRIC_DB_PASSWORD: ${ELECTRIC_DB_PASSWORD:-electric_password}
       NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3000}}
       SERVICE_ROLE: api
     depends_on:
@@ -77,14 +77,14 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://surfsense:${DB_PASSWORD:-surfsense}@db:5432/surfsense
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@db:5432/${DB_NAME:-surfsense}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       REDIS_APP_URL: redis://redis:6379/0
       CELERY_TASK_DEFAULT_QUEUE: surfsense
       PYTHONPATH: /app
-      ELECTRIC_DB_USER: electric
-      ELECTRIC_DB_PASSWORD: electric_password
+      ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
+      ELECTRIC_DB_PASSWORD: ${ELECTRIC_DB_PASSWORD:-electric_password}
       SERVICE_ROLE: worker
     depends_on:
       db:
@@ -100,7 +100,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_URL: postgresql+asyncpg://surfsense:${DB_PASSWORD:-surfsense}@db:5432/surfsense
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-surfsense}:${DB_PASSWORD:-surfsense}@db:5432/${DB_NAME:-surfsense}
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/0
       CELERY_TASK_DEFAULT_QUEUE: surfsense
@@ -136,7 +136,7 @@ services:
     ports:
       - "${ELECTRIC_PORT:-5133}:3000"
     environment:
-      DATABASE_URL: postgresql://electric:electric_password@db:5432/surfsense?sslmode=disable
+      DATABASE_URL: ${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@db:5432/${DB_NAME:-surfsense}?sslmode=disable}
       ELECTRIC_INSECURE: "true"
       ELECTRIC_WRITE_TO_PG_MODE: direct
     restart: unless-stopped
