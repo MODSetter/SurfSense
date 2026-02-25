@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/main"
+REPO_RAW="https://raw.githubusercontent.com/AnishSarkar22/SurfSense/fix/docker"
 INSTALL_DIR="./surfsense"
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
