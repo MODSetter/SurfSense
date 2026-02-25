@@ -6,14 +6,14 @@
 
 set -euo pipefail
 
-REPO_RAW="https://raw.githubusercontent.com/AnishSarkar22/SurfSense/fix/docker"
+REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/main"
 INSTALL_DIR="./surfsense"
-GREEN='\033[0;32m'
+CYAN='\033[1;36m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-info()  { printf "${GREEN}[SurfSense]${NC} %s\n" "$1"; }
+info()  { printf "${CYAN}[SurfSense]${NC} %s\n" "$1"; }
 warn()  { printf "${YELLOW}[SurfSense]${NC} %s\n" "$1"; }
 error() { printf "${RED}[SurfSense]${NC} %s\n" "$1" >&2; exit 1; }
 
@@ -74,10 +74,21 @@ cd "${INSTALL_DIR}"
 ${DC} up -d
 
 echo ""
-info "=========================================="
-info "  SurfSense is starting up!"
-info "=========================================="
-info ""
+printf '\033[1;37m'
+cat << 'EOF'
+
+ .d8888b.                    .d888 .d8888b.                                      
+d88P  Y88b                  d88P" d88P  Y88b                                     
+Y88b.                       888   Y88b.                                          
+ "Y888b.   888  888 888d888 888888 "Y888b.    .d88b.  88888b.  .d8888b   .d88b.  
+    "Y88b. 888  888 888P"   888       "Y88b. d8P  Y8b 888 "88b 88K      d8P  Y8b 
+      "888 888  888 888     888         "888 88888888 888  888 "Y8888b. 88888888 
+Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.     
+ "Y8888P"   "Y88888 888     888    "Y8888P"   "Y8888  888  888  88888P'  "Y8888  
+
+EOF
+printf "         Your personal AI-powered search engine  ${YELLOW}v${SURFSENSE_VERSION:-latest}${NC}\n"
+printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
 info "  Frontend:  http://localhost:3000"
 info "  Backend:   http://localhost:8000"
 info "  API Docs:  http://localhost:8000/docs"
@@ -87,6 +98,5 @@ info "  Logs:      cd ${INSTALL_DIR} && ${DC} logs -f"
 info "  Stop:      cd ${INSTALL_DIR} && ${DC} down"
 info "  Update:    cd ${INSTALL_DIR} && ${DC} pull && ${DC} up -d"
 info ""
-warn "  First startup may take a few minutes while images are pulled."
+warn "  First startup may take sometime."
 warn "  Edit .env to configure OAuth connectors, API keys, etc."
-info "=========================================="
