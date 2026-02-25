@@ -148,7 +148,7 @@ services:
   #     - celery_worker
 
   electric:
-    image: electricsql/electric:latest
+    image: electricsql/electric:1.4.6
     ports:
       - "${ELECTRIC_PORT:-5133}:3000"
     # depends_on:
