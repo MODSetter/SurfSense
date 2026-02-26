@@ -81,21 +81,26 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 Run SurfSense on your own infrastructure for full data control and privacy.
 
-**Quick Start (Docker one-liner):**
-
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --name surfsense --restart unless-stopped ghcr.io/modsetter/surfsense:latest
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
-After starting, open [http://localhost:3000](http://localhost:3000) in your browser.
+For Docker Compose and other deployment options, see the [Docker Installation docs](https://www.surfsense.com/docs/docker-installation).
 
-**Update (Automatic updates with Watchtower):**
+**Update (recommended — Watchtower):**
 
 ```bash
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --run-once surfsense
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --run-once --label-filter "com.docker.compose.project=surfsense"
 ```
 
-For Docker Compose, manual installation, and other deployment options, check the [docs](https://www.surfsense.com/docs/).
+**Update (manual):**
+
+```bash
+cd surfsense   # or SurfSense/docker if you used Option 2
+docker compose pull && docker compose up -d
+```
+
+For manual installation and other deployment options, check the [docs](https://www.surfsense.com/docs/).
 
 ### How to Realtime Collaborate (Beta)
 
