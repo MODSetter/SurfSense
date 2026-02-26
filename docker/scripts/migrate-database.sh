@@ -2,9 +2,8 @@
 # =============================================================================
 # SurfSense — Database Migration Script
 #
-# Migrates data from the legacy all-in-one surfsense-data volume (PostgreSQL 14)
-# to the new multi-container surfsense-postgres volume (PostgreSQL 17) using
-# a logical pg_dump / psql restore — safe across major PG versions.
+# Extracts data from the legacy all-in-one surfsense-data volume (PostgreSQL 14)
+# and saves it as a SQL dump + SECRET_KEY file ready for install.sh to restore.
 #
 # Usage:
 #   bash migrate-database.sh [options]
@@ -13,18 +12,30 @@
 #   --db-user USER        Old PostgreSQL username   (default: surfsense)
 #   --db-password PASS    Old PostgreSQL password   (default: surfsense)
 #   --db-name NAME        Old PostgreSQL database   (default: surfsense)
-#   --install-dir DIR     New installation directory (default: ./surfsense)
 #   --yes / -y            Skip all confirmation prompts
 #   --help / -h           Show this help
 #
 # Prerequisites:
-#   - Docker and Docker Compose installed and running
+#   - Docker installed and running
 #   - The legacy surfsense-data volume must exist
 #   - ~500 MB free disk space for the dump file
 #
+# What this script does:
+#   1. Stops any container using surfsense-data (to prevent corruption)
+#   2. Starts a temporary PG14 container against the old volume
+#   3. Dumps the database to ./surfsense_migration_backup.sql
+#   4. Recovers the SECRET_KEY to ./surfsense_migration_secret.key
+#   5. Exits — leaving installation to install.sh
+#
 # What this script does NOT do:
-#   - Delete the original surfsense-data volume (you must do this manually
-#     after verifying the migration succeeded)
+#   - Delete the original surfsense-data volume (do this manually after verifying)
+#   - Install the new SurfSense stack (install.sh handles that automatically)
+#
+# Note:
+#   install.sh downloads and runs this script automatically when it detects the
+#   legacy surfsense-data volume. You only need to run this script manually if
+#   you have custom database credentials (--db-user / --db-password / --db-name)
+#   or if the automatic migration inside install.sh fails at the extraction step.
 # =============================================================================
 
 set -euo pipefail
@@ -49,18 +60,16 @@ error()   { printf "${RED}[SurfSense]${NC} ERROR: %s\n"  "$1" >&2; exit 1; }
 step()    { printf "\n${BOLD}${CYAN}── Step %s: %s${NC}\n" "$1" "$2"; }
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/main"
 OLD_VOLUME="surfsense-data"
-NEW_PG_VOLUME="surfsense-postgres"
 TEMP_CONTAINER="surfsense-pg14-migration"
 DUMP_FILE="./surfsense_migration_backup.sql"
-PG14_IMAGE="postgres:14"
+KEY_FILE="./surfsense_migration_secret.key"
+PG14_IMAGE="pgvector/pgvector:pg14"
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 OLD_DB_USER="surfsense"
 OLD_DB_PASSWORD="surfsense"
 OLD_DB_NAME="surfsense"
-INSTALL_DIR="./surfsense"
 AUTO_YES=false
 
 # ── Argument parsing ──────────────────────────────────────────────────────────
@@ -69,7 +78,6 @@ while [[ $# -gt 0 ]]; do
         --db-user)      OLD_DB_USER="$2";     shift 2 ;;
         --db-password)  OLD_DB_PASSWORD="$2"; shift 2 ;;
         --db-name)      OLD_DB_NAME="$2";     shift 2 ;;
-        --install-dir)  INSTALL_DIR="$2";     shift 2 ;;
         --yes|-y)       AUTO_YES=true;        shift   ;;
         --help|-h)
             grep '^#' "$0" | grep -v '^#!/' | sed 's/^# \{0,1\}//'
@@ -96,7 +104,7 @@ cleanup() {
         docker rm   "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
     fi
     if [[ $exit_code -ne 0 ]]; then
-        printf "\n${RED}[SurfSense]${NC} Migration failed (exit code %s).\n" "${exit_code}" >&2
+        printf "\n${RED}[SurfSense]${NC} Migration data extraction failed (exit code %s).\n" "${exit_code}" >&2
         printf "${RED}[SurfSense]${NC} Full log: %s\n" "${LOG_FILE}" >&2
         printf "${YELLOW}[SurfSense]${NC} Your original data in '${OLD_VOLUME}' is untouched.\n" >&2
     fi
@@ -104,7 +112,6 @@ cleanup() {
 trap cleanup EXIT
 
 # ── Wait-for-postgres helper ──────────────────────────────────────────────────
-# $1 = container name/id  $2 = db user  $3 = label for messages
 wait_for_pg() {
     local container="$1"
     local user="$2"
@@ -116,7 +123,7 @@ wait_for_pg() {
     until docker exec "${container}" pg_isready -U "${user}" -q 2>/dev/null; do
         attempt=$((attempt + 1))
         if [[ $attempt -ge $max_attempts ]]; then
-            error "${label} did not become ready after $((max_attempts * 2)) seconds.\nCheck logs: docker logs ${container}"
+            error "${label} did not become ready after $((max_attempts * 2)) seconds. Check: docker logs ${container}"
         fi
         printf "."
         sleep 2
@@ -142,7 +149,7 @@ Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.
 
 EOF
 printf "${NC}"
-printf "${CYAN}  Database Migration: All-in-One → Multi-Container (PG 14 → 17)${NC}\n"
+printf "${CYAN}  Data Extraction: All-in-One (PG14) → Migration Dump${NC}\n"
 printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
 
 # ── Step 0: Pre-flight checks ─────────────────────────────────────────────────
@@ -156,39 +163,31 @@ command -v docker >/dev/null 2>&1 \
 docker info >/dev/null 2>&1 \
     || error "Docker daemon is not running. Please start Docker and try again."
 
-# Docker Compose
-if docker compose version >/dev/null 2>&1; then
-    DC="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    DC="docker-compose"
-else
-    error "Docker Compose not found. Install it at: https://docs.docker.com/compose/install/"
-fi
-info "Docker Compose: ${DC}"
-
-# OS detection (needed for sed -i portability)
-case "$(uname -s)" in
-    Darwin*) OS_TYPE="darwin" ;;
-    Linux*)  OS_TYPE="linux"  ;;
-    CYGWIN*|MINGW*|MSYS*) OS_TYPE="windows" ;;
-    *) OS_TYPE="unknown" ;;
-esac
-info "OS: ${OS_TYPE}"
-
 # Old volume must exist
 docker volume ls --format '{{.Name}}' | grep -q "^${OLD_VOLUME}$" \
     || error "Legacy volume '${OLD_VOLUME}' not found.\n       Are you sure you ran the old all-in-one SurfSense container?"
 success "Found legacy volume: ${OLD_VOLUME}"
 
-# New PG volume must NOT already exist
-if docker volume ls --format '{{.Name}}' | grep -q "^${NEW_PG_VOLUME}$"; then
-    warn "Volume '${NEW_PG_VOLUME}' already exists."
-    warn "If migration already succeeded, you do not need to run this script again."
-    warn "If a previous run failed partway, remove the partial volume first:"
-    warn "  docker volume rm ${NEW_PG_VOLUME}"
-    error "Aborting to avoid overwriting existing data."
+# Detect and stop any container currently using the old volume
+# (mounting a live PG volume into a second container causes the new container's
+#  entrypoint to chown the data files, breaking the running container's access)
+OLD_CONTAINER=$(docker ps --filter "volume=${OLD_VOLUME}" --format '{{.Names}}' | head -n1 || true)
+if [[ -n "${OLD_CONTAINER}" ]]; then
+    warn "Container '${OLD_CONTAINER}' is running and using the '${OLD_VOLUME}' volume."
+    warn "It must be stopped before migration to prevent data file corruption."
+    confirm "Stop '${OLD_CONTAINER}' now and proceed with data extraction?"
+    docker stop "${OLD_CONTAINER}" >/dev/null 2>&1 \
+        || error "Failed to stop '${OLD_CONTAINER}'. Try: docker stop ${OLD_CONTAINER}"
+    success "Container '${OLD_CONTAINER}' stopped."
 fi
-success "Target volume '${NEW_PG_VOLUME}' does not yet exist — safe to proceed."
+
+# Bail out if a dump already exists — don't overwrite a previous successful run
+if [[ -f "${DUMP_FILE}" ]]; then
+    warn "Dump file '${DUMP_FILE}' already exists."
+    warn "If a previous extraction succeeded, just run install.sh now."
+    warn "To re-extract, remove the file first: rm ${DUMP_FILE}"
+    error "Aborting to avoid overwriting an existing dump."
+fi
 
 # Clean up any stale temp container from a previous failed run
 if docker ps -a --format '{{.Names}}' | grep -q "^${TEMP_CONTAINER}$"; then
@@ -212,14 +211,13 @@ fi
 success "All pre-flight checks passed."
 
 # ── Confirmation prompt ───────────────────────────────────────────────────────
-printf "\n${BOLD}Migration plan:${NC}\n"
+printf "\n${BOLD}Extraction plan:${NC}\n"
 printf "  Source volume   : ${YELLOW}%s${NC}  (PG14 data at /data/postgres)\n" "${OLD_VOLUME}"
-printf "  Target volume   : ${YELLOW}%s${NC}  (PG17 multi-container stack)\n" "${NEW_PG_VOLUME}"
 printf "  Old credentials : user=${YELLOW}%s${NC}  db=${YELLOW}%s${NC}\n" "${OLD_DB_USER}" "${OLD_DB_NAME}"
-printf "  Install dir     : ${YELLOW}%s${NC}\n" "${INSTALL_DIR}"
 printf "  Dump saved to   : ${YELLOW}%s${NC}\n" "${DUMP_FILE}"
+printf "  SECRET_KEY to   : ${YELLOW}%s${NC}\n" "${KEY_FILE}"
 printf "  Log file        : ${YELLOW}%s${NC}\n\n" "${LOG_FILE}"
-confirm "Start migration? (Your original data will not be deleted.)"
+confirm "Start data extraction? (Your original data will not be deleted or modified.)"
 
 # ── Step 1: Start temporary PostgreSQL 14 container ──────────────────────────
 step "1" "Starting temporary PostgreSQL 14 container"
@@ -228,6 +226,21 @@ info "Pulling ${PG14_IMAGE}..."
 docker pull "${PG14_IMAGE}" >/dev/null 2>&1 \
     || warn "Could not pull ${PG14_IMAGE} — using cached image if available."
 
+# Detect the UID that owns the existing data files and run the temp container
+# as that user. This prevents the official postgres image entrypoint from
+# running as root and doing `chown -R postgres /data/postgres`, which would
+# re-own the files to UID 999 and break any subsequent access by the original
+# container's postgres process (which may run as a different UID).
+DATA_UID=$(docker run --rm -v "${OLD_VOLUME}:/data" alpine \
+    stat -c '%u' /data/postgres 2>/dev/null || echo "")
+if [[ -z "${DATA_UID}" || "${DATA_UID}" == "0" ]]; then
+    warn "Could not detect data directory UID — falling back to default (may chown files)."
+    USER_FLAG=""
+else
+    info "Data directory owned by UID ${DATA_UID} — starting temp container as that user."
+    USER_FLAG="--user ${DATA_UID}"
+fi
+
 docker run -d \
     --name "${TEMP_CONTAINER}" \
     -v "${OLD_VOLUME}:/data" \
@@ -235,6 +248,7 @@ docker run -d \
     -e POSTGRES_USER="${OLD_DB_USER}" \
     -e POSTGRES_PASSWORD="${OLD_DB_PASSWORD}" \
     -e POSTGRES_DB="${OLD_DB_NAME}" \
+    ${USER_FLAG} \
     "${PG14_IMAGE}" >/dev/null
 
 success "Temporary container '${TEMP_CONTAINER}' started."
@@ -245,13 +259,12 @@ step "2" "Dumping PostgreSQL 14 database"
 
 info "Running pg_dump — this may take a while for large databases..."
 
-# Run pg_dump and capture stderr separately to detect real failures
 if ! docker exec \
         -e PGPASSWORD="${OLD_DB_PASSWORD}" \
         "${TEMP_CONTAINER}" \
         pg_dump -U "${OLD_DB_USER}" --no-password "${OLD_DB_NAME}" \
-        > "${DUMP_FILE}" 2>/tmp/pg_dump_err; then
-    cat /tmp/pg_dump_err >&2
+        > "${DUMP_FILE}" 2>/tmp/surfsense_pgdump_err; then
+    cat /tmp/surfsense_pgdump_err >&2
     error "pg_dump failed. See above for details."
 fi
 
@@ -271,7 +284,7 @@ DUMP_LINES=$(wc -l < "${DUMP_FILE}" | tr -d ' ')
 DUMP_SIZE=$(du -sh "${DUMP_FILE}" 2>/dev/null | cut -f1)
 success "Dump complete: ${DUMP_SIZE} (${DUMP_LINES} lines) → ${DUMP_FILE}"
 
-# Stop the temp container now (trap will also handle it on unexpected exit)
+# Stop the temp container (trap will also handle it on unexpected exit)
 info "Stopping temporary PostgreSQL 14 container..."
 docker stop "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
 docker rm   "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
@@ -292,148 +305,49 @@ if docker run --rm -v "${OLD_VOLUME}:/data" alpine \
     success "Recovered SECRET_KEY from '${OLD_VOLUME}'."
 else
     warn "No SECRET_KEY file found at /data/.secret_key in '${OLD_VOLUME}'."
-    warn "This means the all-in-one was launched with SECRET_KEY set as an explicit environment variable."
-    printf "${YELLOW}[SurfSense]${NC} Enter the SECRET_KEY from your old container's environment\n"
-    printf "${YELLOW}[SurfSense]${NC} (press Enter to generate a new one — existing sessions will be invalidated): "
-    read -r RECOVERED_KEY
-    if [[ -z "${RECOVERED_KEY}" ]]; then
+    warn "This means the all-in-one container was launched with SECRET_KEY set as an explicit env var."
+    if $AUTO_YES; then
+        # Non-interactive (called from install.sh) — auto-generate rather than hanging on read
         RECOVERED_KEY=$(openssl rand -base64 32 2>/dev/null \
             || head -c 32 /dev/urandom | base64 | tr -d '\n')
-        warn "Generated a new SECRET_KEY. All active browser sessions will be logged out after migration."
+        warn "Non-interactive mode: generated a new SECRET_KEY automatically."
+        warn "All active browser sessions will be logged out after migration."
+        warn "To restore your original key, update SECRET_KEY in ./surfsense/.env afterwards."
+    else
+        printf "${YELLOW}[SurfSense]${NC} Enter the SECRET_KEY from your old container's environment\n"
+        printf "${YELLOW}[SurfSense]${NC} (press Enter to generate a new one — existing sessions will be invalidated): "
+        read -r RECOVERED_KEY
+        if [[ -z "${RECOVERED_KEY}" ]]; then
+            RECOVERED_KEY=$(openssl rand -base64 32 2>/dev/null \
+                || head -c 32 /dev/urandom | base64 | tr -d '\n')
+            warn "Generated a new SECRET_KEY. All active browser sessions will be logged out after migration."
+        fi
     fi
 fi
 
-# ── Step 4: Set up the new installation ───────────────────────────────────────
-step "4" "Setting up new SurfSense installation"
-
-if [[ -f "${INSTALL_DIR}/docker-compose.yml" ]]; then
-    warn "Directory '${INSTALL_DIR}' already exists — skipping file download."
-else
-    info "Creating installation directory: ${INSTALL_DIR}"
-    mkdir -p "${INSTALL_DIR}/scripts"
-
-    FILES=(
-        "docker/docker-compose.yml:docker-compose.yml"
-        "docker/.env.example:.env.example"
-        "docker/postgresql.conf:postgresql.conf"
-        "docker/scripts/init-electric-user.sh:scripts/init-electric-user.sh"
-    )
-
-    for entry in "${FILES[@]}"; do
-        src="${entry%%:*}"
-        dest="${entry##*:}"
-        info "Downloading ${dest}..."
-        curl -fsSL "${REPO_RAW}/${src}" -o "${INSTALL_DIR}/${dest}" \
-            || error "Failed to download ${src}. Check your internet connection."
-    done
-
-    chmod +x "${INSTALL_DIR}/scripts/init-electric-user.sh"
-    success "Compose files downloaded to ${INSTALL_DIR}/"
-fi
-
-# Create .env from example if it does not exist
-if [[ ! -f "${INSTALL_DIR}/.env" ]]; then
-    cp "${INSTALL_DIR}/.env.example" "${INSTALL_DIR}/.env"
-    info "Created ${INSTALL_DIR}/.env from .env.example"
-fi
-
-# Write the recovered SECRET_KEY into .env (handles both placeholder and pre-set values)
-if [[ "${OS_TYPE}" == "darwin" ]]; then
-    sed -i '' "s|SECRET_KEY=replace_me_with_a_random_string|SECRET_KEY=${RECOVERED_KEY}|" "${INSTALL_DIR}/.env"
-    sed -i '' "s|^SECRET_KEY=.*|SECRET_KEY=${RECOVERED_KEY}|"                              "${INSTALL_DIR}/.env"
-else
-    sed -i "s|SECRET_KEY=replace_me_with_a_random_string|SECRET_KEY=${RECOVERED_KEY}|"    "${INSTALL_DIR}/.env"
-    sed -i "s|^SECRET_KEY=.*|SECRET_KEY=${RECOVERED_KEY}|"                                 "${INSTALL_DIR}/.env"
-fi
-success "SECRET_KEY written to ${INSTALL_DIR}/.env"
-
-# ── Step 5: Start PostgreSQL 17 (new stack) ───────────────────────────────────
-step "5" "Starting PostgreSQL 17"
-
-(cd "${INSTALL_DIR}" && ${DC} up -d db)
-
-# Resolve the running container name for direct docker exec calls
-PG17_CONTAINER=$(cd "${INSTALL_DIR}" && ${DC} ps -q db 2>/dev/null | head -n1 || true)
-if [[ -z "${PG17_CONTAINER}" ]]; then
-    # Fallback to the predictable compose container name
-    PG17_CONTAINER="surfsense-db-1"
-fi
-info "PostgreSQL 17 container: ${PG17_CONTAINER}"
-
-wait_for_pg "${PG17_CONTAINER}" "${OLD_DB_USER}" "PostgreSQL 17"
-
-# ── Step 6: Restore the dump ──────────────────────────────────────────────────
-step "6" "Restoring database into PostgreSQL 17"
-
-info "Running psql restore — this may take a while for large databases..."
-
-RESTORE_ERR_FILE="/tmp/surfsense_restore_err.log"
-
-docker exec -i \
-    -e PGPASSWORD="${OLD_DB_PASSWORD}" \
-    "${PG17_CONTAINER}" \
-    psql -U "${OLD_DB_USER}" -d "${OLD_DB_NAME}" \
-    < "${DUMP_FILE}" \
-    2>"${RESTORE_ERR_FILE}" || true   # psql exits non-zero on warnings; check below
-
-# Surface any real (non-benign) errors
-FATAL_ERRORS=$(grep -i "^ERROR:" "${RESTORE_ERR_FILE}" \
-    | grep -iv "already exists" \
-    | grep -iv "multiple primary keys" \
-    || true)
-
-if [[ -n "${FATAL_ERRORS}" ]]; then
-    warn "Restore completed with the following errors:"
-    printf "%s\n" "${FATAL_ERRORS}"
-    confirm "These may be harmless (e.g. pre-existing system objects). Continue?"
-else
-    success "Restore completed with no fatal errors."
-fi
-
-# Smoke test — verify tables exist in the restored database
-TABLE_COUNT=$(
-    docker exec \
-        -e PGPASSWORD="${OLD_DB_PASSWORD}" \
-        "${PG17_CONTAINER}" \
-        psql -U "${OLD_DB_USER}" -d "${OLD_DB_NAME}" -t \
-        -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" \
-        2>/dev/null | tr -d ' \n' || echo "0"
-)
-
-if [[ "${TABLE_COUNT}" == "0" || -z "${TABLE_COUNT}" ]]; then
-    warn "Smoke test: no tables found in the restored database."
-    warn "The restore may have failed silently. Inspect the dump and restore manually:"
-    warn "  docker exec -i ${PG17_CONTAINER} psql -U ${OLD_DB_USER} -d ${OLD_DB_NAME} < ${DUMP_FILE}"
-    confirm "Continue starting the rest of the stack anyway?"
-else
-    success "Smoke test passed: ${TABLE_COUNT} table(s) found in the restored database."
-fi
-
-# ── Step 7: Start all remaining services ──────────────────────────────────────
-step "7" "Starting all SurfSense services"
-
-(cd "${INSTALL_DIR}" && ${DC} up -d)
-success "All services started."
+# Save SECRET_KEY to a file for install.sh to pick up
+printf '%s' "${RECOVERED_KEY}" > "${KEY_FILE}"
+success "SECRET_KEY saved to ${KEY_FILE}"
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 printf "\n${GREEN}${BOLD}"
 printf "══════════════════════════════════════════════════════════════\n"
-printf "  Migration complete!\n"
+printf "  Data extraction complete!\n"
 printf "══════════════════════════════════════════════════════════════\n"
 printf "${NC}\n"
 
-success "  Frontend : http://localhost:3000"
-success "  Backend  : http://localhost:8000"
-success "  API Docs : http://localhost:8000/docs"
+success "Dump file : ${DUMP_FILE}  (${DUMP_SIZE})"
+success "Secret key: ${KEY_FILE}"
 printf "\n"
-info "  Config   : ${INSTALL_DIR}/.env"
-info "  Logs     : cd ${INSTALL_DIR} && ${DC} logs -f"
+info "Next step — run install.sh from this same directory:"
 printf "\n"
-warn "Next steps:"
-warn "  1. Open http://localhost:3000 and verify your data is intact."
-warn "  2. Once satisfied, remove the legacy volume (IRREVERSIBLE):"
-warn "       docker volume rm ${OLD_VOLUME}"
-warn "  3. Delete the dump file once you no longer need it as a backup:"
-warn "       rm ${DUMP_FILE}"
-warn "  Full migration log saved to: ${LOG_FILE}"
+printf "${CYAN}  curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash${NC}\n"
+printf "\n"
+info "install.sh will detect the dump, restore your data into PostgreSQL 17,"
+info "and start the full SurfSense stack automatically."
+printf "\n"
+warn "Keep both files until you have verified the migration:"
+warn "  ${DUMP_FILE}"
+warn "  ${KEY_FILE}"
+warn "Full log saved to: ${LOG_FILE}"
 printf "\n"
