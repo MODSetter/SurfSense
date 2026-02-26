@@ -90,7 +90,7 @@ For Docker Compose and other deployment options, see the [Docker Installation do
 **Update (recommended — Watchtower):**
 
 ```bash
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --run-once --label-enable
+docker run -d --name watchtower -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --label-enable --interval 86400
 ```
 
 **Update (manual):**

@@ -81,15 +81,26 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 在您自己的基础设施上运行 SurfSense，实现完全的数据控制和隐私保护。
 
-**快速开始（Docker 一行命令）：**
-
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --name surfsense --restart unless-stopped ghcr.io/modsetter/surfsense:latest
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
-启动后，在浏览器中打开 [http://localhost:3000](http://localhost:3000)。
+如需 Docker Compose 及其他部署方式，请查看 [Docker 安装文档](https://www.surfsense.com/docs/docker-installation)。
 
-如需 Docker Compose、手动安装及其他部署方式，请查看[文档](https://www.surfsense.com/docs/)。
+**更新（推荐 — Watchtower）：**
+
+```bash
+docker run -d --name watchtower -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --label-enable --interval 86400
+```
+
+**更新（手动）：**
+
+```bash
+cd surfsense   # 若使用了方式二，则为 SurfSense/docker
+docker compose pull && docker compose up -d
+```
+
+如需手动安装及其他部署方式，请查看[文档](https://www.surfsense.com/docs/)。
 
 ### 如何实时协作（Beta）
 
