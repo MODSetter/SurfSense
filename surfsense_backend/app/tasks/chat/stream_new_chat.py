@@ -412,6 +412,23 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
+            elif tool_name == "generate_video":
+                video_topic = (
+                    tool_input.get("topic", "Video")
+                    if isinstance(tool_input, dict)
+                    else "Video"
+                )
+                last_active_step_title = "Generating video"
+                last_active_step_items = [
+                    f"Topic: {video_topic}",
+                    "Composing visual content...",
+                ]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Generating video",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
             elif tool_name == "execute":
                 cmd = (
                     tool_input.get("command", "")
@@ -643,6 +660,42 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
+            elif tool_name == "generate_video":
+                video_status = (
+                    tool_output.get("status", "unknown")
+                    if isinstance(tool_output, dict)
+                    else "unknown"
+                )
+                video_title = (
+                    tool_output.get("title", "Video")
+                    if isinstance(tool_output, dict)
+                    else "Video"
+                )
+
+                if video_status == "ready":
+                    completed_items = [
+                        f"Topic: {video_title}",
+                        "Video ready",
+                    ]
+                elif video_status == "failed":
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    completed_items = [
+                        f"Topic: {video_title}",
+                        f"Error: {error_msg[:50]}",
+                    ]
+                else:
+                    completed_items = last_active_step_items
+
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Generating video",
+                    status="completed",
+                    items=completed_items,
+                )
             elif tool_name == "execute":
                 raw_text = (
                     tool_output.get("result", "")
@@ -844,6 +897,31 @@ async def _stream_agent_events(
                     )
                     yield streaming_service.format_terminal_info(
                         f"Report generation failed: {error_msg}",
+                        "error",
+                    )
+            elif tool_name == "generate_video":
+                yield streaming_service.format_tool_output_available(
+                    tool_call_id,
+                    tool_output
+                    if isinstance(tool_output, dict)
+                    else {"result": tool_output},
+                )
+                if (
+                    isinstance(tool_output, dict)
+                    and tool_output.get("status") == "ready"
+                ):
+                    yield streaming_service.format_terminal_info(
+                        f"Video ready: {tool_output.get('title', 'Video')}",
+                        "success",
+                    )
+                else:
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    yield streaming_service.format_terminal_info(
+                        f"Video failed: {error_msg}",
                         "error",
                     )
             elif tool_name in (

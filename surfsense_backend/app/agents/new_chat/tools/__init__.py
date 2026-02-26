@@ -8,6 +8,7 @@ Available tools:
 - search_knowledge_base: Search the user's personal knowledge base
 - search_surfsense_docs: Search Surfsense documentation for usage help
 - generate_podcast: Generate audio podcasts from content
+- generate_video: Generate animated Remotion video components from content
 - generate_image: Generate images from text descriptions using AI models
 - link_preview: Fetch rich previews for URLs
 - display_image: Display images in chat
@@ -39,6 +40,7 @@ from .registry import (
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
 from .user_memory import create_recall_memory_tool, create_save_memory_tool
+from .video import create_generate_video_tool
 
 __all__ = [
     # Registry
@@ -51,6 +53,7 @@ __all__ = [
     "create_display_image_tool",
     "create_generate_image_tool",
     "create_generate_podcast_tool",
+    "create_generate_video_tool",
     "create_link_preview_tool",
     "create_recall_memory_tool",
     "create_save_memory_tool",
