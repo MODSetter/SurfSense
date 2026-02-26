@@ -171,6 +171,16 @@ All services start automatically with `docker compose up -d`.
 
 ---
 
+## Migrating from the All-in-One Container
+
+<Callout type="warn">
+If you were previously using `docker-compose.quickstart.yml` (the legacy all-in-one `surfsense` container), your data lives in a `surfsense-data` volume and requires a **one-time migration** before switching to the current setup. PostgreSQL has been upgraded from version 14 to 17, so a simple volume swap will not work.
+
+See the full step-by-step guide: [Migrate from the All-in-One Container](/docs/how-to/migrate-from-allinone).
+</Callout>
+
+---
+
 ## Updating
 
 **Option 1 — Watchtower (recommended):**

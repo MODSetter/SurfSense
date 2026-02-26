@@ -1,5 +1,5 @@
 {
 	"title": "How to",
-	"pages": ["electric-sql", "realtime-collaboration"],
+	"pages": ["electric-sql", "realtime-collaboration", "migrate-from-allinone"],
 	"defaultOpen": false
 }

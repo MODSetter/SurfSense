@@ -21,6 +21,20 @@ error() { printf "${RED}[SurfSense]${NC} %s\n" "$1" >&2; exit 1; }
 
 command -v docker >/dev/null 2>&1 || error "Docker is not installed. Please install Docker first: https://docs.docker.com/get-docker/"
 
+# Detect legacy all-in-one volume — must migrate before installing
+if docker volume ls --format '{{.Name}}' 2>/dev/null | grep -q '^surfsense-data$'; then
+    printf "${RED}[SurfSense]${NC} Legacy volume 'surfsense-data' detected.\n" >&2
+    printf "${YELLOW}[SurfSense]${NC} You appear to be upgrading from the old all-in-one SurfSense container.\n" >&2
+    printf "${YELLOW}[SurfSense]${NC} The database has been upgraded from PostgreSQL 14 to 17 and your data\n" >&2
+    printf "${YELLOW}[SurfSense]${NC} must be migrated before running the new stack.\n" >&2
+    printf "\n" >&2
+    printf "${YELLOW}[SurfSense]${NC} Run the migration script first:\n" >&2
+    printf "${CYAN}[SurfSense]${NC}   curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/migrate-database.sh | bash\n" >&2
+    printf "\n" >&2
+    printf "${YELLOW}[SurfSense]${NC} See the full guide at: https://surfsense.net/docs/how-to/migrate-from-allinone\n" >&2
+    exit 1
+fi
+
 if docker compose version >/dev/null 2>&1; then
     DC="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
