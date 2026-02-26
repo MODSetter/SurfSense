@@ -184,6 +184,10 @@ services:
 
 volumes:
   postgres_data:
+    name: surfsense-postgres
   pgadmin_data:
+    name: surfsense-pgadmin
   redis_data:
+    name: surfsense-redis
   shared_temp:
+    name: surfsense-shared-temp
