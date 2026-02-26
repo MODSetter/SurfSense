@@ -132,7 +132,7 @@ wait_for_pg() {
     success "${label} is ready."
 }
 
-step "Migrating data from legacy database (PostgreSQL 14 → 17)"
+info "Migrating data from legacy database (PostgreSQL 14 → 17)"
 
 # ── Step 0: Pre-flight checks ─────────────────────────────────────────────────
 step "0" "Pre-flight checks"

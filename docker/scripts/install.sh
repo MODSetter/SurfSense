@@ -178,6 +178,8 @@ if $MIGRATION_MODE; then
     wait_for_pg "${DB_USER}"
 
     step "Restoring database"
+    [[ -f "${DUMP_FILE}" ]] \
+        || error "Dump file '${DUMP_FILE}' not found. The migration script may have failed.\n  Check: ./surfsense-migration.log\n  Or run manually: bash ${INSTALL_DIR}/scripts/migrate-database.sh --yes"
     info "Restoring dump into PostgreSQL 17 — this may take a while for large databases..."
 
     RESTORE_ERR="/tmp/surfsense_restore_err.log"
