@@ -132,25 +132,7 @@ wait_for_pg() {
     success "${label} is ready."
 }
 
-# ── Banner ────────────────────────────────────────────────────────────────────
-printf "\n${BOLD}${CYAN}"
-cat << 'EOF'
-
-
- .d8888b.                    .d888 .d8888b.                                      
-d88P  Y88b                  d88P" d88P  Y88b                                     
-Y88b.                       888   Y88b.                                          
- "Y888b.   888  888 888d888 888888 "Y888b.    .d88b.  88888b.  .d8888b   .d88b.  
-    "Y88b. 888  888 888P"   888       "Y88b. d8P  Y8b 888 "88b 88K      d8P  Y8b 
-      "888 888  888 888     888         "888 88888888 888  888 "Y8888b. 88888888 
-Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.     
- "Y8888P"   "Y88888 888     888    "Y8888P"   "Y8888  888  888  88888P'  "Y8888  
-
-
-EOF
-printf "${NC}"
-printf "${CYAN}  Data Extraction: All-in-One (PG14) → Migration Dump${NC}\n"
-printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
+step "Migrating data from legacy database (PostgreSQL 14 → 17)"
 
 # ── Step 0: Pre-flight checks ─────────────────────────────────────────────────
 step "0" "Pre-flight checks"

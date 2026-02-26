@@ -247,7 +247,12 @@ Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.
 
 
 EOF
-printf "         Your personal AI-powered search engine  ${YELLOW}v${SURFSENSE_VERSION:-latest}${NC}\n"
+if [[ "${SURFSENSE_VERSION:-latest}" == "latest" ]]; then
+    _version_display="latest"
+else
+    _version_display="v${SURFSENSE_VERSION}"
+fi
+printf "         Your personal AI-powered search engine  ${YELLOW}[%s]${NC}\n" "${_version_display}"
 printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
 
 info "  Frontend:  http://localhost:3000"
