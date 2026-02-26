@@ -131,7 +131,7 @@ export function MobileSidebar({
 				</div>
 
 				{/* Sidebar Content - right side */}
-				<div className="flex-1 overflow-hidden flex flex-col">
+				<div className="flex-1 overflow-hidden flex flex-col [&>*]:!w-full">
 					<Sidebar
 						searchSpace={searchSpace}
 						isCollapsed={false}

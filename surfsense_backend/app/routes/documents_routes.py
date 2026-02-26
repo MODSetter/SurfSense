@@ -44,6 +44,10 @@ os.environ["UNSTRUCTURED_HAS_PATCHED_LOOP"] = "1"
 
 router = APIRouter()
 
+MAX_FILES_PER_UPLOAD = 10
+MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB per file
+MAX_TOTAL_SIZE_BYTES = 200 * 1024 * 1024  # 200 MB total
+
 
 @router.post("/documents")
 async def create_documents(
@@ -148,12 +152,37 @@ async def create_documents_file_upload(
         if not files:
             raise HTTPException(status_code=400, detail="No files provided")
 
+        if len(files) > MAX_FILES_PER_UPLOAD:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Too many files. Maximum {MAX_FILES_PER_UPLOAD} files per upload.",
+            )
+
+        total_size = 0
+        for file in files:
+            file_size = file.size or 0
+            if file_size > MAX_FILE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File '{file.filename}' ({file_size / (1024 * 1024):.1f} MB) "
+                    f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
+                )
+            total_size += file_size
+
+        if total_size > MAX_TOTAL_SIZE_BYTES:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Total upload size ({total_size / (1024 * 1024):.1f} MB) "
+                f"exceeds the {MAX_TOTAL_SIZE_BYTES // (1024 * 1024)} MB limit.",
+            )
+
         created_documents: list[Document] = []
         files_to_process: list[
             tuple[Document, str, str]
         ] = []  # (document, temp_path, filename)
         skipped_duplicates = 0
         duplicate_document_ids: list[int] = []
+        actual_total_size = 0
 
         # ===== PHASE 1: Create pending documents for all files =====
         # This makes ALL documents visible in the UI immediately with pending status
@@ -169,10 +198,27 @@ async def create_documents_file_upload(
                     temp_path = temp_file.name
 
                 content = await file.read()
+                file_size = len(content)
+
+                if file_size > MAX_FILE_SIZE_BYTES:
+                    os.unlink(temp_path)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File '{file.filename}' ({file_size / (1024 * 1024):.1f} MB) "
+                        f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
+                    )
+
+                actual_total_size += file_size
+                if actual_total_size > MAX_TOTAL_SIZE_BYTES:
+                    os.unlink(temp_path)
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"Total upload size ({actual_total_size / (1024 * 1024):.1f} MB) "
+                        f"exceeds the {MAX_TOTAL_SIZE_BYTES // (1024 * 1024)} MB limit.",
+                    )
+
                 with open(temp_path, "wb") as f:
                     f.write(content)
-
-                file_size = len(content)
 
                 # Generate unique identifier for deduplication check
                 unique_identifier_hash = generate_unique_identifier_hash(
@@ -373,10 +419,11 @@ async def read_documents(
         # Convert database objects to API-friendly format
         api_documents = []
         for doc in db_documents:
-            # Get user name (display_name or email fallback)
             created_by_name = None
+            created_by_email = None
             if doc.created_by:
-                created_by_name = doc.created_by.display_name or doc.created_by.email
+                created_by_name = doc.created_by.display_name
+                created_by_email = doc.created_by.email
 
             # Parse status from JSONB
             status_data = None
@@ -400,6 +447,7 @@ async def read_documents(
                     search_space_id=doc.search_space_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
+                    created_by_email=created_by_email,
                     status=status_data,
                 )
             )
@@ -528,10 +576,11 @@ async def search_documents(
         # Convert database objects to API-friendly format
         api_documents = []
         for doc in db_documents:
-            # Get user name (display_name or email fallback)
             created_by_name = None
+            created_by_email = None
             if doc.created_by:
-                created_by_name = doc.created_by.display_name or doc.created_by.email
+                created_by_name = doc.created_by.display_name
+                created_by_email = doc.created_by.email
 
             # Parse status from JSONB
             status_data = None
@@ -555,6 +604,7 @@ async def search_documents(
                     search_space_id=doc.search_space_id,
                     created_by_id=doc.created_by_id,
                     created_by_name=created_by_name,
+                    created_by_email=created_by_email,
                     status=status_data,
                 )
             )

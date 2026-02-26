@@ -9,13 +9,14 @@ Supports loading LLM configurations from:
 - NewLLMConfig database table (positive IDs for user-created configs with prompt settings)
 """
 
+import asyncio
 import json
+import logging
+import re
 from collections.abc import AsyncGenerator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
-
-import logging
 
 from langchain_core.messages import HumanMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,7 +31,13 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
-from app.db import ChatVisibility, Document, Report, SurfsenseDocsDocument, async_session_maker
+from app.db import (
+    ChatVisibility,
+    Document,
+    Report,
+    SurfsenseDocsDocument,
+    async_session_maker,
+)
 from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
 from app.services.chat_session_state_service import (
     clear_ai_responding,
@@ -187,6 +194,7 @@ class StreamResult:
     accumulated_text: str = ""
     is_interrupted: bool = False
     interrupt_value: dict[str, Any] | None = None
+    sandbox_files: list[str] = field(default_factory=list)
 
 
 async def _stream_agent_events(
@@ -401,6 +409,21 @@ async def _stream_agent_events(
                 yield streaming_service.format_thinking_step(
                     step_id=tool_step_id,
                     title=step_title,
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
+            elif tool_name == "execute":
+                cmd = (
+                    tool_input.get("command", "")
+                    if isinstance(tool_input, dict)
+                    else str(tool_input)
+                )
+                display_cmd = cmd[:80] + ("…" if len(cmd) > 80 else "")
+                last_active_step_title = "Running command"
+                last_active_step_items = [f"$ {display_cmd}"]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Running command",
                     status="in_progress",
                     items=last_active_step_items,
                 )
@@ -620,6 +643,32 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
+            elif tool_name == "execute":
+                raw_text = (
+                    tool_output.get("result", "")
+                    if isinstance(tool_output, dict)
+                    else str(tool_output)
+                )
+                m = re.match(r"^Exit code:\s*(\d+)", raw_text)
+                exit_code_val = int(m.group(1)) if m else None
+                if exit_code_val is not None and exit_code_val == 0:
+                    completed_items = [
+                        *last_active_step_items,
+                        "Completed successfully",
+                    ]
+                elif exit_code_val is not None:
+                    completed_items = [
+                        *last_active_step_items,
+                        f"Exit code: {exit_code_val}",
+                    ]
+                else:
+                    completed_items = [*last_active_step_items, "Finished"]
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Running command",
+                    status="completed",
+                    items=completed_items,
+                )
             elif tool_name == "ls":
                 if isinstance(tool_output, dict):
                     ls_output = tool_output.get("result", "")
@@ -804,12 +853,44 @@ async def _stream_agent_events(
                 "create_linear_issue",
                 "update_linear_issue",
                 "delete_linear_issue",
+                "create_google_drive_file",
+                "delete_google_drive_file",
             ):
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
                     tool_output
                     if isinstance(tool_output, dict)
                     else {"result": tool_output},
+                )
+            elif tool_name == "execute":
+                raw_text = (
+                    tool_output.get("result", "")
+                    if isinstance(tool_output, dict)
+                    else str(tool_output)
+                )
+                exit_code: int | None = None
+                output_text = raw_text
+                m = re.match(r"^Exit code:\s*(\d+)", raw_text)
+                if m:
+                    exit_code = int(m.group(1))
+                    om = re.search(r"\nOutput:\n([\s\S]*)", raw_text)
+                    output_text = om.group(1) if om else ""
+                thread_id_str = config.get("configurable", {}).get("thread_id", "")
+
+                for sf_match in re.finditer(
+                    r"^SANDBOX_FILE:\s*(.+)$", output_text, re.MULTILINE
+                ):
+                    fpath = sf_match.group(1).strip()
+                    if fpath and fpath not in result.sandbox_files:
+                        result.sandbox_files.append(fpath)
+
+                yield streaming_service.format_tool_output_available(
+                    tool_call_id,
+                    {
+                        "exit_code": exit_code,
+                        "output": output_text,
+                        "thread_id": thread_id_str,
+                    },
                 )
             else:
                 yield streaming_service.format_tool_output_available(
@@ -879,6 +960,36 @@ async def _stream_agent_events(
         yield streaming_service.format_interrupt_request(result.interrupt_value)
 
 
+def _try_persist_and_delete_sandbox(
+    thread_id: int,
+    sandbox_files: list[str],
+) -> None:
+    """Fire-and-forget: persist sandbox files locally then delete the sandbox."""
+    from app.agents.new_chat.sandbox import (
+        is_sandbox_enabled,
+        persist_and_delete_sandbox,
+    )
+
+    if not is_sandbox_enabled():
+        return
+
+    async def _run() -> None:
+        try:
+            await persist_and_delete_sandbox(thread_id, sandbox_files)
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "persist_and_delete_sandbox failed for thread %s",
+                thread_id,
+                exc_info=True,
+            )
+
+    try:
+        loop = asyncio.get_running_loop()
+        loop.create_task(_run())
+    except RuntimeError:
+        pass
+
+
 async def stream_new_chat(
     user_query: str,
     search_space_id: int,
@@ -915,6 +1026,7 @@ async def stream_new_chat(
         str: SSE formatted response strings
     """
     streaming_service = VercelStreamingService()
+    stream_result = StreamResult()
 
     try:
         # Mark AI as responding to this user for live collaboration
@@ -975,6 +1087,22 @@ async def stream_new_chat(
         # Get the PostgreSQL checkpointer for persistent conversation memory
         checkpointer = await get_checkpointer()
 
+        # Optionally provision a sandboxed code execution environment
+        sandbox_backend = None
+        from app.agents.new_chat.sandbox import (
+            get_or_create_sandbox,
+            is_sandbox_enabled,
+        )
+
+        if is_sandbox_enabled():
+            try:
+                sandbox_backend = await get_or_create_sandbox(chat_id)
+            except Exception as sandbox_err:
+                logging.getLogger(__name__).warning(
+                    "Sandbox creation failed, continuing without execute tool: %s",
+                    sandbox_err,
+                )
+
         visibility = thread_visibility or ChatVisibility.PRIVATE
         agent = await create_surfsense_deep_agent(
             llm=llm,
@@ -987,6 +1115,7 @@ async def stream_new_chat(
             agent_config=agent_config,
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
+            sandbox_backend=sandbox_backend,
         )
 
         # Build input with message history
@@ -1180,7 +1309,6 @@ async def stream_new_chat(
             items=initial_items,
         )
 
-        stream_result = StreamResult()
         async for sse in _stream_agent_events(
             agent=agent,
             config=config,
@@ -1294,6 +1422,8 @@ async def stream_new_chat(
                     "Failed to clear AI responding state for thread %s", chat_id
                 )
 
+        _try_persist_and_delete_sandbox(chat_id, stream_result.sandbox_files)
+
 
 async def stream_resume_chat(
     chat_id: int,
@@ -1305,6 +1435,7 @@ async def stream_resume_chat(
     thread_visibility: ChatVisibility | None = None,
 ) -> AsyncGenerator[str, None]:
     streaming_service = VercelStreamingService()
+    stream_result = StreamResult()
 
     try:
         if user_id:
@@ -1352,6 +1483,22 @@ async def stream_resume_chat(
             firecrawl_api_key = webcrawler_connector.config.get("FIRECRAWL_API_KEY")
 
         checkpointer = await get_checkpointer()
+
+        sandbox_backend = None
+        from app.agents.new_chat.sandbox import (
+            get_or_create_sandbox,
+            is_sandbox_enabled,
+        )
+
+        if is_sandbox_enabled():
+            try:
+                sandbox_backend = await get_or_create_sandbox(chat_id)
+            except Exception as sandbox_err:
+                logging.getLogger(__name__).warning(
+                    "Sandbox creation failed, continuing without execute tool: %s",
+                    sandbox_err,
+                )
+
         visibility = thread_visibility or ChatVisibility.PRIVATE
 
         agent = await create_surfsense_deep_agent(
@@ -1365,6 +1512,7 @@ async def stream_resume_chat(
             agent_config=agent_config,
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
+            sandbox_backend=sandbox_backend,
         )
 
         # Release the transaction before streaming (same rationale as stream_new_chat).
@@ -1380,7 +1528,6 @@ async def stream_resume_chat(
         yield streaming_service.format_message_start()
         yield streaming_service.format_start_step()
 
-        stream_result = StreamResult()
         async for sse in _stream_agent_events(
             agent=agent,
             config=config,
@@ -1423,3 +1570,5 @@ async def stream_resume_chat(
                 logging.getLogger(__name__).warning(
                     "Failed to clear AI responding state for thread %s", chat_id
                 )
+
+        _try_persist_and_delete_sandbox(chat_id, stream_result.sandbox_files)

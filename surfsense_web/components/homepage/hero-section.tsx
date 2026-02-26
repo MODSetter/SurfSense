@@ -5,7 +5,7 @@ import Link from "next/link";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import Balancer from "react-wrap-balancer";
-import { WalkthroughScroll } from "@/components/ui/walkthrough-scroll";
+import { HeroCarousel } from "@/components/ui/hero-carousel";
 import { AUTH_TYPE, BACKEND_URL } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 import { cn } from "@/lib/utils";
@@ -97,18 +97,18 @@ export function HeroSection() {
 				)}
 			</h2>
 			{/* // TODO:aCTUAL DESCRITION */}
-			<p className="relative z-50 mx-auto mt-4 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
+			<p className="relative z-50 mx-auto mt-4 max-w-xl px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
 				Connect any AI to your documents, Drive, Notion and more,
 			</p>
-			<p className="relative z-50 mx-auto mt-0 max-w-lg px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				then chat with it, invite your team, or generate podcasts and reports.
+			<p className="relative z-50 mx-auto mt-0 max-w-xl px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
+				then chat with it, generate podcasts and reports, or even invite your team.
 			</p>
 			<div className="mb-6 mt-6 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-10">
 				<GetStartedButton />
 				{/* <ContactSalesButton /> */}
 			</div>
-			<div ref={containerRef} className="relative w-full">
-				<WalkthroughScroll />
+			<div ref={containerRef} className="relative w-full z-51">
+				<HeroCarousel />
 			</div>
 		</div>
 	);

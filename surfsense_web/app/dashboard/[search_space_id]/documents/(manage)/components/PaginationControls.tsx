@@ -30,7 +30,7 @@ export function PaginationControls({
 
 	return (
 		<motion.div
-			className="flex items-center justify-end gap-3 py-3 px-2"
+			className="flex items-center justify-end gap-3 py-3 px-2 select-none"
 			initial={{ opacity: 0, y: 10 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.3 }}

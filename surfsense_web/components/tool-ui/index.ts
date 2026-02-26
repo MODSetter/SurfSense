@@ -32,6 +32,7 @@ export {
 } from "./display-image";
 export { GeneratePodcastToolUI } from "./generate-podcast";
 export { GenerateReportToolUI } from "./generate-report";
+export { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "./google-drive";
 export {
 	Image,
 	ImageErrorBoundary,
@@ -77,6 +78,13 @@ export {
 	type SerializablePlan,
 	type TodoStatus,
 } from "./plan";
+export {
+	type ExecuteArgs,
+	ExecuteArgsSchema,
+	type ExecuteResult,
+	ExecuteResultSchema,
+	SandboxExecuteToolUI,
+} from "./sandbox-execute";
 export {
 	type ScrapeWebpageArgs,
 	ScrapeWebpageArgsSchema,

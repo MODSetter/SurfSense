@@ -93,7 +93,7 @@ export function Sidebar({
 	return (
 		<div
 			className={cn(
-				"relative flex h-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden",
+				"relative flex h-full flex-col bg-sidebar text-sidebar-foreground overflow-hidden select-none",
 				isCollapsed ? "w-[60px] transition-all duration-200" : "",
 				!isCollapsed && !isResizing ? "transition-all duration-200" : "",
 				className

@@ -26,7 +26,7 @@ interface DocumentElectric {
 	status: DocumentStatusType | null;
 }
 
-// Document for display (with resolved user name)
+// Document for display (with resolved user name and email)
 export interface DocumentDisplay {
 	id: number;
 	search_space_id: number;
@@ -34,6 +34,7 @@ export interface DocumentDisplay {
 	title: string;
 	created_by_id: string | null;
 	created_by_name: string | null;
+	created_by_email: string | null;
 	created_at: string;
 	status: DocumentStatusType;
 }
@@ -94,8 +95,9 @@ export function useDocuments(
 	// Track if initial API load is complete (source of truth)
 	const apiLoadedRef = useRef(false);
 
-	// User cache: userId → displayName
+	// User cache: userId → displayName / email
 	const userCacheRef = useRef<Map<string, string>>(new Map());
+	const emailCacheRef = useRef<Map<string, string>>(new Map());
 
 	// Electric sync refs
 	const syncHandleRef = useRef<SyncHandle | null>(null);
@@ -119,10 +121,21 @@ export function useDocuments(
 
 	// Populate user cache from API response
 	const populateUserCache = useCallback(
-		(items: Array<{ created_by_id?: string | null; created_by_name?: string | null }>) => {
+		(
+			items: Array<{
+				created_by_id?: string | null;
+				created_by_name?: string | null;
+				created_by_email?: string | null;
+			}>
+		) => {
 			for (const item of items) {
-				if (item.created_by_id && item.created_by_name) {
-					userCacheRef.current.set(item.created_by_id, item.created_by_name);
+				if (item.created_by_id) {
+					if (item.created_by_name) {
+						userCacheRef.current.set(item.created_by_id, item.created_by_name);
+					}
+					if (item.created_by_email) {
+						emailCacheRef.current.set(item.created_by_id, item.created_by_email);
+					}
 				}
 			}
 		},
@@ -138,6 +151,7 @@ export function useDocuments(
 			title: string;
 			created_by_id?: string | null;
 			created_by_name?: string | null;
+			created_by_email?: string | null;
 			created_at: string;
 			status?: DocumentStatusType | null;
 		}): DocumentDisplay => ({
@@ -147,6 +161,7 @@ export function useDocuments(
 			title: item.title,
 			created_by_id: item.created_by_id ?? null,
 			created_by_name: item.created_by_name ?? null,
+			created_by_email: item.created_by_email ?? null,
 			created_at: item.created_at,
 			status: item.status ?? { state: "ready" },
 		}),
@@ -159,6 +174,9 @@ export function useDocuments(
 			...doc,
 			created_by_name: doc.created_by_id
 				? (userCacheRef.current.get(doc.created_by_id) ?? null)
+				: null,
+			created_by_email: doc.created_by_id
+				? (emailCacheRef.current.get(doc.created_by_id) ?? null)
 				: null,
 			status: doc.status ?? { state: "ready" },
 		}),
@@ -351,6 +369,9 @@ export function useDocuments(
 											created_by_name: doc.created_by_id
 												? (userCacheRef.current.get(doc.created_by_id) ?? null)
 												: null,
+											created_by_email: doc.created_by_id
+												? (emailCacheRef.current.get(doc.created_by_id) ?? null)
+												: null,
 										}))
 									);
 								}
@@ -455,6 +476,7 @@ export function useDocuments(
 			setAllDocuments([]);
 			apiLoadedRef.current = false;
 			userCacheRef.current.clear();
+			emailCacheRef.current.clear();
 		}
 		prevSearchSpaceIdRef.current = searchSpaceId;
 	}, [searchSpaceId]);

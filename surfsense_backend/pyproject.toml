@@ -17,6 +17,7 @@ dependencies = [
     "kokoro>=0.9.4",
     "linkup-sdk>=0.2.4",
     "llama-cloud-services>=0.6.25",
+    "Markdown>=3.7",
     "markdownify>=0.14.1",
     "notion-client>=2.3.0",
     "numpy>=1.24.0",
@@ -65,11 +66,16 @@ dependencies = [
     "pypandoc_binary>=1.16.2",
     "typst>=0.14.0",
     "deepagents>=0.4.3",
+    "langchain-daytona>=0.0.2",
 ]
 
 [dependency-groups]
 dev = [
     "ruff>=0.12.5",
+    "pytest>=9.0.2",
+    "pytest-asyncio>=1.3.0",
+    "pytest-mock>=3.14",
+    "httpx>=0.28.1",
 ]
 
 [tool.ruff]
@@ -157,9 +163,27 @@ line-ending = "auto"
 
 [tool.ruff.lint.isort]
 # Group imports by type
-known-first-party = ["app"]
+known-first-party = ["app", "tests"]
 force-single-line = false
 combine-as-imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --tb=short -x --strict-markers -ra --durations=5"
+markers = [
+    "unit: pure logic tests, no DB or external services",
+    "integration: tests that require a real PostgreSQL database",
+    "e2e: tests requiring a running backend and real HTTP calls"
+]
+filterwarnings = [
+    "ignore::UserWarning:chonkie",
+]
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -18,6 +18,7 @@ import {
 	ChevronLeftIcon,
 	ChevronRightIcon,
 	CopyIcon,
+	Dot,
 	DownloadIcon,
 	FileWarning,
 	Paperclip,
@@ -80,6 +81,10 @@ const CYCLING_PLACEHOLDERS = [
 
 const CHAT_UPLOAD_ACCEPT =
 	".pdf,.doc,.docx,.txt,.md,.markdown,.ppt,.pptx,.xls,.xlsx,.xlsm,.xlsb,.csv,.html,.htm,.xml,.rtf,.epub,.jpg,.jpeg,.png,.bmp,.webp,.tiff,.tif,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm";
+
+const CHAT_MAX_FILES = 10;
+const CHAT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB per file
+const CHAT_MAX_TOTAL_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB total
 
 type UploadState = "pending" | "processing" | "ready" | "failed";
 
@@ -533,6 +538,28 @@ const Composer: FC = () => {
 			event.target.value = "";
 			if (files.length === 0 || !search_space_id) return;
 
+			if (files.length > CHAT_MAX_FILES) {
+				toast.error(`Too many files. Maximum ${CHAT_MAX_FILES} files per upload.`);
+				return;
+			}
+
+			let totalSize = 0;
+			for (const file of files) {
+				if (file.size > CHAT_MAX_FILE_SIZE_BYTES) {
+					toast.error(
+						`File "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the ${CHAT_MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB per-file limit.`
+					);
+					return;
+				}
+				totalSize += file.size;
+			}
+			if (totalSize > CHAT_MAX_TOTAL_SIZE_BYTES) {
+				toast.error(
+					`Total upload size (${(totalSize / (1024 * 1024)).toFixed(1)} MB) exceeds the ${CHAT_MAX_TOTAL_SIZE_BYTES / (1024 * 1024)} MB limit.`
+				);
+				return;
+			}
+
 			setIsUploadingDocs(true);
 			try {
 				const uploadResponse = await documentsApiService.uploadDocument({
@@ -745,7 +772,19 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				<TooltipIconButton
-					tooltip={isUploadingDocs ? "Uploading documents..." : "Upload and mention files"}
+					tooltip={
+						isUploadingDocs ? (
+							"Uploading documents..."
+						) : (
+							<div className="flex flex-col gap-0.5">
+								<span className="font-medium">Upload and mention files</span>
+								<span className="text-xs text-muted-foreground flex items-center">
+									Max 10 files <Dot className="size-3" /> 50 MB each
+								</span>
+								<span className="text-xs text-muted-foreground">Total upload limit: 200 MB</span>
+							</div>
+						)
+					}
 					side="bottom"
 					variant="ghost"
 					size="icon"

@@ -210,6 +210,26 @@ export function LayoutShell({
 								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
 							/>
 						)}
+
+						{/* Mobile All Shared Chats - slide-out panel */}
+						{allSharedChatsPanel && (
+							<AllSharedChatsSidebar
+								open={allSharedChatsPanel.open}
+								onOpenChange={allSharedChatsPanel.onOpenChange}
+								searchSpaceId={allSharedChatsPanel.searchSpaceId}
+								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+							/>
+						)}
+
+						{/* Mobile All Private Chats - slide-out panel */}
+						{allPrivateChatsPanel && (
+							<AllPrivateChatsSidebar
+								open={allPrivateChatsPanel.open}
+								onOpenChange={allPrivateChatsPanel.onOpenChange}
+								searchSpaceId={allPrivateChatsPanel.searchSpaceId}
+								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+							/>
+						)}
 					</div>
 				</TooltipProvider>
 			</SidebarProvider>

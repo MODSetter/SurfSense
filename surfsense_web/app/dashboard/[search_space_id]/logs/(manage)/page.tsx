@@ -29,7 +29,6 @@ import {
 	ChevronRight,
 	ChevronUp,
 	CircleAlert,
-	CircleX,
 	Clock,
 	Columns3,
 	Filter,
@@ -741,7 +740,7 @@ function LogsFilters({
 								inputRef.current?.focus();
 							}}
 						>
-							<CircleX size={16} strokeWidth={2} />
+							<X size={16} strokeWidth={2} />
 						</Button>
 					)}
 				</motion.div>

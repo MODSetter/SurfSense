@@ -1,0 +1,104 @@
+---
+title: Testing
+description: Running and writing end-to-end tests for SurfSense
+---
+
+SurfSense uses [pytest](https://docs.pytest.org/) for end-to-end testing. Tests are **self-bootstrapping** — they automatically register a test user and discover search spaces, so no manual database setup is required.
+
+## Prerequisites
+
+Before running tests, make sure the full backend stack is running:
+
+- **FastAPI backend**
+- **PostgreSQL + pgvector**
+- **Redis**
+- **Celery worker**
+
+Your backend must have **`REGISTRATION_ENABLED=TRUE`** in its `.env` (this is the default). The tests register their own user on first run.
+
+Your `global_llm_config.yaml` must have at least one working LLM model with a valid API key — document processing uses Auto mode, which routes through the global config.
+
+## Running Tests
+
+**Run all tests:**
+
+```bash
+uv run pytest
+```
+
+**Run by marker** (e.g., only document tests):
+
+```bash
+uv run pytest -m document
+```
+
+**Available markers:**
+
+| Marker | Description |
+|---|---|
+| `document` | Document upload, processing, and deletion tests |
+| `connector` | Connector indexing tests |
+| `chat` | Chat and agent tests |
+
+**Useful flags:**
+
+| Flag | Description |
+|---|---|
+| `-s` | Show live output (useful for debugging polling loops) |
+| `--tb=long` | Full tracebacks instead of short summaries |
+| `-k "test_name"` | Run a single test by name |
+| `-o addopts=""` | Override default flags from `pyproject.toml` |
+
+## Configuration
+
+Default pytest options are configured in `surfsense_backend/pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+addopts = "-v --tb=short -x --strict-markers -ra --durations=10"
+```
+
+- `-v` — verbose test names
+- `--tb=short` — concise tracebacks on failure
+- `-x` — stop on first failure
+- `--strict-markers` — reject unregistered markers
+- `-ra` — show summary of all non-passing tests
+- `--durations=10` — show the 10 slowest tests
+
+## Environment Variables
+
+All test configuration has sensible defaults. Override via environment variables if needed:
+
+| Variable | Default | Description |
+|---|---|---|
+| `TEST_BACKEND_URL` | `http://localhost:8000` | Backend URL to test against |
+| `TEST_DATABASE_URL` | Falls back to `DATABASE_URL` | Direct DB connection for test cleanup |
+| `TEST_USER_EMAIL` | `testuser@surfsense.com` | Test user email |
+| `TEST_USER_PASSWORD` | `testpassword123` | Test user password |
+
+These can be configured in `surfsense_backend/.env` (see the Testing section at the bottom of `.env.example`).
+
+## How It Works
+
+Tests are fully self-bootstrapping:
+
+1. **User creation** — on first run, tests try to log in. If the user doesn't exist, they register via `POST /auth/register`, then log in.
+2. **Search space discovery** — after authentication, tests call `GET /api/v1/searchspaces` and use the first available search space (auto-created during registration).
+3. **Session purge** — before any tests run, a session-scoped fixture deletes all documents in the test search space directly via the database. This handles stuck documents from previous crashed runs that the API refuses to delete (409 Conflict).
+4. **Per-test cleanup** — every test that creates documents adds their IDs to a `cleanup_doc_ids` list. An autouse fixture deletes them after each test via the API, falling back to direct DB access for any stuck documents.
+
+This means tests work on both fresh databases and existing ones without any manual setup.
+
+## Writing New Tests
+
+1. Create a test file in the appropriate directory (e.g., `tests/e2e/test_connectors.py`).
+2. Add a module-level marker at the top:
+
+```python
+import pytest
+
+pytestmark = pytest.mark.connector
+```
+
+3. Use fixtures from `conftest.py` — `client`, `headers`, `search_space_id`, and `cleanup_doc_ids` are available to all tests.
+4. Register any new markers in `pyproject.toml` under `markers`.

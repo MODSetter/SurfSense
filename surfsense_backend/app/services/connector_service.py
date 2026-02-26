@@ -1303,10 +1303,9 @@ class ConnectorService:
 
         sources_list = self._build_chunk_sources_from_documents(
             github_docs,
-            description_fn=lambda chunk, _doc_info, metadata: metadata.get(
-                "description"
-            )
-            or chunk.get("content", ""),
+            description_fn=lambda chunk, _doc_info, metadata: (
+                metadata.get("description") or chunk.get("content", "")
+            ),
             url_fn=lambda _doc_info, metadata: metadata.get("url", "") or "",
         )
 

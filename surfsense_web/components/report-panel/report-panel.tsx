@@ -334,7 +334,7 @@ function ReportPanelContent({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="start"
-							className={`min-w-[180px] dark:bg-neutral-800 dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
+							className={`min-w-[180px] bg-muted dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
 						>
 							<DropdownMenuItem onClick={() => handleExport("md")}>
 								Download Markdown
@@ -361,56 +361,30 @@ function ReportPanelContent({
 					</DropdownMenu>
 
 					{/* Version switcher — only shown when multiple versions exist */}
-					{versions.length > 1 &&
-						(insideDrawer ? (
-							/* Mobile: compact dropdown */
-							<DropdownMenu modal={false}>
-								<DropdownMenuTrigger asChild>
-									<Button
-										variant="outline"
-										size="sm"
-										className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
+					{versions.length > 1 && (
+						<DropdownMenu modal={insideDrawer ? false : undefined}>
+							<DropdownMenuTrigger asChild>
+								<Button variant="outline" size="sm" className="h-8 px-3.5 py-4 text-[15px] gap-1.5">
+									v{activeVersionIndex + 1}
+									<ChevronDownIcon className="size-3" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent
+								align="start"
+								className={`min-w-[120px] bg-muted dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
+							>
+								{versions.map((v, i) => (
+									<DropdownMenuItem
+										key={v.id}
+										onClick={() => setActiveReportId(v.id)}
+										className={v.id === activeReportId ? "bg-accent font-medium" : ""}
 									>
-										v{activeVersionIndex + 1}
-										<ChevronDownIcon className="size-3" />
-									</Button>
-								</DropdownMenuTrigger>
-								<DropdownMenuContent align="start" className="min-w-[120px] z-[100]">
-									{versions.map((v, i) => (
-										<DropdownMenuItem
-											key={v.id}
-											onClick={() => setActiveReportId(v.id)}
-											className={v.id === activeReportId ? "bg-accent font-medium" : ""}
-										>
-											Version {i + 1}
-										</DropdownMenuItem>
-									))}
-								</DropdownMenuContent>
-							</DropdownMenu>
-						) : (
-							/* Desktop: inline version buttons */
-							<div className="flex items-center gap-1">
-								<div className="flex items-center gap-0.5 rounded-lg border bg-muted/30 p-0.5">
-									{versions.map((v, i) => (
-										<button
-											key={v.id}
-											type="button"
-											onClick={() => setActiveReportId(v.id)}
-											className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
-												v.id === activeReportId
-													? "bg-primary text-primary-foreground shadow-sm"
-													: "text-muted-foreground hover:bg-muted hover:text-foreground"
-											}`}
-										>
-											v{i + 1}
-										</button>
-									))}
-								</div>
-								<span className="text-[10px] text-muted-foreground tabular-nums ml-1">
-									{activeVersionIndex + 1} of {versions.length}
-								</span>
-							</div>
-						))}
+										Version {i + 1}
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					)}
 				</div>
 				{onClose && (
 					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">

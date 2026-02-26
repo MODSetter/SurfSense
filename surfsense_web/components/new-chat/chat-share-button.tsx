@@ -144,7 +144,9 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					<TooltipTrigger asChild>
 						<button
 							type="button"
-							onClick={() => router.push(`/dashboard/${params.search_space_id}/settings`)}
+							onClick={() =>
+								router.push(`/dashboard/${params.search_space_id}/settings?section=public-links`)
+							}
 							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
 						>
 							<Earth className="h-4 w-4 text-muted-foreground" />
@@ -181,7 +183,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 					sideOffset={8}
 					onCloseAutoFocus={(e) => e.preventDefault()}
 				>
-					<div className="p-1.5 space-y-1">
+					<div className="p-1.5 space-y-1 select-none">
 						{/* Visibility Options */}
 						{visibilityOptions.map((option) => {
 							const isSelected = currentVisibility === option.value;

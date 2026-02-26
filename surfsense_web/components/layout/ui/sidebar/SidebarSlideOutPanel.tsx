@@ -65,7 +65,7 @@ export function SidebarSlideOutPanel({
 							exit={{ x: "-100%" }}
 							transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
 							className={cn(
-								"h-full w-full bg-background flex flex-col pointer-events-auto",
+								"h-full w-full bg-background flex flex-col pointer-events-auto select-none",
 								"sm:border-r sm:shadow-xl"
 							)}
 							role="dialog"

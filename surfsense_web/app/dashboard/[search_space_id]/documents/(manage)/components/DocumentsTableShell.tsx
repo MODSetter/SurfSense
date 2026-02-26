@@ -336,7 +336,7 @@ export function DocumentsTableShell({
 
 	return (
 		<motion.div
-			className="rounded-lg border border-border/40 bg-background overflow-hidden"
+			className="rounded-lg border border-border/40 bg-background overflow-hidden select-none"
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
@@ -453,7 +453,7 @@ export function DocumentsTableShell({
 			) : error ? (
 				<div className="flex h-[50vh] w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-3">
-						<AlertCircle className="h-8 w-8 text-destructive/60" />
+						<AlertCircle className="h-8 w-8 text-destructive" />
 						<p className="text-sm text-destructive">{t("error_loading")}</p>
 					</div>
 				</div>
@@ -482,7 +482,7 @@ export function DocumentsTableShell({
 				</div>
 			) : (
 				<>
-					{/* Desktop Table View - Notion Style */}
+					{/* Desktop Table View */}
 					<div className="hidden md:flex md:flex-col">
 						{/* Fixed Header */}
 						<Table className="table-fixed w-full">
@@ -629,7 +629,24 @@ export function DocumentsTableShell({
 												)}
 												{columnVisibility.created_by && (
 													<TableCell className="w-36 py-2.5 text-sm text-foreground truncate border-r border-border/40">
-														{doc.created_by_name || "—"}
+														{doc.created_by_name ? (
+															doc.created_by_email ? (
+																<Tooltip>
+																	<TooltipTrigger asChild>
+																		<span className="cursor-default truncate block">
+																			{doc.created_by_name}
+																		</span>
+																	</TooltipTrigger>
+																	<TooltipContent side="top" align="start">
+																		{doc.created_by_email}
+																	</TooltipContent>
+																</Tooltip>
+															) : (
+																<span className="truncate block">{doc.created_by_name}</span>
+															)
+														) : (
+															<span className="truncate block">{doc.created_by_email || "—"}</span>
+														)}
 													</TableCell>
 												)}
 												{columnVisibility.created_at && (
@@ -765,11 +782,11 @@ export function DocumentsTableShell({
 
 			{/* Document Content Viewer - lazy loads content on-demand */}
 			<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
-				<DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-					<DialogHeader>
+				<DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden pb-0">
+					<DialogHeader className="flex-shrink-0">
 						<DialogTitle>{viewingDoc?.title}</DialogTitle>
 					</DialogHeader>
-					<div className="mt-4">
+					<div className="mt-4 overflow-y-auto flex-1 min-h-0 px-6 select-text">
 						{viewingLoading ? (
 							<div className="flex items-center justify-center py-12">
 								<Spinner size="lg" className="text-muted-foreground" />

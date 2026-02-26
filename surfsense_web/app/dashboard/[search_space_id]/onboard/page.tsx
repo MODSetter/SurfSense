@@ -259,7 +259,7 @@ export default function OnboardPage() {
 						You can add more configurations and customize settings anytime in{" "}
 						<button
 							type="button"
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/settings`)}
+							onClick={() => router.push(`/dashboard/${searchSpaceId}/settings?section=general`)}
 							className="text-violet-500 hover:underline"
 						>
 							Settings

@@ -47,6 +47,10 @@ from app.db import ChatVisibility
 
 from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
+from .google_drive import (
+    create_create_google_drive_file_tool,
+    create_delete_google_drive_file_tool,
+)
 from .knowledge_base import create_search_knowledge_base_tool
 from .linear import (
     create_create_linear_issue_tool,
@@ -286,6 +290,29 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="delete_notion_page",
         description="Delete an existing Notion page",
         factory=lambda deps: create_delete_notion_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # GOOGLE DRIVE TOOLS - create files, delete files
+    # =========================================================================
+    ToolDefinition(
+        name="create_google_drive_file",
+        description="Create a new Google Doc or Google Sheet in Google Drive",
+        factory=lambda deps: create_create_google_drive_file_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_google_drive_file",
+        description="Move an indexed Google Drive file to trash",
+        factory=lambda deps: create_delete_google_drive_file_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],
             user_id=deps["user_id"],

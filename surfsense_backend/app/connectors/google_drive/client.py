@@ -1,12 +1,15 @@
 """Google Drive API client."""
 
+import io
 from typing import Any
 
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaIoBaseUpload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .credentials import get_valid_credentials
+from .file_types import GOOGLE_DOC, GOOGLE_SHEET
 
 
 class GoogleDriveClient:
@@ -179,3 +182,65 @@ class GoogleDriveClient:
             return None, f"HTTP error exporting file: {e.resp.status}"
         except Exception as e:
             return None, f"Error exporting file: {e!s}"
+
+    async def create_file(
+        self,
+        name: str,
+        mime_type: str,
+        parent_folder_id: str | None = None,
+        content: str | None = None,
+    ) -> dict[str, Any]:
+        service = await self.get_service()
+
+        body: dict[str, Any] = {"name": name, "mimeType": mime_type}
+        if parent_folder_id:
+            body["parents"] = [parent_folder_id]
+
+        media: MediaIoBaseUpload | None = None
+        if content:
+            if mime_type == GOOGLE_DOC:
+                import markdown as md_lib
+
+                html = md_lib.markdown(content)
+                media = MediaIoBaseUpload(
+                    io.BytesIO(html.encode("utf-8")),
+                    mimetype="text/html",
+                    resumable=False,
+                )
+            elif mime_type == GOOGLE_SHEET:
+                media = MediaIoBaseUpload(
+                    io.BytesIO(content.encode("utf-8")),
+                    mimetype="text/csv",
+                    resumable=False,
+                )
+
+        if media:
+            return (
+                service.files()
+                .create(
+                    body=body,
+                    media_body=media,
+                    fields="id,name,mimeType,webViewLink",
+                    supportsAllDrives=True,
+                )
+                .execute()
+            )
+
+        return (
+            service.files()
+            .create(
+                body=body,
+                fields="id,name,mimeType,webViewLink",
+                supportsAllDrives=True,
+            )
+            .execute()
+        )
+
+    async def trash_file(self, file_id: str) -> bool:
+        service = await self.get_service()
+        service.files().update(
+            fileId=file_id,
+            body={"trashed": True},
+            supportsAllDrives=True,
+        ).execute()
+        return True

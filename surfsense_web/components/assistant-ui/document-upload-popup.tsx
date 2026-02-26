@@ -120,7 +120,7 @@ const DocumentUploadPopupContent: FC<{
 
 	return (
 		<Dialog open={isOpen} onOpenChange={onOpenChange}>
-			<DialogContent className="max-w-4xl w-[95vw] sm:w-full h-[calc(100dvh-2rem)] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-12 [&>button]:top-3 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button]:z-[100] [&>button_svg]:size-4 sm:[&>button_svg]:size-5">
+			<DialogContent className="select-none max-w-4xl w-[95vw] sm:w-full h-[calc(100dvh-2rem)] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground [&>button]:right-3 sm:[&>button]:right-12 [&>button]:top-3 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button]:z-[100] [&>button_svg]:size-4 sm:[&>button_svg]:size-5">
 				<DialogTitle className="sr-only">Upload Document</DialogTitle>
 
 				{/* Scrollable container for mobile */}
@@ -129,9 +129,6 @@ const DocumentUploadPopupContent: FC<{
 					<div className="sticky top-0 z-20 bg-muted px-4 sm:px-12 pt-4 sm:pt-10 pb-2 sm:pb-0">
 						{/* Upload header */}
 						<div className="flex items-center gap-2 sm:gap-4 mb-2 sm:mb-6">
-							<div className="flex h-9 w-9 sm:h-14 sm:w-14 items-center justify-center rounded-lg sm:rounded-xl bg-primary/10 border border-primary/20 flex-shrink-0">
-								<Upload className="size-4 sm:size-7 text-primary" />
-							</div>
 							<div className="flex-1 min-w-0 pr-8 sm:pr-0">
 								<h2 className="text-base sm:text-2xl font-semibold tracking-tight">
 									Upload Documents
@@ -156,7 +153,7 @@ const DocumentUploadPopupContent: FC<{
 											: "You need to configure a Document Summary LLM before uploading files. This LLM is used to process and summarize your uploaded documents."}
 									</p>
 									<Button asChild size="sm" variant="outline">
-										<Link href={`/dashboard/${searchSpaceId}/settings`}>
+										<Link href={`/dashboard/${searchSpaceId}/settings?section=models`}>
 											<Settings className="mr-2 h-4 w-4" />
 											Go to Settings
 										</Link>

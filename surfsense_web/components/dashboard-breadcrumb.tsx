@@ -196,7 +196,7 @@ export function DashboardBreadcrumb() {
 	}
 
 	return (
-		<Breadcrumb>
+		<Breadcrumb className="select-none">
 			<BreadcrumbList>
 				{breadcrumbs.map((item, index) => (
 					<React.Fragment key={`${index}-${item.href || item.label}`}>

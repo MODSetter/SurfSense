@@ -75,7 +75,7 @@ export default function MorePagesPage() {
 	const allCompleted = data?.tasks.every((t) => t.completed) ?? false;
 
 	return (
-		<div className="flex min-h-[calc(100vh-64px)] items-center justify-center px-4 py-8">
+		<div className="flex min-h-[calc(100vh-64px)] select-none items-center justify-center px-4 py-8">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
@@ -174,7 +174,7 @@ export default function MorePagesPage() {
 								Contact Us
 							</Button>
 						</DialogTrigger>
-						<DialogContent className="sm:max-w-md">
+						<DialogContent className="select-none sm:max-w-md">
 							<DialogHeader>
 								<DialogTitle>Contact Us</DialogTitle>
 								<DialogDescription>Schedule a meeting or send us an email.</DialogDescription>

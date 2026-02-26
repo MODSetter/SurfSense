@@ -6,6 +6,7 @@ __pycache__/
 .flashrank_cache
 surf_new_backend.egg-info/
 podcasts/
+sandbox_files/
 temp_audio/
 celerybeat-schedule*
 celerybeat-schedule.*

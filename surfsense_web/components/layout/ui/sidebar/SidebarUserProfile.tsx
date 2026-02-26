@@ -177,7 +177,7 @@ export function SidebarUserProfile({
 						<TooltipContent side="right">{displayName}</TooltipContent>
 					</Tooltip>
 
-					<DropdownMenuContent className="w-56" side="right" align="center" sideOffset={8}>
+					<DropdownMenuContent className="w-48" side="right" align="center" sideOffset={8}>
 						<DropdownMenuLabel className="font-normal">
 							<div className="flex items-center gap-2">
 								<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
@@ -191,14 +191,14 @@ export function SidebarUserProfile({
 						<DropdownMenuSeparator />
 
 						<DropdownMenuItem onClick={onUserSettings}>
-							<Settings className="mr-2 h-4 w-4" />
+							<Settings className="h-4 w-4" />
 							{t("user_settings")}
 						</DropdownMenuItem>
 
 						{setTheme && (
 							<DropdownMenuSub>
 								<DropdownMenuSubTrigger>
-									<Sun className="mr-2 h-4 w-4" />
+									<Sun className="h-4 w-4" />
 									{t("theme")}
 								</DropdownMenuSubTrigger>
 								<DropdownMenuPortal>
@@ -216,7 +216,7 @@ export function SidebarUserProfile({
 														isSelected && "text-primary"
 													)}
 												>
-													<Icon className="mr-2 h-4 w-4" />
+													<Icon className="h-4 w-4" />
 													<span className="flex-1">{t(themeOption.value)}</span>
 													{isSelected && <Check className="h-4 w-4 shrink-0" />}
 												</DropdownMenuItem>
@@ -229,7 +229,7 @@ export function SidebarUserProfile({
 
 						<DropdownMenuSub>
 							<DropdownMenuSubTrigger>
-								<Languages className="mr-2 h-4 w-4" />
+								<Languages className="h-4 w-4" />
 								{t("language")}
 							</DropdownMenuSubTrigger>
 							<DropdownMenuPortal>
@@ -262,7 +262,7 @@ export function SidebarUserProfile({
 							{isLoggingOut ? (
 								<Spinner size="sm" className="mr-2" />
 							) : (
-								<LogOut className="mr-2 h-4 w-4" />
+								<LogOut className="h-4 w-4" />
 							)}
 							{isLoggingOut ? t("loggingOut") : t("logout")}
 						</DropdownMenuItem>
@@ -299,7 +299,7 @@ export function SidebarUserProfile({
 					</button>
 				</DropdownMenuTrigger>
 
-				<DropdownMenuContent className="w-56" side="top" align="center" sideOffset={4}>
+				<DropdownMenuContent className="w-48" side="top" align="center" sideOffset={4}>
 					<DropdownMenuLabel className="font-normal">
 						<div className="flex items-center gap-2">
 							<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
@@ -313,14 +313,14 @@ export function SidebarUserProfile({
 					<DropdownMenuSeparator />
 
 					<DropdownMenuItem onClick={onUserSettings}>
-						<Settings className="mr-2 h-4 w-4" />
+						<Settings className="h-4 w-4" />
 						{t("user_settings")}
 					</DropdownMenuItem>
 
 					{setTheme && (
 						<DropdownMenuSub>
 							<DropdownMenuSubTrigger>
-								<Sun className="mr-2 h-4 w-4" />
+								<Sun className="h-4 w-4" />
 								{t("theme")}
 							</DropdownMenuSubTrigger>
 							<DropdownMenuPortal>
@@ -338,7 +338,7 @@ export function SidebarUserProfile({
 													isSelected && "text-primary"
 												)}
 											>
-												<Icon className="mr-2 h-4 w-4" />
+												<Icon className="h-4 w-4" />
 												<span className="flex-1">{t(themeOption.value)}</span>
 												{isSelected && <Check className="h-4 w-4 shrink-0" />}
 											</DropdownMenuItem>
@@ -351,7 +351,7 @@ export function SidebarUserProfile({
 
 					<DropdownMenuSub>
 						<DropdownMenuSubTrigger>
-							<Languages className="mr-2 h-4 w-4" />
+							<Languages className="h-4 w-4" />
 							{t("language")}
 						</DropdownMenuSubTrigger>
 						<DropdownMenuPortal>
@@ -381,11 +381,7 @@ export function SidebarUserProfile({
 					<DropdownMenuSeparator />
 
 					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
-						{isLoggingOut ? (
-							<Spinner size="sm" className="mr-2" />
-						) : (
-							<LogOut className="mr-2 h-4 w-4" />
-						)}
+						{isLoggingOut ? <Spinner size="sm" className="mr-2" /> : <LogOut className="h-4 w-4" />}
 						{isLoggingOut ? t("loggingOut") : t("logout")}
 					</DropdownMenuItem>
 				</DropdownMenuContent>

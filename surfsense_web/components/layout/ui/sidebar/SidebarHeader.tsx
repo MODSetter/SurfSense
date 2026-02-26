@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronsUpDown, Settings, Users } from "lucide-react";
+import { ChevronsUpDown, Settings, UserPen } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
@@ -51,14 +51,14 @@ export function SidebarHeader({
 						<ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
 					</Button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="start" className="w-56">
+				<DropdownMenuContent align="start" className="w-48">
 					<DropdownMenuItem onClick={onManageMembers}>
-						<Users className="mr-2 h-4 w-4" />
+						<UserPen className="h-4 w-4" />
 						{t("manage_members")}
 					</DropdownMenuItem>
 					<DropdownMenuSeparator />
 					<DropdownMenuItem onClick={onSettings}>
-						<Settings className="mr-2 h-4 w-4" />
+						<Settings className="h-4 w-4" />
 						{t("search_space_settings")}
 					</DropdownMenuItem>
 				</DropdownMenuContent>

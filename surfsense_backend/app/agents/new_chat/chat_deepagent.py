@@ -10,6 +10,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from deepagents import create_deep_agent
+from deepagents.backends.protocol import SandboxBackendProtocol
 from langchain_core.language_models import BaseChatModel
 from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
@@ -128,6 +129,7 @@ async def create_surfsense_deep_agent(
     additional_tools: Sequence[BaseTool] | None = None,
     firecrawl_api_key: str | None = None,
     thread_visibility: ChatVisibility | None = None,
+    sandbox_backend: SandboxBackendProtocol | None = None,
 ):
     """
     Create a SurfSense deep agent with configurable tools and prompts.
@@ -167,6 +169,9 @@ async def create_surfsense_deep_agent(
                          These are always added regardless of enabled/disabled settings.
         firecrawl_api_key: Optional Firecrawl API key for premium web scraping.
                           Falls back to Chromium/Trafilatura if not provided.
+        sandbox_backend: Optional sandbox backend (e.g. DaytonaSandbox) for
+                        secure code execution. When provided, the agent gets an
+                        isolated ``execute`` tool for running shell commands.
 
     Returns:
         CompiledStateGraph: The configured deep agent
@@ -277,18 +282,25 @@ async def create_surfsense_deep_agent(
     )
 
     # Build system prompt based on agent_config
+    _sandbox_enabled = sandbox_backend is not None
     if agent_config is not None:
-        # Use configurable prompt with settings from NewLLMConfig
         system_prompt = build_configurable_system_prompt(
             custom_system_instructions=agent_config.system_instructions,
             use_default_system_instructions=agent_config.use_default_system_instructions,
             citations_enabled=agent_config.citations_enabled,
             thread_visibility=thread_visibility,
+            sandbox_enabled=_sandbox_enabled,
         )
     else:
         system_prompt = build_surfsense_system_prompt(
             thread_visibility=thread_visibility,
+            sandbox_enabled=_sandbox_enabled,
         )
+
+    # Build optional kwargs for the deep agent
+    deep_agent_kwargs: dict[str, Any] = {}
+    if sandbox_backend is not None:
+        deep_agent_kwargs["backend"] = sandbox_backend
 
     # Create the deep agent with system prompt and checkpointer
     # Note: TodoListMiddleware (write_todos) is included by default in create_deep_agent
@@ -298,6 +310,7 @@ async def create_surfsense_deep_agent(
         system_prompt=system_prompt,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
+        **deep_agent_kwargs,
     )
 
     return agent
