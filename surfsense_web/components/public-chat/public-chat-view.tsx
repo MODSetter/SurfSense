@@ -44,9 +44,9 @@ export function PublicChatView({ shareToken }: PublicChatViewProps) {
 			<Navbar />
 			<AssistantRuntimeProvider runtime={runtime}>
 				{/* Tool UIs for rendering tool results */}
-			<GeneratePodcastToolUI />
-			<GenerateReportToolUI />
-			<GenerateVideoToolUI />
+				<GeneratePodcastToolUI />
+				<GenerateReportToolUI />
+				<GenerateVideoToolUI />
 				<LinkPreviewToolUI />
 				<DisplayImageToolUI />
 				<ScrapeWebpageToolUI />

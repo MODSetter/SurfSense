@@ -94,7 +94,10 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 
 		if (result.status === "failed") {
 			return (
-				<VideoErrorState title={result.title || topic} error={result.error || "Generation failed"} />
+				<VideoErrorState
+					title={result.title || topic}
+					error={result.error || "Generation failed"}
+				/>
 			);
 		}
 
