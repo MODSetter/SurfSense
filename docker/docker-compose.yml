@@ -76,6 +76,12 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
+      start_period: 200s
 
   celery_worker:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
@@ -99,7 +105,7 @@ services:
       redis:
         condition: service_healthy
       backend:
-        condition: service_started
+        condition: service_healthy
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     restart: unless-stopped
@@ -174,8 +180,10 @@ services:
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
-      - backend
-      - electric
+      backend:
+        condition: service_healthy
+      electric:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:
