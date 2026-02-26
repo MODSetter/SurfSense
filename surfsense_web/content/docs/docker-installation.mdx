@@ -36,6 +36,41 @@ After starting, access SurfSense at:
 
 ---
 
+## Updating
+
+**Option 1 — Watchtower daemon (recommended, auto-updates every 24 h):**
+
+```bash
+docker run -d --name watchtower \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower \
+  --label-enable \
+  --interval 86400
+```
+
+**Option 2 — Watchtower one-time update:**
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower --run-once \
+  --label-filter "com.docker.compose.project=surfsense"
+```
+
+<Callout type="warn">
+Use `nickfedor/watchtower`. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
+</Callout>
+
+**Option 3 — Manual:**
+
+```bash
+cd surfsense   # or SurfSense/docker if you cloned manually
+docker compose pull && docker compose up -d
+```
+
+Database migrations are applied automatically on every startup.
+
+---
+
 ## Configuration
 
 All configuration lives in a single `docker/.env` file (or `surfsense/.env` if you used the install script). Copy `.env.example` to `.env` and edit the values you need.
@@ -178,31 +213,6 @@ If you were previously using `docker-compose.quickstart.yml` (the legacy all-in-
 
 See the full step-by-step guide: [Migrate from the All-in-One Container](/docs/how-to/migrate-from-allinone).
 </Callout>
-
----
-
-## Updating
-
-**Option 1 — Watchtower (recommended):**
-
-```bash
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
-  nickfedor/watchtower --run-once \
-  --label-filter "com.docker.compose.project=surfsense"
-```
-
-<Callout type="warn">
-Use `nickfedor/watchtower`. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
-</Callout>
-
-**Option 2 — Manual:**
-
-```bash
-cd surfsense   # or SurfSense/docker if you cloned manually
-docker compose pull && docker compose up -d
-```
-
-Database migrations are applied automatically on every startup.
 
 ---
 
