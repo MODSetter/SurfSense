@@ -1,12 +1,22 @@
 name: Build and Push Docker Images
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'surfsense_backend/**'
+      - 'surfsense_web/**'
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to build from (leave empty for default branch)'
         required: false
         default: ''
+
+concurrency:
+  group: docker-build
+  cancel-in-progress: false
 
 permissions:
   contents: write
