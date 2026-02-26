@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 # =============================================================================
 # SurfSense — One-line Install Script
+#
+#
 # Usage: curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+#
+# Flags:
+#   --no-watchtower              Skip automatic Watchtower setup
+#   --watchtower-interval=SECS   Check interval in seconds (default: 86400 = 24h)
 #
 # Handles two cases automatically:
 #   1. Fresh install        — no prior SurfSense data detected
@@ -23,6 +29,17 @@ OLD_VOLUME="surfsense-data"
 DUMP_FILE="./surfsense_migration_backup.sql"
 KEY_FILE="./surfsense_migration_secret.key"
 MIGRATION_MODE=false
+SETUP_WATCHTOWER=true
+WATCHTOWER_INTERVAL=86400
+WATCHTOWER_CONTAINER="watchtower"
+
+# ── Parse flags ─────────────────────────────────────────────────────────────
+for arg in "$@"; do
+    case "$arg" in
+        --no-watchtower) SETUP_WATCHTOWER=false ;;
+        --watchtower-interval=*) WATCHTOWER_INTERVAL="${arg#*=}" ;;
+    esac
+done
 
 CYAN='\033[1;36m'
 YELLOW='\033[1;33m'
@@ -231,6 +248,34 @@ else
     success "All services started."
 fi
 
+# ── Watchtower (auto-update) ─────────────────────────────────────────────────
+
+if $SETUP_WATCHTOWER; then
+    step "Setting up Watchtower (auto-updates every $((WATCHTOWER_INTERVAL / 3600))h)"
+
+    WT_STATE=$(docker inspect -f '{{.State.Running}}' "${WATCHTOWER_CONTAINER}" 2>/dev/null || echo "missing")
+
+    if [[ "${WT_STATE}" == "true" ]]; then
+        success "Watchtower is already running — skipping."
+    else
+        if [[ "${WT_STATE}" != "missing" ]]; then
+            info "Removing stopped Watchtower container..."
+            docker rm -f "${WATCHTOWER_CONTAINER}" >/dev/null 2>&1 || true
+        fi
+        docker run -d \
+            --name "${WATCHTOWER_CONTAINER}" \
+            --restart unless-stopped \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            nickfedor/watchtower \
+            --label-enable \
+            --interval "${WATCHTOWER_INTERVAL}" >/dev/null 2>&1 \
+            && success "Watchtower started — labeled SurfSense containers will auto-update." \
+            || warn "Could not start Watchtower. You can set it up manually or use: docker compose pull && docker compose up -d"
+    fi
+else
+    info "Skipping Watchtower setup (--no-watchtower flag)."
+fi
+
 # ── Done ─────────────────────────────────────────────────────────────────────
 
 echo ""
@@ -265,6 +310,13 @@ info "  Config:    ${INSTALL_DIR}/.env"
 info "  Logs:      cd ${INSTALL_DIR} && ${DC} logs -f"
 info "  Stop:      cd ${INSTALL_DIR} && ${DC} down"
 info "  Update:    cd ${INSTALL_DIR} && ${DC} pull && ${DC} up -d"
+info ""
+
+if $SETUP_WATCHTOWER; then
+    info "  Watchtower: auto-updates every $((WATCHTOWER_INTERVAL / 3600))h (stop: docker rm -f ${WATCHTOWER_CONTAINER})"
+else
+    warn "  Watchtower skipped. For auto-updates, re-run without --no-watchtower."
+fi
 info ""
 
 if $MIGRATION_MODE; then

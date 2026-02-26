@@ -9,13 +9,21 @@ This guide explains how to run SurfSense using Docker, with options ranging from
 
 ### Option 1 — Install Script (recommended)
 
-Downloads the compose files, generates a `SECRET_KEY`, and starts all services automatically:
+Downloads the compose files, generates a `SECRET_KEY`, starts all services, and sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) for automatic daily updates:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
 This creates a `./surfsense/` directory with `docker-compose.yml` and `.env`, then runs `docker compose up -d`.
+
+To skip Watchtower (e.g. in production where you manage updates yourself):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash -s -- --no-watchtower
+```
+
+To customise the check interval (default 24h), use `--watchtower-interval=SECONDS`.
 
 ### Option 2 — Manual Docker Compose
 
@@ -40,8 +48,13 @@ After starting, access SurfSense at:
 
 **Option 1 — Watchtower daemon (recommended, auto-updates every 24 h):**
 
+If you used the install script (Option 1 above), Watchtower is already running. No extra setup needed.
+
+For manual Docker Compose installs (Option 2), start Watchtower separately:
+
 ```bash
 docker run -d --name watchtower \
+  --restart unless-stopped \
   -v /var/run/docker.sock:/var/run/docker.sock \
   nickfedor/watchtower \
   --label-enable \

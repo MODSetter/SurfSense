@@ -85,22 +85,9 @@ Run SurfSense on your own infrastructure for full data control and privacy.
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
-For Docker Compose and other deployment options, see the [Docker Installation docs](https://www.surfsense.com/docs/docker-installation).
+The install script sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) automatically for daily auto-updates. To skip it, add the `--no-watchtower` flag.
 
-**Update (recommended — Watchtower):**
-
-```bash
-docker run -d --name watchtower -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --label-enable --interval 86400
-```
-
-**Update (manual):**
-
-```bash
-cd surfsense   # or SurfSense/docker if you used Option 2
-docker compose pull && docker compose up -d
-```
-
-For manual installation and other deployment options, check the [docs](https://www.surfsense.com/docs/).
+For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
 
 ### How to Realtime Collaborate (Beta)
 
