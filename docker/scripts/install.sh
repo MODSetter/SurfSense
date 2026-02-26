@@ -203,7 +203,7 @@ if $MIGRATION_MODE; then
     (cd "${INSTALL_DIR}" && ${DC} exec -T \
         -e PGPASSWORD="${DB_PASS}" \
         db psql -U "${DB_USER}" -d "${DB_NAME}" \
-        2>"${RESTORE_ERR}") < "${DUMP_FILE}" || true
+        >/dev/null 2>"${RESTORE_ERR}") < "${DUMP_FILE}" || true
 
     # Surface real errors; ignore benign "already exists" noise from pg_dump headers
     FATAL_ERRORS=$(grep -i "^ERROR:" "${RESTORE_ERR}" \
