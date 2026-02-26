@@ -81,6 +81,11 @@ services:
       - ELECTRIC_DB_PASSWORD=${ELECTRIC_DB_PASSWORD:-electric_password}
       - AUTH_TYPE=${AUTH_TYPE:-LOCAL}
       - NEXT_FRONTEND_URL=${NEXT_FRONTEND_URL:-http://localhost:3000}
+      # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
+      # - DAYTONA_SANDBOX_ENABLED=TRUE
+      # - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
+      # - DAYTONA_API_URL=${DAYTONA_API_URL:-https://app.daytona.io/api}
+      # - DAYTONA_TARGET=${DAYTONA_TARGET:-us}
       - SERVICE_ROLE=api
     depends_on:
       db:
