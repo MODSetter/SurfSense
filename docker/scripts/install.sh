@@ -91,6 +91,7 @@ echo ""
 printf '\033[1;37m'
 cat << 'EOF'
 
+
  .d8888b.                    .d888 .d8888b.                                      
 d88P  Y88b                  d88P" d88P  Y88b                                     
 Y88b.                       888   Y88b.                                          
@@ -99,6 +100,7 @@ Y88b.                       888   Y88b.
       "888 888  888 888     888         "888 88888888 888  888 "Y8888b. 88888888 
 Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.     
  "Y8888P"   "Y88888 888     888    "Y8888P"   "Y8888  888  888  88888P'  "Y8888  
+
 
 EOF
 printf "         Your personal AI-powered search engine  ${YELLOW}v${SURFSENSE_VERSION:-latest}${NC}\n"
