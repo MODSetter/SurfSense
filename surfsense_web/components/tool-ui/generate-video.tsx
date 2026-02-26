@@ -104,7 +104,10 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 		if (result.status === "ready" && result.code) {
 			return (
 				<div className="my-4">
-					<VideoPreview code={result.code} />
+					<VideoPreview
+						code={result.code}
+						durationInFrames={result.duration_frames ?? 180}
+					/>
 				</div>
 			);
 		}

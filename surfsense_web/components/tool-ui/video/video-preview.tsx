@@ -5,7 +5,13 @@ import type React from "react";
 import { useEffect, useState } from "react";
 import { compileCode } from "@/app/remotion/compiler";
 
-export const VideoPreview = ({ code }: { code: string }) => {
+export const VideoPreview = ({
+	code,
+	durationInFrames = 180,
+}: {
+	code: string;
+	durationInFrames?: number;
+}) => {
 	const [Component, setComponent] = useState<React.ComponentType | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
@@ -21,7 +27,7 @@ export const VideoPreview = ({ code }: { code: string }) => {
 	return (
 		<Player
 			component={Component}
-			durationInFrames={180}
+      durationInFrames={durationInFrames}
 			fps={30}
 			compositionWidth={1920}
 			compositionHeight={1080}
