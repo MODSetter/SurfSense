@@ -189,6 +189,7 @@ jobs:
         run: |
           VERSION_TAG="${{ needs.tag_release.outputs.new_tag }}"
           IMAGE="${{ steps.image.outputs.name }}"
+          APP_VERSION=$(echo "$VERSION_TAG" | rev | cut -d. -f2- | rev)
 
           docker manifest create ${IMAGE}:${VERSION_TAG} \
             ${IMAGE}:${VERSION_TAG}-amd64 \
@@ -197,6 +198,12 @@ jobs:
           docker manifest push ${IMAGE}:${VERSION_TAG}
 
           if [[ "${{ github.ref }}" == "refs/heads/${{ github.event.repository.default_branch }}" ]] || [[ "${{ github.event.inputs.branch }}" == "${{ github.event.repository.default_branch }}" ]]; then
+            docker manifest create ${IMAGE}:${APP_VERSION} \
+              ${IMAGE}:${VERSION_TAG}-amd64 \
+              ${IMAGE}:${VERSION_TAG}-arm64
+
+            docker manifest push ${IMAGE}:${APP_VERSION}
+
             docker manifest create ${IMAGE}:latest \
               ${IMAGE}:${VERSION_TAG}-amd64 \
               ${IMAGE}:${VERSION_TAG}-arm64
@@ -208,4 +215,5 @@ jobs:
         run: |
           echo "Multi-arch manifest created for ${{ matrix.name }}!"
           echo "Versioned: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}"
+          echo "App version: ${{ steps.image.outputs.name }}:$(echo '${{ needs.tag_release.outputs.new_tag }}' | rev | cut -d. -f2- | rev)"
           echo "Latest:    ${{ steps.image.outputs.name }}:latest"

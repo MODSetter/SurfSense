@@ -85,7 +85,7 @@ All configuration lives in a single `docker/.env` file (or `surfsense/.env` if y
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SURFSENSE_VERSION` | Image tag to deploy. Pin to a version (e.g. `0.0.13.1`) or use `latest` | `latest` |
+| `SURFSENSE_VERSION` | Image tag to deploy. Use `latest`, a clean version (e.g. `0.0.14`), or a specific build (e.g. `0.0.14.1`) | `latest` |
 | `AUTH_TYPE` | Authentication method: `LOCAL` (email/password) or `GOOGLE` (OAuth) | `LOCAL` |
 | `ETL_SERVICE` | Document parsing: `DOCLING` (local), `UNSTRUCTURED`, or `LLAMACLOUD` | `DOCLING` |
 | `EMBEDDING_MODEL` | Embedding model for vector search | `sentence-transformers/all-MiniLM-L6-v2` |
