@@ -90,7 +90,7 @@ For Docker Compose and other deployment options, see the [Docker Installation do
 **Update (recommended — Watchtower):**
 
 ```bash
-docker run --rm -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --run-once --label-filter "com.docker.compose.project=surfsense"
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --run-once --label-enable
 ```
 
 **Update (manual):**

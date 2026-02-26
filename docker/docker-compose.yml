@@ -43,7 +43,7 @@ services:
       retries: 5
 
   backend:
-    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+    image: ghcr.io/anishsarkar22/surfsense-backend:${SURFSENSE_VERSION:-latest}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
@@ -68,6 +68,8 @@ services:
       # DAYTONA_API_URL: ${DAYTONA_API_URL:-https://app.daytona.io/api}
       # DAYTONA_TARGET: ${DAYTONA_TARGET:-us}
       SERVICE_ROLE: api
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       db:
         condition: service_healthy
@@ -76,7 +78,7 @@ services:
     restart: unless-stopped
 
   celery_worker:
-    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+    image: ghcr.io/anishsarkar22/surfsense-backend:${SURFSENSE_VERSION:-latest}
     volumes:
       - shared_temp:/shared_tmp
     env_file:
@@ -98,10 +100,12 @@ services:
         condition: service_healthy
       backend:
         condition: service_started
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     restart: unless-stopped
 
   celery_beat:
-    image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+    image: ghcr.io/anishsarkar22/surfsense-backend:${SURFSENSE_VERSION:-latest}
     env_file:
       - .env
     environment:
@@ -118,10 +122,12 @@ services:
         condition: service_healthy
       celery_worker:
         condition: service_started
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     restart: unless-stopped
 
   # flower:
-  #   image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
+  #   image: ghcr.io/anishsarkar22/surfsense-backend:${SURFSENSE_VERSION:-latest}
   #   ports:
   #     - "${FLOWER_PORT:-5555}:5555"
   #   env_file:
@@ -155,7 +161,7 @@ services:
       retries: 5
 
   frontend:
-    image: ghcr.io/modsetter/surfsense-web:${SURFSENSE_VERSION:-latest}
+    image: ghcr.io/anishsarkar22/surfsense-web:${SURFSENSE_VERSION:-latest}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
     environment:
@@ -165,6 +171,8 @@ services:
       NEXT_PUBLIC_ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       NEXT_PUBLIC_DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
       NEXT_PUBLIC_ELECTRIC_AUTH_MODE: ${NEXT_PUBLIC_ELECTRIC_AUTH_MODE:-insecure}
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       - backend
       - electric
