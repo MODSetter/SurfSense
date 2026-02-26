@@ -6,6 +6,7 @@ import { ReportPanel } from "@/components/report-panel/report-panel";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
+import { GenerateVideoToolUI } from "@/components/tool-ui/generate-video";
 import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { Spinner } from "@/components/ui/spinner";
@@ -43,8 +44,9 @@ export function PublicChatView({ shareToken }: PublicChatViewProps) {
 			<Navbar />
 			<AssistantRuntimeProvider runtime={runtime}>
 				{/* Tool UIs for rendering tool results */}
-				<GeneratePodcastToolUI />
-				<GenerateReportToolUI />
+			<GeneratePodcastToolUI />
+			<GenerateReportToolUI />
+			<GenerateVideoToolUI />
 				<LinkPreviewToolUI />
 				<DisplayImageToolUI />
 				<ScrapeWebpageToolUI />
