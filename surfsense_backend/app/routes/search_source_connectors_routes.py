@@ -2735,7 +2735,10 @@ async def create_mcp_connector(
             f"for user {user.id} in search space {search_space_id}"
         )
 
-        # Convert to read schema
+        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+
+        invalidate_mcp_tools_cache(search_space_id)
+
         connector_read = SearchSourceConnectorRead.model_validate(db_connector)
         return MCPConnectorRead.from_connector(connector_read)
 
@@ -2910,6 +2913,10 @@ async def update_mcp_connector(
 
         logger.info(f"Updated MCP connector {connector_id}")
 
+        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+
+        invalidate_mcp_tools_cache(connector.search_space_id)
+
         connector_read = SearchSourceConnectorRead.model_validate(connector)
         return MCPConnectorRead.from_connector(connector_read)
 
@@ -2960,8 +2967,13 @@ async def delete_mcp_connector(
             "You don't have permission to delete this connector",
         )
 
+        search_space_id = connector.search_space_id
         await session.delete(connector)
         await session.commit()
+
+        from app.agents.new_chat.tools.mcp_tool import invalidate_mcp_tools_cache
+
+        invalidate_mcp_tools_cache(search_space_id)
 
         logger.info(f"Deleted MCP connector {connector_id}")
 

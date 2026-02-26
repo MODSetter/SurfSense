@@ -178,8 +178,7 @@ python_functions = ["test_*"]
 addopts = "-v --tb=short -x --strict-markers -ra --durations=5"
 markers = [
     "unit: pure logic tests, no DB or external services",
-    "integration: tests that require a real PostgreSQL database",
-    "e2e: tests requiring a running backend and real HTTP calls"
+    "integration: tests that require a real PostgreSQL database"
 ]
 filterwarnings = [
     "ignore::UserWarning:chonkie",

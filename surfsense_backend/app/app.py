@@ -175,8 +175,39 @@ def rate_limit_password_reset(request: Request):
     )
 
 
+def _enable_slow_callback_logging(threshold_sec: float = 0.5) -> None:
+    """Monkey-patch the event loop to warn whenever a callback blocks longer than *threshold_sec*.
+
+    This helps pinpoint synchronous code that freezes the entire FastAPI server.
+    Only active when the PERF_DEBUG env var is set (to avoid overhead in production).
+    """
+    import os
+
+    if not os.environ.get("PERF_DEBUG"):
+        return
+
+    _slow_log = logging.getLogger("surfsense.perf.slow")
+    _slow_log.setLevel(logging.WARNING)
+    if not _slow_log.handlers:
+        _h = logging.StreamHandler()
+        _h.setFormatter(logging.Formatter("%(asctime)s [SLOW-CALLBACK] %(message)s"))
+        _slow_log.addHandler(_h)
+        _slow_log.propagate = False
+
+    loop = asyncio.get_running_loop()
+    loop.slow_callback_duration = threshold_sec  # type: ignore[attr-defined]
+    loop.set_debug(True)
+    _slow_log.warning(
+        "Event-loop slow-callback detector ENABLED (threshold=%.1fs). "
+        "Set PERF_DEBUG='' to disable.",
+        threshold_sec,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Enable slow-callback detection (set PERF_DEBUG=1 env var to activate)
+    _enable_slow_callback_logging(threshold_sec=0.5)
     # Not needed if you setup a migration system like Alembic
     await create_db_and_tables()
     # Setup LangGraph checkpointer tables for conversation persistence

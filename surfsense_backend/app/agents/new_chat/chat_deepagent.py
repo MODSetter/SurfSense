@@ -6,6 +6,9 @@ with configurable tools via the tools registry and configurable prompts
 via NewLLMConfig.
 """
 
+import asyncio
+import logging
+import time
 from collections.abc import Sequence
 from typing import Any
 
@@ -25,6 +28,8 @@ from app.agents.new_chat.system_prompt import (
 from app.agents.new_chat.tools.registry import build_tools_async
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
+
+_perf_log = logging.getLogger("surfsense.perf")
 
 # =============================================================================
 # Connector Type Mapping
@@ -210,29 +215,29 @@ async def create_surfsense_deep_agent(
             additional_tools=[my_custom_tool]
         )
     """
+    _t_agent_total = time.perf_counter()
+
     # Discover available connectors and document types for this search space
-    # This enables dynamic tool docstrings that inform the LLM about what's actually available
     available_connectors: list[str] | None = None
     available_document_types: list[str] | None = None
 
+    _t0 = time.perf_counter()
     try:
-        # Get enabled search source connectors for this search space
         connector_types = await connector_service.get_available_connectors(
             search_space_id
         )
         if connector_types:
-            # Convert enum values to strings and also include mapped document types
             available_connectors = _map_connectors_to_searchable_types(connector_types)
 
-        # Get document types that have at least one document indexed
         available_document_types = await connector_service.get_available_document_types(
             search_space_id
         )
     except Exception as e:
-        # Log but don't fail - fall back to all connectors if discovery fails
-        import logging
-
         logging.warning(f"Failed to discover available connectors/document types: {e}")
+    _perf_log.info(
+        "[create_agent] Connector/doc-type discovery in %.3fs",
+        time.perf_counter() - _t0,
+    )
 
     # Build dependencies dict for the tools registry
     visibility = thread_visibility or ChatVisibility.PRIVATE
@@ -274,14 +279,21 @@ async def create_surfsense_deep_agent(
         modified_disabled_tools.extend(linear_tools)
 
     # Build tools using the async registry (includes MCP tools)
+    _t0 = time.perf_counter()
     tools = await build_tools_async(
         dependencies=dependencies,
         enabled_tools=enabled_tools,
         disabled_tools=modified_disabled_tools,
         additional_tools=list(additional_tools) if additional_tools else None,
     )
+    _perf_log.info(
+        "[create_agent] build_tools_async in %.3fs (%d tools)",
+        time.perf_counter() - _t0,
+        len(tools),
+    )
 
     # Build system prompt based on agent_config
+    _t0 = time.perf_counter()
     _sandbox_enabled = sandbox_backend is not None
     if agent_config is not None:
         system_prompt = build_configurable_system_prompt(
@@ -296,15 +308,18 @@ async def create_surfsense_deep_agent(
             thread_visibility=thread_visibility,
             sandbox_enabled=_sandbox_enabled,
         )
+    _perf_log.info(
+        "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
+    )
 
     # Build optional kwargs for the deep agent
     deep_agent_kwargs: dict[str, Any] = {}
     if sandbox_backend is not None:
         deep_agent_kwargs["backend"] = sandbox_backend
 
-    # Create the deep agent with system prompt and checkpointer
-    # Note: TodoListMiddleware (write_todos) is included by default in create_deep_agent
-    agent = create_deep_agent(
+    _t0 = time.perf_counter()
+    agent = await asyncio.to_thread(
+        create_deep_agent,
         model=llm,
         tools=tools,
         system_prompt=system_prompt,
@@ -312,5 +327,13 @@ async def create_surfsense_deep_agent(
         checkpointer=checkpointer,
         **deep_agent_kwargs,
     )
+    _perf_log.info(
+        "[create_agent] Graph compiled (create_deep_agent) in %.3fs",
+        time.perf_counter() - _t0,
+    )
 
+    _perf_log.info(
+        "[create_agent] Total agent creation in %.3fs",
+        time.perf_counter() - _t_agent_total,
+    )
     return agent

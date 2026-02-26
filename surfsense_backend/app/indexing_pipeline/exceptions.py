@@ -12,6 +12,7 @@ from litellm.exceptions import (
     Timeout,
     UnprocessableEntityError,
 )
+from sqlalchemy.exc import IntegrityError as IntegrityError
 
 # Tuples for use directly in except clauses.
 RETRYABLE_LLM_ERRORS = (
@@ -37,10 +38,18 @@ EMBEDDING_ERRORS = (
     RuntimeError,  # local device failure or API backend normalization
     OSError,  # model files missing or corrupted (local backends)
     MemoryError,  # document too large for available RAM
+    OSError,  # model files missing or corrupted (local backends)
+    MemoryError,  # document too large for available RAM
 )
 
 
 class PipelineMessages:
+    RATE_LIMIT = "LLM rate limit exceeded. Will retry on next sync."
+    LLM_TIMEOUT = "LLM request timed out. Will retry on next sync."
+    LLM_UNAVAILABLE = "LLM service temporarily unavailable. Will retry on next sync."
+    LLM_BAD_GATEWAY = "LLM gateway error. Will retry on next sync."
+    LLM_SERVER_ERROR = "LLM internal server error. Will retry on next sync."
+    LLM_CONNECTION = "Could not reach the LLM service. Check network connectivity."
     RATE_LIMIT = "LLM rate limit exceeded. Will retry on next sync."
     LLM_TIMEOUT = "LLM request timed out. Will retry on next sync."
     LLM_UNAVAILABLE = "LLM service temporarily unavailable. Will retry on next sync."
@@ -56,7 +65,20 @@ class PipelineMessages:
         "Document exceeds the LLM context window even after optimization."
     )
     LLM_RESPONSE = "LLM returned an invalid response."
+    LLM_AUTH = "LLM authentication failed. Check your API key."
+    LLM_PERMISSION = "LLM request denied. Check your account permissions."
+    LLM_NOT_FOUND = "LLM model not found. Check your model configuration."
+    LLM_BAD_REQUEST = "LLM rejected the request. Document content may be invalid."
+    LLM_UNPROCESSABLE = (
+        "Document exceeds the LLM context window even after optimization."
+    )
+    LLM_RESPONSE = "LLM returned an invalid response."
 
+    EMBEDDING_FAILED = (
+        "Embedding failed. Check your embedding model configuration or service."
+    )
+    EMBEDDING_MODEL = "Embedding model files are missing or corrupted."
+    EMBEDDING_MEMORY = "Not enough memory to embed this document."
     EMBEDDING_FAILED = (
         "Embedding failed. Check your embedding model configuration or service."
     )

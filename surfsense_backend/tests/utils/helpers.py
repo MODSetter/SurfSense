@@ -3,16 +3,14 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from pathlib import Path
 
 import httpx
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
-BACKEND_URL = os.environ.get("TEST_BACKEND_URL", "http://localhost:8000")
-TEST_EMAIL = os.environ.get("TEST_USER_EMAIL", "testuser@surfsense.com")
-TEST_PASSWORD = os.environ.get("TEST_USER_PASSWORD", "testpassword123")
+TEST_EMAIL = "testuser@surfsense.com"
+TEST_PASSWORD = "testpassword123"
 
 
 async def get_auth_token(client: httpx.AsyncClient) -> str:

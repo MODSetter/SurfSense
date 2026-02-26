@@ -1,5 +1,6 @@
 {
 	"title": "How to",
 	"pages": ["electric-sql", "realtime-collaboration", "migrate-from-allinone"],
+	"icon": "BookOpen",
 	"defaultOpen": false
 }

@@ -13,14 +13,17 @@ import asyncio
 import json
 import logging
 import re
+import time
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
 from langchain_core.messages import HumanMessage
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 
 from app.agents.new_chat.chat_deepagent import create_surfsense_deep_agent
 from app.agents.new_chat.checkpointer import get_checkpointer
@@ -31,10 +34,17 @@ from app.agents.new_chat.llm_config import (
     load_agent_config,
     load_llm_config_from_yaml,
 )
+from app.agents.new_chat.sandbox import (
+    get_or_create_sandbox,
+    is_sandbox_enabled,
+)
 from app.db import (
     ChatVisibility,
     Document,
+    NewChatMessage,
+    NewChatThread,
     Report,
+    SearchSourceConnectorType,
     SurfsenseDocsDocument,
     async_session_maker,
 )
@@ -46,6 +56,16 @@ from app.services.chat_session_state_service import (
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
+
+_perf_log = logging.getLogger("surfsense.perf")
+_perf_log.setLevel(logging.DEBUG)
+if not _perf_log.handlers:
+    _h = logging.StreamHandler()
+    _h.setFormatter(logging.Formatter("%(asctime)s [PERF] %(message)s"))
+    _perf_log.addHandler(_h)
+    _perf_log.propagate = False
+
+_background_tasks: set[asyncio.Task] = set()
 
 
 def format_mentioned_documents_as_context(documents: list[Document]) -> str:
@@ -985,7 +1005,9 @@ def _try_persist_and_delete_sandbox(
 
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(_run())
+        task = loop.create_task(_run())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
     except RuntimeError:
         pass
 
@@ -1027,6 +1049,7 @@ async def stream_new_chat(
     """
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
+    _t_total = time.perf_counter()
 
     try:
         # Mark AI as responding to this user for live collaboration
@@ -1035,6 +1058,7 @@ async def stream_new_chat(
         # Load LLM config - supports both YAML (negative IDs) and database (positive IDs)
         agent_config: AgentConfig | None = None
 
+        _t0 = time.perf_counter()
         if llm_config_id >= 0:
             # Positive ID: Load from NewLLMConfig database table
             agent_config = await load_agent_config(
@@ -1065,6 +1089,11 @@ async def stream_new_chat(
             llm = create_chat_litellm_from_config(llm_config)
             # Create AgentConfig from YAML for consistency (uses defaults for prompt settings)
             agent_config = AgentConfig.from_yaml_config(llm_config)
+        _perf_log.info(
+            "[stream_new_chat] LLM config loaded in %.3fs (config_id=%s)",
+            time.perf_counter() - _t0,
+            llm_config_id,
+        )
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
@@ -1072,10 +1101,8 @@ async def stream_new_chat(
             return
 
         # Create connector service
+        _t0 = time.perf_counter()
         connector_service = ConnectorService(session, search_space_id=search_space_id)
-
-        # Get Firecrawl API key from webcrawler connector if configured
-        from app.db import SearchSourceConnectorType
 
         firecrawl_api_key = None
         webcrawler_connector = await connector_service.get_connector_by_type(
@@ -1083,17 +1110,20 @@ async def stream_new_chat(
         )
         if webcrawler_connector and webcrawler_connector.config:
             firecrawl_api_key = webcrawler_connector.config.get("FIRECRAWL_API_KEY")
-
-        # Get the PostgreSQL checkpointer for persistent conversation memory
-        checkpointer = await get_checkpointer()
-
-        # Optionally provision a sandboxed code execution environment
-        sandbox_backend = None
-        from app.agents.new_chat.sandbox import (
-            get_or_create_sandbox,
-            is_sandbox_enabled,
+        _perf_log.info(
+            "[stream_new_chat] Connector service + firecrawl key in %.3fs",
+            time.perf_counter() - _t0,
         )
 
+        # Get the PostgreSQL checkpointer for persistent conversation memory
+        _t0 = time.perf_counter()
+        checkpointer = await get_checkpointer()
+        _perf_log.info(
+            "[stream_new_chat] Checkpointer ready in %.3fs", time.perf_counter() - _t0
+        )
+
+        sandbox_backend = None
+        _t0 = time.perf_counter()
         if is_sandbox_enabled():
             try:
                 sandbox_backend = await get_or_create_sandbox(chat_id)
@@ -1102,8 +1132,14 @@ async def stream_new_chat(
                     "Sandbox creation failed, continuing without execute tool: %s",
                     sandbox_err,
                 )
+        _perf_log.info(
+            "[stream_new_chat] Sandbox provisioning in %.3fs (enabled=%s)",
+            time.perf_counter() - _t0,
+            sandbox_backend is not None,
+        )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
+        _t0 = time.perf_counter()
         agent = await create_surfsense_deep_agent(
             llm=llm,
             search_space_id=search_space_id,
@@ -1117,18 +1153,19 @@ async def stream_new_chat(
             thread_visibility=visibility,
             sandbox_backend=sandbox_backend,
         )
+        _perf_log.info(
+            "[stream_new_chat] Agent created in %.3fs", time.perf_counter() - _t0
+        )
 
         # Build input with message history
         langchain_messages = []
 
+        _t0 = time.perf_counter()
         # Bootstrap history for cloned chats (no LangGraph checkpoint exists yet)
         if needs_history_bootstrap:
             langchain_messages = await bootstrap_history_from_db(
                 session, chat_id, thread_visibility=visibility
             )
-
-            # Clear the flag so we don't bootstrap again on next message
-            from app.db import NewChatThread
 
             thread_result = await session.execute(
                 select(NewChatThread).filter(NewChatThread.id == chat_id)
@@ -1141,11 +1178,9 @@ async def stream_new_chat(
         # Fetch mentioned documents if any (with chunks for proper citations)
         mentioned_documents: list[Document] = []
         if mentioned_document_ids:
-            from sqlalchemy.orm import selectinload as doc_selectinload
-
             result = await session.execute(
                 select(Document)
-                .options(doc_selectinload(Document.chunks))
+                .options(selectinload(Document.chunks))
                 .filter(
                     Document.id.in_(mentioned_document_ids),
                     Document.search_space_id == search_space_id,
@@ -1156,8 +1191,6 @@ async def stream_new_chat(
         # Fetch mentioned SurfSense docs if any
         mentioned_surfsense_docs: list[SurfsenseDocsDocument] = []
         if mentioned_surfsense_doc_ids:
-            from sqlalchemy.orm import selectinload
-
             result = await session.execute(
                 select(SurfsenseDocsDocument)
                 .options(selectinload(SurfsenseDocsDocument.chunks))
@@ -1241,12 +1274,23 @@ async def stream_new_chat(
             "search_space_id": search_space_id,
         }
 
+        _perf_log.info(
+            "[stream_new_chat] History bootstrap + doc/report queries in %.3fs",
+            time.perf_counter() - _t0,
+        )
+
         # All pre-streaming DB reads are done.  Commit to release the
         # transaction and its ACCESS SHARE locks so we don't block DDL
         # (e.g. migrations) for the entire duration of LLM streaming.
         # Tools that need DB access during streaming will start their own
         # short-lived transactions (or use isolated sessions).
         await session.commit()
+
+        _perf_log.info(
+            "[stream_new_chat] Total pre-stream setup in %.3fs (chat_id=%s)",
+            time.perf_counter() - _t_total,
+            chat_id,
+        )
 
         # Configure LangGraph with thread_id for memory
         # If checkpoint_id is provided, fork from that checkpoint (for edit/reload)
@@ -1309,6 +1353,8 @@ async def stream_new_chat(
             items=initial_items,
         )
 
+        _t_stream_start = time.perf_counter()
+        _first_event_logged = False
         async for sse in _stream_agent_events(
             agent=agent,
             config=config,
@@ -1320,7 +1366,22 @@ async def stream_new_chat(
             initial_step_title=initial_title,
             initial_step_items=initial_items,
         ):
+            if not _first_event_logged:
+                _perf_log.info(
+                    "[stream_new_chat] First agent event in %.3fs (time since stream start), "
+                    "%.3fs (total since request start) (chat_id=%s)",
+                    time.perf_counter() - _t_stream_start,
+                    time.perf_counter() - _t_total,
+                    chat_id,
+                )
+                _first_event_logged = True
             yield sse
+
+        _perf_log.info(
+            "[stream_new_chat] Agent stream completed in %.3fs (chat_id=%s)",
+            time.perf_counter() - _t_stream_start,
+            chat_id,
+        )
 
         if stream_result.is_interrupted:
             yield streaming_service.format_finish_step()
@@ -1329,12 +1390,6 @@ async def stream_new_chat(
             return
 
         accumulated_text = stream_result.accumulated_text
-
-        # Generate LLM title for new chats after first response
-        # Check if this is the first assistant response by counting existing assistant messages
-        from sqlalchemy import func
-
-        from app.db import NewChatMessage, NewChatThread
 
         assistant_count_result = await session.execute(
             select(func.count(NewChatMessage.id)).filter(
@@ -1436,12 +1491,14 @@ async def stream_resume_chat(
 ) -> AsyncGenerator[str, None]:
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
+    _t_total = time.perf_counter()
 
     try:
         if user_id:
             await set_ai_responding(session, chat_id, UUID(user_id))
 
         agent_config: AgentConfig | None = None
+        _t0 = time.perf_counter()
         if llm_config_id >= 0:
             agent_config = await load_agent_config(
                 session=session,
@@ -1465,15 +1522,17 @@ async def stream_resume_chat(
                 return
             llm = create_chat_litellm_from_config(llm_config)
             agent_config = AgentConfig.from_yaml_config(llm_config)
+        _perf_log.info(
+            "[stream_resume] LLM config loaded in %.3fs", time.perf_counter() - _t0
+        )
 
         if not llm:
             yield streaming_service.format_error("Failed to create LLM instance")
             yield streaming_service.format_done()
             return
 
+        _t0 = time.perf_counter()
         connector_service = ConnectorService(session, search_space_id=search_space_id)
-
-        from app.db import SearchSourceConnectorType
 
         firecrawl_api_key = None
         webcrawler_connector = await connector_service.get_connector_by_type(
@@ -1481,15 +1540,19 @@ async def stream_resume_chat(
         )
         if webcrawler_connector and webcrawler_connector.config:
             firecrawl_api_key = webcrawler_connector.config.get("FIRECRAWL_API_KEY")
-
-        checkpointer = await get_checkpointer()
-
-        sandbox_backend = None
-        from app.agents.new_chat.sandbox import (
-            get_or_create_sandbox,
-            is_sandbox_enabled,
+        _perf_log.info(
+            "[stream_resume] Connector service + firecrawl key in %.3fs",
+            time.perf_counter() - _t0,
         )
 
+        _t0 = time.perf_counter()
+        checkpointer = await get_checkpointer()
+        _perf_log.info(
+            "[stream_resume] Checkpointer ready in %.3fs", time.perf_counter() - _t0
+        )
+
+        sandbox_backend = None
+        _t0 = time.perf_counter()
         if is_sandbox_enabled():
             try:
                 sandbox_backend = await get_or_create_sandbox(chat_id)
@@ -1498,9 +1561,15 @@ async def stream_resume_chat(
                     "Sandbox creation failed, continuing without execute tool: %s",
                     sandbox_err,
                 )
+        _perf_log.info(
+            "[stream_resume] Sandbox provisioning in %.3fs (enabled=%s)",
+            time.perf_counter() - _t0,
+            sandbox_backend is not None,
+        )
 
         visibility = thread_visibility or ChatVisibility.PRIVATE
 
+        _t0 = time.perf_counter()
         agent = await create_surfsense_deep_agent(
             llm=llm,
             search_space_id=search_space_id,
@@ -1514,9 +1583,18 @@ async def stream_resume_chat(
             thread_visibility=visibility,
             sandbox_backend=sandbox_backend,
         )
+        _perf_log.info(
+            "[stream_resume] Agent created in %.3fs", time.perf_counter() - _t0
+        )
 
         # Release the transaction before streaming (same rationale as stream_new_chat).
         await session.commit()
+
+        _perf_log.info(
+            "[stream_resume] Total pre-stream setup in %.3fs (chat_id=%s)",
+            time.perf_counter() - _t_total,
+            chat_id,
+        )
 
         from langgraph.types import Command
 
@@ -1528,6 +1606,8 @@ async def stream_resume_chat(
         yield streaming_service.format_message_start()
         yield streaming_service.format_start_step()
 
+        _t_stream_start = time.perf_counter()
+        _first_event_logged = False
         async for sse in _stream_agent_events(
             agent=agent,
             config=config,
@@ -1536,7 +1616,20 @@ async def stream_resume_chat(
             result=stream_result,
             step_prefix="thinking-resume",
         ):
+            if not _first_event_logged:
+                _perf_log.info(
+                    "[stream_resume] First agent event in %.3fs (stream), %.3fs (total) (chat_id=%s)",
+                    time.perf_counter() - _t_stream_start,
+                    time.perf_counter() - _t_total,
+                    chat_id,
+                )
+                _first_event_logged = True
             yield sse
+        _perf_log.info(
+            "[stream_resume] Agent stream completed in %.3fs (chat_id=%s)",
+            time.perf_counter() - _t_stream_start,
+            chat_id,
+        )
         if stream_result.is_interrupted:
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()

@@ -1,14 +1,10 @@
 """
-End-to-end tests for manual document upload.
+Integration tests for the document upload HTTP API.
 
-These tests exercise the full pipeline:
-  API upload → Celery task → ETL extraction → chunking → embedding → DB storage
+Covers the API contract, auth, duplicate detection, and error handling.
+Pipeline internals are tested in the ``indexing_pipeline`` suite.
 
-Prerequisites (must be running):
-  - FastAPI backend
-  - PostgreSQL + pgvector
-  - Redis
-  - Celery worker
+Requires PostgreSQL + pgvector.
 """
 
 from __future__ import annotations
@@ -21,36 +17,21 @@ import pytest
 
 from tests.utils.helpers import (
     FIXTURES_DIR,
-    delete_document,
-    get_document,
     poll_document_status,
     upload_file,
     upload_multiple_files,
 )
 
-pytestmark = pytest.mark.e2e
-
-# ---------------------------------------------------------------------------
-# Helpers local to this module
-# ---------------------------------------------------------------------------
-
-
-def _assert_document_ready(doc: dict, *, expected_filename: str) -> None:
-    """Common assertions for a successfully processed document."""
-    assert doc["title"] == expected_filename
-    assert doc["document_type"] == "FILE"
-    assert doc["content"], "Document content (summary) should not be empty"
-    assert doc["content_hash"], "content_hash should be set"
-    assert doc["document_metadata"].get("FILE_NAME") == expected_filename
+pytestmark = pytest.mark.integration
 
 
 # ---------------------------------------------------------------------------
-# Test A: Upload a .txt file (direct read path — no ETL service needed)
+# Upload smoke tests (one per distinct code-path: direct-read & ETL)
 # ---------------------------------------------------------------------------
 
 
 class TestTxtFileUpload:
-    """Upload a plain-text file and verify the full pipeline."""
+    """Upload a plain-text file (direct-read path) via the HTTP API."""
 
     async def test_upload_txt_returns_document_id(
         self,
@@ -89,85 +70,9 @@ class TestTxtFileUpload:
         for did in doc_ids:
             assert statuses[did]["status"]["state"] == "ready"
 
-    async def test_txt_document_fields_populated(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-        cleanup_doc_ids: list[int],
-    ):
-        resp = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
-        )
-        doc_ids = resp.json()["document_ids"]
-        cleanup_doc_ids.extend(doc_ids)
-
-        await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
-        )
-
-        doc = await get_document(client, headers, doc_ids[0])
-        _assert_document_ready(doc, expected_filename="sample.txt")
-        assert doc["document_metadata"]["ETL_SERVICE"] == "MARKDOWN"
-
-
-# ---------------------------------------------------------------------------
-# Test B: Upload a .md file (markdown direct-read path)
-# ---------------------------------------------------------------------------
-
-
-class TestMarkdownFileUpload:
-    """Upload a Markdown file and verify the full pipeline."""
-
-    async def test_md_processing_reaches_ready(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-        cleanup_doc_ids: list[int],
-    ):
-        resp = await upload_file(
-            client, headers, "sample.md", search_space_id=search_space_id
-        )
-        assert resp.status_code == 200
-        doc_ids = resp.json()["document_ids"]
-        cleanup_doc_ids.extend(doc_ids)
-
-        statuses = await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
-        )
-        for did in doc_ids:
-            assert statuses[did]["status"]["state"] == "ready"
-
-    async def test_md_document_fields_populated(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-        cleanup_doc_ids: list[int],
-    ):
-        resp = await upload_file(
-            client, headers, "sample.md", search_space_id=search_space_id
-        )
-        doc_ids = resp.json()["document_ids"]
-        cleanup_doc_ids.extend(doc_ids)
-
-        await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
-        )
-
-        doc = await get_document(client, headers, doc_ids[0])
-        _assert_document_ready(doc, expected_filename="sample.md")
-        assert doc["document_metadata"]["ETL_SERVICE"] == "MARKDOWN"
-
-
-# ---------------------------------------------------------------------------
-# Test C: Upload a .pdf file (ETL path — Docling / Unstructured)
-# ---------------------------------------------------------------------------
-
 
 class TestPdfFileUpload:
-    """Upload a PDF and verify it goes through the ETL extraction pipeline."""
+    """Upload a PDF (ETL extraction path) via the HTTP API."""
 
     async def test_pdf_processing_reaches_ready(
         self,
@@ -189,31 +94,6 @@ class TestPdfFileUpload:
         for did in doc_ids:
             assert statuses[did]["status"]["state"] == "ready"
 
-    async def test_pdf_document_fields_populated(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-        cleanup_doc_ids: list[int],
-    ):
-        resp = await upload_file(
-            client, headers, "sample.pdf", search_space_id=search_space_id
-        )
-        doc_ids = resp.json()["document_ids"]
-        cleanup_doc_ids.extend(doc_ids)
-
-        await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id, timeout=300.0
-        )
-
-        doc = await get_document(client, headers, doc_ids[0])
-        _assert_document_ready(doc, expected_filename="sample.pdf")
-        assert doc["document_metadata"]["ETL_SERVICE"] in {
-            "DOCLING",
-            "UNSTRUCTURED",
-            "LLAMACLOUD",
-        }
-
 
 # ---------------------------------------------------------------------------
 # Test D: Upload multiple files in a single request
@@ -221,7 +101,7 @@ class TestPdfFileUpload:
 
 
 class TestMultiFileUpload:
-    """Upload several files at once and verify all are processed."""
+    """Upload several files at once and verify the API response contract."""
 
     async def test_multi_upload_returns_all_ids(
         self,
@@ -243,28 +123,6 @@ class TestMultiFileUpload:
         assert len(body["document_ids"]) == 2
         cleanup_doc_ids.extend(body["document_ids"])
 
-    async def test_multi_upload_all_reach_ready(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-        cleanup_doc_ids: list[int],
-    ):
-        resp = await upload_multiple_files(
-            client,
-            headers,
-            ["sample.txt", "sample.md"],
-            search_space_id=search_space_id,
-        )
-        doc_ids = resp.json()["document_ids"]
-        cleanup_doc_ids.extend(doc_ids)
-
-        statuses = await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
-        )
-        for did in doc_ids:
-            assert statuses[did]["status"]["state"] == "ready"
-
 
 # ---------------------------------------------------------------------------
 # Test E: Duplicate file upload (same file uploaded twice)
@@ -284,7 +142,6 @@ class TestDuplicateFileUpload:
         search_space_id: int,
         cleanup_doc_ids: list[int],
     ):
-        # First upload
         resp1 = await upload_file(
             client, headers, "sample.txt", search_space_id=search_space_id
         )
@@ -296,7 +153,6 @@ class TestDuplicateFileUpload:
             client, headers, first_ids, search_space_id=search_space_id
         )
 
-        # Second upload of the same file
         resp2 = await upload_file(
             client, headers, "sample.txt", search_space_id=search_space_id
         )
@@ -327,7 +183,6 @@ class TestDuplicateContentDetection:
         cleanup_doc_ids: list[int],
         tmp_path: Path,
     ):
-        # First upload
         resp1 = await upload_file(
             client, headers, "sample.txt", search_space_id=search_space_id
         )
@@ -338,7 +193,6 @@ class TestDuplicateContentDetection:
             client, headers, first_ids, search_space_id=search_space_id
         )
 
-        # Copy fixture content to a differently named temp file
         src = FIXTURES_DIR / "sample.txt"
         dest = tmp_path / "renamed_sample.txt"
         shutil.copy2(src, dest)
@@ -445,71 +299,7 @@ class TestNoFilesUpload:
 
 
 # ---------------------------------------------------------------------------
-# Test J: Document deletion after successful upload
-# ---------------------------------------------------------------------------
-
-
-class TestDocumentDeletion:
-    """Upload, wait for ready, delete, then verify it's gone."""
-
-    async def test_delete_processed_document(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-    ):
-        resp = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
-        )
-        doc_ids = resp.json()["document_ids"]
-        await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
-        )
-
-        del_resp = await delete_document(client, headers, doc_ids[0])
-        assert del_resp.status_code == 200
-
-        get_resp = await client.get(
-            f"/api/v1/documents/{doc_ids[0]}",
-            headers=headers,
-        )
-        assert get_resp.status_code == 404
-
-
-# ---------------------------------------------------------------------------
-# Test K: Cannot delete a document while it is still processing
-# ---------------------------------------------------------------------------
-
-
-class TestDeleteWhileProcessing:
-    """Attempting to delete a pending/processing document should be rejected."""
-
-    async def test_delete_pending_document_returns_409(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-        cleanup_doc_ids: list[int],
-    ):
-        resp = await upload_file(
-            client, headers, "sample.pdf", search_space_id=search_space_id
-        )
-        assert resp.status_code == 200
-        doc_ids = resp.json()["document_ids"]
-        cleanup_doc_ids.extend(doc_ids)
-
-        # Immediately try to delete before processing finishes
-        del_resp = await delete_document(client, headers, doc_ids[0])
-        assert del_resp.status_code == 409
-
-        # Let it finish so cleanup can work
-        await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id, timeout=300.0
-        )
-
-
-# ---------------------------------------------------------------------------
-# Test L: Status polling returns correct structure
+# Test K: Searchability after upload
 # ---------------------------------------------------------------------------
 
 
@@ -544,49 +334,4 @@ class TestDocumentSearchability:
         result_ids = [d["id"] for d in search_resp.json()["items"]]
         assert doc_ids[0] in result_ids, (
             f"Uploaded document {doc_ids[0]} not found in search results: {result_ids}"
-        )
-
-
-class TestStatusPolling:
-    """Verify the status endpoint returns well-formed responses."""
-
-    async def test_status_endpoint_returns_items(
-        self,
-        client: httpx.AsyncClient,
-        headers: dict[str, str],
-        search_space_id: int,
-        cleanup_doc_ids: list[int],
-    ):
-        resp = await upload_file(
-            client, headers, "sample.txt", search_space_id=search_space_id
-        )
-        doc_ids = resp.json()["document_ids"]
-        cleanup_doc_ids.extend(doc_ids)
-
-        status_resp = await client.get(
-            "/api/v1/documents/status",
-            headers=headers,
-            params={
-                "search_space_id": search_space_id,
-                "document_ids": ",".join(str(d) for d in doc_ids),
-            },
-        )
-        assert status_resp.status_code == 200
-
-        body = status_resp.json()
-        assert "items" in body
-        assert len(body["items"]) == len(doc_ids)
-        for item in body["items"]:
-            assert "id" in item
-            assert "status" in item
-            assert "state" in item["status"]
-            assert item["status"]["state"] in {
-                "pending",
-                "processing",
-                "ready",
-                "failed",
-            }
-
-        await poll_document_status(
-            client, headers, doc_ids, search_space_id=search_space_id
         )

@@ -55,6 +55,7 @@ from app.users import current_active_user
 from app.utils.rbac import check_permission
 
 _logger = logging.getLogger(__name__)
+_background_tasks: set[asyncio.Task] = set()
 
 router = APIRouter()
 
@@ -90,7 +91,9 @@ def _try_delete_sandbox(thread_id: int) -> None:
 
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(_bg())
+        task = loop.create_task(_bg())
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
     except RuntimeError:
         pass
 

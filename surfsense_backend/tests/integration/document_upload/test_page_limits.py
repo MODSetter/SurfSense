@@ -1,23 +1,20 @@
 """
-End-to-end tests for page-limit enforcement during document upload.
+Integration tests for page-limit enforcement during document upload.
 
 These tests manipulate the test user's ``pages_used`` / ``pages_limit``
-columns directly in the database and then exercise the upload pipeline to
-verify that:
+columns directly in the database (setup only) and then exercise the upload
+pipeline to verify that:
 
   - Uploads are rejected *before* ETL when the limit is exhausted.
-  - ``pages_used`` increases after a successful upload.
+  - ``pages_used`` increases after a successful upload (verified via API).
   - A ``page_limit_exceeded`` notification is created on rejection.
   - ``pages_used`` is not modified when a document fails processing.
 
 All tests reuse the existing small fixtures (``sample.pdf``, ``sample.txt``)
 so no additional processing time is introduced.
 
-Prerequisites (must be running):
-  - FastAPI backend
+Prerequisites:
   - PostgreSQL + pgvector
-  - Redis
-  - Celery worker
 """
 
 from __future__ import annotations
@@ -31,7 +28,21 @@ from tests.utils.helpers import (
     upload_file,
 )
 
-pytestmark = pytest.mark.e2e
+pytestmark = pytest.mark.integration
+
+
+# ---------------------------------------------------------------------------
+# Helper: read pages_used through the public API
+# ---------------------------------------------------------------------------
+
+
+async def _get_pages_used(client: httpx.AsyncClient, headers: dict[str, str]) -> int:
+    """Fetch the current user's pages_used via the /users/me API."""
+    resp = await client.get("/users/me", headers=headers)
+    assert resp.status_code == 200, (
+        f"GET /users/me failed ({resp.status_code}): {resp.text}"
+    )
+    return resp.json()["pages_used"]
 
 
 # ---------------------------------------------------------------------------
@@ -65,7 +76,7 @@ class TestPageUsageIncrementsOnSuccess:
         for did in doc_ids:
             assert statuses[did]["status"]["state"] == "ready"
 
-        used, _ = await page_limits.get()
+        used = await _get_pages_used(client, headers)
         assert used > 0, "pages_used should have increased after successful processing"
 
 
@@ -128,7 +139,7 @@ class TestUploadRejectedWhenLimitExhausted:
             client, headers, doc_ids, search_space_id=search_space_id, timeout=300.0
         )
 
-        used, _ = await page_limits.get()
+        used = await _get_pages_used(client, headers)
         assert used == 50, (
             f"pages_used should remain 50 after rejected upload, got {used}"
         )
@@ -263,7 +274,7 @@ class TestPagesUnchangedOnProcessingFailure:
             for did in doc_ids:
                 assert statuses[did]["status"]["state"] == "failed"
 
-        used, _ = await page_limits.get()
+        used = await _get_pages_used(client, headers)
         assert used == 10, f"pages_used should remain 10 after ETL failure, got {used}"
 
 
@@ -284,7 +295,6 @@ class TestSecondUploadExceedsLimit:
         cleanup_doc_ids: list[int],
         page_limits,
     ):
-        # Give just enough room for one ~1-page PDF
         await page_limits.set(pages_used=0, pages_limit=1)
 
         resp1 = await upload_file(
@@ -300,7 +310,6 @@ class TestSecondUploadExceedsLimit:
         for did in first_ids:
             assert statuses1[did]["status"]["state"] == "ready"
 
-        # Second upload — should fail because quota is now consumed
         resp2 = await upload_file(
             client,
             headers,

@@ -1,4 +1,3 @@
-import os
 import uuid
 from unittest.mock import AsyncMock, MagicMock
 
@@ -8,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app.config import config as app_config
 from app.db import (
     Base,
     DocumentType,
@@ -17,13 +17,9 @@ from app.db import (
     User,
 )
 from app.indexing_pipeline.connector_document import ConnectorDocument
+from tests.conftest import TEST_DATABASE_URL
 
-_EMBEDDING_DIM = 1024  # must match the Vector() dimension used in DB column creation
-
-_DEFAULT_TEST_DB = (
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test"
-)
-TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", _DEFAULT_TEST_DB)
+_EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 
 
 @pytest_asyncio.fixture(scope="session")

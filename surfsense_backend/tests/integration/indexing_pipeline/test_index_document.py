@@ -1,8 +1,11 @@
 import pytest
 from sqlalchemy import select
 
+from app.config import config as app_config
 from app.db import Chunk, Document, DocumentStatus
 from app.indexing_pipeline.indexing_pipeline_service import IndexingPipelineService
+
+_EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 
 pytestmark = pytest.mark.integration
 
@@ -144,7 +147,7 @@ async def test_embedding_written_to_db(
     reloaded = result.scalars().first()
 
     assert reloaded.embedding is not None
-    assert len(reloaded.embedding) == 1024
+    assert len(reloaded.embedding) == _EMBEDDING_DIM
 
 
 @pytest.mark.usefixtures(

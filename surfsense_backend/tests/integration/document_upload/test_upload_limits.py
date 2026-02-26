@@ -1,5 +1,5 @@
 """
-End-to-end tests for backend file upload limit enforcement.
+Integration tests for backend file upload limit enforcement.
 
 These tests verify that the API rejects uploads that exceed:
   - Max files per upload (10)
@@ -9,8 +9,7 @@ These tests verify that the API rejects uploads that exceed:
 The limits mirror the frontend's DocumentUploadTab.tsx constants and are
 enforced server-side to protect against direct API calls.
 
-Prerequisites (must be running):
-  - FastAPI backend
+Prerequisites:
   - PostgreSQL + pgvector
 """
 
@@ -21,7 +20,7 @@ import io
 import httpx
 import pytest
 
-pytestmark = pytest.mark.e2e
+pytestmark = pytest.mark.integration
 
 
 # ---------------------------------------------------------------------------

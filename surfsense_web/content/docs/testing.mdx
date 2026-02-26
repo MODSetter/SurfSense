@@ -1,22 +1,18 @@
 ---
 title: Testing
-description: Running and writing end-to-end tests for SurfSense
+description: Running and writing tests for SurfSense
+icon: FlaskConical
 ---
 
-SurfSense uses [pytest](https://docs.pytest.org/) for end-to-end testing. Tests are **self-bootstrapping** — they automatically register a test user and discover search spaces, so no manual database setup is required.
+SurfSense uses [pytest](https://docs.pytest.org/) with two test layers: **unit** tests (no database) and **integration** tests (require PostgreSQL + pgvector). Tests are self-bootstrapping — they configure the test database, register a user, and clean up automatically.
 
 ## Prerequisites
 
-Before running tests, make sure the full backend stack is running:
+- **PostgreSQL + pgvector** running locally (database `surfsense_test` will be used)
+- **`REGISTRATION_ENABLED=TRUE`** in your `.env` (this is the default)
+- A working LLM model with a valid API key in `global_llm_config.yaml` (for integration tests)
 
-- **FastAPI backend**
-- **PostgreSQL + pgvector**
-- **Redis**
-- **Celery worker**
-
-Your backend must have **`REGISTRATION_ENABLED=TRUE`** in its `.env` (this is the default). The tests register their own user on first run.
-
-Your `global_llm_config.yaml` must have at least one working LLM model with a valid API key — document processing uses Auto mode, which routes through the global config.
+No Redis or Celery is required — integration tests use an inline task dispatcher.
 
 ## Running Tests
 
@@ -26,19 +22,19 @@ Your `global_llm_config.yaml` must have at least one working LLM model with a va
 uv run pytest
 ```
 
-**Run by marker** (e.g., only document tests):
+**Run by marker:**
 
 ```bash
-uv run pytest -m document
+uv run pytest -m unit          # fast, no DB needed
+uv run pytest -m integration   # requires PostgreSQL + pgvector
 ```
 
 **Available markers:**
 
 | Marker | Description |
 |---|---|
-| `document` | Document upload, processing, and deletion tests |
-| `connector` | Connector indexing tests |
-| `chat` | Chat and agent tests |
+| `unit` | Pure logic tests, no DB or external services |
+| `integration` | Tests that require a real PostgreSQL database |
 
 **Useful flags:**
 
@@ -51,11 +47,11 @@ uv run pytest -m document
 
 ## Configuration
 
-Default pytest options are configured in `surfsense_backend/pyproject.toml`:
+Default pytest options are in `surfsense_backend/pyproject.toml`:
 
 ```toml
 [tool.pytest.ini_options]
-addopts = "-v --tb=short -x --strict-markers -ra --durations=10"
+addopts = "-v --tb=short -x --strict-markers -ra --durations=5"
 ```
 
 - `-v` — verbose test names
@@ -63,42 +59,47 @@ addopts = "-v --tb=short -x --strict-markers -ra --durations=10"
 - `-x` — stop on first failure
 - `--strict-markers` — reject unregistered markers
 - `-ra` — show summary of all non-passing tests
-- `--durations=10` — show the 10 slowest tests
+- `--durations=5` — show the 5 slowest tests
 
 ## Environment Variables
 
-All test configuration has sensible defaults. Override via environment variables if needed:
-
 | Variable | Default | Description |
 |---|---|---|
-| `TEST_BACKEND_URL` | `http://localhost:8000` | Backend URL to test against |
-| `TEST_DATABASE_URL` | Falls back to `DATABASE_URL` | Direct DB connection for test cleanup |
-| `TEST_USER_EMAIL` | `testuser@surfsense.com` | Test user email |
-| `TEST_USER_PASSWORD` | `testpassword123` | Test user password |
+| `TEST_DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test` | Database URL for tests |
 
-These can be configured in `surfsense_backend/.env` (see the Testing section at the bottom of `.env.example`).
+The test suite forces `DATABASE_URL` to point at the test database, so your production database is never touched.
+
+### Unit Tests
+
+Pure logic tests that run without a database. Cover model validation, chunking, hashing, and summarization.
+
+### Integration Tests
+
+Require PostgreSQL + pgvector. Split into two suites:
+
+- **`document_upload/`** — Tests the HTTP API through public endpoints: upload, multi-file, duplicate detection, auth, error handling, page limits, and file size limits. Uses an in-process FastAPI client with `ASGITransport`.
+- **`indexing_pipeline/`** — Tests pipeline internals directly: `prepare_for_indexing`, `index()`, and `index_uploaded_file()` covering chunking, embedding, summarization, fallbacks, and error handling.
+
+External boundaries (LLM, embedding, chunking, Redis) are mocked in both suites.
 
 ## How It Works
 
-Tests are fully self-bootstrapping:
-
-1. **User creation** — on first run, tests try to log in. If the user doesn't exist, they register via `POST /auth/register`, then log in.
-2. **Search space discovery** — after authentication, tests call `GET /api/v1/searchspaces` and use the first available search space (auto-created during registration).
-3. **Session purge** — before any tests run, a session-scoped fixture deletes all documents in the test search space directly via the database. This handles stuck documents from previous crashed runs that the API refuses to delete (409 Conflict).
-4. **Per-test cleanup** — every test that creates documents adds their IDs to a `cleanup_doc_ids` list. An autouse fixture deletes them after each test via the API, falling back to direct DB access for any stuck documents.
-
-This means tests work on both fresh databases and existing ones without any manual setup.
+1. **Database setup** — `TEST_DATABASE_URL` defaults to `surfsense_test`. Tables and extensions (`vector`, `pg_trgm`) are created once per session and dropped after.
+2. **Transaction isolation** — Each test runs inside a savepoint that rolls back, so tests don't affect each other.
+3. **User creation** — Integration tests register a test user via `POST /auth/register` on first run, then log in for subsequent requests.
+4. **Search space discovery** — Tests call `GET /api/v1/searchspaces` and use the first available space.
+5. **Cleanup** — A session fixture purges stale documents before tests run. Per-test cleanup deletes documents via API, falling back to direct DB access for stuck records.
 
 ## Writing New Tests
 
-1. Create a test file in the appropriate directory (e.g., `tests/e2e/test_connectors.py`).
-2. Add a module-level marker at the top:
+1. Create a test file in the appropriate directory (`unit/` or `integration/`).
+2. Add the marker at the top of the file:
 
 ```python
 import pytest
 
-pytestmark = pytest.mark.connector
+pytestmark = pytest.mark.integration  # or pytest.mark.unit
 ```
 
-3. Use fixtures from `conftest.py` — `client`, `headers`, `search_space_id`, and `cleanup_doc_ids` are available to all tests.
+3. Use fixtures from `conftest.py` — `client`, `headers`, `search_space_id`, and `cleanup_doc_ids` are available to integration tests. Unit tests get `make_connector_document` and sample ID fixtures.
 4. Register any new markers in `pyproject.toml` under `markers`.

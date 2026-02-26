@@ -444,8 +444,18 @@ async def build_tools_async(
         List of configured tool instances ready for the agent, including MCP tools.
 
     """
-    # Build standard tools
+    import time
+
+    _perf_log = logging.getLogger("surfsense.perf")
+    _perf_log.setLevel(logging.DEBUG)
+
+    _t0 = time.perf_counter()
     tools = build_tools(dependencies, enabled_tools, disabled_tools, additional_tools)
+    _perf_log.info(
+        "[build_tools_async] Built-in tools in %.3fs (%d tools)",
+        time.perf_counter() - _t0,
+        len(tools),
+    )
 
     # Load MCP tools if requested and dependencies are available
     if (
@@ -454,9 +464,15 @@ async def build_tools_async(
         and "search_space_id" in dependencies
     ):
         try:
+            _t0 = time.perf_counter()
             mcp_tools = await load_mcp_tools(
                 dependencies["db_session"],
                 dependencies["search_space_id"],
+            )
+            _perf_log.info(
+                "[build_tools_async] MCP tools loaded in %.3fs (%d tools)",
+                time.perf_counter() - _t0,
+                len(mcp_tools),
             )
             tools.extend(mcp_tools)
             logging.info(
