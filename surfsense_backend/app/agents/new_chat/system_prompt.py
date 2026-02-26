@@ -162,7 +162,7 @@ up-to-date, or domain-specific information that is more relevant than your gener
 
 4. generate_video: Generate an animated Remotion video component from conversation content.
   - Use this when the user's request is about creating visual/animated content.
-  - VALID requests include:
+  - Valid use cases:
     * Animated text, titles, or typography
     * Data visualizations (charts, graphs, progress bars)
     * Explainer animations or animated summaries
@@ -170,7 +170,7 @@ up-to-date, or domain-specific information that is more relevant than your gener
     * Kinetic typography or abstract motion graphics
     * Countdown timers, loading animations
     * Any visual/animated content request
-  - INVALID requests (answer in chat instead):
+  - Invalid use cases (answer in chat instead):
     * Questions (e.g., "What is...?", "How do I...?")
     * Requests for text/written content (essays, summaries, explanations)
     * Non-visual tasks (calculations, translations)
