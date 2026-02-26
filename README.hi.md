@@ -81,26 +81,15 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 पूर्ण डेटा नियंत्रण और गोपनीयता के लिए SurfSense को अपने स्वयं के बुनियादी ढांचे पर चलाएं।
 
+**आवश्यकताएँ:** [Docker](https://docs.docker.com/get-docker/) ([Docker Compose](https://docs.docker.com/compose/install/) सहित) इंस्टॉल और चालू होना चाहिए।
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
-Docker Compose और अन्य डिप्लॉयमेंट विकल्पों के लिए, [Docker इंस्टॉलेशन डॉक्स](https://www.surfsense.com/docs/docker-installation) देखें।
+इंस्टॉल स्क्रिप्ट दैनिक ऑटो-अपडेट के लिए स्वचालित रूप से [Watchtower](https://github.com/nicholas-fedor/watchtower) सेटअप करती है। इसे छोड़ने के लिए, `--no-watchtower` फ्लैग जोड़ें।
 
-**अपडेट (अनुशंसित — Watchtower):**
-
-```bash
-docker run -d --name watchtower -v /var/run/docker.sock:/var/run/docker.sock nickfedor/watchtower --label-enable --interval 86400
-```
-
-**अपडेट (मैनुअल):**
-
-```bash
-cd surfsense   # या SurfSense/docker यदि आपने Option 2 का उपयोग किया
-docker compose pull && docker compose up -d
-```
-
-मैनुअल इंस्टॉलेशन और अन्य डिप्लॉयमेंट विकल्पों के लिए, [डॉक्स](https://www.surfsense.com/docs/) देखें।
+Docker Compose, मैनुअल इंस्टॉलेशन और अन्य डिप्लॉयमेंट विकल्पों के लिए, [डॉक्स](https://www.surfsense.com/docs/) देखें।
 
 ### रीयल-टाइम सहयोग कैसे करें (बीटा)
 
