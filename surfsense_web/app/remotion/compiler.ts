@@ -13,6 +13,7 @@ import {
 	AbsoluteFill,
 	Img,
 	interpolate,
+	interpolateColors,
 	Sequence,
 	spring,
 	useCurrentFrame,
@@ -68,7 +69,9 @@ export function compileCode(code: string): CompilationResult {
 
 	try {
 		const componentBody = extractComponentBody(code);
-		const wrappedSource = `const DynamicAnimation = () => {\n${componentBody}\n};`;
+		const rawWrapped = `const DynamicAnimation = () => {\n${componentBody}\n};`;
+		// Strip nested 'export' keywords — invalid inside a function body
+		const wrappedSource = rawWrapped.replace(/\bexport\s+(const|function|class)\s/g, "$1 ");
 
 		const transpiled = Babel.transform(wrappedSource, {
 			presets: ["react", "typescript"],
@@ -82,6 +85,7 @@ export function compileCode(code: string): CompilationResult {
 		const Remotion = {
 			AbsoluteFill,
 			interpolate,
+			interpolateColors,
 			useCurrentFrame,
 			useVideoConfig,
 			spring,
@@ -100,6 +104,7 @@ export function compileCode(code: string): CompilationResult {
 			"THREE",
 			"AbsoluteFill",
 			"interpolate",
+			"interpolateColors",
 			"useCurrentFrame",
 			"useVideoConfig",
 			"spring",
@@ -146,6 +151,7 @@ export function compileCode(code: string): CompilationResult {
 			THREE,
 			AbsoluteFill,
 			interpolate,
+			interpolateColors,
 			useCurrentFrame,
 			useVideoConfig,
 			spring,
