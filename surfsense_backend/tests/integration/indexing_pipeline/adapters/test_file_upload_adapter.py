@@ -267,9 +267,7 @@ async def test_reindex_clears_reindexing_flag(
 
 
 @pytest.mark.usefixtures("patched_embed_text", "patched_chunk_text")
-async def test_reindex_raises_on_failure(
-    db_session, db_search_space, db_user, mocker
-):
+async def test_reindex_raises_on_failure(db_session, db_search_space, db_user, mocker):
     """RuntimeError is raised when reindexing fails so the caller can handle it."""
     mocker.patch(
         "app.indexing_pipeline.indexing_pipeline_service.summarize_document",
