@@ -23,6 +23,8 @@
 
 set -euo pipefail
 
+main() {
+
 REPO_RAW="https://raw.githubusercontent.com/AnishSarkar22/SurfSense/fix/docker"
 INSTALL_DIR="./surfsense"
 OLD_VOLUME="surfsense-data"
@@ -145,7 +147,7 @@ if docker volume ls --format '{{.Name}}' 2>/dev/null < /dev/null | grep -q "^${O
 
         # Run extraction non-interactively. On failure the error from
         # migrate-database.sh is printed and install.sh exits here.
-        bash "${INSTALL_DIR}/scripts/migrate-database.sh" --yes \
+        bash "${INSTALL_DIR}/scripts/migrate-database.sh" --yes < /dev/null \
             || error "Data extraction failed. See ./surfsense-migration.log for details.\nYou can also run migrate-database.sh manually with custom flags:\n  bash ${INSTALL_DIR}/scripts/migrate-database.sh --db-user X --db-password Y"
 
         printf "\n"
@@ -328,3 +330,7 @@ else
     warn "  First startup may take a few minutes while images are pulled."
     warn "  Edit ${INSTALL_DIR}/.env to configure API keys, OAuth, etc."
 fi
+
+} # end main()
+
+main "$@"
