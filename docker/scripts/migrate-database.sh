@@ -98,10 +98,10 @@ confirm() {
 # ── Cleanup trap — always remove the temp container ──────────────────────────
 cleanup() {
     local exit_code=$?
-    if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -q "^${TEMP_CONTAINER}$"; then
+    if docker ps -a --format '{{.Names}}' 2>/dev/null < /dev/null | grep -q "^${TEMP_CONTAINER}$"; then
         info "Cleaning up temporary container '${TEMP_CONTAINER}'..."
-        docker stop "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
-        docker rm   "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
+        docker stop "${TEMP_CONTAINER}" >/dev/null 2>&1 < /dev/null || true
+        docker rm   "${TEMP_CONTAINER}" >/dev/null 2>&1 < /dev/null || true
     fi
     if [[ $exit_code -ne 0 ]]; then
         printf "\n${RED}[SurfSense]${NC} Migration data extraction failed (exit code %s).\n" "${exit_code}" >&2
@@ -120,7 +120,7 @@ wait_for_pg() {
     local attempt=0
 
     info "Waiting for ${label} to accept connections..."
-    until docker exec "${container}" pg_isready -U "${user}" -q 2>/dev/null; do
+    until docker exec "${container}" pg_isready -U "${user}" -q 2>/dev/null < /dev/null; do
         attempt=$((attempt + 1))
         if [[ $attempt -ge $max_attempts ]]; then
             error "${label} did not become ready after $((max_attempts * 2)) seconds. Check: docker logs ${container}"
@@ -142,23 +142,23 @@ command -v docker >/dev/null 2>&1 \
     || error "Docker is not installed. Install it at: https://docs.docker.com/get-docker/"
 
 # Docker daemon
-docker info >/dev/null 2>&1 \
+docker info >/dev/null 2>&1 < /dev/null \
     || error "Docker daemon is not running. Please start Docker and try again."
 
 # Old volume must exist
-docker volume ls --format '{{.Name}}' | grep -q "^${OLD_VOLUME}$" \
+docker volume ls --format '{{.Name}}' < /dev/null | grep -q "^${OLD_VOLUME}$" \
     || error "Legacy volume '${OLD_VOLUME}' not found.\n       Are you sure you ran the old all-in-one SurfSense container?"
 success "Found legacy volume: ${OLD_VOLUME}"
 
 # Detect and stop any container currently using the old volume
 # (mounting a live PG volume into a second container causes the new container's
 #  entrypoint to chown the data files, breaking the running container's access)
-OLD_CONTAINER=$(docker ps --filter "volume=${OLD_VOLUME}" --format '{{.Names}}' | head -n1 || true)
+OLD_CONTAINER=$(docker ps --filter "volume=${OLD_VOLUME}" --format '{{.Names}}' < /dev/null | head -n1 || true)
 if [[ -n "${OLD_CONTAINER}" ]]; then
     warn "Container '${OLD_CONTAINER}' is running and using the '${OLD_VOLUME}' volume."
     warn "It must be stopped before migration to prevent data file corruption."
     confirm "Stop '${OLD_CONTAINER}' now and proceed with data extraction?"
-    docker stop "${OLD_CONTAINER}" >/dev/null 2>&1 \
+    docker stop "${OLD_CONTAINER}" >/dev/null 2>&1 < /dev/null \
         || error "Failed to stop '${OLD_CONTAINER}'. Try: docker stop ${OLD_CONTAINER}"
     success "Container '${OLD_CONTAINER}' stopped."
 fi
@@ -172,10 +172,10 @@ if [[ -f "${DUMP_FILE}" ]]; then
 fi
 
 # Clean up any stale temp container from a previous failed run
-if docker ps -a --format '{{.Names}}' | grep -q "^${TEMP_CONTAINER}$"; then
+if docker ps -a --format '{{.Names}}' < /dev/null | grep -q "^${TEMP_CONTAINER}$"; then
     warn "Stale migration container '${TEMP_CONTAINER}' found — removing it."
-    docker stop "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
-    docker rm   "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
+    docker stop "${TEMP_CONTAINER}" >/dev/null 2>&1 < /dev/null || true
+    docker rm   "${TEMP_CONTAINER}" >/dev/null 2>&1 < /dev/null || true
 fi
 
 # Disk space (warn if < 500 MB free)
@@ -205,7 +205,7 @@ confirm "Start data extraction? (Your original data will not be deleted or modif
 step "1" "Starting temporary PostgreSQL 14 container"
 
 info "Pulling ${PG14_IMAGE}..."
-docker pull "${PG14_IMAGE}" >/dev/null 2>&1 \
+docker pull "${PG14_IMAGE}" >/dev/null 2>&1 < /dev/null \
     || warn "Could not pull ${PG14_IMAGE} — using cached image if available."
 
 # Detect the UID that owns the existing data files and run the temp container
@@ -214,7 +214,7 @@ docker pull "${PG14_IMAGE}" >/dev/null 2>&1 \
 # re-own the files to UID 999 and break any subsequent access by the original
 # container's postgres process (which may run as a different UID).
 DATA_UID=$(docker run --rm -v "${OLD_VOLUME}:/data" alpine \
-    stat -c '%u' /data/postgres 2>/dev/null || echo "")
+    stat -c '%u' /data/postgres 2>/dev/null < /dev/null || echo "")
 if [[ -z "${DATA_UID}" || "${DATA_UID}" == "0" ]]; then
     warn "Could not detect data directory UID — falling back to default (may chown files)."
     USER_FLAG=""
@@ -231,7 +231,7 @@ docker run -d \
     -e POSTGRES_PASSWORD="${OLD_DB_PASSWORD}" \
     -e POSTGRES_DB="${OLD_DB_NAME}" \
     ${USER_FLAG} \
-    "${PG14_IMAGE}" >/dev/null
+    "${PG14_IMAGE}" >/dev/null < /dev/null
 
 success "Temporary container '${TEMP_CONTAINER}' started."
 wait_for_pg "${TEMP_CONTAINER}" "${OLD_DB_USER}" "PostgreSQL 14"
@@ -245,7 +245,7 @@ if ! docker exec \
         -e PGPASSWORD="${OLD_DB_PASSWORD}" \
         "${TEMP_CONTAINER}" \
         pg_dump -U "${OLD_DB_USER}" --no-password "${OLD_DB_NAME}" \
-        > "${DUMP_FILE}" 2>/tmp/surfsense_pgdump_err; then
+        > "${DUMP_FILE}" 2>/tmp/surfsense_pgdump_err < /dev/null; then
     cat /tmp/surfsense_pgdump_err >&2
     error "pg_dump failed. See above for details."
 fi
@@ -268,8 +268,8 @@ success "Dump complete: ${DUMP_SIZE} (${DUMP_LINES} lines) → ${DUMP_FILE}"
 
 # Stop the temp container (trap will also handle it on unexpected exit)
 info "Stopping temporary PostgreSQL 14 container..."
-docker stop "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
-docker rm   "${TEMP_CONTAINER}" >/dev/null 2>&1 || true
+docker stop "${TEMP_CONTAINER}" >/dev/null 2>&1 < /dev/null || true
+docker rm   "${TEMP_CONTAINER}" >/dev/null 2>&1 < /dev/null || true
 success "Temporary container removed."
 
 # ── Step 3: Recover SECRET_KEY ────────────────────────────────────────────────
@@ -279,10 +279,10 @@ RECOVERED_KEY=""
 
 if docker run --rm -v "${OLD_VOLUME}:/data" alpine \
         sh -c 'test -f /data/.secret_key && cat /data/.secret_key' \
-        2>/dev/null | grep -q .; then
+        2>/dev/null < /dev/null | grep -q .; then
     RECOVERED_KEY=$(
         docker run --rm -v "${OLD_VOLUME}:/data" alpine \
-            cat /data/.secret_key 2>/dev/null | tr -d '[:space:]'
+            cat /data/.secret_key 2>/dev/null < /dev/null | tr -d '[:space:]'
     )
     success "Recovered SECRET_KEY from '${OLD_VOLUME}'."
 else

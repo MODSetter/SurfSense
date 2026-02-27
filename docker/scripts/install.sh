@@ -62,11 +62,11 @@ command -v docker >/dev/null 2>&1 \
     || error "Docker is not installed. Install it at: https://docs.docker.com/get-docker/"
 success "Docker found."
 
-docker info >/dev/null 2>&1 \
+docker info >/dev/null 2>&1 < /dev/null \
     || error "Docker daemon is not running. Please start Docker and try again."
 success "Docker daemon is running."
 
-if docker compose version >/dev/null 2>&1; then
+if docker compose version >/dev/null 2>&1 < /dev/null; then
     DC="docker compose"
 elif command -v docker-compose >/dev/null 2>&1; then
     DC="docker-compose"
@@ -82,7 +82,7 @@ wait_for_pg() {
     local attempt=0
 
     info "Waiting for PostgreSQL to accept connections..."
-    until (cd "${INSTALL_DIR}" && ${DC} exec -T db pg_isready -U "${db_user}" -q 2>/dev/null); do
+    until (cd "${INSTALL_DIR}" && ${DC} exec -T db pg_isready -U "${db_user}" -q 2>/dev/null) < /dev/null; do
         attempt=$((attempt + 1))
         if [[ $attempt -ge $max_attempts ]]; then
             error "PostgreSQL did not become ready after $((max_attempts * 2)) seconds.\nCheck logs: cd ${INSTALL_DIR} && ${DC} logs db"
@@ -125,7 +125,7 @@ success "All files downloaded to ${INSTALL_DIR}/"
 # If a dump already exists (from a previous partial run) skip extraction and
 # go straight to restore — this makes re-runs safe and idempotent.
 
-if docker volume ls --format '{{.Name}}' 2>/dev/null | grep -q "^${OLD_VOLUME}$"; then
+if docker volume ls --format '{{.Name}}' 2>/dev/null < /dev/null | grep -q "^${OLD_VOLUME}$"; then
     MIGRATION_MODE=true
 
     if [[ -f "${DUMP_FILE}" ]]; then
@@ -191,7 +191,7 @@ if $MIGRATION_MODE; then
     DB_NAME="${DB_NAME:-surfsense}"
 
     step "Starting PostgreSQL 17"
-    (cd "${INSTALL_DIR}" && ${DC} up -d db)
+    (cd "${INSTALL_DIR}" && ${DC} up -d db) < /dev/null
     wait_for_pg "${DB_USER}"
 
     step "Restoring database"
@@ -226,7 +226,7 @@ if $MIGRATION_MODE; then
             -e PGPASSWORD="${DB_PASS}" \
             db psql -U "${DB_USER}" -d "${DB_NAME}" -t \
             -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" \
-            2>/dev/null | tr -d ' \n' || echo "0"
+            2>/dev/null < /dev/null | tr -d ' \n' || echo "0"
     )
     if [[ "${TABLE_COUNT}" == "0" || -z "${TABLE_COUNT}" ]]; then
         warn "Smoke test: no tables found after restore."
@@ -236,7 +236,7 @@ if $MIGRATION_MODE; then
     fi
 
     step "Starting all SurfSense services"
-    (cd "${INSTALL_DIR}" && ${DC} up -d)
+    (cd "${INSTALL_DIR}" && ${DC} up -d) < /dev/null
     success "All services started."
 
     # Key file is no longer needed — SECRET_KEY is now in .env
@@ -244,7 +244,7 @@ if $MIGRATION_MODE; then
 
 else
     step "Starting SurfSense"
-    (cd "${INSTALL_DIR}" && ${DC} up -d)
+    (cd "${INSTALL_DIR}" && ${DC} up -d) < /dev/null
     success "All services started."
 fi
 
@@ -253,14 +253,14 @@ fi
 if $SETUP_WATCHTOWER; then
     step "Setting up Watchtower (auto-updates every $((WATCHTOWER_INTERVAL / 3600))h)"
 
-    WT_STATE=$(docker inspect -f '{{.State.Running}}' "${WATCHTOWER_CONTAINER}" 2>/dev/null || echo "missing")
+    WT_STATE=$(docker inspect -f '{{.State.Running}}' "${WATCHTOWER_CONTAINER}" 2>/dev/null < /dev/null || echo "missing")
 
     if [[ "${WT_STATE}" == "true" ]]; then
         success "Watchtower is already running — skipping."
     else
         if [[ "${WT_STATE}" != "missing" ]]; then
             info "Removing stopped Watchtower container..."
-            docker rm -f "${WATCHTOWER_CONTAINER}" >/dev/null 2>&1 || true
+            docker rm -f "${WATCHTOWER_CONTAINER}" >/dev/null 2>&1 < /dev/null || true
         fi
         docker run -d \
             --name "${WATCHTOWER_CONTAINER}" \
@@ -268,7 +268,7 @@ if $SETUP_WATCHTOWER; then
             -v /var/run/docker.sock:/var/run/docker.sock \
             nickfedor/watchtower \
             --label-enable \
-            --interval "${WATCHTOWER_INTERVAL}" >/dev/null 2>&1 \
+            --interval "${WATCHTOWER_INTERVAL}" >/dev/null 2>&1 < /dev/null \
             && success "Watchtower started — labeled SurfSense containers will auto-update." \
             || warn "Could not start Watchtower. You can set it up manually or use: docker compose pull && docker compose up -d"
     fi
