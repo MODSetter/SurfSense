@@ -667,25 +667,15 @@ async def _stream_agent_events(
                     else "unknown"
                 )
                 video_title = (
-                    tool_output.get("title", "Video")
+                    tool_output.get("topic", "Video")
                     if isinstance(tool_output, dict)
                     else "Video"
                 )
 
-                if video_status == "ready":
+                if video_status == "prompt_ready":
                     completed_items = [
                         f"Topic: {video_title}",
-                        "Video ready",
-                    ]
-                elif video_status == "failed":
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
-                    completed_items = [
-                        f"Topic: {video_title}",
-                        f"Error: {error_msg[:50]}",
+                        "Building animation...",
                     ]
                 else:
                     completed_items = last_active_step_items
@@ -899,32 +889,7 @@ async def _stream_agent_events(
                         f"Report generation failed: {error_msg}",
                         "error",
                     )
-            elif tool_name == "generate_video":
-                yield streaming_service.format_tool_output_available(
-                    tool_call_id,
-                    tool_output
-                    if isinstance(tool_output, dict)
-                    else {"result": tool_output},
-                )
-                if (
-                    isinstance(tool_output, dict)
-                    and tool_output.get("status") == "ready"
-                ):
-                    yield streaming_service.format_terminal_info(
-                        f"Video ready: {tool_output.get('title', 'Video')}",
-                        "success",
-                    )
-                else:
-                    error_msg = (
-                        tool_output.get("error", "Unknown error")
-                        if isinstance(tool_output, dict)
-                        else "Unknown error"
-                    )
-                    yield streaming_service.format_terminal_info(
-                        f"Video failed: {error_msg}",
-                        "error",
-                    )
-            elif tool_name in (
+            elif tool_name == "generate_video" or tool_name in (
                 "create_notion_page",
                 "update_notion_page",
                 "delete_notion_page",
