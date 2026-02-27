@@ -23,7 +23,7 @@
 
 set -euo pipefail
 
-REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/main"
+REPO_RAW="https://raw.githubusercontent.com/AnishSarkar22/SurfSense/fix/docker"
 INSTALL_DIR="./surfsense"
 OLD_VOLUME="surfsense-data"
 DUMP_FILE="./surfsense_migration_backup.sql"
