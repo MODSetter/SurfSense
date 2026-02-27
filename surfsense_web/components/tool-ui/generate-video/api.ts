@@ -8,6 +8,7 @@ export async function fetchCode(
 	sourceContent: string,
 	attempt: number,
 	error?: string,
+	signal?: AbortSignal,
 ): Promise<string> {
 	const token = getBearerToken();
 	const res = await fetch(`${BACKEND_URL}/api/v1/video/generate-code`, {
@@ -23,6 +24,7 @@ export async function fetchCode(
 			attempt,
 			error: error ?? null,
 		}),
+		signal,
 	});
 
 	if (!res.ok) {
@@ -31,7 +33,10 @@ export async function fetchCode(
 	}
 
 	const data = await res.json();
-	return data.code as string;
+	if (typeof data.code !== "string" || !data.code) {
+		throw new Error("Invalid response from server: missing code field");
+	}
+	return data.code;
 }
 
 export function extractDuration(code: string): number {

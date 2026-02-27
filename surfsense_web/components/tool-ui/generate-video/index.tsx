@@ -6,8 +6,8 @@ import { VideoIcon } from "lucide-react";
 import { VideoErrorState } from "./components/VideoErrorState";
 import { VideoLoadingState } from "./components/VideoLoadingState";
 import { useVideoLifecycle } from "./hooks/useVideoLifecycle";
-import { GenerateVideoArgsSchema, GenerateVideoResultSchema } from "./types";
 import type { GenerateVideoArgs, GenerateVideoResult } from "./types";
+import { MAX_ATTEMPTS } from "./types";
 
 export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, GenerateVideoResult>({
 	toolName: "generate_video",
@@ -44,7 +44,7 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 			return (
 				<VideoErrorState
 					title={topic}
-					error={finalError || "Generation failed after 3 attempts"}
+					error={finalError || `Generation failed after ${MAX_ATTEMPTS} attempts`}
 				/>
 			);
 		}
@@ -73,4 +73,3 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 	},
 });
 
-export { GenerateVideoArgsSchema, GenerateVideoResultSchema };

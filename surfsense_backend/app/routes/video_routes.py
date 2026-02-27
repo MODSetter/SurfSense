@@ -1,13 +1,3 @@
-"""
-Video generation route.
-
-POST /video/generate-code
-  Accepts topic, source_content, and optional error correction context.
-  Calls the configured agent LLM with the Remotion system prompt and returns
-  the raw TSX component code string.  The frontend (Next.js) is responsible
-  for compiling, validating, and retrying with real Babel errors.
-"""
-
 import logging
 import re
 
@@ -24,6 +14,8 @@ from app.utils.rbac import check_permission
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+MAX_ATTEMPTS = 3
 
 _FENCE_RE = re.compile(r"^(`{3,})(?:tsx|ts|jsx|js|typescript|javascript)?\s*\n")
 
@@ -44,7 +36,7 @@ class VideoGenerateCodeRequest(BaseModel):
     topic: str = Field(..., max_length=200)
     source_content: str
     error: str | None = None
-    attempt: int = Field(default=1, ge=1, le=3)
+    attempt: int = Field(default=1, ge=1, le=MAX_ATTEMPTS)
 
 
 class VideoGenerateCodeResponse(BaseModel):
@@ -57,11 +49,6 @@ async def generate_video_code(
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
-    """Generate a Remotion TSX component from topic and source content.
-
-    Called by the Next.js API route which handles compilation, validation,
-    and client-driven retry with real Babel errors.
-    """
     await check_permission(
         session,
         user,
@@ -86,17 +73,18 @@ async def generate_video_code(
     if data.error and data.attempt > 1:
         user_content = (
             f"{base_prompt}\n\n"
-            f"## COMPILATION ERROR (ATTEMPT {data.attempt}/3)\n"
-            f"The previous code failed to compile with this error:\n"
+            f"## ERROR (ATTEMPT {data.attempt}/{MAX_ATTEMPTS})\n"
+            f"The previous code failed with this error:\n"
             f"```\n{data.error}\n```\n\n"
-            f"CRITICAL: Fix this compilation error. Common issues include:\n"
+            f"CRITICAL: Fix this error. Common issues include:\n"
             f"- Syntax errors (missing brackets, semicolons)\n"
             f"- Invalid JSX (unclosed tags, invalid attributes)\n"
             f"- Undefined variables or imports\n"
             f"- Using interpolate() with color strings instead of interpolateColors()\n"
-            f"- Duplicate inputRange values (must be strictly increasing)\n\n"
-            f"Focus ONLY on fixing the error. Do not make other changes.\n"
-            f"Return the complete corrected code."
+            f"- Duplicate inputRange values (must be strictly increasing)\n"
+            f"- TransitionSeries children must be TransitionSeries.Sequence or TransitionSeries.Transition\n"
+            f"- Components defined inside another component (causes TDZ / re-mount issues)\n\n"
+            f"Focus ONLY on fixing the error. Return the complete corrected code."
         )
     else:
         user_content = base_prompt
