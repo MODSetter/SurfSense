@@ -36,6 +36,7 @@ from langchain_core.tools import tool
 from app.db import Report, async_session_maker
 from app.services.connector_service import ConnectorService
 from app.services.llm_service import get_document_summary_llm
+from app.utils.content_utils import strip_code_fences
 
 logger = logging.getLogger(__name__)
 
@@ -191,26 +192,7 @@ Write the new section now:
 # ─── Utility Functions ──────────────────────────────────────────────────────
 
 
-def _strip_wrapping_code_fences(text: str) -> str:
-    """Remove wrapping code fences that LLMs often add around Markdown output.
-
-    Handles patterns like:
-        ```markdown\\n...content...\\n```
-        ````markdown\\n...content...\\n````
-        ```md\\n...content...\\n```
-        ```\\n...content...\\n```
-        ```json\\n...content...\\n```
-    Supports 3 or more backticks (LLMs escalate when content has triple-backtick blocks).
-    """
-    stripped = text.strip()
-    # Match opening fence with 3+ backticks and optional language tag
-    m = re.match(r"^(`{3,})(?:markdown|md|json)?\s*\n", stripped)
-    if m:
-        fence = m.group(1)  # e.g. "```" or "````"
-        if stripped.endswith(fence):
-            stripped = stripped[m.end() :]  # remove opening fence
-            stripped = stripped[: -len(fence)].rstrip()  # remove closing fence
-    return stripped
+_strip_wrapping_code_fences = strip_code_fences
 
 
 def _extract_metadata(content: str) -> dict[str, Any]:

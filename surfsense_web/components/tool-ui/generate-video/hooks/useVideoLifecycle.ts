@@ -1,10 +1,17 @@
 "use client";
 
-import { compileCode } from "@/app/remotion/compiler";
 import type { PlayerRef } from "@remotion/player";
-import { useCallback, useEffect, useRef, useState, type ComponentType, type RefObject } from "react";
+import {
+	type ComponentType,
+	type RefObject,
+	useCallback,
+	useEffect,
+	useRef,
+	useState,
+} from "react";
+import { compileCode } from "@/app/remotion/compiler";
 import { extractDuration, fetchCode } from "../api";
-import { DEFAULT_DURATION, MAX_ATTEMPTS, type GenerateVideoResult, type Phase } from "../types";
+import { DEFAULT_DURATION, type GenerateVideoResult, MAX_ATTEMPTS, type Phase } from "../types";
 
 export interface VideoLifecycleState {
 	phase: Phase;
@@ -67,7 +74,7 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 						result.source_content,
 						i,
 						lastError,
-						controller.signal,
+						controller.signal
 					);
 
 					if (cancelled) return;
@@ -83,10 +90,10 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 						continue;
 					}
 
-				setComponent(() => Component);
-				setDurationInFrames(extractDuration(code));
-				setGenerationId(id => id + 1);
-				setPhase("success");
+					setComponent(() => Component);
+					setDurationInFrames(extractDuration(code));
+					setGenerationId((id) => id + 1);
+					setPhase("success");
 					return;
 				} catch (err) {
 					if (cancelled) return;
@@ -114,8 +121,8 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 			setPhase("failed");
 			return;
 		}
-		setTrigger(prev =>
-			prev ? { result: prev.result, startAttempt: nextAttempt, lastError: errorMessage } : null,
+		setTrigger((prev) =>
+			prev ? { result: prev.result, startAttempt: nextAttempt, lastError: errorMessage } : null
 		);
 	}, []);
 

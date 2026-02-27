@@ -8,7 +8,7 @@ export async function fetchCode(
 	sourceContent: string,
 	attempt: number,
 	error?: string,
-	signal?: AbortSignal,
+	signal?: AbortSignal
 ): Promise<string> {
 	const token = getBearerToken();
 	const res = await fetch(`${BACKEND_URL}/api/v1/video/generate-code`, {

@@ -5,6 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_litellm import ChatLiteLLM
 
 from app.agents.new_chat.tools.video.skills.skills import SKILL_NAMES
+from app.utils.content_utils import strip_code_fences
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ async def detect_skills(llm: ChatLiteLLM, topic: str) -> list[str]:
     ]
     try:
         response = await llm.ainvoke(messages)
-        content = response.content.strip()
+        content = strip_code_fences(response.content or "")
         parsed = json.loads(content)
         if isinstance(parsed, list):
             skills = parsed

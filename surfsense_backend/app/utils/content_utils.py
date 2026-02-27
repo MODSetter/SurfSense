@@ -11,6 +11,7 @@ These utilities help extract and transform content for different use cases.
 
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 from langchain_core.messages import AIMessage, HumanMessage
@@ -20,6 +21,28 @@ from sqlalchemy.orm import selectinload
 
 if TYPE_CHECKING:
     from app.db import ChatVisibility
+
+_FENCE_RE = re.compile(r"^(`{3,})\w*\s*\n")
+
+
+def strip_code_fences(text: str) -> str:
+    """Remove wrapping code fences that LLMs often add around their output.
+
+    Handles patterns like:
+        ```tsx\\n...content...\\n```
+        ```json\\n...content...\\n```
+        ```markdown\\n...content...\\n```
+        ```\\n...content...\\n```
+    Supports 3 or more backticks (LLMs escalate when content itself has triple-backtick blocks).
+    """
+    stripped = text.strip()
+    m = _FENCE_RE.match(stripped)
+    if m:
+        fence = m.group(1)
+        if stripped.endswith(fence):
+            stripped = stripped[m.end():]
+            stripped = stripped[: -len(fence)].rstrip()
+    return stripped
 
 
 def extract_text_content(content: str | dict | list) -> str:

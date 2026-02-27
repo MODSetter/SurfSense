@@ -52,9 +52,9 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 		if (phase === "success" && component) {
 			return (
 				<div className="my-4">
-				<Player
-					ref={playerRef}
-					key={generationId}
+					<Player
+						ref={playerRef}
+						key={generationId}
 						component={component}
 						durationInFrames={durationInFrames}
 						fps={30}
@@ -72,4 +72,3 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 		return <VideoErrorState title={topic} error="Missing video component" />;
 	},
 });
-

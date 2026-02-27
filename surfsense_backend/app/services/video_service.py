@@ -1,5 +1,4 @@
 import logging
-import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,23 +11,9 @@ from app.agents.new_chat.tools.video.prompts import (
 )
 from app.agents.new_chat.tools.video.skills import get_combined_skill_content
 from app.services.llm_service import get_video_llm
+from app.utils.content_utils import strip_code_fences
 
 logger = logging.getLogger(__name__)
-
-# Matches opening fences like ```tsx, ```ts, ```js, etc.
-_FENCE_RE = re.compile(r"^(`{3,})(?:tsx|ts|jsx|js|typescript|javascript)?\s*\n")
-
-
-def _strip_code_fences(text: str) -> str:
-    """Remove markdown code fences that LLMs sometimes wrap their output in."""
-    stripped = text.strip()
-    m = _FENCE_RE.match(stripped)
-    if m:
-        fence = m.group(1)
-        if stripped.endswith(fence):
-            stripped = stripped[m.end():]
-            stripped = stripped[: -len(fence)].rstrip()
-    return stripped
 
 
 async def generate_video_code(
@@ -87,7 +72,7 @@ async def generate_video_code(
     if not raw or not isinstance(raw, str):
         raise ValueError("LLM returned empty content.")
 
-    code = _strip_code_fences(raw)
+    code = strip_code_fences(raw)
     if not code:
         raise ValueError("Could not extract component code from LLM response.")
 
