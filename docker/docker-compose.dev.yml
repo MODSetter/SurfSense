@@ -45,7 +45,7 @@ services:
       - db
 
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
@@ -159,7 +159,7 @@ services:
   #     - celery_worker
 
   electric:
-    image: electricsql/electric:1.4.6
+    image: electricsql/electric:1.4.10
     ports:
       - "${ELECTRIC_PORT:-5133}:3000"
     # depends_on:
