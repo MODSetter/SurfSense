@@ -66,7 +66,7 @@ async def generate_video_code(
         session,
         user,
         data.search_space_id,
-        Permission.CHAT_CREATE.value,
+        Permission.CHATS_CREATE.value,
         "You don't have permission to generate videos in this search space",
     )
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { Player, type ErrorFallback } from "@remotion/player";
+import { type ErrorFallback, Player } from "@remotion/player";
 import type React from "react";
 import { useEffect, useState } from "react";
 import { compileCode } from "@/app/remotion/compiler";
