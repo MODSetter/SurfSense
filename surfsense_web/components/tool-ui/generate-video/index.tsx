@@ -14,7 +14,7 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 	render: function GenerateVideoUI({ args, result, status }) {
 		const topic = args.topic || "Video";
 
-		const { phase, attempt, component, durationInFrames, finalError, playerRef } =
+		const { phase, attempt, component, durationInFrames, finalError, generationId, playerRef } =
 			useVideoLifecycle(result ?? null);
 
 		if (status.type === "running" || status.type === "requires-action") {
@@ -52,9 +52,9 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 		if (phase === "success" && component) {
 			return (
 				<div className="my-4">
-					<Player
-						ref={playerRef}
-						key={component.toString()}
+				<Player
+					ref={playerRef}
+					key={generationId}
 						component={component}
 						durationInFrames={durationInFrames}
 						fps={30}

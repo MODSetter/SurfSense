@@ -12,6 +12,7 @@ export interface VideoLifecycleState {
 	component: ComponentType | null;
 	durationInFrames: number;
 	finalError: string | null;
+	generationId: number;
 	playerRef: RefObject<PlayerRef | null>;
 }
 
@@ -29,6 +30,7 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 	const [component, setComponent] = useState<ComponentType | null>(null);
 	const [durationInFrames, setDurationInFrames] = useState(DEFAULT_DURATION);
 	const [finalError, setFinalError] = useState<string | null>(null);
+	const [generationId, setGenerationId] = useState(0);
 
 	const [trigger, setTrigger] = useState<GenerationTrigger>(null);
 
@@ -81,9 +83,10 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 						continue;
 					}
 
-					setComponent(() => Component);
-					setDurationInFrames(extractDuration(code));
-					setPhase("success");
+				setComponent(() => Component);
+				setDurationInFrames(extractDuration(code));
+				setGenerationId(id => id + 1);
+				setPhase("success");
 					return;
 				} catch (err) {
 					if (cancelled) return;
@@ -129,5 +132,5 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 		return () => player.removeEventListener("error", handleError);
 	}, [component, onRuntimeError]);
 
-	return { phase, attempt, component, durationInFrames, finalError, playerRef };
+	return { phase, attempt, component, durationInFrames, finalError, generationId, playerRef };
 }
