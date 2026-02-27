@@ -1,21 +1,28 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import { makeAssistantToolUI, useAssistantState } from "@assistant-ui/react";
 import { Player } from "@remotion/player";
-import { VideoIcon } from "lucide-react";
+import { AlertTriangleIcon, VideoIcon } from "lucide-react";
 import { VideoErrorState } from "./components/VideoErrorState";
 import { VideoLoadingState } from "./components/VideoLoadingState";
 import { useVideoLifecycle } from "./hooks/useVideoLifecycle";
 import type { GenerateVideoArgs, GenerateVideoResult } from "./types";
 import { MAX_ATTEMPTS } from "./types";
 
+function parseMessageId(assistantUiMessageId: string | undefined): number | null {
+	if (!assistantUiMessageId) return null;
+	const match = assistantUiMessageId.match(/^msg-(\d+)$/);
+	return match ? Number.parseInt(match[1], 10) : null;
+}
+
 export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, GenerateVideoResult>({
 	toolName: "generate_video",
-	render: function GenerateVideoUI({ args, result, status }) {
+	render: function GenerateVideoUI({ args, result, status, toolCallId }) {
 		const topic = args.topic || "Video";
+		const messageId = parseMessageId(useAssistantState(({ message }) => message?.id));
 
-		const { phase, attempt, component, durationInFrames, finalError, generationId, playerRef } =
-			useVideoLifecycle(result ?? null);
+		const { phase, attempt, component, durationInFrames, finalError, runtimeWarning, generationId, playerRef } =
+			useVideoLifecycle(result ?? null, toolCallId, messageId);
 
 		if (status.type === "running" || status.type === "requires-action") {
 			return <VideoLoadingState topic={topic} attempt={0} />;
@@ -37,7 +44,17 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 		}
 
 		if (phase === "idle" || phase === "generating") {
-			return <VideoLoadingState topic={topic} attempt={attempt} />;
+			return (
+				<div>
+					{runtimeWarning && (
+						<div className="mb-2 flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2 text-xs text-yellow-800 dark:border-yellow-800 dark:bg-yellow-950 dark:text-yellow-300">
+							<AlertTriangleIcon className="size-3.5 shrink-0" />
+							{runtimeWarning}
+						</div>
+					)}
+					<VideoLoadingState topic={topic} attempt={attempt} />
+				</div>
+			);
 		}
 
 		if (phase === "failed") {

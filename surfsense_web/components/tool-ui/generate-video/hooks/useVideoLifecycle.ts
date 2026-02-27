@@ -10,7 +10,7 @@ import {
 	useState,
 } from "react";
 import { compileCode } from "@/app/remotion/compiler";
-import { extractDuration, fetchCode } from "../api";
+import { extractDuration, fetchCode, updateCode } from "../api";
 import { DEFAULT_DURATION, type GenerateVideoResult, MAX_ATTEMPTS, type Phase } from "../types";
 
 export interface VideoLifecycleState {
@@ -19,38 +19,59 @@ export interface VideoLifecycleState {
 	component: ComponentType | null;
 	durationInFrames: number;
 	finalError: string | null;
+	runtimeWarning: string | null;
 	generationId: number;
 	playerRef: RefObject<PlayerRef | null>;
 }
 
-// Captures everything the loop needs so the effect only depends on this one value,
-// not on `result` directly — avoids re-running the loop if the result object reference changes.
+// Stable snapshot of what the generation loop needs. A single state value avoids
+// the loop re-running when the parent re-renders with a new `result` object reference.
 type GenerationTrigger = {
 	result: GenerateVideoResult;
 	startAttempt: number;
 	lastError?: string;
 } | null;
 
-export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLifecycleState {
+export function useVideoLifecycle(
+	result: GenerateVideoResult | null,
+	toolCallId: string,
+	messageId: number | null,
+): VideoLifecycleState {
 	const [phase, setPhase] = useState<Phase>("idle");
 	const [attempt, setAttempt] = useState(0);
 	const [component, setComponent] = useState<ComponentType | null>(null);
 	const [durationInFrames, setDurationInFrames] = useState(DEFAULT_DURATION);
 	const [finalError, setFinalError] = useState<string | null>(null);
+	const [runtimeWarning, setRuntimeWarning] = useState<string | null>(null);
 	const [generationId, setGenerationId] = useState(0);
 
 	const [trigger, setTrigger] = useState<GenerationTrigger>(null);
 
 	const playerRef = useRef<PlayerRef | null>(null);
 	const attemptRef = useRef(0);
+	// Kept in sync with the latest result so runtime-error retries always have
+	// a result to retry with, even when the generation loop was skipped on reload.
+	const resultRef = useRef<GenerateVideoResult | null>(null);
 
-	// starts the loop when the tool result arrives
 	useEffect(() => {
 		if (!result || result.status !== "prompt_ready") return;
+		resultRef.current = result;
+
+		if (result.code) {
+			const { Component, error } = compileCode(result.code);
+			if (!error && Component) {
+				setComponent(() => Component);
+				setDurationInFrames(extractDuration(result.code!));
+				setGenerationId((id) => id + 1);
+				setPhase("success");
+				return;
+			}
+			// Persisted code no longer compiles — fall through and regenerate.
+		}
+
 		setTrigger({ result, startAttempt: 1 });
 	}, [result]);
 
-	// single generation loop — handles both initial generation and runtime-error retries
 	useEffect(() => {
 		if (!trigger) return;
 		const { result, startAttempt, lastError: initialError } = trigger;
@@ -74,7 +95,7 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 						result.source_content,
 						i,
 						lastError,
-						controller.signal
+						controller.signal,
 					);
 
 					if (cancelled) return;
@@ -93,7 +114,14 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 					setComponent(() => Component);
 					setDurationInFrames(extractDuration(code));
 					setGenerationId((id) => id + 1);
+					setRuntimeWarning(null);
 					setPhase("success");
+
+					if (messageId) {
+						updateCode(messageId, toolCallId, code).catch((err) => {
+							console.warn("[video] Failed to persist compiled code:", err);
+						});
+					}
 					return;
 				} catch (err) {
 					if (cancelled) return;
@@ -113,20 +141,21 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 		};
 	}, [trigger]);
 
-	// stable callback — kicks off the next attempt with the runtime error as context for the LLM
 	const onRuntimeError = useCallback((errorMessage: string) => {
+		console.error("[video] Runtime error:", errorMessage);
 		const nextAttempt = attemptRef.current + 1;
 		if (nextAttempt > MAX_ATTEMPTS) {
-			setFinalError(errorMessage);
+			setFinalError("The video could not be rendered after multiple attempts.");
 			setPhase("failed");
 			return;
 		}
-		setTrigger((prev) =>
-			prev ? { result: prev.result, startAttempt: nextAttempt, lastError: errorMessage } : null
-		);
+		setRuntimeWarning("A playback issue was detected. Regenerating the video…");
+		setTrigger((prev) => {
+			const r = prev?.result ?? resultRef.current;
+			return r ? { result: r, startAttempt: nextAttempt, lastError: errorMessage } : null;
+		});
 	}, []);
 
-	// re-attaches when Player remounts after a successful retry (Player uses key={component.toString()})
 	useEffect(() => {
 		const player = playerRef.current;
 		if (!player) return;
@@ -139,5 +168,5 @@ export function useVideoLifecycle(result: GenerateVideoResult | null): VideoLife
 		return () => player.removeEventListener("error", handleError);
 	}, [component, onRuntimeError]);
 
-	return { phase, attempt, component, durationInFrames, finalError, generationId, playerRef };
+	return { phase, attempt, component, durationInFrames, finalError, runtimeWarning, generationId, playerRef };
 }

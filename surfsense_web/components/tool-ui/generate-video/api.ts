@@ -39,6 +39,31 @@ export async function fetchCode(
 	return data.code;
 }
 
+export async function updateCode(
+	messageId: number,
+	toolCallId: string,
+	code: string,
+): Promise<void> {
+	const token = getBearerToken();
+	const res = await fetch(`${BACKEND_URL}/api/v1/video/update-code`, {
+		method: "PATCH",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token || ""}`,
+		},
+		body: JSON.stringify({
+			message_id: messageId,
+			tool_call_id: toolCallId,
+			code,
+		}),
+	});
+
+	if (!res.ok) {
+		const detail = await res.json().catch(() => ({ detail: res.statusText }));
+		throw new Error(detail.detail || `HTTP ${res.status}`);
+	}
+}
+
 export function extractDuration(code: string): number {
 	const match = code.match(/\bTOTAL_DURATION\s*=\s*(\d+)/);
 	if (!match) return DEFAULT_DURATION;

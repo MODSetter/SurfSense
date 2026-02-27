@@ -15,6 +15,7 @@ export const GenerateVideoResultSchema = z.object({
 	search_space_id: z.number(),
 	topic: z.string(),
 	source_content: z.string(),
+	code: z.string().optional(),
 });
 
 export type GenerateVideoArgs = z.infer<typeof GenerateVideoArgsSchema>;
