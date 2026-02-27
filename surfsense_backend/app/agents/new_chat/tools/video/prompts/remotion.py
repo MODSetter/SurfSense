@@ -66,3 +66,27 @@ NEVER use these as variable names - they shadow imports:
 - If prompt is ambiguous, make a reasonable choice - do not ask for clarification
 
 """
+
+MAX_ATTEMPTS = 3
+
+
+def build_user_prompt(topic: str, source_content: str) -> str:
+    return f"{topic}\n\n{source_content}"
+
+
+def build_error_correction_prompt(
+    topic: str, source_content: str, error: str, attempt: int
+) -> str:
+    base = build_user_prompt(topic, source_content)
+    return (
+        f"{base}\n\n"
+        f"## COMPILATION ERROR (ATTEMPT {attempt}/{MAX_ATTEMPTS})\n"
+        f"The previous code failed to compile with this error:\n"
+        f"```\n{error}\n```\n\n"
+        f"CRITICAL: Fix this compilation error. Common issues include:\n"
+        f"- Syntax errors (missing brackets, semicolons)\n"
+        f"- Invalid JSX (unclosed tags, invalid attributes)\n"
+        f"- Undefined variables or imports\n"
+        f"- TypeScript type errors\n\n"
+        f"Focus ONLY on fixing the error. Do not make other changes."
+    )
