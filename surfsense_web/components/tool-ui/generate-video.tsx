@@ -1,10 +1,27 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { type ErrorFallback, Player } from "@remotion/player";
 import { VideoIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
+import { compileCode } from "@/app/remotion/compiler";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { VideoPreview } from "@/components/tool-ui/video/video-preview";
+import { getBearerToken } from "@/lib/auth-utils";
+import { BACKEND_URL } from "@/lib/env-config";
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const MAX_ATTEMPTS = 3;
+const MIN_DURATION = 900;
+const MAX_DURATION = 9000;
+const DEFAULT_DURATION = 1800;
+
+// ---------------------------------------------------------------------------
+// Schemas
+// ---------------------------------------------------------------------------
 
 const GenerateVideoArgsSchema = z.object({
 	topic: z.string(),
@@ -12,17 +29,96 @@ const GenerateVideoArgsSchema = z.object({
 });
 
 const GenerateVideoResultSchema = z.object({
-	status: z.enum(["ready", "failed"]),
-	code: z.string().nullish(),
-	title: z.string().nullish(),
-	duration_frames: z.number().nullish(),
-	error: z.string().nullish(),
+	status: z.literal("prompt_ready"),
+	search_space_id: z.number(),
+	topic: z.string(),
+	source_content: z.string(),
 });
 
 type GenerateVideoArgs = z.infer<typeof GenerateVideoArgsSchema>;
 type GenerateVideoResult = z.infer<typeof GenerateVideoResultSchema>;
 
-function VideoGeneratingState({ topic }: { topic: string }) {
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function extractDuration(code: string): number {
+	const match = code.match(/\bTOTAL_DURATION\s*=\s*(\d+)/);
+	if (!match) return DEFAULT_DURATION;
+	const n = parseInt(match[1], 10);
+	return Math.min(MAX_DURATION, Math.max(MIN_DURATION, n));
+}
+
+async function fetchCode(
+	searchSpaceId: number,
+	topic: string,
+	sourceContent: string,
+	attempt: number,
+	error?: string
+): Promise<string> {
+	const token = getBearerToken();
+	const res = await fetch(`${BACKEND_URL}/api/v1/video/generate-code`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token || ""}`,
+		},
+		body: JSON.stringify({
+			search_space_id: searchSpaceId,
+			topic,
+			source_content: sourceContent,
+			attempt,
+			error: error ?? null,
+		}),
+	});
+
+	if (!res.ok) {
+		const detail = await res.json().catch(() => ({ detail: res.statusText }));
+		throw new Error(detail.detail || `HTTP ${res.status}`);
+	}
+
+	const data = await res.json();
+	return data.code as string;
+}
+
+// ---------------------------------------------------------------------------
+// Remotion runtime error fallback
+// ---------------------------------------------------------------------------
+
+const runtimeErrorFallback: ErrorFallback = ({ error }) => (
+	<div
+		style={{
+			backgroundColor: "#0a0a0f",
+			display: "flex",
+			flexDirection: "column",
+			alignItems: "center",
+			justifyContent: "center",
+			width: "100%",
+			aspectRatio: "16/9",
+			gap: 8,
+			color: "#ff6b6b",
+			fontFamily: "monospace",
+			fontSize: 13,
+			padding: 24,
+			wordBreak: "break-word",
+			textAlign: "center",
+		}}
+	>
+		<span style={{ fontSize: 15, fontWeight: 600 }}>Runtime error</span>
+		<span>{error.message}</span>
+	</div>
+);
+
+// ---------------------------------------------------------------------------
+// UI states
+// ---------------------------------------------------------------------------
+
+function VideoLoadingState({ topic, attempt }: { topic: string; attempt: number }) {
+	const label =
+		attempt <= 1
+			? "Composing visual content"
+			: `Retrying animation (attempt ${attempt}/${MAX_ATTEMPTS})`;
+
 	return (
 		<div className="my-4 overflow-hidden rounded-xl border bg-card">
 			<div className="flex w-full items-center gap-2 sm:gap-3 bg-muted/30 px-4 py-5 sm:px-6 sm:py-6">
@@ -33,7 +129,7 @@ function VideoGeneratingState({ topic }: { topic: string }) {
 					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight line-clamp-2">
 						{topic}
 					</h3>
-					<TextShimmerLoader text="Composing visual content" size="sm" />
+					<TextShimmerLoader text={label} size="sm" />
 				</div>
 			</div>
 		</div>
@@ -51,20 +147,83 @@ function VideoErrorState({ title, error }: { title: string; error: string }) {
 					<h3 className="font-semibold text-muted-foreground text-sm sm:text-base leading-tight line-clamp-2">
 						{title}
 					</h3>
-					<p className="text-muted-foreground/60 text-[11px] sm:text-xs mt-0.5 truncate">{error}</p>
+					<p className="text-muted-foreground/60 text-[11px] sm:text-xs mt-0.5 line-clamp-2">
+						{error}
+					</p>
 				</div>
 			</div>
 		</div>
 	);
 }
 
+// ---------------------------------------------------------------------------
+// Tool UI
+// ---------------------------------------------------------------------------
+
+type Phase = "idle" | "generating" | "success" | "failed";
+
 export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, GenerateVideoResult>({
 	toolName: "generate_video",
 	render: function GenerateVideoUI({ args, result, status }) {
 		const topic = args.topic || "Video";
 
+		const [phase, setPhase] = useState<Phase>("idle");
+		const [attempt, setAttempt] = useState(0);
+		const [component, setComponent] = useState<React.ComponentType | null>(null);
+		const [durationInFrames, setDurationInFrames] = useState(DEFAULT_DURATION);
+		const [finalError, setFinalError] = useState<string | null>(null);
+		const hasStarted = useRef(false);
+
+		useEffect(() => {
+			if (!result || result.status !== "prompt_ready") return;
+			if (hasStarted.current) return;
+			hasStarted.current = true;
+
+			(async () => {
+				let lastError: string | undefined;
+
+				for (let i = 1; i <= MAX_ATTEMPTS; i++) {
+					setPhase("generating");
+					setAttempt(i);
+
+					try {
+						const code = await fetchCode(
+							result.search_space_id,
+							result.topic,
+							result.source_content,
+							i,
+							lastError
+						);
+
+						const { Component, error: compileError } = compileCode(code);
+
+						if (compileError) {
+							lastError = compileError;
+							if (i === MAX_ATTEMPTS) {
+								setFinalError(compileError);
+								setPhase("failed");
+							}
+							continue;
+						}
+
+						setComponent(() => Component);
+						setDurationInFrames(extractDuration(code));
+						setPhase("success");
+						return;
+					} catch (err) {
+						lastError = err instanceof Error ? err.message : String(err);
+						if (i === MAX_ATTEMPTS) {
+							setFinalError(lastError);
+							setPhase("failed");
+						}
+					}
+				}
+			})();
+		}, [result]);
+
+		// Tool still running (LLM agent thinking / calling the tool)
 		if (status.type === "running" || status.type === "requires-action") {
-			return <VideoGeneratingState topic={topic} />;
+			return <VideoLoadingState topic={topic} attempt={0} />;
 		}
 
 		if (status.type === "incomplete") {
@@ -78,40 +237,40 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 					</div>
 				);
 			}
-			if (status.reason === "error") {
-				return (
-					<VideoErrorState
-						title={topic}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
+			const errMsg = typeof status.error === "string" ? status.error : "An error occurred";
+			return <VideoErrorState title={topic} error={errMsg} />;
 		}
 
-		if (!result) {
-			return <VideoGeneratingState topic={topic} />;
+		// result received — frontend generation lifecycle
+		if (phase === "idle" || phase === "generating") {
+			return <VideoLoadingState topic={topic} attempt={attempt} />;
 		}
 
-		if (result.status === "failed") {
+		if (phase === "failed") {
 			return (
-				<VideoErrorState
-					title={result.title || topic}
-					error={result.error || "Generation failed"}
-				/>
+				<VideoErrorState title={topic} error={finalError || "Generation failed after 3 attempts"} />
 			);
 		}
 
-		if (result.status === "ready" && result.code) {
+		if (phase === "success" && component) {
 			return (
 				<div className="my-4">
-					<VideoPreview
-						code={result.code}
-						durationInFrames={result.duration_frames ?? 180}
+					<Player
+						component={component}
+						durationInFrames={durationInFrames}
+						fps={30}
+						compositionWidth={1920}
+						compositionHeight={1080}
+						style={{ width: "100%", borderRadius: 8 }}
+						errorFallback={runtimeErrorFallback}
+						controls
+						autoPlay
+						loop
 					/>
 				</div>
 			);
 		}
 
-		return <VideoErrorState title={topic} error="Missing video code" />;
+		return <VideoErrorState title={topic} error="Missing video component" />;
 	},
 });

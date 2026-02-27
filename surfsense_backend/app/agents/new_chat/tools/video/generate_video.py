@@ -29,6 +29,7 @@ def create_generate_video_tool(search_space_id: int):
         )
         return {
             "status": "prompt_ready",
+            "search_space_id": search_space_id,
             "topic": topic,
             "source_content": source_content,
         }

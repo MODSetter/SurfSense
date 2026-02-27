@@ -86,10 +86,17 @@ async def generate_video_code(
     if data.error and data.attempt > 1:
         user_content = (
             f"{base_prompt}\n\n"
-            f"## CORRECTION REQUIRED (ATTEMPT {data.attempt}/3)\n"
-            f"Your previous attempt failed to compile with this error:\n"
+            f"## COMPILATION ERROR (ATTEMPT {data.attempt}/3)\n"
+            f"The previous code failed to compile with this error:\n"
             f"```\n{data.error}\n```\n\n"
-            f"Fix the error and return the complete corrected code."
+            f"CRITICAL: Fix this compilation error. Common issues include:\n"
+            f"- Syntax errors (missing brackets, semicolons)\n"
+            f"- Invalid JSX (unclosed tags, invalid attributes)\n"
+            f"- Undefined variables or imports\n"
+            f"- Using interpolate() with color strings instead of interpolateColors()\n"
+            f"- Duplicate inputRange values (must be strictly increasing)\n\n"
+            f"Focus ONLY on fixing the error. Do not make other changes.\n"
+            f"Return the complete corrected code."
         )
     else:
         user_content = base_prompt
