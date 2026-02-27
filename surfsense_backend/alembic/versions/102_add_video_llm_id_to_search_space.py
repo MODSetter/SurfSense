@@ -1,7 +1,7 @@
 """Add video_llm_id to searchspaces
 
 Revision ID: 102
-Revises: 99
+Revises: 101
 Create Date: 2026-02-27
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "102"
-down_revision: str | None = "99"
+down_revision: str | None = "101"
 branch_labels = None
 depends_on = None
 
