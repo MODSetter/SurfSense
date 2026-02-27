@@ -30,6 +30,7 @@ INSTALL_DIR="./surfsense"
 OLD_VOLUME="surfsense-data"
 DUMP_FILE="./surfsense_migration_backup.sql"
 KEY_FILE="./surfsense_migration_secret.key"
+MIGRATION_DONE_FILE="${INSTALL_DIR}/.migration_done"
 MIGRATION_MODE=false
 SETUP_WATCHTOWER=true
 WATCHTOWER_INTERVAL=86400
@@ -127,7 +128,8 @@ success "All files downloaded to ${INSTALL_DIR}/"
 # If a dump already exists (from a previous partial run) skip extraction and
 # go straight to restore — this makes re-runs safe and idempotent.
 
-if docker volume ls --format '{{.Name}}' 2>/dev/null < /dev/null | grep -q "^${OLD_VOLUME}$"; then
+if docker volume ls --format '{{.Name}}' 2>/dev/null < /dev/null | grep -q "^${OLD_VOLUME}$" \
+   && [[ ! -f "${MIGRATION_DONE_FILE}" ]]; then
     MIGRATION_MODE=true
 
     if [[ -f "${DUMP_FILE}" ]]; then
@@ -235,6 +237,7 @@ if $MIGRATION_MODE; then
         warn "The restore may have failed silently. Check: cd ${INSTALL_DIR} && ${DC} logs db"
     else
         success "Smoke test passed: ${TABLE_COUNT} table(s) restored successfully."
+        touch "${MIGRATION_DONE_FILE}"
     fi
 
     step "Starting all SurfSense services"
@@ -323,9 +326,10 @@ info ""
 
 if $MIGRATION_MODE; then
     warn "  Migration complete! Open frontend and verify your data."
-    warn "  Once verified, clean up the legacy volume and dump file:"
+    warn "  Once verified, clean up the legacy volume and migration files:"
     warn "    docker volume rm ${OLD_VOLUME}"
     warn "    rm ${DUMP_FILE}"
+    warn "    rm ${MIGRATION_DONE_FILE}"
 else
     warn "  First startup may take a few minutes while images are pulled."
     warn "  Edit ${INSTALL_DIR}/.env to configure API keys, OAuth, etc."
