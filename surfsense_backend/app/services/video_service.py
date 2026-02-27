@@ -61,11 +61,15 @@ async def generate_video_code(
         else build_user_prompt(topic, source_content)
     )
 
+    # TODO: expose reasoning_effort as a per-search-space setting in the UI (video LLM config section).
     response = await llm.ainvoke(
         [
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_content),
-        ]
+        ],
+        # TODO: enable this for reasoning effort settings 
+        # reasoning_effort="high",
+        # drop_params=True,
     )
 
     raw = response.content
