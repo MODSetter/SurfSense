@@ -43,6 +43,7 @@ async def test_content_is_summary(db_session, db_search_space, db_user, mocker):
         search_space_id=db_search_space.id,
         user_id=str(db_user.id),
         llm=mocker.Mock(),
+        should_summarize=True,
     )
 
     result = await db_session.execute(
@@ -96,6 +97,7 @@ async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, 
             search_space_id=db_search_space.id,
             user_id=str(db_user.id),
             llm=mocker.Mock(),
+            should_summarize=True,
         )
 
 
