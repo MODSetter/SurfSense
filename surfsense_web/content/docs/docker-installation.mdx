@@ -10,7 +10,11 @@ This guide explains how to run SurfSense using Docker, with options ranging from
 
 ### Option 1 — Install Script (recommended)
 
-Downloads the compose files, generates a `SECRET_KEY`, starts all services, and sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) for automatic daily updates:
+Downloads the compose files, generates a `SECRET_KEY`, starts all services, and sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) for automatic daily updates.
+
+<Callout type="info">
+Windows users: install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) first and run the command below in the Ubuntu terminal.
+</Callout>
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash

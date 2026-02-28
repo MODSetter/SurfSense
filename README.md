@@ -83,6 +83,9 @@ Run SurfSense on your own infrastructure for full data control and privacy.
 
 **Prerequisites:** [Docker](https://docs.docker.com/get-docker/) (with [Docker Compose](https://docs.docker.com/compose/install/)) must be installed and running.
 
+> [!NOTE]
+> Windows users: install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) first and run the command below in the Ubuntu terminal.
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```

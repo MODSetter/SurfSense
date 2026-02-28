@@ -83,6 +83,9 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 **前置条件：** 需要安装并运行 [Docker](https://docs.docker.com/get-docker/)（含 [Docker Compose](https://docs.docker.com/compose/install/)）。
 
+> [!NOTE]
+> Windows 用户：请先安装 [WSL](https://learn.microsoft.com/en-us/windows/wsl/install)，然后在 Ubuntu 终端中运行以下命令。
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```

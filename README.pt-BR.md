@@ -83,6 +83,9 @@ Execute o SurfSense na sua própria infraestrutura para controle total de dados 
 
 **Pré-requisitos:** [Docker](https://docs.docker.com/get-docker/) (com [Docker Compose](https://docs.docker.com/compose/install/)) deve estar instalado e em execução.
 
+> [!NOTE]
+> Usuários do Windows: instalem o [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) primeiro e executem o comando abaixo no terminal do Ubuntu.
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```

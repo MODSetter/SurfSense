@@ -83,6 +83,9 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 **आवश्यकताएँ:** [Docker](https://docs.docker.com/get-docker/) ([Docker Compose](https://docs.docker.com/compose/install/) सहित) इंस्टॉल और चालू होना चाहिए।
 
+> [!NOTE]
+> Windows उपयोगकर्ता: पहले [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) इंस्टॉल करें और नीचे दिया गया कमांड Ubuntu टर्मिनल में चलाएं।
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
