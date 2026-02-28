@@ -61,6 +61,9 @@ async def generate_video_code(
         else build_user_prompt(topic, source_content)
     )
 
+    # TODO: add asyncio.wait_for() timeout (e.g. 120s) — a hanging LLM call blocks the request indefinitely.
+    # TODO: validate that the returned code contains TOTAL_DURATION; if missing, extractDuration falls back to
+    #       DEFAULT_DURATION (1800 frames / 60s) and the animation will freeze before the player ends.
     # TODO: expose reasoning_effort as a per-search-space setting in the UI (video LLM config section).
     response = await llm.ainvoke(
         [
