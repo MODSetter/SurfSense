@@ -3,6 +3,7 @@ from pathlib import Path
 _SKILLS_DIR = Path(__file__).parent
 
 SKILL_NAMES: list[str] = [
+    # Guidance skills (patterns and rules)
     "charts",
     "typography",
     "social-media",
@@ -11,6 +12,16 @@ SKILL_NAMES: list[str] = [
     "transitions",
     "sequencing",
     "spring-physics",
+    # Example skills (complete working code references)
+    "example-histogram",
+    "example-progress-bar",
+    "example-text-rotation",
+    "example-falling-spheres",
+    "example-animated-shapes",
+    "example-lottie",
+    "example-gold-price-chart",
+    "example-typewriter-highlight",
+    "example-word-carousel",
 ]
 
 
