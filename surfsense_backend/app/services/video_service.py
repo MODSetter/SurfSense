@@ -70,9 +70,8 @@ async def generate_video_code(
             SystemMessage(content=system_prompt),
             HumanMessage(content=user_content),
         ],
-        # TODO: enable this for reasoning effort settings 
-         reasoning_effort="high",
-        # drop_params=True,
+        reasoning_effort="high",
+        drop_params=True,
     )
 
     raw = response.content
