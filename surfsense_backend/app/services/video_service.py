@@ -68,7 +68,7 @@ async def generate_video_code(
             HumanMessage(content=user_content),
         ],
         # TODO: enable this for reasoning effort settings 
-        # reasoning_effort="high",
+         reasoning_effort="high",
         # drop_params=True,
     )
 
