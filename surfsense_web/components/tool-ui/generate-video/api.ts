@@ -68,5 +68,5 @@ export function extractDuration(code: string): number {
 	const match = code.match(/\bTOTAL_DURATION\s*=\s*(\d+)/);
 	if (!match) return DEFAULT_DURATION;
 	const n = parseInt(match[1], 10);
-	return Math.min(MAX_DURATION, Math.max(MIN_DURATION, n));
+	return Math.min(MAX_DURATION, Math.max(1, n));
 }
