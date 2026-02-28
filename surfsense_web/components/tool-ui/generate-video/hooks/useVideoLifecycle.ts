@@ -24,8 +24,7 @@ export interface VideoLifecycleState {
 	playerRef: RefObject<PlayerRef | null>;
 }
 
-// Stable snapshot of what the generation loop needs. A single state value avoids
-// the loop re-running when the parent re-renders with a new `result` object reference.
+// Avoids re-running the generation loop on parent re-renders with a new object reference.
 type GenerationTrigger = {
 	result: GenerateVideoResult;
 	startAttempt: number;
@@ -49,9 +48,11 @@ export function useVideoLifecycle(
 
 	const playerRef = useRef<PlayerRef | null>(null);
 	const attemptRef = useRef(0);
-	// Kept in sync with the latest result so runtime-error retries always have
-	// a result to retry with, even when the generation loop was skipped on reload.
+	// Needed for runtime-error retries when the generation loop was skipped on reload.
 	const resultRef = useRef<GenerateVideoResult | null>(null);
+	// messageId starts as a temporary "msg-assistant-{ts}" during streaming;
+	// code ready before it resolves to "msg-{dbId}" is deferred here.
+	const pendingCodeRef = useRef<string | null>(null);
 
 	useEffect(() => {
 		if (!result || result.status !== "prompt_ready") return;
@@ -111,18 +112,20 @@ export function useVideoLifecycle(
 						continue;
 					}
 
-					setComponent(() => Component);
-					setDurationInFrames(extractDuration(code));
-					setGenerationId((id) => id + 1);
-					setRuntimeWarning(null);
-					setPhase("success");
+				setComponent(() => Component);
+				setDurationInFrames(extractDuration(code));
+				setGenerationId((id) => id + 1);
+				setRuntimeWarning(null);
+				setPhase("success");
 
-					if (messageId) {
-						updateCode(messageId, toolCallId, code).catch((err) => {
-							console.warn("[video] Failed to persist compiled code:", err);
-						});
-					}
-					return;
+				if (messageId) {
+					updateCode(messageId, toolCallId, code).catch((err) => {
+						console.warn("[video] Failed to persist compiled code:", err);
+					});
+				} else {
+					pendingCodeRef.current = code;
+				}
+				return;
 				} catch (err) {
 					if (cancelled) return;
 					if (err instanceof Error && err.name === "AbortError") return;
@@ -140,6 +143,16 @@ export function useVideoLifecycle(
 			controller.abort();
 		};
 	}, [trigger]);
+
+	useEffect(() => {
+		if (messageId && pendingCodeRef.current) {
+			const code = pendingCodeRef.current;
+			pendingCodeRef.current = null;
+			updateCode(messageId, toolCallId, code).catch((err) => {
+				console.warn("[video] Failed to persist compiled code:", err);
+			});
+		}
+	}, [messageId, toolCallId]);
 
 	const onRuntimeError = useCallback((errorMessage: string) => {
 		console.error("[video] Runtime error:", errorMessage);
