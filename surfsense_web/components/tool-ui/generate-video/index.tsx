@@ -3,11 +3,28 @@
 import { makeAssistantToolUI, useAssistantState } from "@assistant-ui/react";
 import { Player } from "@remotion/player";
 import { AlertTriangleIcon, VideoIcon } from "lucide-react";
+import { Component, type ReactNode } from "react";
 import { VideoErrorState } from "./components/VideoErrorState";
 import { VideoLoadingState } from "./components/VideoLoadingState";
 import { useVideoLifecycle } from "./hooks/useVideoLifecycle";
 import type { GenerateVideoArgs, GenerateVideoResult } from "./types";
 import { MAX_ATTEMPTS } from "./types";
+
+class PlayerErrorBoundary extends Component<
+	{ topic: string; children: ReactNode },
+	{ error: string | null }
+> {
+	state = { error: null };
+	static getDerivedStateFromError(err: unknown) {
+		return { error: err instanceof Error ? err.message : "Render error" };
+	}
+	render() {
+		if (this.state.error) {
+			return <VideoErrorState title={this.props.topic} error={this.state.error} />;
+		}
+		return this.props.children;
+	}
+}
 
 function parseMessageId(assistantUiMessageId: string | undefined): number | null {
 	if (!assistantUiMessageId) return null;
@@ -69,19 +86,21 @@ export const GenerateVideoToolUI = makeAssistantToolUI<GenerateVideoArgs, Genera
 		if (phase === "success" && component) {
 			return (
 				<div className="my-4">
-					<Player
-						ref={playerRef}
-						key={generationId}
-						component={component}
-						durationInFrames={durationInFrames}
-						fps={30}
-						compositionWidth={1920}
-						compositionHeight={1080}
-						style={{ width: "100%", borderRadius: 8 }}
-						controls
-						autoPlay
-						loop
-					/>
+					<PlayerErrorBoundary topic={topic}>
+						<Player
+							ref={playerRef}
+							key={generationId}
+							component={component}
+							durationInFrames={durationInFrames}
+							fps={30}
+							compositionWidth={1920}
+							compositionHeight={1080}
+							style={{ width: "100%", borderRadius: 8 }}
+							controls
+							autoPlay
+							loop
+						/>
+					</PlayerErrorBoundary>
 				</div>
 			);
 		}
