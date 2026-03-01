@@ -1,4 +1,5 @@
 import contextlib
+import time
 from datetime import UTC, datetime
 
 from sqlalchemy import delete, select
@@ -44,6 +45,7 @@ from app.indexing_pipeline.pipeline_logger import (
     log_retryable_llm_error,
     log_unexpected_error,
 )
+from app.utils.perf import get_perf_logger
 
 
 class IndexingPipelineService:
@@ -58,6 +60,9 @@ class IndexingPipelineService:
         """
         Persist new documents and detect changes, returning only those that need indexing.
         """
+        perf = get_perf_logger()
+        t0 = time.perf_counter()
+
         documents = []
         seen_hashes: set[str] = set()
         batch_ctx = PipelineLogContext(
@@ -140,11 +145,14 @@ class IndexingPipelineService:
 
         try:
             await self.session.commit()
+            perf.info(
+                "[indexing] prepare_for_indexing in %.3fs input=%d output=%d",
+                time.perf_counter() - t0,
+                len(connector_docs),
+                len(documents),
+            )
             return documents
         except IntegrityError:
-            # A concurrent worker committed a document with the same content_hash
-            # or unique_identifier_hash between our check and our INSERT.
-            # The document already exists — roll back and let the next sync run handle it.
             log_race_condition(batch_ctx)
             await self.session.rollback()
             return []
@@ -165,26 +173,41 @@ class IndexingPipelineService:
             unique_id=connector_doc.unique_id,
             doc_id=document.id,
         )
+        perf = get_perf_logger()
+        t_index = time.perf_counter()
         try:
             log_index_started(ctx)
             document.status = DocumentStatus.processing()
             await self.session.commit()
 
+            t_step = time.perf_counter()
             if connector_doc.should_summarize and llm is not None:
                 content = await summarize_document(
                     connector_doc.source_markdown, llm, connector_doc.metadata
+                )
+                perf.info(
+                    "[indexing] summarize_document doc=%d in %.3fs",
+                    document.id,
+                    time.perf_counter() - t_step,
                 )
             elif connector_doc.should_summarize and connector_doc.fallback_summary:
                 content = connector_doc.fallback_summary
             else:
                 content = connector_doc.source_markdown
 
+            t_step = time.perf_counter()
             embedding = embed_text(content)
+            perf.debug(
+                "[indexing] embed_text (summary) doc=%d in %.3fs",
+                document.id,
+                time.perf_counter() - t_step,
+            )
 
             await self.session.execute(
                 delete(Chunk).where(Chunk.document_id == document.id)
             )
 
+            t_step = time.perf_counter()
             chunks = [
                 Chunk(content=text, embedding=embed_text(text))
                 for text in chunk_text(
@@ -192,6 +215,12 @@ class IndexingPipelineService:
                     use_code_chunker=connector_doc.should_use_code_chunker,
                 )
             ]
+            perf.info(
+                "[indexing] chunk+embed doc=%d chunks=%d in %.3fs",
+                document.id,
+                len(chunks),
+                time.perf_counter() - t_step,
+            )
 
             document.content = content
             document.embedding = embedding
@@ -199,6 +228,12 @@ class IndexingPipelineService:
             document.updated_at = datetime.now(UTC)
             document.status = DocumentStatus.ready()
             await self.session.commit()
+            perf.info(
+                "[indexing] index TOTAL doc=%d chunks=%d in %.3fs",
+                document.id,
+                len(chunks),
+                time.perf_counter() - t_index,
+            )
             log_index_success(ctx, chunk_count=len(chunks))
 
         except RETRYABLE_LLM_ERRORS as e:

@@ -87,6 +87,18 @@ class CommentListResponse(BaseModel):
     total_count: int
 
 
+class CommentBatchRequest(BaseModel):
+    """Request for batch-fetching comments for multiple messages."""
+
+    message_ids: list[int] = Field(..., min_length=1, max_length=200)
+
+
+class CommentBatchResponse(BaseModel):
+    """Batch response keyed by message_id."""
+
+    comments_by_message: dict[int, CommentListResponse]
+
+
 # =============================================================================
 # Mention Schemas
 # =============================================================================

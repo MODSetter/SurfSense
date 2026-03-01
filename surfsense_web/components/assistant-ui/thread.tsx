@@ -65,6 +65,7 @@ import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { Document } from "@/contracts/types/document.types";
+import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cn } from "@/lib/utils";
@@ -308,6 +309,22 @@ const Composer: FC = () => {
 
 	// Sync comments for the entire thread via Electric SQL (one subscription per thread)
 	useCommentsElectric(threadId);
+
+	// Batch-prefetch comments for all assistant messages so individual useComments
+	// hooks never fire their own network requests (eliminates N+1 API calls).
+	// Return a primitive string from the selector so useSyncExternalStore can
+	// compare snapshots by value and avoid infinite re-render loops.
+	const assistantIdsKey = useAssistantState(({ thread }) =>
+		thread.messages
+			.filter((m) => m.role === "assistant" && m.id?.startsWith("msg-"))
+			.map((m) => m.id!.replace("msg-", ""))
+			.join(",")
+	);
+	const assistantDbMessageIds = useMemo(
+		() => (assistantIdsKey ? assistantIdsKey.split(",").map(Number) : []),
+		[assistantIdsKey]
+	);
+	useBatchCommentsPreload(assistantDbMessageIds);
 
 	// Auto-focus editor on new chat page after mount
 	useEffect(() => {

@@ -13,8 +13,10 @@ synchronous ChatLiteLLM-like interface and async methods.
 
 import logging
 import re
+import time
 from typing import Any
 
+import litellm
 from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.exceptions import ContextOverflowError
 from langchain_core.language_models import BaseChatModel
@@ -25,6 +27,11 @@ from litellm.exceptions import (
     BadRequestError as LiteLLMBadRequestError,
     ContextWindowExceededError,
 )
+
+from app.utils.perf import get_perf_logger
+
+litellm.json_logs = False
+litellm.store_audit_logs = False
 
 logger = logging.getLogger(__name__)
 
@@ -152,25 +159,94 @@ class LLMRouterService:
         # Merge with provided settings
         final_settings = {**default_settings, **instance._router_settings}
 
+        # Build a "auto-large" fallback group with deployments whose context
+        # window exceeds the smallest deployment.  This lets the router
+        # automatically fall back to a bigger-context model when gpt-4o (128K)
+        # hits ContextWindowExceededError.
+        full_model_list, ctx_fallbacks = cls._build_context_fallback_groups(model_list)
+
         try:
-            instance._router = Router(
-                model_list=model_list,
-                routing_strategy=final_settings.get(
+            router_kwargs: dict[str, Any] = {
+                "model_list": full_model_list,
+                "routing_strategy": final_settings.get(
                     "routing_strategy", "usage-based-routing"
                 ),
-                num_retries=final_settings.get("num_retries", 3),
-                allowed_fails=final_settings.get("allowed_fails", 3),
-                cooldown_time=final_settings.get("cooldown_time", 60),
-                set_verbose=False,  # Disable verbose logging in production
-            )
+                "num_retries": final_settings.get("num_retries", 3),
+                "allowed_fails": final_settings.get("allowed_fails", 3),
+                "cooldown_time": final_settings.get("cooldown_time", 60),
+                "set_verbose": False,
+            }
+            if ctx_fallbacks:
+                router_kwargs["context_window_fallbacks"] = ctx_fallbacks
+
+            instance._router = Router(**router_kwargs)
             instance._initialized = True
             logger.info(
-                f"LLM Router initialized with {len(model_list)} deployments, "
-                f"strategy: {final_settings.get('routing_strategy')}"
+                "LLM Router initialized with %d deployments, "
+                "strategy: %s, context_window_fallbacks: %s",
+                len(model_list),
+                final_settings.get("routing_strategy"),
+                ctx_fallbacks or "none",
             )
         except Exception as e:
             logger.error(f"Failed to initialize LLM Router: {e}")
             instance._router = None
+
+    @classmethod
+    def _build_context_fallback_groups(
+        cls, model_list: list[dict]
+    ) -> tuple[list[dict], list[dict[str, list[str]]] | None]:
+        """Create an ``auto-large`` model group for context-window fallbacks.
+
+        Uses ``litellm.get_model_info`` to discover the context window of each
+        deployment.  Deployments whose ``max_input_tokens`` exceeds the smallest
+        window are duplicated into an ``auto-large`` group.  The returned
+        fallback config tells the Router: on ``ContextWindowExceededError`` for
+        ``auto``, retry with ``auto-large``.
+
+        Returns:
+            (full_model_list, context_window_fallbacks) — ``full_model_list``
+            contains the original entries plus any ``auto-large`` duplicates.
+            ``context_window_fallbacks`` is ``None`` when every deployment has
+            the same context size (no useful fallback).
+        """
+        from litellm import get_model_info
+
+        ctx_map: dict[str, int] = {}
+        for dep in model_list:
+            params = dep.get("litellm_params", {})
+            base_model = params.get("base_model") or params.get("model", "")
+            try:
+                info = get_model_info(base_model)
+                ctx = info.get("max_input_tokens")
+                if isinstance(ctx, int) and ctx > 0:
+                    ctx_map[base_model] = ctx
+            except Exception:
+                continue
+
+        if not ctx_map:
+            return model_list, None
+
+        min_ctx = min(ctx_map.values())
+
+        large_deployments: list[dict] = []
+        for dep in model_list:
+            params = dep.get("litellm_params", {})
+            base_model = params.get("base_model") or params.get("model", "")
+            if ctx_map.get(base_model, 0) > min_ctx:
+                dup = {**dep, "model_name": "auto-large"}
+                large_deployments.append(dup)
+
+        if not large_deployments:
+            return model_list, None
+
+        logger.info(
+            "Context-window fallback: %d large-context deployments "
+            "(min_ctx=%d) added to 'auto-large' group",
+            len(large_deployments),
+            min_ctx,
+        )
+        return model_list + large_deployments, [{"auto": ["auto-large"]}]
 
     @classmethod
     def _config_to_deployment(cls, config: dict) -> dict | None:
@@ -247,6 +323,48 @@ class LLMRouterService:
         return len(instance._model_list)
 
 
+_cached_context_profile: dict | None = None
+_cached_context_profile_computed: bool = False
+
+# Cached singleton instances keyed by (streaming,) to avoid re-creating on every call
+_router_instance_cache: dict[bool, "ChatLiteLLMRouter"] = {}
+
+
+def _get_cached_context_profile(router: Router) -> dict | None:
+    """Compute and cache the min context profile across all router deployments.
+
+    Called once on first ChatLiteLLMRouter creation; subsequent calls return
+    the cached value. This avoids calling litellm.get_model_info() for every
+    deployment on every request.
+    """
+    global _cached_context_profile, _cached_context_profile_computed
+    if _cached_context_profile_computed:
+        return _cached_context_profile
+
+    from litellm import get_model_info
+
+    min_ctx: int | None = None
+    for deployment in router.model_list:
+        params = deployment.get("litellm_params", {})
+        base_model = params.get("base_model") or params.get("model", "")
+        try:
+            info = get_model_info(base_model)
+            ctx = info.get("max_input_tokens")
+            if isinstance(ctx, int) and ctx > 0 and (min_ctx is None or ctx < min_ctx):
+                min_ctx = ctx
+        except Exception:
+            continue
+
+    if min_ctx is not None:
+        logger.info("ChatLiteLLMRouter profile: max_input_tokens=%d", min_ctx)
+        _cached_context_profile = {"max_input_tokens": min_ctx}
+    else:
+        _cached_context_profile = None
+
+    _cached_context_profile_computed = True
+    return _cached_context_profile
+
+
 class ChatLiteLLMRouter(BaseChatModel):
     """
     A LangChain-compatible chat model that uses LiteLLM Router for load balancing.
@@ -257,6 +375,10 @@ class ChatLiteLLMRouter(BaseChatModel):
     Exposes a ``profile`` with ``max_input_tokens`` set to the smallest context
     window across all router deployments so that deepagents
     SummarizationMiddleware can use fraction-based triggers.
+
+    **Singleton-ish**: Use ``get_auto_mode_llm()`` or call ``ChatLiteLLMRouter()``
+    directly — instances without bound tools are cached per streaming flag to
+    avoid per-request re-initialization overhead and memory growth.
     """
 
     # Use model_config for Pydantic v2 compatibility
@@ -278,14 +400,6 @@ class ChatLiteLLMRouter(BaseChatModel):
         tool_choice: str | dict | None = None,
         **kwargs,
     ):
-        """
-        Initialize the ChatLiteLLMRouter.
-
-        Args:
-            router: LiteLLM Router instance. If None, uses the global singleton.
-            bound_tools: Pre-bound tools for tool calling
-            tool_choice: Tool choice configuration
-        """
         try:
             super().__init__(**kwargs)
             resolved_router = router or LLMRouterService.get_router()
@@ -297,50 +411,19 @@ class ChatLiteLLMRouter(BaseChatModel):
                     "LLM Router not initialized. Call LLMRouterService.initialize() first."
                 )
 
-            # Set profile so deepagents SummarizationMiddleware gets fraction-based triggers
-            computed_profile = self._compute_min_context_profile()
+            computed_profile = _get_cached_context_profile(self._router)
             if computed_profile is not None:
                 object.__setattr__(self, "profile", computed_profile)
 
-            logger.info(
-                f"ChatLiteLLMRouter initialized with {LLMRouterService.get_model_count()} models"
+            logger.debug(
+                "ChatLiteLLMRouter ready (models=%d, streaming=%s, has_tools=%s)",
+                LLMRouterService.get_model_count(),
+                self.streaming,
+                bound_tools is not None,
             )
         except Exception as e:
             logger.error(f"Failed to initialize ChatLiteLLMRouter: {e}")
             raise
-
-    def _compute_min_context_profile(self) -> dict | None:
-        """Derive a profile dict with max_input_tokens from router deployments.
-
-        Uses litellm.get_model_info to look up each deployment's context window
-        and picks the *minimum* so that summarization triggers before ANY model
-        in the pool overflows.
-        """
-        from litellm import get_model_info
-
-        if not self._router:
-            return None
-
-        min_ctx: int | None = None
-        for deployment in self._router.model_list:
-            params = deployment.get("litellm_params", {})
-            base_model = params.get("base_model") or params.get("model", "")
-            try:
-                info = get_model_info(base_model)
-                ctx = info.get("max_input_tokens")
-                if (
-                    isinstance(ctx, int)
-                    and ctx > 0
-                    and (min_ctx is None or ctx < min_ctx)
-                ):
-                    min_ctx = ctx
-            except Exception:
-                continue
-
-        if min_ctx is not None:
-            logger.info(f"ChatLiteLLMRouter profile: max_input_tokens={min_ctx}")
-            return {"max_input_tokens": min_ctx}
-        return None
 
     @property
     def _llm_type(self) -> str:
@@ -410,6 +493,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         if not self._router:
             raise ValueError("Router not initialized")
 
+        perf = get_perf_logger()
+        t0 = time.perf_counter()
+        msg_count = len(messages)
+
         # Convert LangChain messages to OpenAI format
         formatted_messages = self._convert_messages(messages)
 
@@ -428,11 +515,29 @@ class ChatLiteLLMRouter(BaseChatModel):
                 **call_kwargs,
             )
         except ContextWindowExceededError as e:
+            perf.warning(
+                "[llm_router] _generate CONTEXT_OVERFLOW msgs=%d in %.3fs",
+                msg_count,
+                time.perf_counter() - t0,
+            )
             raise ContextOverflowError(str(e)) from e
         except LiteLLMBadRequestError as e:
             if _is_context_overflow_error(e):
+                perf.warning(
+                    "[llm_router] _generate CONTEXT_OVERFLOW msgs=%d in %.3fs",
+                    msg_count,
+                    time.perf_counter() - t0,
+                )
                 raise ContextOverflowError(str(e)) from e
             raise
+
+        elapsed = time.perf_counter() - t0
+        perf.info(
+            "[llm_router] _generate completed msgs=%d tools=%d in %.3fs",
+            msg_count,
+            len(self._bound_tools) if self._bound_tools else 0,
+            elapsed,
+        )
 
         # Convert response to ChatResult with potential tool calls
         message = self._convert_response_to_message(response.choices[0].message)
@@ -453,6 +558,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         if not self._router:
             raise ValueError("Router not initialized")
 
+        perf = get_perf_logger()
+        t0 = time.perf_counter()
+        msg_count = len(messages)
+
         # Convert LangChain messages to OpenAI format
         formatted_messages = self._convert_messages(messages)
 
@@ -471,11 +580,29 @@ class ChatLiteLLMRouter(BaseChatModel):
                 **call_kwargs,
             )
         except ContextWindowExceededError as e:
+            perf.warning(
+                "[llm_router] _agenerate CONTEXT_OVERFLOW msgs=%d in %.3fs",
+                msg_count,
+                time.perf_counter() - t0,
+            )
             raise ContextOverflowError(str(e)) from e
         except LiteLLMBadRequestError as e:
             if _is_context_overflow_error(e):
+                perf.warning(
+                    "[llm_router] _agenerate CONTEXT_OVERFLOW msgs=%d in %.3fs",
+                    msg_count,
+                    time.perf_counter() - t0,
+                )
                 raise ContextOverflowError(str(e)) from e
             raise
+
+        elapsed = time.perf_counter() - t0
+        perf.info(
+            "[llm_router] _agenerate completed msgs=%d tools=%d in %.3fs",
+            msg_count,
+            len(self._bound_tools) if self._bound_tools else 0,
+            elapsed,
+        )
 
         # Convert response to ChatResult with potential tool calls
         message = self._convert_response_to_message(response.choices[0].message)
@@ -541,6 +668,10 @@ class ChatLiteLLMRouter(BaseChatModel):
         if not self._router:
             raise ValueError("Router not initialized")
 
+        perf = get_perf_logger()
+        t0 = time.perf_counter()
+        msg_count = len(messages)
+
         formatted_messages = self._convert_messages(messages)
 
         # Add tools if bound
@@ -559,19 +690,51 @@ class ChatLiteLLMRouter(BaseChatModel):
                 **call_kwargs,
             )
         except ContextWindowExceededError as e:
+            perf.warning(
+                "[llm_router] _astream CONTEXT_OVERFLOW msgs=%d in %.3fs",
+                msg_count,
+                time.perf_counter() - t0,
+            )
             raise ContextOverflowError(str(e)) from e
         except LiteLLMBadRequestError as e:
             if _is_context_overflow_error(e):
+                perf.warning(
+                    "[llm_router] _astream CONTEXT_OVERFLOW msgs=%d in %.3fs",
+                    msg_count,
+                    time.perf_counter() - t0,
+                )
                 raise ContextOverflowError(str(e)) from e
             raise
 
-        # Yield chunks asynchronously
+        t_first_chunk = time.perf_counter()
+        perf.info(
+            "[llm_router] _astream connection established msgs=%d in %.3fs",
+            msg_count,
+            t_first_chunk - t0,
+        )
+
+        chunk_count = 0
+        first_chunk_logged = False
         async for chunk in response:
             if hasattr(chunk, "choices") and chunk.choices:
                 delta = chunk.choices[0].delta
                 chunk_msg = self._convert_delta_to_chunk(delta)
                 if chunk_msg:
+                    chunk_count += 1
+                    if not first_chunk_logged:
+                        perf.info(
+                            "[llm_router] _astream first chunk in %.3fs (total %.3fs from start)",
+                            time.perf_counter() - t_first_chunk,
+                            time.perf_counter() - t0,
+                        )
+                        first_chunk_logged = True
                     yield ChatGenerationChunk(message=chunk_msg)
+
+        perf.info(
+            "[llm_router] _astream completed chunks=%d total=%.3fs",
+            chunk_count,
+            time.perf_counter() - t0,
+        )
 
     def _convert_messages(self, messages: list[BaseMessage]) -> list[dict]:
         """Convert LangChain messages to OpenAI format."""
@@ -687,19 +850,28 @@ class ChatLiteLLMRouter(BaseChatModel):
         return None
 
 
-def get_auto_mode_llm() -> ChatLiteLLMRouter | None:
-    """
-    Get a ChatLiteLLMRouter instance for auto mode.
+def get_auto_mode_llm(
+    *,
+    streaming: bool = True,
+) -> ChatLiteLLMRouter | None:
+    """Return a cached ChatLiteLLMRouter for auto mode.
 
-    Returns:
-        ChatLiteLLMRouter instance or None if router not initialized
+    Base (no tools) instances are cached per ``streaming`` flag so we
+    avoid re-constructing them on every request.  ``bind_tools()`` still
+    returns a fresh instance because bound tools differ per agent.
     """
     if not LLMRouterService.is_initialized():
         logger.warning("LLM Router not initialized for auto mode")
         return None
 
+    cached = _router_instance_cache.get(streaming)
+    if cached is not None:
+        return cached
+
     try:
-        return ChatLiteLLMRouter()
+        instance = ChatLiteLLMRouter(streaming=streaming)
+        _router_instance_cache[streaming] = instance
+        return instance
     except Exception as e:
         logger.error(f"Failed to create ChatLiteLLMRouter: {e}")
         return None

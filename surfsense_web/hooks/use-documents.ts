@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
@@ -183,56 +184,47 @@ export function useDocuments(
 		[]
 	);
 
-	// EFFECT 1: Load ALL documents from API (PRIMARY source of truth)
-	// No type filter — always fetches everything so typeCounts stay complete
+	// STEP 1: Load ALL documents from API (PRIMARY source of truth).
+	// Uses React Query for automatic deduplication, caching, and staleTime so
+	// multiple components mounting useDocuments(sameId) share a single request.
+	const {
+		data: apiResponse,
+		isLoading: apiLoading,
+		error: apiError,
+	} = useQuery({
+		queryKey: ["documents", "all", searchSpaceId],
+		queryFn: () =>
+			documentsApiService.getDocuments({
+				queryParams: {
+					search_space_id: searchSpaceId!,
+					page: 0,
+					page_size: -1,
+				},
+			}),
+		enabled: !!searchSpaceId,
+		staleTime: 30_000,
+	});
+
+	// Seed local state from API response (runs once per fresh fetch)
 	useEffect(() => {
-		if (!searchSpaceId) {
-			setLoading(false);
-			return;
+		if (!apiResponse) return;
+		populateUserCache(apiResponse.items);
+		const docs = apiResponse.items.map(apiToDisplayDoc);
+		setAllDocuments(docs);
+		apiLoadedRef.current = true;
+		setError(null);
+	}, [apiResponse, populateUserCache, apiToDisplayDoc]);
+
+	// Propagate loading / error from React Query
+	useEffect(() => {
+		setLoading(apiLoading);
+	}, [apiLoading]);
+
+	useEffect(() => {
+		if (apiError) {
+			setError(apiError instanceof Error ? apiError : new Error("Failed to load documents"));
 		}
-
-		// Capture validated value for async closure
-		const spaceId = searchSpaceId;
-
-		let mounted = true;
-		apiLoadedRef.current = false;
-
-		async function loadFromApi() {
-			try {
-				setLoading(true);
-				console.log("[useDocuments] Loading from API (source of truth):", spaceId);
-
-				const response = await documentsApiService.getDocuments({
-					queryParams: {
-						search_space_id: spaceId,
-						page: 0,
-						page_size: -1, // Fetch all documents (unfiltered)
-					},
-				});
-
-				if (!mounted) return;
-
-				populateUserCache(response.items);
-				const docs = response.items.map(apiToDisplayDoc);
-				setAllDocuments(docs);
-				apiLoadedRef.current = true;
-				setError(null);
-				console.log("[useDocuments] API loaded", docs.length, "documents");
-			} catch (err) {
-				if (!mounted) return;
-				console.error("[useDocuments] API load failed:", err);
-				setError(err instanceof Error ? err : new Error("Failed to load documents"));
-			} finally {
-				if (mounted) setLoading(false);
-			}
-		}
-
-		loadFromApi();
-
-		return () => {
-			mounted = false;
-		};
-	}, [searchSpaceId, populateUserCache, apiToDisplayDoc]);
+	}, [apiError]);
 
 	// EFFECT 2: Start Electric sync + live query for real-time updates
 	// No type filter — syncs and queries ALL documents; filtering is client-side

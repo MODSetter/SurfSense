@@ -28,8 +28,9 @@ from app.agents.new_chat.system_prompt import (
 from app.agents.new_chat.tools.registry import build_tools_async
 from app.db import ChatVisibility
 from app.services.connector_service import ConnectorService
+from app.utils.perf import get_perf_logger
 
-_perf_log = logging.getLogger("surfsense.perf")
+_perf_log = get_perf_logger()
 
 # =============================================================================
 # Connector Type Mapping

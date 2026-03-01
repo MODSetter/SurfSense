@@ -83,6 +83,22 @@ export const getCommentsResponse = z.object({
 });
 
 /**
+ * Batch-fetch comments for multiple messages
+ */
+export const getBatchCommentsRequest = z.object({
+	message_ids: z.array(z.number()).min(1).max(200),
+});
+
+export const commentListResponse = z.object({
+	comments: z.array(comment),
+	total_count: z.number(),
+});
+
+export const getBatchCommentsResponse = z.object({
+	comments_by_message: z.record(z.string(), commentListResponse),
+});
+
+/**
  * Create comment
  */
 export const createCommentRequest = z.object({
@@ -145,6 +161,8 @@ export type MentionComment = z.infer<typeof mentionComment>;
 export type Mention = z.infer<typeof mention>;
 export type GetCommentsRequest = z.infer<typeof getCommentsRequest>;
 export type GetCommentsResponse = z.infer<typeof getCommentsResponse>;
+export type GetBatchCommentsRequest = z.infer<typeof getBatchCommentsRequest>;
+export type GetBatchCommentsResponse = z.infer<typeof getBatchCommentsResponse>;
 export type CreateCommentRequest = z.infer<typeof createCommentRequest>;
 export type CreateCommentResponse = z.infer<typeof createCommentResponse>;
 export type CreateReplyRequest = z.infer<typeof createReplyRequest>;

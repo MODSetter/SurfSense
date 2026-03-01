@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import User, get_async_session
 from app.schemas.chat_comments import (
+    CommentBatchRequest,
+    CommentBatchResponse,
     CommentCreateRequest,
     CommentListResponse,
     CommentReplyResponse,
@@ -19,12 +21,23 @@ from app.services.chat_comments_service import (
     create_reply,
     delete_comment,
     get_comments_for_message,
+    get_comments_for_messages_batch,
     get_user_mentions,
     update_comment,
 )
 from app.users import current_active_user
 
 router = APIRouter()
+
+
+@router.post("/messages/comments/batch", response_model=CommentBatchResponse)
+async def batch_list_comments(
+    request: CommentBatchRequest,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Batch-fetch comments for multiple messages in one request."""
+    return await get_comments_for_messages_batch(session, request.message_ids, user)
 
 
 @router.get("/messages/{message_id}/comments", response_model=CommentListResponse)

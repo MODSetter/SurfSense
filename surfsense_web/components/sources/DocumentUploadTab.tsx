@@ -111,8 +111,8 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 
 const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
 
-// Upload limits
-const MAX_FILES = 10;
+// Upload limits — files are sent in batches of 5 to avoid proxy timeouts
+const MAX_FILES = 50;
 const MAX_TOTAL_SIZE_MB = 200;
 const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 

@@ -145,10 +145,12 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             thread_id=deps["thread_id"],
             connector_service=deps.get("connector_service"),
             available_connectors=deps.get("available_connectors"),
+            available_document_types=deps.get("available_document_types"),
         ),
         requires=["search_space_id", "thread_id"],
-        # connector_service and available_connectors are optional —
-        # when missing, source_strategy="kb_search" degrades gracefully to "provided"
+        # connector_service, available_connectors, and available_document_types
+        # are optional — when missing, source_strategy="kb_search" degrades
+        # gracefully to "provided"
     ),
     # Link preview tool - fetches Open Graph metadata for URLs
     ToolDefinition(

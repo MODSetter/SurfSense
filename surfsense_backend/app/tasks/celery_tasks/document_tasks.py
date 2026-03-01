@@ -5,13 +5,11 @@ import logging
 import os
 from uuid import UUID
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
-
 from app.celery_app import celery_app
 from app.config import config
 from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
+from app.tasks.celery_tasks import get_celery_session_maker
 from app.tasks.document_processors import (
     add_extension_received_document,
     add_youtube_video_document,
@@ -89,20 +87,6 @@ async def _run_heartbeat_loop(notification_id: int):
                 )
     except asyncio.CancelledError:
         pass  # Normal cancellation when task completes
-
-
-def get_celery_session_maker():
-    """
-    Create a new async session maker for Celery tasks.
-    This is necessary because Celery tasks run in a new event loop,
-    and the default session maker is bound to the main app's event loop.
-    """
-    engine = create_async_engine(
-        config.DATABASE_URL,
-        poolclass=NullPool,  # Don't use connection pooling for Celery tasks
-        echo=False,
-    )
-    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 @celery_app.task(name="process_extension_document", bind=True)

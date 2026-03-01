@@ -88,6 +88,13 @@ ENV TMPDIR=/shared_tmp
 ENV PYTHONPATH=/app
 ENV UVICORN_LOOP=asyncio
 
+# Tune glibc malloc to return freed memory to the OS more aggressively.
+# Without these, Python's gc.collect() frees objects but the underlying
+# C heap pages stay mapped (RSS never drops) due to sbrk fragmentation.
+ENV MALLOC_MMAP_THRESHOLD_=65536
+ENV MALLOC_TRIM_THRESHOLD_=131072
+ENV MALLOC_MMAP_MAX_=65536
+
 # SERVICE_ROLE controls which process this container runs:
 #   api     – FastAPI backend only (runs migrations on startup)
 #   worker  – Celery worker only

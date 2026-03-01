@@ -109,7 +109,9 @@ class DocumentsApiService {
 	};
 
 	/**
-	 * Upload document files
+	 * Upload document files in batches to avoid proxy/LB timeouts.
+	 * Files are split into chunks of UPLOAD_BATCH_SIZE and sent as separate
+	 * requests. Results are aggregated into a single response.
 	 */
 	uploadDocument = async (request: UploadDocumentRequest) => {
 		const parsedRequest = uploadDocumentRequest.safeParse(request);
@@ -121,17 +123,54 @@ class DocumentsApiService {
 			throw new ValidationError(`Invalid request: ${errorMessage}`);
 		}
 
-		// Create FormData for file upload
-		const formData = new FormData();
-		parsedRequest.data.files.forEach((file) => {
-			formData.append("files", file);
-		});
-		formData.append("search_space_id", String(parsedRequest.data.search_space_id));
-		formData.append("should_summarize", String(parsedRequest.data.should_summarize));
+		const { files, search_space_id, should_summarize } = parsedRequest.data;
+		const UPLOAD_BATCH_SIZE = 5;
 
-		return baseApiService.postFormData(`/api/v1/documents/fileupload`, uploadDocumentResponse, {
-			body: formData,
-		});
+		const batches: File[][] = [];
+		for (let i = 0; i < files.length; i += UPLOAD_BATCH_SIZE) {
+			batches.push(files.slice(i, i + UPLOAD_BATCH_SIZE));
+		}
+
+		const allDocumentIds: number[] = [];
+		const allDuplicateIds: number[] = [];
+		let totalFiles = 0;
+		let pendingFiles = 0;
+		let skippedDuplicates = 0;
+
+		for (const batch of batches) {
+			const formData = new FormData();
+			batch.forEach((file) => formData.append("files", file));
+			formData.append("search_space_id", String(search_space_id));
+			formData.append("should_summarize", String(should_summarize));
+
+			const controller = new AbortController();
+			const timeoutId = setTimeout(() => controller.abort(), 120_000);
+
+			try {
+				const result = await baseApiService.postFormData(
+					`/api/v1/documents/fileupload`,
+					uploadDocumentResponse,
+					{ body: formData, signal: controller.signal }
+				);
+
+				allDocumentIds.push(...(result.document_ids ?? []));
+				allDuplicateIds.push(...(result.duplicate_document_ids ?? []));
+				totalFiles += result.total_files ?? batch.length;
+				pendingFiles += result.pending_files ?? 0;
+				skippedDuplicates += result.skipped_duplicates ?? 0;
+			} finally {
+				clearTimeout(timeoutId);
+			}
+		}
+
+		return {
+			message: "Files uploaded for processing" as const,
+			document_ids: allDocumentIds,
+			duplicate_document_ids: allDuplicateIds,
+			total_files: totalFiles,
+			pending_files: pendingFiles,
+			skipped_duplicates: skippedDuplicates,
+		};
 	};
 
 	/**

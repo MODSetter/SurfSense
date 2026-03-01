@@ -4,28 +4,16 @@ import logging
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import selectinload
-from sqlalchemy.pool import NullPool
 
 from app.celery_app import celery_app
-from app.config import config
 from app.db import Document
 from app.indexing_pipeline.adapters.file_upload_adapter import UploadDocumentAdapter
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
+from app.tasks.celery_tasks import get_celery_session_maker
 
 logger = logging.getLogger(__name__)
-
-
-def get_celery_session_maker():
-    """Create async session maker for Celery tasks."""
-    engine = create_async_engine(
-        config.DATABASE_URL,
-        poolclass=NullPool,
-        echo=False,
-    )
-    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 @celery_app.task(name="reindex_document", bind=True)

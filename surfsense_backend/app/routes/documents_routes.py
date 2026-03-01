@@ -133,6 +133,8 @@ async def create_documents_file_upload(
 
     Requires DOCUMENTS_CREATE permission.
     """
+    import os
+    import tempfile
     from datetime import datetime
 
     from app.db import DocumentStatus
@@ -143,7 +145,6 @@ async def create_documents_file_upload(
     from app.utils.document_converters import generate_unique_identifier_hash
 
     try:
-        # Check permission
         await check_permission(
             session,
             user,
@@ -179,69 +180,64 @@ async def create_documents_file_upload(
                 f"exceeds the {MAX_TOTAL_SIZE_BYTES // (1024 * 1024)} MB limit.",
             )
 
-        created_documents: list[Document] = []
-        files_to_process: list[
-            tuple[Document, str, str]
-        ] = []  # (document, temp_path, filename)
-        skipped_duplicates = 0
-        duplicate_document_ids: list[int] = []
-        actual_total_size = 0
+        # ===== Read all files concurrently to avoid blocking the event loop =====
+        async def _read_and_save(file: UploadFile) -> tuple[str, str, int]:
+            """Read upload content and write to temp file off the event loop."""
+            content = await file.read()
+            file_size = len(content)
+            filename = file.filename or "unknown"
 
-        # ===== PHASE 1: Create pending documents for all files =====
-        # This makes ALL documents visible in the UI immediately with pending status
-        for file in files:
-            try:
-                import os
-                import tempfile
-
-                # Save file to temp location
-                with tempfile.NamedTemporaryFile(
-                    delete=False, suffix=os.path.splitext(file.filename or "")[1]
-                ) as temp_file:
-                    temp_path = temp_file.name
-
-                content = await file.read()
-                file_size = len(content)
-
-                if file_size > MAX_FILE_SIZE_BYTES:
-                    os.unlink(temp_path)
-                    raise HTTPException(
-                        status_code=413,
-                        detail=f"File '{file.filename}' ({file_size / (1024 * 1024):.1f} MB) "
-                        f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
-                    )
-
-                actual_total_size += file_size
-                if actual_total_size > MAX_TOTAL_SIZE_BYTES:
-                    os.unlink(temp_path)
-                    raise HTTPException(
-                        status_code=413,
-                        detail=f"Total upload size ({actual_total_size / (1024 * 1024):.1f} MB) "
-                        f"exceeds the {MAX_TOTAL_SIZE_BYTES // (1024 * 1024)} MB limit.",
-                    )
-
-                with open(temp_path, "wb") as f:
-                    f.write(content)
-
-                # Generate unique identifier for deduplication check
-                unique_identifier_hash = generate_unique_identifier_hash(
-                    DocumentType.FILE, file.filename or "unknown", search_space_id
+            if file_size > MAX_FILE_SIZE_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File '{filename}' ({file_size / (1024 * 1024):.1f} MB) "
+                    f"exceeds the {MAX_FILE_SIZE_BYTES // (1024 * 1024)} MB per-file limit.",
                 )
 
-                # Check if document already exists (by unique identifier)
+            def _write_temp() -> str:
+                with tempfile.NamedTemporaryFile(
+                    delete=False, suffix=os.path.splitext(filename)[1]
+                ) as tmp:
+                    tmp.write(content)
+                    return tmp.name
+
+            temp_path = await asyncio.to_thread(_write_temp)
+            return temp_path, filename, file_size
+
+        saved_files = await asyncio.gather(*(_read_and_save(f) for f in files))
+
+        actual_total_size = sum(size for _, _, size in saved_files)
+        if actual_total_size > MAX_TOTAL_SIZE_BYTES:
+            for temp_path, _, _ in saved_files:
+                os.unlink(temp_path)
+            raise HTTPException(
+                status_code=413,
+                detail=f"Total upload size ({actual_total_size / (1024 * 1024):.1f} MB) "
+                f"exceeds the {MAX_TOTAL_SIZE_BYTES // (1024 * 1024)} MB limit.",
+            )
+
+        # ===== PHASE 1: Create pending documents for all files =====
+        created_documents: list[Document] = []
+        files_to_process: list[tuple[Document, str, str]] = []
+        skipped_duplicates = 0
+        duplicate_document_ids: list[int] = []
+
+        for temp_path, filename, file_size in saved_files:
+            try:
+                unique_identifier_hash = generate_unique_identifier_hash(
+                    DocumentType.FILE, filename, search_space_id
+                )
+
                 existing = await check_document_by_unique_identifier(
                     session, unique_identifier_hash
                 )
                 if existing:
                     if DocumentStatus.is_state(existing.status, DocumentStatus.READY):
-                        # True duplicate — content already indexed, skip
                         os.unlink(temp_path)
                         skipped_duplicates += 1
                         duplicate_document_ids.append(existing.id)
                         continue
 
-                    # Existing document is stuck (failed/pending/processing)
-                    # Reset it to pending and re-dispatch for processing
                     existing.status = DocumentStatus.pending()
                     existing.content = "Processing..."
                     existing.document_metadata = {
@@ -251,50 +247,45 @@ async def create_documents_file_upload(
                     }
                     existing.updated_at = get_current_timestamp()
                     created_documents.append(existing)
-                    files_to_process.append(
-                        (existing, temp_path, file.filename or "unknown")
-                    )
+                    files_to_process.append((existing, temp_path, filename))
                     continue
 
-                # Create pending document (visible immediately in UI via ElectricSQL)
                 document = Document(
                     search_space_id=search_space_id,
-                    title=file.filename or "Uploaded File",
+                    title=filename if filename != "unknown" else "Uploaded File",
                     document_type=DocumentType.FILE,
                     document_metadata={
-                        "FILE_NAME": file.filename,
+                        "FILE_NAME": filename,
                         "file_size": file_size,
                         "upload_time": datetime.now().isoformat(),
                     },
-                    content="Processing...",  # Placeholder until processed
-                    content_hash=unique_identifier_hash,  # Temporary, updated when ready
+                    content="Processing...",
+                    content_hash=unique_identifier_hash,
                     unique_identifier_hash=unique_identifier_hash,
                     embedding=None,
-                    status=DocumentStatus.pending(),  # Shows "pending" in UI
+                    status=DocumentStatus.pending(),
                     updated_at=get_current_timestamp(),
                     created_by_id=str(user.id),
                 )
                 session.add(document)
                 created_documents.append(document)
-                files_to_process.append(
-                    (document, temp_path, file.filename or "unknown")
-                )
+                files_to_process.append((document, temp_path, filename))
 
+            except HTTPException:
+                raise
             except Exception as e:
+                os.unlink(temp_path)
                 raise HTTPException(
                     status_code=422,
-                    detail=f"Failed to process file {file.filename}: {e!s}",
+                    detail=f"Failed to process file {filename}: {e!s}",
                 ) from e
 
-        # Commit all pending documents - they appear in UI immediately via ElectricSQL
         if created_documents:
             await session.commit()
-            # Refresh to get generated IDs
             for doc in created_documents:
                 await session.refresh(doc)
 
         # ===== PHASE 2: Dispatch tasks for each file =====
-        # Each task will update document status: pending → processing → ready/failed
         for document, temp_path, filename in files_to_process:
             await dispatcher.dispatch_file_processing(
                 document_id=document.id,

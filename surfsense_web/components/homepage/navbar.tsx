@@ -4,7 +4,6 @@ import {
 	IconBrandGithub,
 	IconBrandReddit,
 	IconMenu2,
-	IconSpeakerphone,
 	IconX,
 } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -13,7 +12,6 @@ import { useEffect, useState } from "react";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
-import { useAnnouncements } from "@/hooks/use-announcements";
 import { useGithubStars } from "@/hooks/use-github-stars";
 import { cn } from "@/lib/utils";
 
@@ -49,11 +47,7 @@ export const Navbar = () => {
 
 const DesktopNav = ({ navItems, isScrolled }: any) => {
 	const [hovered, setHovered] = useState<number | null>(null);
-	const [mounted, setMounted] = useState(false);
 	const { compactFormat: githubStars, loading: loadingGithubStars } = useGithubStars();
-	const { unreadCount } = useAnnouncements();
-
-	useEffect(() => setMounted(true), []);
 	return (
 		<motion.div
 			onMouseLeave={() => {
@@ -124,17 +118,6 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 						</span>
 					)}
 				</Link>
-				<Link
-					href="/announcements"
-					className="relative hidden rounded-full p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center justify-center"
-				>
-					<IconSpeakerphone className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-					{mounted && unreadCount > 0 && (
-						<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-							{unreadCount > 99 ? "99+" : unreadCount}
-						</span>
-					)}
-				</Link>
 				<ThemeTogglerComponent />
 				<SignInButton variant="desktop" />
 			</div>
@@ -144,11 +127,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 
 const MobileNav = ({ navItems, isScrolled }: any) => {
 	const [open, setOpen] = useState(false);
-	const [mounted, setMounted] = useState(false);
 	const { compactFormat: githubStars, loading: loadingGithubStars } = useGithubStars();
-	const { unreadCount } = useAnnouncements();
-
-	useEffect(() => setMounted(true), []);
 
 	return (
 		<motion.div
@@ -230,17 +209,6 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 								) : (
 									<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
 										{githubStars}
-									</span>
-								)}
-							</Link>
-							<Link
-								href="/announcements"
-								className="relative flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
-							>
-								<IconSpeakerphone className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-								{mounted && unreadCount > 0 && (
-									<span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
-										{unreadCount > 99 ? "99+" : unreadCount}
 									</span>
 								)}
 							</Link>

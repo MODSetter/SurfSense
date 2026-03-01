@@ -10,6 +10,8 @@ Supports loading LLM configurations from:
 """
 
 import asyncio
+import contextlib
+import gc
 import json
 import logging
 import re
@@ -19,9 +21,9 @@ from dataclasses import dataclass, field
 from typing import Any
 from uuid import UUID
 
+import anyio
 from langchain_core.messages import HumanMessage
 from sqlalchemy import func
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
@@ -47,6 +49,7 @@ from app.db import (
     SearchSourceConnectorType,
     SurfsenseDocsDocument,
     async_session_maker,
+    shielded_async_session,
 )
 from app.prompts import TITLE_GENERATION_PROMPT_TEMPLATE
 from app.services.chat_session_state_service import (
@@ -56,14 +59,9 @@ from app.services.chat_session_state_service import (
 from app.services.connector_service import ConnectorService
 from app.services.new_streaming_service import VercelStreamingService
 from app.utils.content_utils import bootstrap_history_from_db
+from app.utils.perf import get_perf_logger, log_system_snapshot, trim_native_heap
 
-_perf_log = logging.getLogger("surfsense.perf")
-_perf_log.setLevel(logging.DEBUG)
-if not _perf_log.handlers:
-    _h = logging.StreamHandler()
-    _h.setFormatter(logging.Formatter("%(asctime)s [PERF] %(message)s"))
-    _perf_log.addHandler(_h)
-    _perf_log.propagate = False
+_perf_log = get_perf_logger()
 
 _background_tasks: set[asyncio.Task] = set()
 
@@ -1016,7 +1014,6 @@ async def stream_new_chat(
     user_query: str,
     search_space_id: int,
     chat_id: int,
-    session: AsyncSession,
     user_id: str | None = None,
     llm_config_id: int = -1,
     mentioned_document_ids: list[int] | None = None,
@@ -1032,11 +1029,13 @@ async def stream_new_chat(
     This uses the Vercel AI SDK Data Stream Protocol (SSE format) for streaming.
     The chat_id is used as LangGraph's thread_id for memory/checkpointing.
 
+    The function creates and manages its own database session to guarantee proper
+    cleanup even when Starlette's middleware cancels the task on client disconnect.
+
     Args:
         user_query: The user's query
         search_space_id: The search space ID
         chat_id: The chat ID (used as LangGraph thread_id for memory)
-        session: The database session
         user_id: The current user's UUID string (for memory tools and session state)
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
         needs_history_bootstrap: If True, load message history from DB (for cloned chats)
@@ -1050,7 +1049,9 @@ async def stream_new_chat(
     streaming_service = VercelStreamingService()
     stream_result = StreamResult()
     _t_total = time.perf_counter()
+    log_system_snapshot("stream_new_chat_START")
 
+    session = async_session_maker()
     try:
         # Mark AI as responding to this user for live collaboration
         if user_id:
@@ -1286,6 +1287,12 @@ async def stream_new_chat(
         # short-lived transactions (or use isolated sessions).
         await session.commit()
 
+        # Detach heavy ORM objects (documents with chunks, reports, etc.)
+        # from the session identity map now that we've extracted the data
+        # we need.  This prevents them from accumulating in memory for the
+        # entire duration of LLM streaming (which can be several minutes).
+        session.expunge_all()
+
         _perf_log.info(
             "[stream_new_chat] Total pre-stream setup in %.3fs (chat_id=%s)",
             time.perf_counter() - _t_total,
@@ -1353,6 +1360,12 @@ async def stream_new_chat(
             items=initial_items,
         )
 
+        # These ORM objects (with eagerly-loaded chunks) can be very large.
+        # They're only needed to build context strings already copied into
+        # final_query / langchain_messages — release them before streaming.
+        del mentioned_documents, mentioned_surfsense_docs, recent_reports
+        del langchain_messages, final_query
+
         _t_stream_start = time.perf_counter()
         _first_event_logged = False
         async for sse in _stream_agent_events(
@@ -1382,6 +1395,7 @@ async def stream_new_chat(
             time.perf_counter() - _t_stream_start,
             chat_id,
         )
+        log_system_snapshot("stream_new_chat_END")
 
         if stream_result.is_interrupted:
             yield streaming_service.format_finish_step()
@@ -1461,30 +1475,57 @@ async def stream_new_chat(
         yield streaming_service.format_done()
 
     finally:
-        # Clear AI responding state for live collaboration.
-        # The original session may be broken (client disconnect / CancelledError
-        # can corrupt the underlying DB connection), so we try a rollback first
-        # and fall back to a fresh session if the original is unusable.
-        try:
-            await session.rollback()
-            await clear_ai_responding(session, chat_id)
-        except Exception:
+        # Shield the ENTIRE async cleanup from anyio cancel-scope
+        # cancellation.  Starlette's BaseHTTPMiddleware uses anyio task
+        # groups; on client disconnect, it cancels the scope with
+        # level-triggered cancellation — every unshielded `await` inside
+        # the cancelled scope raises CancelledError immediately.  Without
+        # this shield the very first `await` (session.rollback) would
+        # raise CancelledError, `except Exception` wouldn't catch it
+        # (CancelledError is a BaseException), and the rest of the
+        # finally block — including session.close() — would never run.
+        with anyio.CancelScope(shield=True):
             try:
-                async with async_session_maker() as fresh_session:
-                    await clear_ai_responding(fresh_session, chat_id)
+                await session.rollback()
+                await clear_ai_responding(session, chat_id)
             except Exception:
-                logging.getLogger(__name__).warning(
-                    "Failed to clear AI responding state for thread %s", chat_id
-                )
+                try:
+                    async with shielded_async_session() as fresh_session:
+                        await clear_ai_responding(fresh_session, chat_id)
+                except Exception:
+                    logging.getLogger(__name__).warning(
+                        "Failed to clear AI responding state for thread %s", chat_id
+                    )
 
-        _try_persist_and_delete_sandbox(chat_id, stream_result.sandbox_files)
+            _try_persist_and_delete_sandbox(chat_id, stream_result.sandbox_files)
+
+            with contextlib.suppress(Exception):
+                session.expunge_all()
+
+            with contextlib.suppress(Exception):
+                await session.close()
+
+        # Break circular refs held by the agent graph, tools, and LLM
+        # wrappers so the GC can reclaim them in a single pass.
+        agent = llm = connector_service = sandbox_backend = None
+        input_state = stream_result = None
+        session = None
+
+        collected = gc.collect(0) + gc.collect(1) + gc.collect(2)
+        if collected:
+            _perf_log.info(
+                "[stream_new_chat] gc.collect() reclaimed %d objects (chat_id=%s)",
+                collected,
+                chat_id,
+            )
+        trim_native_heap()
+        log_system_snapshot("stream_new_chat_END")
 
 
 async def stream_resume_chat(
     chat_id: int,
     search_space_id: int,
     decisions: list[dict],
-    session: AsyncSession,
     user_id: str | None = None,
     llm_config_id: int = -1,
     thread_visibility: ChatVisibility | None = None,
@@ -1493,6 +1534,7 @@ async def stream_resume_chat(
     stream_result = StreamResult()
     _t_total = time.perf_counter()
 
+    session = async_session_maker()
     try:
         if user_id:
             await set_ai_responding(session, chat_id, UUID(user_id))
@@ -1589,6 +1631,7 @@ async def stream_resume_chat(
 
         # Release the transaction before streaming (same rationale as stream_new_chat).
         await session.commit()
+        session.expunge_all()
 
         _perf_log.info(
             "[stream_resume] Total pre-stream setup in %.3fs (chat_id=%s)",
@@ -1652,16 +1695,37 @@ async def stream_resume_chat(
         yield streaming_service.format_done()
 
     finally:
-        try:
-            await session.rollback()
-            await clear_ai_responding(session, chat_id)
-        except Exception:
+        with anyio.CancelScope(shield=True):
             try:
-                async with async_session_maker() as fresh_session:
-                    await clear_ai_responding(fresh_session, chat_id)
+                await session.rollback()
+                await clear_ai_responding(session, chat_id)
             except Exception:
-                logging.getLogger(__name__).warning(
-                    "Failed to clear AI responding state for thread %s", chat_id
-                )
+                try:
+                    async with shielded_async_session() as fresh_session:
+                        await clear_ai_responding(fresh_session, chat_id)
+                except Exception:
+                    logging.getLogger(__name__).warning(
+                        "Failed to clear AI responding state for thread %s", chat_id
+                    )
 
-        _try_persist_and_delete_sandbox(chat_id, stream_result.sandbox_files)
+            _try_persist_and_delete_sandbox(chat_id, stream_result.sandbox_files)
+
+            with contextlib.suppress(Exception):
+                session.expunge_all()
+
+            with contextlib.suppress(Exception):
+                await session.close()
+
+        agent = llm = connector_service = sandbox_backend = None
+        stream_result = None
+        session = None
+
+        collected = gc.collect(0) + gc.collect(1) + gc.collect(2)
+        if collected:
+            _perf_log.info(
+                "[stream_resume] gc.collect() reclaimed %d objects (chat_id=%s)",
+                collected,
+                chat_id,
+            )
+        trim_native_heap()
+        log_system_snapshot("stream_resume_chat_END")

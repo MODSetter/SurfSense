@@ -58,6 +58,7 @@ class _TimeoutAwareSandbox(DaytonaSandbox):
 
 _daytona_client: Daytona | None = None
 _sandbox_cache: dict[str, _TimeoutAwareSandbox] = {}
+_SANDBOX_CACHE_MAX_SIZE = 20
 THREAD_LABEL_KEY = "surfsense_thread"
 
 
@@ -144,6 +145,12 @@ async def get_or_create_sandbox(thread_id: int | str) -> _TimeoutAwareSandbox:
         return cached
     sandbox = await asyncio.to_thread(_find_or_create, key)
     _sandbox_cache[key] = sandbox
+
+    if len(_sandbox_cache) > _SANDBOX_CACHE_MAX_SIZE:
+        oldest_key = next(iter(_sandbox_cache))
+        _sandbox_cache.pop(oldest_key, None)
+        logger.debug("Evicted oldest sandbox cache entry: %s", oldest_key)
+
     return sandbox
 
 

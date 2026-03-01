@@ -181,7 +181,7 @@ export default function MorePagesPage() {
 							</DialogHeader>
 							<div className="flex flex-col items-center gap-4 py-4">
 								<Link
-									href="https://calendly.com/eric-surfsense/surfsense-meeting"
+									href="https://cal.com/mod-rohan"
 									target="_blank"
 									rel="noopener noreferrer"
 									className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
@@ -195,11 +195,11 @@ export default function MorePagesPage() {
 									<span className="h-px w-8 bg-border" />
 								</div>
 								<Link
-									href="mailto:eric@surfsense.com"
+									href="mailto:rohan@surfsense.com"
 									className="flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
 								>
 									<IconMailFilled className="h-4 w-4" />
-									eric@surfsense.com
+									rohan@surfsense.com
 								</Link>
 							</div>
 						</DialogContent>

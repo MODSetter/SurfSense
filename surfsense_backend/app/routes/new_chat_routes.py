@@ -32,6 +32,7 @@ from app.db import (
     SearchSpace,
     User,
     get_async_session,
+    shielded_async_session,
 )
 from app.schemas.new_chat import (
     NewChatMessageAppend,
@@ -1092,13 +1093,18 @@ async def handle_new_chat(
         # on searchspaces/documents for the entire duration of the stream.
         # expire_on_commit=False keeps loaded ORM attrs usable.
         await session.commit()
+        # Close the dependency session now so its connection returns to
+        # the pool before streaming begins.  Without this, Starlette's
+        # BaseHTTPMiddleware cancels the scope on client disconnect and
+        # the dependency generator's __aexit__ never runs, orphaning the
+        # connection (the "Exception terminating connection" errors).
+        await session.close()
 
         return StreamingResponse(
             stream_new_chat(
                 user_query=request.user_query,
                 search_space_id=request.search_space_id,
                 chat_id=request.chat_id,
-                session=session,
                 user_id=str(user.id),
                 llm_config_id=llm_config_id,
                 mentioned_document_ids=request.mentioned_document_ids,
@@ -1323,6 +1329,7 @@ async def regenerate_response(
         # on searchspaces/documents for the entire duration of the stream.
         # expire_on_commit=False keeps loaded ORM attrs (including messages_to_delete PKs) usable.
         await session.commit()
+        await session.close()
 
         # Create a wrapper generator that deletes messages only AFTER streaming succeeds
         # This prevents data loss if streaming fails (network error, LLM error, etc.)
@@ -1333,7 +1340,6 @@ async def regenerate_response(
                     user_query=user_query_to_use,
                     search_space_id=request.search_space_id,
                     chat_id=thread_id,
-                    session=session,
                     user_id=str(user.id),
                     llm_config_id=llm_config_id,
                     mentioned_document_ids=request.mentioned_document_ids,
@@ -1344,29 +1350,35 @@ async def regenerate_response(
                     current_user_display_name=user.display_name or "A team member",
                 ):
                     yield chunk
-                # If we get here, streaming completed successfully
                 streaming_completed = True
             finally:
-                # Only delete old messages if streaming completed successfully
-                # This ensures we don't lose data on streaming failures
-                if streaming_completed and messages_to_delete:
+                # Only delete old messages if streaming completed successfully.
+                # Uses a fresh session since stream_new_chat manages its own.
+                if streaming_completed and message_ids_to_delete:
                     try:
-                        for msg in messages_to_delete:
-                            await session.delete(msg)
-                        await session.commit()
+                        async with shielded_async_session() as cleanup_session:
+                            for msg_id in message_ids_to_delete:
+                                _res = await cleanup_session.execute(
+                                    select(NewChatMessage).filter(
+                                        NewChatMessage.id == msg_id
+                                    )
+                                )
+                                _msg = _res.scalars().first()
+                                if _msg:
+                                    await cleanup_session.delete(_msg)
+                            await cleanup_session.commit()
 
-                        # Delete any public snapshots that contain the modified messages
-                        from app.services.public_chat_service import (
-                            delete_affected_snapshots,
-                        )
+                            from app.services.public_chat_service import (
+                                delete_affected_snapshots,
+                            )
 
-                        await delete_affected_snapshots(
-                            session, thread_id, message_ids_to_delete
-                        )
+                            await delete_affected_snapshots(
+                                cleanup_session, thread_id, message_ids_to_delete
+                            )
                     except Exception as cleanup_error:
-                        # Log but don't fail - the new messages are already streamed
-                        print(
-                            f"[regenerate] Warning: Failed to delete old messages: {cleanup_error}"
+                        _logger.warning(
+                            "[regenerate] Failed to delete old messages: %s",
+                            cleanup_error,
                         )
 
         # Return streaming response with checkpoint_id for rewinding
@@ -1440,13 +1452,13 @@ async def resume_chat(
         # Release the read-transaction so we don't hold ACCESS SHARE locks
         # on searchspaces/documents for the entire duration of the stream.
         await session.commit()
+        await session.close()
 
         return StreamingResponse(
             stream_resume_chat(
                 chat_id=thread_id,
                 search_space_id=request.search_space_id,
                 decisions=decisions,
-                session=session,
                 user_id=str(user.id),
                 llm_config_id=llm_config_id,
                 thread_visibility=thread.visibility,

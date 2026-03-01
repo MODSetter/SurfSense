@@ -8,8 +8,11 @@ import {
 	type DeleteCommentRequest,
 	deleteCommentRequest,
 	deleteCommentResponse,
+	type GetBatchCommentsRequest,
 	type GetCommentsRequest,
 	type GetMentionsRequest,
+	getBatchCommentsRequest,
+	getBatchCommentsResponse,
 	getCommentsRequest,
 	getCommentsResponse,
 	getMentionsRequest,
@@ -22,6 +25,22 @@ import { ValidationError } from "@/lib/error";
 import { baseApiService } from "./base-api.service";
 
 class ChatCommentsApiService {
+	/**
+	 * Batch-fetch comments for multiple messages in one request
+	 */
+	getBatchComments = async (request: GetBatchCommentsRequest) => {
+		const parsed = getBatchCommentsRequest.safeParse(request);
+
+		if (!parsed.success) {
+			const errorMessage = parsed.error.issues.map((issue) => issue.message).join(", ");
+			throw new ValidationError(`Invalid request: ${errorMessage}`);
+		}
+
+		return baseApiService.post("/api/v1/messages/comments/batch", getBatchCommentsResponse, {
+			body: { message_ids: parsed.data.message_ids },
+		});
+	};
+
 	/**
 	 * Get comments for a message
 	 */

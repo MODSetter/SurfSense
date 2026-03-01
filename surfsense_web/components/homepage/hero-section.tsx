@@ -96,12 +96,9 @@ export function HeroSection() {
 					</div>
 				)}
 			</h2>
-			{/* // TODO:aCTUAL DESCRITION */}
-			<p className="relative z-50 mx-auto mt-4 max-w-xl px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				Connect any AI to your documents, Drive, Notion and more,
-			</p>
-			<p className="relative z-50 mx-auto mt-0 max-w-xl px-4 text-center text-base/6 text-gray-600 dark:text-gray-200">
-				then chat with it, generate podcasts and reports, or even invite your team.
+			<p className="relative z-50 mx-auto mt-4 max-w-lg px-6 text-center text-sm leading-relaxed text-gray-600 sm:text-base sm:leading-relaxed md:max-w-xl md:text-lg md:leading-relaxed dark:text-gray-200">
+				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
+				your team.
 			</p>
 			<div className="mb-6 mt-6 flex w-full flex-col items-center justify-center gap-4 px-8 sm:flex-row md:mb-10">
 				<GetStartedButton />
