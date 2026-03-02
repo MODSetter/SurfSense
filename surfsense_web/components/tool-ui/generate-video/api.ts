@@ -64,6 +64,41 @@ export async function updateCode(
 	}
 }
 
+export async function fetchAgentVideo(
+	searchSpaceId: number,
+	threadId: number,
+	topic: string,
+	sourceContent: string,
+	signal?: AbortSignal,
+): Promise<string> {
+	const token = getBearerToken();
+	const res = await fetch(`${BACKEND_URL}/api/v1/video/generate-agent`, {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token || ""}`,
+		},
+		body: JSON.stringify({
+			search_space_id: searchSpaceId,
+			thread_id: threadId,
+			topic,
+			source_content: sourceContent,
+		}),
+		signal,
+	});
+
+	if (!res.ok) {
+		const detail = await res.json().catch(() => ({ detail: res.statusText }));
+		throw new Error(detail.detail || `HTTP ${res.status}`);
+	}
+
+	const data = await res.json();
+	if (typeof data.mp4_url !== "string" || !data.mp4_url) {
+		throw new Error("Invalid response from server: missing mp4_url field");
+	}
+	return data.mp4_url;
+}
+
 export function extractDuration(code: string): number {
 	const match = code.match(/\bTOTAL_DURATION\s*=\s*(\d+)/);
 	if (!match) return DEFAULT_DURATION;
