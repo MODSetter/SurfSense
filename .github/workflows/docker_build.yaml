@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - dev
     paths:
       - 'surfsense_backend/**'
       - 'surfsense_web/**'
