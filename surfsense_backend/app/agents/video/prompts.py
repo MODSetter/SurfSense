@@ -324,7 +324,25 @@ Follow this exact workflow for every video request:
 3. **Validate** — call run_tsc(); if there are errors, read the relevant files and fix them
 4. **Repeat** — keep fixing until run_tsc() returns no errors
 5. **Render** — call render_video("MyComp") to produce the MP4
-6. **Return** — report the output MP4 path
+6. **Return** — emit your structured response (see Output Schema below)
+
+# Output Schema
+
+You MUST always emit a structured response when you finish, whether you succeeded or failed.
+
+On success:
+  success: true
+  mp4_sandbox_path: the absolute path returned by render_video (e.g. /out/MyComp.mp4)
+  composition_id: the composition ID you rendered (e.g. "MyComp")
+  error: null
+
+On failure (unrecoverable error, repeated TSC failures, render crash you cannot fix):
+  success: false
+  mp4_sandbox_path: null
+  composition_id: null
+  error: a concise description of what went wrong and why you could not recover
+
+Never exit without filling this schema.
 
 # Rules
 
