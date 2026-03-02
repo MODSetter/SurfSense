@@ -1,12 +1,22 @@
-name: Build and Push Docker Image
+name: Build and Push Docker Images
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'surfsense_backend/**'
+      - 'surfsense_web/**'
   workflow_dispatch:
     inputs:
       branch:
         description: 'Branch to build from (leave empty for default branch)'
         required: false
         default: ''
+
+concurrency:
+  group: docker-build
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -28,33 +38,28 @@ jobs:
       - name: Read app version and calculate next Docker build version
         id: tag_version
         run: |
-          # Read version from pyproject.toml
           APP_VERSION=$(grep -E '^version = ' surfsense_backend/pyproject.toml | sed 's/version = "\(.*\)"/\1/')
           echo "App version from pyproject.toml: $APP_VERSION"
-          
+
           if [ -z "$APP_VERSION" ]; then
             echo "Error: Could not read version from surfsense_backend/pyproject.toml"
             exit 1
           fi
-          
-          # Fetch all tags
+
           git fetch --tags
-          
-          # Find the latest docker build tag for this app version (format: APP_VERSION.BUILD_NUMBER)
-          # Tags follow pattern: 0.0.11.1, 0.0.11.2, etc.
+
           LATEST_BUILD_TAG=$(git tag --list "${APP_VERSION}.*" --sort='-v:refname' | head -n 1)
-          
+
           if [ -z "$LATEST_BUILD_TAG" ]; then
             echo "No previous Docker build tag found for version ${APP_VERSION}. Starting with ${APP_VERSION}.1"
             NEXT_VERSION="${APP_VERSION}.1"
           else
             echo "Latest Docker build tag found: $LATEST_BUILD_TAG"
-            # Extract the build number (4th component)
             BUILD_NUMBER=$(echo "$LATEST_BUILD_TAG" | rev | cut -d. -f1 | rev)
             NEXT_BUILD=$((BUILD_NUMBER + 1))
             NEXT_VERSION="${APP_VERSION}.${NEXT_BUILD}"
           fi
-          
+
           echo "Calculated next Docker version: $NEXT_VERSION"
           echo "next_version=$NEXT_VERSION" >> $GITHUB_OUTPUT
 
@@ -78,67 +83,35 @@ jobs:
           git ls-remote --tags origin | grep "refs/tags/${{ steps.tag_version.outputs.next_version }}" || (echo "Tag push verification failed!" && exit 1)
           echo "Tag successfully pushed."
 
-  # Build for AMD64 on native x64 runner
-  build_amd64:
-    runs-on: ubuntu-latest
+  build:
     needs: tag_release
+    runs-on: ${{ matrix.os }}
     permissions:
       packages: write
       contents: read
-    outputs:
-      digest: ${{ steps.build.outputs.digest }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [linux/amd64, linux/arm64]
+        image: [backend, web]
+        include:
+          - platform: linux/amd64
+            suffix: amd64
+            os: ubuntu-latest
+          - platform: linux/arm64
+            suffix: arm64
+            os: ubuntu-24.04-arm
+          - image: backend
+            name: surfsense-backend
+            context: ./surfsense_backend
+            file: ./surfsense_backend/Dockerfile
+          - image: web
+            name: surfsense-web
+            context: ./surfsense_web
+            file: ./surfsense_web/Dockerfile
     env:
-      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/surfsense
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
 
-      - name: Set lowercase image name
-        id: image
-        run: echo "name=${REGISTRY_IMAGE,,}" >> $GITHUB_OUTPUT
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Free up disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet
-          sudo rm -rf /opt/ghc
-          sudo rm -rf /usr/local/share/boost
-          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
-          docker system prune -af
-
-      - name: Build and push AMD64 image
-        id: build
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./Dockerfile.allinone
-          push: true
-          tags: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}-amd64
-          platforms: linux/amd64
-          cache-from: type=gha,scope=amd64
-          cache-to: type=gha,mode=max,scope=amd64
-          provenance: false
-
-  # Build for ARM64 on native arm64 runner (no QEMU emulation!)
-  build_arm64:
-    runs-on: ubuntu-24.04-arm
-    needs: tag_release
-    permissions:
-      packages: write
-      contents: read
-    outputs:
-      digest: ${{ steps.build.outputs.digest }}
-    env:
-      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/surfsense
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -165,28 +138,41 @@ jobs:
           sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
           docker system prune -af
 
-      - name: Build and push ARM64 image
+      - name: Build and push ${{ matrix.name }} (${{ matrix.suffix }})
         id: build
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
-          context: .
-          file: ./Dockerfile.allinone
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
           push: true
-          tags: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}-arm64
-          platforms: linux/arm64
-          cache-from: type=gha,scope=arm64
-          cache-to: type=gha,mode=max,scope=arm64
+          tags: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}-${{ matrix.suffix }}
+          platforms: ${{ matrix.platform }}
+          cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.suffix }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.suffix }}
           provenance: false
+          build-args: |
+            ${{ matrix.image == 'web' && 'NEXT_PUBLIC_FASTAPI_BACKEND_URL=__NEXT_PUBLIC_FASTAPI_BACKEND_URL__' || '' }}
+            ${{ matrix.image == 'web' && 'NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE=__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__' || '' }}
+            ${{ matrix.image == 'web' && 'NEXT_PUBLIC_ETL_SERVICE=__NEXT_PUBLIC_ETL_SERVICE__' || '' }}
+            ${{ matrix.image == 'web' && 'NEXT_PUBLIC_ELECTRIC_URL=__NEXT_PUBLIC_ELECTRIC_URL__' || '' }}
+            ${{ matrix.image == 'web' && 'NEXT_PUBLIC_ELECTRIC_AUTH_MODE=__NEXT_PUBLIC_ELECTRIC_AUTH_MODE__' || '' }}
+            ${{ matrix.image == 'web' && 'NEXT_PUBLIC_DEPLOYMENT_MODE=__NEXT_PUBLIC_DEPLOYMENT_MODE__' || '' }}
 
-  # Create multi-arch manifest combining both platform images
   create_manifest:
     runs-on: ubuntu-latest
-    needs: [tag_release, build_amd64, build_arm64]
+    needs: [tag_release, build]
     permissions:
       packages: write
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: surfsense-backend
+          - name: surfsense-web
     env:
-      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/surfsense
+      REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}
+
     steps:
       - name: Set lowercase image name
         id: image
@@ -203,28 +189,31 @@ jobs:
         run: |
           VERSION_TAG="${{ needs.tag_release.outputs.new_tag }}"
           IMAGE="${{ steps.image.outputs.name }}"
-          
-          # Create manifest for version tag
+          APP_VERSION=$(echo "$VERSION_TAG" | rev | cut -d. -f2- | rev)
+
           docker manifest create ${IMAGE}:${VERSION_TAG} \
             ${IMAGE}:${VERSION_TAG}-amd64 \
             ${IMAGE}:${VERSION_TAG}-arm64
-          
+
           docker manifest push ${IMAGE}:${VERSION_TAG}
-          
-          # Create/update latest tag if on default branch
+
           if [[ "${{ github.ref }}" == "refs/heads/${{ github.event.repository.default_branch }}" ]] || [[ "${{ github.event.inputs.branch }}" == "${{ github.event.repository.default_branch }}" ]]; then
+            docker manifest create ${IMAGE}:${APP_VERSION} \
+              ${IMAGE}:${VERSION_TAG}-amd64 \
+              ${IMAGE}:${VERSION_TAG}-arm64
+
+            docker manifest push ${IMAGE}:${APP_VERSION}
+
             docker manifest create ${IMAGE}:latest \
               ${IMAGE}:${VERSION_TAG}-amd64 \
               ${IMAGE}:${VERSION_TAG}-arm64
-            
+
             docker manifest push ${IMAGE}:latest
           fi
 
-      - name: Clean up architecture-specific tags (optional)
-        continue-on-error: true
+      - name: Summary
         run: |
-          # Note: GHCR doesn't support tag deletion via API easily
-          # The arch-specific tags will remain but users should use the main tags
-          echo "Multi-arch manifest created successfully!"
-          echo "Users should pull: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}"
-          echo "Or for latest: ${{ steps.image.outputs.name }}:latest"
+          echo "Multi-arch manifest created for ${{ matrix.name }}!"
+          echo "Versioned: ${{ steps.image.outputs.name }}:${{ needs.tag_release.outputs.new_tag }}"
+          echo "App version: ${{ steps.image.outputs.name }}:$(echo '${{ needs.tag_release.outputs.new_tag }}' | rev | cut -d. -f2- | rev)"
+          echo "Latest:    ${{ steps.image.outputs.name }}:latest"

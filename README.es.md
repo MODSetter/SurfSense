@@ -81,13 +81,16 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 Ejecuta SurfSense en tu propia infraestructura para control total de datos y privacidad.
 
-**Inicio Rápido (Docker en un solo comando):**
+**Requisitos previos:** [Docker](https://docs.docker.com/get-docker/) (con [Docker Compose](https://docs.docker.com/compose/install/)) debe estar instalado y en ejecución.
+
+> [!NOTE]
+> Usuarios de Windows: instalen [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) primero y ejecuten el siguiente comando en la terminal de Ubuntu.
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 -v surfsense-data:/data --name surfsense --restart unless-stopped ghcr.io/modsetter/surfsense:latest
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
-Después de iniciar, abre [http://localhost:3000](http://localhost:3000) en tu navegador.
+El script de instalación configura [Watchtower](https://github.com/nicholas-fedor/watchtower) automáticamente para actualizaciones diarias. Para omitirlo, agrega la bandera `--no-watchtower`.
 
 Para Docker Compose, instalación manual y otras opciones de despliegue, consulta la [documentación](https://www.surfsense.com/docs/).
 
