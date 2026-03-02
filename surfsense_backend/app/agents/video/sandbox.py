@@ -20,6 +20,9 @@ from app.agents.new_chat.sandbox import (
     _get_client,
 )
 
+# Path inside the sandbox where skills are pre-installed (baked into the snapshot)
+SKILLS_SANDBOX_PATH = "/skills"
+
 logger = logging.getLogger(__name__)
 
 VIDEO_LABEL_KEY = "surfsense_video_thread"
@@ -80,7 +83,11 @@ def _find_or_create_video(thread_id: str) -> _TimeoutAwareSandbox:
 
 
 async def get_or_create_video_sandbox(thread_id: int | str) -> _TimeoutAwareSandbox:
-    """Get or create a Remotion sandbox for a video generation thread."""
+    """Get or create a Remotion sandbox for a video generation thread.
+
+    Skills are pre-installed in the snapshot at SKILLS_SANDBOX_PATH —
+    no upload needed at runtime.
+    """
     return await asyncio.to_thread(_find_or_create_video, str(thread_id))
 
 
