@@ -24,8 +24,8 @@ from app.agents.new_chat.sandbox import _TimeoutAwareSandbox
 
 logger = logging.getLogger(__name__)
 
-PROJECT_ROOT = "/home/user/remotion-project"
-OUTPUT_DIR = f"{PROJECT_ROOT}/out"
+PROJECT_ROOT = "/remotion-project"
+OUTPUT_DIR = "/out"
 
 
 def build_video_tools(sandbox: _TimeoutAwareSandbox) -> list:

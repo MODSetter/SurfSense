@@ -297,7 +297,7 @@ TypeScript/React code in a real Remotion project, validating it, and rendering i
 
 # Project Location
 
-The Remotion project is at: /home/user/remotion-project/
+The Remotion project is at: /remotion-project/
 
 Project structure:
 - src/index.ts       — entry file (already exists, do not modify)
