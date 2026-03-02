@@ -32,7 +32,7 @@ def _remotion_snapshot_params(labels: dict) -> CreateSandboxFromSnapshotParams:
     snapshot_id = os.environ.get("DAYTONA_REMOTION_SNAPSHOT_ID")
     if snapshot_id:
         return CreateSandboxFromSnapshotParams(
-            snapshot_id=snapshot_id,
+            snapshot=snapshot_id,
             labels=labels,
         )
     return CreateSandboxFromSnapshotParams(language="javascript", labels=labels)

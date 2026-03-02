@@ -41,23 +41,27 @@ def check(label: str, result) -> bool:
 def main() -> None:
     print(f"Creating test sandbox from snapshot '{SNAPSHOT_NAME}' …")
     daytona = Daytona()
-    sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot_id=SNAPSHOT_NAME))
+    sandbox = daytona.create(CreateSandboxFromSnapshotParams(snapshot=SNAPSHOT_NAME))
     print(f"Sandbox ready: {sandbox.id}\n")
 
     passed = True
 
     try:
+        PROJECT = "/home/daytona/remotion-project"
+        OUT     = "/home/daytona/out"
+        NPX     = "/usr/local/share/nvm/current/bin/npx"
+
         # 1 — TypeScript check
         passed &= check(
             "tsc --noEmit",
-            sandbox.process.exec("cd /remotion-project && npx tsc --noEmit 2>&1"),
+            sandbox.process.exec(f"cd {PROJECT} && {NPX} tsc --noEmit 2>&1"),
         )
 
         # 2 — Render a test MP4
         passed &= check(
-            "npx remotion render MyComp",
+            "npx remotion render HelloWorld",
             sandbox.process.exec(
-                "cd /remotion-project && npx remotion render MyComp /out/test.mp4 2>&1",
+                f"cd {PROJECT} && {NPX} remotion render HelloWorld {OUT}/test.mp4 2>&1",
                 timeout=120,
             ),
         )
@@ -65,21 +69,21 @@ def main() -> None:
         # 3 — Confirm the MP4 file was produced
         passed &= check(
             "MP4 file exists",
-            sandbox.process.exec("ls -lh /out/test.mp4"),
+            sandbox.process.exec(f"ls -lh {OUT}/test.mp4"),
         )
 
         # 4 — Chrome Headless Shell is pre-downloaded
         passed &= check(
             "Chrome Headless Shell exists",
             sandbox.process.exec(
-                "ls /remotion-project/node_modules/.remotion/chrome-headless-shell/"
+                f"ls {PROJECT}/node_modules/.remotion/chrome-headless-shell/"
             ),
         )
 
         # 5 — Skills directory exists
         passed &= check(
             "/skills directory exists",
-            sandbox.process.exec("ls /skills"),
+            sandbox.process.exec("ls /home/daytona/skills"),
         )
 
     finally:

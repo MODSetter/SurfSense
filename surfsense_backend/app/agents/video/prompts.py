@@ -297,7 +297,7 @@ TypeScript/React code in a real Remotion project, validating it, and rendering i
 
 # Project Location
 
-The Remotion project is at: /remotion-project/
+The Remotion project is at: /home/daytona/remotion-project/
 
 Project structure:
 - src/index.ts       — entry file (already exists, do not modify)
@@ -332,7 +332,7 @@ You MUST always emit a structured response when you finish, whether you succeede
 
 On success:
   success: true
-  mp4_sandbox_path: the absolute path returned by render_video (e.g. /out/MyComp.mp4)
+  mp4_sandbox_path: the absolute path returned by render_video (e.g. /home/daytona/out/MyComp.mp4)
   composition_id: the composition ID you rendered (e.g. "MyComp")
   error: null
 

@@ -31,9 +31,21 @@ from daytona import CreateSnapshotParams, Daytona, Image, Resources  # noqa: E40
 
 SNAPSHOT_NAME = "remotion-surfsense"
 
-# Linux shared library dependencies required by Chrome Headless Shell on Debian/Ubuntu.
+# The Daytona sandbox runs as user 'daytona' with home /home/daytona.
+# All project files and output must live under this path so they are
+# accessible in the running sandbox (files placed outside /home/daytona
+# during the Docker build are not visible to the daytona user session).
+PROJECT_DIR = "/home/daytona/remotion-project"
+OUT_DIR = "/home/daytona/out"
+SKILLS_DIR = "/home/daytona/skills"
+
+# NVM-managed node/npm/npx paths inside daytonaio/sandbox:0.6.0.
+# These are stable paths regardless of which Node version NVM has active.
+NPM = "/usr/local/share/nvm/current/bin/npm"
+NPX = "/usr/local/share/nvm/current/bin/npx"
+
+# Linux shared library dependencies required by Chrome Headless Shell.
 # Source: https://remotion.dev/docs/miscellaneous/linux-dependencies
-# Do NOT install the 'chromium' apt package — Remotion manages its own Chrome binary.
 REMOTION_LINUX_DEPS = (
     "libnss3 libdbus-1-3 libatk1.0-0 libgbm-dev libasound2 "
     "libxrandr2 libxkbcommon-dev libxfixes3 libxcomposite1 "
@@ -45,48 +57,43 @@ def build_image() -> Image:
     """
     Declaratively build the Remotion sandbox image.
 
-    Base image: node:22-bookworm-slim
-      - Official Remotion Docker recommendation (https://remotion.dev/docs/docker)
-      - Debian Bookworm (12) slim — smallest supported Debian with compatible glibc
+    Base image: daytonaio/sandbox:0.6.0
+      - The Daytona runtime base. Sandboxes always run as user 'daytona'
+        in /home/daytona — files placed outside that path during the Docker
+        build are not accessible to the user session.
+      - Already ships with git, NVM, Node.js, and Python.
 
     Layers (each cached independently by Daytona):
       1. Linux shared libraries required by Chrome Headless Shell
-      2. Scaffold blank Remotion project + install npm packages
-      3. Pre-download Chrome Headless Shell via 'npx remotion browser ensure'
-         (Remotion manages its own pinned Chrome version, not the system one)
-      4. Pre-create /out (render target) and /skills (agent skill files)
-      5. Default command: sleep infinity (keeps container alive for agent tools)
-
-    Note: ffmpeg is NOT installed separately — Remotion bundles its own ffmpeg
-    binary since v4.0 inside @remotion/renderer.
+      2. Clone remotion-dev/template-helloworld into /home/daytona/remotion-project
+      3. npm install (via NVM's npm)
+      4. Pre-download Chrome Headless Shell (via NVM's npx)
+      5. Pre-create output and skills directories, set daytona ownership
     """
     return (
-        Image.base("node:22-bookworm-slim")
+        Image.base("daytonaio/sandbox:0.6.0")
         .run_commands(
-            # Install only the shared libraries Chrome Headless Shell needs.
-            # Do not install the 'chromium' package — that would conflict with
-            # Remotion's own pinned Chrome Headless Shell.
-            f"apt-get update && apt-get install -y {REMOTION_LINUX_DEPS}"
-            " && rm -rf /var/lib/apt/lists/*",
+            # daytonaio/sandbox runs as a non-root user, so apt-get needs sudo.
+            # Chrome Headless Shell needs these shared libs on Debian/Ubuntu.
+            # Do NOT install 'chromium' — Remotion manages its own pinned Chrome.
+            f"sudo apt-get update && sudo apt-get install -y {REMOTION_LINUX_DEPS}"
+            " && sudo rm -rf /var/lib/apt/lists/*",
         )
-        .env({
-            # Suppress interactive prompts from npm/npx
-            "CI": "true",
-        })
-        .workdir("/remotion-project")
+        .env({"CI": "true"})
         .run_commands(
-            # Scaffold a blank Remotion project (non-interactive, no browser open)
-            "npx --yes create-video@latest . --blank --no-open",
-            # Install all npm dependencies (remotion, @remotion/*, react, etc.)
-            "npm install",
-            # Pre-download Remotion's pinned Chrome Headless Shell into node_modules.
-            # This runs at build time so sandboxes start immediately without downloading.
-            # Source: https://remotion.dev/docs/miscellaneous/chrome-headless-shell
-            "npx remotion browser ensure",
-            # Pre-create directories the agent expects:
-            #   /out    → where npx remotion render writes the MP4
-            #   /skills → where SkillsMiddleware looks for SKILL.md rule files
-            "mkdir -p /out /skills/remotion-best-practices",
+            # Clone the Hello World template into the daytona user's home.
+            # We use Hello World (not blank) so the agent has working reference
+            # code to read before overwriting it with the generated video.
+            f"git clone --depth 1"
+            f" https://github.com/remotion-dev/template-helloworld.git {PROJECT_DIR}",
+            # Install npm dependencies using NVM's npm (already in the base image).
+            f"cd {PROJECT_DIR} && {NPM} install",
+            # Pre-download Remotion's pinned Chrome Headless Shell.
+            f"cd {PROJECT_DIR} && {NPX} remotion browser ensure",
+            # Pre-create output and skills directories.
+            f"mkdir -p {OUT_DIR} {SKILLS_DIR}/remotion-best-practices",
+            # Give the daytona user ownership of everything we just created.
+            f"chown -R daytona:daytona {PROJECT_DIR} {OUT_DIR} {SKILLS_DIR}",
         )
         .cmd(["sleep", "infinity"])
     )
