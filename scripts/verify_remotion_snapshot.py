@@ -80,10 +80,14 @@ def main() -> None:
             ),
         )
 
-        # 5 — Skills directory exists
+        # 5 — Official @remotion/skills are present (SKILL.md + rules/)
         passed &= check(
-            "/skills directory exists",
-            sandbox.process.exec("ls /home/daytona/skills"),
+            "remotion skills SKILL.md exists",
+            sandbox.process.exec("ls /home/daytona/skills/remotion-best-practices/SKILL.md"),
+        )
+        passed &= check(
+            "remotion skills rules/ populated",
+            sandbox.process.exec("ls /home/daytona/skills/remotion-best-practices/rules/ | wc -l"),
         )
 
     finally:

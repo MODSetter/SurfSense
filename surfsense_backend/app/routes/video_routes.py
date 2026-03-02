@@ -202,7 +202,6 @@ async def generate_video_agent_route(
 async def serve_video_file(
     thread_id: str,
     filename: str,
-    user: User = Depends(current_active_user),
 ):
     """Serve a locally cached MP4 file produced by the video deepagent."""
     # Basic path-traversal guard

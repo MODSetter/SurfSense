@@ -10,7 +10,7 @@ Creates a deepagent wired with:
 from __future__ import annotations
 
 from deepagents import create_deep_agent
-from langchain.agents.structured_output import AutoStrategy
+from langchain.agents.structured_output import ToolStrategy
 from langchain_core.language_models import BaseChatModel
 from langgraph.checkpoint.memory import MemorySaver
 from pydantic import BaseModel, Field
@@ -75,5 +75,5 @@ async def create_video_deep_agent(
         checkpointer=MemorySaver(),
         backend=sandbox,
         skills=[SKILLS_SANDBOX_PATH],
-        response_format=AutoStrategy(VideoAgentOutput),
+        response_format=ToolStrategy(VideoAgentOutput),
     )

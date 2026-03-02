@@ -38,6 +38,11 @@ SNAPSHOT_NAME = "remotion-surfsense"
 PROJECT_DIR = "/home/daytona/remotion-project"
 OUT_DIR = "/home/daytona/out"
 SKILLS_DIR = "/home/daytona/skills"
+# Official @remotion/skills package — sparse-cloned during image build.
+# Agent reads SKILL.md first (progressive disclosure), then individual rules files.
+REMOTION_SKILLS_DIR = f"{SKILLS_DIR}/remotion-best-practices"
+REMOTION_SKILLS_REPO = "https://github.com/remotion-dev/remotion.git"
+REMOTION_SKILLS_REPO_PATH = "packages/skills/skills/remotion"
 
 # NVM-managed node/npm/npx paths inside daytonaio/sandbox:0.6.0.
 # These are stable paths regardless of which Node version NVM has active.
@@ -68,7 +73,8 @@ def build_image() -> Image:
       2. Clone remotion-dev/template-helloworld into /home/daytona/remotion-project
       3. npm install (via NVM's npm)
       4. Pre-download Chrome Headless Shell (via NVM's npx)
-      5. Pre-create output and skills directories, set daytona ownership
+      5. Sparse-clone official @remotion/skills into /home/daytona/skills/remotion-best-practices
+      6. Pre-create output directory, set daytona ownership
     """
     return (
         Image.base("daytonaio/sandbox:0.6.0")
@@ -90,8 +96,15 @@ def build_image() -> Image:
             f"cd {PROJECT_DIR} && {NPM} install",
             # Pre-download Remotion's pinned Chrome Headless Shell.
             f"cd {PROJECT_DIR} && {NPX} remotion browser ensure",
-            # Pre-create output and skills directories.
-            f"mkdir -p {OUT_DIR} {SKILLS_DIR}/remotion-best-practices",
+            # Sparse-clone just the @remotion/skills directory from the monorepo.
+            # --filter=blob:none + --sparse avoids downloading the entire ~400 MB repo.
+            f"mkdir -p {REMOTION_SKILLS_DIR} {OUT_DIR}"
+            f" && git clone --depth 1 --filter=blob:none --sparse"
+            f" {REMOTION_SKILLS_REPO} /tmp/remotion-skills"
+            f" && cd /tmp/remotion-skills"
+            f" && git sparse-checkout set {REMOTION_SKILLS_REPO_PATH}"
+            f" && cp -r {REMOTION_SKILLS_REPO_PATH}/. {REMOTION_SKILLS_DIR}/"
+            f" && rm -rf /tmp/remotion-skills",
             # Give the daytona user ownership of everything we just created.
             f"chown -R daytona:daytona {PROJECT_DIR} {OUT_DIR} {SKILLS_DIR}",
         )

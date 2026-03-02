@@ -20,8 +20,9 @@ from app.agents.new_chat.sandbox import (
     _get_client,
 )
 
-# Path inside the sandbox where skills are pre-installed (baked into the snapshot)
-SKILLS_SANDBOX_PATH = "/skills"
+# Path inside the sandbox where the official @remotion/skills are baked into the snapshot.
+# Matches SKILLS_DIR in scripts/create_remotion_snapshot.py.
+SKILLS_SANDBOX_PATH = "/home/daytona/skills/remotion-best-practices"
 
 logger = logging.getLogger(__name__)
 
