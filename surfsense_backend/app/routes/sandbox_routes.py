@@ -32,6 +32,8 @@ MIME_TYPES: dict[str, str] = {
     ".html": "text/html",
     ".md": "text/markdown",
     ".py": "text/x-python",
+    ".mp4": "video/mp4",
+    ".webm": "video/webm",
     ".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     ".zip": "application/zip",
 }
