@@ -256,7 +256,7 @@ if (-not (Test-Path $DumpFile) -or (Get-Item $DumpFile).Length -eq 0) {
     Write-Err "Dump file '$DumpFile' is empty. Something went wrong with pg_dump."
 }
 
-$dumpContent = Get-Content $DumpFile -TotalCount 5 -Raw
+$dumpContent = (Get-Content $DumpFile -TotalCount 5) -join "`n"
 if ($dumpContent -notmatch "PostgreSQL database dump") {
     Remove-TempContainer
     Write-Err "Dump file does not contain a valid PostgreSQL dump header - the file may be corrupt."
