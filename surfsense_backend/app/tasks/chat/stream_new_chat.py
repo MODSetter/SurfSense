@@ -672,10 +672,20 @@ async def _stream_agent_events(
                     else "Video"
                 )
 
-                if video_status == "prompt_ready":
+                if video_status == "success":
                     completed_items = [
                         f"Topic: {video_title}",
-                        "Building animation...",
+                        "Video ready",
+                    ]
+                elif video_status == "error":
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    completed_items = [
+                        f"Topic: {video_title}",
+                        f"Failed: {error_msg}",
                     ]
                 else:
                     completed_items = last_active_step_items
