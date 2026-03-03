@@ -208,11 +208,12 @@ if ($MigrationMode) {
     if (-not (Test-Path $DumpFile)) {
         Write-Err "Dump file '$DumpFile' not found. The migration script may have failed."
     }
+    $DumpFilePath = (Resolve-Path $DumpFile).Path
     Write-Info "Restoring dump into PostgreSQL 17 - this may take a while for large databases..."
 
     $restoreErrFile = Join-Path $env:TEMP "surfsense_restore_err.log"
     Push-Location $InstallDir
-    Invoke-NativeSafe { Get-Content $DumpFile | docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName 2>$restoreErrFile | Out-Null } | Out-Null
+    Invoke-NativeSafe { docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName < $DumpFilePath 2>$restoreErrFile } | Out-Null
     Pop-Location
 
     $fatalErrors = @()
