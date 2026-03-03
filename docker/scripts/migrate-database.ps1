@@ -129,7 +129,12 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed. Install Docker Desktop: https://docs.docker.com/desktop/install/windows-install/"
 }
 
-docker info *>$null
+try {
+    $ErrorActionPreference = 'Continue'
+    docker info *>$null
+} finally {
+    $ErrorActionPreference = 'Stop'
+}
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Docker daemon is not running. Please start Docker Desktop and try again."
 }
