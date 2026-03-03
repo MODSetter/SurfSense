@@ -126,12 +126,13 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     # Video generation tool
     ToolDefinition(
         name="generate_video",
-        description="Generate an animated Remotion video component from conversation content",
+        description="Generate an animated Remotion video from conversation content",
         factory=lambda deps: create_generate_video_tool(
             search_space_id=deps["search_space_id"],
             thread_id=deps["thread_id"],
+            db_session=deps["db_session"],
         ),
-        requires=["search_space_id", "thread_id"],
+        requires=["search_space_id", "thread_id", "db_session"],
     ),
     # Podcast generation tool
     ToolDefinition(
