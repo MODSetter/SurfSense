@@ -247,7 +247,7 @@ if ($MigrationMode) {
 
     Write-Step "Starting all SurfSense services"
     Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose up -d } | Out-Null
+    Invoke-NativeSafe { docker compose up -d }
     Pop-Location
     Write-Ok "All services started."
 
@@ -256,7 +256,7 @@ if ($MigrationMode) {
 } else {
     Write-Step "Starting SurfSense"
     Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose up -d } | Out-Null
+    Invoke-NativeSafe { docker compose up -d }
     Pop-Location
     Write-Ok "All services started."
 }
