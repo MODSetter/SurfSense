@@ -91,16 +91,16 @@ For additional information:
 
 ## Running SurfSense with Notion Connector
 
-Add the Notion environment variables to your Docker run command:
+Add the Notion credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
-  -v surfsense-data:/data \
-  # Notion Connector
-  -e NOTION_OAUTH_CLIENT_ID=your_notion_client_id \
-  -e NOTION_OAUTH_CLIENT_SECRET=your_notion_client_secret \
-  -e NOTION_REDIRECT_URI=http://localhost:8000/api/v1/auth/notion/connector/callback \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+NOTION_OAUTH_CLIENT_ID=your_notion_client_id
+NOTION_OAUTH_CLIENT_SECRET=your_notion_client_secret
+NOTION_REDIRECT_URI=http://localhost:8000/api/v1/auth/notion/connector/callback
+```
+
+Then restart the services:
+
+```bash
+docker compose up -d
 ```

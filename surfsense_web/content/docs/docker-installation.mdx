@@ -4,511 +4,298 @@ description: Setting up SurfSense using Docker
 icon: Container
 ---
 
+This guide explains how to run SurfSense using Docker, with options ranging from a single-command install to a fully manual setup.
 
-This guide explains how to run SurfSense using Docker, with options ranging from quick single-command deployment to full production setups.
+## Quick Start
 
-## Quick Start with Docker 🐳
+### Option 1 — Install Script (recommended)
 
-Get SurfSense running in seconds with a single command:
+Downloads the compose files, generates a `SECRET_KEY`, starts all services, and sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) for automatic daily updates.
 
-<Callout type="info">
-The all-in-one Docker image bundles PostgreSQL (with pgvector), Redis, and all SurfSense services. Perfect for quick evaluation and development.
-</Callout>
+**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be installed and running.
 
-<Callout type="warn">
-Make sure to include the `-v surfsense-data:/data` in your Docker command. This ensures your database and files are properly persisted.
-</Callout>
-
-### One-Line Installation
-
-**Linux/macOS:**
+#### For Linux/macOS users:
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
 ```
 
-**Windows (PowerShell):**
+#### For Windows users (PowerShell):
 
 ```powershell
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 `
-  -v surfsense-data:/data `
-  --name surfsense `
-  --restart unless-stopped `
-  ghcr.io/modsetter/surfsense:latest
+irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 ```
 
-> **Note:** A secure `SECRET_KEY` is automatically generated and persisted in the data volume on first run.
+This creates a `./surfsense/` directory with `docker-compose.yml` and `.env`, then runs `docker compose up -d`.
 
-### With Custom Configuration
-
-You can pass any [environment variable](/docs/manual-installation#backend-environment-variables) using `-e` flags:
+To skip Watchtower (e.g. in production where you manage updates yourself):
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  -e EMBEDDING_MODEL=openai://text-embedding-ada-002 \
-  -e OPENAI_API_KEY=your_openai_api_key \
-  -e AUTH_TYPE=GOOGLE \
-  -e GOOGLE_OAUTH_CLIENT_ID=your_google_client_id \
-  -e GOOGLE_OAUTH_CLIENT_SECRET=your_google_client_secret \
-  -e ETL_SERVICE=LLAMACLOUD \
-  -e LLAMA_CLOUD_API_KEY=your_llama_cloud_key \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash -s -- --no-watchtower
 ```
 
-<Callout type="info">
-- For Google OAuth, create credentials in the [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
-- For Airtable connector, create an OAuth integration in the [Airtable Developer Hub](https://airtable.com/create/oauth)
-- If deploying behind a reverse proxy with HTTPS, add `-e BACKEND_URL=https://api.yourdomain.com`
-</Callout>
+To customise the check interval (default 24h), use `--watchtower-interval=SECONDS`.
 
-### Quick Start with Docker Compose
-
-For easier management with environment files:
+### Option 2 — Manual Docker Compose
 
 ```bash
-# Download the quick start compose file
-curl -o docker-compose.yml https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker-compose.quickstart.yml
-
-# Create .env file (optional - for custom configuration)
-cat > .env << EOF
-# EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
-# ETL_SERVICE=DOCLING
-# SECRET_KEY=your_custom_secret_key  # Auto-generated if not set
-EOF
-
-# Start SurfSense
+git clone https://github.com/MODSetter/SurfSense.git
+cd SurfSense/docker
+cp .env.example .env
+# Edit .env — at minimum set SECRET_KEY
 docker compose up -d
 ```
 
 After starting, access SurfSense at:
+
 - **Frontend**: [http://localhost:3000](http://localhost:3000)
 - **Backend API**: [http://localhost:8000](http://localhost:8000)
 - **API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Electric-SQL**: [http://localhost:5133](http://localhost:5133)
+- **Electric SQL**: [http://localhost:5133](http://localhost:5133)
 
-### Quick Start Environment Variables
+---
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| SECRET_KEY | JWT secret key (auto-generated if not set) | Auto-generated |
-| AUTH_TYPE | Authentication: `LOCAL` or `GOOGLE` | LOCAL |
-| EMBEDDING_MODEL | Model for embeddings | sentence-transformers/all-MiniLM-L6-v2 |
-| ETL_SERVICE | Document parser: `DOCLING`, `UNSTRUCTURED`, `LLAMACLOUD` | DOCLING |
-| TTS_SERVICE | Text-to-speech for podcasts | local/kokoro |
-| STT_SERVICE | Speech-to-text for audio (model size: tiny, base, small, medium, large) | local/base |
-| REGISTRATION_ENABLED | Allow new user registration | TRUE |
+## Updating
 
-### Useful Commands
+**Option 1 — Watchtower daemon (recommended, auto-updates every 24 h):**
+
+If you used the install script (Option 1 above), Watchtower is already running. No extra setup needed.
+
+For manual Docker Compose installs (Option 2), start Watchtower separately:
 
 ```bash
-# View logs
-docker logs -f surfsense
-
-# Stop SurfSense
-docker stop surfsense
-
-# Start SurfSense
-docker start surfsense
-
-# Remove container (data preserved in volume)
-docker rm surfsense
-
-# Remove container AND data
-docker rm surfsense && docker volume rm surfsense-data
-```
-
-### Updating
-
-To update SurfSense to the latest version, you can use either of the following methods:
-
-<Callout type="info">
-Your data is safe! The `surfsense-data` volume persists across updates, and database migrations are applied automatically on every startup.
-</Callout>
-
-**Option 1: Using Watchtower (one-time auto-update)**
-
-[Watchtower](https://github.com/nicholas-fedor/watchtower) can automatically pull the latest image, stop the old container, and restart it with the same options:
-
-```bash
-docker run --rm \
+docker run -d --name watchtower \
+  --restart unless-stopped \
   -v /var/run/docker.sock:/var/run/docker.sock \
   nickfedor/watchtower \
-  --run-once surfsense
+  --label-enable \
+  --interval 86400
+```
+
+**Option 2 — Watchtower one-time update:**
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower --run-once \
+  --label-filter "com.docker.compose.project=surfsense"
 ```
 
 <Callout type="warn">
-Use the `nickfedor/watchtower` fork. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
+Use `nickfedor/watchtower`. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
 </Callout>
 
-**Option 2: Manual Update**
+**Option 3 — Manual:**
 
 ```bash
-# Stop and remove the current container
-docker rm -f surfsense
-
-# Pull the latest image
-docker pull ghcr.io/modsetter/surfsense:latest
-
-# Start with the new image
-docker run -d -p 3000:3000 -p 8000:8000 -p 5133:5133 \
-  -v surfsense-data:/data \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+cd surfsense   # or SurfSense/docker if you cloned manually
+docker compose pull && docker compose up -d
 ```
 
-If you used Docker Compose for the quick start, updating is simpler:
+Database migrations are applied automatically on every startup.
+
+---
+
+## Configuration
+
+All configuration lives in a single `docker/.env` file (or `surfsense/.env` if you used the install script). Copy `.env.example` to `.env` and edit the values you need.
+
+### Required
+
+| Variable | Description |
+|----------|-------------|
+| `SECRET_KEY` | JWT secret key. Generate with: `openssl rand -base64 32`. Auto-generated by the install script. |
+
+### Core Settings
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SURFSENSE_VERSION` | Image tag to deploy. Use `latest`, a clean version (e.g. `0.0.14`), or a specific build (e.g. `0.0.14.1`) | `latest` |
+| `AUTH_TYPE` | Authentication method: `LOCAL` (email/password) or `GOOGLE` (OAuth) | `LOCAL` |
+| `ETL_SERVICE` | Document parsing: `DOCLING` (local), `UNSTRUCTURED`, or `LLAMACLOUD` | `DOCLING` |
+| `EMBEDDING_MODEL` | Embedding model for vector search | `sentence-transformers/all-MiniLM-L6-v2` |
+| `TTS_SERVICE` | Text-to-speech provider for podcasts | `local/kokoro` |
+| `STT_SERVICE` | Speech-to-text provider for audio files | `local/base` |
+| `REGISTRATION_ENABLED` | Allow new user registrations | `TRUE` |
+
+### Ports
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FRONTEND_PORT` | Frontend service port | `3000` |
+| `BACKEND_PORT` | Backend API service port | `8000` |
+| `ELECTRIC_PORT` | Electric SQL service port | `5133` |
+
+### Custom Domain / Reverse Proxy
+
+Only set these if serving SurfSense on a real domain via a reverse proxy (Caddy, Nginx, Cloudflare Tunnel, etc.). Leave commented out for standard localhost deployments.
+
+| Variable | Description |
+|----------|-------------|
+| `NEXT_FRONTEND_URL` | Public frontend URL (e.g. `https://app.yourdomain.com`) |
+| `BACKEND_URL` | Public backend URL for OAuth callbacks (e.g. `https://api.yourdomain.com`) |
+| `NEXT_PUBLIC_FASTAPI_BACKEND_URL` | Backend URL used by the frontend (e.g. `https://api.yourdomain.com`) |
+| `NEXT_PUBLIC_ELECTRIC_URL` | Electric SQL URL used by the frontend (e.g. `https://electric.yourdomain.com`) |
+
+### Database
+
+Defaults work out of the box. Change for security in production.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DB_USER` | PostgreSQL username | `surfsense` |
+| `DB_PASSWORD` | PostgreSQL password | `surfsense` |
+| `DB_NAME` | PostgreSQL database name | `surfsense` |
+| `DB_HOST` | PostgreSQL host | `db` |
+| `DB_PORT` | PostgreSQL port | `5432` |
+| `DB_SSLMODE` | SSL mode: `disable`, `require`, `verify-ca`, `verify-full` | `disable` |
+| `DATABASE_URL` | Full connection URL override. Use for managed databases (RDS, Supabase, etc.) | *(built from above)* |
+
+### Electric SQL
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ELECTRIC_DB_USER` | Replication user for Electric SQL | `electric` |
+| `ELECTRIC_DB_PASSWORD` | Replication password for Electric SQL | `electric_password` |
+| `ELECTRIC_DATABASE_URL` | Full connection URL override for Electric. Set to `host.docker.internal` when pointing at a local Postgres instance | *(built from above)* |
+
+### Authentication
+
+| Variable | Description |
+|----------|-------------|
+| `GOOGLE_OAUTH_CLIENT_ID` | Google OAuth client ID (required if `AUTH_TYPE=GOOGLE`) |
+| `GOOGLE_OAUTH_CLIENT_SECRET` | Google OAuth client secret (required if `AUTH_TYPE=GOOGLE`) |
+
+Create credentials at the [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+
+### External API Keys
+
+| Variable | Description |
+|----------|-------------|
+| `FIRECRAWL_API_KEY` | Firecrawl API key for web crawling |
+| `UNSTRUCTURED_API_KEY` | Unstructured.io API key (required if `ETL_SERVICE=UNSTRUCTURED`) |
+| `LLAMA_CLOUD_API_KEY` | LlamaCloud API key (required if `ETL_SERVICE=LLAMACLOUD`) |
+
+### Connector OAuth Keys
+
+Uncomment the connectors you want to use. Redirect URIs follow the pattern `http://localhost:8000/api/v1/auth/<connector>/connector/callback`.
+
+| Connector | Variables |
+|-----------|-----------|
+| Google Drive / Gmail / Calendar | `GOOGLE_DRIVE_REDIRECT_URI`, `GOOGLE_GMAIL_REDIRECT_URI`, `GOOGLE_CALENDAR_REDIRECT_URI` |
+| Notion | `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `NOTION_REDIRECT_URI` |
+| Slack | `SLACK_CLIENT_ID`, `SLACK_CLIENT_SECRET`, `SLACK_REDIRECT_URI` |
+| Discord | `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`, `DISCORD_REDIRECT_URI` |
+| Jira & Confluence | `ATLASSIAN_CLIENT_ID`, `ATLASSIAN_CLIENT_SECRET`, `JIRA_REDIRECT_URI`, `CONFLUENCE_REDIRECT_URI` |
+| Linear | `LINEAR_CLIENT_ID`, `LINEAR_CLIENT_SECRET`, `LINEAR_REDIRECT_URI` |
+| ClickUp | `CLICKUP_CLIENT_ID`, `CLICKUP_CLIENT_SECRET`, `CLICKUP_REDIRECT_URI` |
+| Airtable | `AIRTABLE_CLIENT_ID`, `AIRTABLE_CLIENT_SECRET`, `AIRTABLE_REDIRECT_URI` |
+| Microsoft Teams | `TEAMS_CLIENT_ID`, `TEAMS_CLIENT_SECRET`, `TEAMS_REDIRECT_URI` |
+
+For Airtable, create an OAuth integration at the [Airtable Developer Hub](https://airtable.com/create/oauth).
+
+### Observability (optional)
+
+| Variable | Description |
+|----------|-------------|
+| `LANGSMITH_TRACING` | Enable LangSmith tracing (`true` / `false`) |
+| `LANGSMITH_ENDPOINT` | LangSmith API endpoint |
+| `LANGSMITH_API_KEY` | LangSmith API key |
+| `LANGSMITH_PROJECT` | LangSmith project name |
+
+### Advanced (optional)
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SCHEDULE_CHECKER_INTERVAL` | How often to check for scheduled connector tasks (e.g. `5m`, `1h`) | `5m` |
+| `RERANKERS_ENABLED` | Enable document reranking for improved search | `FALSE` |
+| `RERANKERS_MODEL_NAME` | Reranker model name (e.g. `ms-marco-MiniLM-L-12-v2`) | |
+| `RERANKERS_MODEL_TYPE` | Reranker model type (e.g. `flashrank`) | |
+| `PAGES_LIMIT` | Max pages per user for ETL services | unlimited |
+
+---
+
+## Docker Services
+
+| Service | Description |
+|---------|-------------|
+| `db` | PostgreSQL with pgvector extension |
+| `redis` | Message broker for Celery |
+| `backend` | FastAPI application server |
+| `celery_worker` | Background task processing (document indexing, etc.) |
+| `celery_beat` | Periodic task scheduler (connector sync) |
+| `electric` | Electric SQL — real-time sync for the frontend |
+| `frontend` | Next.js web application |
+
+All services start automatically with `docker compose up -d`.
+
+The backend includes a health check — dependent services (workers, frontend) wait until the API is fully ready before starting. You can monitor startup progress with `docker compose ps` (look for `(health: starting)` → `(healthy)`).
+
+---
+
+## Development Compose File
+
+If you're contributing to SurfSense and want to build from source, use `docker-compose.dev.yml` instead:
 
 ```bash
-docker compose -f docker-compose.quickstart.yml pull
-docker compose -f docker-compose.quickstart.yml up -d
+cd SurfSense/docker
+docker compose -f docker-compose.dev.yml up --build
+```
+
+This file builds the backend and frontend from your local source code (instead of pulling prebuilt images) and includes pgAdmin for database inspection at [http://localhost:5050](http://localhost:5050). Use the production `docker-compose.yml` for all other cases.
+
+The following `.env` variables are **only used by the dev compose file** (they have no effect on the production `docker-compose.yml`):
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `PGADMIN_PORT` | pgAdmin web UI port | `5050` |
+| `PGADMIN_DEFAULT_EMAIL` | pgAdmin login email | `admin@surfsense.com` |
+| `PGADMIN_DEFAULT_PASSWORD` | pgAdmin login password | `surfsense` |
+| `REDIS_PORT` | Exposed Redis port (internal-only in prod) | `6379` |
+| `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` | Frontend build arg for auth type | `LOCAL` |
+| `NEXT_PUBLIC_ETL_SERVICE` | Frontend build arg for ETL service | `DOCLING` |
+| `NEXT_PUBLIC_DEPLOYMENT_MODE` | Frontend build arg for deployment mode | `self-hosted` |
+| `NEXT_PUBLIC_ELECTRIC_AUTH_MODE` | Frontend build arg for Electric auth | `insecure` |
+
+In the production compose file, the `NEXT_PUBLIC_*` frontend variables are automatically derived from `AUTH_TYPE`, `ETL_SERVICE`, and the port settings. In the dev compose file, they are passed as build args since the frontend is built from source.
+
+---
+
+## Migrating from the All-in-One Container
+
+<Callout type="warn">
+If you were previously using `docker-compose.quickstart.yml` (the legacy all-in-one `surfsense` container), your data lives in a `surfsense-data` volume and requires a **one-time migration** before switching to the current setup. PostgreSQL has been upgraded from version 14 to 17, so a simple volume swap will not work.
+
+See the full step-by-step guide: [Migrate from the All-in-One Container](/docs/how-to/migrate-from-allinone).
+</Callout>
+
+---
+
+## Useful Commands
+
+```bash
+# View logs (all services)
+docker compose logs -f
+
+# View logs for a specific service
+docker compose logs -f backend
+docker compose logs -f electric
+
+# Stop all services
+docker compose down
+
+# Restart a specific service
+docker compose restart backend
+
+# Stop and remove all containers + volumes (destructive!)
+docker compose down -v
 ```
 
 ---
 
-## Full Docker Compose Setup (Production)
-
-For production deployments with separate services and more control, use the full Docker Compose setup below.
-
-## Prerequisites
-
-Before you begin, ensure you have:
-
-- [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) installed on your machine
-- [Git](https://git-scm.com/downloads) (to clone the repository)
-- Completed all the [prerequisite setup steps](/docs) including:
-  - Auth setup
-  - **File Processing ETL Service** (choose one):
-    - Unstructured.io API key (Supports 34+ formats)
-    - LlamaIndex API key (enhanced parsing, supports 50+ formats)
-    - Docling (local processing, no API key required, supports PDF, Office docs, images, HTML, CSV)
-  - Other required API keys
-
-## Installation Steps
-
-1. **Configure Environment Variables**
-    Set up the necessary environment variables:
-
-    **Linux/macOS:**
-
-    ```bash
-    # Copy example environment files
-    cp surfsense_backend/.env.example surfsense_backend/.env
-    cp surfsense_web/.env.example surfsense_web/.env
-    cp .env.example .env  # For Docker-specific settings
-    ```
-
-    **Windows (Command Prompt):**
-
-    ```cmd
-    copy surfsense_backend\.env.example surfsense_backend\.env
-    copy surfsense_web\.env.example surfsense_web\.env
-    copy .env.example .env
-    ```
-
-    **Windows (PowerShell):**
-
-    ```powershell
-    Copy-Item -Path surfsense_backend\.env.example -Destination surfsense_backend\.env
-    Copy-Item -Path surfsense_web\.env.example -Destination surfsense_web\.env
-    Copy-Item -Path .env.example -Destination .env
-    ```
-
-    Edit all `.env` files and fill in the required values:
-
-### Docker-Specific Environment Variables (Optional)
-
-| ENV VARIABLE               | DESCRIPTION                                                                 | DEFAULT VALUE       |
-|----------------------------|-----------------------------------------------------------------------------|---------------------|
-| FRONTEND_PORT              | Port for the frontend service                                               | 3000                |
-| BACKEND_PORT               | Port for the backend API service                                            | 8000                |
-| POSTGRES_PORT              | Port for the PostgreSQL database                                            | 5432                |
-| PGADMIN_PORT               | Port for pgAdmin web interface                                              | 5050                |
-| REDIS_PORT                 | Port for Redis (used by Celery)                                             | 6379                |
-| FLOWER_PORT                | Port for Flower (Celery monitoring tool)                                    | 5555                |
-| POSTGRES_USER              | PostgreSQL username                                                         | postgres            |
-| POSTGRES_PASSWORD          | PostgreSQL password                                                         | postgres            |
-| POSTGRES_DB                | PostgreSQL database name                                                    | surfsense           |
-| PGADMIN_DEFAULT_EMAIL      | Email for pgAdmin login                                                     | admin@surfsense.com |
-| PGADMIN_DEFAULT_PASSWORD   | Password for pgAdmin login                                                  | surfsense           |
-| NEXT_PUBLIC_FASTAPI_BACKEND_URL | URL of the backend API (used by frontend during build and runtime)     | http://localhost:8000 |
-| NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE | Authentication method for frontend: `LOCAL` or `GOOGLE`           | LOCAL               |
-| NEXT_PUBLIC_ETL_SERVICE    | Document parsing service for frontend UI: `UNSTRUCTURED`, `LLAMACLOUD`, or `DOCLING` | DOCLING |
-| ELECTRIC_PORT              | Port for Electric-SQL service                                               | 5133                |
-| POSTGRES_HOST              | PostgreSQL host for Electric connection (`db` for Docker PostgreSQL, `host.docker.internal` for local PostgreSQL) | db |
-| ELECTRIC_DB_USER           | PostgreSQL username for Electric connection                                 | electric            |
-| ELECTRIC_DB_PASSWORD       | PostgreSQL password for Electric connection                                 | electric_password   |
-| NEXT_PUBLIC_ELECTRIC_URL   | URL for Electric-SQL service (used by frontend)                             | http://localhost:5133 |
-
-**Note:** Frontend environment variables with the `NEXT_PUBLIC_` prefix are embedded into the Next.js production build at build time. Since the frontend now runs as a production build in Docker, these variables must be set in the root `.env` file (Docker-specific configuration) and will be passed as build arguments during the Docker build process.
-
-**Backend Environment Variables:**
-
-| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DATABASE_URL               | PostgreSQL connection string (e.g., `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense`)                                                                                    |
-| SECRET_KEY                 | JWT Secret key for authentication (should be a secure random string)                                                                                                                      |
-| NEXT_FRONTEND_URL          | URL where your frontend application is hosted (e.g., `http://localhost:3000`)                                                                                                             |
-| BACKEND_URL                | (Optional) Public URL of the backend for OAuth callbacks (e.g., `https://api.yourdomain.com`). Required when running behind a reverse proxy with HTTPS. Used to set correct OAuth redirect URLs and secure cookies. |
-| AUTH_TYPE                  | Authentication method: `GOOGLE` for OAuth with Google, `LOCAL` for email/password authentication                                                                                          |
-| GOOGLE_OAUTH_CLIENT_ID     | (Optional) Client ID from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                        |
-| GOOGLE_OAUTH_CLIENT_SECRET | (Optional) Client secret from Google Cloud Console (required if AUTH_TYPE=GOOGLE)                                                                                                                    |
-| ELECTRIC_DB_USER           | (Optional) PostgreSQL username for Electric-SQL connection (default: `electric`)                                                                                                          |
-| ELECTRIC_DB_PASSWORD       | (Optional) PostgreSQL password for Electric-SQL connection (default: `electric_password`)                                                                                                 |
-| EMBEDDING_MODEL            | Name of the embedding model (e.g., `sentence-transformers/all-MiniLM-L6-v2`, `openai://text-embedding-ada-002`)                                                                                                                 |
-| RERANKERS_ENABLED          | (Optional) Enable or disable document reranking for improved search results (e.g., `TRUE` or `FALSE`, default: `FALSE`)                                                                  |
-| RERANKERS_MODEL_NAME       | Name of the reranker model (e.g., `ms-marco-MiniLM-L-12-v2`) (required if RERANKERS_ENABLED=TRUE)                                                                                        |
-| RERANKERS_MODEL_TYPE       | Type of reranker model (e.g., `flashrank`) (required if RERANKERS_ENABLED=TRUE)                                                                                                          |
-| TTS_SERVICE                | Text-to-Speech API provider for Podcasts (e.g., `local/kokoro`, `openai/tts-1`). See [supported providers](https://docs.litellm.ai/docs/text_to_speech#supported-providers)                            |
-| TTS_SERVICE_API_KEY        | (Optional if local) API key for the Text-to-Speech service                                                                                                                                                    |
-| TTS_SERVICE_API_BASE       | (Optional) Custom API base URL for the Text-to-Speech service                                                                                                                           |
-| STT_SERVICE                | Speech-to-Text API provider for Audio Files (e.g., `local/base`, `openai/whisper-1`). See [supported providers](https://docs.litellm.ai/docs/audio_transcription#supported-providers)                   |
-| STT_SERVICE_API_KEY        | (Optional if local) API key for the Speech-to-Text service                                                                                                                                                    |
-| STT_SERVICE_API_BASE       | (Optional) Custom API base URL for the Speech-to-Text service                                                                                                                      |
-| FIRECRAWL_API_KEY          | API key for Firecrawl service for web crawling                                                                                                                                          |
-| ETL_SERVICE                | Document parsing service: `UNSTRUCTURED` (supports 34+ formats), `LLAMACLOUD` (supports 50+ formats including legacy document types), or `DOCLING` (local processing, supports PDF, Office docs, images, HTML, CSV)                                                  |
-| UNSTRUCTURED_API_KEY       | API key for Unstructured.io service for document parsing (required if ETL_SERVICE=UNSTRUCTURED)                                                                                           |
-| LLAMA_CLOUD_API_KEY        | API key for LlamaCloud service for document parsing (required if ETL_SERVICE=LLAMACLOUD)                                                                                                  |
-| CELERY_BROKER_URL          | Redis connection URL for Celery broker (e.g., `redis://localhost:6379/0`)                                                                                                                |
-| CELERY_RESULT_BACKEND      | Redis connection URL for Celery result backend (e.g., `redis://localhost:6379/0`)                                                                                                        |
-| SCHEDULE_CHECKER_INTERVAL  | (Optional) How often to check for scheduled connector tasks. Format: `<number><unit>` where unit is `m` (minutes) or `h` (hours). Examples: `1m`, `5m`, `1h`, `2h` (default: `1m`)                  |
-| REGISTRATION_ENABLED       | (Optional) Enable or disable new user registration (e.g., `TRUE` or `FALSE`, default: `TRUE`)                                                                                                       |
-| PAGES_LIMIT                | (Optional) Maximum pages limit per user for ETL services (default: `999999999` for unlimited in OSS version)                                                                                        |
-
-**Google Connector OAuth Configuration:**
-| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GOOGLE_CALENDAR_REDIRECT_URI | (Optional) Redirect URI for Google Calendar connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/calendar/connector/callback`)                                     |
-| GOOGLE_GMAIL_REDIRECT_URI  | (Optional) Redirect URI for Gmail connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/gmail/connector/callback`)                                                   |
-| GOOGLE_DRIVE_REDIRECT_URI  | (Optional) Redirect URI for Google Drive connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/google/drive/connector/callback`)                                            |
-
-**Connector OAuth Configurations (Optional):**
-
-| ENV VARIABLE               | DESCRIPTION                                                                                                                                                                               |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AIRTABLE_CLIENT_ID         | (Optional) Airtable OAuth client ID from [Airtable Developer Hub](https://airtable.com/create/oauth)                                                                                      |
-| AIRTABLE_CLIENT_SECRET     | (Optional) Airtable OAuth client secret                                                                                                                                                   |
-| AIRTABLE_REDIRECT_URI      | (Optional) Redirect URI for Airtable connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/airtable/connector/callback`)                                                    |
-| CLICKUP_CLIENT_ID          | (Optional) ClickUp OAuth client ID                                                                                                                                                        |
-| CLICKUP_CLIENT_SECRET      | (Optional) ClickUp OAuth client secret                                                                                                                                                    |
-| CLICKUP_REDIRECT_URI       | (Optional) Redirect URI for ClickUp connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/clickup/connector/callback`)                                                      |
-| DISCORD_CLIENT_ID          | (Optional) Discord OAuth client ID                                                                                                                                                        |
-| DISCORD_CLIENT_SECRET      | (Optional) Discord OAuth client secret                                                                                                                                                    |
-| DISCORD_REDIRECT_URI       | (Optional) Redirect URI for Discord connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/discord/connector/callback`)                                                      |
-| DISCORD_BOT_TOKEN          | (Optional) Discord bot token from Developer Portal                                                                                                                                        |
-| ATLASSIAN_CLIENT_ID        | (Optional) Atlassian OAuth client ID (for Jira and Confluence)                                                                                                                            |
-| ATLASSIAN_CLIENT_SECRET    | (Optional) Atlassian OAuth client secret                                                                                                                                                  |
-| JIRA_REDIRECT_URI          | (Optional) Redirect URI for Jira connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/jira/connector/callback`)                                                            |
-| CONFLUENCE_REDIRECT_URI    | (Optional) Redirect URI for Confluence connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/confluence/connector/callback`)                                                |
-| LINEAR_CLIENT_ID           | (Optional) Linear OAuth client ID                                                                                                                                                         |
-| LINEAR_CLIENT_SECRET       | (Optional) Linear OAuth client secret                                                                                                                                                     |
-| LINEAR_REDIRECT_URI        | (Optional) Redirect URI for Linear connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/linear/connector/callback`)                                                        |
-| NOTION_CLIENT_ID           | (Optional) Notion OAuth client ID                                                                                                                                                         |
-| NOTION_CLIENT_SECRET       | (Optional) Notion OAuth client secret                                                                                                                                                     |
-| NOTION_REDIRECT_URI        | (Optional) Redirect URI for Notion connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/notion/connector/callback`)                                                        |
-| SLACK_CLIENT_ID            | (Optional) Slack OAuth client ID                                                                                                                                                          |
-| SLACK_CLIENT_SECRET        | (Optional) Slack OAuth client secret                                                                                                                                                      |
-| SLACK_REDIRECT_URI         | (Optional) Redirect URI for Slack connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/slack/connector/callback`)                                                          |
-| TEAMS_CLIENT_ID            | (Optional) Microsoft Teams OAuth client ID                                                                                                                                                |
-| TEAMS_CLIENT_SECRET        | (Optional) Microsoft Teams OAuth client secret                                                                                                                                            |
-| TEAMS_REDIRECT_URI         | (Optional) Redirect URI for Teams connector OAuth callback (e.g., `http://localhost:8000/api/v1/auth/teams/connector/callback`)                                                          |
-
-
-**Optional Backend LangSmith Observability:**
-| ENV VARIABLE | DESCRIPTION |
-|--------------|-------------|
-| LANGSMITH_TRACING | Enable LangSmith tracing (e.g., `true`) |
-| LANGSMITH_ENDPOINT | LangSmith API endpoint (e.g., `https://api.smith.langchain.com`) |
-| LANGSMITH_API_KEY | Your LangSmith API key |
-| LANGSMITH_PROJECT | LangSmith project name (e.g., `surfsense`) |
-
-**Backend Uvicorn Server Configuration:**
-| ENV VARIABLE | DESCRIPTION | DEFAULT VALUE |
-|------------------------------|---------------------------------------------|---------------|
-| UVICORN_HOST                 | Host address to bind the server             | 0.0.0.0       |
-| UVICORN_PORT                 | Port to run the backend API                 | 8000          |
-| UVICORN_LOG_LEVEL            | Logging level (e.g., info, debug, warning)  | info          |
-| UVICORN_PROXY_HEADERS        | Enable/disable proxy headers                | false         |
-| UVICORN_FORWARDED_ALLOW_IPS  | Comma-separated list of allowed IPs         | 127.0.0.1     |
-| UVICORN_WORKERS              | Number of worker processes                  | 1             |
-| UVICORN_ACCESS_LOG           | Enable/disable access log (true/false)      | true          |
-| UVICORN_LOOP                 | Event loop implementation                   | auto          |
-| UVICORN_HTTP                 | HTTP protocol implementation                | auto          |
-| UVICORN_WS                   | WebSocket protocol implementation           | auto          |
-| UVICORN_LIFESPAN             | Lifespan implementation                     | auto          |
-| UVICORN_LOG_CONFIG           | Path to logging config file or empty string |               |
-| UVICORN_SERVER_HEADER        | Enable/disable Server header                | true          |
-| UVICORN_DATE_HEADER          | Enable/disable Date header                  | true          |
-| UVICORN_LIMIT_CONCURRENCY    | Max concurrent connections                  |               |
-| UVICORN_LIMIT_MAX_REQUESTS   | Max requests before worker restart          |               |
-| UVICORN_TIMEOUT_KEEP_ALIVE   | Keep-alive timeout (seconds)                | 5             |
-| UVICORN_TIMEOUT_NOTIFY       | Worker shutdown notification timeout (sec)  | 30            |
-| UVICORN_SSL_KEYFILE          | Path to SSL key file                        |               |
-| UVICORN_SSL_CERTFILE         | Path to SSL certificate file                |               |
-| UVICORN_SSL_KEYFILE_PASSWORD | Password for SSL key file                   |               |
-| UVICORN_SSL_VERSION          | SSL version                                 |               |
-| UVICORN_SSL_CERT_REQS        | SSL certificate requirements                |               |
-| UVICORN_SSL_CA_CERTS         | Path to CA certificates file                |               |
-| UVICORN_SSL_CIPHERS          | SSL ciphers                                 |               |
-| UVICORN_HEADERS              | Comma-separated list of headers             |               |
-| UVICORN_USE_COLORS           | Enable/disable colored logs                 | true          |
-| UVICORN_UDS                  | Unix domain socket path                     |               |
-| UVICORN_FD                   | File descriptor to bind to                  |               |
-| UVICORN_ROOT_PATH            | Root path for the application               |               |
-
-For more details, see the [Uvicorn documentation](https://www.uvicorn.org/#command-line-options).
-
-### Frontend Environment Variables
-
-**Important:** Frontend environment variables are now configured in the **Docker-Specific Environment Variables** section above since the Next.js application runs as a production build in Docker. The following `NEXT_PUBLIC_*` variables should be set in your root `.env` file:
-
-- `NEXT_PUBLIC_FASTAPI_BACKEND_URL` - URL of the backend service
-- `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` - Authentication method (`LOCAL` or `GOOGLE`)
-- `NEXT_PUBLIC_ETL_SERVICE` - Document parsing service (should match backend `ETL_SERVICE`)
-- `NEXT_PUBLIC_ELECTRIC_URL` - URL for Electric-SQL service (default: `http://localhost:5133`)
-- `NEXT_PUBLIC_ELECTRIC_AUTH_MODE` - Electric-SQL authentication mode (default: `insecure`)
-
-These variables are embedded into the application during the Docker build process and affect the frontend's behavior and available features.
-
-2. **Build and Start Containers**
-
-   Start the Docker containers:
-
-   **Linux/macOS/Windows:**
-
-   ```bash
-   docker compose up --build
-   ```
-
-   To run in detached mode (in the background):
-
-   **Linux/macOS/Windows:**
-
-   ```bash
-   docker compose up -d
-   ```
-
-   **Note for Windows users:** If you're using older Docker Desktop versions, you might need to use `docker compose` (with a space) instead of `docker compose`.
-
-3. **Access the Applications**
-
-   Once the containers are running, you can access:
-
-   - Frontend: [http://localhost:3000](http://localhost:3000)
-   - Backend API: [http://localhost:8000](http://localhost:8000)
-   - API Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
-   - Electric-SQL: [http://localhost:5133](http://localhost:5133)
-   - pgAdmin: [http://localhost:5050](http://localhost:5050)
-
-## Docker Services Overview
-
-The Docker setup includes several services that work together:
-
-- **Backend**: FastAPI application server
-- **Frontend**: Next.js web application
-- **PostgreSQL (db)**: Database with pgvector extension
-- **Redis**: Message broker for Celery
-- **Electric-SQL**: Real-time sync service for database operations
-- **Celery Worker**: Handles background tasks (document processing, indexing, etc.)
-- **Celery Beat**: Scheduler for periodic tasks (enables scheduled connector indexing)
-  - The schedule interval can be configured using the `SCHEDULE_CHECKER_INTERVAL` environment variable in your backend `.env` file
-  - Default: checks every minute for connectors that need indexing
-- **pgAdmin**: Database management interface
-
-All services start automatically with `docker compose up`. The Celery Beat service ensures that periodic indexing functionality works out of the box.
-
-## Using pgAdmin
-
-pgAdmin is included in the Docker setup to help manage your PostgreSQL database. To connect:
-
-1. Open pgAdmin at [http://localhost:5050](http://localhost:5050)
-2. Login with the credentials from your `.env` file (default: admin@surfsense.com / surfsense)
-3. Right-click "Servers" > "Create" > "Server"
-4. In the "General" tab, name your connection (e.g., "SurfSense DB")
-5. In the "Connection" tab:
-   - Host: `db`
-   - Port: `5432`
-   - Maintenance database: `surfsense`
-   - Username: `postgres` (or your custom POSTGRES_USER)
-   - Password: `postgres` (or your custom POSTGRES_PASSWORD)
-6. Click "Save" to connect
-
-## Updating (Full Docker Compose)
-
-To update the full Docker Compose production setup to the latest version:
-
-```bash
-# Pull latest changes
-git pull
-
-# Rebuild and restart containers
-docker compose up --build -d
-```
-
-Database migrations are applied automatically on startup.
-
-## Useful Docker Commands
-
-### Container Management
-
-- **Stop containers:**
-
-  **Linux/macOS/Windows:**
-
-  ```bash
-  docker compose down
-  ```
-
-- **View logs:**
-
-  **Linux/macOS/Windows:**
-
-  ```bash
-  # All services
-  docker compose logs -f
-
-  # Specific service
-  docker compose logs -f backend
-  docker compose logs -f frontend
-  docker compose logs -f db
-  ```
-
-- **Restart a specific service:**
-
-  **Linux/macOS/Windows:**
-
-  ```bash
-  docker compose restart backend
-  ```
-
-- **Execute commands in a running container:**
-
-  **Linux/macOS/Windows:**
-
-  ```bash
-  # Backend
-  docker compose exec backend python -m pytest
-
-  # Frontend
-  docker compose exec frontend pnpm lint
-  ```
-
 ## Troubleshooting
 
-- **Linux/macOS:** If you encounter permission errors, you may need to run the docker commands with `sudo`.
-- **Windows:** If you see access denied errors, make sure you're running Command Prompt or PowerShell as Administrator.
-- If ports are already in use, modify the port mappings in the `docker-compose.yml` file.
-- For backend dependency issues, check the `Dockerfile` in the backend directory.
-- For frontend dependency issues, check the `Dockerfile` in the frontend directory.
-- **Windows-specific:** If you encounter line ending issues (CRLF vs LF), configure Git to handle line endings properly with `git config --global core.autocrlf true` before cloning the repository.
-
-## Next Steps
-
-Once your installation is complete, you can start using SurfSense! Navigate to the frontend URL and log in using your Google account.
+- **Ports already in use** — Change the relevant `*_PORT` variable in `.env` and restart.
+- **Permission errors on Linux** — You may need to prefix `docker` commands with `sudo`.
+- **Electric SQL not connecting** — Check `docker compose logs electric`. If it shows `domain does not exist: db`, ensure `ELECTRIC_DATABASE_URL` is not set to a stale value in `.env`.
+- **Real-time updates not working in browser** — Open DevTools → Console and look for `[Electric]` errors. Check that `NEXT_PUBLIC_ELECTRIC_URL` matches the running Electric SQL address.
+- **Line ending issues on Windows** — Run `git config --global core.autocrlf true` before cloning.

@@ -53,17 +53,17 @@ After creating the application, you'll see your OAuth credentials:
 
 ## Running SurfSense with Linear Connector
 
-Add the Linear environment variables to your Docker run command:
+Add the Linear credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
-  -v surfsense-data:/data \
-  # Linear Connector
-  -e LINEAR_CLIENT_ID=your_linear_client_id \
-  -e LINEAR_CLIENT_SECRET=your_linear_client_secret \
-  -e LINEAR_REDIRECT_URI=http://localhost:8000/api/v1/auth/linear/connector/callback \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+LINEAR_CLIENT_ID=your_linear_client_id
+LINEAR_CLIENT_SECRET=your_linear_client_secret
+LINEAR_REDIRECT_URI=http://localhost:8000/api/v1/auth/linear/connector/callback
+```
+
+Then restart the services:
+
+```bash
+docker compose up -d
 ```
 

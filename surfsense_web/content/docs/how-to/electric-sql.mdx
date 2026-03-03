@@ -3,8 +3,6 @@ title: Electric SQL
 description: Setting up Electric SQL for real-time data synchronization in SurfSense
 ---
 
-# Electric SQL
-
 [Electric SQL](https://electric-sql.com/) enables real-time data synchronization in SurfSense, providing instant updates for inbox items, document indexing status, and connector sync progress without manual refresh. The frontend uses [PGlite](https://pglite.dev/) (a lightweight PostgreSQL in the browser) to maintain a local database that syncs with the backend via Electric SQL.
 
 ## What Does Electric SQL Do?
@@ -25,74 +23,29 @@ This means:
 
 ## Docker Setup
 
-### All-in-One Quickstart
-
-The simplest way to run SurfSense with Electric SQL is using the all-in-one Docker image. This bundles everything into a single container:
-
-- PostgreSQL + pgvector (vector database)
-- Redis (task queue)
-- Electric SQL (real-time sync)
-- Backend API
-- Frontend
+The `docker-compose.yml` includes the Electric SQL service. It is pre-configured to connect to the Docker-managed `db` container out of the box.
 
 ```bash
-docker run -d \
-  -p 3000:3000 \
-  -p 8000:8000 \
-  -p 5133:5133 \
-  -v surfsense-data:/data \
-  --name surfsense \
-  ghcr.io/modsetter/surfsense:latest
+docker compose up -d
 ```
 
-**With custom Electric SQL credentials:**
-
-```bash
-docker run -d \
-  -p 3000:3000 \
-  -p 8000:8000 \
-  -p 5133:5133 \
-  -v surfsense-data:/data \
-  -e ELECTRIC_DB_USER=your_electric_user \
-  -e ELECTRIC_DB_PASSWORD=your_electric_password \
-  --name surfsense \
-  ghcr.io/modsetter/surfsense:latest
-```
-
-Access SurfSense at `http://localhost:3000`. Electric SQL is automatically configured and running on port 5133.
-
-### Docker Compose
-
-For more control over individual services, use Docker Compose.
-
-**Quickstart (all-in-one image):**
-
-```bash
-docker compose -f docker-compose.quickstart.yml up -d
-```
-
-**Standard setup (separate services):**
-
-The `docker-compose.yml` includes the Electric SQL service configuration:
+The Electric SQL service configuration in `docker-compose.yml`:
 
 ```yaml
 electric:
-  image: electricsql/electric:latest
+  image: electricsql/electric:1.4.6
   ports:
     - "${ELECTRIC_PORT:-5133}:3000"
   environment:
-    - DATABASE_URL=${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${POSTGRES_HOST:-db}:${POSTGRES_PORT:-5432}/${POSTGRES_DB:-surfsense}?sslmode=disable}
-    - ELECTRIC_INSECURE=true
-    - ELECTRIC_WRITE_TO_PG_MODE=direct
-  restart: unless-stopped
-  healthcheck:
-    test: ["CMD", "curl", "-f", "http://localhost:3000/v1/health"]
-    interval: 10s
-    timeout: 5s
-    retries: 5
+    DATABASE_URL: ${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+    ELECTRIC_INSECURE: "true"
+    ELECTRIC_WRITE_TO_PG_MODE: direct
+  depends_on:
+    db:
+      condition: service_healthy
 ```
 
-No additional configuration is required - Electric SQL is pre-configured to work with the Docker PostgreSQL instance.
+No additional configuration is required — Electric SQL is pre-configured to work with the Docker PostgreSQL instance.
 
 ## Manual Setup
 
@@ -102,19 +55,16 @@ Follow the steps below based on your PostgreSQL setup.
 
 Ensure your environment files are configured. If you haven't set up SurfSense yet, follow the [Manual Installation Guide](/docs/manual-installation) first.
 
-For Electric SQL, verify these variables are set:
-
-**Root `.env`:**
+For Electric SQL, verify these variables are set in `docker/.env`:
 
 ```bash
 ELECTRIC_PORT=5133
-POSTGRES_HOST=host.docker.internal  # Use 'db' for Docker PostgreSQL instance
 ELECTRIC_DB_USER=electric
 ELECTRIC_DB_PASSWORD=electric_password
 NEXT_PUBLIC_ELECTRIC_URL=http://localhost:5133
 ```
 
-**Frontend `.env` (`surfsense_web/.env`):**
+**Frontend (`surfsense_web/.env`):**
 
 ```bash
 NEXT_PUBLIC_ELECTRIC_URL=http://localhost:5133
@@ -125,32 +75,17 @@ NEXT_PUBLIC_ELECTRIC_AUTH_MODE=insecure
 
 ### Option A: Using Docker PostgreSQL
 
-If you're using the Docker-managed PostgreSQL instance, follow these steps:
-
-**1. Update environment variable:**
-
-In your root `.env` file, set:
+If you're using the Docker-managed PostgreSQL instance, no extra configuration is needed. Just start the services:
 
 ```bash
-POSTGRES_HOST=db
+docker compose up -d db electric
 ```
 
-**2. Start PostgreSQL and Electric SQL:**
-
-```bash
-docker-compose up -d db electric
-```
-
-**3. Run database migration:**
+Then run the database migration and start the backend:
 
 ```bash
 cd surfsense_backend
 uv run alembic upgrade head
-```
-
-**4. Start the backend:**
-
-```bash
 uv run main.py
 ```
 
@@ -160,17 +95,17 @@ Electric SQL is now configured and connected to your Docker PostgreSQL database.
 
 ### Option B: Using Local PostgreSQL
 
-If you're using a local PostgreSQL installation, follow these steps:
+If you're using a local PostgreSQL installation (e.g. Postgres.app on macOS), follow these steps:
 
 **1. Enable logical replication in PostgreSQL:**
 
-Open your `postgresql.conf` file using vim (or your preferred editor):
+Open your `postgresql.conf` file:
 
 ```bash
 # Common locations:
-# macOS (Homebrew): /opt/homebrew/var/postgresql@15/postgresql.conf
-# Linux: /etc/postgresql/15/main/postgresql.conf
-# Windows: C:\Program Files\PostgreSQL\15\data\postgresql.conf
+# macOS (Postgres.app): ~/Library/Application Support/Postgres/var-17/postgresql.conf
+# macOS (Homebrew):     /opt/homebrew/var/postgresql@17/postgresql.conf
+# Linux:                /etc/postgresql/17/main/postgresql.conf
 
 sudo vim /path/to/postgresql.conf
 ```
@@ -178,38 +113,51 @@ sudo vim /path/to/postgresql.conf
 Add the following settings:
 
 ```ini
-# Enable logical replication (required for Electric SQL)
+# Required for Electric SQL
 wal_level = logical
 max_replication_slots = 10
 max_wal_senders = 10
 ```
 
-After saving the changes (`:wq` in vim), restart your PostgreSQL server for the configuration to take effect.
+After saving, restart PostgreSQL for the settings to take effect.
 
-**2. Update environment variable:**
+**2. Create the Electric replication user:**
 
-In your root `.env` file, set:
+Connect to your local database as a superuser and run:
 
-```bash
-POSTGRES_HOST=host.docker.internal
+```sql
+CREATE USER electric WITH REPLICATION PASSWORD 'electric_password';
+GRANT CONNECT ON DATABASE surfsense TO electric;
+GRANT CREATE ON DATABASE surfsense TO electric;
+GRANT USAGE ON SCHEMA public TO electric;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO electric;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO electric;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO electric;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON SEQUENCES TO electric;
+CREATE PUBLICATION electric_publication_default;
 ```
 
-**3. Start Electric SQL:**
+**3. Set `ELECTRIC_DATABASE_URL` in `docker/.env`:**
+
+Uncomment and update this line to point Electric at your local Postgres via `host.docker.internal` (the hostname Docker containers use to reach the host machine):
 
 ```bash
-docker-compose up -d electric
+ELECTRIC_DATABASE_URL=postgresql://electric:electric_password@host.docker.internal:5432/surfsense?sslmode=disable
 ```
 
-**4. Run database migration:**
+**4. Start Electric SQL only (skip the Docker `db` container):**
+
+```bash
+docker compose up -d --no-deps electric
+```
+
+The `--no-deps` flag starts only the `electric` service without starting the Docker-managed `db` container.
+
+**5. Run database migration and start the backend:**
 
 ```bash
 cd surfsense_backend
 uv run alembic upgrade head
-```
-
-**5. Start the backend:**
-
-```bash
 uv run main.py
 ```
 
@@ -219,12 +167,13 @@ Electric SQL is now configured and connected to your local PostgreSQL database.
 
 | Variable | Location | Description | Default |
 |----------|----------|-------------|---------|
-| `ELECTRIC_PORT` | Root `.env` | Port to expose Electric SQL | `5133` |
-| `POSTGRES_HOST` | Root `.env` | PostgreSQL host (`db` for Docker, `host.docker.internal` for local) | `host.docker.internal` |
-| `ELECTRIC_DB_USER` | Root `.env` | Database user for Electric | `electric` |
-| `ELECTRIC_DB_PASSWORD` | Root `.env` | Database password for Electric | `electric_password` |
+| `ELECTRIC_PORT` | `docker/.env` | Port to expose Electric SQL | `5133` |
+| `ELECTRIC_DB_USER` | `docker/.env` | Database user for Electric replication | `electric` |
+| `ELECTRIC_DB_PASSWORD` | `docker/.env` | Database password for Electric replication | `electric_password` |
+| `ELECTRIC_DATABASE_URL` | `docker/.env` | Full connection URL override for Electric. Set to use `host.docker.internal` when pointing at a local Postgres instance | *(built from above defaults)* |
 | `NEXT_PUBLIC_ELECTRIC_URL` | Frontend `.env` | Electric SQL server URL (PGlite connects to this) | `http://localhost:5133` |
 | `NEXT_PUBLIC_ELECTRIC_AUTH_MODE` | Frontend `.env` | Authentication mode (`insecure` for dev, `secure` for production) | `insecure` |
+
 ## Verify Setup
 
 To verify Electric SQL is running correctly:
@@ -262,7 +211,7 @@ You should receive:
 
 ### Data Not Syncing
 
-- Check Electric SQL logs: `docker logs electric`
+- Check Electric SQL logs: `docker compose logs electric`
 - Verify PostgreSQL replication is working
 - Ensure the Electric user has proper table permissions
 
