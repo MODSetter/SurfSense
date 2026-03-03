@@ -13,6 +13,7 @@ import { IconRail } from "../icon-rail";
 import {
 	AllPrivateChatsSidebar,
 	AllSharedChatsSidebar,
+	AnnouncementsSidebar,
 	InboxSidebar,
 	MobileSidebar,
 	MobileSidebarTrigger,
@@ -82,6 +83,10 @@ interface LayoutShellProps {
 	className?: string;
 	// Inbox props
 	inbox?: InboxProps;
+	announcementsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
 	isLoadingChats?: boolean;
 	// All chats panel props
 	allSharedChatsPanel?: {
@@ -130,6 +135,7 @@ export function LayoutShell({
 	children,
 	className,
 	inbox,
+	announcementsPanel,
 	isLoadingChats = false,
 	allSharedChatsPanel,
 	allPrivateChatsPanel,
@@ -207,6 +213,15 @@ export function LayoutShell({
 								totalUnreadCount={inbox.totalUnreadCount}
 								markAsRead={inbox.markAsRead}
 								markAllAsRead={inbox.markAllAsRead}
+								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+							/>
+						)}
+
+						{/* Mobile Announcements Sidebar - only render when open to avoid scroll blocking */}
+						{announcementsPanel?.open && (
+							<AnnouncementsSidebar
+								open={announcementsPanel.open}
+								onOpenChange={announcementsPanel.onOpenChange}
 								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
 							/>
 						)}
@@ -322,6 +337,14 @@ export function LayoutShell({
 								markAllAsRead={inbox.markAllAsRead}
 								isDocked={false}
 								onDockedChange={inbox.onDockedChange}
+							/>
+						)}
+
+						{/* Announcements Sidebar - positioned absolutely on top of content */}
+						{announcementsPanel && (
+							<AnnouncementsSidebar
+								open={announcementsPanel.open}
+								onOpenChange={announcementsPanel.onOpenChange}
 							/>
 						)}
 
