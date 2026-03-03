@@ -78,8 +78,10 @@ function Wait-ForPostgres {
         }
         Start-Sleep -Seconds 2
         Push-Location $InstallDir
-        docker compose exec -T db pg_isready -U $DbUser -q 2>$null
+        $ErrorActionPreference = 'Continue'
+        docker compose exec -T db pg_isready -U $DbUser -q *>$null
         $ready = $LASTEXITCODE -eq 0
+        $ErrorActionPreference = 'Stop'
         Pop-Location
     } while (-not $ready)
 
@@ -115,7 +117,9 @@ Write-Ok "All files downloaded to $InstallDir/"
 
 # ── Legacy all-in-one detection ─────────────────────────────────────────────
 
+$ErrorActionPreference = 'Continue'
 $volumeList = docker volume ls --format '{{.Name}}' 2>$null
+$ErrorActionPreference = 'Stop'
 if (($volumeList -split "`n") -contains $OldVolume -and -not (Test-Path $MigrationDoneFile)) {
     $MigrationMode = $true
 
@@ -222,7 +226,9 @@ if ($MigrationMode) {
 
     # Smoke test
     Push-Location $InstallDir
+    $ErrorActionPreference = 'Continue'
     $tableCount = (docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>$null).Trim()
+    $ErrorActionPreference = 'Stop'
     Pop-Location
 
     if (-not $tableCount -or $tableCount -eq "0") {
@@ -255,8 +261,13 @@ if ($SetupWatchtower) {
     $wtHours = [math]::Floor($WatchtowerInterval / 3600)
     Write-Step "Setting up Watchtower (auto-updates every ${wtHours}h)"
 
-    $wtState = docker inspect -f '{{.State.Running}}' $WatchtowerContainer 2>$null
-    if ($LASTEXITCODE -ne 0) { $wtState = "missing" }
+    try {
+        $ErrorActionPreference = 'Continue'
+        $wtState = docker inspect -f '{{.State.Running}}' $WatchtowerContainer 2>$null
+        if ($LASTEXITCODE -ne 0) { $wtState = "missing" }
+    } finally {
+        $ErrorActionPreference = 'Stop'
+    }
 
     if ($wtState -eq "true") {
         Write-Ok "Watchtower is already running - skipping."
@@ -265,6 +276,7 @@ if ($SetupWatchtower) {
             Write-Info "Removing stopped Watchtower container..."
             docker rm -f $WatchtowerContainer *>$null
         }
+        $ErrorActionPreference = 'Continue'
         docker run -d `
             --name $WatchtowerContainer `
             --restart unless-stopped `
@@ -272,6 +284,7 @@ if ($SetupWatchtower) {
             nickfedor/watchtower `
             --label-enable `
             --interval $WatchtowerInterval *>$null
+        $ErrorActionPreference = 'Stop'
 
         if ($LASTEXITCODE -eq 0) {
             Write-Ok "Watchtower started - labeled SurfSense containers will auto-update."
