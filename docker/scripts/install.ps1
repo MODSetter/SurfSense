@@ -51,13 +51,23 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 Write-Ok "Docker found."
 
-docker info *>$null
+try {
+    $ErrorActionPreference = 'Continue'
+    docker info *>$null
+} finally {
+    $ErrorActionPreference = 'Stop'
+}
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Docker daemon is not running. Please start Docker Desktop and try again."
 }
 Write-Ok "Docker daemon is running."
 
-docker compose version *>$null
+try {
+    $ErrorActionPreference = 'Continue'
+    docker compose version *>$null
+} finally {
+    $ErrorActionPreference = 'Stop'
+}
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Docker Compose is not available. It should be bundled with Docker Desktop."
 }
