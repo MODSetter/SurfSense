@@ -64,6 +64,17 @@ function Write-Err     { param([string]$Msg) Write-Host "[SurfSense] ERROR: $Msg
 
 function Log { param([string]$Msg) Add-Content -Path $LogFile -Value $Msg }
 
+function Invoke-NativeSafe {
+    param([scriptblock]$Command)
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Command
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 function Confirm-Action {
     param([string]$Prompt)
     if ($Yes) { return }
@@ -77,20 +88,20 @@ function Confirm-Action {
 # ── Cleanup helper ───────────────────────────────────────────────────────────
 
 function Remove-TempContainer {
-    $containers = docker ps -a --format '{{.Names}}' 2>$null
+    $containers = Invoke-NativeSafe { docker ps -a --format '{{.Names}}' 2>$null }
     if ($containers -and ($containers -split "`n") -contains $TempContainer) {
         Write-Info "Cleaning up temporary container '$TempContainer'..."
-        docker stop $TempContainer *>$null
-        docker rm $TempContainer *>$null
+        Invoke-NativeSafe { docker stop $TempContainer *>$null } | Out-Null
+        Invoke-NativeSafe { docker rm $TempContainer *>$null } | Out-Null
     }
 }
 
 # Register cleanup on script exit
 Register-EngineEvent PowerShell.Exiting -Action {
-    $containers = docker ps -a --format '{{.Names}}' 2>$null
+    $containers = Invoke-NativeSafe { docker ps -a --format '{{.Names}}' 2>$null }
     if ($containers -and ($containers -split "`n") -contains "surfsense-pg14-migration") {
-        docker stop "surfsense-pg14-migration" *>$null
-        docker rm "surfsense-pg14-migration" *>$null
+        Invoke-NativeSafe { docker stop "surfsense-pg14-migration" *>$null } | Out-Null
+        Invoke-NativeSafe { docker rm "surfsense-pg14-migration" *>$null } | Out-Null
     }
 } | Out-Null
 
@@ -112,7 +123,7 @@ function Wait-ForPostgres {
             Write-Err "$Label did not become ready after $($maxAttempts * 2) seconds. Check: docker logs $Container"
         }
         Start-Sleep -Seconds 2
-        docker exec $Container pg_isready -U $User -q 2>$null
+        Invoke-NativeSafe { docker exec $Container pg_isready -U $User -q 2>$null } | Out-Null
     } while ($LASTEXITCODE -ne 0)
 
     Write-Ok "$Label is ready."
@@ -129,28 +140,23 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
     Write-Err "Docker is not installed. Install Docker Desktop: https://docs.docker.com/desktop/install/windows-install/"
 }
 
-try {
-    $ErrorActionPreference = 'Continue'
-    docker info *>$null
-} finally {
-    $ErrorActionPreference = 'Stop'
-}
+Invoke-NativeSafe { docker info *>$null } | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Docker daemon is not running. Please start Docker Desktop and try again."
 }
 
-$volumeList = docker volume ls --format '{{.Name}}' 2>$null
+$volumeList = Invoke-NativeSafe { docker volume ls --format '{{.Name}}' 2>$null }
 if (-not (($volumeList -split "`n") -contains $OldVolume)) {
     Write-Err "Legacy volume '$OldVolume' not found. Are you sure you ran the old all-in-one SurfSense container?"
 }
 Write-Ok "Found legacy volume: $OldVolume"
 
-$oldContainer = (docker ps --filter "volume=$OldVolume" --format '{{.Names}}' 2>$null | Select-Object -First 1)
+$oldContainer = (Invoke-NativeSafe { docker ps --filter "volume=$OldVolume" --format '{{.Names}}' 2>$null } | Select-Object -First 1)
 if ($oldContainer) {
     Write-Warn "Container '$oldContainer' is running and using the '$OldVolume' volume."
     Write-Warn "It must be stopped before migration to prevent data file corruption."
     Confirm-Action "Stop '$oldContainer' now and proceed with data extraction?"
-    docker stop $oldContainer *>$null
+    Invoke-NativeSafe { docker stop $oldContainer *>$null } | Out-Null
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Failed to stop '$oldContainer'. Try: docker stop $oldContainer"
     }
@@ -164,11 +170,11 @@ if (Test-Path $DumpFile) {
     Write-Err "Aborting to avoid overwriting an existing dump."
 }
 
-$staleContainers = docker ps -a --format '{{.Names}}' 2>$null
+$staleContainers = Invoke-NativeSafe { docker ps -a --format '{{.Names}}' 2>$null }
 if ($staleContainers -and ($staleContainers -split "`n") -contains $TempContainer) {
     Write-Warn "Stale migration container '$TempContainer' found - removing it."
-    docker stop $TempContainer *>$null
-    docker rm $TempContainer *>$null
+    Invoke-NativeSafe { docker stop $TempContainer *>$null } | Out-Null
+    Invoke-NativeSafe { docker rm $TempContainer *>$null } | Out-Null
 }
 
 $drive = (Get-Item .).PSDrive
@@ -199,12 +205,12 @@ Confirm-Action "Start data extraction? (Your original data will not be deleted o
 Write-Step "1" "Starting temporary PostgreSQL 14 container"
 
 Write-Info "Pulling $PG14Image..."
-docker pull $PG14Image *>$null
+Invoke-NativeSafe { docker pull $PG14Image *>$null } | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Warn "Could not pull $PG14Image - using cached image if available."
 }
 
-$dataUid = docker run --rm -v "${OldVolume}:/data" alpine stat -c '%u' /data/postgres 2>$null
+$dataUid = Invoke-NativeSafe { docker run --rm -v "${OldVolume}:/data" alpine stat -c '%u' /data/postgres 2>$null }
 if (-not $dataUid -or $dataUid -eq "0") {
     Write-Warn "Could not detect data directory UID - falling back to default (may chown files)."
     $userFlag = @()
@@ -223,7 +229,7 @@ $dockerRunArgs = @(
     "-e", "POSTGRES_DB=$DbName"
 ) + $userFlag + @($PG14Image)
 
-docker @dockerRunArgs *>$null
+Invoke-NativeSafe { docker @dockerRunArgs *>$null } | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Failed to start temporary PostgreSQL 14 container."
 }
@@ -238,7 +244,7 @@ Write-Step "2" "Dumping PostgreSQL 14 database"
 Write-Info "Running pg_dump - this may take a while for large databases..."
 
 $pgDumpErrFile = Join-Path $env:TEMP "surfsense_pgdump_err.log"
-docker exec -e "PGPASSWORD=$DbPassword" $TempContainer pg_dump -U $DbUser --no-password $DbName > $DumpFile 2>$pgDumpErrFile
+Invoke-NativeSafe { docker exec -e "PGPASSWORD=$DbPassword" $TempContainer pg_dump -U $DbUser --no-password $DbName > $DumpFile 2>$pgDumpErrFile } | Out-Null
 if ($LASTEXITCODE -ne 0) {
     if (Test-Path $pgDumpErrFile) { Get-Content $pgDumpErrFile | Write-Host -ForegroundColor Red }
     Remove-TempContainer
@@ -266,8 +272,8 @@ $dumpSize = "{0:N1} MB" -f ((Get-Item $DumpFile).Length / 1MB)
 Write-Ok "Dump complete: $dumpSize ($dumpLines lines) -> $DumpFile"
 
 Write-Info "Stopping temporary PostgreSQL 14 container..."
-docker stop $TempContainer *>$null
-docker rm $TempContainer *>$null
+Invoke-NativeSafe { docker stop $TempContainer *>$null } | Out-Null
+Invoke-NativeSafe { docker rm $TempContainer *>$null } | Out-Null
 Write-Ok "Temporary container removed."
 
 # ── Step 3: Recover SECRET_KEY ───────────────────────────────────────────────
@@ -276,7 +282,7 @@ Write-Step "3" "Recovering SECRET_KEY"
 
 $recoveredKey = ""
 
-$keyCheck = docker run --rm -v "${OldVolume}:/data" alpine sh -c 'test -f /data/.secret_key && cat /data/.secret_key' 2>$null
+$keyCheck = Invoke-NativeSafe { docker run --rm -v "${OldVolume}:/data" alpine sh -c 'test -f /data/.secret_key && cat /data/.secret_key' 2>$null }
 if ($LASTEXITCODE -eq 0 -and $keyCheck) {
     $recoveredKey = $keyCheck.Trim()
     Write-Ok "Recovered SECRET_KEY from '$OldVolume'."

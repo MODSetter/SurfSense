@@ -42,6 +42,17 @@ function Write-Warn    { param([string]$Msg) Write-Host "[SurfSense] " -Foregrou
 function Write-Step    { param([string]$Msg) Write-Host "`n-- $Msg" -ForegroundColor Cyan }
 function Write-Err     { param([string]$Msg) Write-Host "[SurfSense] ERROR: $Msg" -ForegroundColor Red; exit 1 }
 
+function Invoke-NativeSafe {
+    param([scriptblock]$Command)
+    $previousErrorActionPreference = $ErrorActionPreference
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Command
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+}
+
 # ── Pre-flight checks ──────────────────────────────────────────────────────
 
 Write-Step "Checking prerequisites"
@@ -51,23 +62,13 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 Write-Ok "Docker found."
 
-try {
-    $ErrorActionPreference = 'Continue'
-    docker info *>$null
-} finally {
-    $ErrorActionPreference = 'Stop'
-}
+Invoke-NativeSafe { docker info *>$null } | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Docker daemon is not running. Please start Docker Desktop and try again."
 }
 Write-Ok "Docker daemon is running."
 
-try {
-    $ErrorActionPreference = 'Continue'
-    docker compose version *>$null
-} finally {
-    $ErrorActionPreference = 'Stop'
-}
+Invoke-NativeSafe { docker compose version *>$null } | Out-Null
 if ($LASTEXITCODE -ne 0) {
     Write-Err "Docker Compose is not available. It should be bundled with Docker Desktop."
 }
@@ -88,10 +89,8 @@ function Wait-ForPostgres {
         }
         Start-Sleep -Seconds 2
         Push-Location $InstallDir
-        $ErrorActionPreference = 'Continue'
-        docker compose exec -T db pg_isready -U $DbUser -q *>$null
+        Invoke-NativeSafe { docker compose exec -T db pg_isready -U $DbUser -q *>$null } | Out-Null
         $ready = $LASTEXITCODE -eq 0
-        $ErrorActionPreference = 'Stop'
         Pop-Location
     } while (-not $ready)
 
@@ -127,9 +126,7 @@ Write-Ok "All files downloaded to $InstallDir/"
 
 # ── Legacy all-in-one detection ─────────────────────────────────────────────
 
-$ErrorActionPreference = 'Continue'
-$volumeList = docker volume ls --format '{{.Name}}' 2>$null
-$ErrorActionPreference = 'Stop'
+$volumeList = Invoke-NativeSafe { docker volume ls --format '{{.Name}}' 2>$null }
 if (($volumeList -split "`n") -contains $OldVolume -and -not (Test-Path $MigrationDoneFile)) {
     $MigrationMode = $true
 
@@ -203,7 +200,7 @@ if ($MigrationMode) {
 
     Write-Step "Starting PostgreSQL 17"
     Push-Location $InstallDir
-    docker compose up -d db
+    Invoke-NativeSafe { docker compose up -d db } | Out-Null
     Pop-Location
     Wait-ForPostgres -DbUser $DbUser
 
@@ -215,7 +212,7 @@ if ($MigrationMode) {
 
     $restoreErrFile = Join-Path $env:TEMP "surfsense_restore_err.log"
     Push-Location $InstallDir
-    Get-Content $DumpFile | docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName 2>$restoreErrFile | Out-Null
+    Invoke-NativeSafe { Get-Content $DumpFile | docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName 2>$restoreErrFile | Out-Null } | Out-Null
     Pop-Location
 
     $fatalErrors = @()
@@ -236,9 +233,7 @@ if ($MigrationMode) {
 
     # Smoke test
     Push-Location $InstallDir
-    $ErrorActionPreference = 'Continue'
-    $tableCount = (docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>$null).Trim()
-    $ErrorActionPreference = 'Stop'
+    $tableCount = (Invoke-NativeSafe { docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>$null }).Trim()
     Pop-Location
 
     if (-not $tableCount -or $tableCount -eq "0") {
@@ -251,7 +246,7 @@ if ($MigrationMode) {
 
     Write-Step "Starting all SurfSense services"
     Push-Location $InstallDir
-    docker compose up -d
+    Invoke-NativeSafe { docker compose up -d } | Out-Null
     Pop-Location
     Write-Ok "All services started."
 
@@ -260,7 +255,7 @@ if ($MigrationMode) {
 } else {
     Write-Step "Starting SurfSense"
     Push-Location $InstallDir
-    docker compose up -d
+    Invoke-NativeSafe { docker compose up -d } | Out-Null
     Pop-Location
     Write-Ok "All services started."
 }
@@ -271,30 +266,25 @@ if ($SetupWatchtower) {
     $wtHours = [math]::Floor($WatchtowerInterval / 3600)
     Write-Step "Setting up Watchtower (auto-updates every ${wtHours}h)"
 
-    try {
-        $ErrorActionPreference = 'Continue'
-        $wtState = docker inspect -f '{{.State.Running}}' $WatchtowerContainer 2>$null
-        if ($LASTEXITCODE -ne 0) { $wtState = "missing" }
-    } finally {
-        $ErrorActionPreference = 'Stop'
-    }
+    $wtState = Invoke-NativeSafe { docker inspect -f '{{.State.Running}}' $WatchtowerContainer 2>$null }
+    if ($LASTEXITCODE -ne 0) { $wtState = "missing" }
 
     if ($wtState -eq "true") {
         Write-Ok "Watchtower is already running - skipping."
     } else {
         if ($wtState -ne "missing") {
             Write-Info "Removing stopped Watchtower container..."
-            docker rm -f $WatchtowerContainer *>$null
+            Invoke-NativeSafe { docker rm -f $WatchtowerContainer *>$null } | Out-Null
         }
-        $ErrorActionPreference = 'Continue'
-        docker run -d `
-            --name $WatchtowerContainer `
-            --restart unless-stopped `
-            -v /var/run/docker.sock:/var/run/docker.sock `
-            nickfedor/watchtower `
-            --label-enable `
-            --interval $WatchtowerInterval *>$null
-        $ErrorActionPreference = 'Stop'
+        Invoke-NativeSafe {
+            docker run -d `
+                --name $WatchtowerContainer `
+                --restart unless-stopped `
+                -v /var/run/docker.sock:/var/run/docker.sock `
+                nickfedor/watchtower `
+                --label-enable `
+                --interval $WatchtowerInterval *>$null
+        } | Out-Null
 
         if ($LASTEXITCODE -eq 0) {
             Write-Ok "Watchtower started - labeled SurfSense containers will auto-update."
