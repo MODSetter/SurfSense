@@ -86,8 +86,16 @@ Run SurfSense on your own infrastructure for full data control and privacy.
 > [!NOTE]
 > Windows users: install [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) first and run the command below in the Ubuntu terminal.
 
+#### For Linux/MacOS users:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+#### For Windows users:
+
+```bash
+irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 ```
 
 The install script sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) automatically for daily auto-updates. To skip it, add the `--no-watchtower` flag.
