@@ -299,11 +299,8 @@ Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.
 
 
 EOF
-if [[ "${SURFSENSE_VERSION:-latest}" == "latest" ]]; then
-    _version_display="latest"
-else
-    _version_display="v${SURFSENSE_VERSION}"
-fi
+_version_display=$(grep '^SURFSENSE_VERSION=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
+_version_display="${_version_display:-latest}"
 printf "         Your personal AI-powered search engine  ${YELLOW}[%s]${NC}\n" "${_version_display}"
 printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
 
