@@ -213,7 +213,7 @@ if ($MigrationMode) {
 
     $restoreErrFile = Join-Path $env:TEMP "surfsense_restore_err.log"
     Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName < $DumpFilePath 2>$restoreErrFile } | Out-Null
+    Invoke-NativeSafe { Get-Content -LiteralPath $DumpFilePath | docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName 2>$restoreErrFile | Out-Null } | Out-Null
     Pop-Location
 
     $fatalErrors = @()
