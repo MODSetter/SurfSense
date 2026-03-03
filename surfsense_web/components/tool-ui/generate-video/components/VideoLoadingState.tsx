@@ -1,18 +1,11 @@
 import { VideoIcon } from "lucide-react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { MAX_ATTEMPTS } from "../types";
 
 interface VideoLoadingStateProps {
 	topic: string;
-	attempt: number;
 }
 
-export function VideoLoadingState({ topic, attempt }: VideoLoadingStateProps) {
-	const label =
-		attempt <= 1
-			? "Composing visual content"
-			: `Retrying animation (attempt ${attempt}/${MAX_ATTEMPTS})`;
-
+export function VideoLoadingState({ topic }: VideoLoadingStateProps) {
 	return (
 		<div className="my-4 overflow-hidden rounded-xl border bg-card">
 			<div className="flex w-full items-center gap-2 sm:gap-3 bg-muted/30 px-4 py-5 sm:px-6 sm:py-6">
@@ -23,7 +16,7 @@ export function VideoLoadingState({ topic, attempt }: VideoLoadingStateProps) {
 					<h3 className="font-semibold text-foreground text-sm sm:text-base leading-tight line-clamp-2">
 						{topic}
 					</h3>
-					<TextShimmerLoader text={label} size="sm" />
+					<TextShimmerLoader text="Generating video" size="sm" />
 				</div>
 			</div>
 		</div>
