@@ -105,6 +105,19 @@ def build_image() -> Image:
             f" && git sparse-checkout set {REMOTION_SKILLS_REPO_PATH}"
             f" && cp -r {REMOTION_SKILLS_REPO_PATH}/. {REMOTION_SKILLS_DIR}/"
             f" && rm -rf /tmp/remotion-skills",
+            # Overwrite the cloned SKILL.md description so the agent matches this skill
+            # for every Remotion video task (the upstream description is too generic).
+            f"python3 -c \""
+            f"import re, pathlib; "
+            f"p = pathlib.Path('{REMOTION_SKILLS_DIR}/SKILL.md'); "
+            f"txt = p.read_text(); "
+            f"txt = re.sub(r'description:.*', "
+            f"'description: Use this skill for ALL Remotion video generation tasks. "
+            f"Contains critical patterns for Sequence/Series timing, spring-physics animations, "
+            f"chart and SVG layout, component composition, geometry blocks, and common visual bug fixes. "
+            f"Always read this before writing any Remotion code.', txt); "
+            f"p.write_text(txt)"
+            f"\"",
             # Give the daytona user ownership of everything we just created.
             f"chown -R daytona:daytona {PROJECT_DIR} {OUT_DIR} {SKILLS_DIR}",
         )
