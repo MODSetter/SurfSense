@@ -314,7 +314,8 @@ Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.
 
 "@ -ForegroundColor White
 
-$versionDisplay = if ($env:SURFSENSE_VERSION -and $env:SURFSENSE_VERSION -ne "latest") { "v$env:SURFSENSE_VERSION" } else { "latest" }
+$versionDisplay = (Get-Content $envPath | Select-String '^SURFSENSE_VERSION=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
+if (-not $versionDisplay) { $versionDisplay = "latest" }
 Write-Host "         Your personal AI-powered search engine  [$versionDisplay]" -ForegroundColor Yellow
 Write-Host ("=" * 62) -ForegroundColor Cyan
 Write-Host ""
