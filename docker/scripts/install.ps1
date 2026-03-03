@@ -24,7 +24,7 @@ $ErrorActionPreference = 'Stop'
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-$RepoRaw            = "https://raw.githubusercontent.com/MODSetter/SurfSense/dev"
+$RepoRaw            = "https://raw.githubusercontent.com/MODSetter/SurfSense/main"
 $InstallDir         = ".\surfsense"
 $OldVolume          = "surfsense-data"
 $DumpFile           = ".\surfsense_migration_backup.sql"
