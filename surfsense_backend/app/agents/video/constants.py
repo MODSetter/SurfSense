@@ -36,7 +36,7 @@ SANDBOX_THREAD_LABEL_KEY = "surfsense_video_thread"
 # TypeScript validation
 # ---------------------------------------------------------------------------
 TYPESCRIPT_CHECK_TIMEOUT_SECONDS = 60
-IGNORABLE_TYPESCRIPT_DIAGNOSTICS = frozenset({"TS6133", "TS6196"})
+IGNORABLE_TYPESCRIPT_DIAGNOSTICS = frozenset({"TS6133", "TS6192", "TS6196"})
 
 # ---------------------------------------------------------------------------
 # Remotion rendering
