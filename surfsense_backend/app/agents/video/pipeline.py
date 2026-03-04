@@ -18,7 +18,10 @@ from app.agents.video.llm import (
     invoke_video_llm,
     parse_llm_response,
 )
-from app.agents.video.prompts import ERROR_CORRECTION_PROMPT, SYSTEM_PROMPT
+from app.agents.video.prompts_v2 import (
+    ERROR_CORRECTION_PROMPT,
+    SYSTEM_PROMPT,
+)
 from app.agents.video.renderer import (
     download_rendered_video,
     render_composition_to_mp4,
@@ -26,19 +29,26 @@ from app.agents.video.renderer import (
     upload_remotion_root_config,
     validate_typescript,
 )
-from app.agents.video.sandbox import get_or_create_sandbox
+from app.agents.video.sandbox import delete_sandbox, get_or_create_sandbox
 from app.services.llm_service import get_video_llm
 
 logger = logging.getLogger(__name__)
 
 
 def _load_remotion_skills() -> str:
-    """Read all Remotion skill .md files and concatenate them."""
+    """Read V2 example skill files and concatenate them."""
+    V2_FILES = [
+        "example-concept-explainer.md",
+        "example-architecture-diagram.md",
+        "example-data-presentation.md",
+    ]
     skill_parts = []
-    for md_file in sorted(REMOTION_SKILLS_DIR.glob("*.md")):
-        content = md_file.read_text(encoding="utf-8").strip()
-        if content:
-            skill_parts.append(content)
+    for name in V2_FILES:
+        md_file = REMOTION_SKILLS_DIR / name
+        if md_file.exists():
+            content = md_file.read_text(encoding="utf-8").strip()
+            if content:
+                skill_parts.append(content)
     logger.info("[video/pipeline] Loaded %d Remotion skill files", len(skill_parts))
     return "\n\n---\n\n".join(skill_parts)
 
@@ -57,6 +67,14 @@ async def generate_video(
 
     sandbox = await get_or_create_sandbox(thread_id)
 
+    try:
+        return await _run_pipeline(sandbox, llm, thread_id, topic, source_content)
+    finally:
+        await delete_sandbox(thread_id)
+
+
+async def _run_pipeline(sandbox, llm, thread_id, topic, source_content) -> str:
+    """Run the generation pipeline inside the sandbox."""
     skills_text = _load_remotion_skills()
     system_prompt = SYSTEM_PROMPT
     if skills_text:
@@ -99,5 +117,4 @@ async def generate_video(
     rendered_video_path = await render_composition_to_mp4(sandbox, composition_id)
     downloaded_video_path = await download_rendered_video(sandbox, rendered_video_path, thread_id)
     logger.info("[video/pipeline] Video saved to: %s", downloaded_video_path)
-
     return str(downloaded_video_path)
