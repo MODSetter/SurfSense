@@ -24,8 +24,25 @@ logger = logging.getLogger(__name__)
 def build_video_generation_prompt(topic: str, source_content: str) -> str:
     """Build the user prompt that describes what video to generate."""
     return (
-        f"Create a professional animated video about: {topic}\n\n"
-        f"Source content to visualize:\n\n{source_content}"
+        f"Create a professional animated explainer video about: {topic}\n\n"
+        f"Source content to visualize:\n\n{source_content}\n\n"
+        "─── INSTRUCTIONS ───\n"
+        "1. Decide a pattern: use PATTERN A (additive build-up) for concepts,\n"
+        "   processes, architectures, or how-things-work topics. Use PATTERN B\n"
+        "   (scene replacement via <Series>) for data presentations, reports,\n"
+        "   comparisons, or slide-deck-style content.\n"
+        "2. Plan the spatial layout BEFORE writing code. Assign explicit x, y\n"
+        "   positions to every element. Use distributeX / gridPositions for groups.\n"
+        "3. Build visual richness: use Connector arrows, lucide-react icons in\n"
+        "   rounded containers, info cards with borders & shadows, SVG charts\n"
+        "   (donut/bar/line) where data exists, AnimatedText for titles,\n"
+        "   StaggeredMotion for lists, evolvePath for draw-on animations.\n"
+        "4. Fill the 1920×1080 canvas. Place elements across the full width.\n"
+        "   DO NOT center everything in a narrow column.\n"
+        "5. Vary animation speeds: slow title reveals, medium transitions,\n"
+        "   snappy pop-ins. Add DotGrid + gradient background for atmosphere.\n"
+        "6. Duration: at least 900 frames (30s) for substantial topics.\n"
+        "7. Follow the QUALITY BAR requirements from section 11 of the system prompt.\n"
     )
 
 
