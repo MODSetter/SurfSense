@@ -81,13 +81,18 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 पूर्ण डेटा नियंत्रण और गोपनीयता के लिए SurfSense को अपने स्वयं के बुनियादी ढांचे पर चलाएं।
 
-**आवश्यकताएँ:** [Docker](https://docs.docker.com/get-docker/) ([Docker Compose](https://docs.docker.com/compose/install/) सहित) इंस्टॉल और चालू होना चाहिए।
+**आवश्यकताएँ:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) इंस्टॉल और चालू होना चाहिए।
 
-> [!NOTE]
-> Windows उपयोगकर्ता: पहले [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) इंस्टॉल करें और नीचे दिया गया कमांड Ubuntu टर्मिनल में चलाएं।
+#### Linux/MacOS उपयोगकर्ताओं के लिए:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+```
+
+#### Windows उपयोगकर्ताओं के लिए:
+
+```powershell
+irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 ```
 
 इंस्टॉल स्क्रिप्ट दैनिक ऑटो-अपडेट के लिए स्वचालित रूप से [Watchtower](https://github.com/nicholas-fedor/watchtower) सेटअप करती है। इसे छोड़ने के लिए, `--no-watchtower` फ्लैग जोड़ें।

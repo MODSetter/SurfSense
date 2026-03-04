@@ -25,7 +25,7 @@ set -euo pipefail
 
 main() {
 
-REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/dev"
+REPO_RAW="https://raw.githubusercontent.com/MODSetter/SurfSense/main"
 INSTALL_DIR="./surfsense"
 OLD_VOLUME="surfsense-data"
 DUMP_FILE="./surfsense_migration_backup.sql"
@@ -299,12 +299,9 @@ Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.
 
 
 EOF
-if [[ "${SURFSENSE_VERSION:-latest}" == "latest" ]]; then
-    _version_display="latest"
-else
-    _version_display="v${SURFSENSE_VERSION}"
-fi
-printf "         Your personal AI-powered search engine  ${YELLOW}[%s]${NC}\n" "${_version_display}"
+_version_display=$(grep '^SURFSENSE_VERSION=' "${INSTALL_DIR}/.env" 2>/dev/null | cut -d= -f2 | tr -d '"' | head -1 || true)
+_version_display="${_version_display:-latest}"
+printf "         OSS Alternative to NotebookLM for Teams  ${YELLOW}[%s]${NC}\n" "${_version_display}"
 printf "${CYAN}══════════════════════════════════════════════════════════════${NC}\n\n"
 
 info "  Frontend:  http://localhost:3000"
