@@ -85,27 +85,43 @@ async def get_or_create_sandbox(thread_id: int | str) -> _TimeoutAwareSandbox:
 
 
 async def delete_sandbox(thread_id: int | str) -> None:
-    """Delete the video sandbox for a thread."""
+    """Stop and delete the video sandbox for a thread. Never raises."""
 
     def _delete() -> None:
+        import time
+
         client = _get_client()
         thread_labels = {SANDBOX_THREAD_LABEL_KEY: str(thread_id)}
         try:
             target_sandbox = client.find_one(labels=thread_labels)
-        except DaytonaError:
+        except Exception:
             logger.debug(
                 "[video/sandbox] No sandbox found for thread %s (already removed)",
                 thread_id,
             )
             return
-        try:
-            client.delete(target_sandbox)
-            logger.info("[video/sandbox] Deleted sandbox: %s", target_sandbox.id)
-        except Exception:
-            logger.warning(
-                "[video/sandbox] Failed to delete sandbox for thread %s",
-                thread_id,
-                exc_info=True,
-            )
+
+        sandbox_id = target_sandbox.id
+
+        if target_sandbox.state == SandboxState.STARTED:
+            try:
+                target_sandbox.stop(timeout=30)
+                logger.info("[video/sandbox] Stopped sandbox: %s", sandbox_id)
+            except Exception:
+                logger.debug("[video/sandbox] Stop failed for %s, proceeding to delete", sandbox_id)
+
+        for attempt in range(3):
+            try:
+                client.delete(target_sandbox)
+                logger.info("[video/sandbox] Deleted sandbox: %s", sandbox_id)
+                return
+            except Exception:
+                if attempt < 2:
+                    time.sleep(2)
+                else:
+                    logger.warning(
+                        "[video/sandbox] Could not delete sandbox %s after retries",
+                        sandbox_id,
+                    )
 
     await asyncio.to_thread(_delete)
