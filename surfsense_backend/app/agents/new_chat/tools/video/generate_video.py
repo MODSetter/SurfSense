@@ -30,9 +30,34 @@ def create_generate_video_tool(
         Use this when the user asks to create, generate, or make a video,
         animate content, export as video, or make an animated summary.
 
+        IMPORTANT — source_content must be structured for VISUAL animation,
+        NOT a text essay. Provide 4-8 scenes as short bullet points with:
+        - A scene label (e.g. "Scene 1: Core Philosophy")
+        - 2-4 key concepts per scene as SHORT phrases (max 6 words each)
+        - Visual hints where helpful (e.g. "show layered diagram", "animate flow arrows")
+
+        Do NOT write full paragraphs or long explanations. The video renderer
+        turns each concept into animated graphics — long text will be unreadable.
+
+        Good example:
+          Scene 1: What is DDD?
+          - Software mirrors business domain
+          - Deep collaboration with experts
+          Scene 2: Ubiquitous Language
+          - Shared vocabulary: devs + business
+          - Same terms in code and conversation
+          Scene 3: Layered Architecture (show stacked diagram)
+          - Presentation → Application → Domain → Infrastructure
+          - Domain layer stays independent
+
+        Bad example:
+          "Domain-Driven Design is a software development approach focused on
+           modeling complex business domains and aligning software design with
+           real-world business concepts. The main idea is that..."
+
         Args:
             topic: Short title for the video (max ~8 words).
-            source_content: Comprehensive summary of the content to animate.
+            source_content: Scene-structured bullet points for visual animation (NOT prose).
 
         Returns:
             A dictionary with the video URL or an error message.
