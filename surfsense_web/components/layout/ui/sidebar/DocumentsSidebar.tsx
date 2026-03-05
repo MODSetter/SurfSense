@@ -281,16 +281,18 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 				</div>
 			</div>
 
-			<div className="flex-1 overflow-y-auto overflow-x-hidden p-4 pt-0 space-y-4">
-				<DocumentsFilters
-					typeCounts={realtimeTypeCounts}
-					selectedIds={selectedIds}
-					onSearch={setSearch}
-					searchValue={search}
-					onBulkDelete={onBulkDelete}
-					onToggleType={onToggleType}
-					activeTypes={activeTypes}
-				/>
+			<div className="flex-1 overflow-y-auto overflow-x-hidden pt-0">
+				<div className="px-4 pb-2">
+					<DocumentsFilters
+						typeCounts={realtimeTypeCounts}
+						selectedIds={selectedIds}
+						onSearch={setSearch}
+						searchValue={search}
+						onBulkDelete={onBulkDelete}
+						onToggleType={onToggleType}
+						activeTypes={activeTypes}
+					/>
+				</div>
 
 				<DocumentsTableShell
 					documents={displayDocs}
@@ -306,16 +308,18 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 					searchSpaceId={String(searchSpaceId)}
 				/>
 
-				<PaginationControls
-					pageIndex={pageIndex}
-					total={displayTotal}
-					onFirst={() => setPageIndex(0)}
-					onPrev={() => setPageIndex((i) => Math.max(0, i - 1))}
-					onNext={() => setPageIndex((i) => (pageEnd < displayTotal ? i + 1 : i))}
-					onLast={() => setPageIndex(Math.max(0, Math.ceil(displayTotal / PAGE_SIZE) - 1))}
-					canPrev={pageIndex > 0}
-					canNext={pageEnd < displayTotal}
-				/>
+				<div className="px-4 py-2">
+					<PaginationControls
+						pageIndex={pageIndex}
+						total={displayTotal}
+						onFirst={() => setPageIndex(0)}
+						onPrev={() => setPageIndex((i) => Math.max(0, i - 1))}
+						onNext={() => setPageIndex((i) => (pageEnd < displayTotal ? i + 1 : i))}
+						onLast={() => setPageIndex(Math.max(0, Math.ceil(displayTotal / PAGE_SIZE) - 1))}
+						canPrev={pageIndex > 0}
+						canNext={pageEnd < displayTotal}
+					/>
+				</div>
 			</div>
 		</>
 	);

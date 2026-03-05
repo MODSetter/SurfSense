@@ -410,7 +410,7 @@ export function DocumentsTableShell({
 
 	return (
 		<motion.div
-			className="rounded-lg border border-border/40 bg-background overflow-hidden select-none"
+			className="bg-background overflow-hidden select-none border-t border-border/50"
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
@@ -421,19 +421,19 @@ export function DocumentsTableShell({
 					<div className="hidden md:flex md:flex-col">
 						<Table className="table-fixed w-full">
 							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/40">
-									<TableHead className="w-8 px-0 text-center">
+								<TableRow className="hover:bg-transparent border-b border-border/50">
+									<TableHead className="w-10 pl-3 pr-0 text-center h-8">
 										<div className="flex items-center justify-center h-full">
 											<Skeleton className="h-4 w-4 rounded" />
 										</div>
 									</TableHead>
-									<TableHead>
+									<TableHead className="h-8 px-2">
 										<Skeleton className="h-3 w-20" />
 									</TableHead>
-									<TableHead className="w-10 text-center">
+									<TableHead className="w-10 text-center h-8 px-0">
 										<Skeleton className="h-3 w-4 mx-auto" />
 									</TableHead>
-									<TableHead className="w-12 text-center">
+									<TableHead className="w-12 text-center h-8 pl-0 pr-3">
 										<Skeleton className="h-3 w-8 mx-auto" />
 									</TableHead>
 								</TableRow>
@@ -445,20 +445,20 @@ export function DocumentsTableShell({
 									{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent, index) => (
 										<TableRow
 											key={`skeleton-${index}`}
-											className="border-b border-border/40 hover:bg-transparent"
+											className="border-b border-border/50 hover:bg-transparent"
 										>
-											<TableCell className="w-8 px-0 py-2.5 text-center">
+											<TableCell className="w-10 pl-3 pr-0 py-1.5 text-center">
 												<div className="flex items-center justify-center h-full">
 													<Skeleton className="h-4 w-4 rounded" />
 												</div>
 											</TableCell>
-											<TableCell className="py-2.5 max-w-0">
+											<TableCell className="px-2 py-1.5 max-w-0">
 												<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
 											</TableCell>
-											<TableCell className="w-10 py-2.5 text-center">
+											<TableCell className="w-10 px-0 py-1.5 text-center">
 												<Skeleton className="h-4 w-4 mx-auto rounded" />
 											</TableCell>
-											<TableCell className="w-12 py-2.5 text-center">
+											<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
 												<Skeleton className="h-5 w-5 mx-auto rounded-full" />
 											</TableCell>
 										</TableRow>
@@ -468,9 +468,9 @@ export function DocumentsTableShell({
 						</div>
 					</div>
 					{/* Mobile Skeleton */}
-					<div className="md:hidden divide-y divide-border/30 h-[50vh] overflow-auto">
+					<div className="md:hidden divide-y divide-border/50 h-[50vh] overflow-auto">
 						{[70, 85, 55, 78, 62, 90].map((widthPercent, index) => (
-							<div key={`skeleton-mobile-${index}`} className="px-4 py-3">
+							<div key={`skeleton-mobile-${index}`} className="px-3 py-2">
 								<div className="flex items-center gap-3">
 									<Skeleton className="h-4 w-4 rounded shrink-0" />
 									<div className="flex-1 min-w-0">
@@ -521,8 +521,8 @@ export function DocumentsTableShell({
 					<div className="hidden md:flex md:flex-col">
 						<Table className="table-fixed w-full">
 							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/40">
-									<TableHead className="w-8 px-0 text-center">
+								<TableRow className="hover:bg-transparent border-b border-border/50">
+									<TableHead className="w-10 pl-3 pr-0 text-center h-8">
 										<div className="flex items-center justify-center h-full">
 											<Checkbox
 												checked={allSelectedOnPage || (someSelectedOnPage && "indeterminate")}
@@ -532,7 +532,7 @@ export function DocumentsTableShell({
 											/>
 										</div>
 									</TableHead>
-									<TableHead>
+									<TableHead className="h-8 px-2">
 										<SortableHeader
 											sortKey="title"
 											currentSortKey={sortKey}
@@ -543,12 +543,12 @@ export function DocumentsTableShell({
 											Document
 										</SortableHeader>
 									</TableHead>
-									<TableHead className="w-10 text-center">
+									<TableHead className="w-10 text-center h-8 px-0">
 										<span className="flex items-center justify-center">
 											<Network size={14} className="text-muted-foreground/70" />
 										</span>
 									</TableHead>
-									<TableHead className="w-12 text-center">
+									<TableHead className="w-12 text-center h-8 pl-0 pr-3">
 										<span className="text-xs font-medium text-muted-foreground/70">
 											Status
 										</span>
@@ -579,53 +579,53 @@ export function DocumentsTableShell({
 															delay: index * 0.02,
 														},
 													}}
-													className={`border-b border-border/40 transition-colors ${
-														isSelected
-															? "bg-primary/5 hover:bg-primary/8"
-															: "hover:bg-muted/30"
-													}`}
-												>
-													<TableCell className="w-8 px-0 py-2.5 text-center">
-														<div className="flex items-center justify-center h-full">
-															<Checkbox
-																checked={isSelected}
-																onCheckedChange={(v) =>
-																	canSelect && toggleOne(doc.id, !!v)
-																}
-																disabled={!canSelect}
-																aria-label={
-																	canSelect
-																		? "Select row"
-																		: "Cannot select while processing"
-																}
-																className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
-															/>
-														</div>
-													</TableCell>
-													<TableCell className="py-2.5 max-w-0">
-														<DocumentNameTooltip
-															doc={doc}
-															className="truncate block text-sm text-foreground cursor-default"
+												className={`border-b border-border/50 transition-colors ${
+													isSelected
+														? "bg-primary/5 hover:bg-primary/8"
+														: "hover:bg-muted/30"
+												}`}
+											>
+												<TableCell className="w-10 pl-3 pr-0 py-1.5 text-center">
+													<div className="flex items-center justify-center h-full">
+														<Checkbox
+															checked={isSelected}
+															onCheckedChange={(v) =>
+																canSelect && toggleOne(doc.id, !!v)
+															}
+															disabled={!canSelect}
+															aria-label={
+																canSelect
+																	? "Select row"
+																	: "Cannot select while processing"
+															}
+															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
 														/>
-													</TableCell>
-													<TableCell className="w-10 py-2.5 text-center">
-														<Tooltip>
-															<TooltipTrigger asChild>
-																<span className="flex items-center justify-center">
-																	{getDocumentTypeIcon(
-																		doc.document_type,
-																		"h-4 w-4"
-																	)}
-																</span>
-															</TooltipTrigger>
-															<TooltipContent side="top">
-																{getDocumentTypeLabel(doc.document_type)}
-															</TooltipContent>
-														</Tooltip>
-													</TableCell>
-													<TableCell className="w-12 py-2.5 text-center">
-														<StatusIndicator status={doc.status} />
-													</TableCell>
+													</div>
+												</TableCell>
+												<TableCell className="px-2 py-1.5 max-w-0">
+													<DocumentNameTooltip
+														doc={doc}
+														className="truncate block text-sm text-foreground cursor-default"
+													/>
+												</TableCell>
+												<TableCell className="w-10 px-0 py-1.5 text-center">
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<span className="flex items-center justify-center">
+																{getDocumentTypeIcon(
+																	doc.document_type,
+																	"h-4 w-4"
+																)}
+															</span>
+														</TooltipTrigger>
+														<TooltipContent side="top">
+															{getDocumentTypeLabel(doc.document_type)}
+														</TooltipContent>
+													</Tooltip>
+												</TableCell>
+												<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
+													<StatusIndicator status={doc.status} />
+												</TableCell>
 												</motion.tr>
 											</RowContextMenu>
 										);
@@ -636,7 +636,7 @@ export function DocumentsTableShell({
 					</div>
 
 					{/* Mobile Card View */}
-					<div className="md:hidden divide-y divide-border/40 h-[50vh] overflow-auto">
+					<div className="md:hidden divide-y divide-border/50 h-[50vh] overflow-auto">
 						{sorted.map((doc, index) => {
 							const isSelected = selectedIds.has(doc.id);
 							const canSelect = isSelectable(doc);
@@ -651,7 +651,7 @@ export function DocumentsTableShell({
 									<motion.div
 										initial={{ opacity: 0 }}
 										animate={{ opacity: 1, transition: { delay: index * 0.03 } }}
-										className={`px-4 py-3 transition-colors ${
+										className={`px-3 py-2 transition-colors ${
 											isSelected ? "bg-primary/5" : "hover:bg-muted/20"
 										}`}
 									>
