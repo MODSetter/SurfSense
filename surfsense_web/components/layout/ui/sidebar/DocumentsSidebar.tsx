@@ -325,7 +325,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			open={open}
 			onOpenChange={onOpenChange}
 			ariaLabel={t("title") || "Documents"}
-			width={isMobile ? undefined : 720}
+			width={isMobile ? undefined : 480}
 		>
 			{documentsContent}
 		</SidebarSlideOutPanel>
