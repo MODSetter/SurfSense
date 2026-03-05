@@ -13,7 +13,6 @@ import {
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
 import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LayoutDataProvider } from "@/components/layout";
@@ -191,8 +190,6 @@ export function DashboardClientLayout({
 			<LayoutDataProvider searchSpaceId={searchSpaceId} breadcrumb={<DashboardBreadcrumb />}>
 				{children}
 			</LayoutDataProvider>
-			{/* Global connector dialog */}
-			<ConnectorIndicator hideTrigger />
 		</DocumentUploadDialogProvider>
 	);
 }

@@ -37,7 +37,7 @@ import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
-export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger = false }) => {
+export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const searchParams = useSearchParams();
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -189,8 +189,7 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 
 	return (
 		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
-			{!hideTrigger && (
-				<TooltipIconButton
+			<TooltipIconButton
 					data-joyride="connector-icon"
 					tooltip={
 						hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"
@@ -220,7 +219,6 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 						</>
 					)}
 				</TooltipIconButton>
-			)}
 
 			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5 select-none">
 				<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
