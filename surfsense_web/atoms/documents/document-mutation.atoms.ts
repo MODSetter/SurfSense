@@ -49,7 +49,6 @@ export const uploadDocumentMutationAtom = atomWithMutation((get) => {
 
 		onSuccess: () => {
 			// Note: Toast notification is handled by the caller (DocumentUploadTab) to use i18n
-			// Invalidate logs summary to show new processing tasks immediately on documents page
 			queryClient.invalidateQueries({
 				queryKey: cacheKeys.logs.summary(searchSpaceId ?? undefined),
 			});

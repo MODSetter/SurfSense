@@ -191,7 +191,7 @@ export function DashboardClientLayout({
 			<LayoutDataProvider searchSpaceId={searchSpaceId} breadcrumb={<DashboardBreadcrumb />}>
 				{children}
 			</LayoutDataProvider>
-			{/* Global connector dialog - triggered from documents page */}
+			{/* Global connector dialog */}
 			<ConnectorIndicator hideTrigger />
 		</DocumentUploadDialogProvider>
 	);
