@@ -298,6 +298,9 @@ export function DocumentsTableShell({
 	onSortChange,
 	deleteDocument,
 	searchSpaceId,
+	hasMore = false,
+	loadingMore = false,
+	onLoadMore,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -310,6 +313,9 @@ export function DocumentsTableShell({
 	onSortChange: (key: SortKey) => void;
 	deleteDocument: (id: number) => Promise<boolean>;
 	searchSpaceId: string;
+	hasMore?: boolean;
+	loadingMore?: boolean;
+	onLoadMore?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
@@ -320,6 +326,31 @@ export function DocumentsTableShell({
 
 	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
+
+	const desktopSentinelRef = useRef<HTMLDivElement>(null);
+	const mobileSentinelRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!onLoadMore || !hasMore || loadingMore) return;
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (entries.some((e) => e.isIntersecting)) {
+					onLoadMore();
+				}
+			},
+			{ root: null, rootMargin: "200px", threshold: 0 }
+		);
+
+		if (desktopSentinelRef.current) {
+			observer.observe(desktopSentinelRef.current);
+		}
+		if (mobileSentinelRef.current) {
+			observer.observe(mobileSentinelRef.current);
+		}
+
+		return () => observer.disconnect();
+	}, [onLoadMore, hasMore, loadingMore]);
 
 	const handleViewDocument = useCallback(async (doc: Document) => {
 		setViewingDoc(doc);
@@ -410,7 +441,7 @@ export function DocumentsTableShell({
 
 	return (
 		<motion.div
-			className="bg-background overflow-hidden select-none border-t border-border/50"
+			className="bg-background overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0"
 			initial={{ opacity: 0, y: 20 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
@@ -418,7 +449,7 @@ export function DocumentsTableShell({
 			{loading ? (
 				<>
 					{/* Desktop Skeleton */}
-					<div className="hidden md:flex md:flex-col">
+					<div className="hidden md:flex md:flex-col flex-1 min-h-0">
 						<Table className="table-fixed w-full">
 							<TableHeader>
 								<TableRow className="hover:bg-transparent border-b border-border/50">
@@ -439,7 +470,7 @@ export function DocumentsTableShell({
 								</TableRow>
 							</TableHeader>
 						</Table>
-						<div className="h-[50vh] overflow-auto">
+						<div className="flex-1 overflow-auto">
 							<Table className="table-fixed w-full">
 								<TableBody>
 									{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent, index) => (
@@ -468,7 +499,7 @@ export function DocumentsTableShell({
 						</div>
 					</div>
 					{/* Mobile Skeleton */}
-					<div className="md:hidden divide-y divide-border/50 h-[50vh] overflow-auto">
+					<div className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
 						{[70, 85, 55, 78, 62, 90].map((widthPercent, index) => (
 							<div key={`skeleton-mobile-${index}`} className="px-3 py-2">
 								<div className="flex items-center gap-3">
@@ -486,14 +517,14 @@ export function DocumentsTableShell({
 					</div>
 				</>
 			) : error ? (
-				<div className="flex h-[50vh] w-full items-center justify-center">
+				<div className="flex flex-1 w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-3">
 						<AlertCircle className="h-8 w-8 text-destructive" />
 						<p className="text-sm text-destructive">{t("error_loading")}</p>
 					</div>
 				</div>
 			) : sorted.length === 0 ? (
-				<div className="flex h-[50vh] w-full items-center justify-center">
+				<div className="flex flex-1 w-full items-center justify-center">
 					<motion.div
 						initial={{ opacity: 0, y: 20 }}
 						animate={{ opacity: 1, y: 0 }}
@@ -518,7 +549,7 @@ export function DocumentsTableShell({
 			) : (
 				<>
 					{/* Desktop Table View */}
-					<div className="hidden md:flex md:flex-col">
+					<div className="hidden md:flex md:flex-col flex-1 min-h-0">
 						<Table className="table-fixed w-full">
 							<TableHeader>
 								<TableRow className="hover:bg-transparent border-b border-border/50">
@@ -556,7 +587,7 @@ export function DocumentsTableShell({
 								</TableRow>
 							</TableHeader>
 						</Table>
-						<div className="h-[50vh] overflow-auto">
+						<div className="flex-1 overflow-auto">
 							<Table className="table-fixed w-full">
 								<TableBody>
 									{sorted.map((doc, index) => {
@@ -571,14 +602,9 @@ export function DocumentsTableShell({
 												searchSpaceId={searchSpaceId}
 											>
 												<motion.tr
-													initial={{ opacity: 0 }}
-													animate={{
-														opacity: 1,
-														transition: {
-															duration: 0.2,
-															delay: index * 0.02,
-														},
-													}}
+													initial={index < 20 ? { opacity: 0 } : false}
+													animate={{ opacity: 1 }}
+													transition={index < 20 ? { duration: 0.15, delay: index * 0.02 } : { duration: 0 }}
 												className={`border-b border-border/50 transition-colors ${
 													isSelected
 														? "bg-primary/5 hover:bg-primary/8"
@@ -632,11 +658,16 @@ export function DocumentsTableShell({
 									})}
 								</TableBody>
 							</Table>
-						</div>
+						{hasMore && (
+							<div ref={desktopSentinelRef} className="flex items-center justify-center py-3">
+								{loadingMore && <Spinner size="sm" className="text-muted-foreground" />}
+							</div>
+						)}
 					</div>
+				</div>
 
-					{/* Mobile Card View */}
-					<div className="md:hidden divide-y divide-border/50 h-[50vh] overflow-auto">
+				{/* Mobile Card View */}
+					<div className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
 						{sorted.map((doc, index) => {
 							const isSelected = selectedIds.has(doc.id);
 							const canSelect = isSelectable(doc);
@@ -649,8 +680,9 @@ export function DocumentsTableShell({
 									searchSpaceId={searchSpaceId}
 								>
 									<motion.div
-										initial={{ opacity: 0 }}
-										animate={{ opacity: 1, transition: { delay: index * 0.03 } }}
+										initial={index < 20 ? { opacity: 0 } : false}
+										animate={{ opacity: 1 }}
+										transition={index < 20 ? { duration: 0.15, delay: index * 0.03 } : { duration: 0 }}
 										className={`px-3 py-2 transition-colors ${
 											isSelected ? "bg-primary/5" : "hover:bg-muted/20"
 										}`}
@@ -696,7 +728,12 @@ export function DocumentsTableShell({
 								</RowContextMenu>
 							);
 						})}
-					</div>
+					{hasMore && (
+						<div ref={mobileSentinelRef} className="flex items-center justify-center py-3">
+							{loadingMore && <Spinner size="sm" className="text-muted-foreground" />}
+						</div>
+					)}
+				</div>
 				</>
 			)}
 
