@@ -26,6 +26,7 @@ permissions:
 jobs:
   tag_release:
     runs-on: ubuntu-latest
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event_name == 'workflow_dispatch'
     outputs:
       new_tag: ${{ steps.tag_version.outputs.next_version }}
     steps:
@@ -86,6 +87,7 @@ jobs:
 
   build:
     needs: tag_release
+    if: always() && (needs.tag_release.result == 'success' || needs.tag_release.result == 'skipped')
     runs-on: ${{ matrix.os }}
     permissions:
       packages: write
@@ -183,6 +185,7 @@ jobs:
   create_manifest:
     runs-on: ubuntu-latest
     needs: [tag_release, build]
+    if: always() && needs.build.result == 'success'
     permissions:
       packages: write
       contents: read
@@ -228,7 +231,11 @@ jobs:
         id: appver
         run: |
           VERSION_TAG="${{ needs.tag_release.outputs.new_tag }}"
-          APP_VERSION=$(echo "$VERSION_TAG" | rev | cut -d. -f2- | rev)
+          if [ -n "$VERSION_TAG" ]; then
+            APP_VERSION=$(echo "$VERSION_TAG" | rev | cut -d. -f2- | rev)
+          else
+            APP_VERSION=""
+          fi
           echo "app_version=$APP_VERSION" >> $GITHUB_OUTPUT
 
       - name: Docker meta
@@ -237,9 +244,10 @@ jobs:
         with:
           images: ${{ steps.image.outputs.name }}
           tags: |
-            type=raw,value=${{ needs.tag_release.outputs.new_tag }}
-            type=raw,value=${{ steps.appver.outputs.app_version }},enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
+            type=raw,value=${{ needs.tag_release.outputs.new_tag }},enable=${{ needs.tag_release.outputs.new_tag != '' }}
+            type=raw,value=${{ steps.appver.outputs.app_version }},enable=${{ needs.tag_release.outputs.new_tag != '' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch) }}
             type=ref,event=branch
+            type=sha,prefix=git-
           flavor: |
             latest=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || github.event.inputs.branch == github.event.repository.default_branch }}
 
@@ -249,7 +257,6 @@ jobs:
           docker buildx imagetools create \
             $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
             $(printf '${{ steps.image.outputs.name }}@sha256:%s ' *)
-
       - name: Inspect image
         run: |
           docker buildx imagetools inspect ${{ steps.image.outputs.name }}:${{ steps.meta.outputs.version }}
