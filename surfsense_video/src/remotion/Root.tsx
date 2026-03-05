@@ -1,3 +1,4 @@
+import React from "react";
 import { Composition } from "remotion";
 import {
   COMP_NAME,
@@ -9,6 +10,7 @@ import {
 } from "../types/constants";
 import { Main } from "./MyComp/Main";
 import { NextLogo } from "./MyComp/NextLogo";
+import { gridPreviews } from "./scenes/grid/preview";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -33,6 +35,10 @@ export const RemotionRoot: React.FC = () => {
           outProgress: 0,
         }}
       />
+      {gridPreviews}
     </>
   );
 };
+
+
+

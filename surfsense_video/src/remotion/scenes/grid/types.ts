@@ -1,4 +1,10 @@
+/**
+ * Zod schemas and inferred types for grid scene card data.
+ * Each card category has its own schema; CardItem is the discriminated union.
+ */
 import { z } from "zod";
+
+// ── Card category schemas ──
 
 export const StatItem = z.object({
   category: z.literal("stat"),
@@ -17,29 +23,11 @@ export const InfoItem = z.object({
   color: z.string(),
 });
 
-export const ListItem = z.object({
-  category: z.literal("list"),
-  title: z.string(),
-  subtitle: z.string().optional(),
-  bullets: z.array(z.string()),
-  color: z.string(),
-});
-
 export const QuoteItem = z.object({
   category: z.literal("quote"),
   quote: z.string(),
   author: z.string(),
   role: z.string().optional(),
-  color: z.string(),
-});
-
-export const ComparisonItem = z.object({
-  category: z.literal("comparison"),
-  title: z.string(),
-  labelA: z.string(),
-  valueA: z.string(),
-  labelB: z.string(),
-  valueB: z.string(),
   color: z.string(),
 });
 
@@ -49,22 +37,6 @@ export const ProfileItem = z.object({
   role: z.string(),
   desc: z.string().optional(),
   tag: z.string().optional(),
-  color: z.string(),
-});
-
-export const RankingItem = z.object({
-  category: z.literal("ranking"),
-  rank: z.number(),
-  title: z.string(),
-  value: z.string().optional(),
-  desc: z.string().optional(),
-  color: z.string(),
-});
-
-export const KeyValueItem = z.object({
-  category: z.literal("keyvalue"),
-  title: z.string(),
-  pairs: z.array(z.object({ label: z.string(), value: z.string() })),
   color: z.string(),
 });
 
@@ -84,14 +56,6 @@ export const FactItem = z.object({
   color: z.string(),
 });
 
-export const StepItem = z.object({
-  category: z.literal("step"),
-  step: z.number(),
-  title: z.string(),
-  desc: z.string().optional(),
-  color: z.string(),
-});
-
 export const DefinitionItem = z.object({
   category: z.literal("definition"),
   term: z.string(),
@@ -100,19 +64,11 @@ export const DefinitionItem = z.object({
   color: z.string(),
 });
 
+// ── Unions & scene input ──
+
 export const CardItem = z.discriminatedUnion("category", [
-  StatItem,
-  InfoItem,
-  ListItem,
-  QuoteItem,
-  ComparisonItem,
-  ProfileItem,
-  RankingItem,
-  KeyValueItem,
-  ProgressItem,
-  FactItem,
-  StepItem,
-  DefinitionItem,
+  StatItem, InfoItem, QuoteItem, ProfileItem,
+  ProgressItem, FactItem, DefinitionItem,
 ]);
 
 export const GridSceneInput = z.object({
@@ -120,17 +76,14 @@ export const GridSceneInput = z.object({
   items: z.array(CardItem).min(1).max(8),
 });
 
+// ── Inferred types ──
+
 export type StatItem = z.infer<typeof StatItem>;
 export type InfoItem = z.infer<typeof InfoItem>;
-export type ListItem = z.infer<typeof ListItem>;
 export type QuoteItem = z.infer<typeof QuoteItem>;
-export type ComparisonItem = z.infer<typeof ComparisonItem>;
 export type ProfileItem = z.infer<typeof ProfileItem>;
-export type RankingItem = z.infer<typeof RankingItem>;
-export type KeyValueItem = z.infer<typeof KeyValueItem>;
 export type ProgressItem = z.infer<typeof ProgressItem>;
 export type FactItem = z.infer<typeof FactItem>;
-export type StepItem = z.infer<typeof StepItem>;
 export type DefinitionItem = z.infer<typeof DefinitionItem>;
 export type CardItem = z.infer<typeof CardItem>;
 export type CardCategory = CardItem["category"];
