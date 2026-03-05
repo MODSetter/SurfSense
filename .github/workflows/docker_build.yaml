@@ -262,6 +262,6 @@ jobs:
           docker buildx imagetools inspect ${{ steps.image.outputs.name }}:${{ steps.meta.outputs.version }}
 
       - name: Summary
-        run: |
+        run: | 
           echo "Multi-arch manifest created for ${{ matrix.name }}!"
           echo "Tags: $(jq -cr '.tags | join(", ")' <<< "$DOCKER_METADATA_OUTPUT_JSON")"
