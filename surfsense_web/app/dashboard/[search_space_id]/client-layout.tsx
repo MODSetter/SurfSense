@@ -27,8 +27,6 @@ export function DashboardClientLayout({
 }: {
 	children: React.ReactNode;
 	searchSpaceId: string;
-	navSecondary?: any[];
-	navMain?: any[];
 }) {
 	const t = useTranslations("dashboard");
 	const router = useRouter();

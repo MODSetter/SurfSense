@@ -114,6 +114,9 @@ export function LayoutDataProvider({
 	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
 	const [isInboxDocked, setIsInboxDocked] = useState(false);
 
+	// Documents sidebar state
+	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useState(false);
+
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
@@ -301,9 +304,9 @@ export function LayoutDataProvider({
 			},
 			{
 				title: "Documents",
-				url: `/dashboard/${searchSpaceId}/documents`,
+				url: "#documents",
 				icon: SquareLibrary,
-				isActive: pathname?.includes("/documents"),
+				isActive: isDocumentsSidebarOpen,
 			},
 			{
 				title: "Announcements",
@@ -313,7 +316,7 @@ export function LayoutDataProvider({
 				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 			},
 		],
-		[searchSpaceId, pathname, isInboxSidebarOpen, totalUnreadCount, announcementUnreadCount]
+		[pathname, isInboxSidebarOpen, isDocumentsSidebarOpen, totalUnreadCount, announcementUnreadCount]
 	);
 
 	// Handlers
@@ -409,6 +412,19 @@ export function LayoutDataProvider({
 			if (item.url === "#inbox") {
 				setIsInboxSidebarOpen((prev) => {
 					if (!prev) {
+						setIsAllSharedChatsSidebarOpen(false);
+						setIsAllPrivateChatsSidebarOpen(false);
+						setIsDocumentsSidebarOpen(false);
+					}
+					return !prev;
+				});
+				return;
+			}
+			// Handle documents specially - toggle sidebar instead of navigating
+			if (item.url === "#documents") {
+				setIsDocumentsSidebarOpen((prev) => {
+					if (!prev) {
+						setIsInboxSidebarOpen(false);
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
 					}
@@ -515,12 +531,14 @@ export function LayoutDataProvider({
 		setIsAllSharedChatsSidebarOpen(true);
 		setIsAllPrivateChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
+		setIsDocumentsSidebarOpen(false);
 	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
 		setIsAllPrivateChatsSidebarOpen(true);
 		setIsAllSharedChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
+		setIsDocumentsSidebarOpen(false);
 	}, []);
 
 	// Delete handlers
@@ -650,6 +668,10 @@ export function LayoutDataProvider({
 					open: isAllPrivateChatsSidebarOpen,
 					onOpenChange: setIsAllPrivateChatsSidebarOpen,
 					searchSpaceId,
+				}}
+				documentsPanel={{
+					open: isDocumentsSidebarOpen,
+					onOpenChange: setIsDocumentsSidebarOpen,
 				}}
 			>
 				{children}

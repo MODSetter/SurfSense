@@ -13,6 +13,7 @@ import { IconRail } from "../icon-rail";
 import {
 	AllPrivateChatsSidebar,
 	AllSharedChatsSidebar,
+	DocumentsSidebar,
 	InboxSidebar,
 	MobileSidebar,
 	MobileSidebarTrigger,
@@ -94,6 +95,10 @@ interface LayoutShellProps {
 		onOpenChange: (open: boolean) => void;
 		searchSpaceId: string;
 	};
+	documentsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
 }
 
 export function LayoutShell({
@@ -133,6 +138,7 @@ export function LayoutShell({
 	isLoadingChats = false,
 	allSharedChatsPanel,
 	allPrivateChatsPanel,
+	documentsPanel,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -208,6 +214,14 @@ export function LayoutShell({
 								markAsRead={inbox.markAsRead}
 								markAllAsRead={inbox.markAllAsRead}
 								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+							/>
+						)}
+
+						{/* Mobile Documents Sidebar - slide-out panel */}
+						{documentsPanel && (
+							<DocumentsSidebar
+								open={documentsPanel.open}
+								onOpenChange={documentsPanel.onOpenChange}
 							/>
 						)}
 
@@ -322,6 +336,14 @@ export function LayoutShell({
 								markAllAsRead={inbox.markAllAsRead}
 								isDocked={false}
 								onDockedChange={inbox.onDockedChange}
+							/>
+						)}
+
+						{/* Documents Sidebar - slide-out panel */}
+						{documentsPanel && (
+							<DocumentsSidebar
+								open={documentsPanel.open}
+								onOpenChange={documentsPanel.onOpenChange}
 							/>
 						)}
 

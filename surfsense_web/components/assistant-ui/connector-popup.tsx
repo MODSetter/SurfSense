@@ -415,7 +415,6 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 										activeDocumentTypes={activeDocumentTypes}
 										connectors={connectors as SearchSourceConnector[]}
 										indexingConnectorIds={indexingConnectorIds}
-										searchSpaceId={searchSpaceId}
 										onTabChange={handleTabChange}
 										onManage={handleStartEdit}
 										onViewAccountsList={handleViewAccountsList}

@@ -118,7 +118,6 @@ export function DashboardBreadcrumb() {
 
 					// Handle editor sub-sections (document ID)
 					if (section === "editor") {
-						// Handle special cases for editor
 						let documentLabel: string;
 						if (subSection === "new") {
 							documentLabel = "New Note";
@@ -128,11 +127,9 @@ export function DashboardBreadcrumb() {
 
 						breadcrumbs.push({
 							label: t("documents"),
-							href: `/dashboard/${segments[1]}/documents`,
 						});
 						breadcrumbs.push({
 							label: sectionLabel,
-							href: `/dashboard/${segments[1]}/documents`,
 						});
 						breadcrumbs.push({ label: documentLabel });
 						return breadcrumbs;
@@ -148,7 +145,6 @@ export function DashboardBreadcrumb() {
 						const documentLabel = documentLabels[subSection] || subSection;
 						breadcrumbs.push({
 							label: t("documents"),
-							href: `/dashboard/${segments[1]}/documents`,
 						});
 						breadcrumbs.push({ label: documentLabel });
 						return breadcrumbs;
