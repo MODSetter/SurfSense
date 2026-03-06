@@ -73,6 +73,7 @@ from .shared_memory import (
     create_save_shared_memory_tool,
 )
 from .user_memory import create_recall_memory_tool, create_save_memory_tool
+from .video import create_generate_video_tool
 
 # =============================================================================
 # Tool Definition
@@ -122,6 +123,17 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["search_space_id", "db_session", "connector_service"],
         # Note: available_connectors and available_document_types are optional
+    ),
+    # Video generation tool
+    ToolDefinition(
+        name="generate_video",
+        description="Generate an animated Remotion video from conversation content",
+        factory=lambda deps: create_generate_video_tool(
+            search_space_id=deps["search_space_id"],
+            thread_id=deps["thread_id"],
+            db_session=deps["db_session"],
+        ),
+        requires=["search_space_id", "thread_id", "db_session"],
     ),
     # Podcast generation tool
     ToolDefinition(

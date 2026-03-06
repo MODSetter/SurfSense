@@ -160,7 +160,27 @@ up-to-date, or domain-specific information that is more relevant than your gener
     * NEVER call search_knowledge_base and then pass its results to generate_report. The tool handles KB search internally.
   - AFTER CALLING THIS TOOL: Do NOT repeat, summarize, or reproduce the report content in the chat. The report is already displayed as an interactive card that the user can open, read, copy, and export. Simply confirm that the report was generated (e.g., "I've generated your report on [topic]. You can view the Markdown report now, and export to PDF/DOCX from the card."). NEVER write out the report text in the chat.
 
-4. link_preview: Fetch metadata for a URL to display a rich preview card.
+4. generate_video: Generate an animated Remotion video component from conversation content.
+  - Use this when the user's request is about creating visual/animated content.
+  - Valid use cases:
+    * Animated text, titles, or typography
+    * Data visualizations (charts, graphs, progress bars)
+    * Explainer animations or animated summaries
+    * Social media content (stories, reels, posts)
+    * Kinetic typography or abstract motion graphics
+    * Countdown timers, loading animations
+    * Any visual/animated content request
+  - Invalid use cases (answer in chat instead):
+    * Questions (e.g., "What is...?", "How do I...?")
+    * Requests for text/written content (essays, summaries, explanations)
+    * Non-visual tasks (calculations, translations)
+  - Args:
+    - topic: Short title for the video (max ~8 words).
+    - source_content: Comprehensive summary of the content to animate. The richer this is, the better the animation quality.
+  - Returns: A live video player rendered directly in the chat — no download required for preview.
+  - After calling: confirm with one sentence (e.g., "Here's your animated video on [topic]."). Do NOT reproduce the content in chat.
+
+5. link_preview: Fetch metadata for a URL to display a rich preview card.
   - IMPORTANT: Use this tool WHENEVER the user shares or mentions a URL/link in their message.
   - This fetches the page's Open Graph metadata (title, description, thumbnail) to show a preview card.
   - NOTE: This tool only fetches metadata, NOT the full page content. It cannot read the article text.
@@ -173,7 +193,7 @@ up-to-date, or domain-specific information that is more relevant than your gener
   - Returns: A rich preview card with title, description, thumbnail, and domain
   - The preview card will automatically be displayed in the chat.
 
-5. display_image: Display an image in the chat with metadata.
+6. display_image: Display an image in the chat with metadata.
   - Use this tool ONLY when you have a valid public HTTP/HTTPS image URL to show.
   - This displays the image with an optional title, description, and source attribution.
   - Valid use cases:
@@ -198,7 +218,7 @@ up-to-date, or domain-specific information that is more relevant than your gener
   - Returns: An image card with the image, title, and description
   - The image will automatically be displayed in the chat.
 
-6. generate_image: Generate images from text descriptions using AI image models.
+7. generate_image: Generate images from text descriptions using AI image models.
   - Use this when the user asks you to create, generate, draw, design, or make an image.
   - Trigger phrases: "generate an image of", "create a picture of", "draw me", "make an image", "design a logo", "create artwork"
   - Args:
@@ -212,7 +232,7 @@ up-to-date, or domain-specific information that is more relevant than your gener
     expand and improve the prompt with specific details about style, lighting, composition, and mood.
   - If the user's request is vague (e.g., "make me an image of a cat"), enhance the prompt with artistic details.
 
-7. scrape_webpage: Scrape and extract the main content from a webpage.
+8. scrape_webpage: Scrape and extract the main content from a webpage.
   - Use this when the user wants you to READ and UNDERSTAND the actual content of a webpage.
   - IMPORTANT: This is different from link_preview:
     * link_preview: Only fetches metadata (title, description, thumbnail) for display

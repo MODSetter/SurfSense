@@ -36,7 +36,9 @@ _cache_timestamp: float = 0
 #                 OpenAI deployments (which require deployment names, not model ids).
 OPENROUTER_SLUG_TO_PROVIDER: dict[str, str] = {
     "openai": "OPENAI",
-    "anthropic": "ANTHROPIC",
+    # "anthropic" intentionally excluded: OpenRouter uses undated names like
+    # "claude-sonnet-4.5" (dots) which Anthropic's native API rejects.
+    # The hand-curated static list in llm-models.ts has the correct dated IDs.
     "google": "GOOGLE",
     "mistralai": "MISTRAL",
     "cohere": "COHERE",

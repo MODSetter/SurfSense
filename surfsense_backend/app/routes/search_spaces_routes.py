@@ -490,14 +490,17 @@ async def get_llm_preferences(
         image_generation_config = await _get_image_gen_config_by_id(
             session, search_space.image_generation_config_id
         )
+        video_llm = await _get_llm_config_by_id(session, search_space.video_llm_id)
 
         return LLMPreferencesRead(
             agent_llm_id=search_space.agent_llm_id,
             document_summary_llm_id=search_space.document_summary_llm_id,
             image_generation_config_id=search_space.image_generation_config_id,
+            video_llm_id=search_space.video_llm_id,
             agent_llm=agent_llm,
             document_summary_llm=document_summary_llm,
             image_generation_config=image_generation_config,
+            video_llm=video_llm,
         )
 
     except HTTPException:
@@ -557,14 +560,17 @@ async def update_llm_preferences(
         image_generation_config = await _get_image_gen_config_by_id(
             session, search_space.image_generation_config_id
         )
+        video_llm = await _get_llm_config_by_id(session, search_space.video_llm_id)
 
         return LLMPreferencesRead(
             agent_llm_id=search_space.agent_llm_id,
             document_summary_llm_id=search_space.document_summary_llm_id,
             image_generation_config_id=search_space.image_generation_config_id,
+            video_llm_id=search_space.video_llm_id,
             agent_llm=agent_llm,
             document_summary_llm=document_summary_llm,
             image_generation_config=image_generation_config,
+            video_llm=video_llm,
         )
 
     except HTTPException:

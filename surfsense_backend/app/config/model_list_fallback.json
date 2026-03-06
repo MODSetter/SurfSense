@@ -342,7 +342,7 @@
       "expiration_date": null
     },
     {
-      "id": "anthropic/claude-opus-4.6",
+      "id": "anthropic/claude-opus-4-6",
       "canonical_slug": "anthropic/claude-4.6-opus-20260205",
       "hugging_face_id": "",
       "name": "Anthropic: Claude Opus 4.6",

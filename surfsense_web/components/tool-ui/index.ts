@@ -32,6 +32,7 @@ export {
 } from "./display-image";
 export { GeneratePodcastToolUI } from "./generate-podcast";
 export { GenerateReportToolUI } from "./generate-report";
+export { GenerateVideoToolUI } from "./generate-video";
 export { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "./google-drive";
 export {
 	Image,

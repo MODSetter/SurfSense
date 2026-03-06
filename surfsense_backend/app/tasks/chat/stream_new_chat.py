@@ -430,6 +430,23 @@ async def _stream_agent_events(
                     status="in_progress",
                     items=last_active_step_items,
                 )
+            elif tool_name == "generate_video":
+                video_topic = (
+                    tool_input.get("topic", "Video")
+                    if isinstance(tool_input, dict)
+                    else "Video"
+                )
+                last_active_step_title = "Generating video"
+                last_active_step_items = [
+                    f"Topic: {video_topic}",
+                    "Composing visual content...",
+                ]
+                yield streaming_service.format_thinking_step(
+                    step_id=tool_step_id,
+                    title="Generating video",
+                    status="in_progress",
+                    items=last_active_step_items,
+                )
             elif tool_name == "execute":
                 cmd = (
                     tool_input.get("command", "")
@@ -661,6 +678,42 @@ async def _stream_agent_events(
                     status="completed",
                     items=completed_items,
                 )
+            elif tool_name == "generate_video":
+                video_status = (
+                    tool_output.get("status", "unknown")
+                    if isinstance(tool_output, dict)
+                    else "unknown"
+                )
+                video_title = (
+                    tool_output.get("topic", "Video")
+                    if isinstance(tool_output, dict)
+                    else "Video"
+                )
+
+                if video_status == "success":
+                    completed_items = [
+                        f"Topic: {video_title}",
+                        "Video ready",
+                    ]
+                elif video_status == "error":
+                    error_msg = (
+                        tool_output.get("error", "Unknown error")
+                        if isinstance(tool_output, dict)
+                        else "Unknown error"
+                    )
+                    completed_items = [
+                        f"Topic: {video_title}",
+                        f"Failed: {error_msg}",
+                    ]
+                else:
+                    completed_items = last_active_step_items
+
+                yield streaming_service.format_thinking_step(
+                    step_id=original_step_id,
+                    title="Generating video",
+                    status="completed",
+                    items=completed_items,
+                )
             elif tool_name == "execute":
                 raw_text = (
                     tool_output.get("result", "")
@@ -864,7 +917,7 @@ async def _stream_agent_events(
                         f"Report generation failed: {error_msg}",
                         "error",
                     )
-            elif tool_name in (
+            elif tool_name == "generate_video" or tool_name in (
                 "create_notion_page",
                 "update_notion_page",
                 "delete_notion_page",

@@ -32,6 +32,7 @@ logger = logging.getLogger(__name__)
 class LLMRole:
     AGENT = "agent"  # For agent/chat operations
     DOCUMENT_SUMMARY = "document_summary"  # For document summarization
+    VIDEO = "video"  # For Remotion video code generation
 
 
 def get_global_llm_config(llm_config_id: int) -> dict | None:
@@ -208,6 +209,8 @@ async def get_search_space_llm_instance(
             llm_config_id = search_space.agent_llm_id
         elif role == LLMRole.DOCUMENT_SUMMARY:
             llm_config_id = search_space.document_summary_llm_id
+        elif role == LLMRole.VIDEO:
+            llm_config_id = search_space.video_llm_id or search_space.agent_llm_id
         else:
             logger.error(f"Invalid LLM role: {role}")
             return None
@@ -388,6 +391,13 @@ async def get_agent_llm(
 ) -> ChatLiteLLM | ChatLiteLLMRouter | None:
     """Get the search space's agent LLM instance for chat operations."""
     return await get_search_space_llm_instance(session, search_space_id, LLMRole.AGENT)
+
+
+async def get_video_llm(
+    session: AsyncSession, search_space_id: int
+) -> ChatLiteLLM | ChatLiteLLMRouter | None:
+    """Get the search space's video LLM instance, falling back to the agent LLM if not set."""
+    return await get_search_space_llm_instance(session, search_space_id, LLMRole.VIDEO)
 
 
 async def get_document_summary_llm(

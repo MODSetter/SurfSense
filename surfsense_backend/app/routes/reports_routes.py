@@ -37,6 +37,7 @@ from app.db import (
 from app.schemas import ReportContentRead, ReportContentUpdate, ReportRead
 from app.schemas.reports import ReportVersionInfo
 from app.users import current_active_user
+from app.utils.content_utils import strip_code_fences
 from app.utils.rbac import check_search_space_access
 
 logger = logging.getLogger(__name__)
@@ -55,16 +56,7 @@ class ExportFormat(StrEnum):
 # Helpers
 # ---------------------------------------------------------------------------
 
-_CODE_FENCE_RE = re.compile(r"^```(?:markdown|md)?\s*\n", re.MULTILINE)
-
-
-def _strip_wrapping_code_fences(text: str) -> str:
-    """Remove wrapping code fences (```markdown...```) that LLMs often add."""
-    stripped = text.strip()
-    m = _CODE_FENCE_RE.match(stripped)
-    if m and stripped.endswith("```"):
-        stripped = stripped[m.end() : -3].rstrip()
-    return stripped
+_strip_wrapping_code_fences = strip_code_fences
 
 
 def _normalize_latex_delimiters(text: str) -> str:

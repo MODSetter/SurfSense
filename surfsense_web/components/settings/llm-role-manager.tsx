@@ -7,6 +7,7 @@ import {
 	CheckCircle,
 	CircleDashed,
 	FileText,
+	Film,
 	ImageIcon,
 	RefreshCw,
 	RotateCcw,
@@ -72,6 +73,15 @@ const ROLE_DESCRIPTIONS = {
 		prefKey: "image_generation_config_id" as const,
 		configType: "image" as const,
 	},
+	video: {
+		icon: Film,
+		title: "Video LLM",
+		description: "LLM for Remotion video code generation — use a reasoning model for best results",
+		color: "text-orange-600 dark:text-orange-400",
+		bgColor: "bg-orange-500/10",
+		prefKey: "video_llm_id" as const,
+		configType: "llm" as const,
+	},
 };
 
 interface LLMRoleManagerProps {
@@ -117,6 +127,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		agent_llm_id: preferences.agent_llm_id ?? "",
 		document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 		image_generation_config_id: preferences.image_generation_config_id ?? "",
+		video_llm_id: preferences.video_llm_id ?? "",
 	});
 
 	const [hasChanges, setHasChanges] = useState(false);
@@ -127,6 +138,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 			image_generation_config_id: preferences.image_generation_config_id ?? "",
+			video_llm_id: preferences.video_llm_id ?? "",
 		};
 		setAssignments(newAssignments);
 		setHasChanges(false);
@@ -144,6 +156,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 			image_generation_config_id: preferences.image_generation_config_id ?? "",
+			video_llm_id: preferences.video_llm_id ?? "",
 		};
 
 		const hasChangesNow = Object.keys(newAssignments).some(
@@ -165,6 +178,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			agent_llm_id: toNumericOrUndefined(assignments.agent_llm_id),
 			document_summary_llm_id: toNumericOrUndefined(assignments.document_summary_llm_id),
 			image_generation_config_id: toNumericOrUndefined(assignments.image_generation_config_id),
+			video_llm_id: toNumericOrUndefined(assignments.video_llm_id),
 		};
 
 		await updatePreferences({
@@ -183,6 +197,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			agent_llm_id: preferences.agent_llm_id ?? "",
 			document_summary_llm_id: preferences.document_summary_llm_id ?? "",
 			image_generation_config_id: preferences.image_generation_config_id ?? "",
+			video_llm_id: preferences.video_llm_id ?? "",
 		});
 		setHasChanges(false);
 	};
