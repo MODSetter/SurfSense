@@ -622,23 +622,6 @@
 		"add_first_config": "添加首个配置",
 		"created": "创建于"
 	},
-	"breadcrumb": {
-		"dashboard": "仪表盘",
-		"search_space": "搜索空间",
-		"chat": "聊天",
-		"documents": "文档",
-		"connectors": "连接器",
-		"editor": "编辑器",
-		"logs": "日志",
-		"settings": "设置",
-		"upload_documents": "上传文档",
-		"add_youtube": "添加 YouTube 视频",
-		"add_webpages": "添加网页",
-		"add_connector": "添加连接器",
-		"manage_connectors": "管理连接器",
-		"edit_connector": "编辑连接器",
-		"manage": "管理"
-	},
 	"sidebar": {
 		"chats": "私人对话",
 		"shared_chats": "共享对话",

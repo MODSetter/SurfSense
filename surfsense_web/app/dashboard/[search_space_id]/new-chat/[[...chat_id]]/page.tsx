@@ -750,15 +750,6 @@ export default function NewChatPage() {
 								queryClient.invalidateQueries({
 									queryKey: ["threads", String(searchSpaceId)],
 								});
-								// Invalidate thread detail for breadcrumb update
-								queryClient.invalidateQueries({
-									queryKey: [
-										"threads",
-										String(searchSpaceId),
-										"detail",
-										String(titleData.threadId),
-									],
-								});
 							}
 							break;
 						}

@@ -638,23 +638,6 @@
 		"add_first_config": "Add First Configuration",
 		"created": "Created"
 	},
-	"breadcrumb": {
-		"dashboard": "Dashboard",
-		"search_space": "Search Space",
-		"chat": "Chat",
-		"documents": "Documents",
-		"connectors": "Connectors",
-		"editor": "Editor",
-		"logs": "Logs",
-		"settings": "Settings",
-		"upload_documents": "Upload Documents",
-		"add_youtube": "Add YouTube Videos",
-		"add_webpages": "Add Webpages",
-		"add_connector": "Add Connector",
-		"manage_connectors": "Manage Connectors",
-		"edit_connector": "Edit Connector",
-		"manage": "Manage"
-	},
 	"sidebar": {
 		"chats": "Private Chats",
 		"shared_chats": "Shared Chats",

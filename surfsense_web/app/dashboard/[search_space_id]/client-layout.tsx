@@ -14,7 +14,6 @@ import {
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
-import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -187,7 +186,7 @@ export function DashboardClientLayout({
 	return (
 		<DocumentUploadDialogProvider>
 			<OnboardingTour />
-			<LayoutDataProvider searchSpaceId={searchSpaceId} breadcrumb={<DashboardBreadcrumb />}>
+			<LayoutDataProvider searchSpaceId={searchSpaceId}>
 				{children}
 			</LayoutDataProvider>
 		</DocumentUploadDialogProvider>

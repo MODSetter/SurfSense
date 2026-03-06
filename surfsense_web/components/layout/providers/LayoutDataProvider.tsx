@@ -47,7 +47,6 @@ import { LayoutShell } from "../ui/shell";
 interface LayoutDataProviderProps {
 	searchSpaceId: string;
 	children: React.ReactNode;
-	breadcrumb?: React.ReactNode;
 }
 
 /**
@@ -64,7 +63,6 @@ function formatInboxCount(count: number): string {
 export function LayoutDataProvider({
 	searchSpaceId,
 	children,
-	breadcrumb,
 }: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
@@ -537,10 +535,6 @@ export function LayoutDataProvider({
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
-			// Invalidate thread detail for breadcrumb update
-			queryClient.invalidateQueries({
-				queryKey: ["threads", searchSpaceId, "detail", String(chatToRename.id)],
-			});
 		} catch (error) {
 			console.error("Error renaming thread:", error);
 			toast.error(tSidebar("error_renaming_chat") || "Failed to rename chat");
@@ -595,7 +589,6 @@ export function LayoutDataProvider({
 				onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
-				breadcrumb={breadcrumb}
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}

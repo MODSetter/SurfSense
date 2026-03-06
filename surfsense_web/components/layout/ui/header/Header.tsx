@@ -7,11 +7,10 @@ import { ChatShareButton } from "@/components/new-chat/chat-share-button";
 import type { ChatVisibility, ThreadRecord } from "@/lib/chat/thread-persistence";
 
 interface HeaderProps {
-	breadcrumb?: React.ReactNode;
 	mobileMenuTrigger?: React.ReactNode;
 }
 
-export function Header({ breadcrumb, mobileMenuTrigger }: HeaderProps) {
+export function Header({ mobileMenuTrigger }: HeaderProps) {
 	const pathname = usePathname();
 
 	// Check if we're on a chat page
@@ -46,10 +45,9 @@ export function Header({ breadcrumb, mobileMenuTrigger }: HeaderProps) {
 
 	return (
 		<header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 px-4">
-			{/* Left side - Mobile menu trigger + Breadcrumb */}
+			{/* Left side - Mobile menu trigger */}
 			<div className="flex flex-1 items-center gap-2 min-w-0">
 				{mobileMenuTrigger}
-				<div className="hidden md:block">{breadcrumb}</div>
 			</div>
 
 			{/* Right side - Actions */}

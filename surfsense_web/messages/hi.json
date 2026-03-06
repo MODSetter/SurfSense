@@ -638,23 +638,6 @@
 		"add_first_config": "पहली कॉन्फ़िगरेशन जोड़ें",
 		"created": "बनाया गया"
 	},
-	"breadcrumb": {
-		"dashboard": "डैशबोर्ड",
-		"search_space": "सर्च स्पेस",
-		"chat": "चैट",
-		"documents": "दस्तावेज़",
-		"connectors": "कनेक्टर",
-		"editor": "एडिटर",
-		"logs": "लॉग",
-		"settings": "सेटिंग्स",
-		"upload_documents": "दस्तावेज़ अपलोड करें",
-		"add_youtube": "YouTube वीडियो जोड़ें",
-		"add_webpages": "वेबपेज जोड़ें",
-		"add_connector": "कनेक्टर जोड़ें",
-		"manage_connectors": "कनेक्टर प्रबंधित करें",
-		"edit_connector": "कनेक्टर संपादित करें",
-		"manage": "प्रबंधित करें"
-	},
 	"sidebar": {
 		"chats": "निजी चैट",
 		"shared_chats": "साझा चैट",

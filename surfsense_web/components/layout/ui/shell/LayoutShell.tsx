@@ -69,7 +69,6 @@ interface LayoutShellProps {
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
-	breadcrumb?: React.ReactNode;
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	defaultCollapsed?: boolean;
@@ -122,7 +121,6 @@ export function LayoutShell({
 	onUserSettings,
 	onLogout,
 	pageUsage,
-	breadcrumb,
 	theme,
 	setTheme,
 	defaultCollapsed = false,
@@ -156,10 +154,9 @@ export function LayoutShell({
 			<SidebarProvider value={sidebarContextValue}>
 				<TooltipProvider delayDuration={0}>
 					<div className={cn("flex h-screen w-full flex-col bg-background", className)}>
-						<Header
-							breadcrumb={breadcrumb}
-							mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
-						/>
+					<Header
+						mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
+					/>
 
 						<MobileSidebar
 							isOpen={mobileMenuOpen}
@@ -308,7 +305,7 @@ export function LayoutShell({
 						)}
 
 						<main className="flex-1 flex flex-col min-w-0">
-							<Header breadcrumb={breadcrumb} />
+							<Header />
 
 							<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 								{children}
