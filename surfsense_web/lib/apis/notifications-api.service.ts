@@ -3,6 +3,7 @@ import {
 	type GetNotificationsResponse,
 	type GetSourceTypesResponse,
 	type GetUnreadCountResponse,
+	type NotificationCategory,
 	getNotificationsRequest,
 	getNotificationsResponse,
 	getSourceTypesResponse,
@@ -43,6 +44,9 @@ class NotificationsApiService {
 		}
 		if (queryParams.type) {
 			params.append("type", queryParams.type);
+		}
+		if (queryParams.category) {
+			params.append("category", queryParams.category);
 		}
 		if (queryParams.source_type) {
 			params.append("source_type", queryParams.source_type);
@@ -119,14 +123,14 @@ class NotificationsApiService {
 
 	/**
 	 * Get unread notification count with split between total and recent
-	 * - total_unread: All unread notifications
-	 * - recent_unread: Unread within sync window (last 14 days)
 	 * @param searchSpaceId - Optional search space ID to filter by
 	 * @param type - Optional notification type to filter by (type-safe enum)
+	 * @param category - Optional category filter ('comments' or 'status')
 	 */
 	getUnreadCount = async (
 		searchSpaceId?: number,
-		type?: InboxItemTypeEnum
+		type?: InboxItemTypeEnum,
+		category?: NotificationCategory
 	): Promise<GetUnreadCountResponse> => {
 		const params = new URLSearchParams();
 		if (searchSpaceId !== undefined) {
@@ -134,6 +138,9 @@ class NotificationsApiService {
 		}
 		if (type) {
 			params.append("type", type);
+		}
+		if (category) {
+			params.append("category", category);
 		}
 		const queryString = params.toString();
 

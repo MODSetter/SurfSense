@@ -23,8 +23,16 @@ SYNC_WINDOW_DAYS = 14
 
 # Valid notification types - must match frontend InboxItemTypeEnum
 NotificationType = Literal[
-    "connector_indexing", "document_processing", "new_mention", "page_limit_exceeded"
+    "connector_indexing", "connector_deletion", "document_processing",
+    "new_mention", "comment_reply", "page_limit_exceeded",
 ]
+
+# Category-to-types mapping for filtering by tab
+NotificationCategory = Literal["comments", "status"]
+CATEGORY_TYPES: dict[str, tuple[str, ...]] = {
+    "comments": ("new_mention", "comment_reply"),
+    "status": ("connector_indexing", "connector_deletion", "document_processing", "page_limit_exceeded"),
+}
 
 
 class NotificationResponse(BaseModel):
@@ -165,6 +173,9 @@ async def get_unread_count(
     type_filter: NotificationType | None = Query(
         None, alias="type", description="Filter by notification type"
     ),
+    category: NotificationCategory | None = Query(
+        None, description="Filter by category: 'comments' or 'status'"
+    ),
     user: User = Depends(current_active_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> UnreadCountResponse:
@@ -199,6 +210,10 @@ async def get_unread_count(
     if type_filter:
         base_filter.append(Notification.type == type_filter)
 
+    # Filter by category (maps to multiple types)
+    if category:
+        base_filter.append(Notification.type.in_(CATEGORY_TYPES[category]))
+
     # Total unread count (all time)
     total_query = select(func.count(Notification.id)).where(*base_filter)
     total_result = await session.execute(total_query)
@@ -223,6 +238,9 @@ async def list_notifications(
     search_space_id: int | None = Query(None, description="Filter by search space ID"),
     type_filter: NotificationType | None = Query(
         None, alias="type", description="Filter by notification type"
+    ),
+    category: NotificationCategory | None = Query(
+        None, description="Filter by category: 'comments' or 'status'"
     ),
     source_type: str | None = Query(
         None,
@@ -272,6 +290,12 @@ async def list_notifications(
     if type_filter:
         query = query.where(Notification.type == type_filter)
         count_query = count_query.where(Notification.type == type_filter)
+
+    # Filter by category (maps to multiple types)
+    if category:
+        cat_types = CATEGORY_TYPES[category]
+        query = query.where(Notification.type.in_(cat_types))
+        count_query = count_query.where(Notification.type.in_(cat_types))
 
     # Filter by source type (connector or document type from JSONB metadata)
     if source_type:

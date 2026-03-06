@@ -198,12 +198,19 @@ export const pageLimitExceededInboxItem = inboxItem.extend({
 // =============================================================================
 
 /**
+ * Notification category for tab-level filtering
+ */
+export const notificationCategory = z.enum(["comments", "status"]);
+export type NotificationCategory = z.infer<typeof notificationCategory>;
+
+/**
  * Request schema for getting notifications
  */
 export const getNotificationsRequest = z.object({
 	queryParams: z.object({
 		search_space_id: z.number().optional(),
 		type: inboxItemTypeEnum.optional(),
+		category: notificationCategory.optional(),
 		source_type: z.string().optional(),
 		filter: z.enum(["unread", "errors"]).optional(),
 		before_date: z.string().optional(),

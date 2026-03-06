@@ -121,19 +121,15 @@ export function LayoutDataProvider({
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
-	// Single inbox hook - API-first with Electric real-time deltas
+	// Per-tab inbox hooks — each has independent API loading, pagination,
+	// and Electric live queries. The Electric sync shape is shared (client-level cache).
 	const userId = user?.id ? String(user.id) : null;
+	const numericSpaceId = Number(searchSpaceId) || null;
 
-	const {
-		inboxItems,
-		unreadCount: totalUnreadCount,
-		loading: inboxLoading,
-		loadingMore: inboxLoadingMore,
-		hasMore: inboxHasMore,
-		loadMore: inboxLoadMore,
-		markAsRead,
-		markAllAsRead,
-	} = useInbox(userId, Number(searchSpaceId) || null);
+	const commentsInbox = useInbox(userId, numericSpaceId, "comments");
+	const statusInbox = useInbox(userId, numericSpaceId, "status");
+
+	const totalUnreadCount = commentsInbox.unreadCount + statusInbox.unreadCount;
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -141,9 +137,9 @@ export function LayoutDataProvider({
 
 	// Effect to show toast for new page_limit_exceeded notifications
 	useEffect(() => {
-		if (inboxLoading) return;
+		if (statusInbox.loading) return;
 
-		const pageLimitNotifications = inboxItems.filter(
+		const pageLimitNotifications = statusInbox.inboxItems.filter(
 			(item) => item.type === "page_limit_exceeded"
 		);
 
@@ -176,7 +172,7 @@ export function LayoutDataProvider({
 				},
 			});
 		}
-	}, [inboxItems, inboxLoading, searchSpaceId, router]);
+	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, router]);
 
 
 	// Delete dialogs state
@@ -607,14 +603,27 @@ export function LayoutDataProvider({
 				inbox={{
 					isOpen: isInboxSidebarOpen,
 					onOpenChange: setIsInboxSidebarOpen,
-					items: inboxItems,
 					totalUnreadCount,
-					loading: inboxLoading,
-					loadingMore: inboxLoadingMore,
-					hasMore: inboxHasMore,
-					loadMore: inboxLoadMore,
-					markAsRead,
-					markAllAsRead,
+					comments: {
+						items: commentsInbox.inboxItems,
+						unreadCount: commentsInbox.unreadCount,
+						loading: commentsInbox.loading,
+						loadingMore: commentsInbox.loadingMore,
+						hasMore: commentsInbox.hasMore,
+						loadMore: commentsInbox.loadMore,
+						markAsRead: commentsInbox.markAsRead,
+						markAllAsRead: commentsInbox.markAllAsRead,
+					},
+					status: {
+						items: statusInbox.inboxItems,
+						unreadCount: statusInbox.unreadCount,
+						loading: statusInbox.loading,
+						loadingMore: statusInbox.loadingMore,
+						hasMore: statusInbox.hasMore,
+						loadMore: statusInbox.loadMore,
+						markAsRead: statusInbox.markAsRead,
+						markAllAsRead: statusInbox.markAllAsRead,
+					},
 					isDocked: isInboxDocked,
 					onDockedChange: setIsInboxDocked,
 				}}

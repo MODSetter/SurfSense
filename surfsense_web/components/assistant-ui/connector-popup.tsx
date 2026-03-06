@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import type { FC } from "react";
+import { type FC, useMemo } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -66,11 +66,15 @@ export const ConnectorIndicator: FC = () => {
 	const { data: documentTypeCounts, isFetching: documentTypesLoading } =
 		useAtomValue(documentTypeCountsAtom);
 
-	// Fetch notifications to detect indexing failures
-	const { inboxItems = [] } = useInbox(
+	// Fetch status notifications to detect indexing failures
+	const { inboxItems: statusInboxItems = [] } = useInbox(
 		currentUser?.id ?? null,
 		searchSpaceId ? Number(searchSpaceId) : null,
-		"connector_indexing"
+		"status"
+	);
+	const inboxItems = useMemo(
+		() => statusInboxItems.filter((item) => item.type === "connector_indexing"),
+		[statusInboxItems]
 	);
 
 	// Check if YouTube view is active

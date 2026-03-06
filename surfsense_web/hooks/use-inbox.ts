@@ -1,16 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { InboxItem } from "@/contracts/types/inbox.types";
+import type { InboxItem, NotificationCategory } from "@/contracts/types/inbox.types";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
-import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
 
-export type { InboxItem, InboxItemTypeEnum } from "@/contracts/types/inbox.types";
+export type { InboxItem, InboxItemTypeEnum, NotificationCategory } from "@/contracts/types/inbox.types";
 
 const INITIAL_PAGE_SIZE = 50;
 const SCROLL_PAGE_SIZE = 30;
 const SYNC_WINDOW_DAYS = 4;
+
+const CATEGORY_TYPE_SQL: Record<NotificationCategory, string> = {
+	comments: "AND type IN ('new_mention', 'comment_reply')",
+	status: "AND type IN ('connector_indexing', 'connector_deletion', 'document_processing', 'page_limit_exceeded')",
+};
 
 /**
  * Calculate the cutoff date for sync window.
@@ -27,24 +31,27 @@ function getSyncCutoffDate(): string {
 /**
  * Hook for managing inbox items with API-first architecture + Electric real-time deltas.
  *
- * Architecture (Documents pattern):
- * 1. API is the PRIMARY data source — fetches first page on mount
+ * Architecture (Documents pattern, per-tab):
+ * 1. API is the PRIMARY data source — fetches first page on mount with category filter
  * 2. Electric provides REAL-TIME updates (new items, status changes, read state)
  * 3. Baseline pattern prevents duplicates between API and Electric
- * 4. Single instance serves both Comments and Status tabs
+ * 4. Electric sync shape is SHARED across instances (client-level caching)
+ *    — each instance creates its own type-filtered live queries
  *
  * Unread count strategy:
- * - API provides the total on mount (ground truth across all time)
- * - Electric live query counts unread within SYNC_WINDOW_DAYS
+ * - API provides the category-filtered total on mount (ground truth across all time)
+ * - Electric live query counts unread within SYNC_WINDOW_DAYS (filtered by type)
  * - olderUnreadOffsetRef bridges the gap: total = offset + recent
  * - Optimistic updates adjust both the count and the offset (for old items)
  *
  * @param userId - The user ID to fetch inbox items for
  * @param searchSpaceId - The search space ID to filter inbox items
+ * @param category - Which tab: "comments" or "status"
  */
 export function useInbox(
 	userId: string | null,
 	searchSpaceId: number | null,
+	category: NotificationCategory,
 ) {
 	const electricClient = useElectricClient();
 
@@ -57,17 +64,13 @@ export function useInbox(
 
 	const initialLoadDoneRef = useRef(false);
 	const electricBaselineIdsRef = useRef<Set<number> | null>(null);
-	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe?: () => void } | null>(null);
 	const unreadLiveQueryRef = useRef<{ unsubscribe?: () => void } | null>(null);
 
-	// Unread count offset: number of unread items OLDER than the sync window.
-	// Computed once from (API total - first Electric recent count), then adjusted
-	// when the user marks old items as read.
 	const olderUnreadOffsetRef = useRef<number | null>(null);
 	const apiUnreadTotalRef = useRef(0);
 
-	// EFFECT 1: Fetch first page + unread count from API when params change
+	// EFFECT 1: Fetch first page + unread count from API with category filter
 	useEffect(() => {
 		if (!userId || !searchSpaceId) return;
 
@@ -87,10 +90,11 @@ export function useInbox(
 					notificationsApiService.getNotifications({
 						queryParams: {
 							search_space_id: searchSpaceId,
+							category,
 							limit: INITIAL_PAGE_SIZE,
 						},
 					}),
-					notificationsApiService.getUnreadCount(searchSpaceId),
+					notificationsApiService.getUnreadCount(searchSpaceId, undefined, category),
 				]);
 
 				if (cancelled) return;
@@ -103,7 +107,7 @@ export function useInbox(
 				initialLoadDoneRef.current = true;
 			} catch (err) {
 				if (cancelled) return;
-				console.error("[useInbox] Initial load failed:", err);
+				console.error(`[useInbox:${category}] Initial load failed:`, err);
 				setError(err instanceof Error ? err : new Error("Failed to load notifications"));
 			} finally {
 				if (!cancelled) setLoading(false);
@@ -112,22 +116,20 @@ export function useInbox(
 
 		fetchInitialData();
 		return () => { cancelled = true; };
-	}, [userId, searchSpaceId]);
+	}, [userId, searchSpaceId, category]);
 
-	// EFFECT 2: Electric sync + live query for real-time updates
+	// EFFECT 2: Electric sync (shared shape) + per-instance type-filtered live queries
 	useEffect(() => {
 		if (!userId || !searchSpaceId || !electricClient) return;
 
 		const uid = userId;
 		const spaceId = searchSpaceId;
 		const client = electricClient;
+		const typeFilter = CATEGORY_TYPE_SQL[category];
 		let mounted = true;
 
 		async function setupElectricRealtime() {
-			if (syncHandleRef.current) {
-				try { syncHandleRef.current.unsubscribe(); } catch { /* PGlite may be closed */ }
-				syncHandleRef.current = null;
-			}
+			// Clean up previous live queries (NOT the sync shape — it's shared)
 			if (liveQueryRef.current) {
 				try { liveQueryRef.current.unsubscribe?.(); } catch { /* PGlite may be closed */ }
 				liveQueryRef.current = null;
@@ -140,18 +142,15 @@ export function useInbox(
 			try {
 				const cutoffDate = getSyncCutoffDate();
 
+				// Sync shape is cached by the Electric client — multiple hook instances
+				// calling syncShape with the same params get the same handle.
 				const handle = await client.syncShape({
 					table: "notifications",
 					where: `user_id = '${uid}' AND created_at > '${cutoffDate}'`,
 					primaryKey: ["id"],
 				});
 
-				if (!mounted) {
-					handle.unsubscribe();
-					return;
-				}
-
-				syncHandleRef.current = handle;
+				if (!mounted) return;
 
 				if (!handle.isUpToDate && handle.initialSyncPromise) {
 					await Promise.race([
@@ -176,10 +175,12 @@ export function useInbox(
 
 				if (!db.live?.query) return;
 
+				// Per-instance live query filtered by category types
 				const itemsQuery = `SELECT * FROM notifications 
 					WHERE user_id = $1 
 					AND (search_space_id = $2 OR search_space_id IS NULL)
 					AND created_at > '${cutoffDate}'
+					${typeFilter}
 					ORDER BY created_at DESC`;
 
 				const liveQuery = await db.live.query<InboxItem>(itemsQuery, [uid, spaceId]);
@@ -193,10 +194,8 @@ export function useInbox(
 					if (!mounted || !result.rows || !initialLoadDoneRef.current) return;
 
 					const validItems = result.rows.filter((item) => item.id != null && item.title != null);
-					const isFullySynced = syncHandleRef.current?.isUpToDate ?? false;
 					const cutoff = new Date(getSyncCutoffDate());
 
-					// Build a Map for O(1) lookups instead of .find() inside .map()
 					const liveItemMap = new Map(validItems.map((d) => [d.id, d]));
 					const liveIds = new Set(liveItemMap.keys());
 
@@ -208,12 +207,11 @@ export function useInbox(
 						}
 
 						const baseline = electricBaselineIdsRef.current;
-						const newItems = validItems
-							.filter((item) => {
-								if (prevIds.has(item.id)) return false;
-								if (baseline.has(item.id)) return false;
-								return true;
-							});
+						const newItems = validItems.filter((item) => {
+							if (prevIds.has(item.id)) return false;
+							if (baseline.has(item.id)) return false;
+							return true;
+						});
 
 						for (const item of newItems) {
 							baseline.add(item.id);
@@ -225,6 +223,7 @@ export function useInbox(
 							return item;
 						});
 
+						const isFullySynced = handle.isUpToDate;
 						if (isFullySynced) {
 							updated = updated.filter((item) => {
 								if (new Date(item.created_at) < cutoff) return true;
@@ -242,13 +241,13 @@ export function useInbox(
 
 				liveQueryRef.current = liveQuery;
 
-				// Unread count live query — only covers the sync window.
-				// Combined with olderUnreadOffsetRef to produce the full count.
+				// Per-instance unread count live query filtered by category types
 				const countQuery = `SELECT COUNT(*) as count FROM notifications 
 					WHERE user_id = $1 
 					AND (search_space_id = $2 OR search_space_id IS NULL)
 					AND created_at > '${cutoffDate}'
-					AND read = false`;
+					AND read = false
+					${typeFilter}`;
 
 				const countLiveQuery = await db.live.query<{ count: number | string }>(countQuery, [uid, spaceId]);
 
@@ -261,7 +260,6 @@ export function useInbox(
 					if (!mounted || !result.rows?.[0] || !initialLoadDoneRef.current) return;
 					const liveRecentUnread = Number(result.rows[0].count) || 0;
 
-					// First callback: compute how many unread are outside the sync window
 					if (olderUnreadOffsetRef.current === null) {
 						olderUnreadOffsetRef.current = Math.max(
 							0,
@@ -274,7 +272,7 @@ export function useInbox(
 
 				unreadLiveQueryRef.current = countLiveQuery;
 			} catch (err) {
-				console.error("[useInbox] Electric setup failed:", err);
+				console.error(`[useInbox:${category}] Electric setup failed:`, err);
 			}
 		}
 
@@ -282,10 +280,7 @@ export function useInbox(
 
 		return () => {
 			mounted = false;
-			if (syncHandleRef.current) {
-				try { syncHandleRef.current.unsubscribe(); } catch { /* PGlite may be closed */ }
-				syncHandleRef.current = null;
-			}
+			// Only clean up live queries — sync shape is shared across instances
 			if (liveQueryRef.current) {
 				try { liveQueryRef.current.unsubscribe?.(); } catch { /* PGlite may be closed */ }
 				liveQueryRef.current = null;
@@ -295,7 +290,7 @@ export function useInbox(
 				unreadLiveQueryRef.current = null;
 			}
 		};
-	}, [userId, searchSpaceId, electricClient]);
+	}, [userId, searchSpaceId, electricClient, category]);
 
 	// Load more pages via API (cursor-based using before_date)
 	const loadMore = useCallback(async () => {
@@ -309,6 +304,7 @@ export function useInbox(
 			const response = await notificationsApiService.getNotifications({
 				queryParams: {
 					search_space_id: searchSpaceId,
+					category,
 					before_date: beforeDate,
 					limit: SCROLL_PAGE_SIZE,
 				},
@@ -323,11 +319,11 @@ export function useInbox(
 			});
 			setHasMore(response.has_more);
 		} catch (err) {
-			console.error("[useInbox] Load more failed:", err);
+			console.error(`[useInbox:${category}] Load more failed:`, err);
 		} finally {
 			setLoadingMore(false);
 		}
-	}, [loadingMore, hasMore, userId, searchSpaceId, inboxItems]);
+	}, [loadingMore, hasMore, userId, searchSpaceId, inboxItems, category]);
 
 	// Mark single item as read with optimistic update
 	const markAsRead = useCallback(
@@ -341,7 +337,6 @@ export function useInbox(
 			setInboxItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, read: true } : i)));
 			setUnreadCount((prev) => Math.max(0, prev - 1));
 
-			// Adjust older offset so the next live query callback stays consistent
 			if (isOlderItem && olderUnreadOffsetRef.current !== null) {
 				olderUnreadOffsetRef.current = Math.max(0, olderUnreadOffsetRef.current - 1);
 			}
@@ -371,6 +366,7 @@ export function useInbox(
 
 	// Mark all as read with optimistic update
 	const markAllAsRead = useCallback(async () => {
+		const prevItems = inboxItems;
 		const prevCount = unreadCount;
 		const prevOffset = olderUnreadOffsetRef.current;
 
@@ -381,17 +377,19 @@ export function useInbox(
 		try {
 			const result = await notificationsApiService.markAllAsRead();
 			if (!result.success) {
+				setInboxItems(prevItems);
 				setUnreadCount(prevCount);
 				olderUnreadOffsetRef.current = prevOffset;
 			}
 			return result.success;
 		} catch (err) {
 			console.error("Failed to mark all as read:", err);
+			setInboxItems(prevItems);
 			setUnreadCount(prevCount);
 			olderUnreadOffsetRef.current = prevOffset;
 			return false;
 		}
-	}, [unreadCount]);
+	}, [inboxItems, unreadCount]);
 
 	return {
 		inboxItems,

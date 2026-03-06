@@ -130,20 +130,23 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 type InboxTab = "comments" | "status";
 type InboxFilter = "all" | "unread" | "errors";
 
-const COMMENT_TYPES = new Set(["new_mention", "comment_reply"]);
-const STATUS_TYPES = new Set(["connector_indexing", "document_processing", "page_limit_exceeded", "connector_deletion"]);
+interface TabDataSource {
+	items: InboxItem[];
+	unreadCount: number;
+	loading: boolean;
+	loadingMore: boolean;
+	hasMore: boolean;
+	loadMore: () => void;
+	markAsRead: (id: number) => Promise<boolean>;
+	markAllAsRead: () => Promise<boolean>;
+}
 
 interface InboxSidebarProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	items: InboxItem[];
+	comments: TabDataSource;
+	status: TabDataSource;
 	totalUnreadCount: number;
-	loading: boolean;
-	loadingMore?: boolean;
-	hasMore?: boolean;
-	loadMore?: () => void;
-	markAsRead: (id: number) => Promise<boolean>;
-	markAllAsRead: () => Promise<boolean>;
 	onCloseMobileSidebar?: () => void;
 	isDocked?: boolean;
 	onDockedChange?: (docked: boolean) => void;
@@ -152,14 +155,9 @@ interface InboxSidebarProps {
 export function InboxSidebar({
 	open,
 	onOpenChange,
-	items,
+	comments,
+	status,
 	totalUnreadCount,
-	loading,
-	loadingMore: loadingMoreProp = false,
-	hasMore: hasMoreProp = false,
-	loadMore,
-	markAsRead,
-	markAllAsRead,
 	onCloseMobileSidebar,
 	isDocked = false,
 	onDockedChange,
@@ -239,26 +237,8 @@ export function InboxSidebar({
 		}
 	}, [activeTab]);
 
-	// Split items by tab type (client-side from single data source)
-	const commentsItems = useMemo(
-		() => items.filter((item) => COMMENT_TYPES.has(item.type)),
-		[items]
-	);
-
-	const statusItems = useMemo(
-		() => items.filter((item) => STATUS_TYPES.has(item.type)),
-		[items]
-	);
-
-	// Derive unread counts per tab from the items array
-	const unreadCommentsCount = useMemo(
-		() => commentsItems.filter((item) => !item.read).length,
-		[commentsItems]
-	);
-	const unreadStatusCount = useMemo(
-		() => statusItems.filter((item) => !item.read).length,
-		[statusItems]
-	);
+	// Active tab's data source — fully independent loading, pagination, and counts
+	const activeSource = activeTab === "comments" ? comments : status;
 
 	// Fetch source types for the status tab filter
 	const { data: sourceTypesData } = useQuery({
@@ -321,22 +301,16 @@ export function InboxSidebar({
 		[activeFilter]
 	);
 
-	// Two data paths: search mode (API) or default (client-side filtered)
+	// Two data paths: search mode (API) or default (per-tab data source)
 	const filteredItems = useMemo(() => {
 		let tabItems: InboxItem[];
 
 		if (isSearchMode) {
 			tabItems = searchResponse?.items ?? [];
-			if (activeTab === "status") {
-				tabItems = tabItems.filter((item) => STATUS_TYPES.has(item.type));
-			} else {
-				tabItems = tabItems.filter((item) => COMMENT_TYPES.has(item.type));
-			}
 		} else {
-			tabItems = activeTab === "comments" ? commentsItems : statusItems;
+			tabItems = activeSource.items;
 		}
 
-		// Apply filters
 		let result = tabItems;
 		if (activeFilter !== "all") {
 			result = result.filter(matchesActiveFilter);
@@ -349,23 +323,22 @@ export function InboxSidebar({
 	}, [
 		isSearchMode,
 		searchResponse,
+		activeSource.items,
 		activeTab,
-		commentsItems,
-		statusItems,
 		activeFilter,
 		selectedSource,
 		matchesActiveFilter,
 		matchesSourceFilter,
 	]);
 
-	// Infinite scroll
+	// Infinite scroll — uses active tab's pagination
 	useEffect(() => {
-		if (!loadMore || !hasMoreProp || loadingMoreProp || !open || isSearchMode) return;
+		if (!activeSource.hasMore || activeSource.loadingMore || !open || isSearchMode) return;
 
 		const observer = new IntersectionObserver(
 			(entries) => {
 				if (entries[0]?.isIntersecting) {
-					loadMore();
+					activeSource.loadMore();
 				}
 			},
 			{
@@ -380,13 +353,13 @@ export function InboxSidebar({
 		}
 
 		return () => observer.disconnect();
-	}, [loadMore, hasMoreProp, loadingMoreProp, open, isSearchMode]);
+	}, [activeSource.hasMore, activeSource.loadingMore, activeSource.loadMore, open, isSearchMode]);
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
 			if (!item.read) {
 				setMarkingAsReadId(item.id);
-				await markAsRead(item.id);
+				await activeSource.markAsRead(item.id);
 				setMarkingAsReadId(null);
 			}
 
@@ -437,12 +410,12 @@ export function InboxSidebar({
 				}
 			}
 		},
-		[markAsRead, router, onOpenChange, onCloseMobileSidebar, setTargetCommentId]
+		[activeSource.markAsRead, router, onOpenChange, onCloseMobileSidebar, setTargetCommentId]
 	);
 
 	const handleMarkAllAsRead = useCallback(async () => {
-		await markAllAsRead();
-	}, [markAllAsRead]);
+		await Promise.all([comments.markAllAsRead(), status.markAllAsRead()]);
+	}, [comments.markAllAsRead, status.markAllAsRead]);
 
 	const handleClearSearch = useCallback(() => {
 		setSearchQuery("");
@@ -553,7 +526,7 @@ export function InboxSidebar({
 
 	if (!mounted) return null;
 
-	const isLoading = isSearchMode ? isSearchLoading : loading;
+	const isLoading = isSearchMode ? isSearchLoading : activeSource.loading;
 
 	const inboxContent = (
 		<>
@@ -925,7 +898,7 @@ export function InboxSidebar({
 							<MessageSquare className="h-4 w-4" />
 							<span>{t("comments") || "Comments"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-								{formatInboxCount(unreadCommentsCount)}
+								{formatInboxCount(comments.unreadCount)}
 							</span>
 						</span>
 					</TabsTrigger>
@@ -937,7 +910,7 @@ export function InboxSidebar({
 							<History className="h-4 w-4" />
 							<span>{t("status") || "Status"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
-								{formatInboxCount(unreadStatusCount)}
+								{formatInboxCount(status.unreadCount)}
 							</span>
 						</span>
 					</TabsTrigger>
@@ -983,7 +956,7 @@ export function InboxSidebar({
 						{filteredItems.map((item, index) => {
 							const isMarkingAsRead = markingAsReadId === item.id;
 							const isPrefetchTrigger =
-								!isSearchMode && hasMoreProp && index === filteredItems.length - 5;
+								!isSearchMode && activeSource.hasMore && index === filteredItems.length - 5;
 
 							return (
 								<div
@@ -1061,10 +1034,10 @@ export function InboxSidebar({
 								</div>
 							);
 						})}
-						{!isSearchMode && filteredItems.length < 5 && hasMoreProp && (
+						{!isSearchMode && filteredItems.length < 5 && activeSource.hasMore && (
 							<div ref={prefetchTriggerRef} className="h-1" />
 						)}
-						{loadingMoreProp &&
+						{activeSource.loadingMore &&
 							(activeTab === "comments"
 								? [80, 60, 90].map((titleWidth, i) => (
 										<div

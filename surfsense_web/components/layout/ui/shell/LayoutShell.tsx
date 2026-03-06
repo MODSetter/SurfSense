@@ -20,21 +20,26 @@ import {
 	Sidebar,
 } from "../sidebar";
 
-// Inbox-related props — single data source, tab split done in InboxSidebar
+// Per-tab data source
+interface TabDataSource {
+	items: InboxItem[];
+	unreadCount: number;
+	loading: boolean;
+	loadingMore: boolean;
+	hasMore: boolean;
+	loadMore: () => void;
+	markAsRead: (id: number) => Promise<boolean>;
+	markAllAsRead: () => Promise<boolean>;
+}
+
+// Inbox-related props — per-tab data sources with independent loading/pagination
 interface InboxProps {
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
-	items: InboxItem[];
 	totalUnreadCount: number;
-	loading: boolean;
-	loadingMore?: boolean;
-	hasMore?: boolean;
-	loadMore?: () => void;
-	markAsRead: (id: number) => Promise<boolean>;
-	markAllAsRead: () => Promise<boolean>;
-	/** Whether the inbox is docked (permanent) */
+	comments: TabDataSource;
+	status: TabDataSource;
 	isDocked?: boolean;
-	/** Callback to change docked state */
 	onDockedChange?: (docked: boolean) => void;
 }
 
@@ -198,11 +203,9 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								mentions={inbox.mentions}
+								comments={inbox.comments}
 								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-								markAsRead={inbox.markAsRead}
-								markAllAsRead={inbox.markAllAsRead}
 								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
 							/>
 						)}
@@ -296,14 +299,9 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								items={inbox.items}
+								comments={inbox.comments}
+								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-								loading={inbox.loading}
-								loadingMore={inbox.loadingMore}
-								hasMore={inbox.hasMore}
-								loadMore={inbox.loadMore}
-								markAsRead={inbox.markAsRead}
-								markAllAsRead={inbox.markAllAsRead}
 								isDocked={inbox.isDocked}
 								onDockedChange={inbox.onDockedChange}
 							/>
@@ -322,14 +320,9 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								items={inbox.items}
+								comments={inbox.comments}
+								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-								loading={inbox.loading}
-								loadingMore={inbox.loadingMore}
-								hasMore={inbox.hasMore}
-								loadMore={inbox.loadMore}
-								markAsRead={inbox.markAsRead}
-								markAllAsRead={inbox.markAllAsRead}
 								isDocked={false}
 								onDockedChange={inbox.onDockedChange}
 							/>
