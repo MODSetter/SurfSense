@@ -1,29 +1,38 @@
-"""Video file serving route.
+"""Video routes: script generation."""
 
-The video pipeline is triggered by the chat agent's generate_video tool.
-This route only serves the rendered MP4 files.
-"""
+import logging
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.video.constants import LOCAL_VIDEO_STORAGE_DIR
+from app.agents.video.script_generator import generate_video_script
+from app.db import get_async_session
+from app.schemas.video import GenerateScriptRequest, VideoInput
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.get("/video/files/{thread_id}/{filename}")
-async def serve_video_file(thread_id: str, filename: str):
-    """Serve a rendered MP4 file."""
-    if ".." in filename or "/" in filename:
-        raise HTTPException(status_code=400, detail="Invalid filename")
+@router.post("/video/generate-script", response_model=VideoInput)
+async def generate_script(
+    request: GenerateScriptRequest,
+    search_space_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Generate a VideoInput JSON from topic + source content.
 
-    file_path = LOCAL_VIDEO_STORAGE_DIR / thread_id / filename
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Video file not found")
-
-    return FileResponse(
-        path=str(file_path),
-        media_type="video/mp4",
-        filename=filename,
-    )
+    The LLM produces structured output matching the VideoInput schema.
+    The frontend then renders this JSON via Remotion Lambda.
+    """
+    try:
+        result = await generate_video_script(
+            session=session,
+            search_space_id=search_space_id,
+            topic=request.topic,
+            source_content=request.source_content,
+        )
+        return result
+    except Exception as exc:
+        logger.exception("[video/generate-script] Failed for topic '%s'", request.topic)
+        raise HTTPException(status_code=500, detail=str(exc)) from exc

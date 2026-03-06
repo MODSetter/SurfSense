@@ -1,9 +1,9 @@
 """Video generation package.
 
 Public API:
-  generate_video() — one-shot pipeline: LLM → sandbox → MP4
+  generate_video_script() — LLM structured output → VideoInput JSON
 """
 
-from app.agents.video.pipeline import generate_video
+from app.agents.video.script_generator import generate_video_script
 
-__all__ = ["generate_video"]
+__all__ = ["generate_video_script"]
