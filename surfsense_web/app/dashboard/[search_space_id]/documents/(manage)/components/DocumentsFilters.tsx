@@ -2,7 +2,6 @@
 
 import {
 	CircleAlert,
-	FileType,
 	ListFilter,
 	Search,
 	Trash,
@@ -90,7 +89,7 @@ export function DocumentsFilters({
 							size="icon"
 							className="h-9 w-9 shrink-0 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
 						>
-							<FileType size={14} />
+							<ListFilter size={14} />
 							{activeTypes.length > 0 && (
 								<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-medium text-primary-foreground">
 									{activeTypes.length}
@@ -174,7 +173,7 @@ export function DocumentsFilters({
 				{/* Search Input */}
 				<div className="relative flex-1 min-w-0">
 					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-						<ListFilter size={14} aria-hidden="true" />
+						<Search size={14} aria-hidden="true" />
 					</div>
 					<Input
 						id={`${id}-input`}

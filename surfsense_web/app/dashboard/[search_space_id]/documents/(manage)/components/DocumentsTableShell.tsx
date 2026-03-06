@@ -204,9 +204,9 @@ function SortableHeader({
 		<button
 			type="button"
 			onClick={() => onSort(sortKey)}
-			className="flex items-center gap-1.5 text-left text-sm font-medium text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
+			className="flex items-center gap-1.5 text-left text-sm font-medium text-muted-foreground hover:text-muted-foreground transition-colors group"
 		>
-			{icon && <span className="opacity-60">{icon}</span>}
+			{icon && <span>{icon}</span>}
 			{children}
 			<span
 				className={`transition-opacity ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
@@ -447,76 +447,73 @@ export function DocumentsTableShell({
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
 		>
+		{/* Desktop Table View */}
+		<div className="hidden md:flex md:flex-col flex-1 min-h-0">
+			<Table className="table-fixed w-full">
+				<TableHeader>
+					<TableRow className="hover:bg-transparent border-b border-border/50">
+						<TableHead className="w-10 pl-3 pr-0 text-center h-8">
+							<div className="flex items-center justify-center h-full">
+								<Checkbox
+									checked={allSelectedOnPage || (someSelectedOnPage && "indeterminate")}
+									onCheckedChange={(v) => toggleAll(!!v)}
+									aria-label="Select all"
+									className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+								/>
+							</div>
+						</TableHead>
+						<TableHead className="h-8 px-2">
+							<SortableHeader
+								sortKey="title"
+								currentSortKey={sortKey}
+								sortDesc={sortDesc}
+								onSort={onSortHeader}
+								icon={<FileText size={14} className="text-muted-foreground" />}
+							>
+								Document
+							</SortableHeader>
+						</TableHead>
+						<TableHead className="w-10 text-center h-8 px-0">
+							<span className="flex items-center justify-center">
+								<Network size={14} className="text-muted-foreground" />
+							</span>
+						</TableHead>
+						<TableHead className="w-12 text-center h-8 pl-0 pr-3">
+							<span className="text-xs font-medium text-muted-foreground">
+								Status
+							</span>
+						</TableHead>
+					</TableRow>
+				</TableHeader>
+			</Table>
 			{loading ? (
-				<>
-					{/* Desktop Skeleton */}
-					<div className="hidden md:flex md:flex-col flex-1 min-h-0">
-						<Table className="table-fixed w-full">
-							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/50">
-									<TableHead className="w-10 pl-3 pr-0 text-center h-8">
+				<div className="flex-1 overflow-auto">
+					<Table className="table-fixed w-full">
+						<TableBody>
+							{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent) => (
+								<TableRow
+									key={`skeleton-${widthPercent}`}
+									className="border-b border-border/50 hover:bg-transparent"
+								>
+									<TableCell className="w-10 pl-3 pr-0 py-1.5 text-center">
 										<div className="flex items-center justify-center h-full">
 											<Skeleton className="h-4 w-4 rounded" />
 										</div>
-									</TableHead>
-									<TableHead className="h-8 px-2">
-										<Skeleton className="h-3 w-20" />
-									</TableHead>
-									<TableHead className="w-10 text-center h-8 px-0">
-										<Skeleton className="h-3 w-4 mx-auto" />
-									</TableHead>
-									<TableHead className="w-12 text-center h-8 pl-0 pr-3">
-										<Skeleton className="h-3 w-8 mx-auto" />
-									</TableHead>
-								</TableRow>
-							</TableHeader>
-						</Table>
-						<div className="flex-1 overflow-auto">
-							<Table className="table-fixed w-full">
-								<TableBody>
-									{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent) => (
-										<TableRow
-											key={`skeleton-${widthPercent}`}
-											className="border-b border-border/50 hover:bg-transparent"
-										>
-											<TableCell className="w-10 pl-3 pr-0 py-1.5 text-center">
-												<div className="flex items-center justify-center h-full">
-													<Skeleton className="h-4 w-4 rounded" />
-												</div>
-											</TableCell>
-											<TableCell className="px-2 py-1.5 max-w-0">
-												<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
-											</TableCell>
-											<TableCell className="w-10 px-0 py-1.5 text-center">
-												<Skeleton className="h-4 w-4 mx-auto rounded" />
-											</TableCell>
-											<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
-												<Skeleton className="h-5 w-5 mx-auto rounded-full" />
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-					</div>
-					{/* Mobile Skeleton */}
-					<div className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
-						{[70, 85, 55, 78, 62, 90].map((widthPercent) => (
-							<div key={`skeleton-mobile-${widthPercent}`} className="px-3 py-2">
-								<div className="flex items-center gap-3">
-									<Skeleton className="h-4 w-4 rounded shrink-0" />
-									<div className="flex-1 min-w-0">
+									</TableCell>
+									<TableCell className="px-2 py-1.5 max-w-0">
 										<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
-									</div>
-									<div className="flex items-center gap-2">
-										<Skeleton className="h-4 w-4 rounded shrink-0" />
-										<Skeleton className="h-5 w-5 rounded-full shrink-0" />
-									</div>
-								</div>
-							</div>
-						))}
-					</div>
-				</>
+									</TableCell>
+									<TableCell className="w-10 px-0 py-1.5 text-center">
+										<Skeleton className="h-4 w-4 mx-auto rounded" />
+									</TableCell>
+									<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
+										<Skeleton className="h-5 w-5 mx-auto rounded-full" />
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
 			) : error ? (
 				<div className="flex flex-1 w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-3">
@@ -548,49 +545,9 @@ export function DocumentsTableShell({
 					</motion.div>
 				</div>
 			) : (
-				<>
-					{/* Desktop Table View */}
-					<div className="hidden md:flex md:flex-col flex-1 min-h-0">
-						<Table className="table-fixed w-full">
-							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/50">
-									<TableHead className="w-10 pl-3 pr-0 text-center h-8">
-										<div className="flex items-center justify-center h-full">
-											<Checkbox
-												checked={allSelectedOnPage || (someSelectedOnPage && "indeterminate")}
-												onCheckedChange={(v) => toggleAll(!!v)}
-												aria-label="Select all"
-												className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-											/>
-										</div>
-									</TableHead>
-									<TableHead className="h-8 px-2">
-										<SortableHeader
-											sortKey="title"
-											currentSortKey={sortKey}
-											sortDesc={sortDesc}
-											onSort={onSortHeader}
-											icon={<FileText size={14} className="text-muted-foreground" />}
-										>
-											Document
-										</SortableHeader>
-									</TableHead>
-									<TableHead className="w-10 text-center h-8 px-0">
-										<span className="flex items-center justify-center">
-											<Network size={14} className="text-muted-foreground/70" />
-										</span>
-									</TableHead>
-									<TableHead className="w-12 text-center h-8 pl-0 pr-3">
-										<span className="text-xs font-medium text-muted-foreground/70">
-											Status
-										</span>
-									</TableHead>
-								</TableRow>
-							</TableHeader>
-						</Table>
-						<div ref={desktopScrollRef} className="flex-1 overflow-auto">
-							<Table className="table-fixed w-full">
-								<TableBody>
+				<div ref={desktopScrollRef} className="flex-1 overflow-auto">
+					<Table className="table-fixed w-full">
+						<TableBody>
 									{sorted.map((doc, index) => {
 										const isSelected = selectedIds.has(doc.id);
 										const canSelect = isSelectable(doc);
@@ -659,80 +616,98 @@ export function DocumentsTableShell({
 									})}
 								</TableBody>
 							</Table>
-						{hasMore && (
-							<div ref={desktopSentinelRef} className="py-3" />
-						)}
-					</div>
-				</div>
-
-				{/* Mobile Card View */}
-					<div ref={mobileScrollRef} className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
-						{sorted.map((doc, index) => {
-							const isSelected = selectedIds.has(doc.id);
-							const canSelect = isSelectable(doc);
-							return (
-								<RowContextMenu
-									key={doc.id}
-									doc={doc}
-									onPreview={handleViewDocument}
-									onDelete={setDeleteDoc}
-									searchSpaceId={searchSpaceId}
-								>
-									<motion.div
-										initial={!isSearchMode && index < 20 ? { opacity: 0 } : false}
-										animate={{ opacity: 1 }}
-										transition={!isSearchMode && index < 20 ? { duration: 0.15, delay: index * 0.03 } : { duration: 0 }}
-										className={`px-3 py-2 transition-colors ${
-											isSelected ? "bg-primary/5" : "hover:bg-muted/20"
-										}`}
-									>
-										<div className="flex items-center gap-3">
-											<Checkbox
-												checked={isSelected}
-												onCheckedChange={(v) =>
-													canSelect && toggleOne(doc.id, !!v)
-												}
-												disabled={!canSelect}
-												aria-label={
-													canSelect
-														? "Select row"
-														: "Cannot select while processing"
-												}
-												className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
-											/>
-											<div className="flex-1 min-w-0">
-												<DocumentNameTooltip
-													doc={doc}
-													className="truncate block text-sm text-foreground cursor-default"
-												/>
-											</div>
-											<div className="flex items-center gap-2 shrink-0">
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<span className="flex items-center justify-center">
-															{getDocumentTypeIcon(
-																doc.document_type,
-																"h-4 w-4"
-															)}
-														</span>
-													</TooltipTrigger>
-													<TooltipContent side="top">
-														{getDocumentTypeLabel(doc.document_type)}
-													</TooltipContent>
-												</Tooltip>
-												<StatusIndicator status={doc.status} />
-											</div>
-										</div>
-									</motion.div>
-								</RowContextMenu>
-							);
-						})}
 					{hasMore && (
-						<div ref={mobileSentinelRef} className="py-3" />
+						<div ref={desktopSentinelRef} className="py-3" />
 					)}
 				</div>
-				</>
 			)}
+		</div>
+
+		{/* Mobile Card View */}
+		{loading ? (
+			<div className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
+				{[70, 85, 55, 78, 62, 90].map((widthPercent) => (
+					<div key={`skeleton-mobile-${widthPercent}`} className="px-3 py-2">
+						<div className="flex items-center gap-3">
+							<Skeleton className="h-4 w-4 rounded shrink-0" />
+							<div className="flex-1 min-w-0">
+								<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
+							</div>
+							<div className="flex items-center gap-2">
+								<Skeleton className="h-4 w-4 rounded shrink-0" />
+								<Skeleton className="h-5 w-5 rounded-full shrink-0" />
+							</div>
+						</div>
+					</div>
+				))}
+			</div>
+		) : !error && sorted.length > 0 && (
+			<div ref={mobileScrollRef} className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
+				{sorted.map((doc, index) => {
+					const isSelected = selectedIds.has(doc.id);
+					const canSelect = isSelectable(doc);
+					return (
+						<RowContextMenu
+							key={doc.id}
+							doc={doc}
+							onPreview={handleViewDocument}
+							onDelete={setDeleteDoc}
+							searchSpaceId={searchSpaceId}
+						>
+							<motion.div
+								initial={!isSearchMode && index < 20 ? { opacity: 0 } : false}
+								animate={{ opacity: 1 }}
+								transition={!isSearchMode && index < 20 ? { duration: 0.15, delay: index * 0.03 } : { duration: 0 }}
+								className={`px-3 py-2 transition-colors ${
+									isSelected ? "bg-primary/5" : "hover:bg-muted/20"
+								}`}
+							>
+								<div className="flex items-center gap-3">
+									<Checkbox
+										checked={isSelected}
+										onCheckedChange={(v) =>
+											canSelect && toggleOne(doc.id, !!v)
+										}
+										disabled={!canSelect}
+										aria-label={
+											canSelect
+												? "Select row"
+												: "Cannot select while processing"
+										}
+										className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
+									/>
+									<div className="flex-1 min-w-0">
+										<DocumentNameTooltip
+											doc={doc}
+											className="truncate block text-sm text-foreground cursor-default"
+										/>
+									</div>
+									<div className="flex items-center gap-2 shrink-0">
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<span className="flex items-center justify-center">
+													{getDocumentTypeIcon(
+														doc.document_type,
+														"h-4 w-4"
+													)}
+												</span>
+											</TooltipTrigger>
+											<TooltipContent side="top">
+												{getDocumentTypeLabel(doc.document_type)}
+											</TooltipContent>
+										</Tooltip>
+										<StatusIndicator status={doc.status} />
+									</div>
+								</div>
+							</motion.div>
+						</RowContextMenu>
+					);
+				})}
+				{hasMore && (
+					<div ref={mobileSentinelRef} className="py-3" />
+				)}
+			</div>
+		)}
 
 			{/* Document Content Viewer */}
 			<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>

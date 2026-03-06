@@ -156,10 +156,13 @@ export function useDocuments(
 
 		let cancelled = false;
 
-		setLoading(true);
-		setDocuments([]);
-		setTotal(0);
-		setHasMore(false);
+		const isRefresh = initialLoadDoneRef.current;
+		if (!isRefresh) {
+			setLoading(true);
+			setDocuments([]);
+			setTotal(0);
+			setHasMore(false);
+		}
 		apiLoadedCountRef.current = 0;
 		initialLoadDoneRef.current = false;
 		electricBaselineIdsRef.current = null;
