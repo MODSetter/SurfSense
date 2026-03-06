@@ -270,15 +270,24 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 		[deleteDocumentMutation, isSearchMode, t]
 	);
 
+	const sortKeyRef = useRef(sortKey);
+	const sortDescRef = useRef(sortDesc);
+	sortKeyRef.current = sortKey;
+	sortDescRef.current = sortDesc;
+
 	const handleSortChange = useCallback((key: SortKey) => {
-		setSortKey((currentKey) => {
-			if (currentKey === key) {
-				setSortDesc((v) => !v);
-				return currentKey;
-			}
+		const currentKey = sortKeyRef.current;
+		const currentDesc = sortDescRef.current;
+
+		if (currentKey === key && currentDesc) {
+			setSortKey("created_at");
+			setSortDesc(true);
+		} else if (currentKey === key) {
+			setSortDesc(true);
+		} else {
+			setSortKey(key);
 			setSortDesc(false);
-			return key;
-		});
+		}
 	}, []);
 
 	useEffect(() => {
