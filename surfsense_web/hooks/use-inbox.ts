@@ -203,7 +203,11 @@ export function useInbox(
 						const prevIds = new Set(prev.map((d) => d.id));
 
 						if (electricBaselineIdsRef.current === null) {
-							electricBaselineIdsRef.current = new Set(liveIds);
+							// Only baseline items already rendered from API.
+							// Items in Electric but NOT in prev are genuinely new.
+							electricBaselineIdsRef.current = new Set(
+								[...liveIds].filter((id) => prevIds.has(id))
+							);
 						}
 
 						const baseline = electricBaselineIdsRef.current;
@@ -237,11 +241,35 @@ export function useInbox(
 
 						return updated;
 					});
+
+					// Calibrate the older-unread offset using baseline items
+					// (items present in both Electric and the API-loaded list).
+					// This avoids the timing bug where new items arriving between
+					// the API fetch and Electric's first callback would be absorbed
+					// into the offset, making the count appear unchanged.
+					const baseline = electricBaselineIdsRef.current;
+					if (olderUnreadOffsetRef.current === null && baseline !== null) {
+						const baselineUnreadCount = validItems.filter(
+							(item) => baseline.has(item.id) && !item.read
+						).length;
+						olderUnreadOffsetRef.current = Math.max(
+							0,
+							apiUnreadTotalRef.current - baselineUnreadCount
+						);
+					}
+
+					// Derive unread count from all Electric items + the older offset
+					if (olderUnreadOffsetRef.current !== null) {
+						const electricUnreadCount = validItems.filter((item) => !item.read).length;
+						setUnreadCount(olderUnreadOffsetRef.current + electricUnreadCount);
+					}
 				});
 
 				liveQueryRef.current = liveQuery;
 
-				// Per-instance unread count live query filtered by category types
+				// Per-instance unread count live query filtered by category types.
+				// Acts as a secondary reactive path for read-status changes that
+				// may not trigger the items live query in all edge cases.
 				const countQuery = `SELECT COUNT(*) as count FROM notifications 
 					WHERE user_id = $1 
 					AND (search_space_id = $2 OR search_space_id IS NULL)
@@ -258,15 +286,8 @@ export function useInbox(
 
 				countLiveQuery.subscribe((result: { rows: Array<{ count: number | string }> }) => {
 					if (!mounted || !result.rows?.[0] || !initialLoadDoneRef.current) return;
+					if (olderUnreadOffsetRef.current === null) return;
 					const liveRecentUnread = Number(result.rows[0].count) || 0;
-
-					if (olderUnreadOffsetRef.current === null) {
-						olderUnreadOffsetRef.current = Math.max(
-							0,
-							apiUnreadTotalRef.current - liveRecentUnread
-						);
-					}
-
 					setUnreadCount(olderUnreadOffsetRef.current + liveRecentUnread);
 				});
 

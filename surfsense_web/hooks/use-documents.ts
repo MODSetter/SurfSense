@@ -351,12 +351,14 @@ export function useDocuments(
 						const liveIds = new Set(validItems.map((d) => d.id));
 						const prevIds = new Set(prev.map((d) => d.id));
 
-						// First callback: snapshot all Electric IDs as the baseline.
-						// Everything in this set existed before the sidebar opened and
-						// should only appear via API pagination, not Electric.
-						if (electricBaselineIdsRef.current === null) {
-							electricBaselineIdsRef.current = new Set(liveIds);
-						}
+					// Only baseline items already rendered from API.
+					// Items in Electric but NOT in prev are genuinely new
+					// (created between the API fetch and Electric's first callback).
+					if (electricBaselineIdsRef.current === null) {
+						electricBaselineIdsRef.current = new Set(
+							[...liveIds].filter((id) => prevIds.has(id))
+						);
+					}
 
 						// Genuinely new = not in rendered list, not in baseline snapshot.
 						// These are docs created AFTER the sidebar opened.
