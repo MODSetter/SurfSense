@@ -72,12 +72,15 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 	// Query to check if thread has public snapshots
 	const { data: snapshotsData } = useQuery({
 		queryKey: ["thread-snapshots", thread?.id],
-		queryFn: () => chatThreadsApiService.listPublicChatSnapshots({ thread_id: thread!.id }),
+		queryFn: () => {
+			const id = thread?.id;
+			if (id == null) throw new Error("Missing thread id");
+			return chatThreadsApiService.listPublicChatSnapshots({ thread_id: id });
+		},
 		enabled: !!thread?.id,
 		staleTime: 30000, // Cache for 30 seconds
 	});
 	const hasPublicSnapshots = (snapshotsData?.snapshots?.length ?? 0) > 0;
-	const snapshotCount = snapshotsData?.snapshots?.length ?? 0;
 
 	// Use Jotai visibility if available (synced from chat page), otherwise fall back to thread prop
 	const currentVisibility = currentThreadState.visibility ?? thread?.visibility ?? "PRIVATE";
@@ -152,11 +155,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							<Earth className="h-4 w-4 text-muted-foreground" />
 						</button>
 					</TooltipTrigger>
-					<TooltipContent>
-						{snapshotCount === 1
-							? "This chat has a public link"
-							: `This chat has ${snapshotCount} public links`}
-					</TooltipContent>
+					<TooltipContent>Manage public links</TooltipContent>
 				</Tooltip>
 			)}
 
