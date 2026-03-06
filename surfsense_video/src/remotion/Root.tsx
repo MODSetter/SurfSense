@@ -16,6 +16,7 @@ import { listPreviews } from "./scenes/list/preview";
 import { sequencePreviews } from "./scenes/sequence/preview";
 import { chartPreviews } from "./scenes/chart/preview";
 import { relationPreviews } from "./scenes/relation/preview";
+import { comparisonPreviews } from "./scenes/comparison/preview";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -46,6 +47,7 @@ export const RemotionRoot: React.FC = () => {
       {sequencePreviews}
       {chartPreviews}
       {relationPreviews}
+      {comparisonPreviews}
     </>
   );
 };
