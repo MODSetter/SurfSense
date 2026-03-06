@@ -12,7 +12,7 @@ from litellm import aspeech
 
 from app.config import config as app_config
 from app.services.kokoro_tts_service import get_kokoro_tts_service
-from app.services.llm_service import get_document_summary_llm
+from app.services.llm_service import get_agent_llm
 
 from .configuration import Configuration
 from .prompts import get_podcast_generation_prompt
@@ -31,7 +31,7 @@ async def create_podcast_transcript(
     user_prompt = configuration.user_prompt
 
     # Get search space's document summary LLM
-    llm = await get_document_summary_llm(state.db_session, search_space_id)
+    llm = await get_agent_llm(state.db_session, search_space_id)
     if not llm:
         error_message = (
             f"No document summary LLM configured for search space {search_space_id}"

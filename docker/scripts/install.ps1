@@ -24,7 +24,7 @@ $ErrorActionPreference = 'Stop'
 
 # ── Configuration ───────────────────────────────────────────────────────────
 
-$RepoRaw            = "https://raw.githubusercontent.com/MODSetter/SurfSense/dev"
+$RepoRaw            = "https://raw.githubusercontent.com/MODSetter/SurfSense/main"
 $InstallDir         = ".\surfsense"
 $OldVolume          = "surfsense-data"
 $DumpFile           = ".\surfsense_migration_backup.sql"
@@ -208,11 +208,12 @@ if ($MigrationMode) {
     if (-not (Test-Path $DumpFile)) {
         Write-Err "Dump file '$DumpFile' not found. The migration script may have failed."
     }
+    $DumpFilePath = (Resolve-Path $DumpFile).Path
     Write-Info "Restoring dump into PostgreSQL 17 - this may take a while for large databases..."
 
     $restoreErrFile = Join-Path $env:TEMP "surfsense_restore_err.log"
     Push-Location $InstallDir
-    Invoke-NativeSafe { Get-Content $DumpFile | docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName 2>$restoreErrFile | Out-Null } | Out-Null
+    Invoke-NativeSafe { Get-Content -LiteralPath $DumpFilePath | docker compose exec -T -e "PGPASSWORD=$DbPass" db psql -U $DbUser -d $DbName 2>$restoreErrFile | Out-Null } | Out-Null
     Pop-Location
 
     $fatalErrors = @()
@@ -246,7 +247,7 @@ if ($MigrationMode) {
 
     Write-Step "Starting all SurfSense services"
     Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose up -d } | Out-Null
+    Invoke-NativeSafe { docker compose up -d }
     Pop-Location
     Write-Ok "All services started."
 
@@ -255,7 +256,7 @@ if ($MigrationMode) {
 } else {
     Write-Step "Starting SurfSense"
     Push-Location $InstallDir
-    Invoke-NativeSafe { docker compose up -d } | Out-Null
+    Invoke-NativeSafe { docker compose up -d }
     Pop-Location
     Write-Ok "All services started."
 }
@@ -316,7 +317,7 @@ Y88b  d88P Y88b 888 888     888   Y88b  d88P Y8b.     888  888      X88 Y8b.
 
 $versionDisplay = (Get-Content $envPath | Select-String '^SURFSENSE_VERSION=' | ForEach-Object { ($_ -split '=',2)[1].Trim('"') }) | Select-Object -First 1
 if (-not $versionDisplay) { $versionDisplay = "latest" }
-Write-Host "         Your personal AI-powered search engine  [$versionDisplay]" -ForegroundColor Yellow
+Write-Host "         OSS Alternative to NotebookLM for Teams  [$versionDisplay]" -ForegroundColor Yellow
 Write-Host ("=" * 62) -ForegroundColor Cyan
 Write-Host ""
 

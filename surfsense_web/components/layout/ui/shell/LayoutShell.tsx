@@ -13,6 +13,7 @@ import { IconRail } from "../icon-rail";
 import {
 	AllPrivateChatsSidebar,
 	AllSharedChatsSidebar,
+	AnnouncementsSidebar,
 	DocumentsSidebar,
 	InboxSidebar,
 	MobileSidebar,
@@ -77,6 +78,10 @@ interface LayoutShellProps {
 	className?: string;
 	// Inbox props
 	inbox?: InboxProps;
+	announcementsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
 	isLoadingChats?: boolean;
 	// All chats panel props
 	allSharedChatsPanel?: {
@@ -128,6 +133,7 @@ export function LayoutShell({
 	children,
 	className,
 	inbox,
+	announcementsPanel,
 	isLoadingChats = false,
 	allSharedChatsPanel,
 	allPrivateChatsPanel,
@@ -212,6 +218,15 @@ export function LayoutShell({
 							<DocumentsSidebar
 								open={documentsPanel.open}
 								onOpenChange={documentsPanel.onOpenChange}
+							/>
+						)}
+
+						{/* Mobile Announcements Sidebar */}
+						{announcementsPanel?.open && (
+							<AnnouncementsSidebar
+								open={announcementsPanel.open}
+								onOpenChange={announcementsPanel.onOpenChange}
+								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
 							/>
 						)}
 
@@ -330,6 +345,14 @@ export function LayoutShell({
 							<DocumentsSidebar
 								open={documentsPanel.open}
 								onOpenChange={documentsPanel.onOpenChange}
+							/>
+						)}
+
+						{/* Announcements Sidebar */}
+						{announcementsPanel && (
+							<AnnouncementsSidebar
+								open={announcementsPanel.open}
+								onOpenChange={announcementsPanel.onOpenChange}
 							/>
 						)}
 

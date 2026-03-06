@@ -4,6 +4,8 @@ import { ReloadIcon } from "@radix-ui/react-icons";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "~/routes/ui/button";
+import { ConnectionSettingsButton } from "~/routes/ui/connection-settings-button";
+import { buildBackendUrl } from "~utils/backend-url";
 
 const ApiKeyForm = () => {
 	const navigation = useNavigate();
@@ -27,8 +29,7 @@ const ApiKeyForm = () => {
 		setLoading(true);
 
 		try {
-			// Verify token is valid by making a request to the API
-			const response = await fetch(`${process.env.PLASMO_PUBLIC_BACKEND_URL}/verify-token`, {
+			const response = await fetch(await buildBackendUrl("/verify-token"), {
 				method: "GET",
 				headers: {
 					Authorization: `Bearer ${apiKey}`,
@@ -53,6 +54,10 @@ const ApiKeyForm = () => {
 	return (
 		<div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex flex-col items-center justify-center p-6">
 			<div className="w-full max-w-md mx-auto space-y-8">
+				<div className="flex justify-end">
+					<ConnectionSettingsButton />
+				</div>
+
 				<div className="flex flex-col items-center space-y-2">
 					<div className="bg-gray-800 p-3 rounded-full ring-2 ring-gray-700 shadow-lg">
 						<img className="w-12 h-12" src={icon} alt="SurfSense" />

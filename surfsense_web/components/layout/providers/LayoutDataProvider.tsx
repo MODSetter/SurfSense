@@ -124,6 +124,9 @@ export function LayoutDataProvider({
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
 
+	// Announcements sidebar state
+	const [isAnnouncementsSidebarOpen, setIsAnnouncementsSidebarOpen] = useState(false);
+
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
@@ -267,7 +270,7 @@ export function LayoutDataProvider({
 		() => [
 			{
 				title: "Inbox",
-				url: "#inbox", // Special URL to indicate this is handled differently
+				url: "#inbox",
 				icon: Inbox,
 				isActive: isInboxSidebarOpen,
 				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
@@ -281,17 +284,17 @@ export function LayoutDataProvider({
 			},
 			{
 				title: "Announcements",
-				url: "/announcements",
+				url: "#announcements",
 				icon: Megaphone,
-				isActive: pathname?.includes("/announcements"),
+				isActive: isAnnouncementsSidebarOpen,
 				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 			},
 		],
 		[
-			pathname,
 			isInboxSidebarOpen,
 			isDocumentsSidebarOpen,
 			totalUnreadCount,
+			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
 			isDocumentsProcessing,
 		]
@@ -386,25 +389,37 @@ export function LayoutDataProvider({
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
-			// Handle inbox specially - toggle sidebar instead of navigating
 			if (item.url === "#inbox") {
 				setIsInboxSidebarOpen((prev) => {
 					if (!prev) {
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
 						setIsDocumentsSidebarOpen(false);
+						setIsAnnouncementsSidebarOpen(false);
 					}
 					return !prev;
 				});
 				return;
 			}
-			// Handle documents specially - toggle sidebar instead of navigating
 			if (item.url === "#documents") {
 				setIsDocumentsSidebarOpen((prev) => {
 					if (!prev) {
 						setIsInboxSidebarOpen(false);
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
+						setIsAnnouncementsSidebarOpen(false);
+					}
+					return !prev;
+				});
+				return;
+			}
+			if (item.url === "#announcements") {
+				setIsAnnouncementsSidebarOpen((prev) => {
+					if (!prev) {
+						setIsInboxSidebarOpen(false);
+						setIsAllSharedChatsSidebarOpen(false);
+						setIsAllPrivateChatsSidebarOpen(false);
+						setIsDocumentsSidebarOpen(false);
 					}
 					return !prev;
 				});
@@ -510,6 +525,7 @@ export function LayoutDataProvider({
 		setIsAllPrivateChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
 		setIsDocumentsSidebarOpen(false);
+		setIsAnnouncementsSidebarOpen(false);
 	}, [setIsDocumentsSidebarOpen]);
 
 	const handleViewAllPrivateChats = useCallback(() => {
@@ -517,6 +533,7 @@ export function LayoutDataProvider({
 		setIsAllSharedChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
 		setIsDocumentsSidebarOpen(false);
+		setIsAnnouncementsSidebarOpen(false);
 	}, [setIsDocumentsSidebarOpen]);
 
 	// Delete handlers
@@ -632,6 +649,10 @@ export function LayoutDataProvider({
 					},
 					isDocked: isInboxDocked,
 					onDockedChange: setIsInboxDocked,
+				}}
+				announcementsPanel={{
+					open: isAnnouncementsSidebarOpen,
+					onOpenChange: setIsAnnouncementsSidebarOpen,
 				}}
 				allSharedChatsPanel={{
 					open: isAllSharedChatsSidebarOpen,
