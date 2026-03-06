@@ -721,6 +721,8 @@
 		"unread": "अपठित",
 		"connectors": "कनेक्टर",
 		"all_connectors": "सभी कनेक्टर",
+		"sources": "स्रोत",
+		"all_sources": "सभी स्रोत",
 		"close": "बंद करें",
 		"cancel": "रद्द करें"
 	},

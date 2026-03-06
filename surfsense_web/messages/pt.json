@@ -721,6 +721,8 @@
 		"unread": "Não lido",
 		"connectors": "Conectores",
 		"all_connectors": "Todos os conectores",
+		"sources": "Fontes",
+		"all_sources": "Todas as fontes",
 		"close": "Fechar",
 		"cancel": "Cancelar"
 	},

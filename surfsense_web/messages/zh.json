@@ -705,6 +705,8 @@
 		"unread": "未读",
 		"connectors": "连接器",
 		"all_connectors": "所有连接器",
+		"sources": "来源",
+		"all_sources": "所有来源",
 		"close": "关闭",
 		"cancel": "取消"
 	},

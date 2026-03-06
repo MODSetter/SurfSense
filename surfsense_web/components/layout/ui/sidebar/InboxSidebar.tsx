@@ -45,10 +45,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	isCommentReplyMetadata,
 	isConnectorIndexingMetadata,
+	isDocumentProcessingMetadata,
 	isNewMentionMetadata,
 	isPageLimitExceededMetadata,
 } from "@/contracts/types/inbox.types";
@@ -193,7 +195,7 @@ export function InboxSidebar({
 	const isSearchMode = !!debouncedSearch.trim();
 	const [activeTab, setActiveTab] = useState<InboxTab>("comments");
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
-	const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
+	const [selectedSource, setSelectedSource] = useState<string | null>(null);
 	const [mounted, setMounted] = useState(false);
 	// Dropdown state for filter menu (desktop only)
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
@@ -257,10 +259,10 @@ export function InboxSidebar({
 		};
 	}, [open, isMobile]);
 
-	// Reset connector filter when switching away from status tab
+	// Reset source filter when switching away from status tab
 	useEffect(() => {
 		if (activeTab !== "status") {
-			setSelectedConnector(null);
+			setSelectedSource(null);
 		}
 	}, [activeTab]);
 
@@ -289,23 +291,47 @@ export function InboxSidebar({
 		activeTab === "comments" ? (mentions.hasMore ?? false) : (status.hasMore ?? false);
 	const loadMore = activeTab === "comments" ? mentions.loadMore : status.loadMore;
 
-	// Get unique connector types from status items for filtering
-	const uniqueConnectorTypes = useMemo(() => {
-		const connectorTypes = new Set<string>();
+	// Get unique source types (connectors + document types) from status items for filtering
+	const statusSourceOptions = useMemo(() => {
+		const sources: Array<{
+			key: string;
+			type: string;
+			category: "connector" | "document";
+			displayName: string;
+		}> = [];
+		const seenConnectors = new Set<string>();
+		const seenDocTypes = new Set<string>();
 
-		statusItems
-			.filter((item) => item.type === "connector_indexing")
-			.forEach((item) => {
-				// Use type guard for safe metadata access
-				if (isConnectorIndexingMetadata(item.metadata)) {
-					connectorTypes.add(item.metadata.connector_type);
+		for (const item of statusItems) {
+			if (item.type === "connector_indexing" && isConnectorIndexingMetadata(item.metadata)) {
+				const ct = item.metadata.connector_type;
+				if (!seenConnectors.has(ct)) {
+					seenConnectors.add(ct);
+					sources.push({
+						key: `connector:${ct}`,
+						type: ct,
+						category: "connector",
+						displayName: getConnectorTypeDisplayName(ct),
+					});
 				}
-			});
+			} else if (
+				item.type === "document_processing" &&
+				isDocumentProcessingMetadata(item.metadata)
+			) {
+				const dt = item.metadata.document_type;
+				if (!seenDocTypes.has(dt)) {
+					seenDocTypes.add(dt);
+					sources.push({
+						key: `doctype:${dt}`,
+						type: dt,
+						category: "document",
+						displayName: getDocumentTypeLabel(dt),
+					});
+				}
+			}
+		}
 
-		return Array.from(connectorTypes).map((type) => ({
-			type,
-			displayName: getConnectorTypeDisplayName(type),
-		}));
+		return sources;
 	}, [statusItems]);
 
 	// Get items for current tab
@@ -334,22 +360,31 @@ export function InboxSidebar({
 			items = items.filter((item) => !item.read);
 		}
 
-		// Apply connector filter (only for status tab)
-		if (activeTab === "status" && selectedConnector) {
+		// Apply source filter (connector type or document type, for status tab only)
+		if (activeTab === "status" && selectedSource) {
 			items = items.filter((item) => {
-				if (item.type === "connector_indexing") {
-					// Use type guard for safe metadata access
-					if (isConnectorIndexingMetadata(item.metadata)) {
-						return item.metadata.connector_type === selectedConnector;
-					}
-					return false;
+				if (selectedSource.startsWith("connector:")) {
+					const connectorType = selectedSource.slice("connector:".length);
+					return (
+						item.type === "connector_indexing" &&
+						isConnectorIndexingMetadata(item.metadata) &&
+						item.metadata.connector_type === connectorType
+					);
 				}
-				return false; // Hide document_processing when a specific connector is selected
+				if (selectedSource.startsWith("doctype:")) {
+					const docType = selectedSource.slice("doctype:".length);
+					return (
+						item.type === "document_processing" &&
+						isDocumentProcessingMetadata(item.metadata) &&
+						item.metadata.document_type === docType
+					);
+				}
+				return true;
 			});
 		}
 
 		return items;
-	}, [displayItems, searchResponse, isSearchMode, activeFilter, activeTab, selectedConnector]);
+	}, [displayItems, searchResponse, isSearchMode, activeFilter, activeTab, selectedSource]);
 
 	// Intersection Observer for infinite scroll with prefetching
 	// Re-runs when active tab changes so each tab gets its own pagination
@@ -651,59 +686,59 @@ export function InboxSidebar({
 													</button>
 												</div>
 											</div>
-											{/* Connectors section - only for status tab */}
-											{activeTab === "status" && uniqueConnectorTypes.length > 0 && (
-												<div className="space-y-2">
-													<p className="text-xs text-muted-foreground/80 font-medium px-1">
-														{t("connectors") || "Connectors"}
-													</p>
-													<div className="space-y-1">
+										{/* Sources section - only for status tab */}
+										{activeTab === "status" && statusSourceOptions.length > 0 && (
+											<div className="space-y-2">
+												<p className="text-xs text-muted-foreground/80 font-medium px-1">
+													{t("sources") || "Sources"}
+												</p>
+												<div className="space-y-1">
+													<button
+														type="button"
+														onClick={() => {
+															setSelectedSource(null);
+															setFilterDrawerOpen(false);
+														}}
+														className={cn(
+															"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+															selectedSource === null
+																? "bg-primary/10 text-primary"
+																: "hover:bg-muted"
+														)}
+													>
+														<span className="flex items-center gap-2">
+															<LayoutGrid className="h-4 w-4" />
+															<span>{t("all_sources") || "All sources"}</span>
+														</span>
+														{selectedSource === null && <Check className="h-4 w-4" />}
+													</button>
+													{statusSourceOptions.map((source) => (
 														<button
+															key={source.key}
 															type="button"
 															onClick={() => {
-																setSelectedConnector(null);
+																setSelectedSource(source.key);
 																setFilterDrawerOpen(false);
 															}}
 															className={cn(
 																"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																selectedConnector === null
+																selectedSource === source.key
 																	? "bg-primary/10 text-primary"
 																	: "hover:bg-muted"
 															)}
 														>
 															<span className="flex items-center gap-2">
-																<LayoutGrid className="h-4 w-4" />
-																<span>{t("all_connectors") || "All connectors"}</span>
+																{getConnectorIcon(source.type, "h-4 w-4")}
+																<span>{source.displayName}</span>
 															</span>
-															{selectedConnector === null && <Check className="h-4 w-4" />}
+															{selectedSource === source.key && (
+																<Check className="h-4 w-4" />
+															)}
 														</button>
-														{uniqueConnectorTypes.map((connector) => (
-															<button
-																key={connector.type}
-																type="button"
-																onClick={() => {
-																	setSelectedConnector(connector.type);
-																	setFilterDrawerOpen(false);
-																}}
-																className={cn(
-																	"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																	selectedConnector === connector.type
-																		? "bg-primary/10 text-primary"
-																		: "hover:bg-muted"
-																)}
-															>
-																<span className="flex items-center gap-2">
-																	{getConnectorIcon(connector.type, "h-4 w-4")}
-																	<span>{connector.displayName}</span>
-																</span>
-																{selectedConnector === connector.type && (
-																	<Check className="h-4 w-4" />
-																)}
-															</button>
-														))}
-													</div>
+													))}
 												</div>
-											)}
+											</div>
+										)}
 										</div>
 									</DrawerContent>
 								</Drawer>
@@ -727,7 +762,7 @@ export function InboxSidebar({
 								</Tooltip>
 								<DropdownMenuContent
 									align="end"
-									className={cn("z-80 select-none", activeTab === "status" ? "w-52" : "w-44")}
+									className={cn("z-80 select-none max-h-[60vh] overflow-hidden flex flex-col", activeTab === "status" ? "w-52" : "w-44")}
 								>
 									<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
 										{t("filter") || "Filter"}
@@ -752,45 +787,45 @@ export function InboxSidebar({
 										</span>
 										{activeFilter === "unread" && <Check className="h-4 w-4" />}
 									</DropdownMenuItem>
-									{activeTab === "status" && uniqueConnectorTypes.length > 0 && (
-										<>
-											<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
-												{t("connectors") || "Connectors"}
-											</DropdownMenuLabel>
-											<div
-												className="relative max-h-[30vh] overflow-y-auto -mb-1"
-												onScroll={handleConnectorScroll}
-												style={{
-													maskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
-													WebkitMaskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
-												}}
+								{activeTab === "status" && statusSourceOptions.length > 0 && (
+									<>
+										<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
+											{t("sources") || "Sources"}
+										</DropdownMenuLabel>
+										<div
+											className="relative max-h-[30vh] overflow-y-auto overflow-x-hidden -mb-1"
+											onScroll={handleConnectorScroll}
+											style={{
+												maskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
+												WebkitMaskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
+											}}
+										>
+											<DropdownMenuItem
+												onClick={() => setSelectedSource(null)}
+												className="flex items-center justify-between"
 											>
+												<span className="flex items-center gap-2">
+													<LayoutGrid className="h-4 w-4" />
+													<span>{t("all_sources") || "All sources"}</span>
+												</span>
+												{selectedSource === null && <Check className="h-4 w-4" />}
+											</DropdownMenuItem>
+											{statusSourceOptions.map((source) => (
 												<DropdownMenuItem
-													onClick={() => setSelectedConnector(null)}
+													key={source.key}
+													onClick={() => setSelectedSource(source.key)}
 													className="flex items-center justify-between"
 												>
 													<span className="flex items-center gap-2">
-														<LayoutGrid className="h-4 w-4" />
-														<span>{t("all_connectors") || "All connectors"}</span>
+														{getConnectorIcon(source.type, "h-4 w-4")}
+														<span>{source.displayName}</span>
 													</span>
-													{selectedConnector === null && <Check className="h-4 w-4" />}
+													{selectedSource === source.key && <Check className="h-4 w-4" />}
 												</DropdownMenuItem>
-												{uniqueConnectorTypes.map((connector) => (
-													<DropdownMenuItem
-														key={connector.type}
-														onClick={() => setSelectedConnector(connector.type)}
-														className="flex items-center justify-between"
-													>
-														<span className="flex items-center gap-2">
-															{getConnectorIcon(connector.type, "h-4 w-4")}
-															<span>{connector.displayName}</span>
-														</span>
-														{selectedConnector === connector.type && <Check className="h-4 w-4" />}
-													</DropdownMenuItem>
-												))}
-											</div>
-										</>
-									)}
+											))}
+										</div>
+									</>
+								)}
 								</DropdownMenuContent>
 							</DropdownMenu>
 						)}
