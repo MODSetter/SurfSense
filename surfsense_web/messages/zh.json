@@ -316,7 +316,8 @@
 		"upload_documents": "上传文档",
 		"create_shared_note": "创建共享笔记",
 		"processing_documents": "正在处理文档...",
-		"active_tasks_count": "{count} 个正在进行的工作项"
+		"delete_in_progress_warning": "{count} 个文档正在等待或处理中，无法删除。",
+		"delete_conflict_error": "{count} 个文档已开始处理，请稍后再试。"
 	},
 	"add_connector": {
 		"title": "连接您的工具",

@@ -332,7 +332,8 @@
 		"upload_documents": "Upload Documents",
 		"create_shared_note": "Create Shared Note",
 		"processing_documents": "Processing documents...",
-		"active_tasks_count": "{count} active task(s)"
+		"delete_in_progress_warning": "{count} document(s) are pending or processing and cannot be deleted.",
+		"delete_conflict_error": "{count} document(s) started processing. Please try again later."
 	},
 	"add_connector": {
 		"title": "Connect Your Tools",

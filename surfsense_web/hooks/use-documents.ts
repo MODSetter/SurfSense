@@ -105,7 +105,6 @@ export function useDocuments(
 	// Snapshot of all doc IDs from Electric's first callback after initial load.
 	// Anything appearing in subsequent callbacks NOT in this set is genuinely new.
 	const electricBaselineIdsRef = useRef<Set<number> | null>(null);
-	const knownApiIdsRef = useRef<Set<number>>(new Set());
 	const userCacheRef = useRef<Map<string, string>>(new Map());
 	const emailCacheRef = useRef<Map<string, string>>(new Map());
 	const syncHandleRef = useRef<SyncHandle | null>(null);
@@ -178,7 +177,6 @@ export function useDocuments(
 		apiLoadedCountRef.current = 0;
 		initialLoadDoneRef.current = false;
 		electricBaselineIdsRef.current = null;
-		knownApiIdsRef.current = new Set();
 
 		const fetchInitialData = async () => {
 			try {
@@ -209,9 +207,6 @@ export function useDocuments(
 				setError(null);
 				apiLoadedCountRef.current = docsResponse.items.length;
 				initialLoadDoneRef.current = true;
-				for (const doc of docs) {
-					knownApiIdsRef.current.add(doc.id);
-				}
 			} catch (err) {
 				if (cancelled) return;
 				console.error("[useDocuments] Initial load failed:", err);
@@ -454,7 +449,6 @@ export function useDocuments(
 			apiLoadedCountRef.current = 0;
 			initialLoadDoneRef.current = false;
 			electricBaselineIdsRef.current = null;
-			knownApiIdsRef.current = new Set();
 			userCacheRef.current.clear();
 			emailCacheRef.current.clear();
 		}
@@ -481,9 +475,6 @@ export function useDocuments(
 
 			populateUserCache(response.items);
 			const newDocs = response.items.map(apiToDisplayDoc);
-			for (const doc of newDocs) {
-				knownApiIdsRef.current.add(doc.id);
-			}
 
 			setDocuments((prev) => {
 				const existingIds = new Set(prev.map((d) => d.id));

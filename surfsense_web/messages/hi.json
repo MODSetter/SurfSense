@@ -332,7 +332,8 @@
 		"upload_documents": "दस्तावेज़ अपलोड करें",
 		"create_shared_note": "साझा नोट बनाएं",
 		"processing_documents": "दस्तावेज़ प्रोसेस हो रहे हैं...",
-		"active_tasks_count": "{count} सक्रिय कार्य"
+		"delete_in_progress_warning": "{count} दस्तावेज़ लंबित या प्रसंस्करण में हैं और हटाए नहीं जा सकते।",
+		"delete_conflict_error": "{count} दस्तावेज़ प्रसंस्करण शुरू हो गया है। कृपया बाद में पुनः प्रयास करें।"
 	},
 	"add_connector": {
 		"title": "अपने टूल कनेक्ट करें",

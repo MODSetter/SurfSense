@@ -332,7 +332,8 @@
 		"upload_documents": "Enviar documentos",
 		"create_shared_note": "Criar nota compartilhada",
 		"processing_documents": "Processando documentos...",
-		"active_tasks_count": "{count} tarefa(s) ativa(s)"
+		"delete_in_progress_warning": "{count} documento(s) estão pendentes ou em processamento e não podem ser excluídos.",
+		"delete_conflict_error": "{count} documento(s) começaram a ser processados. Tente novamente mais tarde."
 	},
 	"add_connector": {
 		"title": "Conecte suas ferramentas",
