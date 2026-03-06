@@ -3,6 +3,7 @@
 import { PanelLeft, PanelLeftClose } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
+import { ShortcutKbd } from "@/components/ui/shortcut-kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePlatformShortcut } from "@/hooks/use-platform-shortcut";
 
@@ -18,7 +19,7 @@ export function SidebarCollapseButton({
 	disableTooltip = false,
 }: SidebarCollapseButtonProps) {
 	const t = useTranslations("sidebar");
-	const { shortcut } = usePlatformShortcut();
+	const { shortcutKeys } = usePlatformShortcut();
 
 	const button = (
 		<Button variant="ghost" size="icon" onClick={onToggle} className="h-8 w-8 shrink-0">
@@ -35,9 +36,10 @@ export function SidebarCollapseButton({
 		<Tooltip>
 			<TooltipTrigger asChild>{button}</TooltipTrigger>
 			<TooltipContent side={isCollapsed ? "right" : "bottom"}>
-				{isCollapsed
-					? `${t("expand_sidebar")} ${shortcut("Mod", "\\")}`
-					: `${t("collapse_sidebar")} ${shortcut("Mod", "\\")}`}
+				<span className="flex items-center">
+					{isCollapsed ? t("expand_sidebar") : t("collapse_sidebar")}
+					<ShortcutKbd keys={shortcutKeys("Mod", "\\")} />
+				</span>
 			</TooltipContent>
 		</Tooltip>
 	);
