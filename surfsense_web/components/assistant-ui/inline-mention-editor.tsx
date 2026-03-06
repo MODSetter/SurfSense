@@ -170,59 +170,83 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 		// Create a chip element for a document
 		const createChipElement = useCallback(
 			(doc: MentionedDocument): HTMLSpanElement => {
-				const chip = document.createElement("span");
-				chip.setAttribute(CHIP_DATA_ATTR, "true");
-				chip.setAttribute(CHIP_ID_ATTR, String(doc.id));
-				chip.setAttribute(CHIP_DOCTYPE_ATTR, doc.document_type ?? "UNKNOWN");
-				chip.contentEditable = "false";
-				chip.className =
-					"inline-flex items-center gap-1 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none";
-				chip.style.userSelect = "none";
-				chip.style.verticalAlign = "baseline";
+			const chip = document.createElement("span");
+			chip.setAttribute(CHIP_DATA_ATTR, "true");
+			chip.setAttribute(CHIP_ID_ATTR, String(doc.id));
+			chip.setAttribute(CHIP_DOCTYPE_ATTR, doc.document_type ?? "UNKNOWN");
+			chip.contentEditable = "false";
+			chip.className =
+				"inline-flex items-center gap-1 mx-0.5 px-1 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none cursor-default";
+			chip.style.userSelect = "none";
+			chip.style.verticalAlign = "baseline";
 
-				// Add document type icon
-				const iconSpan = document.createElement("span");
-				iconSpan.className = "shrink-0 flex items-center text-muted-foreground";
-				iconSpan.innerHTML = ReactDOMServer.renderToString(
-					getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3")
-				);
+			// Container that swaps between icon and remove button on hover
+			const iconContainer = document.createElement("span");
+			iconContainer.className = "shrink-0 flex items-center size-3 relative";
 
-				const titleSpan = document.createElement("span");
-				titleSpan.className = "max-w-[120px] truncate";
-				titleSpan.textContent = doc.title;
-				titleSpan.title = doc.title;
-				titleSpan.setAttribute("data-mention-title", "true");
+			const iconSpan = document.createElement("span");
+			iconSpan.className = "flex items-center text-muted-foreground";
+			iconSpan.innerHTML = ReactDOMServer.renderToString(
+				getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3")
+			);
 
-				const statusSpan = document.createElement("span");
-				statusSpan.setAttribute(CHIP_STATUS_ATTR, "true");
-				statusSpan.className = "text-[10px] font-semibold opacity-80 hidden";
+			const removeBtn = document.createElement("button");
+			removeBtn.type = "button";
+			removeBtn.className =
+				"size-3 items-center justify-center rounded-full text-muted-foreground transition-colors";
+			removeBtn.style.display = "none";
+			removeBtn.innerHTML = ReactDOMServer.renderToString(
+				createElement(X, { className: "h-3 w-3", strokeWidth: 2.5 })
+			);
+			removeBtn.onclick = (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				chip.remove();
+				const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
+				setMentionedDocs((prev) => {
+					const next = new Map(prev);
+					next.delete(docKey);
+					return next;
+				});
+				onDocumentRemove?.(doc.id, doc.document_type);
+				focusAtEnd();
+			};
 
-				const removeBtn = document.createElement("button");
-				removeBtn.type = "button";
-				removeBtn.className =
-					"size-3 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors ml-0.5";
-				removeBtn.innerHTML = ReactDOMServer.renderToString(
-					createElement(X, { className: "h-2.5 w-2.5", strokeWidth: 2.5 })
-				);
-				removeBtn.onclick = (e) => {
-					e.preventDefault();
-					e.stopPropagation();
-					chip.remove();
-					const docKey = `${doc.document_type ?? "UNKNOWN"}:${doc.id}`;
-					setMentionedDocs((prev) => {
-						const next = new Map(prev);
-						next.delete(docKey);
-						return next;
-					});
-					// Notify parent that a document was removed
-					onDocumentRemove?.(doc.id, doc.document_type);
-					focusAtEnd();
-				};
+			const titleSpan = document.createElement("span");
+			titleSpan.className = "max-w-[120px] truncate";
+			titleSpan.textContent = doc.title;
+			titleSpan.title = doc.title;
+			titleSpan.setAttribute("data-mention-title", "true");
 
+			const statusSpan = document.createElement("span");
+			statusSpan.setAttribute(CHIP_STATUS_ATTR, "true");
+			statusSpan.className = "text-[10px] font-semibold opacity-80 hidden";
+
+			const isTouchDevice = window.matchMedia("(hover: none)").matches;
+			if (isTouchDevice) {
+				// Mobile: icon on left, title, X on right
 				chip.appendChild(iconSpan);
 				chip.appendChild(titleSpan);
 				chip.appendChild(statusSpan);
+				removeBtn.style.display = "flex";
+				removeBtn.className += " ml-0.5";
 				chip.appendChild(removeBtn);
+			} else {
+				// Desktop: icon/X swap on hover in the same slot
+				iconContainer.appendChild(iconSpan);
+				iconContainer.appendChild(removeBtn);
+				chip.addEventListener("mouseenter", () => {
+					iconSpan.style.display = "none";
+					removeBtn.style.display = "flex";
+				});
+				chip.addEventListener("mouseleave", () => {
+					iconSpan.style.display = "";
+					removeBtn.style.display = "none";
+				});
+				chip.appendChild(iconContainer);
+				chip.appendChild(titleSpan);
+				chip.appendChild(statusSpan);
+			}
 
 				return chip;
 			},
