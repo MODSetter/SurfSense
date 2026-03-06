@@ -5,11 +5,8 @@ import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertTriangle,
 	Inbox,
-	LogOut,
 	Megaphone,
-	PencilIcon,
 	SquareLibrary,
-	Trash2,
 } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -21,6 +18,16 @@ import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -645,31 +652,26 @@ export function LayoutDataProvider({
 			</LayoutShell>
 
 			{/* Delete Chat Dialog */}
-			<Dialog open={showDeleteChatDialog} onOpenChange={setShowDeleteChatDialog}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Trash2 className="h-5 w-5 text-destructive" />
-							<span>{t("delete_chat")}</span>
-						</DialogTitle>
-						<DialogDescription>
+			<AlertDialog open={showDeleteChatDialog} onOpenChange={setShowDeleteChatDialog}>
+				<AlertDialogContent className="sm:max-w-md">
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("delete_chat")}</AlertDialogTitle>
+						<AlertDialogDescription>
 							{t("delete_chat_confirm")} <span className="font-medium">{chatToDelete?.name}</span>?{" "}
 							{t("action_cannot_undone")}
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="flex gap-2 sm:justify-end">
-						<Button
-							variant="outline"
-							onClick={() => setShowDeleteChatDialog(false)}
-							disabled={isDeletingChat}
-						>
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeletingChat}>
 							{tCommon("cancel")}
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={confirmDeleteChat}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								confirmDeleteChat();
+							}}
 							disabled={isDeletingChat}
-							className="gap-2"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
 							{isDeletingChat ? (
 								<>
@@ -677,15 +679,12 @@ export function LayoutDataProvider({
 									{t("deleting")}
 								</>
 							) : (
-								<>
-									<Trash2 className="h-4 w-4" />
-									{tCommon("delete")}
-								</>
+								tCommon("delete")
 							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Rename Chat Dialog */}
 			<Dialog open={showRenameChatDialog} onOpenChange={setShowRenameChatDialog}>
@@ -710,7 +709,7 @@ export function LayoutDataProvider({
 					/>
 					<DialogFooter className="flex gap-2 sm:justify-end">
 						<Button
-							variant="outline"
+							variant="secondary"
 							onClick={() => setShowRenameChatDialog(false)}
 							disabled={isRenamingChat}
 						>
@@ -727,10 +726,7 @@ export function LayoutDataProvider({
 									{tSidebar("renaming") || "Renaming"}
 								</>
 							) : (
-								<>
-									<PencilIcon className="h-4 w-4" />
-									{tSidebar("rename") || "Rename"}
-								</>
+								tSidebar("rename") || "Rename"
 							)}
 						</Button>
 					</DialogFooter>
@@ -738,30 +734,25 @@ export function LayoutDataProvider({
 			</Dialog>
 
 			{/* Delete Search Space Dialog */}
-			<Dialog open={showDeleteSearchSpaceDialog} onOpenChange={setShowDeleteSearchSpaceDialog}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Trash2 className="h-5 w-5 text-destructive" />
-							<span>{t("delete_search_space")}</span>
-						</DialogTitle>
-						<DialogDescription>
+			<AlertDialog open={showDeleteSearchSpaceDialog} onOpenChange={setShowDeleteSearchSpaceDialog}>
+				<AlertDialogContent className="sm:max-w-md">
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("delete_search_space")}</AlertDialogTitle>
+						<AlertDialogDescription>
 							{t("delete_space_confirm", { name: searchSpaceToDelete?.name || "" })}
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="flex gap-2 sm:justify-end">
-						<Button
-							variant="outline"
-							onClick={() => setShowDeleteSearchSpaceDialog(false)}
-							disabled={isDeletingSearchSpace}
-						>
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeletingSearchSpace}>
 							{tCommon("cancel")}
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={confirmDeleteSearchSpace}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								confirmDeleteSearchSpace();
+							}}
 							disabled={isDeletingSearchSpace}
-							className="gap-2"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
 							{isDeletingSearchSpace ? (
 								<>
@@ -769,41 +760,33 @@ export function LayoutDataProvider({
 									{t("deleting")}
 								</>
 							) : (
-								<>
-									<Trash2 className="h-4 w-4" />
-									{tCommon("delete")}
-								</>
+								tCommon("delete")
 							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Leave Search Space Dialog */}
-			<Dialog open={showLeaveSearchSpaceDialog} onOpenChange={setShowLeaveSearchSpaceDialog}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<LogOut className="h-5 w-5 text-destructive" />
-							<span>{t("leave_title")}</span>
-						</DialogTitle>
-						<DialogDescription>
+			<AlertDialog open={showLeaveSearchSpaceDialog} onOpenChange={setShowLeaveSearchSpaceDialog}>
+				<AlertDialogContent className="sm:max-w-md">
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("leave_title")}</AlertDialogTitle>
+						<AlertDialogDescription>
 							{t("leave_confirm", { name: searchSpaceToLeave?.name || "" })}
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="flex gap-2 sm:justify-end">
-						<Button
-							variant="outline"
-							onClick={() => setShowLeaveSearchSpaceDialog(false)}
-							disabled={isLeavingSearchSpace}
-						>
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isLeavingSearchSpace}>
 							{tCommon("cancel")}
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={confirmLeaveSearchSpace}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								confirmLeaveSearchSpace();
+							}}
 							disabled={isLeavingSearchSpace}
-							className="gap-2"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
 							{isLeavingSearchSpace ? (
 								<>
@@ -811,15 +794,12 @@ export function LayoutDataProvider({
 									{t("leaving")}
 								</>
 							) : (
-								<>
-									<LogOut className="h-4 w-4" />
-									{t("leave")}
-								</>
+								t("leave")
 							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Create Search Space Dialog */}
 			<CreateSearchSpaceDialog

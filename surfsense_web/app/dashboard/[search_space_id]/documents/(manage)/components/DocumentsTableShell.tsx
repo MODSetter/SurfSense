@@ -265,7 +265,6 @@ function RowContextMenu({
 					<>
 						<ContextMenuSeparator />
 						<ContextMenuItem
-							variant="destructive"
 							onClick={() => !isDeleteDisabled && onDelete(doc)}
 							disabled={isDeleteDisabled}
 						>

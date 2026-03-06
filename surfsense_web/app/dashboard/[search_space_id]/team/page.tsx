@@ -564,7 +564,7 @@ function MemberRow({
 						<DropdownMenuContent
 							align="end"
 							onCloseAutoFocus={(e) => e.preventDefault()}
-							className="min-w-[120px] bg-muted dark:border dark:border-neutral-700"
+							className="min-w-[120px]"
 						>
 							{canManageRoles &&
 								roles
@@ -581,8 +581,8 @@ function MemberRow({
 								<AlertDialog>
 									<AlertDialogTrigger asChild>
 										<DropdownMenuItem
-											className="text-destructive focus:text-destructive"
 											onSelect={(e) => e.preventDefault()}
+											className="text-destructive focus:text-destructive"
 										>
 											Remove
 										</DropdownMenuItem>
@@ -607,7 +607,7 @@ function MemberRow({
 									</AlertDialogContent>
 								</AlertDialog>
 							)}
-							<DropdownMenuSeparator className="dark:bg-neutral-700" />
+							<DropdownMenuSeparator />
 							<DropdownMenuItem
 								onClick={() =>
 									router.push(`/dashboard/${searchSpaceId}/settings?section=team-roles`)
@@ -811,7 +811,7 @@ function CreateInviteDialog({
 											<Button
 												variant="outline"
 												className={cn(
-													"w-full justify-start text-left font-normal",
+													"w-full justify-start text-left font-normal bg-transparent",
 													!expiresAt && "text-muted-foreground"
 												)}
 											>
@@ -833,7 +833,7 @@ function CreateInviteDialog({
 							</div>
 						</div>
 						<DialogFooter>
-							<Button variant="outline" onClick={handleClose}>
+							<Button variant="secondary" onClick={handleClose}>
 								Cancel
 							</Button>
 							<Button onClick={handleCreate} disabled={creating}>

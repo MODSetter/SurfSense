@@ -36,7 +36,7 @@ export function CommentActions({ canEdit, canDelete, onEdit, onDelete }: Comment
 				)}
 				{canEdit && canDelete && <DropdownMenuSeparator />}
 				{canDelete && (
-					<DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+					<DropdownMenuItem onClick={onDelete}>
 						<Trash2 className="mr-2 size-4" />
 						Delete
 					</DropdownMenuItem>

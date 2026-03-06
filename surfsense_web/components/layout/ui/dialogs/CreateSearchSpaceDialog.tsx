@@ -141,7 +141,7 @@ export function CreateSearchSpaceDialog({ open, onOpenChange }: CreateSearchSpac
 						<DialogFooter className="flex-row gap-2 pt-2 sm:pt-3">
 							<Button
 								type="button"
-								variant="outline"
+								variant="secondary"
 								onClick={() => handleOpenChange(false)}
 								disabled={isSubmitting}
 								className="flex-1 sm:flex-none sm:w-auto h-8 sm:h-10 text-xs sm:text-sm"

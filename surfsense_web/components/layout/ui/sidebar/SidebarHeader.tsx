@@ -50,7 +50,7 @@ export function SidebarHeader({
 						<ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
 					</Button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="start" className="w-48 bg-muted dark:border dark:border-neutral-700">
+				<DropdownMenuContent align="start" className="w-48">
 					<DropdownMenuItem onClick={onManageMembers}>
 						<UserPen className="h-4 w-4" />
 						{t("manage_members")}

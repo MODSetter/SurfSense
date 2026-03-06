@@ -177,7 +177,7 @@ export function SidebarUserProfile({
 						<TooltipContent side="right">{displayName}</TooltipContent>
 					</Tooltip>
 
-					<DropdownMenuContent className="w-48 bg-muted dark:border dark:border-neutral-700" side="right" align="center" sideOffset={8}>
+					<DropdownMenuContent className="w-48" side="right" align="center" sideOffset={8}>
 						<DropdownMenuLabel className="font-normal">
 							<div className="flex items-center gap-2">
 								<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
@@ -202,7 +202,7 @@ export function SidebarUserProfile({
 									{t("theme")}
 								</DropdownMenuSubTrigger>
 								<DropdownMenuPortal>
-									<DropdownMenuSubContent className="gap-1 bg-muted dark:border dark:border-neutral-700">
+									<DropdownMenuSubContent className="gap-1">
 										{THEMES.map((themeOption) => {
 											const Icon = themeOption.icon;
 											const isSelected = theme === themeOption.value;
@@ -233,7 +233,7 @@ export function SidebarUserProfile({
 								{t("language")}
 							</DropdownMenuSubTrigger>
 							<DropdownMenuPortal>
-								<DropdownMenuSubContent className="gap-1 bg-muted dark:border dark:border-neutral-700">
+								<DropdownMenuSubContent className="gap-1">
 									{LANGUAGES.map((language) => {
 										const isSelected = locale === language.code;
 										return (
@@ -299,7 +299,7 @@ export function SidebarUserProfile({
 					</button>
 				</DropdownMenuTrigger>
 
-				<DropdownMenuContent className="w-48 bg-muted dark:border dark:border-neutral-700" side="top" align="center" sideOffset={4}>
+				<DropdownMenuContent className="w-48" side="top" align="center" sideOffset={4}>
 					<DropdownMenuLabel className="font-normal">
 						<div className="flex items-center gap-2">
 							<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
@@ -324,7 +324,7 @@ export function SidebarUserProfile({
 								{t("theme")}
 							</DropdownMenuSubTrigger>
 							<DropdownMenuPortal>
-								<DropdownMenuSubContent className="gap-1 bg-muted dark:border dark:border-neutral-700">
+								<DropdownMenuSubContent className="gap-1">
 									{THEMES.map((themeOption) => {
 										const Icon = themeOption.icon;
 										const isSelected = theme === themeOption.value;
@@ -355,7 +355,7 @@ export function SidebarUserProfile({
 							{t("language")}
 						</DropdownMenuSubTrigger>
 						<DropdownMenuPortal>
-							<DropdownMenuSubContent className="gap-1 bg-muted dark:border dark:border-neutral-700">
+							<DropdownMenuSubContent className="gap-1">
 								{LANGUAGES.map((language) => {
 									const isSelected = locale === language.code;
 									return (

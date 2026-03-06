@@ -95,7 +95,6 @@ export function RowActions({
 			{/* Desktop Actions */}
 			<div className="hidden md:inline-flex items-center justify-center">
 				{isEditable ? (
-					// Editable documents: show 3-dot dropdown with edit + delete
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button
@@ -125,7 +124,7 @@ export function RowActions({
 									className={
 										isDeleteDisabled
 											? "text-muted-foreground cursor-not-allowed opacity-50"
-											: "text-destructive focus:text-destructive"
+											: ""
 									}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
@@ -135,12 +134,11 @@ export function RowActions({
 						</DropdownMenuContent>
 					</DropdownMenu>
 				) : (
-					// Non-editable documents: show only delete button directly
 					shouldShowDelete && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
 							onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
 							disabled={isDeleting || isDeleteDisabled}
 						>
@@ -154,7 +152,6 @@ export function RowActions({
 			{/* Mobile Actions Dropdown */}
 			<div className="inline-flex md:hidden items-center justify-center">
 				{isEditable ? (
-					// Editable documents: show 3-dot dropdown
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
@@ -180,7 +177,7 @@ export function RowActions({
 									className={
 										isDeleteDisabled
 											? "text-muted-foreground cursor-not-allowed opacity-50"
-											: "text-destructive focus:text-destructive"
+											: ""
 									}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
@@ -190,12 +187,11 @@ export function RowActions({
 						</DropdownMenuContent>
 					</DropdownMenu>
 				) : (
-					// Non-editable documents: show only delete button directly
 					shouldShowDelete && (
 						<Button
 							variant="ghost"
 							size="icon"
-							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground cursor-not-allowed" : "text-muted-foreground hover:text-destructive hover:bg-destructive/10"}`}
+							className={`h-8 w-8 ${isDeleteDisabled ? "text-muted-foreground cursor-not-allowed" : "text-muted-foreground hover:text-foreground"}`}
 							onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
 							disabled={isDeleting || isDeleteDisabled}
 						>

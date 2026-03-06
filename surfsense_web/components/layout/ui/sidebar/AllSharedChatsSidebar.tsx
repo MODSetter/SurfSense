@@ -466,8 +466,7 @@ export function AllSharedChatsSidebar({
 											<DropdownMenuSeparator />
 											<DropdownMenuItem
 												onClick={() => handleDeleteThread(thread.id)}
-												className="text-destructive focus:text-destructive"
-											>
+												>
 												<Trash2 className="mr-2 h-4 w-4" />
 												<span>{t("delete") || "Delete"}</span>
 											</DropdownMenuItem>
@@ -525,7 +524,7 @@ export function AllSharedChatsSidebar({
 					/>
 					<DialogFooter className="flex gap-2 sm:justify-end">
 						<Button
-							variant="outline"
+							variant="secondary"
 							onClick={() => setShowRenameDialog(false)}
 							disabled={isRenaming}
 						>
