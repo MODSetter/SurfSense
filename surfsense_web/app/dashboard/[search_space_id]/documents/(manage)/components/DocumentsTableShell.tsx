@@ -58,6 +58,7 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLongPress } from "@/hooks/use-long-press";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
 import type { Document, DocumentStatus } from "./types";
@@ -285,31 +286,17 @@ function MobileCardWrapper({
 	onLongPress: () => void;
 	children: React.ReactNode;
 }) {
-	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const didLongPressRef = useRef(false);
-
-	const clearTimer = useCallback(() => {
-		if (timerRef.current) {
-			clearTimeout(timerRef.current);
-			timerRef.current = null;
-		}
-	}, []);
+	const { handlers, wasLongPress } = useLongPress(onLongPress);
 
 	return (
 		// biome-ignore lint/a11y/useSemanticElements: touch-only long-press wrapper for mobile
 		<div
 			role="group"
-			onTouchStart={() => {
-				didLongPressRef.current = false;
-				timerRef.current = setTimeout(() => {
-					didLongPressRef.current = true;
-					onLongPress();
-				}, 500);
-			}}
-			onTouchMove={clearTimer}
+			onTouchStart={handlers.onTouchStart}
+			onTouchMove={handlers.onTouchMove}
 			onTouchEnd={(e) => {
-				clearTimer();
-				if (didLongPressRef.current) {
+				handlers.onTouchEnd();
+				if (wasLongPress()) {
 					e.preventDefault();
 				}
 			}}
