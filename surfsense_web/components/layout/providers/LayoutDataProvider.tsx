@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertTriangle,
 	Inbox,
@@ -17,6 +17,7 @@ import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -114,8 +115,8 @@ export function LayoutDataProvider({
 	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
 	const [isInboxDocked, setIsInboxDocked] = useState(false);
 
-	// Documents sidebar state
-	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useState(false);
+	// Documents sidebar state (shared atom so Composer can toggle it)
+	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
 
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
@@ -440,7 +441,7 @@ export function LayoutDataProvider({
 			}
 			router.push(item.url);
 		},
-		[router]
+		[router, setIsDocumentsSidebarOpen]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -538,14 +539,14 @@ export function LayoutDataProvider({
 		setIsAllPrivateChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
 		setIsDocumentsSidebarOpen(false);
-	}, []);
+	}, [setIsDocumentsSidebarOpen]);
 
 	const handleViewAllPrivateChats = useCallback(() => {
 		setIsAllPrivateChatsSidebarOpen(true);
 		setIsAllSharedChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
 		setIsDocumentsSidebarOpen(false);
-	}, []);
+	}, [setIsDocumentsSidebarOpen]);
 
 	// Delete handlers
 	const confirmDeleteChat = useCallback(async () => {
