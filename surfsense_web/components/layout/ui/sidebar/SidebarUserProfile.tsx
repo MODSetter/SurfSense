@@ -188,7 +188,7 @@ export function SidebarUserProfile({
 							</div>
 						</DropdownMenuLabel>
 
-						<DropdownMenuSeparator />
+						<DropdownMenuSeparator className="dark:bg-neutral-700" />
 
 						<DropdownMenuItem onClick={onUserSettings}>
 							<Settings className="h-4 w-4" />
@@ -256,7 +256,7 @@ export function SidebarUserProfile({
 							</DropdownMenuPortal>
 						</DropdownMenuSub>
 
-						<DropdownMenuSeparator />
+						<DropdownMenuSeparator className="dark:bg-neutral-700" />
 
 						<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
 							{isLoggingOut ? (
@@ -310,7 +310,7 @@ export function SidebarUserProfile({
 						</div>
 					</DropdownMenuLabel>
 
-					<DropdownMenuSeparator />
+					<DropdownMenuSeparator className="dark:bg-neutral-700" />
 
 					<DropdownMenuItem onClick={onUserSettings}>
 						<Settings className="h-4 w-4" />
@@ -378,7 +378,7 @@ export function SidebarUserProfile({
 						</DropdownMenuPortal>
 					</DropdownMenuSub>
 
-					<DropdownMenuSeparator />
+					<DropdownMenuSeparator className="dark:bg-neutral-700" />
 
 					<DropdownMenuItem onClick={handleLogout} disabled={isLoggingOut}>
 						{isLoggingOut ? <Spinner size="sm" className="mr-2" /> : <LogOut className="h-4 w-4" />}

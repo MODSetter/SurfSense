@@ -43,6 +43,7 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
@@ -478,6 +479,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
@@ -514,8 +516,8 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					variant="ghost"
 					size="icon"
 					className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-					aria-label="Open documents"
-					onClick={() => setDocumentsSidebarOpen(true)}
+					aria-label="Upload documents"
+					onClick={openUploadDialog}
 				>
 					<PlusIcon className="size-4" />
 				</TooltipIconButton>

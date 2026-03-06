@@ -8,7 +8,7 @@ import type {
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
 import { ImageConfigSidebar } from "./image-config-sidebar";
-import { ModelConfigSidebar } from "./model-config-sidebar";
+import { ModelConfigDialog } from "./model-config-dialog";
 import { ModelSelector } from "./model-selector";
 
 interface ChatHeaderProps {
@@ -17,13 +17,13 @@ interface ChatHeaderProps {
 }
 
 export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
-	// LLM config sidebar state
-	const [sidebarOpen, setSidebarOpen] = useState(false);
+	// LLM config dialog state
+	const [dialogOpen, setDialogOpen] = useState(false);
 	const [selectedConfig, setSelectedConfig] = useState<
 		NewLLMConfigPublic | GlobalNewLLMConfig | null
 	>(null);
 	const [isGlobal, setIsGlobal] = useState(false);
-	const [sidebarMode, setSidebarMode] = useState<"create" | "edit" | "view">("view");
+	const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("view");
 
 	// Image config sidebar state
 	const [imageSidebarOpen, setImageSidebarOpen] = useState(false);
@@ -38,8 +38,8 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 		(config: NewLLMConfigPublic | GlobalNewLLMConfig, global: boolean) => {
 			setSelectedConfig(config);
 			setIsGlobal(global);
-			setSidebarMode(global ? "view" : "edit");
-			setSidebarOpen(true);
+			setDialogMode(global ? "view" : "edit");
+			setDialogOpen(true);
 		},
 		[]
 	);
@@ -47,12 +47,12 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 	const handleAddNewLLM = useCallback(() => {
 		setSelectedConfig(null);
 		setIsGlobal(false);
-		setSidebarMode("create");
-		setSidebarOpen(true);
+		setDialogMode("create");
+		setDialogOpen(true);
 	}, []);
 
-	const handleSidebarClose = useCallback((open: boolean) => {
-		setSidebarOpen(open);
+	const handleDialogClose = useCallback((open: boolean) => {
+		setDialogOpen(open);
 		if (!open) setSelectedConfig(null);
 	}, []);
 
@@ -88,13 +88,13 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 				onAddNewImage={handleAddImageModel}
 				className={className}
 			/>
-			<ModelConfigSidebar
-				open={sidebarOpen}
-				onOpenChange={handleSidebarClose}
+			<ModelConfigDialog
+				open={dialogOpen}
+				onOpenChange={handleDialogClose}
 				config={selectedConfig}
 				isGlobal={isGlobal}
 				searchSpaceId={searchSpaceId}
-				mode={sidebarMode}
+				mode={dialogMode}
 			/>
 			<ImageConfigSidebar
 				open={imageSidebarOpen}

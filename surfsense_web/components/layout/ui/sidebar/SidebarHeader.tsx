@@ -8,7 +8,6 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
@@ -56,7 +55,6 @@ export function SidebarHeader({
 						<UserPen className="h-4 w-4" />
 						{t("manage_members")}
 					</DropdownMenuItem>
-					<DropdownMenuSeparator />
 					<DropdownMenuItem onClick={onSettings}>
 						<Settings className="h-4 w-4" />
 						{t("search_space_settings")}
