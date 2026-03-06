@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { ChevronLeft, SquareLibrary } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,8 @@ import {
 import type { ColumnVisibility } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/types";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-const INITIAL_LOAD_SIZE = 20;
-const SCROLL_LOAD_SIZE = 5;
+const SEARCH_INITIAL_SIZE = 20;
+const SEARCH_SCROLL_SIZE = 5;
 
 function useDebounced<T>(value: T, delay = 250) {
 	const [debounced, setDebounced] = useState(value);
@@ -60,17 +60,21 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
+	// Paginated realtime documents from the hook (server-side sorted)
 	const {
 		documents: realtimeDocuments,
 		typeCounts: realtimeTypeCounts,
 		loading: realtimeLoading,
+		loadingMore: realtimeLoadingMore,
+		hasMore: realtimeHasMore,
+		loadMore: realtimeLoadMore,
 		error: realtimeError,
-	} = useDocuments(searchSpaceId, activeTypes);
+	} = useDocuments(searchSpaceId, activeTypes, sortKey, sortDesc ? "desc" : "asc");
 
 	const isSearchMode = !!debouncedSearch.trim();
 
-	// --- Infinite scroll state ---
-	const [visibleCount, setVisibleCount] = useState(INITIAL_LOAD_SIZE);
+	// --- Search mode state ---
+	const searchApiLoadedRef = useRef(0);
 	const [searchItems, setSearchItems] = useState<Array<{
 		id: number;
 		search_space_id: number;
@@ -82,56 +86,33 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 		created_at: string;
 		status: { state: "ready" | "pending" | "processing" | "failed"; reason?: string };
 	}>>([]);
-	const [searchTotal, setSearchTotal] = useState(0);
-	const [searchPageIndex, setSearchPageIndex] = useState(0);
 	const [searchLoadingMore, setSearchLoadingMore] = useState(false);
 	const [searchInitialLoading, setSearchInitialLoading] = useState(false);
+	const [searchHasMore, setSearchHasMore] = useState(false);
 	const searchQueryRef = useRef(debouncedSearch);
-
-	const sortedRealtimeDocuments = useMemo(() => {
-		const docs = [...realtimeDocuments];
-		docs.sort((a, b) => {
-			const av = a[sortKey] ?? "";
-			const bv = b[sortKey] ?? "";
-			let cmp: number;
-			if (sortKey === "created_at") {
-				cmp = new Date(av as string).getTime() - new Date(bv as string).getTime();
-			} else {
-				cmp = String(av).localeCompare(String(bv));
-			}
-			return sortDesc ? -cmp : cmp;
-		});
-		return docs;
-	}, [realtimeDocuments, sortKey, sortDesc]);
-
-	// Reset visible count when sort/filter changes
-	// biome-ignore lint/correctness/useExhaustiveDependencies: intentional reset
-	useEffect(() => {
-		setVisibleCount(INITIAL_LOAD_SIZE);
-	}, [sortKey, sortDesc, activeTypes]);
 
 	// Initial search fetch when search query changes
 	useEffect(() => {
 		if (!isSearchMode || !searchSpaceId || !open) {
 			setSearchItems([]);
-			setSearchTotal(0);
-			setSearchPageIndex(0);
+			setSearchHasMore(false);
+			searchApiLoadedRef.current = 0;
 			return;
 		}
 
 		searchQueryRef.current = debouncedSearch;
 		setSearchInitialLoading(true);
 
-		const queryParams = {
-			search_space_id: searchSpaceId,
-			page: 0,
-			page_size: INITIAL_LOAD_SIZE,
-			title: debouncedSearch.trim(),
-			...(activeTypes.length > 0 && { document_types: activeTypes }),
-		};
-
 		documentsApiService
-			.searchDocuments({ queryParams })
+			.searchDocuments({
+				queryParams: {
+					search_space_id: searchSpaceId,
+					page: 0,
+					page_size: SEARCH_INITIAL_SIZE,
+					title: debouncedSearch.trim(),
+					...(activeTypes.length > 0 && { document_types: activeTypes }),
+				},
+			})
 			.then((response) => {
 				if (searchQueryRef.current !== debouncedSearch) return;
 				const mapped = response.items.map((item) => ({
@@ -150,8 +131,8 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 					).status ?? { state: "ready" as const },
 				}));
 				setSearchItems(mapped);
-				setSearchTotal(response.total);
-				setSearchPageIndex(0);
+				setSearchHasMore(response.has_more);
+				searchApiLoadedRef.current = response.items.length;
 			})
 			.catch((err) => {
 				console.error("[DocumentsSidebar] Search failed:", err);
@@ -161,22 +142,21 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			});
 	}, [debouncedSearch, searchSpaceId, open, isSearchMode, activeTypes]);
 
-	// Load more search results
+	// Load more search results (uses skip for correct offset with mixed page sizes)
 	const loadMoreSearch = useCallback(async () => {
-		if (searchLoadingMore || !isSearchMode) return;
-		const nextPage = searchPageIndex + 1;
-		if (searchItems.length >= searchTotal) return;
+		if (searchLoadingMore || !isSearchMode || !searchHasMore) return;
 
 		setSearchLoadingMore(true);
 		try {
-			const queryParams = {
-				search_space_id: searchSpaceId,
-				page: nextPage,
-				page_size: SCROLL_LOAD_SIZE,
-				title: debouncedSearch.trim(),
-				...(activeTypes.length > 0 && { document_types: activeTypes }),
-			};
-			const response = await documentsApiService.searchDocuments({ queryParams });
+			const response = await documentsApiService.searchDocuments({
+				queryParams: {
+					search_space_id: searchSpaceId,
+					skip: searchApiLoadedRef.current,
+					page_size: SEARCH_SCROLL_SIZE,
+					title: debouncedSearch.trim(),
+					...(activeTypes.length > 0 && { document_types: activeTypes }),
+				},
+			});
 			if (searchQueryRef.current !== debouncedSearch) return;
 
 			const mapped = response.items.map((item) => ({
@@ -195,36 +175,22 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 				).status ?? { state: "ready" as const },
 			}));
 			setSearchItems((prev) => [...prev, ...mapped]);
-			setSearchTotal(response.total);
-			setSearchPageIndex(nextPage);
+			setSearchHasMore(response.has_more);
+			searchApiLoadedRef.current += response.items.length;
 		} catch (err) {
 			console.error("[DocumentsSidebar] Load more search failed:", err);
 		} finally {
 			setSearchLoadingMore(false);
 		}
-	}, [searchLoadingMore, isSearchMode, searchPageIndex, searchItems.length, searchTotal, searchSpaceId, debouncedSearch, activeTypes]);
+	}, [searchLoadingMore, isSearchMode, searchHasMore, searchSpaceId, debouncedSearch, activeTypes]);
 
-	// Load more for realtime (client-side, just increase visible count)
-	const loadMoreRealtime = useCallback(() => {
-		setVisibleCount((prev) => Math.min(prev + SCROLL_LOAD_SIZE, sortedRealtimeDocuments.length));
-	}, [sortedRealtimeDocuments.length]);
-
-	const visibleRealtimeDocs = useMemo(
-		() => sortedRealtimeDocuments.slice(0, visibleCount),
-		[sortedRealtimeDocuments, visibleCount]
-	);
-
-	const displayDocs = isSearchMode ? searchItems : visibleRealtimeDocs;
+	// Unified interface — pick between realtime and search mode
+	const displayDocs = isSearchMode ? searchItems : realtimeDocuments;
 	const loading = isSearchMode ? searchInitialLoading : realtimeLoading;
 	const error = isSearchMode ? false : realtimeError;
-
-	const hasMore = isSearchMode
-		? searchItems.length < searchTotal
-		: visibleCount < sortedRealtimeDocuments.length;
-
-	const loadingMore = isSearchMode ? searchLoadingMore : false;
-
-	const onLoadMore = isSearchMode ? loadMoreSearch : loadMoreRealtime;
+	const hasMore = isSearchMode ? searchHasMore : realtimeHasMore;
+	const loadingMore = isSearchMode ? searchLoadingMore : realtimeLoadingMore;
+	const onLoadMore = isSearchMode ? loadMoreSearch : realtimeLoadMore;
 
 	const onToggleType = (type: DocumentTypeEnum, checked: boolean) => {
 		setActiveTypes((prev) => {
@@ -244,7 +210,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 
 		const allDocs = isSearchMode
 			? searchItems.map((item) => ({ id: item.id, status: item.status }))
-			: sortedRealtimeDocuments.map((doc) => ({ id: doc.id, status: doc.status }));
+			: realtimeDocuments.map((doc) => ({ id: doc.id, status: doc.status }));
 
 		const selectedDocs = allDocs.filter((doc) => selectedIds.has(doc.id));
 		const deletableIds = selectedDocs
@@ -286,7 +252,6 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			}
 			if (isSearchMode) {
 				setSearchItems((prev) => prev.filter((item) => !deletableIds.includes(item.id)));
-				setSearchTotal((prev) => prev - okCount);
 			}
 			setSelectedIds(new Set());
 		} catch (e) {
@@ -302,7 +267,6 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 				toast.success(t("delete_success") || "Document deleted");
 				if (isSearchMode) {
 					setSearchItems((prev) => prev.filter((item) => item.id !== id));
-					setSearchTotal((prev) => prev - 1);
 				}
 				return true;
 			} catch (e) {
@@ -391,6 +355,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 					hasMore={hasMore}
 					loadingMore={loadingMore}
 					onLoadMore={onLoadMore}
+					isSearchMode={isSearchMode}
 				/>
 			</div>
 		</>

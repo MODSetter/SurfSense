@@ -301,6 +301,7 @@ export function DocumentsTableShell({
 	hasMore = false,
 	loadingMore = false,
 	onLoadMore,
+	isSearchMode = false,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -316,6 +317,7 @@ export function DocumentsTableShell({
 	hasMore?: boolean;
 	loadingMore?: boolean;
 	onLoadMore?: () => void;
+	isSearchMode?: boolean;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
@@ -473,9 +475,9 @@ export function DocumentsTableShell({
 						<div className="flex-1 overflow-auto">
 							<Table className="table-fixed w-full">
 								<TableBody>
-									{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent, index) => (
+									{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent) => (
 										<TableRow
-											key={`skeleton-${index}`}
+											key={`skeleton-${widthPercent}`}
 											className="border-b border-border/50 hover:bg-transparent"
 										>
 											<TableCell className="w-10 pl-3 pr-0 py-1.5 text-center">
@@ -500,8 +502,8 @@ export function DocumentsTableShell({
 					</div>
 					{/* Mobile Skeleton */}
 					<div className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
-						{[70, 85, 55, 78, 62, 90].map((widthPercent, index) => (
-							<div key={`skeleton-mobile-${index}`} className="px-3 py-2">
+						{[70, 85, 55, 78, 62, 90].map((widthPercent) => (
+							<div key={`skeleton-mobile-${widthPercent}`} className="px-3 py-2">
 								<div className="flex items-center gap-3">
 									<Skeleton className="h-4 w-4 rounded shrink-0" />
 									<div className="flex-1 min-w-0">
@@ -602,9 +604,9 @@ export function DocumentsTableShell({
 												searchSpaceId={searchSpaceId}
 											>
 												<motion.tr
-													initial={index < 20 ? { opacity: 0 } : false}
+													initial={!isSearchMode && index < 20 ? { opacity: 0 } : false}
 													animate={{ opacity: 1 }}
-													transition={index < 20 ? { duration: 0.15, delay: index * 0.02 } : { duration: 0 }}
+													transition={!isSearchMode && index < 20 ? { duration: 0.15, delay: index * 0.02 } : { duration: 0 }}
 												className={`border-b border-border/50 transition-colors ${
 													isSelected
 														? "bg-primary/5 hover:bg-primary/8"
@@ -680,9 +682,9 @@ export function DocumentsTableShell({
 									searchSpaceId={searchSpaceId}
 								>
 									<motion.div
-										initial={index < 20 ? { opacity: 0 } : false}
+										initial={!isSearchMode && index < 20 ? { opacity: 0 } : false}
 										animate={{ opacity: 1 }}
-										transition={index < 20 ? { duration: 0.15, delay: index * 0.03 } : { duration: 0 }}
+										transition={!isSearchMode && index < 20 ? { duration: 0.15, delay: index * 0.03 } : { duration: 0 }}
 										className={`px-3 py-2 transition-colors ${
 											isSelected ? "bg-primary/5" : "hover:bg-muted/20"
 										}`}

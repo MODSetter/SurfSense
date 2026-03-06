@@ -1,22 +1,20 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type {
+	DocumentSortBy,
+	DocumentTypeEnum,
+	SortOrder,
+} from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
 
-// Stable empty array to prevent infinite re-renders when no typeFilter is provided
-const EMPTY_TYPE_FILTER: DocumentTypeEnum[] = [];
-
-// Document status type (matches backend DocumentStatus JSONB)
 export interface DocumentStatusType {
 	state: "ready" | "pending" | "processing" | "failed";
 	reason?: string;
 }
 
-// Document from Electric sync (lightweight table columns - NO content/metadata)
 interface DocumentElectric {
 	id: number;
 	search_space_id: number;
@@ -27,7 +25,6 @@ interface DocumentElectric {
 	status: DocumentStatusType | null;
 }
 
-// Document for display (with resolved user name and email)
 export interface DocumentDisplay {
 	id: number;
 	search_space_id: number;
@@ -40,87 +37,57 @@ export interface DocumentDisplay {
 	status: DocumentStatusType;
 }
 
-/**
- * Deduplicate by ID and sort by created_at descending (newest first)
- */
-function deduplicateAndSort<T extends { id: number; created_at: string }>(items: T[]): T[] {
-	const seen = new Map<number, T>();
-	for (const item of items) {
-		// Keep the most recent version if duplicate
-		const existing = seen.get(item.id);
-		if (!existing || new Date(item.created_at) > new Date(existing.created_at)) {
-			seen.set(item.id, item);
-		}
-	}
-	return Array.from(seen.values()).sort(
-		(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-	);
-}
+const EMPTY_TYPE_FILTER: DocumentTypeEnum[] = [];
+const INITIAL_PAGE_SIZE = 20;
+const SCROLL_PAGE_SIZE = 5;
 
-/**
- * Check if a document has valid/complete data
- */
 function isValidDocument(doc: DocumentElectric): boolean {
 	return doc.id != null && doc.title != null && doc.title !== "";
 }
 
 /**
- * Real-time documents hook with Electric SQL
+ * Paginated documents hook with Electric SQL real-time updates.
  *
- * Architecture (100% Reliable):
- * 1. API is the PRIMARY source of truth - always loads first
- * 2. Electric provides REAL-TIME updates for additions and deletions
- * 3. Use syncHandle.isUpToDate to determine if deletions can be trusted
- * 4. Handles bulk deletions correctly by checking sync state
+ * Architecture:
+ * 1. API is the PRIMARY data source — fetches pages on demand
+ * 2. Type counts come from a dedicated lightweight API endpoint
+ * 3. Electric provides REAL-TIME updates (new docs, deletions, status changes)
+ * 4. Server-side sorting via sort_by + sort_order params
  *
- * Filtering strategy:
- * - Internal state always stores ALL documents (unfiltered)
- * - typeFilter is applied client-side when returning documents
- * - typeCounts always reflect the full dataset so the filter sidebar stays complete
- * - Changing filters is instant (no API re-fetch or Electric re-sync)
- *
- * @param searchSpaceId - The search space ID to filter documents
- * @param typeFilter - Optional document types to filter by (applied client-side)
+ * @param searchSpaceId - The search space to load documents for
+ * @param typeFilter - Document types to filter by (server-side)
+ * @param sortBy - Column to sort by (server-side)
+ * @param sortOrder - Sort direction (server-side)
  */
 export function useDocuments(
 	searchSpaceId: number | null,
-	typeFilter: DocumentTypeEnum[] = EMPTY_TYPE_FILTER
+	typeFilter: DocumentTypeEnum[] = EMPTY_TYPE_FILTER,
+	sortBy: DocumentSortBy = "created_at",
+	sortOrder: SortOrder = "desc"
 ) {
 	const electricClient = useElectricClient();
 
-	// Internal state: ALL documents (unfiltered)
-	const [allDocuments, setAllDocuments] = useState<DocumentDisplay[]>([]);
+	const [documents, setDocuments] = useState<DocumentDisplay[]>([]);
+	const [typeCounts, setTypeCounts] = useState<Record<string, number>>({});
+	const [total, setTotal] = useState(0);
 	const [loading, setLoading] = useState(true);
+	const [loadingMore, setLoadingMore] = useState(false);
+	const [hasMore, setHasMore] = useState(false);
 	const [error, setError] = useState<Error | null>(null);
 
-	// Track if initial API load is complete (source of truth)
-	const apiLoadedRef = useRef(false);
-
-	// User cache: userId → displayName / email
+	const apiLoadedCountRef = useRef(0);
+	const initialLoadDoneRef = useRef(false);
+	// Snapshot of all doc IDs from Electric's first callback after initial load.
+	// Anything appearing in subsequent callbacks NOT in this set is genuinely new.
+	const electricBaselineIdsRef = useRef<Set<number> | null>(null);
+	const knownApiIdsRef = useRef<Set<number>>(new Set());
 	const userCacheRef = useRef<Map<string, string>>(new Map());
 	const emailCacheRef = useRef<Map<string, string>>(new Map());
-
-	// Electric sync refs
 	const syncHandleRef = useRef<SyncHandle | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe?: () => void } | null>(null);
 
-	// Type counts from ALL documents (unfiltered) — keeps filter sidebar complete
-	const typeCounts = useMemo(() => {
-		const counts: Record<string, number> = {};
-		for (const doc of allDocuments) {
-			counts[doc.document_type] = (counts[doc.document_type] || 0) + 1;
-		}
-		return counts;
-	}, [allDocuments]);
+	const typeFilterKey = typeFilter.join(",");
 
-	// Client-side filtered documents for display
-	const documents = useMemo(() => {
-		if (typeFilter.length === 0) return allDocuments;
-		const filterSet = new Set<string>(typeFilter);
-		return allDocuments.filter((doc) => filterSet.has(doc.document_type));
-	}, [allDocuments, typeFilter]);
-
-	// Populate user cache from API response
 	const populateUserCache = useCallback(
 		(
 			items: Array<{
@@ -143,7 +110,6 @@ export function useDocuments(
 		[]
 	);
 
-	// Convert API item to display doc
 	const apiToDisplayDoc = useCallback(
 		(item: {
 			id: number;
@@ -169,7 +135,6 @@ export function useDocuments(
 		[]
 	);
 
-	// Convert Electric doc to display doc
 	const electricToDisplayDoc = useCallback(
 		(doc: DocumentElectric): DocumentDisplay => ({
 			...doc,
@@ -184,66 +149,85 @@ export function useDocuments(
 		[]
 	);
 
-	// STEP 1: Load ALL documents from API (PRIMARY source of truth).
-	// Uses React Query for automatic deduplication, caching, and staleTime so
-	// multiple components mounting useDocuments(sameId) share a single request.
-	const {
-		data: apiResponse,
-		isLoading: apiLoading,
-		error: apiError,
-	} = useQuery({
-		queryKey: ["documents", "all", searchSpaceId],
-		queryFn: () =>
-			documentsApiService.getDocuments({
-				queryParams: {
-					search_space_id: searchSpaceId!,
-					page: 0,
-					page_size: -1,
-				},
-			}),
-		enabled: !!searchSpaceId,
-		staleTime: 30_000,
-	});
-
-	// Seed local state from API response (runs once per fresh fetch)
+	// EFFECT 1: Fetch first page + type counts when params change
+	// biome-ignore lint/correctness/useExhaustiveDependencies: typeFilterKey serializes typeFilter
 	useEffect(() => {
-		if (!apiResponse) return;
-		populateUserCache(apiResponse.items);
-		const docs = apiResponse.items.map(apiToDisplayDoc);
-		setAllDocuments(docs);
-		apiLoadedRef.current = true;
-		setError(null);
-	}, [apiResponse, populateUserCache, apiToDisplayDoc]);
+		if (!searchSpaceId) return;
 
-	// Propagate loading / error from React Query
-	useEffect(() => {
-		setLoading(apiLoading);
-	}, [apiLoading]);
+		let cancelled = false;
 
-	useEffect(() => {
-		if (apiError) {
-			setError(apiError instanceof Error ? apiError : new Error("Failed to load documents"));
-		}
-	}, [apiError]);
+		setLoading(true);
+		setDocuments([]);
+		setTotal(0);
+		setHasMore(false);
+		apiLoadedCountRef.current = 0;
+		initialLoadDoneRef.current = false;
+		electricBaselineIdsRef.current = null;
+		knownApiIdsRef.current = new Set();
 
-	// EFFECT 2: Start Electric sync + live query for real-time updates
-	// No type filter — syncs and queries ALL documents; filtering is client-side
+		const fetchInitialData = async () => {
+			try {
+				const [docsResponse, countsResponse] = await Promise.all([
+					documentsApiService.getDocuments({
+						queryParams: {
+							search_space_id: searchSpaceId,
+							page: 0,
+							page_size: INITIAL_PAGE_SIZE,
+							...(typeFilter.length > 0 && { document_types: typeFilter }),
+							sort_by: sortBy,
+							sort_order: sortOrder,
+						},
+					}),
+					documentsApiService.getDocumentTypeCounts({
+						queryParams: { search_space_id: searchSpaceId },
+					}),
+				]);
+
+				if (cancelled) return;
+
+				populateUserCache(docsResponse.items);
+				const docs = docsResponse.items.map(apiToDisplayDoc);
+				setDocuments(docs);
+				setTotal(docsResponse.total);
+				setHasMore(docsResponse.has_more);
+				setTypeCounts(countsResponse);
+				setError(null);
+				apiLoadedCountRef.current = docsResponse.items.length;
+				initialLoadDoneRef.current = true;
+				for (const doc of docs) {
+					knownApiIdsRef.current.add(doc.id);
+				}
+			} catch (err) {
+				if (cancelled) return;
+				console.error("[useDocuments] Initial load failed:", err);
+				setError(
+					err instanceof Error ? err : new Error("Failed to load documents")
+				);
+			} finally {
+				if (!cancelled) setLoading(false);
+			}
+		};
+
+		fetchInitialData();
+		return () => {
+			cancelled = true;
+		};
+	}, [searchSpaceId, typeFilterKey, sortBy, sortOrder, populateUserCache, apiToDisplayDoc]);
+
+	// EFFECT 2: Electric sync + live query for real-time updates
 	useEffect(() => {
 		if (!searchSpaceId || !electricClient) return;
 
-		// Capture validated values for async closure
 		const spaceId = searchSpaceId;
 		const client = electricClient;
-
 		let mounted = true;
 
 		async function setupElectricRealtime() {
-			// Cleanup previous subscriptions
 			if (syncHandleRef.current) {
 				try {
 					syncHandleRef.current.unsubscribe();
 				} catch {
-					// PGlite may already be closed during cleanup
+					/* PGlite may already be closed */
 				}
 				syncHandleRef.current = null;
 			}
@@ -251,15 +235,12 @@ export function useDocuments(
 				try {
 					liveQueryRef.current.unsubscribe?.();
 				} catch {
-					// PGlite may already be closed during cleanup
+					/* PGlite may already be closed */
 				}
 				liveQueryRef.current = null;
 			}
 
 			try {
-				console.log("[useDocuments] Starting Electric sync for real-time updates");
-
-				// Start Electric sync (all documents for this search space)
 				const handle = await client.syncShape({
 					table: "documents",
 					where: `search_space_id = ${spaceId}`,
@@ -281,20 +262,16 @@ export function useDocuments(
 				}
 
 				syncHandleRef.current = handle;
-				console.log("[useDocuments] Sync started, isUpToDate:", handle.isUpToDate);
 
-				// Wait for initial sync (with timeout)
 				if (!handle.isUpToDate && handle.initialSyncPromise) {
 					await Promise.race([
 						handle.initialSyncPromise,
 						new Promise((resolve) => setTimeout(resolve, 5000)),
 					]);
-					console.log("[useDocuments] Initial sync complete, isUpToDate:", handle.isUpToDate);
 				}
 
 				if (!mounted) return;
 
-				// Set up live query (unfiltered — type filtering is done client-side)
 				const db = client.db as {
 					live?: {
 						query: <T>(
@@ -307,62 +284,62 @@ export function useDocuments(
 					};
 				};
 
-				if (!db.live?.query) {
-					console.warn("[useDocuments] Live queries not available");
-					return;
-				}
+				if (!db.live?.query) return;
 
 				const query = `SELECT id, document_type, search_space_id, title, created_by_id, created_at, status
-					FROM documents 
+					FROM documents
 					WHERE search_space_id = $1
 					ORDER BY created_at DESC`;
 
-				const liveQuery = await db.live.query<DocumentElectric>(query, [spaceId]);
+				const liveQuery = await db.live.query<DocumentElectric>(query, [
+					spaceId,
+				]);
 
 				if (!mounted) {
 					liveQuery.unsubscribe?.();
 					return;
 				}
 
-				console.log("[useDocuments] Live query subscribed");
-
 				liveQuery.subscribe((result: { rows: DocumentElectric[] }) => {
-					if (!mounted || !result.rows) return;
-
-					// DEBUG: Log first few raw documents to see what's coming from Electric
-					console.log("[useDocuments] Raw data sample:", result.rows.slice(0, 3));
+					if (!mounted || !result.rows || !initialLoadDoneRef.current) return;
 
 					const validItems = result.rows.filter(isValidDocument);
 					const isFullySynced = syncHandleRef.current?.isUpToDate ?? false;
 
-					console.log(
-						`[useDocuments] Live update: ${result.rows.length} raw, ${validItems.length} valid, synced: ${isFullySynced}`
-					);
-
-					// Fetch user names for new users (non-blocking)
 					const unknownUserIds = validItems
 						.filter(
-							(doc): doc is DocumentElectric & { created_by_id: string } =>
-								doc.created_by_id !== null && !userCacheRef.current.has(doc.created_by_id)
+							(
+								doc
+							): doc is DocumentElectric & { created_by_id: string } =>
+								doc.created_by_id !== null &&
+								!userCacheRef.current.has(doc.created_by_id)
 						)
 						.map((doc) => doc.created_by_id);
 
 					if (unknownUserIds.length > 0) {
 						documentsApiService
 							.getDocuments({
-								queryParams: { search_space_id: spaceId, page: 0, page_size: 20 },
+								queryParams: {
+									search_space_id: spaceId,
+									page: 0,
+									page_size: 20,
+								},
 							})
 							.then((response) => {
 								populateUserCache(response.items);
 								if (mounted) {
-									setAllDocuments((prev) =>
+									setDocuments((prev) =>
 										prev.map((doc) => ({
 											...doc,
 											created_by_name: doc.created_by_id
-												? (userCacheRef.current.get(doc.created_by_id) ?? null)
+												? (userCacheRef.current.get(
+														doc.created_by_id
+													) ?? null)
 												: null,
 											created_by_email: doc.created_by_id
-												? (emailCacheRef.current.get(doc.created_by_id) ?? null)
+												? (emailCacheRef.current.get(
+														doc.created_by_id
+													) ?? null)
 												: null,
 										}))
 									);
@@ -371,48 +348,39 @@ export function useDocuments(
 							.catch(() => {});
 					}
 
-					// Smart update logic based on sync state
-					setAllDocuments((prev) => {
-						// Don't process if API hasn't loaded yet
-						if (!apiLoadedRef.current) {
-							console.log("[useDocuments] Waiting for API load, skipping live update");
-							return prev;
-						}
-
-						// Case 1: Live query is empty
-						if (validItems.length === 0) {
-							if (isFullySynced && prev.length > 0) {
-								// Electric is fully synced and says 0 items - trust it (all deleted)
-								console.log("[useDocuments] All documents deleted (Electric synced)");
-								return [];
-							}
-							// Partial sync or error - keep existing
-							console.log("[useDocuments] Empty live result, keeping existing");
-							return prev;
-						}
-
-						// Case 2: Electric is fully synced - TRUST IT COMPLETELY (handles bulk deletes)
-						if (isFullySynced) {
-							const liveDocs = deduplicateAndSort(validItems.map(electricToDisplayDoc));
-							console.log(
-								`[useDocuments] Synced update: ${liveDocs.length} docs (was ${prev.length})`
-							);
-							return liveDocs;
-						}
-
-						// Case 3: Partial sync - only ADD new items, don't remove any
-						const existingIds = new Set(prev.map((d) => d.id));
+					setDocuments((prev) => {
 						const liveIds = new Set(validItems.map((d) => d.id));
+						const prevIds = new Set(prev.map((d) => d.id));
 
-						// Find new items (in live but not in prev)
+						// First callback: snapshot all Electric IDs as the baseline.
+						// Everything in this set existed before the sidebar opened and
+						// should only appear via API pagination, not Electric.
+						if (electricBaselineIdsRef.current === null) {
+							electricBaselineIdsRef.current = new Set(liveIds);
+						}
+
+						// Genuinely new = not in rendered list, not in baseline snapshot.
+						// These are docs created AFTER the sidebar opened.
+						const baseline = electricBaselineIdsRef.current;
 						const newItems = validItems
-							.filter((item) => !existingIds.has(item.id))
+							.filter((item) => {
+								if (prevIds.has(item.id)) return false;
+								if (baseline.has(item.id)) return false;
+								return true;
+							})
 							.map(electricToDisplayDoc);
 
-						// Find updated items (in both, update with latest data)
-						const updatedPrev = prev.map((doc) => {
+						// Track new items in baseline so they aren't re-added
+						for (const item of newItems) {
+							baseline.add(item.id);
+						}
+
+						// Update existing docs (status changes, title edits)
+						let updated = prev.map((doc) => {
 							if (liveIds.has(doc.id)) {
-								const liveItem = validItems.find((v) => v.id === doc.id);
+								const liveItem = validItems.find(
+									(v) => v.id === doc.id
+								);
 								if (liveItem) {
 									return electricToDisplayDoc(liveItem);
 								}
@@ -420,19 +388,33 @@ export function useDocuments(
 							return doc;
 						});
 
-						if (newItems.length > 0) {
-							console.log(`[useDocuments] Adding ${newItems.length} new items (partial sync)`);
-							return deduplicateAndSort([...newItems, ...updatedPrev]);
+						// Remove deleted docs (only when fully synced)
+						if (isFullySynced) {
+							updated = updated.filter((doc) => liveIds.has(doc.id));
 						}
 
-						return updatedPrev;
+						if (newItems.length > 0) {
+							return [...newItems, ...updated];
+						}
+
+						return updated;
 					});
+
+					// Update type counts when Electric detects changes
+					if (isFullySynced && validItems.length > 0) {
+						const counts: Record<string, number> = {};
+						for (const item of validItems) {
+							counts[item.document_type] =
+								(counts[item.document_type] || 0) + 1;
+						}
+						setTypeCounts(counts);
+						setTotal(validItems.length);
+					}
 				});
 
 				liveQueryRef.current = liveQuery;
 			} catch (err) {
 				console.error("[useDocuments] Electric setup failed:", err);
-				// Don't set error - API data is already loaded
 			}
 		}
 
@@ -444,7 +426,7 @@ export function useDocuments(
 				try {
 					syncHandleRef.current.unsubscribe();
 				} catch {
-					// PGlite may already be closed during cleanup
+					/* PGlite may already be closed */
 				}
 				syncHandleRef.current = null;
 			}
@@ -452,32 +434,91 @@ export function useDocuments(
 				try {
 					liveQueryRef.current.unsubscribe?.();
 				} catch {
-					// PGlite may already be closed during cleanup
+					/* PGlite may already be closed */
 				}
 				liveQueryRef.current = null;
 			}
 		};
 	}, [searchSpaceId, electricClient, electricToDisplayDoc, populateUserCache]);
 
-	// Track previous searchSpaceId to detect actual changes
+	// Reset on search space change
 	const prevSearchSpaceIdRef = useRef<number | null>(null);
 
-	// Reset on search space change (not on initial mount)
 	useEffect(() => {
-		if (prevSearchSpaceIdRef.current !== null && prevSearchSpaceIdRef.current !== searchSpaceId) {
-			setAllDocuments([]);
-			apiLoadedRef.current = false;
+		if (
+			prevSearchSpaceIdRef.current !== null &&
+			prevSearchSpaceIdRef.current !== searchSpaceId
+		) {
+			setDocuments([]);
+			setTypeCounts({});
+			setTotal(0);
+			setHasMore(false);
+			apiLoadedCountRef.current = 0;
+			initialLoadDoneRef.current = false;
+			electricBaselineIdsRef.current = null;
+			knownApiIdsRef.current = new Set();
 			userCacheRef.current.clear();
 			emailCacheRef.current.clear();
 		}
 		prevSearchSpaceIdRef.current = searchSpaceId;
 	}, [searchSpaceId]);
 
+	// Load more pages via API
+	// biome-ignore lint/correctness/useExhaustiveDependencies: typeFilterKey serializes typeFilter
+	const loadMore = useCallback(async () => {
+		if (loadingMore || !hasMore || !searchSpaceId) return;
+
+		setLoadingMore(true);
+		try {
+			const response = await documentsApiService.getDocuments({
+				queryParams: {
+					search_space_id: searchSpaceId,
+					skip: apiLoadedCountRef.current,
+					page_size: SCROLL_PAGE_SIZE,
+					...(typeFilter.length > 0 && { document_types: typeFilter }),
+					sort_by: sortBy,
+					sort_order: sortOrder,
+				},
+			});
+
+			populateUserCache(response.items);
+			const newDocs = response.items.map(apiToDisplayDoc);
+			for (const doc of newDocs) {
+				knownApiIdsRef.current.add(doc.id);
+			}
+
+			setDocuments((prev) => {
+				const existingIds = new Set(prev.map((d) => d.id));
+				const deduped = newDocs.filter((d) => !existingIds.has(d.id));
+				return [...prev, ...deduped];
+			});
+			setTotal(response.total);
+			setHasMore(response.has_more);
+			apiLoadedCountRef.current += response.items.length;
+		} catch (err) {
+			console.error("[useDocuments] Load more failed:", err);
+		} finally {
+			setLoadingMore(false);
+		}
+	}, [
+		loadingMore,
+		hasMore,
+		searchSpaceId,
+		typeFilterKey,
+		sortBy,
+		sortOrder,
+		populateUserCache,
+		apiToDisplayDoc,
+	]);
+
 	return {
 		documents,
 		typeCounts,
-		total: documents.length,
+		total,
 		loading,
+		loadingMore,
+		hasMore,
+		loadMore,
 		error,
 	};
 }
