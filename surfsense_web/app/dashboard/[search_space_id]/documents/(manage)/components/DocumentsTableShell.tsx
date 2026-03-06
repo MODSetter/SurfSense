@@ -428,7 +428,7 @@ export function DocumentsTableShell({
 
 	return (
 		<div
-			className="bg-background overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0"
+			className="bg-sidebar overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0"
 		>
 			{/* Desktop Table View */}
 			<div className="hidden md:flex md:flex-col flex-1 min-h-0">

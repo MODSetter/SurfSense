@@ -103,6 +103,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			try {
 				await deleteDocumentMutation({ id });
 				toast.success(t("delete_success") || "Document deleted");
+				setSidebarDocs((prev) => prev.filter((d) => d.id !== id));
 				if (isSearchMode) {
 					searchRemoveItems([id]);
 				}
@@ -112,7 +113,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 				return false;
 			}
 		},
-		[deleteDocumentMutation, isSearchMode, t, searchRemoveItems]
+		[deleteDocumentMutation, isSearchMode, t, searchRemoveItems, setSidebarDocs]
 	);
 
 	const sortKeyRef = useRef(sortKey);

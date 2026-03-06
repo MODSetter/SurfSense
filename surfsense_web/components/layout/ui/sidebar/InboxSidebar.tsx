@@ -712,7 +712,7 @@ export function InboxSidebar({
 								</Tooltip>
 								<DropdownMenuContent
 									align="end"
-									className={cn("z-80 select-none max-h-[60vh] overflow-hidden flex flex-col", activeTab === "status" ? "w-52" : "w-44")}
+									className={cn("z-80 select-none max-h-[60vh] overflow-hidden flex flex-col bg-muted dark:border dark:border-neutral-700", activeTab === "status" ? "w-52" : "w-44")}
 								>
 									<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
 										{t("filter") || "Filter"}
@@ -1097,7 +1097,7 @@ export function InboxSidebar({
 	if (isDocked && open && !isMobile) {
 		return (
 			<aside
-				className="h-full w-[360px] shrink-0 bg-background flex flex-col border-r"
+				className="h-full w-[360px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
 				aria-label={t("inbox") || "Inbox"}
 			>
 				{inboxContent}

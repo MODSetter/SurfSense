@@ -2,7 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, Zap } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type UIEvent } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,
@@ -57,6 +57,17 @@ export function ModelSelector({
 	const [activeTab, setActiveTab] = useState<"llm" | "image">("llm");
 	const [llmSearchQuery, setLlmSearchQuery] = useState("");
 	const [imageSearchQuery, setImageSearchQuery] = useState("");
+	const [llmScrollPos, setLlmScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const [imageScrollPos, setImageScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const handleListScroll = useCallback(
+		(setter: typeof setLlmScrollPos) => (e: UIEvent<HTMLDivElement>) => {
+			const el = e.currentTarget;
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setter(atTop ? "top" : atBottom ? "bottom" : "middle");
+		},
+		[]
+	);
 
 	// LLM data
 	const { data: llmUserConfigs, isLoading: llmUserLoading } = useAtomValue(newLLMConfigsAtom);
@@ -325,7 +336,14 @@ export function ModelSelector({
 								</div>
 							)}
 
-							<CommandList className="max-h-[300px] md:max-h-[400px] overflow-y-auto">
+							<CommandList
+								className="max-h-[300px] md:max-h-[400px] overflow-y-auto"
+								onScroll={handleListScroll(setLlmScrollPos)}
+								style={{
+									maskImage: `linear-gradient(to bottom, ${llmScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${llmScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${llmScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${llmScrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
 										<Bot className="size-8 text-muted-foreground" />
@@ -505,7 +523,14 @@ export function ModelSelector({
 									/>
 								</div>
 							)}
-							<CommandList className="max-h-[300px] md:max-h-[400px] overflow-y-auto">
+							<CommandList
+								className="max-h-[300px] md:max-h-[400px] overflow-y-auto"
+								onScroll={handleListScroll(setImageScrollPos)}
+								style={{
+									maskImage: `linear-gradient(to bottom, ${imageScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${imageScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${imageScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${imageScrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
 										<ImageIcon className="size-8 text-muted-foreground" />

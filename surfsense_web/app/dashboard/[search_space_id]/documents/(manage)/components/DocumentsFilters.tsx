@@ -2,7 +2,7 @@
 
 import { ListFilter, Search, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, { useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -31,6 +31,13 @@ export function DocumentsFilters({
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 
 	const [typeSearchQuery, setTypeSearchQuery] = useState("");
+	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		const atTop = el.scrollTop <= 2;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+		setScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+	}, []);
 
 	const uniqueTypes = useMemo(() => {
 		return Object.keys(typeCountsRecord).sort() as DocumentTypeEnum[];
@@ -61,7 +68,7 @@ export function DocumentsFilters({
 						<Button
 							variant="outline"
 							size="icon"
-							className="h-9 w-9 shrink-0 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
+							className="h-9 w-9 shrink-0 border-dashed border-sidebar-border text-sidebar-foreground/60 hover:text-sidebar-foreground hover:border-sidebar-border bg-sidebar"
 						>
 							<ListFilter size={14} />
 							{activeTypes.length > 0 && (
@@ -71,22 +78,29 @@ export function DocumentsFilters({
 							)}
 						</Button>
 					</PopoverTrigger>
-					<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
+					<PopoverContent className="w-64 !p-0 overflow-hidden bg-muted dark:border dark:border-neutral-700" align="end">
 						<div>
 							{/* Search input */}
-							<div className="p-2 border-b border-border/50">
-								<div className="relative">
-									<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-									<Input
-										placeholder="Search types"
-										value={typeSearchQuery}
-										onChange={(e) => setTypeSearchQuery(e.target.value)}
-										className="h-6 pl-6 text-sm bg-transparent border-0 focus-visible:ring-0"
-									/>
+						<div className="p-2 border-b border-neutral-700">
+							<div className="relative">
+								<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+								<Input
+									placeholder="Search types"
+									value={typeSearchQuery}
+									onChange={(e) => setTypeSearchQuery(e.target.value)}
+									className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none focus-visible:ring-0"
+								/>
 								</div>
 							</div>
 
-							<div className="max-h-[300px] overflow-y-auto overflow-x-hidden py-1.5 px-1.5">
+							<div
+								className="max-h-[300px] overflow-y-auto overflow-x-hidden py-1.5 px-1.5"
+								onScroll={handleScroll}
+								style={{
+									maskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
 								{filteredTypes.length === 0 ? (
 									<div className="py-6 text-center text-sm text-muted-foreground">
 										No types found
@@ -125,11 +139,11 @@ export function DocumentsFilters({
 								)}
 							</div>
 							{activeTypes.length > 0 && (
-								<div className="px-3 pt-1.5 pb-1.5 border-t border-border/50">
-									<Button
-										variant="ghost"
-										size="sm"
-										className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground"
+							<div className="px-3 pt-1.5 pb-1.5 border-t border-neutral-700">
+								<Button
+									variant="ghost"
+									size="sm"
+									className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground hover:bg-neutral-700"
 										onClick={() => {
 											activeTypes.forEach((t) => {
 												onToggleType(t, false);
@@ -152,7 +166,7 @@ export function DocumentsFilters({
 					<Input
 						id={`${id}-input`}
 						ref={inputRef}
-						className="peer h-9 w-full pl-9 pr-9 text-sm bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30 select-none focus:select-text"
+						className="peer h-9 w-full pl-9 pr-9 text-sm bg-sidebar border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30 select-none focus:select-text"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
 						placeholder="Search"
