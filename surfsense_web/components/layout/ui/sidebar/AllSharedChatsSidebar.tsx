@@ -17,6 +17,7 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLongPress } from "@/hooks/use-long-press";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -85,23 +86,14 @@ export function AllSharedChatsSidebar({
 	const [isRenaming, setIsRenaming] = useState(false);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
 
-	const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-	const longPressTriggeredRef = useRef(false);
-
-	const handleLongPressStart = useCallback((threadId: number) => {
-		longPressTriggeredRef.current = false;
-		longPressTimerRef.current = setTimeout(() => {
-			longPressTriggeredRef.current = true;
-			setOpenDropdownId(threadId);
-		}, 500);
-	}, []);
-
-	const handleLongPressCancel = useCallback(() => {
-		if (longPressTimerRef.current) {
-			clearTimeout(longPressTimerRef.current);
-			longPressTimerRef.current = null;
-		}
-	}, []);
+	const pendingThreadIdRef = useRef<number | null>(null);
+	const { handlers: longPressHandlers, wasLongPress } = useLongPress(
+		useCallback(() => {
+			if (pendingThreadIdRef.current !== null) {
+				setOpenDropdownId(pendingThreadIdRef.current);
+			}
+		}, [])
+	);
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
@@ -376,15 +368,15 @@ export function AllSharedChatsSidebar({
 									<button
 										type="button"
 										onClick={() => {
-											if (longPressTriggeredRef.current) {
-												longPressTriggeredRef.current = false;
-												return;
-											}
+											if (wasLongPress()) return;
 											handleThreadClick(thread.id);
 										}}
-										onTouchStart={() => handleLongPressStart(thread.id)}
-										onTouchEnd={handleLongPressCancel}
-										onTouchMove={handleLongPressCancel}
+										onTouchStart={() => {
+											pendingThreadIdRef.current = thread.id;
+											longPressHandlers.onTouchStart();
+										}}
+										onTouchEnd={longPressHandlers.onTouchEnd}
+										onTouchMove={longPressHandlers.onTouchMove}
 										disabled={isBusy}
 										className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
 									>

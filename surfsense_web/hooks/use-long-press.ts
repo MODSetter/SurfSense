@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 const LONG_PRESS_DELAY = 500;
 
@@ -19,6 +19,14 @@ export function useLongPress(onLongPress: () => void, delay = LONG_PRESS_DELAY) 
 			clearTimeout(timerRef.current);
 			timerRef.current = null;
 		}
+	}, []);
+
+	useEffect(() => {
+		return () => {
+			if (timerRef.current) {
+				clearTimeout(timerRef.current);
+			}
+		};
 	}, []);
 
 	const handlers = {
