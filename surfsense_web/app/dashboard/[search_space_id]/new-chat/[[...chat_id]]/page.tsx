@@ -21,6 +21,7 @@ import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
+	sidebarSelectedDocumentsAtom,
 	messageDocumentsMapAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import {
@@ -180,11 +181,13 @@ export default function NewChatPage() {
 		interruptData: Record<string, unknown>;
 	} | null>(null);
 
-	// Get mentioned document IDs from the composer
+	// Get mentioned document IDs from the composer (combines @ mentions + sidebar selections)
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
+	const sidebarDocuments = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
+	const setSidebarDocuments = useSetAtom(sidebarSelectedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
@@ -528,31 +531,30 @@ export default function NewChatPage() {
 				messageLength: userQuery.length,
 			});
 
-			// Store mentioned documents with this message for display
-			if (mentionedDocuments.length > 0) {
-				const docsInfo: MentionedDocumentInfo[] = mentionedDocuments.map((doc) => ({
-					id: doc.id,
-					title: doc.title,
-					document_type: doc.document_type,
-				}));
+			// Combine @-mention chips + sidebar selections for display & persistence
+			const allMentionedDocs: MentionedDocumentInfo[] = [];
+			const seenDocKeys = new Set<string>();
+			for (const doc of [...mentionedDocuments, ...sidebarDocuments]) {
+				const key = `${doc.document_type}:${doc.id}`;
+				if (!seenDocKeys.has(key)) {
+					seenDocKeys.add(key);
+					allMentionedDocs.push({ id: doc.id, title: doc.title, document_type: doc.document_type });
+				}
+			}
+
+			if (allMentionedDocs.length > 0) {
 				setMessageDocumentsMap((prev) => ({
 					...prev,
-					[userMsgId]: docsInfo,
+					[userMsgId]: allMentionedDocs,
 				}));
 			}
 
-			// Persist user message with mentioned documents (don't await, fire and forget)
 			const persistContent: unknown[] = [...message.content];
 
-			// Add mentioned documents for persistence
-			if (mentionedDocuments.length > 0) {
+			if (allMentionedDocs.length > 0) {
 				persistContent.push({
 					type: "mentioned-documents",
-					documents: mentionedDocuments.map((doc) => ({
-						id: doc.id,
-						title: doc.title,
-						document_type: doc.document_type,
-					})),
+					documents: allMentionedDocs,
 				});
 			}
 
@@ -623,6 +625,7 @@ export default function NewChatPage() {
 						document_ids: [],
 					});
 					setMentionedDocuments([]);
+					setSidebarDocuments([]);
 				}
 
 				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
@@ -920,8 +923,10 @@ export default function NewChatPage() {
 			messages,
 			mentionedDocumentIds,
 			mentionedDocuments,
+			sidebarDocuments,
 			setMentionedDocumentIds,
 			setMentionedDocuments,
+			setSidebarDocuments,
 			setMessageDocumentsMap,
 			queryClient,
 			currentThread,

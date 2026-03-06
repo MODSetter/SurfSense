@@ -32,8 +32,7 @@ import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
-	pendingDocumentMentionsAtom,
-	pendingDocumentRemovalsAtom,
+	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -231,7 +230,7 @@ const ThreadWelcome: FC = () => {
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
-	const [pendingMentions, setPendingMentions] = useAtom(pendingDocumentMentionsAtom);
+	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
@@ -293,7 +292,7 @@ const Composer: FC = () => {
 	const assistantIdsKey = useAssistantState(({ thread }) =>
 		thread.messages
 			.filter((m) => m.role === "assistant" && m.id?.startsWith("msg-"))
-			.map((m) => m.id!.replace("msg-", ""))
+			.map((m) => m.id?.replace("msg-", ""))
 			.join(",")
 	);
 	const assistantDbMessageIds = useMemo(
@@ -313,17 +312,25 @@ const Composer: FC = () => {
 		}
 	}, [isThreadEmpty]);
 
-	// Sync mentioned document IDs to atom for inclusion in chat request payload
+	// Combine sidebar selections + @-mention chips → single ID atom for the backend
 	useEffect(() => {
+		const allDocs = [...mentionedDocuments, ...sidebarDocs];
+		const seen = new Set<string>();
+		const deduped = allDocs.filter((d) => {
+			const key = `${d.document_type}:${d.id}`;
+			if (seen.has(key)) return false;
+			seen.add(key);
+			return true;
+		});
 		setMentionedDocumentIds({
-			surfsense_doc_ids: mentionedDocuments
+			surfsense_doc_ids: deduped
 				.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
 				.map((doc) => doc.id),
-			document_ids: mentionedDocuments
+			document_ids: deduped
 				.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
 				.map((doc) => doc.id),
 		});
-	}, [mentionedDocuments, setMentionedDocumentIds]);
+	}, [mentionedDocuments, sidebarDocs, setMentionedDocumentIds]);
 
 	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
@@ -386,6 +393,7 @@ const Composer: FC = () => {
 			composerRuntime.send();
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
+			setSidebarDocs([]);
 			setMentionedDocumentIds({
 				surfsense_doc_ids: [],
 				document_ids: [],
@@ -397,6 +405,7 @@ const Composer: FC = () => {
 		isBlockedByOtherUser,
 		composerRuntime,
 		setMentionedDocuments,
+		setSidebarDocs,
 		setMentionedDocumentIds,
 	]);
 
@@ -452,40 +461,6 @@ const Composer: FC = () => {
 		},
 		[mentionedDocuments, setMentionedDocuments, setMentionedDocumentIds]
 	);
-
-	// Process documents queued from the sidebar (additions)
-	useEffect(() => {
-		if (pendingMentions.length === 0) return;
-		handleDocumentsMention(pendingMentions);
-		setPendingMentions([]);
-	}, [pendingMentions, handleDocumentsMention, setPendingMentions]);
-
-	// Process documents queued from the sidebar (removals)
-	const [pendingRemovals, setPendingRemovals] = useAtom(pendingDocumentRemovalsAtom);
-	useEffect(() => {
-		if (pendingRemovals.length === 0) return;
-		for (const { id, document_type } of pendingRemovals) {
-			editorRef.current?.removeDocumentChip(id, document_type);
-		}
-		setMentionedDocuments((prev) => {
-			const removalKeys = new Set(
-				pendingRemovals.map((r) => `${r.document_type ?? "UNKNOWN"}:${r.id}`)
-			);
-			const updated = prev.filter(
-				(doc) => !removalKeys.has(`${doc.document_type ?? "UNKNOWN"}:${doc.id}`)
-			);
-			setMentionedDocumentIds({
-				surfsense_doc_ids: updated
-					.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
-					.map((doc) => doc.id),
-				document_ids: updated
-					.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
-					.map((doc) => doc.id),
-			});
-			return updated;
-		});
-		setPendingRemovals([]);
-	}, [pendingRemovals, setPendingRemovals, setMentionedDocuments, setMentionedDocumentIds]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
@@ -551,6 +526,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 	isBlockedByOtherUser = false,
 }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
+	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
 
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
@@ -603,6 +579,17 @@ const ComposerAction: FC<ComposerActionProps> = ({
 				</div>
 			)}
 
+			<div className="flex items-center gap-2">
+				{sidebarDocs.length > 0 && (
+					<button
+						type="button"
+						onClick={() => setDocumentsSidebarOpen(true)}
+						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
+					>
+						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
+					</button>
+				)}
+
 			<AssistantIf condition={({ thread }) => !thread.isRunning}>
 				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 					<TooltipIconButton
@@ -644,6 +631,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					</Button>
 				</ComposerPrimitive.Cancel>
 			</AssistantIf>
+			</div>
 		</div>
 	);
 };

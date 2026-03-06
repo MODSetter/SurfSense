@@ -1,16 +1,12 @@
 "use client";
 
-import { useAtomValue, useSetAtom } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { ChevronLeft } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-	mentionedDocumentsAtom,
-	pendingDocumentMentionsAtom,
-	pendingDocumentRemovalsAtom,
-} from "@/atoms/chat/mentioned-documents.atom";
+import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
@@ -44,26 +40,24 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 	const [sortDesc, setSortDesc] = useState(true);
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
-	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
-	const setPendingMentions = useSetAtom(pendingDocumentMentionsAtom);
-	const setPendingRemovals = useSetAtom(pendingDocumentRemovalsAtom);
+	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
 	const mentionedDocIds = useMemo(
-		() => new Set(mentionedDocuments.map((d) => d.id)),
-		[mentionedDocuments]
+		() => new Set(sidebarDocs.map((d) => d.id)),
+		[sidebarDocs]
 	);
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
 			if (isMentioned) {
-				setPendingRemovals((prev) => [...prev, { id: doc.id, document_type: doc.document_type }]);
+				setSidebarDocs((prev) => prev.filter((d) => d.id !== doc.id));
 			} else {
-				setPendingMentions((prev) => [
-					...prev,
-					{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
-				]);
+				setSidebarDocs((prev) => {
+					if (prev.some((d) => d.id === doc.id)) return prev;
+					return [...prev, { id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum }];
+				});
 			}
 		},
-		[setPendingMentions, setPendingRemovals]
+		[setSidebarDocs]
 	);
 
 	const isSearchMode = !!debouncedSearch.trim();

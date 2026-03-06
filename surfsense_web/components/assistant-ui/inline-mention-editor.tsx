@@ -407,13 +407,12 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 					next.delete(chipKey);
 					return next;
 				});
-				onDocumentRemove?.(docId, docType);
 
 				const text = getText();
 				const empty = text.length === 0 && mentionedDocs.size <= 1;
 				setIsEmpty(empty);
 			},
-			[getText, mentionedDocs.size, onDocumentRemove]
+			[getText, mentionedDocs.size]
 		);
 
 		// Expose methods via ref
