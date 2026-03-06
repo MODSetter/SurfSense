@@ -40,6 +40,13 @@ import {
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -271,6 +278,48 @@ function RowContextMenu({
 	);
 }
 
+function MobileCardWrapper({
+	onLongPress,
+	children,
+}: {
+	onLongPress: () => void;
+	children: React.ReactNode;
+}) {
+	const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const didLongPressRef = useRef(false);
+
+	const clearTimer = useCallback(() => {
+		if (timerRef.current) {
+			clearTimeout(timerRef.current);
+			timerRef.current = null;
+		}
+	}, []);
+
+	return (
+		// biome-ignore lint/a11y/useSemanticElements: touch-only long-press wrapper for mobile
+		<div
+			role="group"
+			onTouchStart={() => {
+				didLongPressRef.current = false;
+				timerRef.current = setTimeout(() => {
+					didLongPressRef.current = true;
+					onLongPress();
+				}, 500);
+			}}
+			onTouchMove={clearTimer}
+			onTouchEnd={(e) => {
+				clearTimer();
+				if (didLongPressRef.current) {
+					e.preventDefault();
+				}
+			}}
+			onContextMenu={(e) => e.preventDefault()}
+		>
+			{children}
+		</div>
+	);
+}
+
 export function DocumentsTableShell({
 	documents,
 	loading,
@@ -313,6 +362,8 @@ export function DocumentsTableShell({
 
 	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
+	const [mobileActionDoc, setMobileActionDoc] = useState<Document | null>(null);
+	const router = useRouter();
 
 	const desktopSentinelRef = useRef<HTMLDivElement>(null);
 	const mobileSentinelRef = useRef<HTMLDivElement>(null);
@@ -657,83 +708,85 @@ export function DocumentsTableShell({
 						}
 					};
 					return (
-						<RowContextMenu
-							key={doc.id}
-							doc={doc}
-							onPreview={handleViewDocument}
-							onDelete={setDeleteDoc}
-							searchSpaceId={searchSpaceId}
-						>
-						<div
-							className={`relative px-3 py-2 transition-colors ${
-								isMentioned
-									? "bg-primary/5"
-									: "hover:bg-muted/20"
-							} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
-						>
-								{canInteract && hasChatMode && (
-									<button
-										type="button"
-										className="absolute inset-0 z-0"
-										aria-label={isMentioned ? `Remove ${doc.title} from chat` : `Add ${doc.title} to chat`}
-										onClick={handleCardClick}
+					<MobileCardWrapper
+						key={doc.id}
+						onLongPress={() => setMobileActionDoc(doc)}
+					>
+					<div
+						className={`relative px-3 py-2 transition-colors ${
+							isMentioned
+								? "bg-primary/5"
+								: "hover:bg-muted/20"
+						} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
+					>
+							{canInteract && hasChatMode && (
+								<button
+									type="button"
+									className="absolute inset-0 z-0"
+									aria-label={isMentioned ? `Remove ${doc.title} from chat` : `Add ${doc.title} to chat`}
+									onClick={handleCardClick}
+								/>
+							)}
+							<div className="relative z-10 flex items-center gap-3 pointer-events-none">
+								<span className="pointer-events-auto">
+									<Checkbox
+										checked={isMentioned}
+										onCheckedChange={() => handleCardClick()}
+										disabled={!canInteract}
+										aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+										className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
 									/>
-								)}
-								<div className="relative z-10 flex items-center gap-3 pointer-events-none">
-									<span className="pointer-events-auto">
-										<Checkbox
-											checked={isMentioned}
-											onCheckedChange={() => handleCardClick()}
-											disabled={!canInteract}
-											aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-											className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
-										/>
+								</span>
+								<div className="flex-1 min-w-0">
+									<span className="truncate block text-sm text-foreground">
+										{doc.title}
 									</span>
-									<div className="flex-1 min-w-0">
-										<DocumentNameTooltip
-											doc={doc}
-											className="truncate block text-sm text-foreground cursor-default"
-										/>
-									</div>
-									<div className="flex items-center gap-2 shrink-0">
-										<Tooltip>
-											<TooltipTrigger asChild>
-												<span className="flex items-center justify-center">
-													{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
-												</span>
-											</TooltipTrigger>
-											<TooltipContent side="top">
-												{getDocumentTypeLabel(doc.document_type)}
-											</TooltipContent>
-										</Tooltip>
-										<StatusIndicator status={doc.status} />
-									</div>
+								</div>
+								<div className="flex items-center gap-2 shrink-0">
+									<span className="flex items-center justify-center">
+										{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
+									</span>
+									<StatusIndicator status={doc.status} />
 								</div>
 							</div>
-						</RowContextMenu>
+						</div>
+					</MobileCardWrapper>
 						);
 					})}
 					{hasMore && <div ref={mobileSentinelRef} className="py-3" />}
 				</div>
 			)}
 
-			{/* Document Content Viewer */}
-			<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
-				<DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden pb-0">
-					<DialogHeader className="flex-shrink-0">
-						<DialogTitle>{viewingDoc?.title}</DialogTitle>
-					</DialogHeader>
-					<div className="mt-4 overflow-y-auto flex-1 min-h-0 px-6 select-text">
-						{viewingLoading ? (
-							<div className="flex items-center justify-center py-12">
-								<Spinner size="lg" className="text-muted-foreground" />
-							</div>
-						) : (
-							<MarkdownViewer content={viewingContent} />
-						)}
-					</div>
-				</DialogContent>
-			</Dialog>
+		{/* Document Content Viewer */}
+		<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
+			<DialogContent className="max-w-4xl max-w-[92%] md:max-w-4xl max-h-[75vh] md:max-h-[80vh] flex flex-col overflow-hidden pb-0 p-3 md:p-6 gap-2 md:gap-4">
+				<DialogHeader className="flex-shrink-0">
+					<DialogTitle className="text-sm md:text-lg leading-tight pr-6">
+						{viewingDoc?.title}
+					</DialogTitle>
+				</DialogHeader>
+				<div
+					className={[
+						"overflow-y-auto flex-1 min-h-0 px-1 md:px-6 select-text",
+						"max-md:text-xs",
+						"max-md:[&_h1]:text-base! max-md:[&_h1]:mt-3!",
+						"max-md:[&_h2]:text-sm! max-md:[&_h2]:mt-2!",
+						"max-md:[&_h3]:text-xs! max-md:[&_h3]:mt-2!",
+						"max-md:[&_h4]:text-xs!",
+						"max-md:[&_td]:text-[11px]! max-md:[&_td]:px-2! max-md:[&_td]:py-1.5!",
+						"max-md:[&_th]:text-[11px]! max-md:[&_th]:px-2! max-md:[&_th]:py-1.5!",
+					].join(" ")}
+				>
+					{viewingLoading ? (
+						<div className="flex items-center justify-center py-12">
+							<Spinner size="lg" className="text-muted-foreground" />
+						</div>
+					) : (
+						<MarkdownViewer content={viewingContent} />
+					)}
+				</div>
+			</DialogContent>
+		</Dialog>
 
 			{/* Delete Confirmation Dialog */}
 			<AlertDialog open={!!deleteDoc} onOpenChange={(open) => !open && setDeleteDoc(null)}>
@@ -760,6 +813,93 @@ export function DocumentsTableShell({
 					</AlertDialogFooter>
 				</AlertDialogContent>
 		</AlertDialog>
+
+		{/* Mobile Document Actions Drawer */}
+		<Drawer open={!!mobileActionDoc} onOpenChange={(open) => !open && setMobileActionDoc(null)}>
+			<DrawerContent>
+				<DrawerHandle />
+				<DrawerHeader className="text-left">
+					<DrawerTitle className="break-words text-base">
+						{mobileActionDoc?.title}
+					</DrawerTitle>
+					<div className="space-y-0.5 text-xs mt-1">
+						<p>
+							<span className="text-muted-foreground">Owner:</span>{" "}
+							{mobileActionDoc?.created_by_name ||
+								mobileActionDoc?.created_by_email ||
+								"—"}
+						</p>
+						<p>
+							<span className="text-muted-foreground">Created:</span>{" "}
+							{mobileActionDoc
+								? formatAbsoluteDate(mobileActionDoc.created_at)
+								: ""}
+						</p>
+					</div>
+				</DrawerHeader>
+				<div className="px-4 pb-6 flex flex-col gap-2">
+					<Button
+						variant="outline"
+						className="justify-start gap-2"
+						onClick={() => {
+							if (mobileActionDoc) handleViewDocument(mobileActionDoc);
+							setMobileActionDoc(null);
+						}}
+					>
+						<Eye className="h-4 w-4" />
+						Preview
+					</Button>
+					{mobileActionDoc &&
+						EDITABLE_DOCUMENT_TYPES.includes(
+							mobileActionDoc.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
+						) && (
+							<Button
+								variant="outline"
+								className="justify-start gap-2"
+								disabled={
+									mobileActionDoc.status?.state === "pending" ||
+									mobileActionDoc.status?.state === "processing" ||
+									(mobileActionDoc.document_type === "FILE" &&
+										mobileActionDoc.status?.state === "failed")
+								}
+								onClick={() => {
+									if (mobileActionDoc) {
+										router.push(
+											`/dashboard/${searchSpaceId}/editor/${mobileActionDoc.id}`
+										);
+										setMobileActionDoc(null);
+									}
+								}}
+							>
+								<PenLine className="h-4 w-4" />
+								Edit
+							</Button>
+						)}
+					{mobileActionDoc &&
+						!NON_DELETABLE_DOCUMENT_TYPES.includes(
+							mobileActionDoc.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
+						) && (
+							<Button
+								variant="destructive"
+								className="justify-start gap-2"
+								disabled={
+									mobileActionDoc.status?.state === "pending" ||
+									mobileActionDoc.status?.state === "processing"
+								}
+								onClick={() => {
+									if (mobileActionDoc) {
+										setDeleteDoc(mobileActionDoc);
+										setMobileActionDoc(null);
+									}
+								}}
+							>
+								<Trash2 className="h-4 w-4" />
+								Delete
+							</Button>
+						)}
+				</div>
+			</DrawerContent>
+		</Drawer>
 	</div>
 	);
 }
