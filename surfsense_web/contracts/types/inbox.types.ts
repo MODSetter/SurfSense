@@ -205,6 +205,7 @@ export const getNotificationsRequest = z.object({
 		search_space_id: z.number().optional(),
 		type: inboxItemTypeEnum.optional(),
 		source_type: z.string().optional(),
+		filter: z.enum(["unread", "errors"]).optional(),
 		before_date: z.string().optional(),
 		search: z.string().optional(),
 		limit: z.number().min(1).max(100).optional(),

@@ -317,6 +317,24 @@ export function InboxSidebar({
 	// Get items for current tab
 	const displayItems = activeTab === "comments" ? commentsItems : statusItems;
 
+	// When a non-default filter (unread/errors) is active on the status tab,
+	// fetch matching items from the API so older items beyond the Electric
+	// sync window are included.
+	const isActiveFilterMode = activeTab === "status" && (activeFilter === "unread" || activeFilter === "errors");
+	const { data: activeFilterResponse, isLoading: isActiveFilterLoading } = useQuery({
+		queryKey: cacheKeys.notifications.byFilter(searchSpaceId, activeFilter),
+		queryFn: () =>
+			notificationsApiService.getNotifications({
+				queryParams: {
+					search_space_id: searchSpaceId ?? undefined,
+					filter: activeFilter as "unread" | "errors",
+					limit: 100,
+				},
+			}),
+		staleTime: 30 * 1000,
+		enabled: isActiveFilterMode && open && !isSearchMode,
+	});
+
 	// When a source filter is active, fetch matching items from the API so
 	// older items (outside the Electric sync window) are included.
 	const isSourceFilterMode = activeTab === "status" && !!selectedSource;
@@ -359,11 +377,26 @@ export function InboxSidebar({
 		[selectedSource]
 	);
 
+	// Client-side matcher: checks if an item matches the active filter (unread/errors)
+	const matchesActiveFilter = useCallback(
+		(item: InboxItem): boolean => {
+			if (activeFilter === "unread") return !item.read;
+			if (activeFilter === "errors") {
+				if (item.type === "page_limit_exceeded") return true;
+				const meta = item.metadata as Record<string, unknown> | undefined;
+				return typeof meta?.status === "string" && meta.status === "failed";
+			}
+			return true;
+		},
+		[activeFilter]
+	);
+
 	// Filter items based on filter type, connector filter, and search mode
-	// Three data paths:
-	//   1. Search mode → server-side search results
-	//   2. Source filter mode → API results merged with real-time Electric items
-	//   3. Default → Electric real-time items (fast, local)
+	// Four data paths:
+	//   1. Search mode → server-side search results (client-side filter applied after)
+	//   2. Active filter mode (unread/errors) → API results merged with real-time Electric items
+	//   3. Source filter mode → API results merged with real-time Electric items
+	//   4. Default → Electric real-time items (fast, local)
 	const filteredItems = useMemo(() => {
 		let items: InboxItem[];
 
@@ -378,9 +411,25 @@ export function InboxSidebar({
 						item.type === "connector_deletion"
 				);
 			}
+			if (activeFilter === "unread") {
+				items = items.filter((item) => !item.read);
+			} else if (activeFilter === "errors") {
+				items = items.filter(matchesActiveFilter);
+			}
+		} else if (isActiveFilterMode) {
+			const apiItems = activeFilterResponse?.items ?? [];
+			const realtimeMatching = statusItems.filter(matchesActiveFilter);
+			const seen = new Set(apiItems.map((i) => i.id));
+			const merged = [...apiItems];
+			for (const item of realtimeMatching) {
+				if (!seen.has(item.id)) {
+					merged.push(item);
+				}
+			}
+			items = merged.sort(
+				(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+			);
 		} else if (isSourceFilterMode) {
-			// Merge API results (covers older items) with Electric real-time items
-			// that match the filter (covers brand-new items arriving in real-time).
 			const apiItems = sourceFilterResponse?.items ?? [];
 			const realtimeMatching = statusItems.filter(matchesSourceFilter);
 			const seen = new Set(apiItems.map((i) => i.id));
@@ -397,25 +446,18 @@ export function InboxSidebar({
 			items = displayItems;
 		}
 
-		if (activeFilter === "unread") {
-			items = items.filter((item) => !item.read);
-		} else if (activeFilter === "errors") {
-			items = items.filter((item) => {
-				if (item.type === "page_limit_exceeded") return true;
-				const meta = item.metadata as Record<string, unknown> | undefined;
-				return typeof meta?.status === "string" && meta.status === "failed";
-			});
-		}
-
 		return items;
 	}, [
 		displayItems,
 		statusItems,
 		searchResponse,
 		sourceFilterResponse,
+		activeFilterResponse,
 		isSearchMode,
+		isActiveFilterMode,
 		isSourceFilterMode,
 		matchesSourceFilter,
+		matchesActiveFilter,
 		activeFilter,
 		activeTab,
 	]);
@@ -1026,7 +1068,7 @@ export function InboxSidebar({
 			</Tabs>
 
 			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-				{(isSearchMode ? isSearchLoading : isSourceFilterMode ? isSourceFilterLoading : loading) ? (
+				{(isSearchMode ? isSearchLoading : isActiveFilterMode ? isActiveFilterLoading : isSourceFilterMode ? isSourceFilterLoading : loading) ? (
 					<div className="space-y-2">
 						{activeTab === "comments"
 							? /* Comments skeleton: avatar + two-line text + time */

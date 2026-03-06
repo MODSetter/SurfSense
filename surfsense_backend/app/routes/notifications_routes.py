@@ -228,6 +228,10 @@ async def list_notifications(
         None,
         description="Filter by source type, e.g. 'connector:GITHUB_CONNECTOR' or 'doctype:FILE'",
     ),
+    filter: str | None = Query(
+        None,
+        description="Filter preset: 'unread' for unread only, 'errors' for failed/error items only",
+    ),
     before_date: str | None = Query(
         None, description="Get notifications before this ISO date (for pagination)"
     ),
@@ -293,6 +297,21 @@ async def list_notifications(
             )
             query = query.where(source_filter)
             count_query = count_query.where(source_filter)
+
+    # Filter by preset: 'unread' or 'errors'
+    if filter == "unread":
+        unread_filter = Notification.read == False  # noqa: E712
+        query = query.where(unread_filter)
+        count_query = count_query.where(unread_filter)
+    elif filter == "errors":
+        error_filter = (
+            (Notification.type == "page_limit_exceeded")
+            | (
+                Notification.notification_metadata["status"].astext == "failed"
+            )
+        )
+        query = query.where(error_filter)
+        count_query = count_query.where(error_filter)
 
     # Filter by date (for efficient pagination of older items)
     if before_date:

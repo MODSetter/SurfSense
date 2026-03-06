@@ -47,6 +47,9 @@ class NotificationsApiService {
 		if (queryParams.source_type) {
 			params.append("source_type", queryParams.source_type);
 		}
+		if (queryParams.filter) {
+			params.append("filter", queryParams.filter);
+		}
 		if (queryParams.before_date) {
 			params.append("before_date", queryParams.before_date);
 		}
