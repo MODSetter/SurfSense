@@ -1,9 +1,11 @@
 import {
 	type GetNotificationsRequest,
 	type GetNotificationsResponse,
+	type GetSourceTypesResponse,
 	type GetUnreadCountResponse,
 	getNotificationsRequest,
 	getNotificationsResponse,
+	getSourceTypesResponse,
 	getUnreadCountResponse,
 	type InboxItemTypeEnum,
 	type MarkAllNotificationsReadResponse,
@@ -41,6 +43,9 @@ class NotificationsApiService {
 		}
 		if (queryParams.type) {
 			params.append("type", queryParams.type);
+		}
+		if (queryParams.source_type) {
+			params.append("source_type", queryParams.source_type);
 		}
 		if (queryParams.before_date) {
 			params.append("before_date", queryParams.before_date);
@@ -90,6 +95,23 @@ class NotificationsApiService {
 	 */
 	markAllAsRead = async (): Promise<MarkAllNotificationsReadResponse> => {
 		return baseApiService.patch("/api/v1/notifications/read-all", markAllNotificationsReadResponse);
+	};
+
+	/**
+	 * Get distinct source types (connector + document types) across all
+	 * status notifications. Used to populate the inbox Status tab filter.
+	 */
+	getSourceTypes = async (searchSpaceId?: number): Promise<GetSourceTypesResponse> => {
+		const params = new URLSearchParams();
+		if (searchSpaceId !== undefined) {
+			params.append("search_space_id", String(searchSpaceId));
+		}
+		const queryString = params.toString();
+
+		return baseApiService.get(
+			`/api/v1/notifications/source-types${queryString ? `?${queryString}` : ""}`,
+			getSourceTypesResponse
+		);
 	};
 
 	/**

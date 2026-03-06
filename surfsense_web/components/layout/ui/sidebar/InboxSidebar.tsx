@@ -291,100 +291,128 @@ export function InboxSidebar({
 		activeTab === "comments" ? (mentions.hasMore ?? false) : (status.hasMore ?? false);
 	const loadMore = activeTab === "comments" ? mentions.loadMore : status.loadMore;
 
-	// Get unique source types (connectors + document types) from status items for filtering
+	// Fetch ALL source types from the backend so the filter shows every connector/document
+	// type the user has notifications for, regardless of how many items are loaded via pagination.
+	const { data: sourceTypesData } = useQuery({
+		queryKey: cacheKeys.notifications.sourceTypes(searchSpaceId),
+		queryFn: () => notificationsApiService.getSourceTypes(searchSpaceId ?? undefined),
+		staleTime: 60 * 1000,
+		enabled: open && activeTab === "status",
+	});
+
 	const statusSourceOptions = useMemo(() => {
-		const sources: Array<{
-			key: string;
-			type: string;
-			category: "connector" | "document";
-			displayName: string;
-		}> = [];
-		const seenConnectors = new Set<string>();
-		const seenDocTypes = new Set<string>();
+		if (!sourceTypesData?.sources) return [];
 
-		for (const item of statusItems) {
-			if (item.type === "connector_indexing" && isConnectorIndexingMetadata(item.metadata)) {
-				const ct = item.metadata.connector_type;
-				if (!seenConnectors.has(ct)) {
-					seenConnectors.add(ct);
-					sources.push({
-						key: `connector:${ct}`,
-						type: ct,
-						category: "connector",
-						displayName: getConnectorTypeDisplayName(ct),
-					});
-				}
-			} else if (
-				item.type === "document_processing" &&
-				isDocumentProcessingMetadata(item.metadata)
-			) {
-				const dt = item.metadata.document_type;
-				if (!seenDocTypes.has(dt)) {
-					seenDocTypes.add(dt);
-					sources.push({
-						key: `doctype:${dt}`,
-						type: dt,
-						category: "document",
-						displayName: getDocumentTypeLabel(dt),
-					});
-				}
-			}
-		}
-
-		return sources;
-	}, [statusItems]);
+		return sourceTypesData.sources.map((source) => ({
+			key: source.key,
+			type: source.type,
+			category: source.category,
+			displayName:
+				source.category === "connector"
+					? getConnectorTypeDisplayName(source.type)
+					: getDocumentTypeLabel(source.type),
+		}));
+	}, [sourceTypesData]);
 
 	// Get items for current tab
 	const displayItems = activeTab === "comments" ? commentsItems : statusItems;
 
-	// Filter items based on filter type, connector filter, and search mode
-	// When searching: use server-side API results (searches ALL notifications)
-	// When not searching: use Electric real-time items (fast, local)
-	const filteredItems = useMemo(() => {
-		// In search mode, use API results
-		let items: InboxItem[] = isSearchMode ? (searchResponse?.items ?? []) : displayItems;
+	// When a source filter is active, fetch matching items from the API so
+	// older items (outside the Electric sync window) are included.
+	const isSourceFilterMode = activeTab === "status" && !!selectedSource;
+	const { data: sourceFilterResponse, isLoading: isSourceFilterLoading } = useQuery({
+		queryKey: cacheKeys.notifications.bySourceType(searchSpaceId, selectedSource ?? ""),
+		queryFn: () =>
+			notificationsApiService.getNotifications({
+				queryParams: {
+					search_space_id: searchSpaceId ?? undefined,
+					source_type: selectedSource ?? undefined,
+					limit: 50,
+				},
+			}),
+		staleTime: 30 * 1000,
+		enabled: isSourceFilterMode && open && !isSearchMode,
+	});
 
-		// For status tab search results, filter to status-specific types
-		if (isSearchMode && activeTab === "status") {
-			items = items.filter(
-				(item) =>
-					item.type === "connector_indexing" ||
-					item.type === "document_processing" ||
-					item.type === "page_limit_exceeded" ||
-					item.type === "connector_deletion"
+	// Client-side matcher: checks if an item matches the active source filter
+	const matchesSourceFilter = useCallback(
+		(item: InboxItem): boolean => {
+			if (!selectedSource) return true;
+			if (selectedSource.startsWith("connector:")) {
+				const connectorType = selectedSource.slice("connector:".length);
+				return (
+					item.type === "connector_indexing" &&
+					isConnectorIndexingMetadata(item.metadata) &&
+					item.metadata.connector_type === connectorType
+				);
+			}
+			if (selectedSource.startsWith("doctype:")) {
+				const docType = selectedSource.slice("doctype:".length);
+				return (
+					item.type === "document_processing" &&
+					isDocumentProcessingMetadata(item.metadata) &&
+					item.metadata.document_type === docType
+				);
+			}
+			return true;
+		},
+		[selectedSource]
+	);
+
+	// Filter items based on filter type, connector filter, and search mode
+	// Three data paths:
+	//   1. Search mode → server-side search results
+	//   2. Source filter mode → API results merged with real-time Electric items
+	//   3. Default → Electric real-time items (fast, local)
+	const filteredItems = useMemo(() => {
+		let items: InboxItem[];
+
+		if (isSearchMode) {
+			items = searchResponse?.items ?? [];
+			if (activeTab === "status") {
+				items = items.filter(
+					(item) =>
+						item.type === "connector_indexing" ||
+						item.type === "document_processing" ||
+						item.type === "page_limit_exceeded" ||
+						item.type === "connector_deletion"
+				);
+			}
+		} else if (isSourceFilterMode) {
+			// Merge API results (covers older items) with Electric real-time items
+			// that match the filter (covers brand-new items arriving in real-time).
+			const apiItems = sourceFilterResponse?.items ?? [];
+			const realtimeMatching = statusItems.filter(matchesSourceFilter);
+			const seen = new Set(apiItems.map((i) => i.id));
+			const merged = [...apiItems];
+			for (const item of realtimeMatching) {
+				if (!seen.has(item.id)) {
+					merged.push(item);
+				}
+			}
+			items = merged.sort(
+				(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 			);
+		} else {
+			items = displayItems;
 		}
 
-		// Apply read/unread filter
 		if (activeFilter === "unread") {
 			items = items.filter((item) => !item.read);
 		}
 
-		// Apply source filter (connector type or document type, for status tab only)
-		if (activeTab === "status" && selectedSource) {
-			items = items.filter((item) => {
-				if (selectedSource.startsWith("connector:")) {
-					const connectorType = selectedSource.slice("connector:".length);
-					return (
-						item.type === "connector_indexing" &&
-						isConnectorIndexingMetadata(item.metadata) &&
-						item.metadata.connector_type === connectorType
-					);
-				}
-				if (selectedSource.startsWith("doctype:")) {
-					const docType = selectedSource.slice("doctype:".length);
-					return (
-						item.type === "document_processing" &&
-						isDocumentProcessingMetadata(item.metadata) &&
-						item.metadata.document_type === docType
-					);
-				}
-				return true;
-			});
-		}
-
 		return items;
-	}, [displayItems, searchResponse, isSearchMode, activeFilter, activeTab, selectedSource]);
+	}, [
+		displayItems,
+		statusItems,
+		searchResponse,
+		sourceFilterResponse,
+		isSearchMode,
+		isSourceFilterMode,
+		matchesSourceFilter,
+		activeFilter,
+		activeTab,
+	]);
 
 	// Intersection Observer for infinite scroll with prefetching
 	// Re-runs when active tab changes so each tab gets its own pagination
@@ -953,7 +981,7 @@ export function InboxSidebar({
 			</Tabs>
 
 			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-				{(isSearchMode ? isSearchLoading : loading) ? (
+				{(isSearchMode ? isSearchLoading : isSourceFilterMode ? isSourceFilterLoading : loading) ? (
 					<div className="space-y-2">
 						{activeTab === "comments"
 							? /* Comments skeleton: avatar + two-line text + time */

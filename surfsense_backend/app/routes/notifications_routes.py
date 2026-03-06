@@ -10,7 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import desc, func, select, update
+from sqlalchemy import desc, func, literal, literal_column, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Notification, User, get_async_session
@@ -69,11 +69,94 @@ class MarkAllReadResponse(BaseModel):
     updated_count: int
 
 
+class SourceTypeItem(BaseModel):
+    """A single source type with its category and count."""
+
+    key: str
+    type: str
+    category: str  # "connector" or "document"
+    count: int
+
+
+class SourceTypesResponse(BaseModel):
+    """Response for notification source types used in status tab filter."""
+
+    sources: list[SourceTypeItem]
+
+
 class UnreadCountResponse(BaseModel):
     """Response for unread count with split between recent and older items."""
 
     total_unread: int
     recent_unread: int  # Within SYNC_WINDOW_DAYS
+
+
+@router.get("/source-types", response_model=SourceTypesResponse)
+async def get_notification_source_types(
+    search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> SourceTypesResponse:
+    """
+    Get all distinct connector types and document types from the user's
+    status notifications. Used to populate the filter dropdown in the
+    inbox Status tab so that all types are shown regardless of pagination.
+    """
+    base_filter = [Notification.user_id == user.id]
+
+    if search_space_id is not None:
+        base_filter.append(
+            (Notification.search_space_id == search_space_id)
+            | (Notification.search_space_id.is_(None))
+        )
+
+    connector_type_expr = Notification.notification_metadata["connector_type"].astext
+    connector_query = (
+        select(
+            connector_type_expr.label("source_type"),
+            literal("connector").label("category"),
+            func.count(Notification.id).label("cnt"),
+        )
+        .where(
+            *base_filter,
+            Notification.type.in_(("connector_indexing", "connector_deletion")),
+            connector_type_expr.isnot(None),
+        )
+        .group_by(literal_column("source_type"))
+    )
+
+    document_type_expr = Notification.notification_metadata["document_type"].astext
+    document_query = (
+        select(
+            document_type_expr.label("source_type"),
+            literal("document").label("category"),
+            func.count(Notification.id).label("cnt"),
+        )
+        .where(
+            *base_filter,
+            Notification.type.in_(("document_processing",)),
+            document_type_expr.isnot(None),
+        )
+        .group_by(literal_column("source_type"))
+    )
+
+    connector_result = await session.execute(connector_query)
+    document_result = await session.execute(document_query)
+
+    sources = []
+    for source_type, category, count in [*connector_result.all(), *document_result.all()]:
+        if not source_type:
+            continue
+        sources.append(
+            SourceTypeItem(
+                key=f"{category}:{source_type}",
+                type=source_type,
+                category=category,
+                count=count,
+            )
+        )
+
+    return SourceTypesResponse(sources=sources)
 
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
@@ -141,6 +224,10 @@ async def list_notifications(
     type_filter: NotificationType | None = Query(
         None, alias="type", description="Filter by notification type"
     ),
+    source_type: str | None = Query(
+        None,
+        description="Filter by source type, e.g. 'connector:GITHUB_CONNECTOR' or 'doctype:FILE'",
+    ),
     before_date: str | None = Query(
         None, description="Get notifications before this ISO date (for pagination)"
     ),
@@ -181,6 +268,31 @@ async def list_notifications(
     if type_filter:
         query = query.where(Notification.type == type_filter)
         count_query = count_query.where(Notification.type == type_filter)
+
+    # Filter by source type (connector or document type from JSONB metadata)
+    if source_type:
+        if source_type.startswith("connector:"):
+            connector_val = source_type[len("connector:"):]
+            source_filter = (
+                Notification.type.in_(("connector_indexing", "connector_deletion"))
+                & (
+                    Notification.notification_metadata["connector_type"].astext
+                    == connector_val
+                )
+            )
+            query = query.where(source_filter)
+            count_query = count_query.where(source_filter)
+        elif source_type.startswith("doctype:"):
+            doctype_val = source_type[len("doctype:"):]
+            source_filter = (
+                Notification.type.in_(("document_processing",))
+                & (
+                    Notification.notification_metadata["document_type"].astext
+                    == doctype_val
+                )
+            )
+            query = query.where(source_filter)
+            count_query = count_query.where(source_filter)
 
     # Filter by date (for efficient pagination of older items)
     if before_date:
