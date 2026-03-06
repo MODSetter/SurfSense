@@ -1,7 +1,6 @@
 "use client";
 
 import { CircleAlert, ListFilter, Search, Trash, Upload, X } from "lucide-react";
-import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import React, { useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -67,11 +66,8 @@ export function DocumentsFilters({
 	}, [typeCountsRecord]);
 
 	return (
-		<motion.div
+		<div
 			className="flex select-none"
-			initial={{ opacity: 0, y: 10 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }}
 		>
 			<div className="flex items-center gap-2 w-full">
 				{/* Type Filter */}
@@ -246,6 +242,6 @@ export function DocumentsFilters({
 					<span>Upload</span>
 				</Button>
 			</div>
-		</motion.div>
+		</div>
 	);
 }

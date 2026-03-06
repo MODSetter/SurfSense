@@ -14,7 +14,6 @@ import {
 	Plus,
 	Trash2,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
@@ -428,11 +427,8 @@ export function DocumentsTableShell({
 	const onSortHeader = (key: SortKey) => onSortChange(key);
 
 	return (
-		<motion.div
+		<div
 			className="bg-background overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0"
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
 		>
 			{/* Desktop Table View */}
 			<div className="hidden md:flex md:flex-col flex-1 min-h-0">
@@ -508,27 +504,24 @@ export function DocumentsTableShell({
 					</div>
 				) : sorted.length === 0 ? (
 					<div className="flex flex-1 w-full items-center justify-center">
-						<motion.div
-							initial={{ opacity: 0, y: 20 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ duration: 0.4 }}
-							className="flex flex-col items-center gap-4 max-w-md px-4 text-center"
-						>
-							<div className="rounded-full bg-muted/50 p-4">
-								<FileX className="h-8 w-8 text-muted-foreground" />
-							</div>
-							<div className="space-y-1.5">
-								<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
-								<p className="text-sm text-muted-foreground">
-									Get started by uploading your first document.
-								</p>
-							</div>
-							<Button onClick={openDialog} className="mt-2">
-								<Plus className="mr-2 h-4 w-4" />
-								Upload Documents
-							</Button>
-						</motion.div>
+					<div
+						className="flex flex-col items-center gap-4 max-w-md px-4 text-center"
+					>
+						<div className="rounded-full bg-muted/50 p-4">
+							<FileX className="h-8 w-8 text-muted-foreground" />
+						</div>
+						<div className="space-y-1.5">
+							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+							<p className="text-sm text-muted-foreground">
+								Get started by uploading your first document.
+							</p>
+						</div>
+						<Button onClick={openDialog} className="mt-2">
+							<Plus className="mr-2 h-4 w-4" />
+							Upload Documents
+						</Button>
 					</div>
+				</div>
 				) : (
 					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
@@ -544,14 +537,7 @@ export function DocumentsTableShell({
 											onDelete={setDeleteDoc}
 											searchSpaceId={searchSpaceId}
 										>
-											<motion.tr
-												initial={!isSearchMode && index < 20 ? { opacity: 0 } : false}
-												animate={{ opacity: 1 }}
-												transition={
-													!isSearchMode && index < 20
-														? { duration: 0.15, delay: index * 0.02 }
-														: { duration: 0 }
-												}
+											<tr
 												className={`border-b border-border/50 transition-colors ${
 													isSelected ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
 												}`}
@@ -590,7 +576,7 @@ export function DocumentsTableShell({
 												<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
 													<StatusIndicator status={doc.status} />
 												</TableCell>
-											</motion.tr>
+											</tr>
 										</RowContextMenu>
 									);
 								})}
@@ -628,10 +614,7 @@ export function DocumentsTableShell({
 				</div>
 			) : sorted.length === 0 ? (
 				<div className="md:hidden flex flex-1 w-full items-center justify-center">
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.4 }}
+					<div
 						className="flex flex-col items-center gap-4 max-w-md px-4 text-center"
 					>
 						<div className="rounded-full bg-muted/50 p-4">
@@ -647,7 +630,7 @@ export function DocumentsTableShell({
 							<Plus className="mr-2 h-4 w-4" />
 							Upload Documents
 						</Button>
-					</motion.div>
+					</div>
 				</div>
 			) : (
 				<div
@@ -665,18 +648,11 @@ export function DocumentsTableShell({
 								onDelete={setDeleteDoc}
 								searchSpaceId={searchSpaceId}
 							>
-								<motion.div
-									initial={!isSearchMode && index < 20 ? { opacity: 0 } : false}
-									animate={{ opacity: 1 }}
-									transition={
-										!isSearchMode && index < 20
-											? { duration: 0.15, delay: index * 0.03 }
-											: { duration: 0 }
-									}
-									className={`px-3 py-2 transition-colors ${
-										isSelected ? "bg-primary/5" : "hover:bg-muted/20"
-									}`}
-								>
+							<div
+								className={`px-3 py-2 transition-colors ${
+									isSelected ? "bg-primary/5" : "hover:bg-muted/20"
+								}`}
+							>
 									<div className="flex items-center gap-3">
 										<Checkbox
 											checked={isSelected}
@@ -705,8 +681,8 @@ export function DocumentsTableShell({
 											<StatusIndicator status={doc.status} />
 										</div>
 									</div>
-								</motion.div>
-							</RowContextMenu>
+							</div>
+						</RowContextMenu>
 						);
 					})}
 					{hasMore && <div ref={mobileSentinelRef} className="py-3" />}
@@ -755,7 +731,7 @@ export function DocumentsTableShell({
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
-			</AlertDialog>
-		</motion.div>
+		</AlertDialog>
+	</div>
 	);
 }
