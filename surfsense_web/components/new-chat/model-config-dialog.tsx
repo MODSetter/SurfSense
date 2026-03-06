@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type {
 	GlobalNewLLMConfig,
+	LiteLLMProvider,
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
@@ -408,10 +409,10 @@ export function ModelConfigDialog({
 										initialData={{
 											name: config.name,
 											description: config.description,
-											provider: config.provider,
+											provider: config.provider as LiteLLMProvider,
 											custom_provider: config.custom_provider,
 											model_name: config.model_name,
-											api_key: config.api_key,
+											api_key: "api_key" in config ? (config.api_key as string) : "",
 											api_base: config.api_base,
 											litellm_params: config.litellm_params,
 											system_instructions: config.system_instructions,
@@ -430,14 +431,14 @@ export function ModelConfigDialog({
 
 							{/* Fixed footer */}
 							<div className="shrink-0 px-6 py-4 flex items-center justify-end gap-3">
-								<Button
-									type="button"
-									variant="outline"
-									onClick={() => onOpenChange(false)}
-									disabled={isSubmitting}
-									className="text-sm h-9"
-								>
-									Cancel
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={() => onOpenChange(false)}
+								disabled={isSubmitting}
+								className="text-sm h-9"
+							>
+								Cancel
 								</Button>
 								{(mode === "create" || (!isGlobal && !isAutoMode && config)) ? (
 									<Button
@@ -449,7 +450,7 @@ export function ModelConfigDialog({
 										{isSubmitting ? (
 											<>
 												<Spinner size="sm" />
-												{mode === "edit" ? "Saving..." : "Creating..."}
+												{mode === "edit" ? "Saving" : "Creating"}
 											</>
 										) : (
 											mode === "edit" ? "Save Changes" : "Create & Use"

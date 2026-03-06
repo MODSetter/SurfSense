@@ -7,7 +7,7 @@ import type {
 	ImageGenerationConfig,
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
-import { ImageConfigSidebar } from "./image-config-sidebar";
+import { ImageConfigDialog } from "./image-config-dialog";
 import { ModelConfigDialog } from "./model-config-dialog";
 import { ModelSelector } from "./model-selector";
 
@@ -25,13 +25,13 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 	const [isGlobal, setIsGlobal] = useState(false);
 	const [dialogMode, setDialogMode] = useState<"create" | "edit" | "view">("view");
 
-	// Image config sidebar state
-	const [imageSidebarOpen, setImageSidebarOpen] = useState(false);
+	// Image config dialog state
+	const [imageDialogOpen, setImageDialogOpen] = useState(false);
 	const [selectedImageConfig, setSelectedImageConfig] = useState<
 		ImageGenerationConfig | GlobalImageGenConfig | null
 	>(null);
 	const [isImageGlobal, setIsImageGlobal] = useState(false);
-	const [imageSidebarMode, setImageSidebarMode] = useState<"create" | "edit" | "view">("view");
+	const [imageDialogMode, setImageDialogMode] = useState<"create" | "edit" | "view">("view");
 
 	// LLM handlers
 	const handleEditLLMConfig = useCallback(
@@ -60,22 +60,22 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 	const handleAddImageModel = useCallback(() => {
 		setSelectedImageConfig(null);
 		setIsImageGlobal(false);
-		setImageSidebarMode("create");
-		setImageSidebarOpen(true);
+		setImageDialogMode("create");
+		setImageDialogOpen(true);
 	}, []);
 
 	const handleEditImageConfig = useCallback(
 		(config: ImageGenerationConfig | GlobalImageGenConfig, global: boolean) => {
 			setSelectedImageConfig(config);
 			setIsImageGlobal(global);
-			setImageSidebarMode(global ? "view" : "edit");
-			setImageSidebarOpen(true);
+			setImageDialogMode(global ? "view" : "edit");
+			setImageDialogOpen(true);
 		},
 		[]
 	);
 
-	const handleImageSidebarClose = useCallback((open: boolean) => {
-		setImageSidebarOpen(open);
+	const handleImageDialogClose = useCallback((open: boolean) => {
+		setImageDialogOpen(open);
 		if (!open) setSelectedImageConfig(null);
 	}, []);
 
@@ -96,13 +96,13 @@ export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 				searchSpaceId={searchSpaceId}
 				mode={dialogMode}
 			/>
-			<ImageConfigSidebar
-				open={imageSidebarOpen}
-				onOpenChange={handleImageSidebarClose}
+			<ImageConfigDialog
+				open={imageDialogOpen}
+				onOpenChange={handleImageDialogClose}
 				config={selectedImageConfig}
 				isGlobal={isImageGlobal}
 				searchSpaceId={searchSpaceId}
-				mode={imageSidebarMode}
+				mode={imageDialogMode}
 			/>
 		</div>
 	);
