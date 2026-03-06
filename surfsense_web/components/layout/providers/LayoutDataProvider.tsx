@@ -114,6 +114,9 @@ export function LayoutDataProvider({
 	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
 	const [isInboxDocked, setIsInboxDocked] = useState(false);
 
+	// Announcements sidebar state
+	const [isAnnouncementsSidebarOpen, setIsAnnouncementsSidebarOpen] = useState(false);
+
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
@@ -293,6 +296,12 @@ export function LayoutDataProvider({
 	const navItems: NavItem[] = useMemo(
 		() => [
 			{
+				title: "Documents",
+				url: `/dashboard/${searchSpaceId}/documents`,
+				icon: SquareLibrary,
+				isActive: pathname?.includes("/documents"),
+			},
+			{
 				title: "Inbox",
 				url: "#inbox", // Special URL to indicate this is handled differently
 				icon: Inbox,
@@ -300,20 +309,21 @@ export function LayoutDataProvider({
 				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
 			},
 			{
-				title: "Documents",
-				url: `/dashboard/${searchSpaceId}/documents`,
-				icon: SquareLibrary,
-				isActive: pathname?.includes("/documents"),
-			},
-			{
 				title: "Announcements",
-				url: "/announcements",
+				url: "#announcements", // Special URL to indicate this is handled differently
 				icon: Megaphone,
-				isActive: pathname?.includes("/announcements"),
+				isActive: isAnnouncementsSidebarOpen,
 				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 			},
 		],
-		[searchSpaceId, pathname, isInboxSidebarOpen, totalUnreadCount, announcementUnreadCount]
+		[
+			searchSpaceId,
+			pathname,
+			isInboxSidebarOpen,
+			totalUnreadCount,
+			isAnnouncementsSidebarOpen,
+			announcementUnreadCount,
+		]
 	);
 
 	// Handlers
@@ -411,6 +421,19 @@ export function LayoutDataProvider({
 					if (!prev) {
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
+						setIsAnnouncementsSidebarOpen(false);
+					}
+					return !prev;
+				});
+				return;
+			}
+			// Handle announcements specially - toggle sidebar instead of navigating
+			if (item.url === "#announcements") {
+				setIsAnnouncementsSidebarOpen((prev) => {
+					if (!prev) {
+						setIsInboxSidebarOpen(false);
+						setIsAllSharedChatsSidebarOpen(false);
+						setIsAllPrivateChatsSidebarOpen(false);
 					}
 					return !prev;
 				});
@@ -418,7 +441,13 @@ export function LayoutDataProvider({
 			}
 			router.push(item.url);
 		},
-		[router]
+		[
+			router,
+			setIsAllPrivateChatsSidebarOpen,
+			setIsAllSharedChatsSidebarOpen,
+			setIsAnnouncementsSidebarOpen,
+			setIsInboxSidebarOpen,
+		]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -515,12 +544,14 @@ export function LayoutDataProvider({
 		setIsAllSharedChatsSidebarOpen(true);
 		setIsAllPrivateChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
+		setIsAnnouncementsSidebarOpen(false);
 	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
 		setIsAllPrivateChatsSidebarOpen(true);
 		setIsAllSharedChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
+		setIsAnnouncementsSidebarOpen(false);
 	}, []);
 
 	// Delete handlers
@@ -640,6 +671,10 @@ export function LayoutDataProvider({
 					markAllAsRead,
 					isDocked: isInboxDocked,
 					onDockedChange: setIsInboxDocked,
+				}}
+				announcementsPanel={{
+					open: isAnnouncementsSidebarOpen,
+					onOpenChange: setIsAnnouncementsSidebarOpen,
 				}}
 				allSharedChatsPanel={{
 					open: isAllSharedChatsSidebarOpen,
