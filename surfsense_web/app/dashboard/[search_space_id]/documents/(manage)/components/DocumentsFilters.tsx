@@ -76,87 +76,28 @@ export function DocumentsFilters({
 
 	return (
 		<motion.div
-			className="flex flex-col gap-4 select-none"
+			className="flex select-none"
 			initial={{ opacity: 0, y: 10 }}
 			animate={{ opacity: 1, y: 0 }}
 			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.1 }}
 		>
-			{/* Main toolbar row */}
-			<div className="flex flex-wrap items-center gap-3">
-				{/* Action Buttons - Left Side */}
-				<div className="flex items-center gap-2">
-					<Button
-						onClick={openUploadDialog}
-						variant="outline"
-						size="sm"
-						className="h-9 gap-2 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
-					>
-						<Upload size={16} />
-						<span>Upload documents</span>
-					</Button>
-				</div>
-
-				{/* Spacer */}
-				<div className="flex-1" />
-
-				{/* Search Input */}
-				<motion.div
-					className="relative w-[180px]"
-					initial={{ opacity: 0, y: -10 }}
-					animate={{ opacity: 1, y: 0 }}
-					transition={{ type: "spring", stiffness: 300, damping: 30 }}
-				>
-					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
-						<ListFilter size={14} aria-hidden="true" />
-					</div>
-					<Input
-						id={`${id}-input`}
-						ref={inputRef}
-						className="peer h-9 w-full pl-9 pr-9 text-sm bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30 select-none focus:select-text"
-						value={searchValue}
-						onChange={(e) => onSearch(e.target.value)}
-						placeholder="Search"
-						type="text"
-						aria-label={t("filter_placeholder")}
-					/>
-					{Boolean(searchValue) && (
-						<motion.button
-							className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
-							aria-label="Clear filter"
-							onClick={() => {
-								onSearch("");
-								inputRef.current?.focus();
-							}}
-							initial={{ opacity: 0, scale: 0.8 }}
-							animate={{ opacity: 1, scale: 1 }}
-							exit={{ opacity: 0, scale: 0.8 }}
-							whileHover={{ scale: 1.1 }}
-							whileTap={{ scale: 0.9 }}
+			<div className="flex items-center gap-2 w-full">
+				{/* Type Filter */}
+				<Popover>
+					<PopoverTrigger asChild>
+						<Button
+							variant="outline"
+							size="icon"
+							className="h-9 w-9 shrink-0 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
 						>
-							<X size={14} strokeWidth={2} aria-hidden="true" />
-						</motion.button>
-					)}
-				</motion.div>
-
-				{/* Filter Buttons Group */}
-				<div className="flex items-center gap-2 flex-wrap">
-					{/* Type Filter */}
-					<Popover>
-						<PopoverTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								className="h-9 gap-2 border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border"
-							>
-								<FileType size={14} className="text-muted-foreground" />
-								<span className="hidden sm:inline">Type</span>
-								{activeTypes.length > 0 && (
-									<span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-medium text-primary-foreground">
-										{activeTypes.length}
-									</span>
-								)}
-							</Button>
-						</PopoverTrigger>
+							<FileType size={14} />
+							{activeTypes.length > 0 && (
+								<span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[9px] font-medium text-primary-foreground">
+									{activeTypes.length}
+								</span>
+							)}
+						</Button>
+					</PopoverTrigger>
 						<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
 							<div>
 								{/* Search input */}
@@ -230,31 +171,46 @@ export function DocumentsFilters({
 						</PopoverContent>
 					</Popover>
 
-					{/* Bulk Delete Button */}
-					{selectedIds.size > 0 && (
+				{/* Search Input */}
+				<div className="relative flex-1 min-w-0">
+					<div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">
+						<ListFilter size={14} aria-hidden="true" />
+					</div>
+					<Input
+						id={`${id}-input`}
+						ref={inputRef}
+						className="peer h-9 w-full pl-9 pr-9 text-sm bg-background border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30 select-none focus:select-text"
+						value={searchValue}
+						onChange={(e) => onSearch(e.target.value)}
+						placeholder="Search"
+						type="text"
+						aria-label={t("filter_placeholder")}
+					/>
+					{Boolean(searchValue) && (
+						<button
+							type="button"
+							className="absolute inset-y-0 right-0 flex h-full w-9 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground transition-colors"
+							aria-label="Clear filter"
+							onClick={() => {
+								onSearch("");
+								inputRef.current?.focus();
+							}}
+						>
+							<X size={14} strokeWidth={2} aria-hidden="true" />
+						</button>
+					)}
+				</div>
+
+				{/* Bulk Delete Button */}
+				{selectedIds.size > 0 && (
 						<AlertDialog>
 							<AlertDialogTrigger asChild>
-								<motion.div
-									initial={{ opacity: 0, scale: 0.9 }}
-									animate={{ opacity: 1, scale: 1 }}
-									exit={{ opacity: 0, scale: 0.9 }}
-								>
-									{/* Mobile: icon with count */}
-									<Button variant="destructive" size="sm" className="h-9 gap-1.5 px-2.5 md:hidden">
-										<Trash size={14} />
-										<span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive-foreground/20 text-[10px] font-medium">
-											{selectedIds.size}
-										</span>
-									</Button>
-									{/* Desktop: full button */}
-									<Button variant="destructive" size="sm" className="h-9 gap-2 hidden md:flex">
-										<Trash size={14} />
-										Delete
-										<span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive-foreground/20 text-[10px] font-medium">
-											{selectedIds.size}
-										</span>
-									</Button>
-								</motion.div>
+								<Button variant="destructive" size="sm" className="h-9 shrink-0 gap-1.5 px-2.5">
+									<Trash size={14} />
+									<span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive-foreground/20 text-[10px] font-medium">
+										{selectedIds.size}
+									</span>
+								</Button>
 							</AlertDialogTrigger>
 							<AlertDialogContent className="max-w-md">
 								<div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
@@ -285,8 +241,18 @@ export function DocumentsFilters({
 								</AlertDialogFooter>
 							</AlertDialogContent>
 						</AlertDialog>
-					)}
-				</div>
+				)}
+
+				{/* Upload Button */}
+				<Button
+					onClick={openUploadDialog}
+					variant="outline"
+					size="sm"
+					className="h-9 shrink-0 gap-1.5 bg-white text-gray-700 border-white hover:bg-gray-50 dark:bg-white dark:text-gray-800 dark:hover:bg-gray-100"
+				>
+					<Upload size={14} />
+					<span>Upload</span>
+				</Button>
 			</div>
 		</motion.div>
 	);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { ChevronLeft, SquareLibrary } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -307,7 +307,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 
 	const documentsContent = (
 		<>
-			<div className="shrink-0 p-4 pb-2">
+			<div className="shrink-0 p-4 pb-10">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
 						{isMobile && (
@@ -321,7 +321,6 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 								<span className="sr-only">{tSidebar("close") || "Close"}</span>
 							</Button>
 						)}
-						<SquareLibrary className="h-5 w-5 text-muted-foreground" />
 						<h2 className="text-lg font-semibold">{t("title") || "Documents"}</h2>
 					</div>
 				</div>
