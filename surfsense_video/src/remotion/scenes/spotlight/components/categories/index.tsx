@@ -1,4 +1,4 @@
-/** Category dispatcher — routes a CardItem to its renderer. */
+/** Category dispatcher -- routes a CardItem to its renderer. */
 import React from "react";
 import type { CardItem } from "../../types";
 import type { BaseCardProps } from "./types";
@@ -10,7 +10,11 @@ import { ProgressContent } from "./ProgressContent";
 import { FactContent } from "./FactContent";
 import { DefinitionContent } from "./DefinitionContent";
 
-export function renderCardContent(item: CardItem, props: BaseCardProps): React.ReactNode {
+interface RenderProps extends BaseCardProps {
+  enterFrame: number;
+}
+
+export function renderCardContent(item: CardItem, props: RenderProps): React.ReactNode {
   switch (item.category) {
     case "stat":       return <StatContent item={item} {...props} />;
     case "info":       return <InfoContent item={item} {...props} />;

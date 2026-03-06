@@ -1,10 +1,5 @@
-/**
- * Zod schemas and inferred types for grid scene card data.
- * Each card category has its own schema; CardItem is the discriminated union.
- */
+/** Zod schemas and inferred types for spotlight scene card data. */
 import { z } from "zod";
-
-// ── Card category schemas ──
 
 export const StatItem = z.object({
   category: z.literal("stat"),
@@ -64,19 +59,15 @@ export const DefinitionItem = z.object({
   color: z.string(),
 });
 
-// ── Unions & scene input ──
-
 export const CardItem = z.discriminatedUnion("category", [
   StatItem, InfoItem, QuoteItem, ProfileItem,
   ProgressItem, FactItem, DefinitionItem,
 ]);
 
-export const GridSceneInput = z.object({
-  type: z.literal("grid"),
+export const SpotlightSceneInput = z.object({
+  type: z.literal("spotlight"),
   items: z.array(CardItem).min(1).max(8),
 });
-
-// ── Inferred types ──
 
 export type StatItem = z.infer<typeof StatItem>;
 export type InfoItem = z.infer<typeof InfoItem>;
@@ -87,4 +78,11 @@ export type FactItem = z.infer<typeof FactItem>;
 export type DefinitionItem = z.infer<typeof DefinitionItem>;
 export type CardItem = z.infer<typeof CardItem>;
 export type CardCategory = CardItem["category"];
-export type GridSceneInput = z.infer<typeof GridSceneInput>;
+export type SpotlightSceneInput = z.infer<typeof SpotlightSceneInput>;
+
+export interface Waypoint {
+  cx: number;
+  cy: number;
+  holdFrames: number;
+  transitionAfter: number;
+}

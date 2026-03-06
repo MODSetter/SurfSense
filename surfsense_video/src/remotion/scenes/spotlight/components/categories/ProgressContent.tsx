@@ -1,12 +1,15 @@
-/** Progress card — animated bar with spring physics, synced to card focus. */
+/** Progress card -- animated bar with spring physics. */
 import React from "react";
 import { useCurrentFrame, spring, useVideoConfig } from "remotion";
-import { STEP_DURATION, TRANSITION_DURATION } from "../../constants";
 import type { ProgressItem } from "../../types";
 import type { CardRendererProps } from "./types";
 
-export const ProgressContent: React.FC<CardRendererProps<ProgressItem>> = ({
-  item, index, vmin, theme,
+interface ProgressProps extends CardRendererProps<ProgressItem> {
+  enterFrame: number;
+}
+
+export const ProgressContent: React.FC<ProgressProps> = ({
+  item, enterFrame, vmin, theme,
 }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
@@ -14,8 +17,7 @@ export const ProgressContent: React.FC<CardRendererProps<ProgressItem>> = ({
   const max = item.max ?? 100;
   const pct = Math.min(Math.max(item.value / max, 0), 1);
 
-  const cardStart = index * (STEP_DURATION + TRANSITION_DURATION) + TRANSITION_DURATION;
-  const localFrame = Math.max(0, frame - cardStart);
+  const localFrame = Math.max(0, frame - enterFrame);
 
   const barProgress = spring({
     frame: localFrame, fps,

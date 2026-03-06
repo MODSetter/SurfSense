@@ -1,4 +1,4 @@
-/** Stat card — large hero value with title and description. */
+/** Stat card -- large hero value with title and description. */
 import React from "react";
 import type { StatItem } from "../../types";
 import type { CardRendererProps } from "./types";

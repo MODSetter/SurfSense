@@ -1,4 +1,4 @@
-/** Fact card — bold statement with optional source attribution. */
+/** Fact card -- bold statement with optional source attribution. */
 import React from "react";
 import type { FactItem } from "../../types";
 import type { CardRendererProps } from "./types";

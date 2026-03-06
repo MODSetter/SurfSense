@@ -1,4 +1,4 @@
-/** Profile card — avatar initials, name, role, optional tag and description. */
+/** Profile card -- avatar initials, name, role, optional tag and description. */
 import React from "react";
 import type { ProfileItem } from "../../types";
 import type { CardRendererProps } from "./types";

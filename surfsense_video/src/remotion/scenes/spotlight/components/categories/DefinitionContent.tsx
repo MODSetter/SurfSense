@@ -1,4 +1,4 @@
-/** Definition card — term, definition, and optional usage example. */
+/** Definition card -- term, definition, and optional usage example. */
 import React from "react";
 import type { DefinitionItem } from "../../types";
 import type { CardRendererProps } from "./types";

@@ -1,14 +1,12 @@
 /**
  * CardReveal — animated SVG stroke reveal for card borders.
- *
- * Uses @remotion/paths evolvePath to progressively draw a rounded-rect
- * stroke around each card. Five reveal variants produce visual diversity.
+ * Uses @remotion/paths evolvePath to draw a rounded-rect stroke.
  * Content fades in as the stroke draws.
  */
 import React from "react";
 import { useCurrentFrame, interpolate } from "remotion";
 import { evolvePath } from "@remotion/paths";
-import { STEP_DURATION, TRANSITION_DURATION, DRAW_DURATION } from "../constants";
+import { DRAW_DURATION } from "../constants";
 
 type RevealStyle =
   | "drawSingle"
@@ -17,9 +15,6 @@ type RevealStyle =
   | "drawBrackets"
   | "drawNoisy";
 
-// ── SVG path generators ──
-
-/** Full rounded-rect path starting from a given corner (0-3). */
 function roundedPath(w: number, h: number, r: number, startCorner: number): string {
   const corners = [
     { mx: r, my: 0, lx: w - r, ly: 0, qx: w, qy: 0, qex: w, qey: r },
@@ -37,7 +32,6 @@ function roundedPath(w: number, h: number, r: number, startCorner: number): stri
   return parts.join(" ");
 }
 
-/** 4 individual edge paths (top, right, bottom, left) with rounded corners. */
 function roundedEdgePaths(w: number, h: number, r: number): string[] {
   return [
     `M ${r} 0 L ${w - r} 0 Q ${w} 0 ${w} ${r}`,
@@ -47,7 +41,6 @@ function roundedEdgePaths(w: number, h: number, r: number): string[] {
   ];
 }
 
-/** 4 L-shaped corner bracket paths with staggered delays. */
 function roundedBracketPaths(w: number, h: number, r: number) {
   const armLen = Math.min(w, h) * 0.18;
   return [
@@ -58,13 +51,23 @@ function roundedBracketPaths(w: number, h: number, r: number) {
   ];
 }
 
-// ── Timing hook ──
+interface CardRevealProps {
+  enterFrame: number;
+  index: number;
+  width: number;
+  height: number;
+  radius: number;
+  color: string;
+  vmin: number;
+  reveal: RevealStyle;
+  children: React.ReactNode;
+}
 
-/** Returns draw progress (0→1, cubic ease-out) and stroke opacity for a card at `index`. */
-function useRevealTiming(index: number) {
+export const CardReveal: React.FC<CardRevealProps> = ({
+  enterFrame, index, width, height, radius, color, vmin, reveal, children,
+}) => {
   const frame = useCurrentFrame();
-  const cardStart = index * (STEP_DURATION + TRANSITION_DURATION) + TRANSITION_DURATION;
-  const local = frame - cardStart;
+  const local = frame - enterFrame;
 
   let progress: number;
   if (local < 0) progress = 0;
@@ -78,27 +81,6 @@ function useRevealTiming(index: number) {
   if (local < 0) strokeOpacity = 0;
   else if (local < 2) strokeOpacity = interpolate(local, [0, 2], [0, 1], { extrapolateRight: "clamp" });
   else strokeOpacity = 1;
-
-  return { progress, strokeOpacity };
-}
-
-// ── Component ──
-
-interface CardRevealProps {
-  index: number;
-  width: number;
-  height: number;
-  radius: number;
-  color: string;
-  vmin: number;
-  reveal: RevealStyle;
-  children: React.ReactNode;
-}
-
-export const CardReveal: React.FC<CardRevealProps> = ({
-  index, width, height, radius, color, vmin, reveal, children,
-}) => {
-  const { progress, strokeOpacity } = useRevealTiming(index);
 
   const contentOpacity = interpolate(progress, [0.15, 0.6], [0, 1], {
     extrapolateLeft: "clamp", extrapolateRight: "clamp",
@@ -114,11 +96,9 @@ export const CardReveal: React.FC<CardRevealProps> = ({
 
   const clamp = Math.min(Math.max(progress, 0), 1);
 
-  // ── drawSingle: one stroke traces the full perimeter ──
   if (reveal === "drawSingle") {
     const path = roundedPath(width, height, radius, index % 4);
     const evolved = evolvePath(clamp, path);
-
     return (
       <div style={{ position: "relative", width, height }}>
         <svg width={width} height={height} style={svgStyle}>
@@ -131,13 +111,11 @@ export const CardReveal: React.FC<CardRevealProps> = ({
     );
   }
 
-  // ── drawDouble: two strokes race from opposite corners ──
   if (reveal === "drawDouble") {
     const pathA = roundedPath(width, height, radius, 0);
     const pathB = roundedPath(width, height, radius, 2);
     const eA = evolvePath(clamp, pathA);
     const eB = evolvePath(clamp, pathB);
-
     return (
       <div style={{ position: "relative", width, height }}>
         <svg width={width} height={height} style={svgStyle}>
@@ -153,10 +131,8 @@ export const CardReveal: React.FC<CardRevealProps> = ({
     );
   }
 
-  // ── drawEdges: 4 edges draw independently with stagger ──
   if (reveal === "drawEdges") {
     const edgePaths = roundedEdgePaths(width, height, radius);
-
     return (
       <div style={{ position: "relative", width, height }}>
         <svg width={width} height={height} style={svgStyle}>
@@ -178,13 +154,11 @@ export const CardReveal: React.FC<CardRevealProps> = ({
     );
   }
 
-  // ── drawNoisy: stroke distorted by SVG turbulence displacement ──
   if (reveal === "drawNoisy") {
     const path = roundedPath(width, height, radius, index % 4);
     const evolved = evolvePath(clamp, path);
     const filterId = `noise-${index}`;
     const turbScale = interpolate(clamp, [0, 0.3, 1], [0.08, 0.05, 0.02]);
-
     return (
       <div style={{ position: "relative", width, height }}>
         <svg width={width} height={height} style={svgStyle}>
@@ -210,9 +184,7 @@ export const CardReveal: React.FC<CardRevealProps> = ({
     );
   }
 
-  // ── drawBrackets (default): L-shaped corner marks snap in ──
   const brackets = roundedBracketPaths(width, height, radius);
-
   return (
     <div style={{ position: "relative", width, height }}>
       <svg width={width} height={height} style={svgStyle}>
