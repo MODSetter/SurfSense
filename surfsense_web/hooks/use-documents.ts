@@ -77,6 +77,7 @@ export function useDocuments(
 
 	const apiLoadedCountRef = useRef(0);
 	const initialLoadDoneRef = useRef(false);
+	const prevParamsRef = useRef<{ sortBy: string; sortOrder: string; typeFilterKey: string } | null>(null);
 	// Snapshot of all doc IDs from Electric's first callback after initial load.
 	// Anything appearing in subsequent callbacks NOT in this set is genuinely new.
 	const electricBaselineIdsRef = useRef<Set<number> | null>(null);
@@ -156,8 +157,15 @@ export function useDocuments(
 
 		let cancelled = false;
 
-		const isRefresh = initialLoadDoneRef.current;
-		if (!isRefresh) {
+		const prev = prevParamsRef.current;
+		const isSortOnlyChange =
+			initialLoadDoneRef.current &&
+			prev !== null &&
+			prev.typeFilterKey === typeFilterKey &&
+			(prev.sortBy !== sortBy || prev.sortOrder !== sortOrder);
+		prevParamsRef.current = { sortBy, sortOrder, typeFilterKey };
+
+		if (!isSortOnlyChange) {
 			setLoading(true);
 			setDocuments([]);
 			setTotal(0);

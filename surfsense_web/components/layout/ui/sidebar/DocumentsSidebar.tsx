@@ -19,7 +19,6 @@ import {
 	DocumentsTableShell,
 	type SortKey,
 } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsTableShell";
-import type { ColumnVisibility } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/types";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
 const SEARCH_INITIAL_SIZE = 20;
@@ -49,12 +48,6 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebounced(search, 250);
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
-	const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-		document_type: true,
-		created_by: false,
-		created_at: true,
-		status: true,
-	});
 	const [sortKey, setSortKey] = useState<SortKey>("created_at");
 	const [sortDesc, setSortDesc] = useState(true);
 	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
@@ -289,13 +282,6 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 	}, []);
 
 	useEffect(() => {
-		if (!open) return;
-		const panelWidth = isMobile ? window.innerWidth : 720;
-		const isNarrow = panelWidth < 600;
-		setColumnVisibility((prev) => ({ ...prev, created_by: !isNarrow, created_at: !isNarrow }));
-	}, [open, isMobile]);
-
-	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && open) {
 				onOpenChange(false);
@@ -345,7 +331,6 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 					error={!!error}
 					selectedIds={selectedIds}
 					setSelectedIds={setSelectedIds}
-					columnVisibility={columnVisibility}
 					sortKey={sortKey}
 					sortDesc={sortDesc}
 					onSortChange={handleSortChange}
