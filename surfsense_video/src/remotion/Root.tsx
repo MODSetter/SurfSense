@@ -14,6 +14,7 @@ import { gridPreviews } from "./scenes/grid/preview";
 import { hierarchyPreviews } from "./scenes/hierarchy/preview";
 import { listPreviews } from "./scenes/list/preview";
 import { sequencePreviews } from "./scenes/sequence/preview";
+import { chartPreviews } from "./scenes/chart/preview";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -42,6 +43,7 @@ export const RemotionRoot: React.FC = () => {
       {hierarchyPreviews}
       {listPreviews}
       {sequencePreviews}
+      {chartPreviews}
     </>
   );
 };
