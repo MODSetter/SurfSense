@@ -178,12 +178,12 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				</Tooltip>
 
 				<PopoverContent
-					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60"
+					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60 dark:bg-muted dark:border dark:border-neutral-700 select-none"
 					align="end"
 					sideOffset={8}
 					onCloseAutoFocus={(e) => e.preventDefault()}
 				>
-					<div className="p-1.5 space-y-1 select-none">
+					<div className="p-1.5 space-y-1">
 						{/* Visibility Options */}
 						{visibilityOptions.map((option) => {
 							const isSelected = currentVisibility === option.value;
@@ -196,27 +196,27 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									onClick={() => handleVisibilityChange(option.value)}
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/50 cursor-pointer",
+										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
 										"focus:outline-none",
-										isSelected && "bg-accent/80"
+										isSelected && "bg-accent/80 dark:bg-white/10"
 									)}
 								>
 									<div
 										className={cn(
 											"size-7 rounded-md shrink-0 grid place-items-center",
-											isSelected ? "bg-primary/10" : "bg-muted"
+											isSelected ? "bg-primary/10 dark:bg-white/10" : "bg-muted dark:bg-white/5"
 										)}
 									>
 										<Icon
 											className={cn(
 												"size-4 block",
-												isSelected ? "text-primary" : "text-muted-foreground"
+												isSelected ? "text-primary dark:text-white" : "text-muted-foreground"
 											)}
 										/>
 									</div>
 									<div className="flex-1 text-left min-w-0">
 										<div className="flex items-center gap-1.5">
-											<span className={cn("text-sm font-medium", isSelected && "text-primary")}>
+											<span className={cn("text-sm font-medium", isSelected && "text-primary dark:text-white")}>
 												{option.label}
 											</span>
 										</div>
@@ -231,7 +231,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 						{canCreatePublicLink && (
 							<>
 								{/* Divider */}
-								<div className="border-t border-border my-1" />
+								<div className="border-t border-border dark:border-white/5 my-1" />
 
 								{/* Public Link Option */}
 								<button
@@ -240,12 +240,12 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									disabled={isCreatingSnapshot}
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/50 cursor-pointer",
+										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
 										"focus:outline-none",
 										"disabled:opacity-50 disabled:cursor-not-allowed"
 									)}
 								>
-									<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted">
+									<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted dark:bg-white/5">
 										<Earth className="size-4 block text-muted-foreground" />
 									</div>
 									<div className="flex-1 text-left min-w-0">

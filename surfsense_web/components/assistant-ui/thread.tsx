@@ -30,7 +30,6 @@ import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { showCommentsGutterAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import {
-	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
 	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
@@ -227,14 +226,13 @@ const ThreadWelcome: FC = () => {
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
-	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
+	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
-	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const composerRuntime = useComposerRuntime();
 	const hasAutoFocusedRef = useRef(false);
 
@@ -309,26 +307,6 @@ const Composer: FC = () => {
 		}
 	}, [isThreadEmpty]);
 
-	// Combine sidebar selections + @-mention chips → single ID atom for the backend
-	useEffect(() => {
-		const allDocs = [...mentionedDocuments, ...sidebarDocs];
-		const seen = new Set<string>();
-		const deduped = allDocs.filter((d) => {
-			const key = `${d.document_type}:${d.id}`;
-			if (seen.has(key)) return false;
-			seen.add(key);
-			return true;
-		});
-		setMentionedDocumentIds({
-			surfsense_doc_ids: deduped
-				.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
-				.map((doc) => doc.id),
-			document_ids: deduped
-				.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
-				.map((doc) => doc.id),
-		});
-	}, [mentionedDocuments, sidebarDocs, setMentionedDocumentIds]);
-
 	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
 		(text: string) => {
@@ -391,10 +369,6 @@ const Composer: FC = () => {
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
 			setSidebarDocs([]);
-			setMentionedDocumentIds({
-				surfsense_doc_ids: [],
-				document_ids: [],
-			});
 		}
 	}, [
 		showDocumentPopover,
@@ -403,29 +377,17 @@ const Composer: FC = () => {
 		composerRuntime,
 		setMentionedDocuments,
 		setSidebarDocs,
-		setMentionedDocumentIds,
 	]);
 
-	// Remove document from mentions and sync IDs to atom
 	const handleDocumentRemove = useCallback(
 		(docId: number, docType?: string) => {
-			setMentionedDocuments((prev) => {
-				const updated = prev.filter((doc) => !(doc.id === docId && doc.document_type === docType));
-				setMentionedDocumentIds({
-					surfsense_doc_ids: updated
-						.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
-						.map((doc) => doc.id),
-					document_ids: updated
-						.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
-						.map((doc) => doc.id),
-				});
-				return updated;
-			});
+			setMentionedDocuments((prev) =>
+				prev.filter((doc) => !(doc.id === docId && doc.document_type === docType))
+			);
 		},
-		[setMentionedDocuments, setMentionedDocumentIds]
+		[setMentionedDocuments]
 	);
 
-	// Add selected documents from picker, insert chips, and sync IDs to atom
 	const handleDocumentsMention = useCallback(
 		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
 			const existingKeys = new Set(mentionedDocuments.map((d) => `${d.document_type}:${d.id}`));
@@ -442,21 +404,12 @@ const Composer: FC = () => {
 				const uniqueNewDocs = documents.filter(
 					(doc) => !existingKeySet.has(`${doc.document_type}:${doc.id}`)
 				);
-				const updated = [...prev, ...uniqueNewDocs];
-				setMentionedDocumentIds({
-					surfsense_doc_ids: updated
-						.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
-						.map((doc) => doc.id),
-					document_ids: updated
-						.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
-						.map((doc) => doc.id),
-				});
-				return updated;
+				return [...prev, ...uniqueNewDocs];
 			});
 
 			setMentionQuery("");
 		},
-		[mentionedDocuments, setMentionedDocuments, setMentionedDocumentIds]
+		[mentionedDocuments, setMentionedDocuments]
 	);
 
 	return (

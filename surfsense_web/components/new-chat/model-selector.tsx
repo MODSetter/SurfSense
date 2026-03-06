@@ -264,7 +264,7 @@ export function ModelSelector({
 							)}
 
 							{/* Divider */}
-							<div className="h-4 w-px bg-border/60 mx-0.5" />
+							<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
 
 							{/* Image section */}
 							{currentImageConfig ? (

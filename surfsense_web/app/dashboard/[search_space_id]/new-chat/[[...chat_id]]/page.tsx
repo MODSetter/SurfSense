@@ -180,11 +180,10 @@ export default function NewChatPage() {
 		interruptData: Record<string, unknown>;
 	} | null>(null);
 
-	// Get mentioned document IDs from the composer (combines @ mentions + sidebar selections)
+	// Get mentioned document IDs from the composer (derived from @ mentions + sidebar selections)
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const sidebarDocuments = useAtomValue(sidebarSelectedDocumentsAtom);
-	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
 	const setSidebarDocuments = useSetAtom(sidebarSelectedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
@@ -278,11 +277,8 @@ export default function NewChatPage() {
 		setThreadId(null);
 		setCurrentThread(null);
 		setMessageThinkingSteps(new Map());
-		setMentionedDocumentIds({
-			surfsense_doc_ids: [],
-			document_ids: [],
-		});
 		setMentionedDocuments([]);
+		setSidebarDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
 		closeReportPanel(); // Close report panel when switching chats
@@ -347,8 +343,8 @@ export default function NewChatPage() {
 	}, [
 		urlChatId,
 		setMessageDocumentsMap,
-		setMentionedDocumentIds,
 		setMentionedDocuments,
+		setSidebarDocuments,
 		closeReportPanel,
 	]);
 
@@ -619,10 +615,6 @@ export default function NewChatPage() {
 
 				// Clear mentioned documents after capturing them
 				if (hasDocumentIds || hasSurfsenseDocIds) {
-					setMentionedDocumentIds({
-						surfsense_doc_ids: [],
-						document_ids: [],
-					});
 					setMentionedDocuments([]);
 					setSidebarDocuments([]);
 				}
@@ -914,7 +906,6 @@ export default function NewChatPage() {
 			mentionedDocumentIds,
 			mentionedDocuments,
 			sidebarDocuments,
-			setMentionedDocumentIds,
 			setMentionedDocuments,
 			setSidebarDocuments,
 			setMessageDocumentsMap,

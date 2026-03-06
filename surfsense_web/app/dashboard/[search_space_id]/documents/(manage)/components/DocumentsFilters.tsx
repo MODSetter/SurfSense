@@ -169,7 +169,7 @@ export function DocumentsFilters({
 						className="peer h-9 w-full pl-9 pr-9 text-sm bg-sidebar border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30 select-none focus:select-text"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
-						placeholder="Search"
+						placeholder="Search docs"
 						type="text"
 						aria-label={t("filter_placeholder")}
 					/>
