@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { InboxItem, NotificationCategory } from "@/contracts/types/inbox.types";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
+import { filterNewElectricItems, getNewestTimestamp } from "@/lib/electric/baseline";
 import { useElectricClient } from "@/lib/electric/context";
 
 export type { InboxItem, InboxItemTypeEnum, NotificationCategory } from "@/contracts/types/inbox.types";
@@ -64,6 +65,7 @@ export function useInbox(
 
 	const initialLoadDoneRef = useRef(false);
 	const electricBaselineIdsRef = useRef<Set<number> | null>(null);
+	const newestApiTimestampRef = useRef<string | null>(null);
 	const liveQueryRef = useRef<{ unsubscribe?: () => void } | null>(null);
 	const unreadLiveQueryRef = useRef<{ unsubscribe?: () => void } | null>(null);
 
@@ -81,6 +83,7 @@ export function useInbox(
 		setHasMore(false);
 		initialLoadDoneRef.current = false;
 		electricBaselineIdsRef.current = null;
+		newestApiTimestampRef.current = null;
 		olderUnreadOffsetRef.current = null;
 		apiUnreadTotalRef.current = 0;
 
@@ -103,6 +106,7 @@ export function useInbox(
 				setHasMore(notificationsResponse.has_more);
 				setUnreadCount(unreadResponse.total_unread);
 				apiUnreadTotalRef.current = unreadResponse.total_unread;
+				newestApiTimestampRef.current = getNewestTimestamp(notificationsResponse.items);
 				setError(null);
 				initialLoadDoneRef.current = true;
 			} catch (err) {
@@ -202,24 +206,10 @@ export function useInbox(
 					setInboxItems((prev) => {
 						const prevIds = new Set(prev.map((d) => d.id));
 
-						if (electricBaselineIdsRef.current === null) {
-							// Only baseline items already rendered from API.
-							// Items in Electric but NOT in prev are genuinely new.
-							electricBaselineIdsRef.current = new Set(
-								[...liveIds].filter((id) => prevIds.has(id))
-							);
-						}
-
-						const baseline = electricBaselineIdsRef.current;
-						const newItems = validItems.filter((item) => {
-							if (prevIds.has(item.id)) return false;
-							if (baseline.has(item.id)) return false;
-							return true;
-						});
-
-						for (const item of newItems) {
-							baseline.add(item.id);
-						}
+						const newItems = filterNewElectricItems(
+							validItems, liveIds, prevIds,
+							electricBaselineIdsRef, newestApiTimestampRef.current,
+						);
 
 						let updated = prev.map((item) => {
 							const liveItem = liveItemMap.get(item.id);

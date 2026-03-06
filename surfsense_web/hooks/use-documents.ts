@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { DocumentSortBy, DocumentTypeEnum, SortOrder } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import type { SyncHandle } from "@/lib/electric/client";
+import { filterNewElectricItems, getNewestTimestamp } from "@/lib/electric/baseline";
 import { useElectricClient } from "@/lib/electric/context";
 
 export interface DocumentStatusType {
@@ -105,6 +106,7 @@ export function useDocuments(
 	// Snapshot of all doc IDs from Electric's first callback after initial load.
 	// Anything appearing in subsequent callbacks NOT in this set is genuinely new.
 	const electricBaselineIdsRef = useRef<Set<number> | null>(null);
+	const newestApiTimestampRef = useRef<string | null>(null);
 	const userCacheRef = useRef<Map<string, string>>(new Map());
 	const emailCacheRef = useRef<Map<string, string>>(new Map());
 	const syncHandleRef = useRef<SyncHandle | null>(null);
@@ -177,6 +179,7 @@ export function useDocuments(
 		apiLoadedCountRef.current = 0;
 		initialLoadDoneRef.current = false;
 		electricBaselineIdsRef.current = null;
+		newestApiTimestampRef.current = null;
 
 		const fetchInitialData = async () => {
 			try {
@@ -206,6 +209,7 @@ export function useDocuments(
 				setTypeCounts(countsResponse);
 				setError(null);
 				apiLoadedCountRef.current = docsResponse.items.length;
+				newestApiTimestampRef.current = getNewestTimestamp(docsResponse.items);
 				initialLoadDoneRef.current = true;
 			} catch (err) {
 				if (cancelled) return;
@@ -351,30 +355,10 @@ export function useDocuments(
 						const liveIds = new Set(validItems.map((d) => d.id));
 						const prevIds = new Set(prev.map((d) => d.id));
 
-					// Only baseline items already rendered from API.
-					// Items in Electric but NOT in prev are genuinely new
-					// (created between the API fetch and Electric's first callback).
-					if (electricBaselineIdsRef.current === null) {
-						electricBaselineIdsRef.current = new Set(
-							[...liveIds].filter((id) => prevIds.has(id))
-						);
-					}
-
-						// Genuinely new = not in rendered list, not in baseline snapshot.
-						// These are docs created AFTER the sidebar opened.
-						const baseline = electricBaselineIdsRef.current;
-						const newItems = validItems
-							.filter((item) => {
-								if (prevIds.has(item.id)) return false;
-								if (baseline.has(item.id)) return false;
-								return true;
-							})
-							.map(electricToDisplayDoc);
-
-						// Track new items in baseline so they aren't re-added
-						for (const item of newItems) {
-							baseline.add(item.id);
-						}
+						const newItems = filterNewElectricItems(
+							validItems, liveIds, prevIds,
+							electricBaselineIdsRef, newestApiTimestampRef.current,
+						).map(electricToDisplayDoc);
 
 						// Update existing docs (status changes, title edits)
 						let updated = prev.map((doc) => {
@@ -451,6 +435,7 @@ export function useDocuments(
 			apiLoadedCountRef.current = 0;
 			initialLoadDoneRef.current = false;
 			electricBaselineIdsRef.current = null;
+			newestApiTimestampRef.current = null;
 			userCacheRef.current.clear();
 			emailCacheRef.current.clear();
 		}
