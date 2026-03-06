@@ -334,7 +334,7 @@ function ReportPanelContent({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="start"
-							className={`min-w-[180px] bg-muted dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
+							className={`min-w-[180px] dark:bg-neutral-900 dark:border dark:border-white/5${insideDrawer ? " z-[100]" : ""}`}
 						>
 							<DropdownMenuItem onClick={() => handleExport("md")}>
 								Download Markdown
@@ -371,7 +371,7 @@ function ReportPanelContent({
 							</DropdownMenuTrigger>
 							<DropdownMenuContent
 								align="start"
-								className={`min-w-[120px] bg-muted dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
+								className={`min-w-[120px] dark:bg-neutral-900 dark:border dark:border-white/5${insideDrawer ? " z-[100]" : ""}`}
 							>
 								{versions.map((v, i) => (
 									<DropdownMenuItem
