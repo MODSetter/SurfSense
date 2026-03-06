@@ -12,6 +12,7 @@ import { Main } from "./MyComp/Main";
 import { NextLogo } from "./MyComp/NextLogo";
 import { gridPreviews } from "./scenes/grid/preview";
 import { hierarchyPreviews } from "./scenes/hierarchy/preview";
+import { listPreviews } from "./scenes/list/preview";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -38,6 +39,7 @@ export const RemotionRoot: React.FC = () => {
       />
       {gridPreviews}
       {hierarchyPreviews}
+      {listPreviews}
     </>
   );
 };
