@@ -1,9 +1,9 @@
-/** Single tree node — rounded card with label, optional desc. */
+/** Single tree node — card with style determined by variant.cardStyle. */
 import React from "react";
 import { useCurrentFrame, interpolate, spring, useVideoConfig } from "remotion";
 import type { ThemeColors } from "../../../theme";
 import type { HierarchyNode } from "../types";
-import type { HierarchyVariant } from "../variant";
+import type { HierarchyVariant, HierarchyCardStyle } from "../variant";
 import { NODE_FADE_DURATION } from "../constants";
 import { getNodeDimensions } from "./nodeSize";
 
@@ -15,6 +15,46 @@ interface TreeNodeProps {
   variant: HierarchyVariant;
   theme: ThemeColors;
   isRoot: boolean;
+}
+
+function cardCSS(
+  style: HierarchyCardStyle,
+  color: string,
+  vmin: number,
+  borderRadius: number,
+  isRoot: boolean,
+): React.CSSProperties {
+  const bw = vmin * 0.14;
+
+  switch (style) {
+    case "gradient":
+      return {
+        background: `linear-gradient(145deg, ${color}14, ${color}06)`,
+        border: `${bw}px solid ${color}35`,
+        borderBottom: isRoot ? `${vmin * 0.35}px solid ${color}` : `${bw}px solid ${color}35`,
+        boxShadow: `0 ${vmin * 0.5}px ${vmin * 2.5}px ${color}12`,
+      };
+    case "glass":
+      return {
+        background: `${color}0a`,
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        border: `${bw}px solid ${color}25`,
+        boxShadow: `inset 0 0 ${vmin * 2}px ${color}08, 0 ${vmin * 0.5}px ${vmin * 2}px rgba(0,0,0,0.15)`,
+      };
+    case "outline":
+      return {
+        background: "transparent",
+        border: `${vmin * 0.2}px solid ${color}${isRoot ? "bb" : "66"}`,
+        boxShadow: `0 0 ${vmin * 1.5}px ${color}15`,
+      };
+    case "solid":
+      return {
+        background: `${color}22`,
+        border: `${bw}px solid ${color}44`,
+        boxShadow: `0 ${vmin * 0.3}px ${vmin * 1.5}px rgba(0,0,0,0.2)`,
+      };
+  }
 }
 
 export const TreeNode: React.FC<TreeNodeProps> = ({
@@ -43,6 +83,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
   });
 
   const borderRadius = variant.nodeShape === "pill" ? 999 : vmin * 1;
+  const styleCSS = cardCSS(variant.cardStyle, color, vmin, borderRadius, isRoot);
 
   return (
     <div
@@ -52,6 +93,7 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         width: dims.width,
         minHeight: dims.height,
         boxSizing: "border-box" as const,
+        position: "relative" as const,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -59,10 +101,8 @@ export const TreeNode: React.FC<TreeNodeProps> = ({
         gap: vmin * 0.4,
         padding: `${dims.paddingY}px ${dims.paddingX}px`,
         borderRadius,
-        background: `${color}18`,
-        border: `${vmin * 0.14}px solid ${color}55`,
-        boxShadow: `0 0 ${vmin * 2}px ${color}20`,
         textAlign: "center" as const,
+        ...styleCSS,
       }}
     >
       <span

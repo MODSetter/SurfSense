@@ -22,6 +22,7 @@ const base: HierarchyVariant = {
   edgeType: "curved",
   edgeColorMode: "gradient",
   nodeShape: "rounded",
+  cardStyle: "gradient",
   edgeCornerRadius: 0.8,
 };
 

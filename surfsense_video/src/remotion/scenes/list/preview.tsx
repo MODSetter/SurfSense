@@ -23,6 +23,7 @@ const base: ListVariant = {
   layout: "zigzag",
   itemShape: "rounded",
   connectorStyle: "line",
+  cardStyle: "accent-left",
   showIndex: true,
 };
 
@@ -46,7 +47,7 @@ export const listPreviews = (
     <Composition
       id="list-zigzag-pill"
       component={() => (
-        <ListPreview variant={{ ...base, layout: "zigzag", itemShape: "pill", showIndex: false }} />
+        <ListPreview variant={{ ...base, layout: "zigzag", itemShape: "pill", cardStyle: "minimal", showIndex: false }} />
       )}
       durationInFrames={listSceneDuration(DEMO_LIST, "zigzag", WIDTH, HEIGHT, false)}
       fps={FPS}
