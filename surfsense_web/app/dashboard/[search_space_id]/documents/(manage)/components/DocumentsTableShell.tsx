@@ -178,10 +178,6 @@ function DocumentNameTooltip({
 						<span className="text-muted-foreground">Created:</span>{" "}
 						{formatAbsoluteDate(doc.created_at)}
 					</p>
-					<p>
-						<span className="text-muted-foreground">Source:</span>{" "}
-						{getDocumentTypeLabel(doc.document_type)}
-					</p>
 				</div>
 			</TooltipContent>
 		</Tooltip>
@@ -331,27 +327,30 @@ export function DocumentsTableShell({
 
 	const desktopSentinelRef = useRef<HTMLDivElement>(null);
 	const mobileSentinelRef = useRef<HTMLDivElement>(null);
+	const desktopScrollRef = useRef<HTMLDivElement>(null);
+	const mobileScrollRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		if (!onLoadMore || !hasMore || loadingMore) return;
 
-		const observer = new IntersectionObserver(
-			(entries) => {
-				if (entries.some((e) => e.isIntersecting)) {
-					onLoadMore();
-				}
-			},
-			{ root: null, rootMargin: "200px", threshold: 0 }
-		);
+		const observers: IntersectionObserver[] = [];
 
-		if (desktopSentinelRef.current) {
-			observer.observe(desktopSentinelRef.current);
-		}
-		if (mobileSentinelRef.current) {
-			observer.observe(mobileSentinelRef.current);
-		}
+		const observe = (root: HTMLElement | null, sentinel: HTMLElement | null) => {
+			if (!root || !sentinel) return;
+			const observer = new IntersectionObserver(
+				(entries) => {
+					if (entries.some((e) => e.isIntersecting)) onLoadMore();
+				},
+				{ root, rootMargin: "150px", threshold: 0 }
+			);
+			observer.observe(sentinel);
+			observers.push(observer);
+		};
 
-		return () => observer.disconnect();
+		observe(desktopScrollRef.current, desktopSentinelRef.current);
+		observe(mobileScrollRef.current, mobileSentinelRef.current);
+
+		return () => { for (const o of observers) o.disconnect(); };
 	}, [onLoadMore, hasMore, loadingMore]);
 
 	const handleViewDocument = useCallback(async (doc: Document) => {
@@ -589,7 +588,7 @@ export function DocumentsTableShell({
 								</TableRow>
 							</TableHeader>
 						</Table>
-						<div className="flex-1 overflow-auto">
+						<div ref={desktopScrollRef} className="flex-1 overflow-auto">
 							<Table className="table-fixed w-full">
 								<TableBody>
 									{sorted.map((doc, index) => {
@@ -661,15 +660,13 @@ export function DocumentsTableShell({
 								</TableBody>
 							</Table>
 						{hasMore && (
-							<div ref={desktopSentinelRef} className="flex items-center justify-center py-3">
-								{loadingMore && <Spinner size="sm" className="text-muted-foreground" />}
-							</div>
+							<div ref={desktopSentinelRef} className="py-3" />
 						)}
 					</div>
 				</div>
 
 				{/* Mobile Card View */}
-					<div className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
+					<div ref={mobileScrollRef} className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
 						{sorted.map((doc, index) => {
 							const isSelected = selectedIds.has(doc.id);
 							const canSelect = isSelectable(doc);
@@ -731,9 +728,7 @@ export function DocumentsTableShell({
 							);
 						})}
 					{hasMore && (
-						<div ref={mobileSentinelRef} className="flex items-center justify-center py-3">
-							{loadingMore && <Spinner size="sm" className="text-muted-foreground" />}
-						</div>
+						<div ref={mobileSentinelRef} className="py-3" />
 					)}
 				</div>
 				</>
