@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { useDocuments } from "@/hooks/use-documents";
+import { useDocuments, toDisplayDoc, type DocumentDisplay } from "@/hooks/use-documents";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { DocumentsFilters } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsFilters";
@@ -66,19 +66,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 
 	// --- Search mode state ---
 	const searchApiLoadedRef = useRef(0);
-	const [searchItems, setSearchItems] = useState<
-		Array<{
-			id: number;
-			search_space_id: number;
-			document_type: string;
-			title: string;
-			created_by_id: string | null;
-			created_by_name: string | null;
-			created_by_email: string | null;
-			created_at: string;
-			status: { state: "ready" | "pending" | "processing" | "failed"; reason?: string };
-		}>
-	>([]);
+	const [searchItems, setSearchItems] = useState<DocumentDisplay[]>([]);
 	const [searchLoadingMore, setSearchLoadingMore] = useState(false);
 	const [searchInitialLoading, setSearchInitialLoading] = useState(false);
 	const [searchHasMore, setSearchHasMore] = useState(false);
@@ -108,21 +96,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			})
 			.then((response) => {
 				if (searchQueryRef.current !== debouncedSearch) return;
-				const mapped = response.items.map((item) => ({
-					id: item.id,
-					search_space_id: item.search_space_id,
-					document_type: item.document_type,
-					title: item.title,
-					created_by_id: item.created_by_id ?? null,
-					created_by_name: item.created_by_name ?? null,
-					created_by_email: item.created_by_email ?? null,
-					created_at: item.created_at,
-					status: (
-						item as {
-							status?: { state: "ready" | "pending" | "processing" | "failed"; reason?: string };
-						}
-					).status ?? { state: "ready" as const },
-				}));
+				const mapped = response.items.map(toDisplayDoc);
 				setSearchItems(mapped);
 				setSearchHasMore(response.has_more);
 				searchApiLoadedRef.current = response.items.length;
@@ -152,21 +126,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			});
 			if (searchQueryRef.current !== debouncedSearch) return;
 
-			const mapped = response.items.map((item) => ({
-				id: item.id,
-				search_space_id: item.search_space_id,
-				document_type: item.document_type,
-				title: item.title,
-				created_by_id: item.created_by_id ?? null,
-				created_by_name: item.created_by_name ?? null,
-				created_by_email: item.created_by_email ?? null,
-				created_at: item.created_at,
-				status: (
-					item as {
-						status?: { state: "ready" | "pending" | "processing" | "failed"; reason?: string };
-					}
-				).status ?? { state: "ready" as const },
-			}));
+			const mapped = response.items.map(toDisplayDoc);
 			setSearchItems((prev) => [...prev, ...mapped]);
 			setSearchHasMore(response.has_more);
 			searchApiLoadedRef.current += response.items.length;

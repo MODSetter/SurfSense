@@ -33,6 +33,32 @@ export interface DocumentDisplay {
 	status: DocumentStatusType;
 }
 
+export interface ApiDocumentInput {
+	id: number;
+	search_space_id: number;
+	document_type: string;
+	title: string;
+	created_by_id?: string | null;
+	created_by_name?: string | null;
+	created_by_email?: string | null;
+	created_at: string;
+	status?: DocumentStatusType | null;
+}
+
+export function toDisplayDoc(item: ApiDocumentInput): DocumentDisplay {
+	return {
+		id: item.id,
+		search_space_id: item.search_space_id,
+		document_type: item.document_type,
+		title: item.title,
+		created_by_id: item.created_by_id ?? null,
+		created_by_name: item.created_by_name ?? null,
+		created_by_email: item.created_by_email ?? null,
+		created_at: item.created_at,
+		status: item.status ?? { state: "ready" },
+	};
+}
+
 const EMPTY_TYPE_FILTER: DocumentTypeEnum[] = [];
 const INITIAL_PAGE_SIZE = 20;
 const SCROLL_PAGE_SIZE = 5;
@@ -110,27 +136,7 @@ export function useDocuments(
 	);
 
 	const apiToDisplayDoc = useCallback(
-		(item: {
-			id: number;
-			search_space_id: number;
-			document_type: string;
-			title: string;
-			created_by_id?: string | null;
-			created_by_name?: string | null;
-			created_by_email?: string | null;
-			created_at: string;
-			status?: DocumentStatusType | null;
-		}): DocumentDisplay => ({
-			id: item.id,
-			search_space_id: item.search_space_id,
-			document_type: item.document_type,
-			title: item.title,
-			created_by_id: item.created_by_id ?? null,
-			created_by_name: item.created_by_name ?? null,
-			created_by_email: item.created_by_email ?? null,
-			created_at: item.created_at,
-			status: item.status ?? { state: "ready" },
-		}),
+		(item: ApiDocumentInput): DocumentDisplay => toDisplayDoc(item),
 		[]
 	);
 
