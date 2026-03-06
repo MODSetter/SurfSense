@@ -34,6 +34,7 @@ import { Input } from "@/components/ui/input";
 import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useInbox } from "@/hooks/use-inbox";
+import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
@@ -128,6 +129,9 @@ export function LayoutDataProvider({
 	const statusInbox = useInbox(userId, numericSpaceId, "status");
 
 	const totalUnreadCount = commentsInbox.unreadCount + statusInbox.unreadCount;
+
+	// Whether any documents are currently being uploaded/indexed — drives sidebar spinner
+	const isDocumentsProcessing = useDocumentsProcessing(numericSpaceId);
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -266,6 +270,7 @@ export function LayoutDataProvider({
 				url: "#documents",
 				icon: SquareLibrary,
 				isActive: isDocumentsSidebarOpen,
+				showSpinner: isDocumentsProcessing,
 			},
 			{
 				title: "Announcements",
@@ -281,6 +286,7 @@ export function LayoutDataProvider({
 			isDocumentsSidebarOpen,
 			totalUnreadCount,
 			announcementUnreadCount,
+			isDocumentsProcessing,
 		]
 	);
 

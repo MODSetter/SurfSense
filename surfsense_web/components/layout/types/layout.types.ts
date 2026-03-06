@@ -21,6 +21,7 @@ export interface NavItem {
 	icon: LucideIcon;
 	isActive?: boolean;
 	badge?: string | number;
+	showSpinner?: boolean;
 }
 
 export interface ChatItem {
