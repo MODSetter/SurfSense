@@ -461,9 +461,7 @@ const Composer: FC = () => {
 						/>,
 						document.body
 					)}
-				<ComposerAction
-					isBlockedByOtherUser={isBlockedByOtherUser}
-				/>
+				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
 			</div>
 		</ComposerPrimitive.Root>
 	);
@@ -473,9 +471,7 @@ interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
 }
 
-const ComposerAction: FC<ComposerActionProps> = ({
-	isBlockedByOtherUser = false,
-}) => {
+const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
@@ -502,10 +498,7 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
 	}, [preferences, globalConfigs, userConfigs]);
 
-	const isSendDisabled =
-		isComposerEmpty ||
-		!hasModelConfigured ||
-		isBlockedByOtherUser;
+	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
@@ -542,47 +535,47 @@ const ComposerAction: FC<ComposerActionProps> = ({
 					</button>
 				)}
 
-			<AssistantIf condition={({ thread }) => !thread.isRunning}>
-				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
-					<TooltipIconButton
-						tooltip={
-							isBlockedByOtherUser
-								? "Wait for AI to finish responding"
-								: !hasModelConfigured
-									? "Please select a model from the header to start chatting"
-									: isComposerEmpty
-										? "Enter a message to send"
-										: "Send message"
-						}
-						side="bottom"
-						type="submit"
-						variant="default"
-						size="icon"
-						className={cn(
-							"aui-composer-send size-8 rounded-full",
-							isSendDisabled && "cursor-not-allowed opacity-50"
-						)}
-						aria-label="Send message"
-						disabled={isSendDisabled}
-					>
-						<ArrowUpIcon className="aui-composer-send-icon size-4" />
-					</TooltipIconButton>
-				</ComposerPrimitive.Send>
-			</AssistantIf>
+				<AssistantIf condition={({ thread }) => !thread.isRunning}>
+					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
+						<TooltipIconButton
+							tooltip={
+								isBlockedByOtherUser
+									? "Wait for AI to finish responding"
+									: !hasModelConfigured
+										? "Please select a model from the header to start chatting"
+										: isComposerEmpty
+											? "Enter a message to send"
+											: "Send message"
+							}
+							side="bottom"
+							type="submit"
+							variant="default"
+							size="icon"
+							className={cn(
+								"aui-composer-send size-8 rounded-full",
+								isSendDisabled && "cursor-not-allowed opacity-50"
+							)}
+							aria-label="Send message"
+							disabled={isSendDisabled}
+						>
+							<ArrowUpIcon className="aui-composer-send-icon size-4" />
+						</TooltipIconButton>
+					</ComposerPrimitive.Send>
+				</AssistantIf>
 
-			<AssistantIf condition={({ thread }) => thread.isRunning}>
-				<ComposerPrimitive.Cancel asChild>
-					<Button
-						type="button"
-						variant="default"
-						size="icon"
-						className="aui-composer-cancel size-8 rounded-full"
-						aria-label="Stop generating"
-					>
-						<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
-					</Button>
-				</ComposerPrimitive.Cancel>
-			</AssistantIf>
+				<AssistantIf condition={({ thread }) => thread.isRunning}>
+					<ComposerPrimitive.Cancel asChild>
+						<Button
+							type="button"
+							variant="default"
+							size="icon"
+							className="aui-composer-cancel size-8 rounded-full"
+							aria-label="Stop generating"
+						>
+							<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
+						</Button>
+					</ComposerPrimitive.Cancel>
+				</AssistantIf>
 			</div>
 		</div>
 	);

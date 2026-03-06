@@ -2,12 +2,7 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import {
-	AlertTriangle,
-	Inbox,
-	Megaphone,
-	SquareLibrary,
-} from "lucide-react";
+import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -68,10 +63,7 @@ function formatInboxCount(count: number): string {
 	return `${thousands}k+`;
 }
 
-export function LayoutDataProvider({
-	searchSpaceId,
-	children,
-}: LayoutDataProviderProps) {
+export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
 	const tSidebar = useTranslations("sidebar");
@@ -185,7 +177,6 @@ export function LayoutDataProvider({
 			});
 		}
 	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, router]);
-
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -683,9 +674,7 @@ export function LayoutDataProvider({
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
-						<AlertDialogCancel disabled={isDeletingChat}>
-							{tCommon("cancel")}
-						</AlertDialogCancel>
+						<AlertDialogCancel disabled={isDeletingChat}>{tCommon("cancel")}</AlertDialogCancel>
 						<AlertDialogAction
 							onClick={(e) => {
 								e.preventDefault();

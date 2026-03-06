@@ -122,9 +122,7 @@ export function RowActions({
 									onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
 									disabled={isDeleteDisabled}
 									className={
-										isDeleteDisabled
-											? "text-muted-foreground cursor-not-allowed opacity-50"
-											: ""
+										isDeleteDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""
 									}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />
@@ -175,9 +173,7 @@ export function RowActions({
 									onClick={() => !isDeleteDisabled && setIsDeleteOpen(true)}
 									disabled={isDeleteDisabled}
 									className={
-										isDeleteDisabled
-											? "text-muted-foreground cursor-not-allowed opacity-50"
-											: ""
+										isDeleteDisabled ? "text-muted-foreground cursor-not-allowed opacity-50" : ""
 									}
 								>
 									<Trash2 className="mr-2 h-4 w-4" />

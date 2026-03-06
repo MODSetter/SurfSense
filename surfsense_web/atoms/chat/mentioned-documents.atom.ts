@@ -13,7 +13,9 @@ export const mentionedDocumentsAtom = atom<Pick<Document, "id" | "title" | "docu
  * Atom to store documents selected via the sidebar checkboxes / row clicks.
  * These are NOT inserted as chips – the composer shows a count badge instead.
  */
-export const sidebarSelectedDocumentsAtom = atom<Pick<Document, "id" | "title" | "document_type">[]>([]);
+export const sidebarSelectedDocumentsAtom = atom<
+	Pick<Document, "id" | "title" | "document_type">[]
+>([]);
 
 /**
  * Derived read-only atom that merges @-mention chips and sidebar selections

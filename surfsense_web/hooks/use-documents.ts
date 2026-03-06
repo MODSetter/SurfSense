@@ -356,8 +356,11 @@ export function useDocuments(
 						const prevIds = new Set(prev.map((d) => d.id));
 
 						const newItems = filterNewElectricItems(
-							validItems, liveIds, prevIds,
-							electricBaselineIdsRef, newestApiTimestampRef.current,
+							validItems,
+							liveIds,
+							prevIds,
+							electricBaselineIdsRef,
+							newestApiTimestampRef.current
 						).map(electricToDisplayDoc);
 
 						// Update existing docs (status changes, title edits)

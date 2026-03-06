@@ -1670,9 +1670,7 @@ export default function NewChatPage() {
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-				<Thread
-					messageThinkingSteps={messageThinkingSteps}
-				/>
+					<Thread messageThinkingSteps={messageThinkingSteps} />
 				</div>
 				<ReportPanel />
 			</div>

@@ -58,9 +58,7 @@ export function DocumentsFilters({
 	}, [typeCountsRecord]);
 
 	return (
-		<div
-			className="flex select-none"
-		>
+		<div className="flex select-none">
 			<div className="flex items-center gap-2 w-full">
 				{/* Type Filter */}
 				<Popover>
@@ -81,15 +79,15 @@ export function DocumentsFilters({
 					<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
 						<div>
 							{/* Search input */}
-						<div className="p-2 border-b border-neutral-700">
-							<div className="relative">
-								<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-								<Input
-									placeholder="Search types"
-									value={typeSearchQuery}
-									onChange={(e) => setTypeSearchQuery(e.target.value)}
-									className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none focus-visible:ring-0"
-								/>
+							<div className="p-2 border-b border-neutral-700">
+								<div className="relative">
+									<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+									<Input
+										placeholder="Search types"
+										value={typeSearchQuery}
+										onChange={(e) => setTypeSearchQuery(e.target.value)}
+										className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none focus-visible:ring-0"
+									/>
 								</div>
 							</div>
 
@@ -139,11 +137,11 @@ export function DocumentsFilters({
 								)}
 							</div>
 							{activeTypes.length > 0 && (
-							<div className="px-3 pt-1.5 pb-1.5 border-t border-neutral-700">
-								<Button
-									variant="ghost"
-									size="sm"
-									className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground hover:bg-neutral-700"
+								<div className="px-3 pt-1.5 pb-1.5 border-t border-neutral-700">
+									<Button
+										variant="ghost"
+										size="sm"
+										className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground hover:bg-neutral-700"
 										onClick={() => {
 											activeTypes.forEach((t) => {
 												onToggleType(t, false);

@@ -215,7 +215,12 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									</div>
 									<div className="flex-1 text-left min-w-0">
 										<div className="flex items-center gap-1.5">
-											<span className={cn("text-sm font-medium", isSelected && "text-primary dark:text-white")}>
+											<span
+												className={cn(
+													"text-sm font-medium",
+													isSelected && "text-primary dark:text-white"
+												)}
+											>
 												{option.label}
 											</span>
 										</div>

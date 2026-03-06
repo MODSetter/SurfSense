@@ -6,7 +6,11 @@ import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { filterNewElectricItems, getNewestTimestamp } from "@/lib/electric/baseline";
 import { useElectricClient } from "@/lib/electric/context";
 
-export type { InboxItem, InboxItemTypeEnum, NotificationCategory } from "@/contracts/types/inbox.types";
+export type {
+	InboxItem,
+	InboxItemTypeEnum,
+	NotificationCategory,
+} from "@/contracts/types/inbox.types";
 
 const INITIAL_PAGE_SIZE = 50;
 const SCROLL_PAGE_SIZE = 30;
@@ -14,7 +18,8 @@ const SYNC_WINDOW_DAYS = 4;
 
 const CATEGORY_TYPE_SQL: Record<NotificationCategory, string> = {
 	comments: "AND type IN ('new_mention', 'comment_reply')",
-	status: "AND type IN ('connector_indexing', 'connector_deletion', 'document_processing', 'page_limit_exceeded')",
+	status:
+		"AND type IN ('connector_indexing', 'connector_deletion', 'document_processing', 'page_limit_exceeded')",
 };
 
 /**
@@ -52,7 +57,7 @@ function getSyncCutoffDate(): string {
 export function useInbox(
 	userId: string | null,
 	searchSpaceId: number | null,
-	category: NotificationCategory,
+	category: NotificationCategory
 ) {
 	const electricClient = useElectricClient();
 
@@ -119,7 +124,9 @@ export function useInbox(
 		};
 
 		fetchInitialData();
-		return () => { cancelled = true; };
+		return () => {
+			cancelled = true;
+		};
 	}, [userId, searchSpaceId, category]);
 
 	// EFFECT 2: Electric sync (shared shape) + per-instance type-filtered live queries
@@ -135,11 +142,19 @@ export function useInbox(
 		async function setupElectricRealtime() {
 			// Clean up previous live queries (NOT the sync shape — it's shared)
 			if (liveQueryRef.current) {
-				try { liveQueryRef.current.unsubscribe?.(); } catch { /* PGlite may be closed */ }
+				try {
+					liveQueryRef.current.unsubscribe?.();
+				} catch {
+					/* PGlite may be closed */
+				}
 				liveQueryRef.current = null;
 			}
 			if (unreadLiveQueryRef.current) {
-				try { unreadLiveQueryRef.current.unsubscribe?.(); } catch { /* PGlite may be closed */ }
+				try {
+					unreadLiveQueryRef.current.unsubscribe?.();
+				} catch {
+					/* PGlite may be closed */
+				}
 				unreadLiveQueryRef.current = null;
 			}
 
@@ -207,8 +222,11 @@ export function useInbox(
 						const prevIds = new Set(prev.map((d) => d.id));
 
 						const newItems = filterNewElectricItems(
-							validItems, liveIds, prevIds,
-							electricBaselineIdsRef, newestApiTimestampRef.current,
+							validItems,
+							liveIds,
+							prevIds,
+							electricBaselineIdsRef,
+							newestApiTimestampRef.current
 						);
 
 						let updated = prev.map((item) => {
@@ -267,7 +285,10 @@ export function useInbox(
 					AND read = false
 					${typeFilter}`;
 
-				const countLiveQuery = await db.live.query<{ count: number | string }>(countQuery, [uid, spaceId]);
+				const countLiveQuery = await db.live.query<{ count: number | string }>(countQuery, [
+					uid,
+					spaceId,
+				]);
 
 				if (!mounted) {
 					countLiveQuery.unsubscribe?.();
@@ -293,11 +314,19 @@ export function useInbox(
 			mounted = false;
 			// Only clean up live queries — sync shape is shared across instances
 			if (liveQueryRef.current) {
-				try { liveQueryRef.current.unsubscribe?.(); } catch { /* PGlite may be closed */ }
+				try {
+					liveQueryRef.current.unsubscribe?.();
+				} catch {
+					/* PGlite may be closed */
+				}
 				liveQueryRef.current = null;
 			}
 			if (unreadLiveQueryRef.current) {
-				try { unreadLiveQueryRef.current.unsubscribe?.(); } catch { /* PGlite may be closed */ }
+				try {
+					unreadLiveQueryRef.current.unsubscribe?.();
+				} catch {
+					/* PGlite may be closed */
+				}
 				unreadLiveQueryRef.current = null;
 			}
 		};

@@ -66,7 +66,7 @@ export function useDocumentsProcessing(searchSpaceId: number | null): boolean {
 					live?: {
 						query: <T>(
 							sql: string,
-							params?: (number | string)[],
+							params?: (number | string)[]
 						) => Promise<{
 							subscribe: (cb: (result: { rows: T[] }) => void) => void;
 							unsubscribe?: () => void;
@@ -80,7 +80,7 @@ export function useDocumentsProcessing(searchSpaceId: number | null): boolean {
 					`SELECT COUNT(*) as count FROM documents
 					 WHERE search_space_id = $1
 					 AND (status->>'state' = 'pending' OR status->>'state' = 'processing')`,
-					[spaceId],
+					[spaceId]
 				);
 
 				if (!mounted) {

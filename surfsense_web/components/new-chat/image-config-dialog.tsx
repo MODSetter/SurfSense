@@ -143,11 +143,11 @@ export function ImageConfigDialog({
 		setIsSubmitting(true);
 		try {
 			if (mode === "create") {
-			const result = await createConfig({
-				name: formData.name,
-				provider: formData.provider as ImageGenProvider,
-				model_name: formData.model_name,
-				api_key: formData.api_key,
+				const result = await createConfig({
+					name: formData.name,
+					provider: formData.provider as ImageGenProvider,
+					model_name: formData.model_name,
+					api_key: formData.api_key,
 					api_base: formData.api_base || undefined,
 					api_version: formData.api_version || undefined,
 					description: formData.description || undefined,
@@ -162,14 +162,14 @@ export function ImageConfigDialog({
 				toast.success("Image model created and assigned!");
 				onOpenChange(false);
 			} else if (!isGlobal && config) {
-			await updateConfig({
-				id: config.id,
-				data: {
-					name: formData.name,
-					description: formData.description || undefined,
-					provider: formData.provider as ImageGenProvider,
-					model_name: formData.model_name,
-					api_key: formData.api_key,
+				await updateConfig({
+					id: config.id,
+					data: {
+						name: formData.name,
+						description: formData.description || undefined,
+						provider: formData.provider as ImageGenProvider,
+						model_name: formData.model_name,
+						api_key: formData.api_key,
 						api_base: formData.api_base || undefined,
 						api_version: formData.api_version || undefined,
 					},
@@ -248,7 +248,9 @@ export function ImageConfigDialog({
 								"flex flex-col overflow-hidden"
 							)}
 							onClick={(e) => e.stopPropagation()}
-							onKeyDown={(e) => { if (e.key === "Escape") onOpenChange(false); }}
+							onKeyDown={(e) => {
+								if (e.key === "Escape") onOpenChange(false);
+							}}
 						>
 							{/* Header */}
 							<div className="flex items-start justify-between px-6 pt-6 pb-4">
@@ -268,7 +270,9 @@ export function ImageConfigDialog({
 									</div>
 									<p className="text-sm text-muted-foreground">{getSubtitle()}</p>
 									{config && !isAutoMode && mode !== "create" && (
-										<p className="text-xs font-mono text-muted-foreground/70">{config.model_name}</p>
+										<p className="text-xs font-mono text-muted-foreground/70">
+											{config.model_name}
+										</p>
 									)}
 								</div>
 								<Button
@@ -404,7 +408,10 @@ export function ImageConfigDialog({
 															<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 														</Button>
 													</PopoverTrigger>
-													<PopoverContent className="w-full p-0 bg-muted dark:border-neutral-700" align="start">
+													<PopoverContent
+														className="w-full p-0 bg-muted dark:border-neutral-700"
+														align="start"
+													>
 														<Command className="bg-transparent">
 															<CommandInput
 																placeholder="Search or type model..."
@@ -505,7 +512,7 @@ export function ImageConfigDialog({
 								>
 									Cancel
 								</Button>
-								{(mode === "create" || (mode === "edit" && !isGlobal)) ? (
+								{mode === "create" || (mode === "edit" && !isGlobal) ? (
 									<Button
 										onClick={handleSubmit}
 										disabled={isSubmitting || !isFormValid}
@@ -516,8 +523,10 @@ export function ImageConfigDialog({
 												<Spinner size="sm" />
 												{mode === "edit" ? "Saving" : "Creating"}
 											</>
+										) : mode === "edit" ? (
+											"Save Changes"
 										) : (
-											mode === "edit" ? "Save Changes" : "Create & Use"
+											"Create & Use"
 										)}
 									</Button>
 								) : isAutoMode ? (

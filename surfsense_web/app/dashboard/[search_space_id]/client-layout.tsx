@@ -186,9 +186,7 @@ export function DashboardClientLayout({
 	return (
 		<DocumentUploadDialogProvider>
 			<OnboardingTour />
-			<LayoutDataProvider searchSpaceId={searchSpaceId}>
-				{children}
-			</LayoutDataProvider>
+			<LayoutDataProvider searchSpaceId={searchSpaceId}>{children}</LayoutDataProvider>
 		</DocumentUploadDialogProvider>
 	);
 }

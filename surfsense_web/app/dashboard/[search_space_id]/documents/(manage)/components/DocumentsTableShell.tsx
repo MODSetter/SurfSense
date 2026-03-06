@@ -452,9 +452,7 @@ export function DocumentsTableShell({
 		selectableDocs.length > 0 &&
 		selectableDocs.every((d) => mentionedDocIds.has(d.id));
 	const someMentionedOnPage =
-		hasChatMode &&
-		selectableDocs.some((d) => mentionedDocIds.has(d.id)) &&
-		!allMentionedOnPage;
+		hasChatMode && selectableDocs.some((d) => mentionedDocIds.has(d.id)) && !allMentionedOnPage;
 
 	const toggleAll = (checked: boolean) => {
 		if (!onToggleChatMention) return;
@@ -471,9 +469,7 @@ export function DocumentsTableShell({
 	const onSortHeader = (key: SortKey) => onSortChange(key);
 
 	return (
-		<div
-			className="bg-sidebar overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0"
-		>
+		<div className="bg-sidebar overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0">
 			{/* Desktop Table View */}
 			<div className="hidden md:flex md:flex-col flex-1 min-h-0">
 				<Table className="table-fixed w-full">
@@ -548,91 +544,85 @@ export function DocumentsTableShell({
 					</div>
 				) : sorted.length === 0 ? (
 					<div className="flex flex-1 w-full items-center justify-center">
-					<div
-						className="flex flex-col items-center gap-4 max-w-md px-4 text-center"
-					>
-						<div className="rounded-full bg-muted/50 p-4">
-							<FileX className="h-8 w-8 text-muted-foreground" />
+						<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
+							<div className="rounded-full bg-muted/50 p-4">
+								<FileX className="h-8 w-8 text-muted-foreground" />
+							</div>
+							<div className="space-y-1.5">
+								<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+								<p className="text-sm text-muted-foreground">
+									Get started by uploading your first document.
+								</p>
+							</div>
+							<Button onClick={openDialog} className="mt-2">
+								<Plus className="mr-2 h-4 w-4" />
+								Upload Documents
+							</Button>
 						</div>
-						<div className="space-y-1.5">
-							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
-							<p className="text-sm text-muted-foreground">
-								Get started by uploading your first document.
-							</p>
-						</div>
-						<Button onClick={openDialog} className="mt-2">
-							<Plus className="mr-2 h-4 w-4" />
-							Upload Documents
-						</Button>
 					</div>
-				</div>
 				) : (
 					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
 							<TableBody>
-							{sorted.map((doc) => {
-								const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
-								const canInteract = isSelectable(doc);
-								const handleRowClick = () => {
-									if (canInteract && onToggleChatMention) {
-										onToggleChatMention(doc, isMentioned);
-									}
-								};
-								return (
-									<RowContextMenu
-										key={doc.id}
-										doc={doc}
-										onPreview={handleViewDocument}
-										onDelete={setDeleteDoc}
-										searchSpaceId={searchSpaceId}
-									>
-										<tr
-											className={`border-b border-border/50 transition-colors ${
-												isMentioned
-													? "bg-primary/5 hover:bg-primary/8"
-													: "hover:bg-muted/30"
-											} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
-											onClick={handleRowClick}
+								{sorted.map((doc) => {
+									const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+									const canInteract = isSelectable(doc);
+									const handleRowClick = () => {
+										if (canInteract && onToggleChatMention) {
+											onToggleChatMention(doc, isMentioned);
+										}
+									};
+									return (
+										<RowContextMenu
+											key={doc.id}
+											doc={doc}
+											onPreview={handleViewDocument}
+											onDelete={setDeleteDoc}
+											searchSpaceId={searchSpaceId}
 										>
-											<TableCell
-												className="w-10 pl-3 pr-0 py-1.5 text-center"
-												onClick={(e) => e.stopPropagation()}
+											<tr
+												className={`border-b border-border/50 transition-colors ${
+													isMentioned ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
+												} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
+												onClick={handleRowClick}
 											>
-												<div className="flex items-center justify-center h-full">
-													<Checkbox
-														checked={isMentioned}
-														onCheckedChange={() => handleRowClick()}
-														disabled={!canInteract}
-														aria-label={
-															isMentioned ? "Remove from chat" : "Add to chat"
-														}
-														className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
+												<TableCell
+													className="w-10 pl-3 pr-0 py-1.5 text-center"
+													onClick={(e) => e.stopPropagation()}
+												>
+													<div className="flex items-center justify-center h-full">
+														<Checkbox
+															checked={isMentioned}
+															onCheckedChange={() => handleRowClick()}
+															disabled={!canInteract}
+															aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
+														/>
+													</div>
+												</TableCell>
+												<TableCell className="px-2 py-1.5 max-w-0">
+													<DocumentNameTooltip
+														doc={doc}
+														className="truncate block text-sm text-foreground cursor-default"
 													/>
-												</div>
-											</TableCell>
-											<TableCell className="px-2 py-1.5 max-w-0">
-												<DocumentNameTooltip
-													doc={doc}
-													className="truncate block text-sm text-foreground cursor-default"
-												/>
-											</TableCell>
-											<TableCell className="w-10 px-0 py-1.5 text-center">
-												<Tooltip>
-													<TooltipTrigger asChild>
-														<span className="flex items-center justify-center">
-															{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
-														</span>
-													</TooltipTrigger>
-													<TooltipContent side="top">
-														{getDocumentTypeLabel(doc.document_type)}
-													</TooltipContent>
-												</Tooltip>
-											</TableCell>
-											<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
-												<StatusIndicator status={doc.status} />
-											</TableCell>
-										</tr>
-									</RowContextMenu>
+												</TableCell>
+												<TableCell className="w-10 px-0 py-1.5 text-center">
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<span className="flex items-center justify-center">
+																{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
+															</span>
+														</TooltipTrigger>
+														<TooltipContent side="top">
+															{getDocumentTypeLabel(doc.document_type)}
+														</TooltipContent>
+													</Tooltip>
+												</TableCell>
+												<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
+													<StatusIndicator status={doc.status} />
+												</TableCell>
+											</tr>
+										</RowContextMenu>
 									);
 								})}
 							</TableBody>
@@ -669,9 +659,7 @@ export function DocumentsTableShell({
 				</div>
 			) : sorted.length === 0 ? (
 				<div className="md:hidden flex flex-1 w-full items-center justify-center">
-					<div
-						className="flex flex-col items-center gap-4 max-w-md px-4 text-center"
-					>
+					<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
 						<div className="rounded-full bg-muted/50 p-4">
 							<FileX className="h-8 w-8 text-muted-foreground" />
 						</div>
@@ -692,99 +680,94 @@ export function DocumentsTableShell({
 					ref={mobileScrollRef}
 					className="md:hidden divide-y divide-border/50 flex-1 overflow-auto"
 				>
-				{sorted.map((doc) => {
-					const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
-					const canInteract = isSelectable(doc);
-					const handleCardClick = () => {
-						if (canInteract && onToggleChatMention) {
-							onToggleChatMention(doc, isMentioned);
-						}
-					};
-					return (
-					<MobileCardWrapper
-						key={doc.id}
-						onLongPress={() => setMobileActionDoc(doc)}
-					>
-					<div
-						className={`relative px-3 py-2 transition-colors ${
-							isMentioned
-								? "bg-primary/5"
-								: "hover:bg-muted/20"
-						} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
-					>
-							{canInteract && hasChatMode && (
-								<button
-									type="button"
-									className="absolute inset-0 z-0"
-									aria-label={isMentioned ? `Remove ${doc.title} from chat` : `Add ${doc.title} to chat`}
-									onClick={handleCardClick}
-								/>
-							)}
-							<div className="relative z-10 flex items-center gap-3 pointer-events-none">
-								<span className="pointer-events-auto">
-									<Checkbox
-										checked={isMentioned}
-										onCheckedChange={() => handleCardClick()}
-										disabled={!canInteract}
-										aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-										className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
-									/>
-								</span>
-								<div className="flex-1 min-w-0">
-									<span className="truncate block text-sm text-foreground">
-										{doc.title}
-									</span>
+					{sorted.map((doc) => {
+						const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+						const canInteract = isSelectable(doc);
+						const handleCardClick = () => {
+							if (canInteract && onToggleChatMention) {
+								onToggleChatMention(doc, isMentioned);
+							}
+						};
+						return (
+							<MobileCardWrapper key={doc.id} onLongPress={() => setMobileActionDoc(doc)}>
+								<div
+									className={`relative px-3 py-2 transition-colors ${
+										isMentioned ? "bg-primary/5" : "hover:bg-muted/20"
+									} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
+								>
+									{canInteract && hasChatMode && (
+										<button
+											type="button"
+											className="absolute inset-0 z-0"
+											aria-label={
+												isMentioned ? `Remove ${doc.title} from chat` : `Add ${doc.title} to chat`
+											}
+											onClick={handleCardClick}
+										/>
+									)}
+									<div className="relative z-10 flex items-center gap-3 pointer-events-none">
+										<span className="pointer-events-auto">
+											<Checkbox
+												checked={isMentioned}
+												onCheckedChange={() => handleCardClick()}
+												disabled={!canInteract}
+												aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+												className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
+											/>
+										</span>
+										<div className="flex-1 min-w-0">
+											<span className="truncate block text-sm text-foreground">{doc.title}</span>
+										</div>
+										<div className="flex items-center gap-2 shrink-0">
+											<span className="flex items-center justify-center">
+												{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
+											</span>
+											<StatusIndicator status={doc.status} />
+										</div>
+									</div>
 								</div>
-								<div className="flex items-center gap-2 shrink-0">
-									<span className="flex items-center justify-center">
-										{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
-									</span>
-									<StatusIndicator status={doc.status} />
-								</div>
-							</div>
-						</div>
-					</MobileCardWrapper>
+							</MobileCardWrapper>
 						);
 					})}
 					{hasMore && <div ref={mobileSentinelRef} className="py-3" />}
 				</div>
 			)}
 
-		{/* Document Content Viewer */}
-		<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
-			<DialogContent className="max-w-4xl max-w-[92%] md:max-w-4xl max-h-[75vh] md:max-h-[80vh] flex flex-col overflow-hidden pb-0 p-3 md:p-6 gap-2 md:gap-4">
-				<DialogHeader className="flex-shrink-0">
-					<DialogTitle className="text-sm md:text-lg leading-tight pr-6">
-						{viewingDoc?.title}
-					</DialogTitle>
-				</DialogHeader>
-				<div
-					onScroll={handlePreviewScroll}
-					className={[
-						"overflow-y-auto flex-1 min-h-0 px-1 md:px-6 select-text",
-						"max-md:text-xs",
-						"max-md:[&_h1]:text-base! max-md:[&_h1]:mt-3!",
-						"max-md:[&_h2]:text-sm! max-md:[&_h2]:mt-2!",
-						"max-md:[&_h3]:text-xs! max-md:[&_h3]:mt-2!",
-						"max-md:[&_h4]:text-xs!",
-						"max-md:[&_td]:text-[11px]! max-md:[&_td]:px-2! max-md:[&_td]:py-1.5!",
-						"max-md:[&_th]:text-[11px]! max-md:[&_th]:px-2! max-md:[&_th]:py-1.5!",
-					].join(" ")}
-					style={{
-						maskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
-						WebkitMaskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
-					}}
-				>
-					{viewingLoading ? (
-						<div className="flex items-center justify-center py-12">
-							<Spinner size="lg" className="text-muted-foreground" />
-						</div>
-					) : (
-						<MarkdownViewer content={viewingContent} />
-					)}
-				</div>
-			</DialogContent>
-		</Dialog>
+			{/* Document Content Viewer */}
+			<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
+				<DialogContent className="max-w-4xl max-w-[92%] md:max-w-4xl max-h-[75vh] md:max-h-[80vh] flex flex-col overflow-hidden pb-0 p-3 md:p-6 gap-2 md:gap-4">
+					<DialogHeader className="flex-shrink-0">
+						<DialogTitle className="text-sm md:text-lg leading-tight pr-6">
+							{viewingDoc?.title}
+						</DialogTitle>
+					</DialogHeader>
+					<div
+						onScroll={handlePreviewScroll}
+						className={[
+							"overflow-y-auto flex-1 min-h-0 px-1 md:px-6 select-text",
+							"max-md:text-xs",
+							"max-md:[&_h1]:text-base! max-md:[&_h1]:mt-3!",
+							"max-md:[&_h2]:text-sm! max-md:[&_h2]:mt-2!",
+							"max-md:[&_h3]:text-xs! max-md:[&_h3]:mt-2!",
+							"max-md:[&_h4]:text-xs!",
+							"max-md:[&_td]:text-[11px]! max-md:[&_td]:px-2! max-md:[&_td]:py-1.5!",
+							"max-md:[&_th]:text-[11px]! max-md:[&_th]:px-2! max-md:[&_th]:py-1.5!",
+						].join(" ")}
+						style={{
+							maskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
+							WebkitMaskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
+						}}
+					>
+						{viewingLoading ? (
+							<div className="flex items-center justify-center py-12">
+								<Spinner size="lg" className="text-muted-foreground" />
+							</div>
+						) : (
+							<MarkdownViewer content={viewingContent} />
+						)}
+					</div>
+				</DialogContent>
+			</Dialog>
 
 			{/* Delete Confirmation Dialog */}
 			<AlertDialog open={!!deleteDoc} onOpenChange={(open) => !open && setDeleteDoc(null)}>
@@ -810,94 +793,86 @@ export function DocumentsTableShell({
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
-		</AlertDialog>
+			</AlertDialog>
 
-		{/* Mobile Document Actions Drawer */}
-		<Drawer open={!!mobileActionDoc} onOpenChange={(open) => !open && setMobileActionDoc(null)}>
-			<DrawerContent>
-				<DrawerHandle />
-				<DrawerHeader className="text-left">
-					<DrawerTitle className="break-words text-base">
-						{mobileActionDoc?.title}
-					</DrawerTitle>
-					<div className="space-y-0.5 text-xs mt-1">
-						<p>
-							<span className="text-muted-foreground">Owner:</span>{" "}
-							{mobileActionDoc?.created_by_name ||
-								mobileActionDoc?.created_by_email ||
-								"—"}
-						</p>
-						<p>
-							<span className="text-muted-foreground">Created:</span>{" "}
-							{mobileActionDoc
-								? formatAbsoluteDate(mobileActionDoc.created_at)
-								: ""}
-						</p>
+			{/* Mobile Document Actions Drawer */}
+			<Drawer open={!!mobileActionDoc} onOpenChange={(open) => !open && setMobileActionDoc(null)}>
+				<DrawerContent>
+					<DrawerHandle />
+					<DrawerHeader className="text-left">
+						<DrawerTitle className="break-words text-base">{mobileActionDoc?.title}</DrawerTitle>
+						<div className="space-y-0.5 text-xs mt-1">
+							<p>
+								<span className="text-muted-foreground">Owner:</span>{" "}
+								{mobileActionDoc?.created_by_name || mobileActionDoc?.created_by_email || "—"}
+							</p>
+							<p>
+								<span className="text-muted-foreground">Created:</span>{" "}
+								{mobileActionDoc ? formatAbsoluteDate(mobileActionDoc.created_at) : ""}
+							</p>
+						</div>
+					</DrawerHeader>
+					<div className="px-4 pb-6 flex flex-col gap-2">
+						<Button
+							variant="outline"
+							className="justify-start gap-2"
+							onClick={() => {
+								if (mobileActionDoc) handleViewDocument(mobileActionDoc);
+								setMobileActionDoc(null);
+							}}
+						>
+							<Eye className="h-4 w-4" />
+							Preview
+						</Button>
+						{mobileActionDoc &&
+							EDITABLE_DOCUMENT_TYPES.includes(
+								mobileActionDoc.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
+							) && (
+								<Button
+									variant="outline"
+									className="justify-start gap-2"
+									disabled={
+										mobileActionDoc.status?.state === "pending" ||
+										mobileActionDoc.status?.state === "processing" ||
+										(mobileActionDoc.document_type === "FILE" &&
+											mobileActionDoc.status?.state === "failed")
+									}
+									onClick={() => {
+										if (mobileActionDoc) {
+											router.push(`/dashboard/${searchSpaceId}/editor/${mobileActionDoc.id}`);
+											setMobileActionDoc(null);
+										}
+									}}
+								>
+									<PenLine className="h-4 w-4" />
+									Edit
+								</Button>
+							)}
+						{mobileActionDoc &&
+							!NON_DELETABLE_DOCUMENT_TYPES.includes(
+								mobileActionDoc.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
+							) && (
+								<Button
+									variant="destructive"
+									className="justify-start gap-2"
+									disabled={
+										mobileActionDoc.status?.state === "pending" ||
+										mobileActionDoc.status?.state === "processing"
+									}
+									onClick={() => {
+										if (mobileActionDoc) {
+											setDeleteDoc(mobileActionDoc);
+											setMobileActionDoc(null);
+										}
+									}}
+								>
+									<Trash2 className="h-4 w-4" />
+									Delete
+								</Button>
+							)}
 					</div>
-				</DrawerHeader>
-				<div className="px-4 pb-6 flex flex-col gap-2">
-					<Button
-						variant="outline"
-						className="justify-start gap-2"
-						onClick={() => {
-							if (mobileActionDoc) handleViewDocument(mobileActionDoc);
-							setMobileActionDoc(null);
-						}}
-					>
-						<Eye className="h-4 w-4" />
-						Preview
-					</Button>
-					{mobileActionDoc &&
-						EDITABLE_DOCUMENT_TYPES.includes(
-							mobileActionDoc.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
-						) && (
-							<Button
-								variant="outline"
-								className="justify-start gap-2"
-								disabled={
-									mobileActionDoc.status?.state === "pending" ||
-									mobileActionDoc.status?.state === "processing" ||
-									(mobileActionDoc.document_type === "FILE" &&
-										mobileActionDoc.status?.state === "failed")
-								}
-								onClick={() => {
-									if (mobileActionDoc) {
-										router.push(
-											`/dashboard/${searchSpaceId}/editor/${mobileActionDoc.id}`
-										);
-										setMobileActionDoc(null);
-									}
-								}}
-							>
-								<PenLine className="h-4 w-4" />
-								Edit
-							</Button>
-						)}
-					{mobileActionDoc &&
-						!NON_DELETABLE_DOCUMENT_TYPES.includes(
-							mobileActionDoc.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
-						) && (
-							<Button
-								variant="destructive"
-								className="justify-start gap-2"
-								disabled={
-									mobileActionDoc.status?.state === "pending" ||
-									mobileActionDoc.status?.state === "processing"
-								}
-								onClick={() => {
-									if (mobileActionDoc) {
-										setDeleteDoc(mobileActionDoc);
-										setMobileActionDoc(null);
-									}
-								}}
-							>
-								<Trash2 className="h-4 w-4" />
-								Delete
-							</Button>
-						)}
-				</div>
-			</DrawerContent>
-		</Drawer>
-	</div>
+				</DrawerContent>
+			</Drawer>
+		</div>
 	);
 }

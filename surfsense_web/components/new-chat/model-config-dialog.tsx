@@ -200,7 +200,9 @@ export function ModelConfigDialog({
 								"flex flex-col overflow-hidden"
 							)}
 							onClick={(e) => e.stopPropagation()}
-							onKeyDown={(e) => { if (e.key === "Escape") onOpenChange(false); }}
+							onKeyDown={(e) => {
+								if (e.key === "Escape") onOpenChange(false);
+							}}
 						>
 							{/* Header */}
 							<div className="flex items-start justify-between px-6 pt-6 pb-4">
@@ -225,7 +227,9 @@ export function ModelConfigDialog({
 									</div>
 									<p className="text-sm text-muted-foreground">{getSubtitle()}</p>
 									{config && !isAutoMode && mode !== "create" && (
-										<p className="text-xs font-mono text-muted-foreground/70">{config.model_name}</p>
+										<p className="text-xs font-mono text-muted-foreground/70">
+											{config.model_name}
+										</p>
 									)}
 								</div>
 								<Button
@@ -330,7 +334,6 @@ export function ModelConfigDialog({
 												</div>
 											</div>
 										</div>
-
 									</div>
 								) : isGlobal && config ? (
 									<div className="space-y-6">
@@ -401,7 +404,6 @@ export function ModelConfigDialog({
 												</>
 											)}
 										</div>
-
 									</div>
 								) : config ? (
 									<LLMConfigForm
@@ -431,16 +433,16 @@ export function ModelConfigDialog({
 
 							{/* Fixed footer */}
 							<div className="shrink-0 px-6 py-4 flex items-center justify-end gap-3">
-							<Button
-								type="button"
-								variant="secondary"
-								onClick={() => onOpenChange(false)}
-								disabled={isSubmitting}
-								className="text-sm h-9"
-							>
-								Cancel
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => onOpenChange(false)}
+									disabled={isSubmitting}
+									className="text-sm h-9"
+								>
+									Cancel
 								</Button>
-								{(mode === "create" || (!isGlobal && !isAutoMode && config)) ? (
+								{mode === "create" || (!isGlobal && !isAutoMode && config) ? (
 									<Button
 										type="submit"
 										form="model-config-form"
@@ -452,8 +454,10 @@ export function ModelConfigDialog({
 												<Spinner size="sm" />
 												{mode === "edit" ? "Saving" : "Creating"}
 											</>
+										) : mode === "edit" ? (
+											"Save Changes"
 										) : (
-											mode === "edit" ? "Save Changes" : "Create & Use"
+											"Create & Use"
 										)}
 									</Button>
 								) : isAutoMode ? (

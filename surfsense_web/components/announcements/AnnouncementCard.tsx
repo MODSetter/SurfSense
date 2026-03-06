@@ -1,14 +1,6 @@
 "use client";
 
-import {
-	Bell,
-	ExternalLink,
-	Info,
-	type LucideIcon,
-	Rocket,
-	Wrench,
-	Zap,
-} from "lucide-react";
+import { Bell, ExternalLink, Info, type LucideIcon, Rocket, Wrench, Zap } from "lucide-react";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -114,4 +106,3 @@ export function AnnouncementCard({ announcement }: { announcement: AnnouncementW
 		</Card>
 	);
 }
-

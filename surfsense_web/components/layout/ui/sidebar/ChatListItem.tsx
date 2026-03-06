@@ -73,12 +73,12 @@ export function ChatListItem({
 			</button>
 
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}
-			<div className={cn(
-				"absolute right-1 top-1/2 -translate-y-1/2 transition-opacity",
-				isMobile
-					? "opacity-0 pointer-events-none"
-					: "opacity-0 group-hover/item:opacity-100"
-			)}>
+			<div
+				className={cn(
+					"absolute right-1 top-1/2 -translate-y-1/2 transition-opacity",
+					isMobile ? "opacity-0 pointer-events-none" : "opacity-0 group-hover/item:opacity-100"
+				)}
+			>
 				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 					<DropdownMenuTrigger asChild>
 						<Button variant="ghost" size="icon" className="h-6 w-6">
@@ -125,7 +125,7 @@ export function ChatListItem({
 									e.stopPropagation();
 									onDelete();
 								}}
-								>
+							>
 								<Trash2 className="mr-2 h-4 w-4" />
 								<span>{t("delete")}</span>
 							</DropdownMenuItem>

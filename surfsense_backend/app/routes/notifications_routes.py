@@ -23,15 +23,24 @@ SYNC_WINDOW_DAYS = 14
 
 # Valid notification types - must match frontend InboxItemTypeEnum
 NotificationType = Literal[
-    "connector_indexing", "connector_deletion", "document_processing",
-    "new_mention", "comment_reply", "page_limit_exceeded",
+    "connector_indexing",
+    "connector_deletion",
+    "document_processing",
+    "new_mention",
+    "comment_reply",
+    "page_limit_exceeded",
 ]
 
 # Category-to-types mapping for filtering by tab
 NotificationCategory = Literal["comments", "status"]
 CATEGORY_TYPES: dict[str, tuple[str, ...]] = {
     "comments": ("new_mention", "comment_reply"),
-    "status": ("connector_indexing", "connector_deletion", "document_processing", "page_limit_exceeded"),
+    "status": (
+        "connector_indexing",
+        "connector_deletion",
+        "document_processing",
+        "page_limit_exceeded",
+    ),
 }
 
 
@@ -152,7 +161,10 @@ async def get_notification_source_types(
     document_result = await session.execute(document_query)
 
     sources = []
-    for source_type, category, count in [*connector_result.all(), *document_result.all()]:
+    for source_type, category, count in [
+        *connector_result.all(),
+        *document_result.all(),
+    ]:
         if not source_type:
             continue
         sources.append(
@@ -300,24 +312,20 @@ async def list_notifications(
     # Filter by source type (connector or document type from JSONB metadata)
     if source_type:
         if source_type.startswith("connector:"):
-            connector_val = source_type[len("connector:"):]
-            source_filter = (
-                Notification.type.in_(("connector_indexing", "connector_deletion"))
-                & (
-                    Notification.notification_metadata["connector_type"].astext
-                    == connector_val
-                )
+            connector_val = source_type[len("connector:") :]
+            source_filter = Notification.type.in_(
+                ("connector_indexing", "connector_deletion")
+            ) & (
+                Notification.notification_metadata["connector_type"].astext
+                == connector_val
             )
             query = query.where(source_filter)
             count_query = count_query.where(source_filter)
         elif source_type.startswith("doctype:"):
-            doctype_val = source_type[len("doctype:"):]
-            source_filter = (
-                Notification.type.in_(("document_processing",))
-                & (
-                    Notification.notification_metadata["document_type"].astext
-                    == doctype_val
-                )
+            doctype_val = source_type[len("doctype:") :]
+            source_filter = Notification.type.in_(("document_processing",)) & (
+                Notification.notification_metadata["document_type"].astext
+                == doctype_val
             )
             query = query.where(source_filter)
             count_query = count_query.where(source_filter)
@@ -328,11 +336,8 @@ async def list_notifications(
         query = query.where(unread_filter)
         count_query = count_query.where(unread_filter)
     elif filter == "errors":
-        error_filter = (
-            (Notification.type == "page_limit_exceeded")
-            | (
-                Notification.notification_metadata["status"].astext == "failed"
-            )
+        error_filter = (Notification.type == "page_limit_exceeded") | (
+            Notification.notification_metadata["status"].astext == "failed"
         )
         query = query.where(error_filter)
         count_query = count_query.where(error_filter)

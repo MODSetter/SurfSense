@@ -173,14 +173,9 @@ export function LLMConfigForm({
 							name="name"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="text-xs sm:text-sm">
-										Configuration Name
-									</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">Configuration Name</FormLabel>
 									<FormControl>
-										<Input
-											placeholder="e.g., My GPT-4 Agent"
-											{...field}
-										/>
+										<Input placeholder="e.g., My GPT-4 Agent" {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -280,17 +275,20 @@ export function LLMConfigForm({
 												variant="outline"
 												role="combobox"
 												aria-expanded={modelComboboxOpen}
-											className={cn(
-												"w-full justify-between font-normal bg-transparent",
-												!field.value && "text-muted-foreground"
-											)}
+												className={cn(
+													"w-full justify-between font-normal bg-transparent",
+													!field.value && "text-muted-foreground"
+												)}
 											>
 												{field.value || "Select or type model name"}
 												<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 											</Button>
 										</FormControl>
 									</PopoverTrigger>
-									<PopoverContent className="w-full p-0 bg-muted dark:border-neutral-700" align="start">
+									<PopoverContent
+										className="w-full p-0 bg-muted dark:border-neutral-700"
+										align="start"
+									>
 										<Command shouldFilter={false} className="bg-transparent">
 											<CommandInput
 												placeholder={selectedProvider?.example || "Type model name..."}
@@ -362,9 +360,7 @@ export function LLMConfigForm({
 							name="api_key"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="text-xs sm:text-sm">
-										API Key
-									</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">API Key</FormLabel>
 									<FormControl>
 										<Input
 											type="password"
@@ -488,7 +484,7 @@ export function LLMConfigForm({
 							type="button"
 							className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
 						>
-								<span>System Instructions</span>
+							<span>System Instructions</span>
 							<ChevronDown
 								className={cn(
 									"h-4 w-4 transition-transform duration-200",
@@ -589,7 +585,8 @@ export function LLMConfigForm({
 								</>
 							) : (
 								<>
-									{submitLabel ?? (mode === "edit" ? "Update Configuration" : "Create Configuration")}
+									{submitLabel ??
+										(mode === "edit" ? "Update Configuration" : "Create Configuration")}
 								</>
 							)}
 						</Button>

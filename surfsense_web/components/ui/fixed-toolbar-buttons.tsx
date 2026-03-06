@@ -59,7 +59,9 @@ export function FixedToolbarButtons() {
 							</ToolbarButton>
 
 							<ToolbarButton
-								tooltip={<TooltipWithShortcut label="Redo" keys={shortcutKeys("Mod", "Shift", "Z")} />}
+								tooltip={
+									<TooltipWithShortcut label="Redo" keys={shortcutKeys("Mod", "Shift", "Z")} />
+								}
 								onClick={() => {
 									editor.redo();
 									editor.tf.focus();
@@ -75,11 +77,17 @@ export function FixedToolbarButtons() {
 						</ToolbarGroup>
 
 						<ToolbarGroup>
-							<MarkToolbarButton nodeType={KEYS.bold} tooltip={<TooltipWithShortcut label="Bold" keys={shortcutKeys("Mod", "B")} />}>
+							<MarkToolbarButton
+								nodeType={KEYS.bold}
+								tooltip={<TooltipWithShortcut label="Bold" keys={shortcutKeys("Mod", "B")} />}
+							>
 								<BoldIcon />
 							</MarkToolbarButton>
 
-							<MarkToolbarButton nodeType={KEYS.italic} tooltip={<TooltipWithShortcut label="Italic" keys={shortcutKeys("Mod", "I")} />}>
+							<MarkToolbarButton
+								nodeType={KEYS.italic}
+								tooltip={<TooltipWithShortcut label="Italic" keys={shortcutKeys("Mod", "I")} />}
+							>
 								<ItalicIcon />
 							</MarkToolbarButton>
 
@@ -92,18 +100,28 @@ export function FixedToolbarButtons() {
 
 							<MarkToolbarButton
 								nodeType={KEYS.strikethrough}
-								tooltip={<TooltipWithShortcut label="Strikethrough" keys={shortcutKeys("Mod", "Shift", "X")} />}
+								tooltip={
+									<TooltipWithShortcut
+										label="Strikethrough"
+										keys={shortcutKeys("Mod", "Shift", "X")}
+									/>
+								}
 							>
 								<StrikethroughIcon />
 							</MarkToolbarButton>
 
-							<MarkToolbarButton nodeType={KEYS.code} tooltip={<TooltipWithShortcut label="Code" keys={shortcutKeys("Mod", "E")} />}>
+							<MarkToolbarButton
+								nodeType={KEYS.code}
+								tooltip={<TooltipWithShortcut label="Code" keys={shortcutKeys("Mod", "E")} />}
+							>
 								<Code2Icon />
 							</MarkToolbarButton>
 
 							<MarkToolbarButton
 								nodeType={KEYS.highlight}
-								tooltip={<TooltipWithShortcut label="Highlight" keys={shortcutKeys("Mod", "Shift", "H")} />}
+								tooltip={
+									<TooltipWithShortcut label="Highlight" keys={shortcutKeys("Mod", "Shift", "H")} />
+								}
 							>
 								<HighlighterIcon />
 							</MarkToolbarButton>
@@ -122,7 +140,13 @@ export function FixedToolbarButtons() {
 				{!readOnly && onSave && hasUnsavedChanges && (
 					<ToolbarGroup>
 						<ToolbarButton
-							tooltip={isSaving ? "Saving..." : <TooltipWithShortcut label="Save" keys={shortcutKeys("Mod", "S")} />}
+							tooltip={
+								isSaving ? (
+									"Saving..."
+								) : (
+									<TooltipWithShortcut label="Save" keys={shortcutKeys("Mod", "S")} />
+								)
+							}
 							onClick={onSave}
 							disabled={isSaving}
 							className="bg-primary text-primary-foreground hover:bg-primary/90"

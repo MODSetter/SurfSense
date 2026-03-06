@@ -638,58 +638,56 @@ export function InboxSidebar({
 													)}
 												</div>
 											</div>
-										{activeTab === "status" && statusSourceOptions.length > 0 && (
-											<div className="space-y-2">
-												<p className="text-xs text-muted-foreground/80 font-medium px-1">
-													{t("sources") || "Sources"}
-												</p>
-												<div className="space-y-1">
-													<button
-														type="button"
-														onClick={() => {
-															setSelectedSource(null);
-															setFilterDrawerOpen(false);
-														}}
-														className={cn(
-															"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-															selectedSource === null
-																? "bg-primary/10 text-primary"
-																: "hover:bg-muted"
-														)}
-													>
-														<span className="flex items-center gap-2">
-															<LayoutGrid className="h-4 w-4" />
-															<span>{t("all_sources") || "All sources"}</span>
-														</span>
-														{selectedSource === null && <Check className="h-4 w-4" />}
-													</button>
-													{statusSourceOptions.map((source) => (
+											{activeTab === "status" && statusSourceOptions.length > 0 && (
+												<div className="space-y-2">
+													<p className="text-xs text-muted-foreground/80 font-medium px-1">
+														{t("sources") || "Sources"}
+													</p>
+													<div className="space-y-1">
 														<button
-															key={source.key}
 															type="button"
 															onClick={() => {
-																setSelectedSource(source.key);
+																setSelectedSource(null);
 																setFilterDrawerOpen(false);
 															}}
 															className={cn(
 																"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
-																selectedSource === source.key
+																selectedSource === null
 																	? "bg-primary/10 text-primary"
 																	: "hover:bg-muted"
 															)}
 														>
 															<span className="flex items-center gap-2">
-																{getConnectorIcon(source.type, "h-4 w-4")}
-																<span>{source.displayName}</span>
+																<LayoutGrid className="h-4 w-4" />
+																<span>{t("all_sources") || "All sources"}</span>
 															</span>
-															{selectedSource === source.key && (
-																<Check className="h-4 w-4" />
-															)}
+															{selectedSource === null && <Check className="h-4 w-4" />}
 														</button>
-													))}
+														{statusSourceOptions.map((source) => (
+															<button
+																key={source.key}
+																type="button"
+																onClick={() => {
+																	setSelectedSource(source.key);
+																	setFilterDrawerOpen(false);
+																}}
+																className={cn(
+																	"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																	selectedSource === source.key
+																		? "bg-primary/10 text-primary"
+																		: "hover:bg-muted"
+																)}
+															>
+																<span className="flex items-center gap-2">
+																	{getConnectorIcon(source.type, "h-4 w-4")}
+																	<span>{source.displayName}</span>
+																</span>
+																{selectedSource === source.key && <Check className="h-4 w-4" />}
+															</button>
+														))}
+													</div>
 												</div>
-											</div>
-										)}
+											)}
 										</div>
 									</DrawerContent>
 								</Drawer>
@@ -712,7 +710,10 @@ export function InboxSidebar({
 								</Tooltip>
 								<DropdownMenuContent
 									align="end"
-									className={cn("z-80 select-none max-h-[60vh] overflow-hidden flex flex-col", activeTab === "status" ? "w-52" : "w-44")}
+									className={cn(
+										"z-80 select-none max-h-[60vh] overflow-hidden flex flex-col",
+										activeTab === "status" ? "w-52" : "w-44"
+									)}
 								>
 									<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal">
 										{t("filter") || "Filter"}
@@ -749,45 +750,45 @@ export function InboxSidebar({
 											{activeFilter === "errors" && <Check className="h-4 w-4" />}
 										</DropdownMenuItem>
 									)}
-								{activeTab === "status" && statusSourceOptions.length > 0 && (
-									<>
-										<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
-											{t("sources") || "Sources"}
-										</DropdownMenuLabel>
-										<div
-											className="relative max-h-[30vh] overflow-y-auto overflow-x-hidden -mb-1"
-											onScroll={handleConnectorScroll}
-											style={{
-												maskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
-												WebkitMaskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
-											}}
-										>
-											<DropdownMenuItem
-												onClick={() => setSelectedSource(null)}
-												className="flex items-center justify-between"
+									{activeTab === "status" && statusSourceOptions.length > 0 && (
+										<>
+											<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
+												{t("sources") || "Sources"}
+											</DropdownMenuLabel>
+											<div
+												className="relative max-h-[30vh] overflow-y-auto overflow-x-hidden -mb-1"
+												onScroll={handleConnectorScroll}
+												style={{
+													maskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
+													WebkitMaskImage: `linear-gradient(to bottom, ${connectorScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${connectorScrollPos === "bottom" ? "black" : "transparent"})`,
+												}}
 											>
-												<span className="flex items-center gap-2">
-													<LayoutGrid className="h-4 w-4" />
-													<span>{t("all_sources") || "All sources"}</span>
-												</span>
-												{selectedSource === null && <Check className="h-4 w-4" />}
-											</DropdownMenuItem>
-											{statusSourceOptions.map((source) => (
 												<DropdownMenuItem
-													key={source.key}
-													onClick={() => setSelectedSource(source.key)}
+													onClick={() => setSelectedSource(null)}
 													className="flex items-center justify-between"
 												>
 													<span className="flex items-center gap-2">
-														{getConnectorIcon(source.type, "h-4 w-4")}
-														<span>{source.displayName}</span>
+														<LayoutGrid className="h-4 w-4" />
+														<span>{t("all_sources") || "All sources"}</span>
 													</span>
-													{selectedSource === source.key && <Check className="h-4 w-4" />}
+													{selectedSource === null && <Check className="h-4 w-4" />}
 												</DropdownMenuItem>
-											))}
-										</div>
-									</>
-								)}
+												{statusSourceOptions.map((source) => (
+													<DropdownMenuItem
+														key={source.key}
+														onClick={() => setSelectedSource(source.key)}
+														className="flex items-center justify-between"
+													>
+														<span className="flex items-center gap-2">
+															{getConnectorIcon(source.type, "h-4 w-4")}
+															<span>{source.displayName}</span>
+														</span>
+														{selectedSource === source.key && <Check className="h-4 w-4" />}
+													</DropdownMenuItem>
+												))}
+											</div>
+										</>
+									)}
 								</DropdownMenuContent>
 							</DropdownMenu>
 						)}

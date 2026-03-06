@@ -41,10 +41,7 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
 
 	const [sidebarDocs, setSidebarDocs] = useAtom(sidebarSelectedDocumentsAtom);
-	const mentionedDocIds = useMemo(
-		() => new Set(sidebarDocs.map((d) => d.id)),
-		[sidebarDocs]
-	);
+	const mentionedDocIds = useMemo(() => new Set(sidebarDocs.map((d) => d.id)), [sidebarDocs]);
 
 	const handleToggleChatMention = useCallback(
 		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
@@ -53,7 +50,10 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			} else {
 				setSidebarDocs((prev) => {
 					if (prev.some((d) => d.id === doc.id)) return prev;
-					return [...prev, { id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum }];
+					return [
+						...prev,
+						{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
+					];
 				});
 			}
 		},

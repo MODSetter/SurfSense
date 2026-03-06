@@ -364,72 +364,72 @@ export function AllSharedChatsSidebar({
 										isBusy && "opacity-50 pointer-events-none"
 									)}
 								>
-								{isMobile ? (
-									<button
-										type="button"
-										onClick={() => {
-											if (wasLongPress()) return;
-											handleThreadClick(thread.id);
-										}}
-										onTouchStart={() => {
-											pendingThreadIdRef.current = thread.id;
-											longPressHandlers.onTouchStart();
-										}}
-										onTouchEnd={longPressHandlers.onTouchEnd}
-										onTouchMove={longPressHandlers.onTouchMove}
-										disabled={isBusy}
-										className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
-									>
-										<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
-										<span className="truncate">{thread.title || "New Chat"}</span>
-									</button>
-								) : (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<button
-												type="button"
-												onClick={() => handleThreadClick(thread.id)}
-												disabled={isBusy}
-												className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
-											>
-												<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
-												<span className="truncate">{thread.title || "New Chat"}</span>
-											</button>
-										</TooltipTrigger>
-										<TooltipContent side="bottom" align="start">
-											<p>
-												{t("updated") || "Updated"}:{" "}
-												{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
-											</p>
-										</TooltipContent>
-									</Tooltip>
-								)}
-
-								<DropdownMenu
-									open={openDropdownId === thread.id}
-									onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
-								>
-									<DropdownMenuTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											className={cn(
-												"h-6 w-6 shrink-0",
-												isMobile
-													? "opacity-0 pointer-events-none absolute"
-													: "md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
-												"transition-opacity"
-											)}
+									{isMobile ? (
+										<button
+											type="button"
+											onClick={() => {
+												if (wasLongPress()) return;
+												handleThreadClick(thread.id);
+											}}
+											onTouchStart={() => {
+												pendingThreadIdRef.current = thread.id;
+												longPressHandlers.onTouchStart();
+											}}
+											onTouchEnd={longPressHandlers.onTouchEnd}
+											onTouchMove={longPressHandlers.onTouchMove}
 											disabled={isBusy}
+											className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
 										>
-											{isDeleting ? (
-												<Spinner size="xs" />
-											) : (
-												<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
-											)}
-											<span className="sr-only">{t("more_options") || "More options"}</span>
-										</Button>
-									</DropdownMenuTrigger>
+											<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
+											<span className="truncate">{thread.title || "New Chat"}</span>
+										</button>
+									) : (
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<button
+													type="button"
+													onClick={() => handleThreadClick(thread.id)}
+													disabled={isBusy}
+													className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
+												>
+													<MessageCircleMore className="h-4 w-4 shrink-0 text-muted-foreground" />
+													<span className="truncate">{thread.title || "New Chat"}</span>
+												</button>
+											</TooltipTrigger>
+											<TooltipContent side="bottom" align="start">
+												<p>
+													{t("updated") || "Updated"}:{" "}
+													{format(new Date(thread.updatedAt), "MMM d, yyyy 'at' h:mm a")}
+												</p>
+											</TooltipContent>
+										</Tooltip>
+									)}
+
+									<DropdownMenu
+										open={openDropdownId === thread.id}
+										onOpenChange={(isOpen) => setOpenDropdownId(isOpen ? thread.id : null)}
+									>
+										<DropdownMenuTrigger asChild>
+											<Button
+												variant="ghost"
+												size="icon"
+												className={cn(
+													"h-6 w-6 shrink-0",
+													isMobile
+														? "opacity-0 pointer-events-none absolute"
+														: "md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
+													"transition-opacity"
+												)}
+												disabled={isBusy}
+											>
+												{isDeleting ? (
+													<Spinner size="xs" />
+												) : (
+													<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
+												)}
+												<span className="sr-only">{t("more_options") || "More options"}</span>
+											</Button>
+										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end" className="w-40 z-80">
 											{!thread.archived && (
 												<DropdownMenuItem
@@ -456,9 +456,7 @@ export function AllSharedChatsSidebar({
 												)}
 											</DropdownMenuItem>
 											<DropdownMenuSeparator />
-											<DropdownMenuItem
-												onClick={() => handleDeleteThread(thread.id)}
-												>
+											<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
 												<Trash2 className="mr-2 h-4 w-4" />
 												<span>{t("delete") || "Delete"}</span>
 											</DropdownMenuItem>

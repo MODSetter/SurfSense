@@ -38,7 +38,7 @@ export function filterNewElectricItems<T extends { id: number; created_at: strin
 	liveIds: Set<number>,
 	prevIds: Set<number>,
 	baselineRef: MutableRefObject<Set<number> | null>,
-	newestApiTimestamp: string | null,
+	newestApiTimestamp: string | null
 ): T[] {
 	if (baselineRef.current === null) {
 		baselineRef.current = new Set(liveIds);

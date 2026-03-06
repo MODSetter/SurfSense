@@ -160,9 +160,9 @@ export function LayoutShell({
 			<SidebarProvider value={sidebarContextValue}>
 				<TooltipProvider delayDuration={0}>
 					<div className={cn("flex h-screen w-full flex-col bg-background", className)}>
-					<Header
-						mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
-					/>
+						<Header
+							mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
+						/>
 
 						<MobileSidebar
 							isOpen={mobileMenuOpen}
