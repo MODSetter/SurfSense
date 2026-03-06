@@ -345,6 +345,13 @@ export function DocumentsTableShell({
 	const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
 	const [viewingContent, setViewingContent] = useState<string>("");
 	const [viewingLoading, setViewingLoading] = useState(false);
+	const [previewScrollPos, setPreviewScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		const atTop = el.scrollTop <= 2;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+		setPreviewScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+	}, []);
 
 	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
@@ -752,6 +759,7 @@ export function DocumentsTableShell({
 					</DialogTitle>
 				</DialogHeader>
 				<div
+					onScroll={handlePreviewScroll}
 					className={[
 						"overflow-y-auto flex-1 min-h-0 px-1 md:px-6 select-text",
 						"max-md:text-xs",
@@ -762,6 +770,10 @@ export function DocumentsTableShell({
 						"max-md:[&_td]:text-[11px]! max-md:[&_td]:px-2! max-md:[&_td]:py-1.5!",
 						"max-md:[&_th]:text-[11px]! max-md:[&_th]:px-2! max-md:[&_th]:py-1.5!",
 					].join(" ")}
+					style={{
+						maskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
+						WebkitMaskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
+					}}
 				>
 					{viewingLoading ? (
 						<div className="flex items-center justify-center py-12">
