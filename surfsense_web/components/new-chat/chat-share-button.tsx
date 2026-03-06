@@ -166,7 +166,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							<Button
 								variant="outline"
 								size="icon"
-								className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0"
+								className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0 select-none"
 							>
 								<CurrentIcon className="h-4 w-4" />
 								<span className="hidden md:inline text-sm">{buttonLabel}</span>

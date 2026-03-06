@@ -214,7 +214,7 @@ export const ConnectorIndicator: FC = () => {
 					<>
 						<Cable className="size-4 stroke-[1.5px]" />
 						{activeConnectorsCount > 0 && (
-							<span className="absolute -top-0.5 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm">
+							<span className="absolute -top-0.5 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm select-none">
 								{activeConnectorsCount > 99 ? "99+" : activeConnectorsCount}
 							</span>
 						)}
