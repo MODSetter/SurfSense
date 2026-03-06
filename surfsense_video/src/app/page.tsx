@@ -2,23 +2,17 @@
 
 import { Player } from "@remotion/player";
 import type { NextPage } from "next";
-import React, { useMemo, useState } from "react";
-import { z } from "zod";
-import { RenderControls } from "../components/RenderControls";
-import { Spacing } from "../components/Spacing";
-import { Tips } from "../components/Tips/Tips";
-import { Main } from "../remotion/MyComp/Main";
+import React, { useMemo } from "react";
+import { Video, videoDuration } from "../remotion/Video";
+import { DEMO_VIDEO } from "../remotion/demo";
 import {
-  CompositionProps,
-  defaultMyCompProps,
-  DURATION_IN_FRAMES,
   VIDEO_FPS,
   VIDEO_HEIGHT,
   VIDEO_WIDTH,
 } from "../types/constants";
 
 const container: React.CSSProperties = {
-  maxWidth: 768,
+  maxWidth: 960,
   margin: "auto",
   marginBottom: 20,
   paddingLeft: 16,
@@ -38,22 +32,19 @@ const player: React.CSSProperties = {
 };
 
 const Home: NextPage = () => {
-  const [text, setText] = useState<string>(defaultMyCompProps.title);
-
-  const inputProps: z.infer<typeof CompositionProps> = useMemo(() => {
-    return {
-      title: text,
-    };
-  }, [text]);
+  const duration = useMemo(
+    () => videoDuration(DEMO_VIDEO.scenes, VIDEO_WIDTH, VIDEO_HEIGHT),
+    [],
+  );
 
   return (
     <div>
       <div style={container}>
         <div className="cinematics" style={outer}>
           <Player
-            component={Main}
-            inputProps={inputProps}
-            durationInFrames={DURATION_IN_FRAMES}
+            component={Video}
+            inputProps={DEMO_VIDEO}
+            durationInFrames={duration}
             fps={VIDEO_FPS}
             compositionHeight={VIDEO_HEIGHT}
             compositionWidth={VIDEO_WIDTH}
@@ -63,16 +54,6 @@ const Home: NextPage = () => {
             loop
           />
         </div>
-        <RenderControls
-          text={text}
-          setText={setText}
-          inputProps={inputProps}
-        ></RenderControls>
-        <Spacing></Spacing>
-        <Spacing></Spacing>
-        <Spacing></Spacing>
-        <Spacing></Spacing>
-        <Tips></Tips>
       </div>
     </div>
   );

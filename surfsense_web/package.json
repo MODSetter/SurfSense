@@ -72,6 +72,7 @@
 		"@radix-ui/react-toggle-group": "^1.1.10",
 		"@radix-ui/react-toolbar": "^1.1.11",
 		"@radix-ui/react-tooltip": "^1.2.7",
+		"@remotion/lambda": "4.0.434",
 		"@streamdown/code": "^1.0.2",
 		"@streamdown/math": "^1.0.2",
 		"@tabler/icons-react": "^3.34.1",

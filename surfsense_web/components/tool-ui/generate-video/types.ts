@@ -8,7 +8,8 @@ export const GenerateVideoArgsSchema = z.object({
 export const GenerateVideoResultSchema = z.object({
 	status: z.enum(["success", "error"]),
 	topic: z.string(),
-	mp4_url: z.string().optional(),
+	source_content: z.string().optional(),
+	search_space_id: z.number().optional(),
 	error: z.string().optional(),
 });
 

@@ -133,25 +133,21 @@ function resolveScene(
   }
 }
 
-export function videoDuration(input: VideoInput, width: number, height: number): number {
+export function videoDuration(scenes: SceneInput[], width: number, height: number): number {
   let total = 0;
-  for (let i = 0; i < input.scenes.length; i++) {
-    const { duration } = resolveScene(input.scenes[i], i, width, height);
+  for (let i = 0; i < scenes.length; i++) {
+    const { duration } = resolveScene(scenes[i], i, width, height);
     total += duration;
   }
   return total;
 }
 
-interface VideoProps {
-  input: VideoInput;
-}
-
-export const Video: React.FC<VideoProps> = ({ input }) => {
+export const Video: React.FC<VideoInput> = ({ scenes }) => {
   const { width, height } = useVideoConfig();
 
   const resolved = useMemo(
-    () => input.scenes.map((s, i) => resolveScene(s, i, width, height)),
-    [input.scenes, width, height],
+    () => scenes.map((s, i) => resolveScene(s, i, width, height)),
+    [scenes, width, height],
   );
 
   return (

@@ -27,16 +27,9 @@ export type State =
       status: "done";
     };
 
-const wait = async (milliSeconds: number) => {
-  await new Promise<void>((resolve) => {
-    setTimeout(() => {
-      resolve();
-    }, milliSeconds);
-  });
-};
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export const useRendering = (
-  id: string,
   inputProps: z.infer<typeof CompositionProps>,
 ) => {
   const [state, setState] = useState<State>({
@@ -44,30 +37,25 @@ export const useRendering = (
   });
 
   const renderMedia = useCallback(async () => {
-    setState({
-      status: "invoking",
-    });
+    setState({ status: "invoking" });
     try {
-      const { renderId, bucketName } = await renderVideo({ id, inputProps });
+      const { renderId, bucketName } = await renderVideo(inputProps);
       setState({
         status: "rendering",
         progress: 0,
-        renderId: renderId,
-        bucketName: bucketName,
+        renderId,
+        bucketName,
       });
 
       let pending = true;
 
       while (pending) {
-        const result = await getProgress({
-          id: renderId,
-          bucketName: bucketName,
-        });
+        const result = await getProgress({ id: renderId, bucketName });
         switch (result.type) {
           case "error": {
             setState({
               status: "error",
-              renderId: renderId,
+              renderId,
               error: new Error(result.message),
             });
             pending = false;
@@ -85,9 +73,9 @@ export const useRendering = (
           case "progress": {
             setState({
               status: "rendering",
-              bucketName: bucketName,
+              bucketName,
               progress: result.progress,
-              renderId: renderId,
+              renderId,
             });
             await wait(1000);
           }
@@ -100,17 +88,13 @@ export const useRendering = (
         renderId: null,
       });
     }
-  }, [id, inputProps]);
+  }, [inputProps]);
 
   const undo = useCallback(() => {
     setState({ status: "init" });
   }, []);
 
   return useMemo(() => {
-    return {
-      renderMedia,
-      state,
-      undo,
-    };
+    return { renderMedia, state, undo };
   }, [renderMedia, state, undo]);
 };

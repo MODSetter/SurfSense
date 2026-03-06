@@ -12,6 +12,7 @@ import {
   TIMEOUT,
 } from "../../../../../config.mjs";
 import { executeApi } from "../../../../helpers/api-response";
+import { COMP_NAME } from "../../../../types/constants";
 import { RenderRequest } from "../../../../types/schema";
 
 export const POST = executeApi<RenderMediaOnLambdaOutput, typeof RenderRequest>(
@@ -43,7 +44,7 @@ export const POST = executeApi<RenderMediaOnLambdaOutput, typeof RenderRequest>(
       }),
       region: REGION as AwsRegion,
       serveUrl: SITE_NAME,
-      composition: body.id,
+      composition: COMP_NAME,
       inputProps: body.inputProps,
       framesPerLambda: 10,
       downloadBehavior: {
