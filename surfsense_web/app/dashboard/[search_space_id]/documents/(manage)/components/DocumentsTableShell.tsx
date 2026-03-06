@@ -275,8 +275,6 @@ export function DocumentsTableShell({
 	documents,
 	loading,
 	error,
-	selectedIds,
-	setSelectedIds,
 	sortKey,
 	sortDesc,
 	onSortChange,
@@ -286,12 +284,12 @@ export function DocumentsTableShell({
 	loadingMore = false,
 	onLoadMore,
 	isSearchMode = false,
+	mentionedDocIds,
+	onToggleChatMention,
 }: {
 	documents: Document[];
 	loading: boolean;
 	error: boolean;
-	selectedIds: Set<number>;
-	setSelectedIds: (update: Set<number>) => void;
 	sortKey: SortKey;
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
@@ -301,6 +299,10 @@ export function DocumentsTableShell({
 	loadingMore?: boolean;
 	onLoadMore?: () => void;
 	isSearchMode?: boolean;
+	/** IDs of documents currently mentioned as chips in the chat composer */
+	mentionedDocIds?: Set<number>;
+	/** Toggle a document's mention in the chat (add if not mentioned, remove if mentioned) */
+	onToggleChatMention?: (doc: Document, mentioned: boolean) => void;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
@@ -398,30 +400,28 @@ export function DocumentsTableShell({
 		return state !== "pending" && state !== "processing";
 	};
 
+	const hasChatMode = !!onToggleChatMention && !!mentionedDocIds;
+
 	const selectableDocs = sorted.filter(isSelectable);
-	const allSelectedOnPage =
-		selectableDocs.length > 0 && selectableDocs.every((d) => selectedIds.has(d.id));
-	const someSelectedOnPage =
-		selectableDocs.some((d) => selectedIds.has(d.id)) && !allSelectedOnPage;
+	const allMentionedOnPage =
+		hasChatMode &&
+		selectableDocs.length > 0 &&
+		selectableDocs.every((d) => mentionedDocIds.has(d.id));
+	const someMentionedOnPage =
+		hasChatMode &&
+		selectableDocs.some((d) => mentionedDocIds.has(d.id)) &&
+		!allMentionedOnPage;
 
 	const toggleAll = (checked: boolean) => {
-		const next = new Set(selectedIds);
-		if (checked)
-			selectableDocs.forEach((d) => {
-				next.add(d.id);
-			});
-		else
-			sorted.forEach((d) => {
-				next.delete(d.id);
-			});
-		setSelectedIds(next);
-	};
-
-	const toggleOne = (id: number, checked: boolean) => {
-		const next = new Set(selectedIds);
-		if (checked) next.add(id);
-		else next.delete(id);
-		setSelectedIds(next);
+		if (!onToggleChatMention) return;
+		for (const doc of selectableDocs) {
+			const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+			if (checked && !isMentioned) {
+				onToggleChatMention(doc, false);
+			} else if (!checked && isMentioned) {
+				onToggleChatMention(doc, true);
+			}
+		}
 	};
 
 	const onSortHeader = (key: SortKey) => onSortChange(key);
@@ -438,9 +438,9 @@ export function DocumentsTableShell({
 							<TableHead className="w-10 pl-3 pr-0 text-center h-8">
 								<div className="flex items-center justify-center h-full">
 									<Checkbox
-										checked={allSelectedOnPage || (someSelectedOnPage && "indeterminate")}
+										checked={allMentionedOnPage || (someMentionedOnPage && "indeterminate")}
 										onCheckedChange={(v) => toggleAll(!!v)}
-										aria-label="Select all"
+										aria-label={hasChatMode ? "Toggle all for chat" : "Select all"}
 										className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
 									/>
 								</div>
@@ -526,58 +526,69 @@ export function DocumentsTableShell({
 					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
 							<TableBody>
-								{sorted.map((doc, index) => {
-									const isSelected = selectedIds.has(doc.id);
-									const canSelect = isSelectable(doc);
-									return (
-										<RowContextMenu
-											key={doc.id}
-											doc={doc}
-											onPreview={handleViewDocument}
-											onDelete={setDeleteDoc}
-											searchSpaceId={searchSpaceId}
+							{sorted.map((doc) => {
+								const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+								const canInteract = isSelectable(doc);
+								const handleRowClick = () => {
+									if (canInteract && onToggleChatMention) {
+										onToggleChatMention(doc, isMentioned);
+									}
+								};
+								return (
+									<RowContextMenu
+										key={doc.id}
+										doc={doc}
+										onPreview={handleViewDocument}
+										onDelete={setDeleteDoc}
+										searchSpaceId={searchSpaceId}
+									>
+										<tr
+											className={`border-b border-border/50 transition-colors ${
+												isMentioned
+													? "bg-primary/5 hover:bg-primary/8"
+													: "hover:bg-muted/30"
+											} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
+											onClick={handleRowClick}
 										>
-											<tr
-												className={`border-b border-border/50 transition-colors ${
-													isSelected ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
-												}`}
+											<TableCell
+												className="w-10 pl-3 pr-0 py-1.5 text-center"
+												onClick={(e) => e.stopPropagation()}
 											>
-												<TableCell className="w-10 pl-3 pr-0 py-1.5 text-center">
-													<div className="flex items-center justify-center h-full">
-														<Checkbox
-															checked={isSelected}
-															onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
-															disabled={!canSelect}
-															aria-label={
-																canSelect ? "Select row" : "Cannot select while processing"
-															}
-															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
-														/>
-													</div>
-												</TableCell>
-												<TableCell className="px-2 py-1.5 max-w-0">
-													<DocumentNameTooltip
-														doc={doc}
-														className="truncate block text-sm text-foreground cursor-default"
+												<div className="flex items-center justify-center h-full">
+													<Checkbox
+														checked={isMentioned}
+														onCheckedChange={() => handleRowClick()}
+														disabled={!canInteract}
+														aria-label={
+															isMentioned ? "Remove from chat" : "Add to chat"
+														}
+														className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
 													/>
-												</TableCell>
-												<TableCell className="w-10 px-0 py-1.5 text-center">
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<span className="flex items-center justify-center">
-																{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
-															</span>
-														</TooltipTrigger>
-														<TooltipContent side="top">
-															{getDocumentTypeLabel(doc.document_type)}
-														</TooltipContent>
-													</Tooltip>
-												</TableCell>
-												<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
-													<StatusIndicator status={doc.status} />
-												</TableCell>
-											</tr>
-										</RowContextMenu>
+												</div>
+											</TableCell>
+											<TableCell className="px-2 py-1.5 max-w-0">
+												<DocumentNameTooltip
+													doc={doc}
+													className="truncate block text-sm text-foreground cursor-default"
+												/>
+											</TableCell>
+											<TableCell className="w-10 px-0 py-1.5 text-center">
+												<Tooltip>
+													<TooltipTrigger asChild>
+														<span className="flex items-center justify-center">
+															{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
+														</span>
+													</TooltipTrigger>
+													<TooltipContent side="top">
+														{getDocumentTypeLabel(doc.document_type)}
+													</TooltipContent>
+												</Tooltip>
+											</TableCell>
+											<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
+												<StatusIndicator status={doc.status} />
+											</TableCell>
+										</tr>
+									</RowContextMenu>
 									);
 								})}
 							</TableBody>
@@ -637,50 +648,67 @@ export function DocumentsTableShell({
 					ref={mobileScrollRef}
 					className="md:hidden divide-y divide-border/50 flex-1 overflow-auto"
 				>
-					{sorted.map((doc, index) => {
-						const isSelected = selectedIds.has(doc.id);
-						const canSelect = isSelectable(doc);
-						return (
-							<RowContextMenu
-								key={doc.id}
-								doc={doc}
-								onPreview={handleViewDocument}
-								onDelete={setDeleteDoc}
-								searchSpaceId={searchSpaceId}
-							>
-							<div
-								className={`px-3 py-2 transition-colors ${
-									isSelected ? "bg-primary/5" : "hover:bg-muted/20"
-								}`}
-							>
-									<div className="flex items-center gap-3">
+				{sorted.map((doc) => {
+					const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+					const canInteract = isSelectable(doc);
+					const handleCardClick = () => {
+						if (canInteract && onToggleChatMention) {
+							onToggleChatMention(doc, isMentioned);
+						}
+					};
+					return (
+						<RowContextMenu
+							key={doc.id}
+							doc={doc}
+							onPreview={handleViewDocument}
+							onDelete={setDeleteDoc}
+							searchSpaceId={searchSpaceId}
+						>
+						<div
+							className={`relative px-3 py-2 transition-colors ${
+								isMentioned
+									? "bg-primary/5"
+									: "hover:bg-muted/20"
+							} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
+						>
+								{canInteract && hasChatMode && (
+									<button
+										type="button"
+										className="absolute inset-0 z-0"
+										aria-label={isMentioned ? `Remove ${doc.title} from chat` : `Add ${doc.title} to chat`}
+										onClick={handleCardClick}
+									/>
+								)}
+								<div className="relative z-10 flex items-center gap-3 pointer-events-none">
+									<span className="pointer-events-auto">
 										<Checkbox
-											checked={isSelected}
-											onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
-											disabled={!canSelect}
-											aria-label={canSelect ? "Select row" : "Cannot select while processing"}
-											className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
+											checked={isMentioned}
+											onCheckedChange={() => handleCardClick()}
+											disabled={!canInteract}
+											aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+											className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
 										/>
-										<div className="flex-1 min-w-0">
-											<DocumentNameTooltip
-												doc={doc}
-												className="truncate block text-sm text-foreground cursor-default"
-											/>
-										</div>
-										<div className="flex items-center gap-2 shrink-0">
-											<Tooltip>
-												<TooltipTrigger asChild>
-													<span className="flex items-center justify-center">
-														{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
-													</span>
-												</TooltipTrigger>
-												<TooltipContent side="top">
-													{getDocumentTypeLabel(doc.document_type)}
-												</TooltipContent>
-											</Tooltip>
-											<StatusIndicator status={doc.status} />
-										</div>
+									</span>
+									<div className="flex-1 min-w-0">
+										<DocumentNameTooltip
+											doc={doc}
+											className="truncate block text-sm text-foreground cursor-default"
+										/>
 									</div>
+									<div className="flex items-center gap-2 shrink-0">
+										<Tooltip>
+											<TooltipTrigger asChild>
+												<span className="flex items-center justify-center">
+													{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
+												</span>
+											</TooltipTrigger>
+											<TooltipContent side="top">
+												{getDocumentTypeLabel(doc.document_type)}
+											</TooltipContent>
+										</Tooltip>
+										<StatusIndicator status={doc.status} />
+									</div>
+								</div>
 							</div>
 						</RowContextMenu>
 						);

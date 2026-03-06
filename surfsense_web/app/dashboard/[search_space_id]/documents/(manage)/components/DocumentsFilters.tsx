@@ -1,20 +1,9 @@
 "use client";
 
-import { CircleAlert, ListFilter, Search, Trash, Upload, X } from "lucide-react";
+import { ListFilter, Search, Upload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
-import {
-	AlertDialog,
-	AlertDialogAction,
-	AlertDialogCancel,
-	AlertDialogContent,
-	AlertDialogDescription,
-	AlertDialogFooter,
-	AlertDialogHeader,
-	AlertDialogTitle,
-	AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -24,18 +13,14 @@ import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
 
 export function DocumentsFilters({
 	typeCounts: typeCountsRecord,
-	selectedIds,
 	onSearch,
 	searchValue,
-	onBulkDelete,
 	onToggleType,
 	activeTypes,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
-	selectedIds: Set<number>;
 	onSearch: (v: string) => void;
 	searchValue: string;
-	onBulkDelete: () => Promise<void>;
 	onToggleType: (type: DocumentTypeEnum, checked: boolean) => void;
 	activeTypes: DocumentTypeEnum[];
 }) {
@@ -188,48 +173,6 @@ export function DocumentsFilters({
 						</button>
 					)}
 				</div>
-
-				{/* Bulk Delete Button */}
-				{selectedIds.size > 0 && (
-					<AlertDialog>
-						<AlertDialogTrigger asChild>
-							<Button variant="destructive" size="sm" className="h-9 shrink-0 gap-1.5 px-2.5">
-								<Trash size={14} />
-								<span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive-foreground/20 text-[10px] font-medium">
-									{selectedIds.size}
-								</span>
-							</Button>
-						</AlertDialogTrigger>
-						<AlertDialogContent className="max-w-md">
-							<div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
-								<div
-									className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive"
-									aria-hidden="true"
-								>
-									<CircleAlert size={18} strokeWidth={2} />
-								</div>
-								<AlertDialogHeader className="flex-1">
-									<AlertDialogTitle>
-										Delete {selectedIds.size} document{selectedIds.size !== 1 ? "s" : ""}?
-									</AlertDialogTitle>
-									<AlertDialogDescription>
-										This action cannot be undone. This will permanently delete the selected{" "}
-										{selectedIds.size === 1 ? "document" : "documents"} from your search space.
-									</AlertDialogDescription>
-								</AlertDialogHeader>
-							</div>
-							<AlertDialogFooter>
-								<AlertDialogCancel>Cancel</AlertDialogCancel>
-								<AlertDialogAction
-									onClick={onBulkDelete}
-									className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-								>
-									Delete
-								</AlertDialogAction>
-							</AlertDialogFooter>
-						</AlertDialogContent>
-					</AlertDialog>
-				)}
 
 				{/* Upload Button */}
 				<Button

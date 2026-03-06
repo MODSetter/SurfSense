@@ -27,6 +27,7 @@ export interface InlineMentionEditorRef {
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
 	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
+	removeDocumentChip: (docId: number, docType?: string) => void;
 	setDocumentChipStatus: (
 		docId: number,
 		docType: string | undefined,
@@ -388,6 +389,33 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[]
 		);
 
+		const removeDocumentChip = useCallback(
+			(docId: number, docType?: string) => {
+				if (!editorRef.current) return;
+				const chipKey = `${docType ?? "UNKNOWN"}:${docId}`;
+				const chips = editorRef.current.querySelectorAll<HTMLSpanElement>(
+					`span[${CHIP_DATA_ATTR}="true"]`
+				);
+				for (const chip of chips) {
+					if (getChipId(chip) === docId && getChipDocType(chip) === (docType ?? "UNKNOWN")) {
+						chip.remove();
+						break;
+					}
+				}
+				setMentionedDocs((prev) => {
+					const next = new Map(prev);
+					next.delete(chipKey);
+					return next;
+				});
+				onDocumentRemove?.(docId, docType);
+
+				const text = getText();
+				const empty = text.length === 0 && mentionedDocs.size <= 1;
+				setIsEmpty(empty);
+			},
+			[getText, mentionedDocs.size, onDocumentRemove]
+		);
+
 		// Expose methods via ref
 		useImperativeHandle(ref, () => ({
 			focus: () => editorRef.current?.focus(),
@@ -395,6 +423,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			getText,
 			getMentionedDocuments,
 			insertDocumentChip,
+			removeDocumentChip,
 			setDocumentChipStatus,
 		}));
 

@@ -1,11 +1,16 @@
 "use client";
 
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { ChevronLeft } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+	mentionedDocumentsAtom,
+	pendingDocumentMentionsAtom,
+	pendingDocumentRemovalsAtom,
+} from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
@@ -37,8 +42,29 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 	const [activeTypes, setActiveTypes] = useState<DocumentTypeEnum[]>([]);
 	const [sortKey, setSortKey] = useState<SortKey>("created_at");
 	const [sortDesc, setSortDesc] = useState(true);
-	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
 	const { mutateAsync: deleteDocumentMutation } = useAtomValue(deleteDocumentMutationAtom);
+
+	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
+	const setPendingMentions = useSetAtom(pendingDocumentMentionsAtom);
+	const setPendingRemovals = useSetAtom(pendingDocumentRemovalsAtom);
+	const mentionedDocIds = useMemo(
+		() => new Set(mentionedDocuments.map((d) => d.id)),
+		[mentionedDocuments]
+	);
+
+	const handleToggleChatMention = useCallback(
+		(doc: { id: number; title: string; document_type: string }, isMentioned: boolean) => {
+			if (isMentioned) {
+				setPendingRemovals((prev) => [...prev, { id: doc.id, document_type: doc.document_type }]);
+			} else {
+				setPendingMentions((prev) => [
+					...prev,
+					{ id: doc.id, title: doc.title, document_type: doc.document_type as DocumentTypeEnum },
+				]);
+			}
+		},
+		[setPendingMentions, setPendingRemovals]
+	);
 
 	const isSearchMode = !!debouncedSearch.trim();
 
@@ -76,59 +102,6 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			}
 			return prev.filter((t) => t !== type);
 		});
-		setSelectedIds(new Set());
-	};
-
-	const onBulkDelete = async () => {
-		if (selectedIds.size === 0) {
-			toast.error(t("no_rows_selected"));
-			return;
-		}
-
-		const selectedDocs = displayDocs.filter((doc) => selectedIds.has(doc.id));
-		const deletableIds = selectedDocs
-			.filter((doc) => doc.status?.state !== "pending" && doc.status?.state !== "processing")
-			.map((doc) => doc.id);
-		const inProgressCount = selectedIds.size - deletableIds.length;
-
-		if (inProgressCount > 0) {
-			toast.warning(t("delete_in_progress_warning", { count: inProgressCount }));
-		}
-
-		if (deletableIds.length === 0) return;
-
-		try {
-			let conflictCount = 0;
-			const results = await Promise.all(
-				deletableIds.map(async (id) => {
-					try {
-						await deleteDocumentMutation({ id });
-						return true;
-					} catch (error: unknown) {
-						const status =
-							(error as { response?: { status?: number } })?.response?.status ??
-							(error as { status?: number })?.status;
-						if (status === 409) conflictCount++;
-						return false;
-					}
-				})
-			);
-			const okCount = results.filter((r) => r === true).length;
-			if (okCount === deletableIds.length) {
-				toast.success(t("delete_success_count", { count: okCount }));
-			} else if (conflictCount > 0) {
-				toast.error(t("delete_conflict_error", { count: conflictCount }));
-			} else {
-				toast.error(t("delete_partial_failed"));
-			}
-			if (isSearchMode) {
-				searchRemoveItems(deletableIds);
-			}
-			setSelectedIds(new Set());
-		} catch (e) {
-			console.error(e);
-			toast.error(t("delete_error"));
-		}
 	};
 
 	const handleDeleteDocument = useCallback(
@@ -203,10 +176,8 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 				<div className="px-4 pb-2">
 					<DocumentsFilters
 						typeCounts={realtimeTypeCounts}
-						selectedIds={selectedIds}
 						onSearch={setSearch}
 						searchValue={search}
-						onBulkDelete={onBulkDelete}
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 					/>
@@ -216,8 +187,6 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 					documents={displayDocs}
 					loading={!!loading}
 					error={!!error}
-					selectedIds={selectedIds}
-					setSelectedIds={setSelectedIds}
 					sortKey={sortKey}
 					sortDesc={sortDesc}
 					onSortChange={handleSortChange}
@@ -227,6 +196,8 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 					loadingMore={loadingMore}
 					onLoadMore={onLoadMore}
 					isSearchMode={isSearchMode}
+					mentionedDocIds={mentionedDocIds}
+					onToggleChatMention={handleToggleChatMention}
 				/>
 			</div>
 		</>

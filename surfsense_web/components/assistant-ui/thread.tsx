@@ -32,6 +32,8 @@ import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
+	pendingDocumentMentionsAtom,
+	pendingDocumentRemovalsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -229,6 +231,7 @@ const ThreadWelcome: FC = () => {
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
+	const [pendingMentions, setPendingMentions] = useAtom(pendingDocumentMentionsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
 	const editorRef = useRef<InlineMentionEditorRef>(null);
@@ -449,6 +452,40 @@ const Composer: FC = () => {
 		},
 		[mentionedDocuments, setMentionedDocuments, setMentionedDocumentIds]
 	);
+
+	// Process documents queued from the sidebar (additions)
+	useEffect(() => {
+		if (pendingMentions.length === 0) return;
+		handleDocumentsMention(pendingMentions);
+		setPendingMentions([]);
+	}, [pendingMentions, handleDocumentsMention, setPendingMentions]);
+
+	// Process documents queued from the sidebar (removals)
+	const [pendingRemovals, setPendingRemovals] = useAtom(pendingDocumentRemovalsAtom);
+	useEffect(() => {
+		if (pendingRemovals.length === 0) return;
+		for (const { id, document_type } of pendingRemovals) {
+			editorRef.current?.removeDocumentChip(id, document_type);
+		}
+		setMentionedDocuments((prev) => {
+			const removalKeys = new Set(
+				pendingRemovals.map((r) => `${r.document_type ?? "UNKNOWN"}:${r.id}`)
+			);
+			const updated = prev.filter(
+				(doc) => !removalKeys.has(`${doc.document_type ?? "UNKNOWN"}:${doc.id}`)
+			);
+			setMentionedDocumentIds({
+				surfsense_doc_ids: updated
+					.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
+					.map((doc) => doc.id),
+				document_ids: updated
+					.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
+					.map((doc) => doc.id),
+			});
+			return updated;
+		});
+		setPendingRemovals([]);
+	}, [pendingRemovals, setPendingRemovals, setMentionedDocuments, setMentionedDocumentIds]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
