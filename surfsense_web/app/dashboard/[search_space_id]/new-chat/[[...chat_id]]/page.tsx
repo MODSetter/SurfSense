@@ -557,7 +557,17 @@ export default function NewChatPage() {
 				role: "user",
 				content: persistContent,
 			})
-				.then(() => {
+				.then((savedMessage) => {
+					const newUserMsgId = `msg-${savedMessage.id}`;
+					setMessages((prev) =>
+						prev.map((m) => (m.id === userMsgId ? { ...m, id: newUserMsgId } : m))
+					);
+					setMessageDocumentsMap((prev) => {
+						const docs = prev[userMsgId];
+						if (!docs) return prev;
+						const { [userMsgId]: _, ...rest } = prev;
+						return { ...rest, [newUserMsgId]: docs };
+					});
 					if (isNewThread) {
 						queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
 					}
