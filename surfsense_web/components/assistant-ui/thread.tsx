@@ -79,18 +79,17 @@ const CYCLING_PLACEHOLDERS = [
 
 interface ThreadProps {
 	messageThinkingSteps?: Map<string, ThinkingStep[]>;
-	header?: React.ReactNode;
 }
 
-export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), header }) => {
+export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
 	return (
 		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
-			<ThreadContent header={header} />
+			<ThreadContent />
 		</ThinkingStepsContext.Provider>
 	);
 };
 
-const ThreadContent: FC<{ header?: React.ReactNode }> = ({ header }) => {
+const ThreadContent: FC = () => {
 	const showGutter = useAtomValue(showCommentsGutterAtom);
 
 	return (
@@ -108,8 +107,6 @@ const ThreadContent: FC<{ header?: React.ReactNode }> = ({ header }) => {
 					showGutter && "lg:pr-30"
 				)}
 			>
-				{header && <div className="sticky top-0 z-10 mb-4">{header}</div>}
-
 				<AssistantIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
 				</AssistantIf>

@@ -13,9 +13,10 @@ import { ModelSelector } from "./model-selector";
 
 interface ChatHeaderProps {
 	searchSpaceId: number;
+	className?: string;
 }
 
-export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
+export function ChatHeader({ searchSpaceId, className }: ChatHeaderProps) {
 	// LLM config sidebar state
 	const [sidebarOpen, setSidebarOpen] = useState(false);
 	const [selectedConfig, setSelectedConfig] = useState<
@@ -85,6 +86,7 @@ export function ChatHeader({ searchSpaceId }: ChatHeaderProps) {
 				onAddNewLLM={handleAddNewLLM}
 				onEditImage={handleEditImageConfig}
 				onAddNewImage={handleAddImageModel}
+				className={className}
 			/>
 			<ModelConfigSidebar
 				open={sidebarOpen}

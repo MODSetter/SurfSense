@@ -32,7 +32,6 @@ import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
-import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ReportPanel } from "@/components/report-panel/report-panel";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
@@ -476,7 +475,7 @@ export default function NewChatPage() {
 					const newThread = await createThread(searchSpaceId, initialTitle);
 					currentThreadId = newThread.id;
 					setThreadId(currentThreadId);
-					// Set currentThread so ChatHeader can show share button immediately
+					// Set currentThread so share button in header appears immediately
 					setCurrentThread(newThread);
 
 					// Track chat creation
@@ -1670,10 +1669,9 @@ export default function NewChatPage() {
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-					<Thread
-						messageThinkingSteps={messageThinkingSteps}
-						header={<ChatHeader searchSpaceId={searchSpaceId} />}
-					/>
+				<Thread
+					messageThinkingSteps={messageThinkingSteps}
+				/>
 				</div>
 				<ReportPanel />
 			</div>
