@@ -1,11 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type {
-	DocumentSortBy,
-	DocumentTypeEnum,
-	SortOrder,
-} from "@/contracts/types/document.types";
+import type { DocumentSortBy, DocumentTypeEnum, SortOrder } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
@@ -77,7 +73,9 @@ export function useDocuments(
 
 	const apiLoadedCountRef = useRef(0);
 	const initialLoadDoneRef = useRef(false);
-	const prevParamsRef = useRef<{ sortBy: string; sortOrder: string; typeFilterKey: string } | null>(null);
+	const prevParamsRef = useRef<{ sortBy: string; sortOrder: string; typeFilterKey: string } | null>(
+		null
+	);
 	// Snapshot of all doc IDs from Electric's first callback after initial load.
 	// Anything appearing in subsequent callbacks NOT in this set is genuinely new.
 	const electricBaselineIdsRef = useRef<Set<number> | null>(null);
@@ -211,9 +209,7 @@ export function useDocuments(
 			} catch (err) {
 				if (cancelled) return;
 				console.error("[useDocuments] Initial load failed:", err);
-				setError(
-					err instanceof Error ? err : new Error("Failed to load documents")
-				);
+				setError(err instanceof Error ? err : new Error("Failed to load documents"));
 			} finally {
 				if (!cancelled) setLoading(false);
 			}
@@ -302,9 +298,7 @@ export function useDocuments(
 					WHERE search_space_id = $1
 					ORDER BY created_at DESC`;
 
-				const liveQuery = await db.live.query<DocumentElectric>(query, [
-					spaceId,
-				]);
+				const liveQuery = await db.live.query<DocumentElectric>(query, [spaceId]);
 
 				if (!mounted) {
 					liveQuery.unsubscribe?.();
@@ -319,11 +313,8 @@ export function useDocuments(
 
 					const unknownUserIds = validItems
 						.filter(
-							(
-								doc
-							): doc is DocumentElectric & { created_by_id: string } =>
-								doc.created_by_id !== null &&
-								!userCacheRef.current.has(doc.created_by_id)
+							(doc): doc is DocumentElectric & { created_by_id: string } =>
+								doc.created_by_id !== null && !userCacheRef.current.has(doc.created_by_id)
 						)
 						.map((doc) => doc.created_by_id);
 
@@ -343,14 +334,10 @@ export function useDocuments(
 										prev.map((doc) => ({
 											...doc,
 											created_by_name: doc.created_by_id
-												? (userCacheRef.current.get(
-														doc.created_by_id
-													) ?? null)
+												? (userCacheRef.current.get(doc.created_by_id) ?? null)
 												: null,
 											created_by_email: doc.created_by_id
-												? (emailCacheRef.current.get(
-														doc.created_by_id
-													) ?? null)
+												? (emailCacheRef.current.get(doc.created_by_id) ?? null)
 												: null,
 										}))
 									);
@@ -389,9 +376,7 @@ export function useDocuments(
 						// Update existing docs (status changes, title edits)
 						let updated = prev.map((doc) => {
 							if (liveIds.has(doc.id)) {
-								const liveItem = validItems.find(
-									(v) => v.id === doc.id
-								);
+								const liveItem = validItems.find((v) => v.id === doc.id);
 								if (liveItem) {
 									return electricToDisplayDoc(liveItem);
 								}
@@ -415,8 +400,7 @@ export function useDocuments(
 					if (isFullySynced && validItems.length > 0) {
 						const counts: Record<string, number> = {};
 						for (const item of validItems) {
-							counts[item.document_type] =
-								(counts[item.document_type] || 0) + 1;
+							counts[item.document_type] = (counts[item.document_type] || 0) + 1;
 						}
 						setTypeCounts(counts);
 						setTotal(validItems.length);
@@ -456,10 +440,7 @@ export function useDocuments(
 	const prevSearchSpaceIdRef = useRef<number | null>(null);
 
 	useEffect(() => {
-		if (
-			prevSearchSpaceIdRef.current !== null &&
-			prevSearchSpaceIdRef.current !== searchSpaceId
-		) {
+		if (prevSearchSpaceIdRef.current !== null && prevSearchSpaceIdRef.current !== searchSpaceId) {
 			setDocuments([]);
 			setTypeCounts({});
 			setTotal(0);

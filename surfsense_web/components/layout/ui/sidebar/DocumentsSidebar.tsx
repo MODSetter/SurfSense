@@ -12,9 +12,7 @@ import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDocuments } from "@/hooks/use-documents";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import {
-	DocumentsFilters,
-} from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsFilters";
+import { DocumentsFilters } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsFilters";
 import {
 	DocumentsTableShell,
 	type SortKey,
@@ -68,17 +66,19 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 
 	// --- Search mode state ---
 	const searchApiLoadedRef = useRef(0);
-	const [searchItems, setSearchItems] = useState<Array<{
-		id: number;
-		search_space_id: number;
-		document_type: string;
-		title: string;
-		created_by_id: string | null;
-		created_by_name: string | null;
-		created_by_email: string | null;
-		created_at: string;
-		status: { state: "ready" | "pending" | "processing" | "failed"; reason?: string };
-	}>>([]);
+	const [searchItems, setSearchItems] = useState<
+		Array<{
+			id: number;
+			search_space_id: number;
+			document_type: string;
+			title: string;
+			created_by_id: string | null;
+			created_by_name: string | null;
+			created_by_email: string | null;
+			created_at: string;
+			status: { state: "ready" | "pending" | "processing" | "failed"; reason?: string };
+		}>
+	>([]);
 	const [searchLoadingMore, setSearchLoadingMore] = useState(false);
 	const [searchInitialLoading, setSearchInitialLoading] = useState(false);
 	const [searchHasMore, setSearchHasMore] = useState(false);

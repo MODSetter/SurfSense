@@ -316,7 +316,13 @@ export function LayoutDataProvider({
 				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 			},
 		],
-		[pathname, isInboxSidebarOpen, isDocumentsSidebarOpen, totalUnreadCount, announcementUnreadCount]
+		[
+			pathname,
+			isInboxSidebarOpen,
+			isDocumentsSidebarOpen,
+			totalUnreadCount,
+			announcementUnreadCount,
+		]
 	);
 
 	// Handlers

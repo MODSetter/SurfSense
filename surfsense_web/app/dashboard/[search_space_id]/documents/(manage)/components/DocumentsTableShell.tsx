@@ -137,13 +137,7 @@ function formatAbsoluteDate(dateStr: string): string {
 	});
 }
 
-function DocumentNameTooltip({
-	doc,
-	className,
-}: {
-	doc: Document;
-	className?: string;
-}) {
+function DocumentNameTooltip({ doc, className }: { doc: Document; className?: string }) {
 	const textRef = useRef<HTMLSpanElement>(null);
 	const [isTruncated, setIsTruncated] = useState(false);
 
@@ -167,9 +161,7 @@ function DocumentNameTooltip({
 			</TooltipTrigger>
 			<TooltipContent side="top" align="start" className="max-w-sm">
 				<div className="space-y-1 text-xs">
-					{isTruncated && (
-						<p className="font-medium text-sm break-words">{doc.title}</p>
-					)}
+					{isTruncated && <p className="font-medium text-sm break-words">{doc.title}</p>}
 					<p>
 						<span className="text-muted-foreground">Owner:</span>{" "}
 						{doc.created_by_name || doc.created_by_email || "—"}
@@ -235,8 +227,7 @@ function RowContextMenu({
 	const isEditable = EDITABLE_DOCUMENT_TYPES.includes(
 		doc.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
 	);
-	const isBeingProcessed =
-		doc.status?.state === "pending" || doc.status?.state === "processing";
+	const isBeingProcessed = doc.status?.state === "pending" || doc.status?.state === "processing";
 	const isFileFailed = doc.document_type === "FILE" && doc.status?.state === "failed";
 	const shouldShowDelete = !NON_DELETABLE_DOCUMENT_TYPES.includes(
 		doc.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
@@ -255,8 +246,7 @@ function RowContextMenu({
 				{isEditable && (
 					<ContextMenuItem
 						onClick={() =>
-							!isEditDisabled &&
-							router.push(`/dashboard/${searchSpaceId}/editor/${doc.id}`)
+							!isEditDisabled && router.push(`/dashboard/${searchSpaceId}/editor/${doc.id}`)
 						}
 						disabled={isEditDisabled}
 					>
@@ -348,7 +338,9 @@ export function DocumentsTableShell({
 		observe(desktopScrollRef.current, desktopSentinelRef.current);
 		observe(mobileScrollRef.current, mobileSentinelRef.current);
 
-		return () => { for (const o of observers) o.disconnect(); };
+		return () => {
+			for (const o of observers) o.disconnect();
+		};
 	}, [onLoadMore, hasMore, loadingMore]);
 
 	const handleViewDocument = useCallback(async (doc: Document) => {
@@ -375,30 +367,27 @@ export function DocumentsTableShell({
 		setViewingLoading(false);
 	}, []);
 
-	const handleDeleteFromMenu = useCallback(
-		async () => {
-			if (!deleteDoc) return;
-			setIsDeleting(true);
-			try {
-				const ok = await deleteDocument(deleteDoc.id);
-				if (!ok) toast.error("Failed to delete document");
-			} catch (error: unknown) {
-				console.error("Error deleting document:", error);
-				const status =
-					(error as { response?: { status?: number } })?.response?.status ??
-					(error as { status?: number })?.status;
-				if (status === 409) {
-					toast.error("Document is now being processed. Please try again later.");
-				} else {
-					toast.error("Failed to delete document");
-				}
-			} finally {
-				setIsDeleting(false);
-				setDeleteDoc(null);
+	const handleDeleteFromMenu = useCallback(async () => {
+		if (!deleteDoc) return;
+		setIsDeleting(true);
+		try {
+			const ok = await deleteDocument(deleteDoc.id);
+			if (!ok) toast.error("Failed to delete document");
+		} catch (error: unknown) {
+			console.error("Error deleting document:", error);
+			const status =
+				(error as { response?: { status?: number } })?.response?.status ??
+				(error as { status?: number })?.status;
+			if (status === 409) {
+				toast.error("Document is now being processed. Please try again later.");
+			} else {
+				toast.error("Failed to delete document");
 			}
-		},
-		[deleteDoc, deleteDocument]
-	);
+		} finally {
+			setIsDeleting(false);
+			setDeleteDoc(null);
+		}
+	}, [deleteDoc, deleteDocument]);
 
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
@@ -477,9 +466,7 @@ export function DocumentsTableShell({
 								</span>
 							</TableHead>
 							<TableHead className="w-12 text-center h-8 pl-0 pr-3">
-								<span className="text-xs font-medium text-muted-foreground">
-									Status
-								</span>
+								<span className="text-xs font-medium text-muted-foreground">Status</span>
 							</TableHead>
 						</TableRow>
 					</TableHeader>
@@ -560,25 +547,23 @@ export function DocumentsTableShell({
 											<motion.tr
 												initial={!isSearchMode && index < 20 ? { opacity: 0 } : false}
 												animate={{ opacity: 1 }}
-												transition={!isSearchMode && index < 20 ? { duration: 0.15, delay: index * 0.02 } : { duration: 0 }}
+												transition={
+													!isSearchMode && index < 20
+														? { duration: 0.15, delay: index * 0.02 }
+														: { duration: 0 }
+												}
 												className={`border-b border-border/50 transition-colors ${
-													isSelected
-														? "bg-primary/5 hover:bg-primary/8"
-														: "hover:bg-muted/30"
+													isSelected ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
 												}`}
 											>
 												<TableCell className="w-10 pl-3 pr-0 py-1.5 text-center">
 													<div className="flex items-center justify-center h-full">
 														<Checkbox
 															checked={isSelected}
-															onCheckedChange={(v) =>
-																canSelect && toggleOne(doc.id, !!v)
-															}
+															onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
 															disabled={!canSelect}
 															aria-label={
-																canSelect
-																	? "Select row"
-																	: "Cannot select while processing"
+																canSelect ? "Select row" : "Cannot select while processing"
 															}
 															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
 														/>
@@ -594,10 +579,7 @@ export function DocumentsTableShell({
 													<Tooltip>
 														<TooltipTrigger asChild>
 															<span className="flex items-center justify-center">
-																{getDocumentTypeIcon(
-																	doc.document_type,
-																	"h-4 w-4"
-																)}
+																{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
 															</span>
 														</TooltipTrigger>
 														<TooltipContent side="top">
@@ -614,9 +596,7 @@ export function DocumentsTableShell({
 								})}
 							</TableBody>
 						</Table>
-						{hasMore && (
-							<div ref={desktopSentinelRef} className="py-3" />
-						)}
+						{hasMore && <div ref={desktopSentinelRef} className="py-3" />}
 					</div>
 				)}
 			</div>
@@ -670,7 +650,10 @@ export function DocumentsTableShell({
 					</motion.div>
 				</div>
 			) : (
-				<div ref={mobileScrollRef} className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
+				<div
+					ref={mobileScrollRef}
+					className="md:hidden divide-y divide-border/50 flex-1 overflow-auto"
+				>
 					{sorted.map((doc, index) => {
 						const isSelected = selectedIds.has(doc.id);
 						const canSelect = isSelectable(doc);
@@ -685,7 +668,11 @@ export function DocumentsTableShell({
 								<motion.div
 									initial={!isSearchMode && index < 20 ? { opacity: 0 } : false}
 									animate={{ opacity: 1 }}
-									transition={!isSearchMode && index < 20 ? { duration: 0.15, delay: index * 0.03 } : { duration: 0 }}
+									transition={
+										!isSearchMode && index < 20
+											? { duration: 0.15, delay: index * 0.03 }
+											: { duration: 0 }
+									}
 									className={`px-3 py-2 transition-colors ${
 										isSelected ? "bg-primary/5" : "hover:bg-muted/20"
 									}`}
@@ -693,15 +680,9 @@ export function DocumentsTableShell({
 									<div className="flex items-center gap-3">
 										<Checkbox
 											checked={isSelected}
-											onCheckedChange={(v) =>
-												canSelect && toggleOne(doc.id, !!v)
-											}
+											onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
 											disabled={!canSelect}
-											aria-label={
-												canSelect
-													? "Select row"
-													: "Cannot select while processing"
-											}
+											aria-label={canSelect ? "Select row" : "Cannot select while processing"}
 											className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
 										/>
 										<div className="flex-1 min-w-0">
@@ -714,10 +695,7 @@ export function DocumentsTableShell({
 											<Tooltip>
 												<TooltipTrigger asChild>
 													<span className="flex items-center justify-center">
-														{getDocumentTypeIcon(
-															doc.document_type,
-															"h-4 w-4"
-														)}
+														{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
 													</span>
 												</TooltipTrigger>
 												<TooltipContent side="top">
@@ -731,9 +709,7 @@ export function DocumentsTableShell({
 							</RowContextMenu>
 						);
 					})}
-					{hasMore && (
-						<div ref={mobileSentinelRef} className="py-3" />
-					)}
+					{hasMore && <div ref={mobileSentinelRef} className="py-3" />}
 				</div>
 			)}
 
@@ -761,8 +737,8 @@ export function DocumentsTableShell({
 					<AlertDialogHeader>
 						<AlertDialogTitle>Delete document?</AlertDialogTitle>
 						<AlertDialogDescription>
-							This action cannot be undone. This will permanently delete this document from
-							your search space.
+							This action cannot be undone. This will permanently delete this document from your
+							search space.
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>

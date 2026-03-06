@@ -1,13 +1,6 @@
 "use client";
 
-import {
-	CircleAlert,
-	ListFilter,
-	Search,
-	Trash,
-	Upload,
-	X,
-} from "lucide-react";
+import { CircleAlert, ListFilter, Search, Trash, Upload, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import React, { useMemo, useRef, useState } from "react";
@@ -97,78 +90,78 @@ export function DocumentsFilters({
 							)}
 						</Button>
 					</PopoverTrigger>
-						<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
-							<div>
-								{/* Search input */}
-								<div className="p-2 border-b border-border/50">
-									<div className="relative">
-										<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-										<Input
-											placeholder="Search types"
-											value={typeSearchQuery}
-											onChange={(e) => setTypeSearchQuery(e.target.value)}
-											className="h-6 pl-6 text-sm bg-transparent border-0 focus-visible:ring-0"
-										/>
-									</div>
+					<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
+						<div>
+							{/* Search input */}
+							<div className="p-2 border-b border-border/50">
+								<div className="relative">
+									<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+									<Input
+										placeholder="Search types"
+										value={typeSearchQuery}
+										onChange={(e) => setTypeSearchQuery(e.target.value)}
+										className="h-6 pl-6 text-sm bg-transparent border-0 focus-visible:ring-0"
+									/>
 								</div>
+							</div>
 
-								<div className="max-h-[300px] overflow-y-auto overflow-x-hidden py-1.5 px-1.5">
-									{filteredTypes.length === 0 ? (
-										<div className="py-6 text-center text-sm text-muted-foreground">
-											No types found
-										</div>
-									) : (
-										filteredTypes.map((value: DocumentTypeEnum, i) => (
-											<button
-												type="button"
-												key={value}
-												className="flex w-full items-center gap-2.5 py-2 px-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer text-left"
-												onClick={() => onToggleType(value, !activeTypes.includes(value))}
-											>
-												{/* Icon */}
-												<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-foreground/80">
-													{getDocumentTypeIcon(value, "h-4 w-4")}
-												</div>
-												{/* Text content */}
-												<div className="flex flex-col min-w-0 flex-1 gap-0.5">
-													<span className="text-[13px] font-medium text-foreground truncate leading-tight">
-														{getDocumentTypeLabel(value)}
-													</span>
-													<span className="text-[11px] text-muted-foreground leading-tight">
-														{typeCounts.get(value)} document
-														{(typeCounts.get(value) ?? 0) !== 1 ? "s" : ""}
-													</span>
-												</div>
-												{/* Checkbox */}
-												<Checkbox
-													id={`${id}-${i}`}
-													checked={activeTypes.includes(value)}
-													onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
-													className="h-4 w-4 shrink-0 rounded border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-												/>
-											</button>
-										))
-									)}
-								</div>
-								{activeTypes.length > 0 && (
-									<div className="px-3 pt-1.5 pb-1.5 border-t border-border/50">
-										<Button
-											variant="ghost"
-											size="sm"
-											className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground"
-											onClick={() => {
-												activeTypes.forEach((t) => {
-													onToggleType(t, false);
-												});
-											}}
-										>
-											Clear filters
-										</Button>
+							<div className="max-h-[300px] overflow-y-auto overflow-x-hidden py-1.5 px-1.5">
+								{filteredTypes.length === 0 ? (
+									<div className="py-6 text-center text-sm text-muted-foreground">
+										No types found
 									</div>
+								) : (
+									filteredTypes.map((value: DocumentTypeEnum, i) => (
+										<button
+											type="button"
+											key={value}
+											className="flex w-full items-center gap-2.5 py-2 px-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer text-left"
+											onClick={() => onToggleType(value, !activeTypes.includes(value))}
+										>
+											{/* Icon */}
+											<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-foreground/80">
+												{getDocumentTypeIcon(value, "h-4 w-4")}
+											</div>
+											{/* Text content */}
+											<div className="flex flex-col min-w-0 flex-1 gap-0.5">
+												<span className="text-[13px] font-medium text-foreground truncate leading-tight">
+													{getDocumentTypeLabel(value)}
+												</span>
+												<span className="text-[11px] text-muted-foreground leading-tight">
+													{typeCounts.get(value)} document
+													{(typeCounts.get(value) ?? 0) !== 1 ? "s" : ""}
+												</span>
+											</div>
+											{/* Checkbox */}
+											<Checkbox
+												id={`${id}-${i}`}
+												checked={activeTypes.includes(value)}
+												onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
+												className="h-4 w-4 shrink-0 rounded border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+											/>
+										</button>
+									))
 								)}
 							</div>
-						</PopoverContent>
-					</Popover>
+							{activeTypes.length > 0 && (
+								<div className="px-3 pt-1.5 pb-1.5 border-t border-border/50">
+									<Button
+										variant="ghost"
+										size="sm"
+										className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground"
+										onClick={() => {
+											activeTypes.forEach((t) => {
+												onToggleType(t, false);
+											});
+										}}
+									>
+										Clear filters
+									</Button>
+								</div>
+							)}
+						</div>
+					</PopoverContent>
+				</Popover>
 
 				{/* Search Input */}
 				<div className="relative flex-1 min-w-0">
@@ -202,44 +195,44 @@ export function DocumentsFilters({
 
 				{/* Bulk Delete Button */}
 				{selectedIds.size > 0 && (
-						<AlertDialog>
-							<AlertDialogTrigger asChild>
-								<Button variant="destructive" size="sm" className="h-9 shrink-0 gap-1.5 px-2.5">
-									<Trash size={14} />
-									<span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive-foreground/20 text-[10px] font-medium">
-										{selectedIds.size}
-									</span>
-								</Button>
-							</AlertDialogTrigger>
-							<AlertDialogContent className="max-w-md">
-								<div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
-									<div
-										className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive"
-										aria-hidden="true"
-									>
-										<CircleAlert size={18} strokeWidth={2} />
-									</div>
-									<AlertDialogHeader className="flex-1">
-										<AlertDialogTitle>
-											Delete {selectedIds.size} document{selectedIds.size !== 1 ? "s" : ""}?
-										</AlertDialogTitle>
-										<AlertDialogDescription>
-											This action cannot be undone. This will permanently delete the selected{" "}
-											{selectedIds.size === 1 ? "document" : "documents"} from your search space.
-										</AlertDialogDescription>
-									</AlertDialogHeader>
+					<AlertDialog>
+						<AlertDialogTrigger asChild>
+							<Button variant="destructive" size="sm" className="h-9 shrink-0 gap-1.5 px-2.5">
+								<Trash size={14} />
+								<span className="flex h-5 w-5 items-center justify-center rounded-full bg-destructive-foreground/20 text-[10px] font-medium">
+									{selectedIds.size}
+								</span>
+							</Button>
+						</AlertDialogTrigger>
+						<AlertDialogContent className="max-w-md">
+							<div className="flex flex-col gap-2 sm:flex-row sm:gap-4">
+								<div
+									className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10 text-destructive"
+									aria-hidden="true"
+								>
+									<CircleAlert size={18} strokeWidth={2} />
 								</div>
-								<AlertDialogFooter>
-									<AlertDialogCancel>Cancel</AlertDialogCancel>
-									<AlertDialogAction
-										onClick={onBulkDelete}
-										className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-									>
-										Delete
-									</AlertDialogAction>
-								</AlertDialogFooter>
-							</AlertDialogContent>
-						</AlertDialog>
+								<AlertDialogHeader className="flex-1">
+									<AlertDialogTitle>
+										Delete {selectedIds.size} document{selectedIds.size !== 1 ? "s" : ""}?
+									</AlertDialogTitle>
+									<AlertDialogDescription>
+										This action cannot be undone. This will permanently delete the selected{" "}
+										{selectedIds.size === 1 ? "document" : "documents"} from your search space.
+									</AlertDialogDescription>
+								</AlertDialogHeader>
+							</div>
+							<AlertDialogFooter>
+								<AlertDialogCancel>Cancel</AlertDialogCancel>
+								<AlertDialogAction
+									onClick={onBulkDelete}
+									className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+								>
+									Delete
+								</AlertDialogAction>
+							</AlertDialogFooter>
+						</AlertDialogContent>
+					</AlertDialog>
 				)}
 
 				{/* Upload Button */}

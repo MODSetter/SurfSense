@@ -12,9 +12,5 @@ export default function DashboardLayout({
 }) {
 	const { search_space_id } = use(params);
 
-	return (
-		<DashboardClientLayout searchSpaceId={search_space_id}>
-			{children}
-		</DashboardClientLayout>
-	);
+	return <DashboardClientLayout searchSpaceId={search_space_id}>{children}</DashboardClientLayout>;
 }
