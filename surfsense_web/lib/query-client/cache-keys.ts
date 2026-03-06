@@ -98,9 +98,5 @@ export const cacheKeys = {
 			["notifications", "search", searchSpaceId, search, tab] as const,
 		sourceTypes: (searchSpaceId: number | null) =>
 			["notifications", "source-types", searchSpaceId] as const,
-		bySourceType: (searchSpaceId: number | null, sourceType: string) =>
-			["notifications", "by-source-type", searchSpaceId, sourceType] as const,
-		byFilter: (searchSpaceId: number | null, filter: string) =>
-			["notifications", "by-filter", searchSpaceId, filter] as const,
 	},
 };

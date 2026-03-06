@@ -20,26 +20,16 @@ import {
 	Sidebar,
 } from "../sidebar";
 
-// Tab-specific data source props
-interface TabDataSource {
+// Inbox-related props — single data source, tab split done in InboxSidebar
+interface InboxProps {
+	isOpen: boolean;
+	onOpenChange: (open: boolean) => void;
 	items: InboxItem[];
-	unreadCount: number;
+	totalUnreadCount: number;
 	loading: boolean;
 	loadingMore?: boolean;
 	hasMore?: boolean;
 	loadMore?: () => void;
-}
-
-// Inbox-related props with separate data sources per tab
-interface InboxProps {
-	isOpen: boolean;
-	onOpenChange: (open: boolean) => void;
-	/** Mentions tab data source with independent pagination */
-	mentions: TabDataSource;
-	/** Status tab data source with independent pagination */
-	status: TabDataSource;
-	/** Combined unread count for nav badge */
-	totalUnreadCount: number;
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
 	/** Whether the inbox is docked (permanent) */
@@ -306,9 +296,12 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								mentions={inbox.mentions}
-								status={inbox.status}
+								items={inbox.items}
 								totalUnreadCount={inbox.totalUnreadCount}
+								loading={inbox.loading}
+								loadingMore={inbox.loadingMore}
+								hasMore={inbox.hasMore}
+								loadMore={inbox.loadMore}
 								markAsRead={inbox.markAsRead}
 								markAllAsRead={inbox.markAllAsRead}
 								isDocked={inbox.isDocked}
@@ -329,9 +322,12 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								mentions={inbox.mentions}
-								status={inbox.status}
+								items={inbox.items}
 								totalUnreadCount={inbox.totalUnreadCount}
+								loading={inbox.loading}
+								loadingMore={inbox.loadingMore}
+								hasMore={inbox.hasMore}
+								loadMore={inbox.loadMore}
 								markAsRead={inbox.markAsRead}
 								markAllAsRead={inbox.markAllAsRead}
 								isDocked={false}

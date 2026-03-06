@@ -62,9 +62,6 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-/**
- * Get initials from name or email for avatar fallback
- */
 function getInitials(name: string | null | undefined, email: string | null | undefined): string {
 	if (name) {
 		return name
@@ -81,9 +78,6 @@ function getInitials(name: string | null | undefined, email: string | null | und
 	return "U";
 }
 
-/**
- * Format count for display: shows numbers up to 999, then "1k+", "2k+", etc.
- */
 function formatInboxCount(count: number): string {
 	if (count <= 999) {
 		return count.toString();
@@ -92,9 +86,6 @@ function formatInboxCount(count: number): string {
 	return `${thousands}k+`;
 }
 
-/**
- * Get display name for connector type
- */
 function getConnectorTypeDisplayName(connectorType: string): string {
 	const displayNames: Record<string, string> = {
 		GITHUB_CONNECTOR: "GitHub",
@@ -139,40 +130,34 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 type InboxTab = "comments" | "status";
 type InboxFilter = "all" | "unread" | "errors";
 
-// Tab-specific data source with independent pagination
-interface TabDataSource {
-	items: InboxItem[];
-	unreadCount: number;
-	loading: boolean;
-	loadingMore?: boolean;
-	hasMore?: boolean;
-	loadMore?: () => void;
-}
+const COMMENT_TYPES = new Set(["new_mention", "comment_reply"]);
+const STATUS_TYPES = new Set(["connector_indexing", "document_processing", "page_limit_exceeded", "connector_deletion"]);
 
 interface InboxSidebarProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
-	/** Mentions tab data source with independent pagination */
-	mentions: TabDataSource;
-	/** Status tab data source with independent pagination */
-	status: TabDataSource;
-	/** Combined unread count for mark all as read */
+	items: InboxItem[];
 	totalUnreadCount: number;
+	loading: boolean;
+	loadingMore?: boolean;
+	hasMore?: boolean;
+	loadMore?: () => void;
 	markAsRead: (id: number) => Promise<boolean>;
 	markAllAsRead: () => Promise<boolean>;
 	onCloseMobileSidebar?: () => void;
-	/** Whether the inbox is docked (permanent) or floating */
 	isDocked?: boolean;
-	/** Callback to toggle docked state */
 	onDockedChange?: (docked: boolean) => void;
 }
 
 export function InboxSidebar({
 	open,
 	onOpenChange,
-	mentions,
-	status,
+	items,
 	totalUnreadCount,
+	loading,
+	loadingMore: loadingMoreProp = false,
+	hasMore: hasMoreProp = false,
+	loadMore,
 	markAsRead,
 	markAllAsRead,
 	onCloseMobileSidebar,
@@ -185,9 +170,7 @@ export function InboxSidebar({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = params?.search_space_id ? Number(params.search_space_id) : null;
 
-	// Comments collapsed state (desktop only, when docked)
 	const [, setCommentsCollapsed] = useAtom(setCommentsCollapsedAtom);
-	// Target comment for navigation - also ensures comments panel is visible
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
 	const [searchQuery, setSearchQuery] = useState("");
@@ -197,9 +180,7 @@ export function InboxSidebar({
 	const [activeFilter, setActiveFilter] = useState<InboxFilter>("all");
 	const [selectedSource, setSelectedSource] = useState<string | null>(null);
 	const [mounted, setMounted] = useState(false);
-	// Dropdown state for filter menu (desktop only)
 	const [openDropdown, setOpenDropdown] = useState<"filter" | null>(null);
-	// Scroll shadow state for connector list
 	const [connectorScrollPos, setConnectorScrollPos] = useState<"top" | "middle" | "bottom">("top");
 	const handleConnectorScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
@@ -207,15 +188,12 @@ export function InboxSidebar({
 		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
 		setConnectorScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
 	}, []);
-	// Drawer state for filter menu (mobile only)
 	const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
 	const [markingAsReadId, setMarkingAsReadId] = useState<number | null>(null);
 
-	// Prefetch trigger ref - placed on item near the end
 	const prefetchTriggerRef = useRef<HTMLDivElement>(null);
 
-	// Server-side search query (enabled only when user is typing a search)
-	// Determines which notification types to search based on active tab
+	// Server-side search query
 	const searchTypeFilter = activeTab === "comments" ? ("new_mention" as const) : undefined;
 	const { data: searchResponse, isLoading: isSearchLoading } = useQuery({
 		queryKey: cacheKeys.notifications.search(searchSpaceId, debouncedSearch.trim(), activeTab),
@@ -228,7 +206,7 @@ export function InboxSidebar({
 					limit: 50,
 				},
 			}),
-		staleTime: 30 * 1000, // 30 seconds (search results don't need to be super fresh)
+		staleTime: 30 * 1000,
 		enabled: isSearchMode && open,
 	});
 
@@ -246,53 +224,43 @@ export function InboxSidebar({
 		return () => document.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
 
-	// Only lock body scroll on mobile when inbox is open
 	useEffect(() => {
 		if (!open || !isMobile) return;
-
-		// Store original overflow to restore on cleanup
 		const originalOverflow = document.body.style.overflow;
 		document.body.style.overflow = "hidden";
-
 		return () => {
 			document.body.style.overflow = originalOverflow;
 		};
 	}, [open, isMobile]);
 
-	// Reset source filter when switching away from status tab
 	useEffect(() => {
 		if (activeTab !== "status") {
 			setSelectedSource(null);
 		}
 	}, [activeTab]);
 
-	// Each tab uses its own data source for independent pagination
-	// Comments tab: uses mentions data source (fetches only mention/reply types from server)
-	const commentsItems = mentions.items;
-
-	// Status tab: filters status data source (fetches all types) to status-specific types
-	const statusItems = useMemo(
-		() =>
-			status.items.filter(
-				(item) =>
-					item.type === "connector_indexing" ||
-					item.type === "document_processing" ||
-					item.type === "page_limit_exceeded" ||
-					item.type === "connector_deletion"
-			),
-		[status.items]
+	// Split items by tab type (client-side from single data source)
+	const commentsItems = useMemo(
+		() => items.filter((item) => COMMENT_TYPES.has(item.type)),
+		[items]
 	);
 
-	// Pagination switches based on active tab
-	const loading = activeTab === "comments" ? mentions.loading : status.loading;
-	const loadingMore =
-		activeTab === "comments" ? (mentions.loadingMore ?? false) : (status.loadingMore ?? false);
-	const hasMore =
-		activeTab === "comments" ? (mentions.hasMore ?? false) : (status.hasMore ?? false);
-	const loadMore = activeTab === "comments" ? mentions.loadMore : status.loadMore;
+	const statusItems = useMemo(
+		() => items.filter((item) => STATUS_TYPES.has(item.type)),
+		[items]
+	);
 
-	// Fetch ALL source types from the backend so the filter shows every connector/document
-	// type the user has notifications for, regardless of how many items are loaded via pagination.
+	// Derive unread counts per tab from the items array
+	const unreadCommentsCount = useMemo(
+		() => commentsItems.filter((item) => !item.read).length,
+		[commentsItems]
+	);
+	const unreadStatusCount = useMemo(
+		() => statusItems.filter((item) => !item.read).length,
+		[statusItems]
+	);
+
+	// Fetch source types for the status tab filter
 	const { data: sourceTypesData } = useQuery({
 		queryKey: cacheKeys.notifications.sourceTypes(searchSpaceId),
 		queryFn: () => notificationsApiService.getSourceTypes(searchSpaceId ?? undefined),
@@ -314,45 +282,7 @@ export function InboxSidebar({
 		}));
 	}, [sourceTypesData]);
 
-	// Get items for current tab
-	const displayItems = activeTab === "comments" ? commentsItems : statusItems;
-
-	// When a non-default filter (unread/errors) is active on the status tab,
-	// fetch matching items from the API so older items beyond the Electric
-	// sync window are included.
-	const isActiveFilterMode = activeTab === "status" && (activeFilter === "unread" || activeFilter === "errors");
-	const { data: activeFilterResponse, isLoading: isActiveFilterLoading } = useQuery({
-		queryKey: cacheKeys.notifications.byFilter(searchSpaceId, activeFilter),
-		queryFn: () =>
-			notificationsApiService.getNotifications({
-				queryParams: {
-					search_space_id: searchSpaceId ?? undefined,
-					filter: activeFilter as "unread" | "errors",
-					limit: 100,
-				},
-			}),
-		staleTime: 30 * 1000,
-		enabled: isActiveFilterMode && open && !isSearchMode,
-	});
-
-	// When a source filter is active, fetch matching items from the API so
-	// older items (outside the Electric sync window) are included.
-	const isSourceFilterMode = activeTab === "status" && !!selectedSource;
-	const { data: sourceFilterResponse, isLoading: isSourceFilterLoading } = useQuery({
-		queryKey: cacheKeys.notifications.bySourceType(searchSpaceId, selectedSource ?? ""),
-		queryFn: () =>
-			notificationsApiService.getNotifications({
-				queryParams: {
-					search_space_id: searchSpaceId ?? undefined,
-					source_type: selectedSource ?? undefined,
-					limit: 50,
-				},
-			}),
-		staleTime: 30 * 1000,
-		enabled: isSourceFilterMode && open && !isSearchMode,
-	});
-
-	// Client-side matcher: checks if an item matches the active source filter
+	// Client-side filter: source type
 	const matchesSourceFilter = useCallback(
 		(item: InboxItem): boolean => {
 			if (!selectedSource) return true;
@@ -377,7 +307,7 @@ export function InboxSidebar({
 		[selectedSource]
 	);
 
-	// Client-side matcher: checks if an item matches the active filter (unread/errors)
+	// Client-side filter: unread / errors
 	const matchesActiveFilter = useCallback(
 		(item: InboxItem): boolean => {
 			if (activeFilter === "unread") return !item.read;
@@ -391,93 +321,56 @@ export function InboxSidebar({
 		[activeFilter]
 	);
 
-	// Filter items based on filter type, connector filter, and search mode
-	// Four data paths:
-	//   1. Search mode → server-side search results (client-side filter applied after)
-	//   2. Active filter mode (unread/errors) → API results merged with real-time Electric items
-	//   3. Source filter mode → API results merged with real-time Electric items
-	//   4. Default → Electric real-time items (fast, local)
+	// Two data paths: search mode (API) or default (client-side filtered)
 	const filteredItems = useMemo(() => {
-		let items: InboxItem[];
+		let tabItems: InboxItem[];
 
 		if (isSearchMode) {
-			items = searchResponse?.items ?? [];
+			tabItems = searchResponse?.items ?? [];
 			if (activeTab === "status") {
-				items = items.filter(
-					(item) =>
-						item.type === "connector_indexing" ||
-						item.type === "document_processing" ||
-						item.type === "page_limit_exceeded" ||
-						item.type === "connector_deletion"
-				);
+				tabItems = tabItems.filter((item) => STATUS_TYPES.has(item.type));
+			} else {
+				tabItems = tabItems.filter((item) => COMMENT_TYPES.has(item.type));
 			}
-			if (activeFilter === "unread") {
-				items = items.filter((item) => !item.read);
-			} else if (activeFilter === "errors") {
-				items = items.filter(matchesActiveFilter);
-			}
-		} else if (isActiveFilterMode) {
-			const apiItems = activeFilterResponse?.items ?? [];
-			const realtimeMatching = statusItems.filter(matchesActiveFilter);
-			const seen = new Set(apiItems.map((i) => i.id));
-			const merged = [...apiItems];
-			for (const item of realtimeMatching) {
-				if (!seen.has(item.id)) {
-					merged.push(item);
-				}
-			}
-			items = merged.sort(
-				(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-			);
-		} else if (isSourceFilterMode) {
-			const apiItems = sourceFilterResponse?.items ?? [];
-			const realtimeMatching = statusItems.filter(matchesSourceFilter);
-			const seen = new Set(apiItems.map((i) => i.id));
-			const merged = [...apiItems];
-			for (const item of realtimeMatching) {
-				if (!seen.has(item.id)) {
-					merged.push(item);
-				}
-			}
-			items = merged.sort(
-				(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-			);
 		} else {
-			items = displayItems;
+			tabItems = activeTab === "comments" ? commentsItems : statusItems;
 		}
 
-		return items;
+		// Apply filters
+		let result = tabItems;
+		if (activeFilter !== "all") {
+			result = result.filter(matchesActiveFilter);
+		}
+		if (activeTab === "status" && selectedSource) {
+			result = result.filter(matchesSourceFilter);
+		}
+
+		return result;
 	}, [
-		displayItems,
-		statusItems,
-		searchResponse,
-		sourceFilterResponse,
-		activeFilterResponse,
 		isSearchMode,
-		isActiveFilterMode,
-		isSourceFilterMode,
-		matchesSourceFilter,
-		matchesActiveFilter,
-		activeFilter,
+		searchResponse,
 		activeTab,
+		commentsItems,
+		statusItems,
+		activeFilter,
+		selectedSource,
+		matchesActiveFilter,
+		matchesSourceFilter,
 	]);
 
-	// Intersection Observer for infinite scroll with prefetching
-	// Re-runs when active tab changes so each tab gets its own pagination
-	// Disabled during server-side search (search results are not paginated via infinite scroll)
+	// Infinite scroll
 	useEffect(() => {
-		if (!loadMore || !hasMore || loadingMore || !open || isSearchMode) return;
+		if (!loadMore || !hasMoreProp || loadingMoreProp || !open || isSearchMode) return;
 
 		const observer = new IntersectionObserver(
 			(entries) => {
-				// When trigger element is visible, load more
 				if (entries[0]?.isIntersecting) {
 					loadMore();
 				}
 			},
 			{
-				root: null, // viewport
-				rootMargin: "100px", // Start loading 100px before visible
+				root: null,
+				rootMargin: "100px",
 				threshold: 0,
 			}
 		);
@@ -487,11 +380,7 @@ export function InboxSidebar({
 		}
 
 		return () => observer.disconnect();
-	}, [loadMore, hasMore, loadingMore, open, isSearchMode, activeTab]);
-
-	// Unread counts from server-side accurate totals (passed via props)
-	const unreadCommentsCount = mentions.unreadCount;
-	const unreadStatusCount = status.unreadCount;
+	}, [loadMore, hasMoreProp, loadingMoreProp, open, isSearchMode]);
 
 	const handleItemClick = useCallback(
 		async (item: InboxItem) => {
@@ -538,7 +427,6 @@ export function InboxSidebar({
 					}
 				}
 			} else if (item.type === "page_limit_exceeded") {
-				// Navigate to the upgrade/more-pages page
 				if (isPageLimitExceededMetadata(item.metadata)) {
 					const actionUrl = item.metadata.action_url;
 					if (actionUrl) {
@@ -580,7 +468,6 @@ export function InboxSidebar({
 	};
 
 	const getStatusIcon = (item: InboxItem) => {
-		// For mentions and comment replies, show the author's avatar
 		if (item.type === "new_mention" || item.type === "comment_reply") {
 			const metadata =
 				item.type === "new_mention"
@@ -612,7 +499,6 @@ export function InboxSidebar({
 			);
 		}
 
-		// For page limit exceeded, show a warning icon with amber/orange color
 		if (item.type === "page_limit_exceeded") {
 			return (
 				<div className="h-8 w-8 flex items-center justify-center rounded-full bg-amber-500/10">
@@ -621,8 +507,6 @@ export function InboxSidebar({
 			);
 		}
 
-		// For status items (connector/document), show status icons
-		// Safely access status from metadata
 		const metadata = item.metadata as Record<string, unknown>;
 		const status = typeof metadata?.status === "string" ? metadata.status : undefined;
 
@@ -669,13 +553,13 @@ export function InboxSidebar({
 
 	if (!mounted) return null;
 
-	// Shared content component for both docked and floating modes
+	const isLoading = isSearchMode ? isSearchLoading : loading;
+
 	const inboxContent = (
 		<>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center justify-between">
 					<div className="flex items-center gap-2">
-						{/* Back button - mobile only */}
 						{isMobile && (
 							<Button
 								variant="ghost"
@@ -690,7 +574,6 @@ export function InboxSidebar({
 						<h2 className="text-lg font-semibold">{t("inbox") || "Inbox"}</h2>
 					</div>
 					<div className="flex items-center gap-1">
-						{/* Mobile: Button that opens bottom drawer */}
 						{isMobile ? (
 							<>
 								<Button
@@ -716,7 +599,6 @@ export function InboxSidebar({
 											</DrawerTitle>
 										</DrawerHeader>
 										<div className="flex-1 overflow-y-auto p-4 space-y-4">
-											{/* Filter section */}
 											<div className="space-y-2">
 												<p className="text-xs text-muted-foreground/80 font-medium px-1">
 													{t("filter") || "Filter"}
@@ -783,7 +665,6 @@ export function InboxSidebar({
 													)}
 												</div>
 											</div>
-										{/* Sources section - only for status tab */}
 										{activeTab === "status" && statusSourceOptions.length > 0 && (
 											<div className="space-y-2">
 												<p className="text-xs text-muted-foreground/80 font-medium px-1">
@@ -841,7 +722,6 @@ export function InboxSidebar({
 								</Drawer>
 							</>
 						) : (
-							/* Desktop: Dropdown menu */
 							<DropdownMenu
 								open={openDropdown === "filter"}
 								onOpenChange={(isOpen) => setOpenDropdown(isOpen ? "filter" : null)}
@@ -968,7 +848,6 @@ export function InboxSidebar({
 								</TooltipContent>
 							</Tooltip>
 						)}
-						{/* Dock/Undock button - desktop only */}
 						{!isMobile && onDockedChange && (
 							<Tooltip>
 								<TooltipTrigger asChild>
@@ -978,12 +857,10 @@ export function InboxSidebar({
 										className="h-8 w-8 rounded-full"
 										onClick={() => {
 											if (isDocked) {
-												// Collapse: show comments immediately, then close inbox
 												setCommentsCollapsed(false);
 												onDockedChange(false);
 												onOpenChange(false);
 											} else {
-												// Expand: hide comments immediately
 												setCommentsCollapsed(true);
 												onDockedChange(true);
 											}
@@ -1068,11 +945,10 @@ export function InboxSidebar({
 			</Tabs>
 
 			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
-				{(isSearchMode ? isSearchLoading : isActiveFilterMode ? isActiveFilterLoading : isSourceFilterMode ? isSourceFilterLoading : loading) ? (
+				{isLoading ? (
 					<div className="space-y-2">
 						{activeTab === "comments"
-							? /* Comments skeleton: avatar + two-line text + time */
-								[85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
+							? [85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
 									<div
 										key={`skeleton-comment-${i}`}
 										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
@@ -1085,8 +961,7 @@ export function InboxSidebar({
 										<Skeleton className="h-3 w-6 shrink-0 rounded" />
 									</div>
 								))
-							: /* Status skeleton: status icon circle + two-line text + time */
-								[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+							: [75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
 									<div
 										key={`skeleton-status-${i}`}
 										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
@@ -1107,9 +982,8 @@ export function InboxSidebar({
 					<div className="space-y-2">
 						{filteredItems.map((item, index) => {
 							const isMarkingAsRead = markingAsReadId === item.id;
-							// Place prefetch trigger on 5th item from end (only when not searching)
 							const isPrefetchTrigger =
-								!isSearchMode && hasMore && index === filteredItems.length - 5;
+								!isSearchMode && hasMoreProp && index === filteredItems.length - 5;
 
 							return (
 								<div
@@ -1178,7 +1052,6 @@ export function InboxSidebar({
 										</Tooltip>
 									)}
 
-									{/* Time and unread dot - fixed width to prevent content shift */}
 									<div className="flex items-center justify-end gap-1.5 shrink-0 w-10">
 										<span className="text-[10px] text-muted-foreground">
 											{formatTime(item.created_at)}
@@ -1188,12 +1061,10 @@ export function InboxSidebar({
 								</div>
 							);
 						})}
-						{/* Fallback trigger at the very end if less than 5 items and not searching */}
-						{!isSearchMode && filteredItems.length < 5 && hasMore && (
+						{!isSearchMode && filteredItems.length < 5 && hasMoreProp && (
 							<div ref={prefetchTriggerRef} className="h-1" />
 						)}
-						{/* Loading more skeletons at the bottom during infinite scroll */}
-						{loadingMore &&
+						{loadingMoreProp &&
 							(activeTab === "comments"
 								? [80, 60, 90].map((titleWidth, i) => (
 										<div
@@ -1250,7 +1121,6 @@ export function InboxSidebar({
 		</>
 	);
 
-	// DOCKED MODE: Render as a static flex child (no animation, no click-away)
 	if (isDocked && open && !isMobile) {
 		return (
 			<aside
@@ -1262,7 +1132,6 @@ export function InboxSidebar({
 		);
 	}
 
-	// FLOATING MODE: Render with animation and click-away layer
 	return (
 		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("inbox") || "Inbox"}>
 			{inboxContent}

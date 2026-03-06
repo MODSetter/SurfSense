@@ -121,34 +121,19 @@ export function LayoutDataProvider({
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
-	// Inbox hooks - separate data sources for mentions and status tabs
-	// This ensures each tab has independent pagination and data loading
+	// Single inbox hook - API-first with Electric real-time deltas
 	const userId = user?.id ? String(user.id) : null;
 
 	const {
-		inboxItems: mentionItems,
-		unreadCount: mentionUnreadCount,
-		loading: mentionLoading,
-		loadingMore: mentionLoadingMore,
-		hasMore: mentionHasMore,
-		loadMore: mentionLoadMore,
-		markAsRead: markMentionAsRead,
-		markAllAsRead: markAllMentionsAsRead,
-	} = useInbox(userId, Number(searchSpaceId) || null, "new_mention");
-
-	const {
-		inboxItems: statusItems,
-		unreadCount: allUnreadCount,
-		loading: statusLoading,
-		loadingMore: statusLoadingMore,
-		hasMore: statusHasMore,
-		loadMore: statusLoadMore,
-		markAsRead: markStatusAsRead,
-		markAllAsRead: markAllStatusAsRead,
-	} = useInbox(userId, Number(searchSpaceId) || null, null);
-
-	const totalUnreadCount = allUnreadCount;
-	const statusOnlyUnreadCount = Math.max(0, allUnreadCount - mentionUnreadCount);
+		inboxItems,
+		unreadCount: totalUnreadCount,
+		loading: inboxLoading,
+		loadingMore: inboxLoadingMore,
+		hasMore: inboxHasMore,
+		loadMore: inboxLoadMore,
+		markAsRead,
+		markAllAsRead,
+	} = useInbox(userId, Number(searchSpaceId) || null);
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -156,14 +141,12 @@ export function LayoutDataProvider({
 
 	// Effect to show toast for new page_limit_exceeded notifications
 	useEffect(() => {
-		if (statusLoading) return;
+		if (inboxLoading) return;
 
-		// Get page_limit_exceeded notifications
-		const pageLimitNotifications = statusItems.filter(
+		const pageLimitNotifications = inboxItems.filter(
 			(item) => item.type === "page_limit_exceeded"
 		);
 
-		// On initial load, just mark all as seen without showing toasts
 		if (isInitialLoad.current) {
 			for (const notification of pageLimitNotifications) {
 				seenPageLimitNotifications.current.add(notification.id);
@@ -172,16 +155,13 @@ export function LayoutDataProvider({
 			return;
 		}
 
-		// Find new notifications (not yet seen)
 		const newNotifications = pageLimitNotifications.filter(
 			(notification) => !seenPageLimitNotifications.current.has(notification.id)
 		);
 
-		// Show toast for each new page_limit_exceeded notification
 		for (const notification of newNotifications) {
 			seenPageLimitNotifications.current.add(notification.id);
 
-			// Extract metadata for navigation
 			const actionUrl = isPageLimitExceededMetadata(notification.metadata)
 				? notification.metadata.action_url
 				: `/dashboard/${searchSpaceId}/more-pages`;
@@ -196,24 +176,8 @@ export function LayoutDataProvider({
 				},
 			});
 		}
-	}, [statusItems, statusLoading, searchSpaceId, router]);
+	}, [inboxItems, inboxLoading, searchSpaceId, router]);
 
-	// Unified mark as read that delegates to the correct hook
-	const markAsRead = useCallback(
-		async (id: number) => {
-			// Try both - one will succeed based on which list has the item
-			const mentionResult = await markMentionAsRead(id);
-			if (mentionResult) return true;
-			return markStatusAsRead(id);
-		},
-		[markMentionAsRead, markStatusAsRead]
-	);
-
-	// Mark all as read for both types
-	const markAllAsRead = useCallback(async () => {
-		await Promise.all([markAllMentionsAsRead(), markAllStatusAsRead()]);
-		return true;
-	}, [markAllMentionsAsRead, markAllStatusAsRead]);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -643,24 +607,12 @@ export function LayoutDataProvider({
 				inbox={{
 					isOpen: isInboxSidebarOpen,
 					onOpenChange: setIsInboxSidebarOpen,
-					// Separate data sources for each tab
-					mentions: {
-						items: mentionItems,
-						unreadCount: mentionUnreadCount,
-						loading: mentionLoading,
-						loadingMore: mentionLoadingMore,
-						hasMore: mentionHasMore,
-						loadMore: mentionLoadMore,
-					},
-					status: {
-						items: statusItems,
-						unreadCount: statusOnlyUnreadCount,
-						loading: statusLoading,
-						loadingMore: statusLoadingMore,
-						hasMore: statusHasMore,
-						loadMore: statusLoadMore,
-					},
+					items: inboxItems,
 					totalUnreadCount,
+					loading: inboxLoading,
+					loadingMore: inboxLoadingMore,
+					hasMore: inboxHasMore,
+					loadMore: inboxLoadMore,
 					markAsRead,
 					markAllAsRead,
 					isDocked: isInboxDocked,
