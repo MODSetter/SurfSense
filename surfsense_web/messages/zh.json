@@ -703,6 +703,7 @@
 		"filter": "筛选",
 		"all": "全部",
 		"unread": "未读",
+		"errors_only": "仅错误",
 		"connectors": "连接器",
 		"all_connectors": "所有连接器",
 		"sources": "来源",

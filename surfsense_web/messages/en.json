@@ -719,6 +719,7 @@
 		"filter": "Filter",
 		"all": "All",
 		"unread": "Unread",
+		"errors_only": "Errors only",
 		"connectors": "Connectors",
 		"all_connectors": "All connectors",
 		"sources": "Sources",

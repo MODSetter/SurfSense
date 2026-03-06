@@ -719,6 +719,7 @@
 		"filter": "Filtrar",
 		"all": "Tudo",
 		"unread": "Não lido",
+		"errors_only": "Apenas erros",
 		"connectors": "Conectores",
 		"all_connectors": "Todos os conectores",
 		"sources": "Fontes",

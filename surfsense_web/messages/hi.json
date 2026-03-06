@@ -719,6 +719,7 @@
 		"filter": "फ़िल्टर",
 		"all": "सभी",
 		"unread": "अपठित",
+		"errors_only": "केवल त्रुटियाँ",
 		"connectors": "कनेक्टर",
 		"all_connectors": "सभी कनेक्टर",
 		"sources": "स्रोत",

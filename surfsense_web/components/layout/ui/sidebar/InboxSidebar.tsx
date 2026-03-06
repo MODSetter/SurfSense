@@ -137,7 +137,7 @@ function getConnectorTypeDisplayName(connectorType: string): string {
 }
 
 type InboxTab = "comments" | "status";
-type InboxFilter = "all" | "unread";
+type InboxFilter = "all" | "unread" | "errors";
 
 // Tab-specific data source with independent pagination
 interface TabDataSource {
@@ -399,6 +399,12 @@ export function InboxSidebar({
 
 		if (activeFilter === "unread") {
 			items = items.filter((item) => !item.read);
+		} else if (activeFilter === "errors") {
+			items = items.filter((item) => {
+				if (item.type === "page_limit_exceeded") return true;
+				const meta = item.metadata as Record<string, unknown> | undefined;
+				return typeof meta?.status === "string" && meta.status === "failed";
+			});
 		}
 
 		return items;
@@ -712,6 +718,27 @@ export function InboxSidebar({
 														</span>
 														{activeFilter === "unread" && <Check className="h-4 w-4" />}
 													</button>
+													{activeTab === "status" && (
+														<button
+															type="button"
+															onClick={() => {
+																setActiveFilter("errors");
+																setFilterDrawerOpen(false);
+															}}
+															className={cn(
+																"flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-sm transition-colors",
+																activeFilter === "errors"
+																	? "bg-primary/10 text-primary"
+																	: "hover:bg-muted"
+															)}
+														>
+															<span className="flex items-center gap-2">
+																<AlertCircle className="h-4 w-4" />
+																<span>{t("errors_only") || "Errors only"}</span>
+															</span>
+															{activeFilter === "errors" && <Check className="h-4 w-4" />}
+														</button>
+													)}
 												</div>
 											</div>
 										{/* Sources section - only for status tab */}
@@ -815,6 +842,18 @@ export function InboxSidebar({
 										</span>
 										{activeFilter === "unread" && <Check className="h-4 w-4" />}
 									</DropdownMenuItem>
+									{activeTab === "status" && (
+										<DropdownMenuItem
+											onClick={() => setActiveFilter("errors")}
+											className="flex items-center justify-between"
+										>
+											<span className="flex items-center gap-2">
+												<AlertCircle className="h-4 w-4" />
+												<span>{t("errors_only") || "Errors only"}</span>
+											</span>
+											{activeFilter === "errors" && <Check className="h-4 w-4" />}
+										</DropdownMenuItem>
+									)}
 								{activeTab === "status" && statusSourceOptions.length > 0 && (
 									<>
 										<DropdownMenuLabel className="text-xs text-muted-foreground/80 font-normal mt-2">
@@ -949,7 +988,13 @@ export function InboxSidebar({
 
 			<Tabs
 				value={activeTab}
-				onValueChange={(value) => setActiveTab(value as InboxTab)}
+				onValueChange={(value) => {
+					const tab = value as InboxTab;
+					setActiveTab(tab);
+					if (tab !== "status" && activeFilter === "errors") {
+						setActiveFilter("all");
+					}
+				}}
 				className="shrink-0 mx-4"
 			>
 				<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
