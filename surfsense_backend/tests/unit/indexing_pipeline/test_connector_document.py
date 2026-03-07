@@ -4,6 +4,8 @@ from pydantic import ValidationError
 from app.db import DocumentType
 from app.indexing_pipeline.connector_document import ConnectorDocument
 
+pytestmark = pytest.mark.unit
+
 
 def test_valid_document_created_with_required_fields():
     """All optional fields default correctly when only required fields are supplied."""
