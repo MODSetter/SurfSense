@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useState } from "react";
 import {
 	ArchiveIcon,
 	MessageSquare,
@@ -10,6 +9,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -18,8 +18,8 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useLongPress } from "@/hooks/use-long-press";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 
 interface ChatListItemProps {

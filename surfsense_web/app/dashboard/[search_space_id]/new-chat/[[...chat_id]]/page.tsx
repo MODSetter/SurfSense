@@ -21,8 +21,8 @@ import {
 	type MentionedDocumentInfo,
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
-	sidebarSelectedDocumentsAtom,
 	messageDocumentsMapAtom,
+	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import {
 	clearPlanOwnerRegistry,

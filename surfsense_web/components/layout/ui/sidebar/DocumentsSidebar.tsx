@@ -6,19 +6,19 @@ import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
-import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { Button } from "@/components/ui/button";
-import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { useDocuments } from "@/hooks/use-documents";
-import { useDocumentSearch } from "@/hooks/use-document-search";
-import { useDebouncedValue } from "@/hooks/use-debounced-value";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { DocumentsFilters } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsFilters";
 import {
 	DocumentsTableShell,
 	type SortKey,
 } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsTableShell";
+import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { Button } from "@/components/ui/button";
+import type { DocumentTypeEnum } from "@/contracts/types/document.types";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useDocumentSearch } from "@/hooks/use-document-search";
+import { useDocuments } from "@/hooks/use-documents";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
 interface DocumentsSidebarProps {

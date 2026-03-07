@@ -22,6 +22,7 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { setCommentsCollapsedAtom, setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,7 +46,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
 	isCommentReplyMetadata,

@@ -2,7 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, Zap } from "lucide-react";
-import { useCallback, useMemo, useState, type UIEvent } from "react";
+import { type UIEvent, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,

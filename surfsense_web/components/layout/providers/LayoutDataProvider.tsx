@@ -35,8 +35,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useAnnouncements } from "@/hooks/use-announcements";
-import { useInbox } from "@/hooks/use-inbox";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
+import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";

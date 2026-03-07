@@ -17,7 +17,6 @@ import {
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useLongPress } from "@/hooks/use-long-press";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -41,6 +40,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
 	deleteThread,

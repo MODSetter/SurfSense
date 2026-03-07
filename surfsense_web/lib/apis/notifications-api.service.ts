@@ -3,7 +3,6 @@ import {
 	type GetNotificationsResponse,
 	type GetSourceTypesResponse,
 	type GetUnreadCountResponse,
-	type NotificationCategory,
 	getNotificationsRequest,
 	getNotificationsResponse,
 	getSourceTypesResponse,
@@ -15,6 +14,7 @@ import {
 	markAllNotificationsReadResponse,
 	markNotificationReadRequest,
 	markNotificationReadResponse,
+	type NotificationCategory,
 } from "@/contracts/types/inbox.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";

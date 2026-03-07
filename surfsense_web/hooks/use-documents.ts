@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { DocumentSortBy, DocumentTypeEnum, SortOrder } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import type { SyncHandle } from "@/lib/electric/client";
 import { filterNewElectricItems, getNewestTimestamp } from "@/lib/electric/baseline";
+import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
 
 export interface DocumentStatusType {

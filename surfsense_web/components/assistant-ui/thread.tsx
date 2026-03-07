@@ -28,11 +28,11 @@ import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState 
 import { createPortal } from "react-dom";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { showCommentsGutterAtom } from "@/atoms/chat/current-thread.atom";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import {
 	mentionedDocumentsAtom,
 	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	globalNewLLMConfigsAtom,

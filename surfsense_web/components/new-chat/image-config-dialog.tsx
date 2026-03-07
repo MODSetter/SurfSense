@@ -37,8 +37,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { IMAGE_GEN_MODELS, IMAGE_GEN_PROVIDERS } from "@/contracts/enums/image-gen-providers";
 import type {
 	GlobalImageGenConfig,
-	ImageGenProvider,
 	ImageGenerationConfig,
+	ImageGenProvider,
 } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
 
