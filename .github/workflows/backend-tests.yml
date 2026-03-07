@@ -1,0 +1,141 @@
+name: Backend Tests
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if backend files changed
+        id: backend-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'surfsense_backend/**'
+
+      - name: Set up Python
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install UV
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: astral-sh/setup-uv@v3
+
+      - name: Cache dependencies
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            surfsense_backend/.venv
+          key: python-deps-${{ hashFiles('surfsense_backend/uv.lock') }}
+          restore-keys: |
+            python-deps-
+
+      - name: Install dependencies
+        if: steps.backend-changes.outputs.backend == 'true'
+        working-directory: surfsense_backend
+        run: uv sync
+
+      - name: Run unit tests
+        if: steps.backend-changes.outputs.backend == 'true'
+        working-directory: surfsense_backend
+        run: uv run pytest -m unit
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: surfsense_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d surfsense_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if backend files changed
+        id: backend-changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            backend:
+              - 'surfsense_backend/**'
+
+      - name: Set up Python
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install UV
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: astral-sh/setup-uv@v3
+
+      - name: Cache dependencies
+        if: steps.backend-changes.outputs.backend == 'true'
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            surfsense_backend/.venv
+          key: python-deps-${{ hashFiles('surfsense_backend/uv.lock') }}
+          restore-keys: |
+            python-deps-
+
+      - name: Install dependencies
+        if: steps.backend-changes.outputs.backend == 'true'
+        working-directory: surfsense_backend
+        run: uv sync
+
+      - name: Run integration tests
+        if: steps.backend-changes.outputs.backend == 'true'
+        working-directory: surfsense_backend
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test
+        run: uv run pytest -m integration
+
+  test-gate:
+    name: Test Gate
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    if: always()
+
+    steps:
+      - name: Check all test jobs
+        run: |
+          if [[ "${{ needs.unit-tests.result }}" == "failure" ||
+                "${{ needs.integration-tests.result }}" == "failure" ]]; then
+            echo "Backend tests failed"
+            exit 1
+          else
+            echo "All backend tests passed"
+          fi
