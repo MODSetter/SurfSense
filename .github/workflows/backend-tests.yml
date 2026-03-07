@@ -139,6 +139,7 @@ jobs:
         working-directory: surfsense_backend
         env:
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test
+          SECRET_KEY: ci-test-secret-key-not-for-production
         run: uv run pytest -m integration
 
   test-gate:
