@@ -14,13 +14,13 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.confluence_history import ConfluenceHistoryConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -378,7 +378,7 @@ async def index_confluence_pages(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata = {
                         "page_title": item["page_title"],
                         "page_id": item["page_id"],
@@ -394,18 +394,8 @@ async def index_confluence_pages(
                         item["full_content"], user_llm, document_metadata
                     )
                 else:
-                    # Fallback to simple summary if no LLM configured
-                    summary_content = f"Confluence Page: {item['page_title']}\n\nSpace ID: {item['space_id']}\n\n"
-                    if item["page_content"]:
-                        # Take first 1000 characters of content for summary
-                        content_preview = item["page_content"][:1000]
-                        if len(item["page_content"]) > 1000:
-                            content_preview += "..."
-                        summary_content += f"Content Preview: {content_preview}\n\n"
-                    summary_content += f"Comments: {item['comment_count']}"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    summary_content = f"Confluence Page: {item['page_title']}\n\nSpace ID: {item['space_id']}\n\n{item['full_content']}"
+                    summary_embedding = embed_text(summary_content)
 
                 # Process chunks - using the full page content with comments
                 chunks = await create_document_chunks(item["full_content"])

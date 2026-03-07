@@ -5,14 +5,13 @@ import logging
 import sys
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from app.agents.podcaster.graph import graph as podcaster_graph
 from app.agents.podcaster.state import State as PodcasterState
 from app.celery_app import celery_app
 from app.config import config
 from app.db import Podcast, PodcastStatus
+from app.tasks.celery_tasks import get_celery_session_maker
 
 logger = logging.getLogger(__name__)
 
@@ -23,20 +22,6 @@ if sys.platform.startswith("win"):
         logger.warning(
             "WindowsProactorEventLoopPolicy is unavailable; async subprocess support may fail."
         )
-
-
-def get_celery_session_maker():
-    """
-    Create a new async session maker for Celery tasks.
-    This is necessary because Celery tasks run in a new event loop,
-    and the default session maker is bound to the main app's event loop.
-    """
-    engine = create_async_engine(
-        config.DATABASE_URL,
-        poolclass=NullPool,  # Don't use connection pooling for Celery tasks
-        echo=False,
-    )
-    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 # =============================================================================

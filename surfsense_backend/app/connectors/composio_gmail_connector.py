@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.config import config
 from app.connectors.composio_connector import ComposioConnector
 from app.db import Document, DocumentStatus, DocumentType
 from app.services.composio_service import TOOLKIT_TO_DOCUMENT_TYPE
@@ -27,6 +26,7 @@ from app.tasks.connector_indexers.base import (
 )
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -383,6 +383,7 @@ async def _process_gmail_messages_phase2(
     connector_id: int,
     search_space_id: int,
     user_id: str,
+    enable_summary: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int]:
     """
@@ -415,7 +416,7 @@ async def _process_gmail_messages_phase2(
                 session, user_id, search_space_id
             )
 
-            if user_llm:
+            if user_llm and enable_summary:
                 document_metadata_for_summary = {
                     "message_id": item["message_id"],
                     "thread_id": item["thread_id"],
@@ -427,10 +428,8 @@ async def _process_gmail_messages_phase2(
                     item["markdown_content"], user_llm, document_metadata_for_summary
                 )
             else:
-                summary_content = f"Gmail: {item['subject']}\n\nFrom: {item['sender']}\nDate: {item['date_str']}"
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                summary_content = f"Gmail: {item['subject']}\n\nFrom: {item['sender']}\nDate: {item['date_str']}\n\n{item['markdown_content']}"
+                summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(item["markdown_content"])
 
@@ -646,6 +645,7 @@ async def index_composio_gmail(
             connector_id=connector_id,
             search_space_id=search_space_id,
             user_id=user_id,
+            enable_summary=getattr(connector, "enable_summary", False),
             on_heartbeat_callback=on_heartbeat_callback,
         )
 

@@ -1,0 +1,105 @@
+---
+title: Testing
+description: Running and writing tests for SurfSense
+icon: FlaskConical
+---
+
+SurfSense uses [pytest](https://docs.pytest.org/) with two test layers: **unit** tests (no database) and **integration** tests (require PostgreSQL + pgvector). Tests are self-bootstrapping — they configure the test database, register a user, and clean up automatically.
+
+## Prerequisites
+
+- **PostgreSQL + pgvector** running locally (database `surfsense_test` will be used)
+- **`REGISTRATION_ENABLED=TRUE`** in your `.env` (this is the default)
+- A working LLM model with a valid API key in `global_llm_config.yaml` (for integration tests)
+
+No Redis or Celery is required — integration tests use an inline task dispatcher.
+
+## Running Tests
+
+**Run all tests:**
+
+```bash
+uv run pytest
+```
+
+**Run by marker:**
+
+```bash
+uv run pytest -m unit          # fast, no DB needed
+uv run pytest -m integration   # requires PostgreSQL + pgvector
+```
+
+**Available markers:**
+
+| Marker | Description |
+|---|---|
+| `unit` | Pure logic tests, no DB or external services |
+| `integration` | Tests that require a real PostgreSQL database |
+
+**Useful flags:**
+
+| Flag | Description |
+|---|---|
+| `-s` | Show live output (useful for debugging polling loops) |
+| `--tb=long` | Full tracebacks instead of short summaries |
+| `-k "test_name"` | Run a single test by name |
+| `-o addopts=""` | Override default flags from `pyproject.toml` |
+
+## Configuration
+
+Default pytest options are in `surfsense_backend/pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+addopts = "-v --tb=short -x --strict-markers -ra --durations=5"
+```
+
+- `-v` — verbose test names
+- `--tb=short` — concise tracebacks on failure
+- `-x` — stop on first failure
+- `--strict-markers` — reject unregistered markers
+- `-ra` — show summary of all non-passing tests
+- `--durations=5` — show the 5 slowest tests
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `TEST_DATABASE_URL` | `postgresql+asyncpg://postgres:postgres@localhost:5432/surfsense_test` | Database URL for tests |
+
+The test suite forces `DATABASE_URL` to point at the test database, so your production database is never touched.
+
+### Unit Tests
+
+Pure logic tests that run without a database. Cover model validation, chunking, hashing, and summarization.
+
+### Integration Tests
+
+Require PostgreSQL + pgvector. Split into two suites:
+
+- **`document_upload/`** — Tests the HTTP API through public endpoints: upload, multi-file, duplicate detection, auth, error handling, page limits, and file size limits. Uses an in-process FastAPI client with `ASGITransport`.
+- **`indexing_pipeline/`** — Tests pipeline internals directly: `prepare_for_indexing`, `index()`, and `index_uploaded_file()` covering chunking, embedding, summarization, fallbacks, and error handling.
+
+External boundaries (LLM, embedding, chunking, Redis) are mocked in both suites.
+
+## How It Works
+
+1. **Database setup** — `TEST_DATABASE_URL` defaults to `surfsense_test`. Tables and extensions (`vector`, `pg_trgm`) are created once per session and dropped after.
+2. **Transaction isolation** — Each test runs inside a savepoint that rolls back, so tests don't affect each other.
+3. **User creation** — Integration tests register a test user via `POST /auth/register` on first run, then log in for subsequent requests.
+4. **Search space discovery** — Tests call `GET /api/v1/searchspaces` and use the first available space.
+5. **Cleanup** — A session fixture purges stale documents before tests run. Per-test cleanup deletes documents via API, falling back to direct DB access for stuck records.
+
+## Writing New Tests
+
+1. Create a test file in the appropriate directory (`unit/` or `integration/`).
+2. Add the marker at the top of the file:
+
+```python
+import pytest
+
+pytestmark = pytest.mark.integration  # or pytest.mark.unit
+```
+
+3. Use fixtures from `conftest.py` — `client`, `headers`, `search_space_id`, and `cleanup_doc_ids` are available to integration tests. Unit tests get `make_connector_document` and sample ID fixtures.
+4. Register any new markers in `pyproject.toml` under `markers`.

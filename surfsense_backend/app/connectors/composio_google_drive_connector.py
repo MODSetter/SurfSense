@@ -31,6 +31,7 @@ from app.tasks.connector_indexers.base import (
 )
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -714,6 +715,7 @@ async def index_composio_google_drive(
                 max_items=max_items,
                 task_logger=task_logger,
                 log_entry=log_entry,
+                enable_summary=getattr(connector, "enable_summary", False),
                 on_heartbeat_callback=on_heartbeat_callback,
             )
         else:
@@ -747,6 +749,7 @@ async def index_composio_google_drive(
                 max_items=max_items,
                 task_logger=task_logger,
                 log_entry=log_entry,
+                enable_summary=getattr(connector, "enable_summary", False),
                 on_heartbeat_callback=on_heartbeat_callback,
             )
 
@@ -829,6 +832,7 @@ async def _index_composio_drive_delta_sync(
     max_items: int,
     task_logger: TaskLoggingService,
     log_entry,
+    enable_summary: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, list[str]]:
     """Index Google Drive files using delta sync with real-time document status updates.
@@ -1079,7 +1083,7 @@ async def _index_composio_drive_delta_sync(
                 session, user_id, search_space_id
             )
 
-            if user_llm:
+            if user_llm and enable_summary:
                 document_metadata_for_summary = {
                     "file_id": item["file_id"],
                     "file_name": item["file_name"],
@@ -1090,10 +1094,8 @@ async def _index_composio_drive_delta_sync(
                     markdown_content, user_llm, document_metadata_for_summary
                 )
             else:
-                summary_content = f"Google Drive File: {item['file_name']}\n\nType: {item['mime_type']}"
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                summary_content = f"Google Drive File: {item['file_name']}\n\nType: {item['mime_type']}\n\n{markdown_content}"
+                summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(markdown_content)
 
@@ -1155,6 +1157,7 @@ async def _index_composio_drive_full_scan(
     max_items: int,
     task_logger: TaskLoggingService,
     log_entry,
+    enable_summary: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, int, list[str]]:
     """Index Google Drive files using full scan with real-time document status updates."""
@@ -1488,7 +1491,7 @@ async def _index_composio_drive_full_scan(
                 session, user_id, search_space_id
             )
 
-            if user_llm:
+            if user_llm and enable_summary:
                 document_metadata_for_summary = {
                     "file_id": item["file_id"],
                     "file_name": item["file_name"],
@@ -1499,10 +1502,8 @@ async def _index_composio_drive_full_scan(
                     markdown_content, user_llm, document_metadata_for_summary
                 )
             else:
-                summary_content = f"Google Drive File: {item['file_name']}\n\nType: {item['mime_type']}"
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                summary_content = f"Google Drive File: {item['file_name']}\n\nType: {item['mime_type']}\n\n{markdown_content}"
+                summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(markdown_content)
 

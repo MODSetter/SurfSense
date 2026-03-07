@@ -58,7 +58,9 @@ def create_create_google_drive_file_tool(
             - "Create a Google Doc called 'Meeting Notes'"
             - "Create a spreadsheet named 'Budget 2026' with some sample data"
         """
-        logger.info(f"create_google_drive_file called: name='{name}', type='{file_type}'")
+        logger.info(
+            f"create_google_drive_file called: name='{name}', type='{file_type}'"
+        )
 
         if db_session is None or search_space_id is None or user_id is None:
             return {
@@ -74,7 +76,9 @@ def create_create_google_drive_file_tool(
 
         try:
             metadata_service = GoogleDriveToolMetadataService(db_session)
-            context = await metadata_service.get_creation_context(search_space_id, user_id)
+            context = await metadata_service.get_creation_context(
+                search_space_id, user_id
+            )
 
             if "error" in context:
                 logger.error(f"Failed to fetch creation context: {context['error']}")
@@ -100,8 +104,12 @@ def create_create_google_drive_file_tool(
                 }
             )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 logger.warning("No approval decision received")
@@ -183,7 +191,9 @@ def create_create_google_drive_file_tool(
             logger.info(
                 f"Creating Google Drive file: name='{final_name}', type='{final_file_type}', connector={actual_connector_id}"
             )
-            client = GoogleDriveClient(session=db_session, connector_id=actual_connector_id)
+            client = GoogleDriveClient(
+                session=db_session, connector_id=actual_connector_id
+            )
             try:
                 created = await client.create_file(
                     name=final_name,
@@ -203,7 +213,9 @@ def create_create_google_drive_file_tool(
                     }
                 raise
 
-            logger.info(f"Google Drive file created: id={created.get('id')}, name={created.get('name')}")
+            logger.info(
+                f"Google Drive file created: id={created.get('id')}, name={created.get('name')}"
+            )
             return {
                 "status": "success",
                 "file_id": created.get("id"),

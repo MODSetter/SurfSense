@@ -12,11 +12,19 @@ from app.services.llm_router_service import (
     AUTO_MODE_ID,
     ChatLiteLLMRouter,
     LLMRouterService,
+    get_auto_mode_llm,
     is_auto_mode,
 )
 
 # Configure litellm to automatically drop unsupported parameters
 litellm.drop_params = True
+
+# Memory controls: prevent unbounded internal accumulation
+litellm.telemetry = False
+litellm.cache = None
+litellm.success_callback = []
+litellm.failure_callback = []
+litellm.input_callback = []
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +229,7 @@ async def get_search_space_llm_instance(
                 logger.debug(
                     f"Using Auto mode (LLM Router) for search space {search_space_id}, role {role}"
                 )
-                return ChatLiteLLMRouter(disable_streaming=disable_streaming)
+                return get_auto_mode_llm(streaming=not disable_streaming)
             except Exception as e:
                 logger.error(f"Failed to create ChatLiteLLMRouter: {e}")
                 return None

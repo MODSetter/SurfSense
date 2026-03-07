@@ -1,13 +1,13 @@
 """Podcast schemas for API responses."""
 
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
 
 
-class PodcastStatusEnum(str, Enum):
+class PodcastStatusEnum(StrEnum):
     PENDING = "pending"
     GENERATING = "generating"
     READY = "ready"

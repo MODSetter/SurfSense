@@ -18,8 +18,7 @@ const carouselItems = [
 	},
 	{
 		title: "Search & Citation",
-		description:
-			"Ask questions and get cited responses from your knowledge base.",
+		description: "Ask questions and get cited responses from your knowledge base.",
 		src: "/homepage/hero_tutorial/BSNCGif.gif",
 	},
 	{
@@ -121,9 +120,7 @@ function HeroCarouselCard({
 						<h3 className="truncate text-base font-semibold text-neutral-900 sm:text-xl dark:text-white">
 							{title}
 						</h3>
-						<p className="text-sm text-neutral-500 dark:text-neutral-400">
-							{description}
-						</p>
+						<p className="text-sm text-neutral-500 dark:text-neutral-400">{description}</p>
 					</div>
 				</div>
 				<div
@@ -141,11 +138,7 @@ function HeroCarouselCard({
 							className="w-full rounded-lg sm:rounded-xl"
 						/>
 					) : frozenFrame ? (
-						<img
-							src={frozenFrame}
-							alt={title}
-							className="w-full rounded-lg sm:rounded-xl"
-						/>
+						<img src={frozenFrame} alt={title} className="w-full rounded-lg sm:rounded-xl" />
 					) : (
 						<div className="aspect-video w-full rounded-lg bg-neutral-100 sm:rounded-xl dark:bg-neutral-800" />
 					)}
@@ -174,7 +167,7 @@ function HeroCarousel() {
 			directionRef.current = newIndex >= activeIndex ? "forward" : "backward";
 			setActiveIndex(newIndex);
 		},
-		[activeIndex],
+		[activeIndex]
 	);
 
 	useEffect(() => {
@@ -246,7 +239,7 @@ function HeroCarousel() {
 				blur: t * 6,
 			};
 		},
-		[activeIndex, cardWidth, baseOffset, stackGap],
+		[activeIndex, cardWidth, baseOffset, stackGap]
 	);
 
 	return (
@@ -287,18 +280,18 @@ function HeroCarousel() {
 									transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
 								>
 									<motion.div
-									animate={{ filter: `blur(${style.blur}px)` }}
-									transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
-								>
-									<HeroCarouselCard
-										index={i}
-										title={item.title}
-										description={item.description}
-										src={item.src}
-										isActive={i === activeIndex}
-										onExpandedChange={setIsGifExpanded}
-									/>
-								</motion.div>
+										animate={{ filter: `blur(${style.blur}px)` }}
+										transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
+									>
+										<HeroCarouselCard
+											index={i}
+											title={item.title}
+											description={item.description}
+											src={item.src}
+											isActive={i === activeIndex}
+											onExpandedChange={setIsGifExpanded}
+										/>
+									</motion.div>
 									<motion.div
 										className="pointer-events-none absolute inset-0 rounded-2xl bg-black sm:rounded-3xl"
 										animate={{ opacity: style.overlayOpacity }}

@@ -53,7 +53,7 @@ run_migrations() {
         sleep 1
     done
 
-    if timeout 60 alembic upgrade head 2>&1; then
+    if timeout 300 alembic upgrade head 2>&1; then
         echo "Migrations completed successfully."
     else
         echo "WARNING: Migration failed or timed out. Continuing anyway..."

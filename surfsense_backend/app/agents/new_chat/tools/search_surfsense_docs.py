@@ -14,8 +14,8 @@ from langchain_core.tools import tool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument
+from app.utils.document_converters import embed_text
 
 
 def format_surfsense_docs_results(results: list[tuple]) -> str:
@@ -100,7 +100,7 @@ async def search_surfsense_docs_async(
         Formatted string with relevant documentation content
     """
     # Get embedding for the query
-    query_embedding = config.embedding_model_instance.embed(query)
+    query_embedding = embed_text(query)
 
     # Vector similarity search on chunks, joining with documents
     stmt = (

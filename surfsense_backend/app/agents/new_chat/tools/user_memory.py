@@ -17,8 +17,8 @@ from langchain_core.tools import tool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.db import MemoryCategory, UserMemory
+from app.utils.document_converters import embed_text
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +178,7 @@ def create_save_memory_tool(
                 await delete_oldest_memory(db_session, user_id, search_space_id)
 
             # Generate embedding for the memory
-            embedding = config.embedding_model_instance.embed(content)
+            embedding = embed_text(content)
 
             # Create new memory using ORM
             # The pgvector Vector column type handles embedding conversion automatically
@@ -268,7 +268,7 @@ def create_recall_memory_tool(
 
             if query:
                 # Semantic search using embeddings
-                query_embedding = config.embedding_model_instance.embed(query)
+                query_embedding = embed_text(query)
 
                 # Build query with vector similarity
                 stmt = (

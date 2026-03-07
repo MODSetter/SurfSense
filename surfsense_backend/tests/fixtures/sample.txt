@@ -1,0 +1,34 @@
+SurfSense Document Upload Test
+
+This is a sample text document used for end-to-end testing of the manual document
+upload pipeline in SurfSense. The document contains multiple paragraphs to ensure
+that the chunking system has enough content to work with.
+
+Artificial Intelligence and Machine Learning
+
+Artificial intelligence (AI) is a broad field of computer science concerned with
+building smart machines capable of performing tasks that typically require human
+intelligence. Machine learning is a subset of AI that enables systems to learn and
+improve from experience without being explicitly programmed.
+
+Natural Language Processing
+
+Natural language processing (NLP) is a subfield of linguistics, computer science,
+and artificial intelligence concerned with the interactions between computers and
+human language. Key applications include machine translation, sentiment analysis,
+text summarization, and question answering systems.
+
+Vector Databases and Semantic Search
+
+Vector databases store data as high-dimensional vectors, enabling efficient
+similarity search operations. When combined with embedding models, they power
+semantic search systems that understand the meaning behind queries rather than
+relying on exact keyword matches. This technology is fundamental to modern
+retrieval-augmented generation (RAG) systems.
+
+Document Processing Pipelines
+
+Modern document processing pipelines involve several stages: extraction, transformation,
+chunking, embedding generation, and storage. Each stage plays a critical role in
+converting raw documents into searchable, structured knowledge that can be retrieved
+and used by AI systems for accurate information retrieval and generation.

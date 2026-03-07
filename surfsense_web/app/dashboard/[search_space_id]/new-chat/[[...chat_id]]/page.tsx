@@ -26,7 +26,6 @@ import {
 import {
 	clearPlanOwnerRegistry,
 	// extractWriteTodosFromContent,
-	hydratePlanStateAtom,
 } from "@/atoms/chat/plan-state.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
@@ -53,6 +52,7 @@ import {
 	DeleteNotionPageToolUI,
 	UpdateNotionPageToolUI,
 } from "@/components/tool-ui/notion";
+import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,7 +72,6 @@ import {
 	appendText,
 	buildContentForPersistence,
 	buildContentForUI,
-	type ContentPart,
 	type ContentPartsState,
 	readSSEStream,
 	type ThinkingStepData,
@@ -157,6 +156,7 @@ const TOOLS_WITH_UI = new Set([
 	"delete_linear_issue",
 	"create_google_drive_file",
 	"delete_google_drive_file",
+	"execute",
 	// "write_todos", // Disabled for now
 ]);
 
@@ -186,7 +186,6 @@ export default function NewChatPage() {
 	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
-	const hydratePlanState = useSetAtom(hydratePlanStateAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
@@ -348,7 +347,6 @@ export default function NewChatPage() {
 		setMessageDocumentsMap,
 		setMentionedDocumentIds,
 		setMentionedDocuments,
-		hydratePlanState,
 		closeReportPanel,
 	]);
 
@@ -1672,6 +1670,7 @@ export default function NewChatPage() {
 			<DeleteLinearIssueToolUI />
 			<CreateGoogleDriveFileToolUI />
 			<DeleteGoogleDriveFileToolUI />
+			<SandboxExecuteToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">

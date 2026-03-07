@@ -11,6 +11,7 @@ This implements real MCP protocol support similar to Cursor's implementation.
 """
 
 import logging
+import time
 from typing import Any
 
 from langchain_core.tools import StructuredTool
@@ -24,6 +25,24 @@ from app.agents.new_chat.tools.mcp_client import MCPClient
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 
 logger = logging.getLogger(__name__)
+
+_MCP_CACHE_TTL_SECONDS = 300  # 5 minutes
+_MCP_CACHE_MAX_SIZE = 50
+_mcp_tools_cache: dict[int, tuple[float, list[StructuredTool]]] = {}
+
+
+def _evict_expired_mcp_cache() -> None:
+    """Remove expired entries from the MCP tools cache to prevent unbounded growth."""
+    now = time.monotonic()
+    expired = [
+        k
+        for k, (ts, _) in _mcp_tools_cache.items()
+        if now - ts >= _MCP_CACHE_TTL_SECONDS
+    ]
+    for k in expired:
+        del _mcp_tools_cache[k]
+    if expired:
+        logger.debug("Evicted %d expired MCP cache entries", len(expired))
 
 
 def _create_dynamic_input_model_from_schema(
@@ -355,6 +374,19 @@ async def _load_http_mcp_tools(
     return tools
 
 
+def invalidate_mcp_tools_cache(search_space_id: int | None = None) -> None:
+    """Invalidate cached MCP tools.
+
+    Args:
+        search_space_id: If provided, only invalidate for this search space.
+                        If None, invalidate all cached MCP tools.
+    """
+    if search_space_id is not None:
+        _mcp_tools_cache.pop(search_space_id, None)
+    else:
+        _mcp_tools_cache.clear()
+
+
 async def load_mcp_tools(
     session: AsyncSession,
     search_space_id: int,
@@ -364,6 +396,9 @@ async def load_mcp_tools(
     This discovers tools dynamically from MCP servers using the protocol.
     Supports both stdio (local process) and HTTP (remote server) transports.
 
+    Results are cached per search space for up to 5 minutes to avoid
+    re-spawning MCP server processes on every chat message.
+
     Args:
         session: Database session
         search_space_id: User's search space ID
@@ -372,8 +407,22 @@ async def load_mcp_tools(
         List of LangChain StructuredTool instances
 
     """
+    _evict_expired_mcp_cache()
+
+    now = time.monotonic()
+    cached = _mcp_tools_cache.get(search_space_id)
+    if cached is not None:
+        cached_at, cached_tools = cached
+        if now - cached_at < _MCP_CACHE_TTL_SECONDS:
+            logger.info(
+                "Using cached MCP tools for search space %s (%d tools, age=%.0fs)",
+                search_space_id,
+                len(cached_tools),
+                now - cached_at,
+            )
+            return list(cached_tools)
+
     try:
-        # Fetch all MCP connectors for this search space
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.connector_type
@@ -385,27 +434,22 @@ async def load_mcp_tools(
         tools: list[StructuredTool] = []
         for connector in result.scalars():
             try:
-                # Early validation: Extract and validate connector config
                 config = connector.config or {}
                 server_config = config.get("server_config", {})
 
-                # Validate server_config exists and is a dict
                 if not server_config or not isinstance(server_config, dict):
                     logger.warning(
                         f"MCP connector {connector.id} (name: '{connector.name}') has invalid or missing server_config, skipping"
                     )
                     continue
 
-                # Determine transport type
                 transport = server_config.get("transport", "stdio")
 
                 if transport in ("streamable-http", "http", "sse"):
-                    # HTTP-based MCP server
                     connector_tools = await _load_http_mcp_tools(
                         connector.id, connector.name, server_config
                     )
                 else:
-                    # stdio-based MCP server (default)
                     connector_tools = await _load_stdio_mcp_tools(
                         connector.id, connector.name, server_config
                     )
@@ -416,6 +460,12 @@ async def load_mcp_tools(
                 logger.exception(
                     f"Failed to load tools from MCP connector {connector.id}: {e!s}"
                 )
+
+        _mcp_tools_cache[search_space_id] = (now, tools)
+
+        if len(_mcp_tools_cache) > _MCP_CACHE_MAX_SIZE:
+            oldest_key = min(_mcp_tools_cache, key=lambda k: _mcp_tools_cache[k][0])
+            del _mcp_tools_cache[oldest_key]
 
         logger.info(f"Loaded {len(tools)} MCP tools for search space {search_space_id}")
         return tools

@@ -3,11 +3,8 @@
 import logging
 import traceback
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
-
 from app.celery_app import celery_app
-from app.config import config
+from app.tasks.celery_tasks import get_celery_session_maker
 
 logger = logging.getLogger(__name__)
 
@@ -40,20 +37,6 @@ def _handle_greenlet_error(e: Exception, task_name: str, connector_id: int) -> N
             f"Error in {task_name} for connector {connector_id}: {error_str}\n"
             f"Stack trace:\n{traceback.format_exc()}"
         )
-
-
-def get_celery_session_maker():
-    """
-    Create a new async session maker for Celery tasks.
-    This is necessary because Celery tasks run in a new event loop,
-    and the default session maker is bound to the main app's event loop.
-    """
-    engine = create_async_engine(
-        config.DATABASE_URL,
-        poolclass=NullPool,  # Don't use connection pooling for Celery tasks
-        echo=False,
-    )
-    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 @celery_app.task(name="index_slack_messages", bind=True)

@@ -17,7 +17,7 @@ import logging
 import os
 import re
 import tempfile
-from enum import Enum
+from enum import StrEnum
 
 import pypandoc
 import typst
@@ -46,7 +46,7 @@ router = APIRouter()
 MAX_REPORT_LIST_LIMIT = 500
 
 
-class ExportFormat(str, Enum):
+class ExportFormat(StrEnum):
     PDF = "pdf"
     DOCX = "docx"
 

@@ -97,16 +97,16 @@ Select the **"Granular scopes"** tab and enable:
 
 ## Running SurfSense with Confluence Connector
 
-Add the Atlassian environment variables to your Docker run command:
+Add the Atlassian credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
-  -v surfsense-data:/data \
-  # Confluence Connector
-  -e ATLASSIAN_CLIENT_ID=your_atlassian_client_id \
-  -e ATLASSIAN_CLIENT_SECRET=your_atlassian_client_secret \
-  -e CONFLUENCE_REDIRECT_URI=http://localhost:8000/api/v1/auth/confluence/connector/callback \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+ATLASSIAN_CLIENT_ID=your_atlassian_client_id
+ATLASSIAN_CLIENT_SECRET=your_atlassian_client_secret
+CONFLUENCE_REDIRECT_URI=http://localhost:8000/api/v1/auth/confluence/connector/callback
+```
+
+Then restart the services:
+
+```bash
+docker compose up -d
 ```

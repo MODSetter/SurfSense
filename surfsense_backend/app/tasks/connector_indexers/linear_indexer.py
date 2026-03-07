@@ -13,13 +13,13 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.linear_connector import LinearConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -395,7 +395,7 @@ async def index_linear_issues(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata_for_summary = {
                         "issue_id": item["issue_identifier"],
                         "issue_title": item["issue_title"],
@@ -412,17 +412,8 @@ async def index_linear_issues(
                         item["issue_content"], user_llm, document_metadata_for_summary
                     )
                 else:
-                    # Fallback to simple summary if no LLM configured
-                    description = item["description"]
-                    if description and len(description) > 1000:
-                        description = description[:997] + "..."
-                    summary_content = f"Linear Issue {item['issue_identifier']}: {item['issue_title']}\n\nStatus: {item['state']}\n\n"
-                    if description:
-                        summary_content += f"Description: {description}\n\n"
-                    summary_content += f"Comments: {item['comment_count']}"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    summary_content = f"Linear Issue {item['issue_identifier']}: {item['issue_title']}\n\nStatus: {item['state']}\n\n{item['issue_content']}"
+                    summary_embedding = embed_text(summary_content)
 
                 chunks = await create_document_chunks(item["issue_content"])
 

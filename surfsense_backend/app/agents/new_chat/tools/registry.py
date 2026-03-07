@@ -47,6 +47,10 @@ from app.db import ChatVisibility
 
 from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
+from .google_drive import (
+    create_create_google_drive_file_tool,
+    create_delete_google_drive_file_tool,
+)
 from .knowledge_base import create_search_knowledge_base_tool
 from .linear import (
     create_create_linear_issue_tool,
@@ -55,10 +59,6 @@ from .linear import (
 )
 from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
-from .google_drive import (
-    create_create_google_drive_file_tool,
-    create_delete_google_drive_file_tool,
-)
 from .notion import (
     create_create_notion_page_tool,
     create_delete_notion_page_tool,
@@ -118,6 +118,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             # Optional: dynamically discovered connectors/document types
             available_connectors=deps.get("available_connectors"),
             available_document_types=deps.get("available_document_types"),
+            max_input_tokens=deps.get("max_input_tokens"),
         ),
         requires=["search_space_id", "db_session", "connector_service"],
         # Note: available_connectors and available_document_types are optional
@@ -144,10 +145,12 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             thread_id=deps["thread_id"],
             connector_service=deps.get("connector_service"),
             available_connectors=deps.get("available_connectors"),
+            available_document_types=deps.get("available_document_types"),
         ),
         requires=["search_space_id", "thread_id"],
-        # connector_service and available_connectors are optional —
-        # when missing, source_strategy="kb_search" degrades gracefully to "provided"
+        # connector_service, available_connectors, and available_document_types
+        # are optional — when missing, source_strategy="kb_search" degrades
+        # gracefully to "provided"
     ),
     # Link preview tool - fetches Open Graph metadata for URLs
     ToolDefinition(
@@ -444,8 +447,18 @@ async def build_tools_async(
         List of configured tool instances ready for the agent, including MCP tools.
 
     """
-    # Build standard tools
+    import time
+
+    _perf_log = logging.getLogger("surfsense.perf")
+    _perf_log.setLevel(logging.DEBUG)
+
+    _t0 = time.perf_counter()
     tools = build_tools(dependencies, enabled_tools, disabled_tools, additional_tools)
+    _perf_log.info(
+        "[build_tools_async] Built-in tools in %.3fs (%d tools)",
+        time.perf_counter() - _t0,
+        len(tools),
+    )
 
     # Load MCP tools if requested and dependencies are available
     if (
@@ -454,9 +467,15 @@ async def build_tools_async(
         and "search_space_id" in dependencies
     ):
         try:
+            _t0 = time.perf_counter()
             mcp_tools = await load_mcp_tools(
                 dependencies["db_session"],
                 dependencies["search_space_id"],
+            )
+            _perf_log.info(
+                "[build_tools_async] MCP tools loaded in %.3fs (%d tools)",
+                time.perf_counter() - _t0,
+                len(mcp_tools),
             )
             tools.extend(mcp_tools)
             logging.info(

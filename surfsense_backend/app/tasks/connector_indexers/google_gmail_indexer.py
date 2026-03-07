@@ -25,6 +25,7 @@ from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -413,7 +414,7 @@ async def index_google_gmail_messages(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata_for_summary = {
                         "message_id": item["message_id"],
                         "thread_id": item["thread_id"],
@@ -432,12 +433,8 @@ async def index_google_gmail_messages(
                         document_metadata_for_summary,
                     )
                 else:
-                    summary_content = f"Google Gmail Message: {item['subject']}\n\n"
-                    summary_content += f"Sender: {item['sender']}\n"
-                    summary_content += f"Date: {item['date_str']}\n"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    summary_content = f"Google Gmail Message: {item['subject']}\n\nFrom: {item['sender']}\nDate: {item['date_str']}\n\n{item['markdown_content']}"
+                    summary_embedding = embed_text(summary_content)
 
                 chunks = await create_document_chunks(item["markdown_content"])
 

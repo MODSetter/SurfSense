@@ -40,7 +40,7 @@ function ExpandedGifOverlay({
 				className="max-h-[90vh] max-w-[90vw] cursor-pointer rounded-2xl shadow-2xl"
 			/>
 		</motion.div>,
-		document.body,
+		document.body
 	);
 }
 

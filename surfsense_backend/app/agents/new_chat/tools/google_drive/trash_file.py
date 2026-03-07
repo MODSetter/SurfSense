@@ -52,7 +52,9 @@ def create_delete_google_drive_file_tool(
             - "Delete the 'Meeting Notes' file from Google Drive"
             - "Trash the 'Old Budget' spreadsheet"
         """
-        logger.info(f"delete_google_drive_file called: file_name='{file_name}', delete_from_kb={delete_from_kb}")
+        logger.info(
+            f"delete_google_drive_file called: file_name='{file_name}', delete_from_kb={delete_from_kb}"
+        )
 
         if db_session is None or search_space_id is None or user_id is None:
             return {
@@ -103,8 +105,12 @@ def create_delete_google_drive_file_tool(
                 }
             )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 logger.warning("No approval decision received")
@@ -130,11 +136,16 @@ def create_delete_google_drive_file_tool(
                 final_params = decision["args"]
 
             final_file_id = final_params.get("file_id", file_id)
-            final_connector_id = final_params.get("connector_id", connector_id_from_context)
+            final_connector_id = final_params.get(
+                "connector_id", connector_id_from_context
+            )
             final_delete_from_kb = final_params.get("delete_from_kb", delete_from_kb)
 
             if not final_connector_id:
-                return {"status": "error", "message": "No connector found for this file."}
+                return {
+                    "status": "error",
+                    "message": "No connector found for this file.",
+                }
 
             from sqlalchemy.future import select
 
@@ -174,7 +185,9 @@ def create_delete_google_drive_file_tool(
                     }
                 raise
 
-            logger.info(f"Google Drive file deleted (moved to trash): file_id={final_file_id}")
+            logger.info(
+                f"Google Drive file deleted (moved to trash): file_id={final_file_id}"
+            )
 
             trash_result: dict[str, Any] = {
                 "status": "success",
@@ -195,7 +208,9 @@ def create_delete_google_drive_file_tool(
                         await db_session.delete(document)
                         await db_session.commit()
                         deleted_from_kb = True
-                        logger.info(f"Deleted document {document_id} from knowledge base")
+                        logger.info(
+                            f"Deleted document {document_id} from knowledge base"
+                        )
                     else:
                         logger.warning(f"Document {document_id} not found in KB")
                 except Exception as e:

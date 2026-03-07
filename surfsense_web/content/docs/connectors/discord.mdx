@@ -64,17 +64,17 @@ You'll also see your **Application ID** and **Public Key** on this page.
 
 ## Running SurfSense with Discord Connector
 
-Add the Discord environment variables to your Docker run command:
+Add the Discord credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
 
 ```bash
-docker run -d -p 3000:3000 -p 8000:8000 \
-  -v surfsense-data:/data \
-  # Discord Connector
-  -e DISCORD_CLIENT_ID=your_discord_client_id \
-  -e DISCORD_CLIENT_SECRET=your_discord_client_secret \
-  -e DISCORD_REDIRECT_URI=http://localhost:8000/api/v1/auth/discord/connector/callback \
-  -e DISCORD_BOT_TOKEN=http://localhost:8000/api/v1/auth/discord/connector/callback \
-  --name surfsense \
-  --restart unless-stopped \
-  ghcr.io/modsetter/surfsense:latest
+DISCORD_CLIENT_ID=your_discord_client_id
+DISCORD_CLIENT_SECRET=your_discord_client_secret
+DISCORD_REDIRECT_URI=http://localhost:8000/api/v1/auth/discord/connector/callback
+DISCORD_BOT_TOKEN=your_discord_bot_token
+```
+
+Then restart the services:
+
+```bash
+docker compose up -d
 ```

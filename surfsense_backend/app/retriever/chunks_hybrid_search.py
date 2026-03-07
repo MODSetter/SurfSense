@@ -1,4 +1,9 @@
+import time
 from datetime import datetime
+
+from app.utils.perf import get_perf_logger
+
+_MAX_FETCH_CHUNKS_PER_DOC = 30
 
 
 class ChucksHybridSearchRetriever:
@@ -38,9 +43,17 @@ class ChucksHybridSearchRetriever:
         from app.config import config
         from app.db import Chunk, Document
 
+        perf = get_perf_logger()
+        t0 = time.perf_counter()
+
         # Get embedding for the query
         embedding_model = config.embedding_model_instance
+        t_embed = time.perf_counter()
         query_embedding = embedding_model.embed(query_text)
+        perf.debug(
+            "[chunk_search] vector_search embedding in %.3fs",
+            time.perf_counter() - t_embed,
+        )
 
         # Build the query filtered by search space
         query = (
@@ -60,8 +73,16 @@ class ChucksHybridSearchRetriever:
         query = query.order_by(Chunk.embedding.op("<=>")(query_embedding)).limit(top_k)
 
         # Execute the query
+        t_db = time.perf_counter()
         result = await self.db_session.execute(query)
         chunks = result.scalars().all()
+        perf.info(
+            "[chunk_search] vector_search DB query in %.3fs results=%d (total %.3fs) space=%d",
+            time.perf_counter() - t_db,
+            len(chunks),
+            time.perf_counter() - t0,
+            search_space_id,
+        )
 
         return chunks
 
@@ -91,6 +112,9 @@ class ChucksHybridSearchRetriever:
 
         from app.db import Chunk, Document
 
+        perf = get_perf_logger()
+        t0 = time.perf_counter()
+
         # Create tsvector and tsquery for PostgreSQL full-text search
         tsvector = func.to_tsvector("english", Chunk.content)
         tsquery = func.plainto_tsquery("english", query_text)
@@ -118,6 +142,12 @@ class ChucksHybridSearchRetriever:
         # Execute the query
         result = await self.db_session.execute(query)
         chunks = result.scalars().all()
+        perf.info(
+            "[chunk_search] full_text_search in %.3fs results=%d space=%d",
+            time.perf_counter() - t0,
+            len(chunks),
+            search_space_id,
+        )
 
         return chunks
 
@@ -129,6 +159,7 @@ class ChucksHybridSearchRetriever:
         document_type: str | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
+        query_embedding: list | None = None,
     ) -> list:
         """
         Hybrid search that returns **documents** (not individual chunks).
@@ -143,6 +174,7 @@ class ChucksHybridSearchRetriever:
             document_type: Optional document type to filter results (e.g., "FILE", "CRAWLED_URL")
             start_date: Optional start date for filtering documents by updated_at
             end_date: Optional end date for filtering documents by updated_at
+            query_embedding: Pre-computed embedding vector. If None, will be computed here.
 
         Returns:
             List of dictionaries containing document data and relevance scores. Each dict contains:
@@ -157,9 +189,17 @@ class ChucksHybridSearchRetriever:
         from app.config import config
         from app.db import Chunk, Document, DocumentType
 
-        # Get embedding for the query
-        embedding_model = config.embedding_model_instance
-        query_embedding = embedding_model.embed(query_text)
+        perf = get_perf_logger()
+        t0 = time.perf_counter()
+
+        if query_embedding is None:
+            embedding_model = config.embedding_model_instance
+            t_embed = time.perf_counter()
+            query_embedding = embedding_model.embed(query_text)
+            perf.debug(
+                "[chunk_search] hybrid_search embedding in %.3fs",
+                time.perf_counter() - t_embed,
+            )
 
         # RRF constants
         k = 60
@@ -254,9 +294,17 @@ class ChucksHybridSearchRetriever:
             .limit(top_k)
         )
 
-        # Execute the query
+        # Execute the RRF query
+        t_rrf = time.perf_counter()
         result = await self.db_session.execute(final_query)
         chunks_with_scores = result.all()
+        perf.info(
+            "[chunk_search] hybrid_search RRF query in %.3fs results=%d space=%d type=%s",
+            time.perf_counter() - t_rrf,
+            len(chunks_with_scores),
+            search_space_id,
+            document_type,
+        )
 
         # If no results were found, return an empty list
         if not chunks_with_scores:
@@ -300,8 +348,9 @@ class ChucksHybridSearchRetriever:
         if not doc_ids:
             return []
 
-        # Fetch ALL chunks for selected documents in a single query so the final prompt can cite
-        # any chunk from those documents.
+        # Fetch chunks for selected documents.  We cap per document to avoid
+        # loading hundreds of chunks for a single large file while still
+        # ensuring the chunks that matched the RRF query are always included.
         chunk_query = (
             select(Chunk)
             .options(joinedload(Chunk.document))
@@ -311,7 +360,20 @@ class ChucksHybridSearchRetriever:
             .order_by(Chunk.document_id, Chunk.id)
         )
         chunks_result = await self.db_session.execute(chunk_query)
-        all_chunks = chunks_result.scalars().all()
+        raw_chunks = chunks_result.scalars().all()
+
+        matched_chunk_ids: set[int] = {
+            item["chunk_id"] for item in serialized_chunk_results
+        }
+
+        doc_chunk_counts: dict[int, int] = {}
+        all_chunks: list = []
+        for chunk in raw_chunks:
+            did = chunk.document_id
+            count = doc_chunk_counts.get(did, 0)
+            if chunk.id in matched_chunk_ids or count < _MAX_FETCH_CHUNKS_PER_DOC:
+                all_chunks.append(chunk)
+                doc_chunk_counts[did] = count + 1
 
         # Assemble final doc-grouped results in the same order as doc_ids
         doc_map: dict[int, dict] = {
@@ -354,4 +416,11 @@ class ChucksHybridSearchRetriever:
             )
             final_docs.append(entry)
 
+        perf.info(
+            "[chunk_search] hybrid_search TOTAL in %.3fs docs=%d space=%d type=%s",
+            time.perf_counter() - t0,
+            len(final_docs),
+            search_space_id,
+            document_type,
+        )
         return final_docs

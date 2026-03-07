@@ -14,13 +14,13 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.clickup_history import ClickUpHistoryConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -398,7 +398,7 @@ async def index_clickup_tasks(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata_for_summary = {
                         "task_id": item["task_id"],
                         "task_name": item["task_name"],
@@ -418,9 +418,7 @@ async def index_clickup_tasks(
                     )
                 else:
                     summary_content = item["task_content"]
-                    summary_embedding = config.embedding_model_instance.embed(
-                        item["task_content"]
-                    )
+                    summary_embedding = embed_text(item["task_content"])
 
                 chunks = await create_document_chunks(item["task_content"])
 

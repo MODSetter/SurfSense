@@ -16,12 +16,12 @@ from datetime import UTC, datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.teams_history import TeamsHistory
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_unique_identifier_hash,
 )
@@ -581,9 +581,7 @@ async def index_teams_messages(
 
                 # Heavy processing (embeddings, chunks)
                 chunks = await create_document_chunks(item["combined_document_string"])
-                doc_embedding = config.embedding_model_instance.embed(
-                    item["combined_document_string"]
-                )
+                doc_embedding = embed_text(item["combined_document_string"])
 
                 # Update document to READY with actual content
                 document.title = f"{item['team_name']} - {item['channel_name']}"

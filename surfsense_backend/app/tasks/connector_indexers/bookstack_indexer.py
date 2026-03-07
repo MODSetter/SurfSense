@@ -13,13 +13,13 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.bookstack_connector import BookStackConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -403,7 +403,7 @@ async def index_bookstack_pages(
                     "connector_id": connector_id,
                 }
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     summary_metadata = {
                         "page_name": item["page_name"],
                         "page_id": item["page_id"],
@@ -418,17 +418,8 @@ async def index_bookstack_pages(
                         item["full_content"], user_llm, summary_metadata
                     )
                 else:
-                    # Fallback to simple summary if no LLM configured
-                    summary_content = f"BookStack Page: {item['page_name']}\n\nBook ID: {item['book_id']}\n\n"
-                    if item["page_content"]:
-                        # Take first 1000 characters of content for summary
-                        content_preview = item["page_content"][:1000]
-                        if len(item["page_content"]) > 1000:
-                            content_preview += "..."
-                        summary_content += f"Content Preview: {content_preview}\n\n"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    summary_content = f"BookStack Page: {item['page_name']}\n\nBook ID: {item['book_id']}\n\n{item['full_content']}"
+                    summary_embedding = embed_text(summary_content)
 
                 # Process chunks - using the full page content
                 chunks = await create_document_chunks(item["full_content"])

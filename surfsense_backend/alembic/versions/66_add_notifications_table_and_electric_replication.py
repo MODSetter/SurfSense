@@ -8,7 +8,7 @@ Creates notifications table and sets up Electric SQL replication
 search_source_connectors, and documents tables.
 
 NOTE: Electric SQL user creation is idempotent (uses IF NOT EXISTS).
-- Docker deployments: user is pre-created by scripts/docker/init-electric-user.sh
+- Docker deployments: user is pre-created by docker/scripts/init-electric-user.sh
 - Local PostgreSQL: user is created here during migration
 Both approaches are safe to run together without conflicts as this migraiton is idempotent
 """

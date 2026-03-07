@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
-from app.config import config
 from app.connectors.composio_connector import ComposioConnector
 from app.db import Document, DocumentStatus, DocumentType
 from app.services.composio_service import TOOLKIT_TO_DOCUMENT_TYPE
@@ -27,6 +26,7 @@ from app.tasks.connector_indexers.base import (
 )
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -440,7 +440,7 @@ async def index_composio_google_calendar(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata_for_summary = {
                         "event_id": item["event_id"],
                         "summary": item["summary"],
@@ -456,12 +456,10 @@ async def index_composio_google_calendar(
                         document_metadata_for_summary,
                     )
                 else:
-                    summary_content = f"Calendar: {item['summary']}\n\nStart: {item['start_time']}\nEnd: {item['end_time']}"
-                    if item["location"]:
-                        summary_content += f"\nLocation: {item['location']}"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
+                    summary_content = (
+                        f"Calendar: {item['summary']}\n\n{item['markdown_content']}"
                     )
+                    summary_embedding = embed_text(summary_content)
 
                 chunks = await create_document_chunks(item["markdown_content"])
 

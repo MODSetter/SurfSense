@@ -16,13 +16,13 @@ from datetime import UTC, datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.github_connector import GitHubConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -367,7 +367,7 @@ async def index_github_repos(
                     "estimated_tokens": digest.estimated_tokens,
                 }
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     # Prepare content for summarization
                     summary_content = digest.full_digest
                     if len(summary_content) > MAX_DIGEST_CHARS:
@@ -381,15 +381,12 @@ async def index_github_repos(
                         summary_content, user_llm, document_metadata_for_summary
                     )
                 else:
-                    # Fallback to simple summary if no LLM configured
                     summary_text = (
                         f"# GitHub Repository: {repo_full_name}\n\n"
                         f"## Summary\n{digest.summary}\n\n"
-                        f"## File Structure\n{digest.tree[:3000]}"
+                        f"## File Structure\n{digest.tree}"
                     )
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_text
-                    )
+                    summary_embedding = embed_text(summary_text)
 
                 # Chunk the full digest content for granular search
                 try:
@@ -551,7 +548,7 @@ async def _simple_chunk_content(content: str, chunk_size: int = 4000) -> list:
             chunks.append(
                 Chunk(
                     content=chunk_text,
-                    embedding=config.embedding_model_instance.embed(chunk_text),
+                    embedding=embed_text(chunk_text),
                 )
             )
 

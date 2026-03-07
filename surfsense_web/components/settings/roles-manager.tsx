@@ -7,6 +7,7 @@ import {
 	Edit2,
 	FileText,
 	Globe,
+	Logs,
 	type LucideIcon,
 	MessageCircle,
 	MessageSquare,
@@ -14,7 +15,6 @@ import {
 	MoreHorizontal,
 	Plug,
 	Plus,
-	Logs,
 	Settings,
 	Shield,
 	Trash2,
@@ -23,13 +23,13 @@ import {
 import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
 import {
 	createRoleMutationAtom,
 	deleteRoleMutationAtom,
 	updateRoleMutationAtom,
 } from "@/atoms/roles/roles-mutation.atoms";
-import { permissionsAtom } from "@/atoms/permissions/permissions-query.atoms";
-import { myAccessAtom } from "@/atoms/members/members-query.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,

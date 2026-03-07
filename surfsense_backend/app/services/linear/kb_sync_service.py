@@ -4,12 +4,12 @@ from datetime import datetime
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.linear_connector import LinearConnector
 from app.db import Chunk, Document
 from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
 )
@@ -80,7 +80,7 @@ class LinearKBSyncService:
             state = formatted_issue.get("state", "Unknown")
             priority = issue_raw.get("priorityLabel", "Unknown")
             comment_count = len(formatted_issue.get("comments", []))
-            description = formatted_issue.get("description", "")
+            formatted_issue.get("description", "")
 
             user_llm = await get_user_long_context_llm(
                 self.db_session, user_id, search_space_id, disable_streaming=True
@@ -100,18 +100,10 @@ class LinearKBSyncService:
                     issue_content, user_llm, document_metadata_for_summary
                 )
             else:
-                if description and len(description) > 1000:
-                    description = description[:997] + "..."
                 summary_content = (
-                    f"Linear Issue {issue_identifier}: {issue_title}\n\n"
-                    f"Status: {state}\n\n"
+                    f"Linear Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
                 )
-                if description:
-                    summary_content += f"Description: {description}\n\n"
-                summary_content += f"Comments: {comment_count}"
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                summary_embedding = embed_text(summary_content)
 
             await self.db_session.execute(
                 delete(Chunk).where(Chunk.document_id == document.id)

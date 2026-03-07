@@ -390,9 +390,7 @@ function WarningCard({ result }: { result: WarningResult }) {
 				</div>
 			</div>
 			<div className="space-y-2 px-4 py-3">
-				{result.message && (
-					<p className="text-sm text-muted-foreground">{result.message}</p>
-				)}
+				{result.message && <p className="text-sm text-muted-foreground">{result.message}</p>}
 				<p className="text-xs text-amber-600 dark:text-amber-500">{result.warning}</p>
 			</div>
 		</div>

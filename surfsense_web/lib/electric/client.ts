@@ -70,7 +70,8 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 // v5: fixed duplicate key errors, stable cutoff dates, onMustRefetch handler,
 //     real-time documents table with title/created_by_id/status columns,
 //     consolidated single documents sync, pending state for document queue visibility
-const SYNC_VERSION = 5;
+// v6: added enable_summary column to search_source_connectors
+const SYNC_VERSION = 6;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";
@@ -214,20 +215,21 @@ export async function initElectric(userId: string): Promise<ElectricClient> {
 			// Create the search_source_connectors table schema in PGlite
 			// This matches the backend schema
 			await db.exec(`
-				CREATE TABLE IF NOT EXISTS search_source_connectors (
-					id INTEGER PRIMARY KEY,
-					search_space_id INTEGER NOT NULL,
-					user_id TEXT NOT NULL,
-					connector_type TEXT NOT NULL,
-					name TEXT NOT NULL,
-					is_indexable BOOLEAN NOT NULL DEFAULT FALSE,
-					last_indexed_at TIMESTAMPTZ,
-					config JSONB DEFAULT '{}',
-					periodic_indexing_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-					indexing_frequency_minutes INTEGER,
-					next_scheduled_at TIMESTAMPTZ,
-					created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-				);
+			CREATE TABLE IF NOT EXISTS search_source_connectors (
+				id INTEGER PRIMARY KEY,
+				search_space_id INTEGER NOT NULL,
+				user_id TEXT NOT NULL,
+				connector_type TEXT NOT NULL,
+				name TEXT NOT NULL,
+				is_indexable BOOLEAN NOT NULL DEFAULT FALSE,
+				last_indexed_at TIMESTAMPTZ,
+				config JSONB DEFAULT '{}',
+				periodic_indexing_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+				indexing_frequency_minutes INTEGER,
+				next_scheduled_at TIMESTAMPTZ,
+				enable_summary BOOLEAN NOT NULL DEFAULT FALSE,
+				created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			);
 				
 				CREATE INDEX IF NOT EXISTS idx_connectors_search_space_id ON search_source_connectors(search_space_id);
 				CREATE INDEX IF NOT EXISTS idx_connectors_type ON search_source_connectors(connector_type);

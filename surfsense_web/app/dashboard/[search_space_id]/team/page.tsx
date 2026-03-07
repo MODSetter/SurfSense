@@ -16,8 +16,8 @@ import {
 	Link2,
 	ShieldUser,
 	Trash2,
-	UserPlus,
 	User,
+	UserPlus,
 	Users,
 } from "lucide-react";
 import { motion } from "motion/react";

@@ -1,4 +1,5 @@
 import asyncio
+import gc
 import logging
 import time
 from collections import defaultdict
@@ -15,6 +16,9 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.requests import Request as StarletteRequest
+from starlette.responses import Response as StarletteResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from app.agents.new_chat.checkpointer import (
@@ -28,6 +32,7 @@ from app.routes.auth_routes import router as auth_router
 from app.schemas import UserCreate, UserRead, UserUpdate
 from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
+from app.utils.perf import get_perf_logger, log_system_snapshot
 
 rate_limit_logger = logging.getLogger("surfsense.rate_limit")
 
@@ -99,22 +104,24 @@ def _check_rate_limit_memory(
     now = time.monotonic()
 
     with _memory_lock:
-        # Evict timestamps outside the current window
-        _memory_rate_limits[key] = [
-            t for t in _memory_rate_limits[key] if now - t < window_seconds
-        ]
+        timestamps = [t for t in _memory_rate_limits[key] if now - t < window_seconds]
 
-        if len(_memory_rate_limits[key]) >= max_requests:
+        if not timestamps:
+            _memory_rate_limits.pop(key, None)
+        else:
+            _memory_rate_limits[key] = timestamps
+
+        if len(timestamps) >= max_requests:
             rate_limit_logger.warning(
                 f"Rate limit exceeded (in-memory fallback) on {scope} for IP {client_ip} "
-                f"({len(_memory_rate_limits[key])}/{max_requests} in {window_seconds}s)"
+                f"({len(timestamps)}/{max_requests} in {window_seconds}s)"
             )
             raise HTTPException(
                 status_code=429,
                 detail="RATE_LIMIT_EXCEEDED",
             )
 
-        _memory_rate_limits[key].append(now)
+        _memory_rate_limits[key] = [*timestamps, now]
 
 
 def _check_rate_limit(
@@ -175,18 +182,47 @@ def rate_limit_password_reset(request: Request):
     )
 
 
+def _enable_slow_callback_logging(threshold_sec: float = 0.5) -> None:
+    """Monkey-patch the event loop to warn whenever a callback blocks longer than *threshold_sec*.
+
+    This helps pinpoint synchronous code that freezes the entire FastAPI server.
+    Only active when the PERF_DEBUG env var is set (to avoid overhead in production).
+    """
+    import os
+
+    if not os.environ.get("PERF_DEBUG"):
+        return
+
+    _slow_log = logging.getLogger("surfsense.perf.slow")
+    _slow_log.setLevel(logging.WARNING)
+    if not _slow_log.handlers:
+        _h = logging.StreamHandler()
+        _h.setFormatter(logging.Formatter("%(asctime)s [SLOW-CALLBACK] %(message)s"))
+        _slow_log.addHandler(_h)
+        _slow_log.propagate = False
+
+    loop = asyncio.get_running_loop()
+    loop.slow_callback_duration = threshold_sec  # type: ignore[attr-defined]
+    loop.set_debug(True)
+    _slow_log.warning(
+        "Event-loop slow-callback detector ENABLED (threshold=%.1fs). "
+        "Set PERF_DEBUG='' to disable.",
+        threshold_sec,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Not needed if you setup a migration system like Alembic
+    # Tune GC: lower gen-2 threshold so long-lived garbage is collected
+    # sooner (default 700/10/10 → 700/10/5). This reduces peak RSS
+    # with minimal CPU overhead.
+    gc.set_threshold(700, 10, 5)
+
+    _enable_slow_callback_logging(threshold_sec=0.5)
     await create_db_and_tables()
-    # Setup LangGraph checkpointer tables for conversation persistence
     await setup_checkpointer_tables()
-    # Initialize LLM Router for Auto mode load balancing
     initialize_llm_router()
-    # Initialize Image Generation Router for Auto mode load balancing
     initialize_image_gen_router()
-    # Seed Surfsense documentation (with timeout so a slow embedding API
-    # doesn't block startup indefinitely and make the container unresponsive)
     try:
         await asyncio.wait_for(seed_surfsense_docs(), timeout=120)
     except TimeoutError:
@@ -194,8 +230,11 @@ async def lifespan(app: FastAPI):
             "Surfsense docs seeding timed out after 120s — skipping. "
             "Docs will be indexed on the next restart."
         )
+
+    log_system_snapshot("startup_complete")
+
     yield
-    # Cleanup: close checkpointer connection on shutdown
+
     await close_checkpointer()
 
 
@@ -212,6 +251,63 @@ app = FastAPI(lifespan=lifespan)
 # Register rate limiter and custom 429 handler
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+# ---------------------------------------------------------------------------
+# Request-level performance middleware
+# ---------------------------------------------------------------------------
+# Logs wall-clock time, method, path, and status for every request so we can
+# spot slow endpoints in production logs.
+
+_PERF_SLOW_REQUEST_THRESHOLD = float(
+    __import__("os").environ.get("PERF_SLOW_REQUEST_MS", "2000")
+)
+
+
+class RequestPerfMiddleware(BaseHTTPMiddleware):
+    """Middleware that logs per-request wall-clock time.
+
+    - ALL requests are logged at DEBUG level.
+    - Requests exceeding PERF_SLOW_REQUEST_MS (default 2000ms) are logged at
+      WARNING level with a system snapshot so we can correlate slow responses
+      with CPU/memory usage at that moment.
+    """
+
+    async def dispatch(
+        self, request: StarletteRequest, call_next: RequestResponseEndpoint
+    ) -> StarletteResponse:
+        perf = get_perf_logger()
+        t0 = time.perf_counter()
+        response = await call_next(request)
+        elapsed_ms = (time.perf_counter() - t0) * 1000
+
+        path = request.url.path
+        method = request.method
+        status = response.status_code
+
+        perf.debug(
+            "[request] %s %s -> %d in %.1fms",
+            method,
+            path,
+            status,
+            elapsed_ms,
+        )
+
+        if elapsed_ms > _PERF_SLOW_REQUEST_THRESHOLD:
+            perf.warning(
+                "[SLOW_REQUEST] %s %s -> %d in %.1fms (threshold=%.0fms)",
+                method,
+                path,
+                status,
+                elapsed_ms,
+                _PERF_SLOW_REQUEST_THRESHOLD,
+            )
+            log_system_snapshot("slow_request")
+
+        return response
+
+
+app.add_middleware(RequestPerfMiddleware)
 
 # Add SlowAPI middleware for automatic rate limiting
 # Uses Starlette BaseHTTPMiddleware (not the raw ASGI variant) to avoid

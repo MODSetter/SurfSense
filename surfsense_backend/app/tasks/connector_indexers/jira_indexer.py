@@ -14,13 +14,13 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.jira_history import JiraHistoryConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -356,7 +356,7 @@ async def index_jira_issues(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata = {
                         "issue_key": item["issue_identifier"],
                         "issue_title": item["issue_title"],
@@ -373,14 +373,8 @@ async def index_jira_issues(
                         item["issue_content"], user_llm, document_metadata
                     )
                 else:
-                    # Fallback to simple summary if no LLM configured
-                    summary_content = f"Jira Issue {item['issue_identifier']}: {item['issue_title']}\n\nStatus: {item['formatted_issue'].get('status', 'Unknown')}\n\n"
-                    if item["formatted_issue"].get("description"):
-                        summary_content += f"Description: {item['formatted_issue'].get('description')}\n\n"
-                    summary_content += f"Comments: {item['comment_count']}"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    summary_content = f"Jira Issue {item['issue_identifier']}: {item['issue_title']}\n\n{item['issue_content']}"
+                    summary_embedding = embed_text(summary_content)
 
                 # Process chunks - using the full issue content with comments
                 chunks = await create_document_chunks(item["issue_content"])

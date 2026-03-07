@@ -22,6 +22,7 @@ from app.db import (
 )
 from app.schemas.chat_comments import (
     AuthorResponse,
+    CommentBatchResponse,
     CommentListResponse,
     CommentReplyResponse,
     CommentResponse,
@@ -262,6 +263,146 @@ async def get_comments_for_message(
         comments=comments,
         total_count=len(comments),
     )
+
+
+async def get_comments_for_messages_batch(
+    session: AsyncSession,
+    message_ids: list[int],
+    user: User,
+) -> CommentBatchResponse:
+    """
+    Batch-fetch comments for multiple messages in a single DB round-trip.
+
+    Validates that all messages exist and belong to search spaces the user
+    can read comments in, then loads all comments with eager-loaded authors
+    and replies.
+    """
+    if not message_ids:
+        return CommentBatchResponse(comments_by_message={})
+
+    unique_ids = list(set(message_ids))
+
+    result = await session.execute(
+        select(NewChatMessage)
+        .options(selectinload(NewChatMessage.thread))
+        .filter(NewChatMessage.id.in_(unique_ids))
+    )
+    messages = result.scalars().all()
+    msg_map = {m.id: m for m in messages}
+
+    search_space_ids = {m.thread.search_space_id for m in messages}
+    permissions_cache: dict[int, set] = {}
+    for ss_id in search_space_ids:
+        await check_permission(
+            session,
+            user,
+            ss_id,
+            Permission.COMMENTS_READ.value,
+            "You don't have permission to read comments in this search space",
+        )
+        permissions_cache[ss_id] = await get_user_permissions(session, user.id, ss_id)
+
+    result = await session.execute(
+        select(ChatComment)
+        .options(
+            selectinload(ChatComment.author),
+            selectinload(ChatComment.replies).selectinload(ChatComment.author),
+        )
+        .filter(
+            ChatComment.message_id.in_(unique_ids),
+            ChatComment.parent_id.is_(None),
+        )
+        .order_by(ChatComment.created_at)
+    )
+    top_level_comments = result.scalars().all()
+
+    all_mentioned_uuids: set[UUID] = set()
+    for comment in top_level_comments:
+        all_mentioned_uuids.update(parse_mentions(comment.content))
+        for reply in comment.replies:
+            all_mentioned_uuids.update(parse_mentions(reply.content))
+
+    user_names = await get_user_names_for_mentions(session, all_mentioned_uuids)
+
+    comments_by_msg: dict[int, list[ChatComment]] = {mid: [] for mid in unique_ids}
+    for comment in top_level_comments:
+        comments_by_msg.setdefault(comment.message_id, []).append(comment)
+
+    comments_by_message: dict[int, CommentListResponse] = {}
+    for mid in unique_ids:
+        msg = msg_map.get(mid)
+        if msg is None:
+            comments_by_message[mid] = CommentListResponse(comments=[], total_count=0)
+            continue
+
+        ss_id = msg.thread.search_space_id
+        user_perms = permissions_cache.get(ss_id, set())
+        can_delete_any = has_permission(user_perms, Permission.COMMENTS_DELETE.value)
+
+        comment_responses = []
+        for comment in comments_by_msg.get(mid, []):
+            author = None
+            if comment.author:
+                author = AuthorResponse(
+                    id=comment.author.id,
+                    display_name=comment.author.display_name,
+                    avatar_url=comment.author.avatar_url,
+                    email=comment.author.email,
+                )
+
+            replies = []
+            for reply in sorted(comment.replies, key=lambda r: r.created_at):
+                reply_author = None
+                if reply.author:
+                    reply_author = AuthorResponse(
+                        id=reply.author.id,
+                        display_name=reply.author.display_name,
+                        avatar_url=reply.author.avatar_url,
+                        email=reply.author.email,
+                    )
+                is_reply_author = (
+                    reply.author_id == user.id if reply.author_id else False
+                )
+                replies.append(
+                    CommentReplyResponse(
+                        id=reply.id,
+                        content=reply.content,
+                        content_rendered=render_mentions(reply.content, user_names),
+                        author=reply_author,
+                        created_at=reply.created_at,
+                        updated_at=reply.updated_at,
+                        is_edited=reply.updated_at > reply.created_at,
+                        can_edit=is_reply_author,
+                        can_delete=is_reply_author or can_delete_any,
+                    )
+                )
+
+            is_comment_author = (
+                comment.author_id == user.id if comment.author_id else False
+            )
+            comment_responses.append(
+                CommentResponse(
+                    id=comment.id,
+                    message_id=comment.message_id,
+                    content=comment.content,
+                    content_rendered=render_mentions(comment.content, user_names),
+                    author=author,
+                    created_at=comment.created_at,
+                    updated_at=comment.updated_at,
+                    is_edited=comment.updated_at > comment.created_at,
+                    can_edit=is_comment_author,
+                    can_delete=is_comment_author or can_delete_any,
+                    reply_count=len(replies),
+                    replies=replies,
+                )
+            )
+
+        comments_by_message[mid] = CommentListResponse(
+            comments=comment_responses,
+            total_count=len(comment_responses),
+        )
+
+    return CommentBatchResponse(comments_by_message=comments_by_message)
 
 
 async def create_comment(

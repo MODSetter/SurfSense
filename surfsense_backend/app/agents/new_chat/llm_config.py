@@ -22,6 +22,7 @@ from app.services.llm_router_service import (
     AUTO_MODE_ID,
     ChatLiteLLMRouter,
     LLMRouterService,
+    get_auto_mode_llm,
     is_auto_mode,
 )
 
@@ -389,7 +390,7 @@ def create_chat_litellm_from_agent_config(
             print("Error: Auto mode requested but LLM Router not initialized")
             return None
         try:
-            return ChatLiteLLMRouter()
+            return get_auto_mode_llm()
         except Exception as e:
             print(f"Error creating ChatLiteLLMRouter: {e}")
             return None

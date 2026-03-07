@@ -20,6 +20,7 @@ from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -489,7 +490,7 @@ async def index_google_calendar_events(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata_for_summary = {
                         "event_id": item["event_id"],
                         "event_summary": item["event_summary"],
@@ -507,22 +508,8 @@ async def index_google_calendar_events(
                         item["event_markdown"], user_llm, document_metadata_for_summary
                     )
                 else:
-                    summary_content = (
-                        f"Google Calendar Event: {item['event_summary']}\n\n"
-                    )
-                    summary_content += f"Calendar: {item['calendar_id']}\n"
-                    summary_content += f"Start: {item['start_time']}\n"
-                    summary_content += f"End: {item['end_time']}\n"
-                    if item["location"]:
-                        summary_content += f"Location: {item['location']}\n"
-                    if item["description"]:
-                        desc_preview = item["description"][:1000]
-                        if len(item["description"]) > 1000:
-                            desc_preview += "..."
-                        summary_content += f"Description: {desc_preview}\n"
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    summary_content = f"Google Calendar Event: {item['event_summary']}\n\n{item['event_markdown']}"
+                    summary_embedding = embed_text(summary_content)
 
                 chunks = await create_document_chunks(item["event_markdown"])
 

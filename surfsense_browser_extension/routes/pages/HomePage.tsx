@@ -16,6 +16,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { cn } from "~/lib/utils";
 import { Button } from "~/routes/ui/button";
+import { ConnectionSettingsButton } from "~/routes/ui/connection-settings-button";
 import {
 	Command,
 	CommandEmpty,
@@ -27,6 +28,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "~/routes/ui/popover";
 import { Label } from "~routes/ui/label";
 import { useToast } from "~routes/ui/use-toast";
+import { buildBackendUrl } from "~utils/backend-url";
 import { getRenderedHtml } from "~utils/commons";
 import type { WebHistory } from "~utils/interfaces";
 import Loading from "./Loading";
@@ -45,15 +47,19 @@ const HomePage = () => {
 		const checkSearchSpaces = async () => {
 			const storage = new Storage({ area: "local" });
 			const token = await storage.get("token");
+
+			if (!token) {
+				setLoading(false);
+				navigation("/login");
+				return;
+			}
+
 			try {
-				const response = await fetch(
-					`${process.env.PLASMO_PUBLIC_BACKEND_URL}/api/v1/searchspaces`,
-					{
-						headers: {
-							Authorization: `Bearer ${token}`,
-						},
+				const response = await fetch(await buildBackendUrl("/api/v1/searchspaces"), {
+					headers: {
+						Authorization: `Bearer ${token}`,
 					}
-				);
+				});
 
 				if (!response.ok) {
 					throw new Error("Token verification failed");
@@ -66,11 +72,12 @@ const HomePage = () => {
 				await storage.remove("token");
 				await storage.remove("showShadowDom");
 				navigation("/login");
+			} finally {
+				setLoading(false);
 			}
 		};
 
 		checkSearchSpaces();
-		setLoading(false);
 	}, []);
 
 	useEffect(() => {
@@ -304,6 +311,19 @@ const HomePage = () => {
 		navigation("/login");
 	}
 
+	async function handleConnectionSaved(changed: boolean): Promise<void> {
+		if (!changed) {
+			return;
+		}
+
+		const storage = new Storage({ area: "local" });
+		await storage.remove("token");
+		await storage.remove("showShadowDom");
+		await storage.remove("search_space");
+		await storage.remove("search_space_id");
+		navigation("/login");
+	}
+
 	if (loading) {
 		return <Loading />;
 	} else {
@@ -344,15 +364,18 @@ const HomePage = () => {
 							</div>
 							<h1 className="text-xl font-semibold text-white">SurfSense</h1>
 						</div>
-						<Button
-							variant="ghost"
-							size="icon"
-							onClick={logOut}
-							className="rounded-full text-gray-400 hover:bg-gray-800 hover:text-white"
-						>
-							<ExitIcon className="h-4 w-4" />
-							<span className="sr-only">Log out</span>
-						</Button>
+						<div className="flex items-center gap-1">
+							<ConnectionSettingsButton onSaved={handleConnectionSaved} />
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={logOut}
+								className="rounded-full text-gray-400 hover:bg-gray-800 hover:text-white"
+							>
+								<ExitIcon className="h-4 w-4" />
+								<span className="sr-only">Log out</span>
+							</Button>
+						</div>
 					</div>
 
 					<div className="space-y-3 py-4">

@@ -4,11 +4,11 @@ from datetime import datetime
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.db import Chunk, Document
 from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
 )
@@ -127,10 +127,8 @@ class NotionKBSyncService:
                 logger.debug(f"Generated summary length: {len(summary_content)} chars")
             else:
                 logger.warning("No LLM configured - using fallback summary")
-                summary_content = f"Notion Page: {document.document_metadata.get('page_title')}\n\n{full_content[:500]}..."
-                summary_embedding = config.embedding_model_instance.embed(
-                    summary_content
-                )
+                summary_content = f"Notion Page: {document.document_metadata.get('page_title')}\n\n{full_content}"
+                summary_embedding = embed_text(summary_content)
 
             logger.debug(f"Deleting old chunks for document {document_id}")
             await self.db_session.execute(

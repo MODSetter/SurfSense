@@ -9,6 +9,8 @@
 		"docker-installation",
 		"manual-installation",
 		"connectors",
-		"how-to"
+		"how-to",
+		"---Development---",
+		"testing"
 	]
 }

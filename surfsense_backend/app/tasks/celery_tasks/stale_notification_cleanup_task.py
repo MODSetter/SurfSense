@@ -29,20 +29,17 @@ from datetime import UTC, datetime
 
 import redis
 from sqlalchemy import and_, or_, text
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.future import select
-from sqlalchemy.pool import NullPool
 
 from app.celery_app import celery_app
 from app.config import config
 from app.db import Document, DocumentStatus, Notification
+from app.tasks.celery_tasks import get_celery_session_maker
 
 logger = logging.getLogger(__name__)
 
-# Redis client for checking heartbeats
 _redis_client: redis.Redis | None = None
 
-# Error messages shown to users when tasks are interrupted
 STALE_SYNC_ERROR_MESSAGE = "Sync was interrupted unexpectedly. Please retry."
 STALE_PROCESSING_ERROR_MESSAGE = "Syncing was interrupted unexpectedly. Please retry."
 
@@ -58,16 +55,6 @@ def get_redis_client() -> redis.Redis:
 def _get_heartbeat_key(notification_id: int) -> str:
     """Generate Redis key for notification heartbeat."""
     return f"indexing:heartbeat:{notification_id}"
-
-
-def get_celery_session_maker():
-    """Create async session maker for Celery tasks."""
-    engine = create_async_engine(
-        config.DATABASE_URL,
-        poolclass=NullPool,
-        echo=False,
-    )
-    return async_sessionmaker(engine, expire_on_commit=False)
 
 
 @celery_app.task(name="cleanup_stale_indexing_notifications")

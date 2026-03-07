@@ -352,7 +352,7 @@ async def index_google_drive_single_file(
             await session.commit()
 
         # Process the file
-        indexed, skipped, failed = await _process_single_file(
+        indexed, _skipped, failed = await _process_single_file(
             drive_client=drive_client,
             session=session,
             file=file,
@@ -608,7 +608,7 @@ async def _index_with_delta_sync(
         {"stage": "delta_sync", "start_token": start_page_token},
     )
 
-    changes, final_token, error = await fetch_all_changes(
+    changes, _final_token, error = await fetch_all_changes(
         drive_client, start_page_token, folder_id
     )
 
@@ -1011,7 +1011,7 @@ async def _process_single_file(
             pending_document.status = DocumentStatus.processing()
             await session.commit()
 
-        _, error, metadata = await download_and_process_file(
+        _, error, _metadata = await download_and_process_file(
             client=drive_client,
             file=file,
             search_space_id=search_space_id,

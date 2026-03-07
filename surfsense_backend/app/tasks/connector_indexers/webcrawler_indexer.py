@@ -13,13 +13,13 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.webcrawler_connector import WebCrawlerConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -377,7 +377,7 @@ async def index_crawled_urls(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata_for_summary = {
                         "url": url,
                         "title": title,
@@ -393,24 +393,8 @@ async def index_crawled_urls(
                         structured_document, user_llm, document_metadata_for_summary
                     )
                 else:
-                    # Fallback to simple summary if no LLM configured
-                    summary_content = f"Crawled URL: {title}\n\n"
-                    summary_content += f"URL: {url}\n"
-                    if description:
-                        summary_content += f"Description: {description}\n"
-                    if language:
-                        summary_content += f"Language: {language}\n"
-                    summary_content += f"Crawler: {crawler_type}\n\n"
-
-                    # Add content preview
-                    content_preview = content[:1000]
-                    if len(content) > 1000:
-                        content_preview += "..."
-                    summary_content += f"Content Preview:\n{content_preview}\n"
-
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    summary_content = f"Crawled URL: {title}\n\nURL: {url}\n\n{content}"
+                    summary_embedding = embed_text(summary_content)
 
                 # Process chunks
                 chunks = await create_document_chunks(content)

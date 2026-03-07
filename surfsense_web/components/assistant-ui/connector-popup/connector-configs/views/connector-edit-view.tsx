@@ -9,6 +9,7 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
+import { SummaryConfig } from "../../components/summary-config";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
 
@@ -18,6 +19,7 @@ interface ConnectorEditViewProps {
 	endDate: Date | undefined;
 	periodicEnabled: boolean;
 	frequencyMinutes: string;
+	enableSummary: boolean;
 	isSaving: boolean;
 	isDisconnecting: boolean;
 	isIndexing?: boolean;
@@ -26,6 +28,7 @@ interface ConnectorEditViewProps {
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
 	onFrequencyChange: (frequency: string) => void;
+	onEnableSummaryChange: (enabled: boolean) => void;
 	onSave: () => void;
 	onDisconnect: () => void;
 	onBack: () => void;
@@ -40,6 +43,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	endDate,
 	periodicEnabled,
 	frequencyMinutes,
+	enableSummary,
 	isSaving,
 	isDisconnecting,
 	isIndexing = false,
@@ -48,6 +52,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onEndDateChange,
 	onPeriodicEnabledChange,
 	onFrequencyChange,
+	onEnableSummaryChange,
 	onSave,
 	onDisconnect,
 	onBack,
@@ -209,9 +214,12 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							/>
 						)}
 
-						{/* Date range selector and periodic sync - only shown for indexable connectors */}
+						{/* Summary and sync settings - only shown for indexable connectors */}
 						{connector.is_indexable && (
 							<>
+								{/* AI Summary toggle */}
+								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
+
 								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" &&
 									connector.connector_type !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&

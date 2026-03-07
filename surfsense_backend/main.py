@@ -29,4 +29,7 @@ if __name__ == "__main__":
     config = uvicorn.Config(**config_kwargs)
     server = uvicorn.Server(config)
 
-    server.run()
+    if sys.platform == "win32":
+        asyncio.run(server.serve(), loop_factory=asyncio.SelectorEventLoop)
+    else:
+        server.run()

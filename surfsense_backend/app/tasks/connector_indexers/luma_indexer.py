@@ -13,13 +13,13 @@ from datetime import datetime, timedelta
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.luma_connector import LumaConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -441,7 +441,7 @@ async def index_luma_events(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata_for_summary = {
                         "event_id": item["event_id"],
                         "event_name": item["event_name"],
@@ -462,29 +462,10 @@ async def index_luma_events(
                         item["event_markdown"], user_llm, document_metadata_for_summary
                     )
                 else:
-                    # Fallback to simple summary if no LLM configured
-                    summary_content = f"Luma Event: {item['event_name']}\n\n"
-                    if item["event_url"]:
-                        summary_content += f"URL: {item['event_url']}\n"
-                    summary_content += f"Start: {item['start_at']}\n"
-                    summary_content += f"End: {item['end_at']}\n"
-                    if item["timezone"]:
-                        summary_content += f"Timezone: {item['timezone']}\n"
-                    if item["location"]:
-                        summary_content += f"Location: {item['location']}\n"
-                    if item["city"]:
-                        summary_content += f"City: {item['city']}\n"
-                    if item["host_names"]:
-                        summary_content += f"Hosts: {item['host_names']}\n"
-                    if item["description"]:
-                        desc_preview = item["description"][:1000]
-                        if len(item["description"]) > 1000:
-                            desc_preview += "..."
-                        summary_content += f"Description: {desc_preview}\n"
-
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
+                    summary_content = (
+                        f"Luma Event: {item['event_name']}\n\n{item['event_markdown']}"
                     )
+                    summary_embedding = embed_text(summary_content)
 
                 chunks = await create_document_chunks(item["event_markdown"])
 

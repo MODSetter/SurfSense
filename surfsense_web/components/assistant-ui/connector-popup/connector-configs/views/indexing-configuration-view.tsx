@@ -10,6 +10,7 @@ import { getConnectorTypeDisplay } from "@/lib/connectors/utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
+import { SummaryConfig } from "../../components/summary-config";
 import type { IndexingConfigState } from "../../constants/connector-constants";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
@@ -21,11 +22,13 @@ interface IndexingConfigurationViewProps {
 	endDate: Date | undefined;
 	periodicEnabled: boolean;
 	frequencyMinutes: string;
+	enableSummary: boolean;
 	isStartingIndexing: boolean;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
 	onFrequencyChange: (frequency: string) => void;
+	onEnableSummaryChange: (enabled: boolean) => void;
 	onConfigChange?: (config: Record<string, unknown>) => void;
 	onStartIndexing: () => void;
 	onSkip: () => void;
@@ -38,11 +41,13 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	endDate,
 	periodicEnabled,
 	frequencyMinutes,
+	enableSummary,
 	isStartingIndexing,
 	onStartDateChange,
 	onEndDateChange,
 	onPeriodicEnabledChange,
 	onFrequencyChange,
+	onEnableSummaryChange,
 	onConfigChange,
 	onStartIndexing,
 	onSkip,
@@ -149,9 +154,12 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 							<ConnectorConfigComponent connector={connector} onConfigChange={onConfigChange} />
 						)}
 
-						{/* Date range selector and periodic sync - only shown for indexable connectors */}
+						{/* Summary and sync settings - only shown for indexable connectors */}
 						{connector?.is_indexable && (
 							<>
+								{/* AI Summary toggle */}
+								<SummaryConfig enabled={enableSummary} onEnabledChange={onEnableSummaryChange} />
+
 								{/* Date range selector - not shown for Google Drive (regular and Composio), Webcrawler, or GitHub (indexes full repo snapshots) */}
 								{config.connectorType !== "GOOGLE_DRIVE_CONNECTOR" &&
 									config.connectorType !== "COMPOSIO_GOOGLE_DRIVE_CONNECTOR" &&

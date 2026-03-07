@@ -65,6 +65,7 @@ import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { Document } from "@/contracts/types/document.types";
+import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cn } from "@/lib/utils";
@@ -81,6 +82,10 @@ const CYCLING_PLACEHOLDERS = [
 
 const CHAT_UPLOAD_ACCEPT =
 	".pdf,.doc,.docx,.txt,.md,.markdown,.ppt,.pptx,.xls,.xlsx,.xlsm,.xlsb,.csv,.html,.htm,.xml,.rtf,.epub,.jpg,.jpeg,.png,.bmp,.webp,.tiff,.tif,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm";
+
+const CHAT_MAX_FILES = 10;
+const CHAT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB per file
+const CHAT_MAX_TOTAL_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB total
 
 type UploadState = "pending" | "processing" | "ready" | "failed";
 
@@ -304,6 +309,22 @@ const Composer: FC = () => {
 
 	// Sync comments for the entire thread via Electric SQL (one subscription per thread)
 	useCommentsElectric(threadId);
+
+	// Batch-prefetch comments for all assistant messages so individual useComments
+	// hooks never fire their own network requests (eliminates N+1 API calls).
+	// Return a primitive string from the selector so useSyncExternalStore can
+	// compare snapshots by value and avoid infinite re-render loops.
+	const assistantIdsKey = useAssistantState(({ thread }) =>
+		thread.messages
+			.filter((m) => m.role === "assistant" && m.id?.startsWith("msg-"))
+			.map((m) => m.id!.replace("msg-", ""))
+			.join(",")
+	);
+	const assistantDbMessageIds = useMemo(
+		() => (assistantIdsKey ? assistantIdsKey.split(",").map(Number) : []),
+		[assistantIdsKey]
+	);
+	useBatchCommentsPreload(assistantDbMessageIds);
 
 	// Auto-focus editor on new chat page after mount
 	useEffect(() => {
@@ -533,6 +554,28 @@ const Composer: FC = () => {
 			const files = Array.from(event.target.files ?? []);
 			event.target.value = "";
 			if (files.length === 0 || !search_space_id) return;
+
+			if (files.length > CHAT_MAX_FILES) {
+				toast.error(`Too many files. Maximum ${CHAT_MAX_FILES} files per upload.`);
+				return;
+			}
+
+			let totalSize = 0;
+			for (const file of files) {
+				if (file.size > CHAT_MAX_FILE_SIZE_BYTES) {
+					toast.error(
+						`File "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the ${CHAT_MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB per-file limit.`
+					);
+					return;
+				}
+				totalSize += file.size;
+			}
+			if (totalSize > CHAT_MAX_TOTAL_SIZE_BYTES) {
+				toast.error(
+					`Total upload size (${(totalSize / (1024 * 1024)).toFixed(1)} MB) exceeds the ${CHAT_MAX_TOTAL_SIZE_BYTES / (1024 * 1024)} MB limit.`
+				);
+				return;
+			}
 
 			setIsUploadingDocs(true);
 			try {

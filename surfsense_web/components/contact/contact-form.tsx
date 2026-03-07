@@ -23,12 +23,12 @@ export function ContactFormGridWithDetails() {
 					We'd love to hear from you!
 				</p>
 				<p className="mt-4 max-w-lg text-center text-base text-neutral-600 dark:text-neutral-400">
-					Schedule a meeting with our Head of Product, Eric Lammertsma, or send us an email.
+					Schedule a meeting with us, or send us an email.
 				</p>
 
 				<div className="mt-10 flex flex-col items-center gap-6">
 					<Link
-						href="https://calendly.com/eric-surfsense/surfsense-meeting"
+						href="https://cal.com/mod-rohan"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="flex items-center gap-3 rounded-xl bg-gradient-to-b from-blue-500 to-blue-600 px-6 py-3 text-base font-medium text-white shadow-lg transition duration-200 hover:from-blue-600 hover:to-blue-700"
@@ -44,11 +44,11 @@ export function ContactFormGridWithDetails() {
 					</div>
 
 					<Link
-						href="mailto:eric@surfsense.com"
+						href="mailto:rohan@surfsense.com"
 						className="flex items-center gap-2 text-base text-neutral-600 transition duration-200 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
 					>
 						<IconMailFilled className="h-5 w-5" />
-						eric@surfsense.com
+						rohan@surfsense.com
 					</Link>
 				</div>
 

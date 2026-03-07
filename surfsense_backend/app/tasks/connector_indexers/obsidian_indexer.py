@@ -26,6 +26,7 @@ from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -546,7 +547,7 @@ async def index_obsidian_vault(
 
                 # Generate summary
                 summary_content = ""
-                if long_context_llm:
+                if long_context_llm and connector.enable_summary:
                     summary_content, _ = await generate_document_summary(
                         document_string,
                         long_context_llm,
@@ -554,7 +555,7 @@ async def index_obsidian_vault(
                     )
 
                 # Generate embedding
-                embedding = config.embedding_model_instance.embed(document_string)
+                embedding = embed_text(document_string)
 
                 # Add URL and summary to metadata
                 document_metadata["url"] = f"obsidian://{vault_name}/{relative_path}"

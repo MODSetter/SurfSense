@@ -12,13 +12,13 @@ from collections.abc import Awaitable, Callable
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.airtable_history import AirtableHistoryConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -399,7 +399,7 @@ async def index_airtable_records(
                         session, user_id, search_space_id
                     )
 
-                    if user_llm:
+                    if user_llm and connector.enable_summary:
                         document_metadata_for_summary = {
                             "record_id": item["record_id"],
                             "created_time": item["record"].get("CREATED_TIME()", ""),
@@ -415,11 +415,8 @@ async def index_airtable_records(
                             document_metadata_for_summary,
                         )
                     else:
-                        # Fallback to simple summary if no LLM configured
-                        summary_content = f"Airtable Record: {item['record_id']}\n\n"
-                        summary_embedding = config.embedding_model_instance.embed(
-                            summary_content
-                        )
+                        summary_content = f"Airtable Record: {item['record_id']}\n\n{item['markdown_content']}"
+                        summary_embedding = embed_text(summary_content)
 
                     chunks = await create_document_chunks(item["markdown_content"])
 

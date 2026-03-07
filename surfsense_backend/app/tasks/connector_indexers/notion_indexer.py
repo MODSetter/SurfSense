@@ -13,13 +13,13 @@ from datetime import datetime
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.connectors.notion_history import NotionHistoryConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -447,7 +447,7 @@ async def index_notion_pages(
                     session, user_id, search_space_id
                 )
 
-                if user_llm:
+                if user_llm and connector.enable_summary:
                     document_metadata_for_summary = {
                         "page_title": item["page_title"],
                         "page_id": item["page_id"],
@@ -463,11 +463,8 @@ async def index_notion_pages(
                         document_metadata_for_summary,
                     )
                 else:
-                    # Fallback to simple summary if no LLM configured
-                    summary_content = f"Notion Page: {item['page_title']}\n\n{item['markdown_content'][:500]}..."
-                    summary_embedding = config.embedding_model_instance.embed(
-                        summary_content
-                    )
+                    summary_content = f"Notion Page: {item['page_title']}\n\n{item['markdown_content']}"
+                    summary_embedding = embed_text(summary_content)
 
                 chunks = await create_document_chunks(item["markdown_content"])
 

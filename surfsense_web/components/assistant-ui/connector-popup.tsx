@@ -5,6 +5,7 @@ import { AlertTriangle, Cable, Settings } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import type { FC } from "react";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
 	llmPreferencesAtom,
@@ -19,7 +20,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
-import { useDocuments } from "@/hooks/use-documents";
 import { useInbox } from "@/hooks/use-inbox";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
@@ -62,10 +62,9 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 
 	const llmConfigLoading = preferencesLoading || globalConfigsLoading;
 
-	// Fetch document type counts using Electric SQL + PGlite for real-time updates
-	const { typeCounts: documentTypeCounts, loading: documentTypesLoading } = useDocuments(
-		searchSpaceId ? Number(searchSpaceId) : null
-	);
+	// Fetch document type counts via the lightweight /type-counts endpoint (cached 10 min)
+	const { data: documentTypeCounts, isFetching: documentTypesLoading } =
+		useAtomValue(documentTypeCountsAtom);
 
 	// Fetch notifications to detect indexing failures
 	const { inboxItems = [] } = useInbox(
@@ -97,6 +96,7 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 		isDisconnecting,
 		periodicEnabled,
 		frequencyMinutes,
+		enableSummary,
 		allConnectors,
 		viewingAccountsType,
 		viewingMCPList,
@@ -105,6 +105,7 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 		setEndDate,
 		setPeriodicEnabled,
 		setFrequencyMinutes,
+		setEnableSummary,
 		handleOpenChange,
 		handleTabChange,
 		handleScroll,
@@ -282,6 +283,7 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 						endDate={endDate}
 						periodicEnabled={periodicEnabled}
 						frequencyMinutes={frequencyMinutes}
+						enableSummary={enableSummary}
 						isSaving={isSaving}
 						isDisconnecting={isDisconnecting}
 						isIndexing={indexingConnectorIds.has(editingConnector.id)}
@@ -290,6 +292,7 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
 						onFrequencyChange={setFrequencyMinutes}
+						onEnableSummaryChange={setEnableSummary}
 						onSave={() => {
 							startIndexing(editingConnector.id);
 							handleSaveConnector(() => refreshConnectors());
@@ -328,11 +331,13 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 						endDate={endDate}
 						periodicEnabled={periodicEnabled}
 						frequencyMinutes={frequencyMinutes}
+						enableSummary={enableSummary}
 						isStartingIndexing={isStartingIndexing}
 						onStartDateChange={setStartDate}
 						onEndDateChange={setEndDate}
 						onPeriodicEnabledChange={setPeriodicEnabled}
 						onFrequencyChange={setFrequencyMinutes}
+						onEnableSummaryChange={setEnableSummary}
 						onConfigChange={setIndexingConnectorConfig}
 						onStartIndexing={() => {
 							if (indexingConfig.connectorId) {

@@ -15,6 +15,7 @@ from sqlalchemy.orm import selectinload
 
 from app.config import config
 from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument, async_session_maker
+from app.utils.document_converters import embed_text
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,7 @@ def create_surfsense_docs_chunks(content: str) -> list[SurfsenseDocsChunk]:
     return [
         SurfsenseDocsChunk(
             content=chunk.text,
-            embedding=config.embedding_model_instance.embed(chunk.text),
+            embedding=embed_text(chunk.text),
         )
         for chunk in config.chunker_instance.chunk(content)
     ]
@@ -154,7 +155,7 @@ async def index_surfsense_docs(session: AsyncSession) -> tuple[int, int, int, in
                 existing_doc.title = title
                 existing_doc.content = content
                 existing_doc.content_hash = content_hash
-                existing_doc.embedding = config.embedding_model_instance.embed(content)
+                existing_doc.embedding = embed_text(content)
                 existing_doc.chunks = chunks
                 existing_doc.updated_at = datetime.now(UTC)
 
@@ -170,7 +171,7 @@ async def index_surfsense_docs(session: AsyncSession) -> tuple[int, int, int, in
                     title=title,
                     content=content,
                     content_hash=content_hash,
-                    embedding=config.embedding_model_instance.embed(content),
+                    embedding=embed_text(content),
                     chunks=chunks,
                     updated_at=datetime.now(UTC),
                 )

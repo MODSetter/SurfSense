@@ -67,6 +67,7 @@ export const useConnectorDialog = () => {
 	const [isStartingIndexing, setIsStartingIndexing] = useState(false);
 	const [periodicEnabled, setPeriodicEnabled] = useState(false);
 	const [frequencyMinutes, setFrequencyMinutes] = useState("1440");
+	const [enableSummary, setEnableSummary] = useState(false);
 
 	// Edit mode state
 	const [editingConnector, setEditingConnector] = useState<SearchSourceConnector | null>(null);
@@ -240,6 +241,7 @@ export const useConnectorDialog = () => {
 								!connector.is_indexable ? false : connector.periodic_indexing_enabled
 							);
 							setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
+							setEnableSummary(connector.enable_summary ?? false);
 							// Reset dates - user can set new ones for re-indexing
 							setStartDate(undefined);
 							setEndDate(undefined);
@@ -257,6 +259,7 @@ export const useConnectorDialog = () => {
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
 					setFrequencyMinutes("1440");
+					setEnableSummary(false);
 					setIsScrolled(false);
 					setSearchQuery("");
 				}
@@ -269,6 +272,7 @@ export const useConnectorDialog = () => {
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
 					setFrequencyMinutes("1440");
+					setEnableSummary(false);
 					setIsScrolled(false);
 					setSearchQuery("");
 				}
@@ -722,6 +726,7 @@ export const useConnectorDialog = () => {
 									setConnectorConfig(connector.config || {});
 									setPeriodicEnabled(false);
 									setFrequencyMinutes("1440");
+									setEnableSummary(connector.enable_summary ?? false);
 									setStartDate(undefined);
 									setEndDate(undefined);
 
@@ -909,12 +914,13 @@ export const useConnectorDialog = () => {
 				const startDateStr = startDate ? format(startDate, "yyyy-MM-dd") : undefined;
 				const endDateStr = endDate ? format(endDate, "yyyy-MM-dd") : undefined;
 
-				// Update connector with periodic sync settings and config changes
-				if (periodicEnabled || indexingConnectorConfig) {
+				// Update connector with summary, periodic sync settings, and config changes
+				if (enableSummary || periodicEnabled || indexingConnectorConfig) {
 					const frequency = periodicEnabled ? parseInt(frequencyMinutes, 10) : undefined;
 					await updateConnector({
 						id: indexingConfig.connectorId,
 						data: {
+							enable_summary: enableSummary,
 							...(periodicEnabled && {
 								periodic_indexing_enabled: true,
 								indexing_frequency_minutes: frequency,
@@ -1042,6 +1048,7 @@ export const useConnectorDialog = () => {
 			updateConnector,
 			periodicEnabled,
 			frequencyMinutes,
+			enableSummary,
 			router,
 			indexingConnectorConfig,
 		]
@@ -1108,6 +1115,7 @@ export const useConnectorDialog = () => {
 			// Load existing periodic sync settings (disabled for non-indexable connectors)
 			setPeriodicEnabled(!connector.is_indexable ? false : connector.periodic_indexing_enabled);
 			setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
+			setEnableSummary(connector.enable_summary ?? false);
 			// Reset dates - user can set new ones for re-indexing
 			setStartDate(undefined);
 			setEndDate(undefined);
@@ -1189,6 +1197,7 @@ export const useConnectorDialog = () => {
 					id: editingConnector.id,
 					data: {
 						name: connectorName || editingConnector.name,
+						enable_summary: enableSummary,
 						periodic_indexing_enabled: !editingConnector.is_indexable ? false : periodicEnabled,
 						indexing_frequency_minutes: !editingConnector.is_indexable ? null : frequency,
 						config: connectorConfig || editingConnector.config,
@@ -1326,6 +1335,7 @@ export const useConnectorDialog = () => {
 			updateConnector,
 			periodicEnabled,
 			frequencyMinutes,
+			enableSummary,
 			getFrequencyLabel,
 			router,
 			connectorConfig,
@@ -1518,6 +1528,7 @@ export const useConnectorDialog = () => {
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
 					setFrequencyMinutes("1440");
+					setEnableSummary(false);
 				}
 			}
 		},
@@ -1557,6 +1568,7 @@ export const useConnectorDialog = () => {
 		isDisconnecting,
 		periodicEnabled,
 		frequencyMinutes,
+		enableSummary,
 		searchSpaceId,
 		allConnectors,
 		viewingAccountsType,
@@ -1568,6 +1580,7 @@ export const useConnectorDialog = () => {
 		setEndDate,
 		setPeriodicEnabled,
 		setFrequencyMinutes,
+		setEnableSummary,
 		setConnectorName,
 
 		// Handlers

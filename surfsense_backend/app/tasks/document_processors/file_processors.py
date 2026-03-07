@@ -18,12 +18,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType, Log, Notification
+from app.indexing_pipeline.adapters.file_upload_adapter import UploadDocumentAdapter
 from app.services.llm_service import get_user_long_context_llm
 from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     convert_document_to_markdown,
     create_document_chunks,
+    embed_text,
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
@@ -33,7 +35,6 @@ from .base import (
     check_document_by_unique_identifier,
     check_duplicate_document,
     get_current_timestamp,
-    safe_set_chunks,
 )
 from .markdown_processor import add_received_markdown_file_document
 
@@ -760,11 +761,7 @@ async def add_received_file_document_using_docling(
             f"{metadata_section}\n\n# DOCUMENT SUMMARY\n\n{summary_content}"
         )
 
-        from app.config import config
-
-        summary_embedding = config.embedding_model_instance.embed(
-            enhanced_summary_content
-        )
+        summary_embedding = embed_text(enhanced_summary_content)
 
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
@@ -1599,6 +1596,7 @@ async def process_file_in_background_with_document(
     log_entry: Log,
     connector: dict | None = None,
     notification: Notification | None = None,
+    should_summarize: bool = False,
 ) -> Document | None:
     """
     Process file and update existing pending document (2-phase pattern).
@@ -1631,6 +1629,8 @@ async def process_file_in_background_with_document(
 
     from app.config import config as app_config
     from app.services.llm_service import get_user_long_context_llm
+
+    doc_id = document.id
 
     try:
         markdown_content = None
@@ -1855,7 +1855,7 @@ async def process_file_in_background_with_document(
         content_hash = generate_content_hash(markdown_content, search_space_id)
 
         existing_by_content = await check_duplicate_document(session, content_hash)
-        if existing_by_content and existing_by_content.id != document.id:
+        if existing_by_content and existing_by_content.id != doc_id:
             # Duplicate content found - mark this document as failed
             logging.info(
                 f"Duplicate content detected for {filename}, "
@@ -1863,7 +1863,7 @@ async def process_file_in_background_with_document(
             )
             return None
 
-        # ===== STEP 3: Generate embeddings and chunks =====
+        # ===== STEP 3+4: Index via pipeline =====
         if notification:
             await NotificationService.document_processing.notify_processing_progress(
                 session, notification, stage="chunking"
@@ -1871,57 +1871,24 @@ async def process_file_in_background_with_document(
 
         user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
-        if user_llm:
-            document_metadata = {
-                "file_name": filename,
-                "etl_service": etl_service,
-                "document_type": "File Document",
-            }
-            summary_content, summary_embedding = await generate_document_summary(
-                markdown_content, user_llm, document_metadata
-            )
-        else:
-            # Fallback: use truncated content as summary
-            summary_content = markdown_content[:4000]
-            from app.config import config
-
-            summary_embedding = config.embedding_model_instance.embed(summary_content)
-
-        chunks = await create_document_chunks(markdown_content)
-
-        # ===== STEP 4: Update document to READY =====
-        from sqlalchemy.orm.attributes import flag_modified
-
-        document.title = filename
-        document.content = summary_content
-        document.content_hash = content_hash
-        document.embedding = summary_embedding
-        document.document_metadata = {
-            "FILE_NAME": filename,
-            "ETL_SERVICE": etl_service or "UNKNOWN",
-            **(document.document_metadata or {}),
-        }
-        flag_modified(document, "document_metadata")
-
-        # Use safe_set_chunks to avoid async issues
-        safe_set_chunks(document, chunks)
-
-        document.source_markdown = markdown_content
-        document.content_needs_reindexing = False
-        document.updated_at = get_current_timestamp()
-        document.status = DocumentStatus.ready()  # Shows checkmark in UI
-
-        await session.commit()
-        await session.refresh(document)
+        adapter = UploadDocumentAdapter(session)
+        await adapter.index(
+            markdown_content=markdown_content,
+            filename=filename,
+            etl_service=etl_service,
+            search_space_id=search_space_id,
+            user_id=user_id,
+            llm=user_llm,
+            should_summarize=should_summarize,
+        )
 
         await task_logger.log_task_success(
             log_entry,
             f"Successfully processed file: {filename}",
             {
-                "document_id": document.id,
+                "document_id": doc_id,
                 "content_hash": content_hash,
                 "file_type": etl_service,
-                "chunks_count": len(chunks),
             },
         )
 
@@ -1946,7 +1913,7 @@ async def process_file_in_background_with_document(
             {
                 "error_type": type(e).__name__,
                 "filename": filename,
-                "document_id": document.id,
+                "document_id": doc_id,
             },
         )
         logging.error(f"Error processing file with document: {error_message}")

@@ -8,8 +8,8 @@ from langchain_core.tools import tool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.db import MemoryCategory, SharedMemory, User
+from app.utils.document_converters import embed_text
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ async def save_shared_memory(
         count = await get_shared_memory_count(db_session, search_space_id)
         if count >= MAX_MEMORIES_PER_SEARCH_SPACE:
             await delete_oldest_shared_memory(db_session, search_space_id)
-        embedding = config.embedding_model_instance.embed(content)
+        embedding = embed_text(content)
         row = SharedMemory(
             search_space_id=search_space_id,
             created_by_id=_to_uuid(created_by_id),
@@ -108,7 +108,7 @@ async def recall_shared_memory(
         if category and category in valid_categories:
             stmt = stmt.where(SharedMemory.category == MemoryCategory(category))
         if query:
-            query_embedding = config.embedding_model_instance.embed(query)
+            query_embedding = embed_text(query)
             stmt = stmt.order_by(
                 SharedMemory.embedding.op("<=>")(query_embedding)
             ).limit(top_k)

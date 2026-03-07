@@ -8,6 +8,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 import { uploadDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
+import { SummaryConfig } from "@/components/assistant-ui/connector-popup/components/summary-config";
 import {
 	Accordion,
 	AccordionContent,
@@ -110,8 +111,8 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 
 const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
 
-// Upload limits
-const MAX_FILES = 10;
+// Upload limits — files are sent in batches of 5 to avoid proxy timeouts
+const MAX_FILES = 50;
 const MAX_TOTAL_SIZE_MB = 200;
 const MAX_TOTAL_SIZE_BYTES = MAX_TOTAL_SIZE_MB * 1024 * 1024;
 
@@ -124,6 +125,7 @@ export function DocumentUploadTab({
 	const [files, setFiles] = useState<File[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
+	const [shouldSummarize, setShouldSummarize] = useState(false);
 	const [uploadDocumentMutation] = useAtom(uploadDocumentMutationAtom);
 	const { mutate: uploadDocuments, isPending: isUploading } = uploadDocumentMutation;
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -216,7 +218,7 @@ export function DocumentUploadTab({
 		}, 200);
 
 		uploadDocuments(
-			{ files, search_space_id: Number(searchSpaceId) },
+			{ files, search_space_id: Number(searchSpaceId), should_summarize: shouldSummarize },
 			{
 				onSuccess: () => {
 					clearInterval(progressInterval);
@@ -412,6 +414,10 @@ export function DocumentUploadTab({
 										</div>
 									</motion.div>
 								)}
+
+								<div className="mt-3 sm:mt-6">
+									<SummaryConfig enabled={shouldSummarize} onEnabledChange={setShouldSummarize} />
+								</div>
 
 								<motion.div
 									className="mt-3 sm:mt-6"
