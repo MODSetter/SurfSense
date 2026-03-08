@@ -33,25 +33,37 @@ export function usePlatformShortcut() {
 		setReady(true);
 	}, []);
 
-	const shortcut = useCallback(
-		(...keys: string[]) => {
-			if (!ready) return "";
-
+	const resolveKeys = useCallback(
+		(keys: string[]) => {
 			const mod = isMac ? "⌘" : "Ctrl";
 			const shift = isMac ? "⇧" : "Shift";
 			const alt = isMac ? "⌥" : "Alt";
 
-			const mapped = keys.map((k) => {
+			return keys.map((k) => {
 				if (k === "Mod") return mod;
 				if (k === "Shift") return shift;
 				if (k === "Alt") return alt;
 				return k;
 			});
-
-			return `(${mapped.join("+")})`;
 		},
-		[ready, isMac]
+		[isMac]
 	);
 
-	return { shortcut, isMac, ready };
+	const shortcut = useCallback(
+		(...keys: string[]) => {
+			if (!ready) return "";
+			return `(${resolveKeys(keys).join("+")})`;
+		},
+		[ready, resolveKeys]
+	);
+
+	const shortcutKeys = useCallback(
+		(...keys: string[]) => {
+			if (!ready) return [];
+			return resolveKeys(keys);
+		},
+		[ready, resolveKeys]
+	);
+
+	return { shortcut, shortcutKeys, isMac, ready };
 }

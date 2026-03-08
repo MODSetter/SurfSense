@@ -27,6 +27,7 @@ export interface InlineMentionEditorRef {
 	getText: () => string;
 	getMentionedDocuments: () => MentionedDocument[];
 	insertDocumentChip: (doc: Pick<Document, "id" | "title" | "document_type">) => void;
+	removeDocumentChip: (docId: number, docType?: string) => void;
 	setDocumentChipStatus: (
 		docId: number,
 		docType: string | undefined,
@@ -175,33 +176,27 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				chip.setAttribute(CHIP_DOCTYPE_ATTR, doc.document_type ?? "UNKNOWN");
 				chip.contentEditable = "false";
 				chip.className =
-					"inline-flex items-center gap-1 mx-0.5 pl-1 pr-0.5 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none";
+					"inline-flex items-center gap-1 mx-0.5 px-1 py-0.5 rounded bg-primary/10 text-xs font-bold text-primary/60 select-none cursor-default";
 				chip.style.userSelect = "none";
 				chip.style.verticalAlign = "baseline";
 
-				// Add document type icon
+				// Container that swaps between icon and remove button on hover
+				const iconContainer = document.createElement("span");
+				iconContainer.className = "shrink-0 flex items-center size-3 relative";
+
 				const iconSpan = document.createElement("span");
-				iconSpan.className = "shrink-0 flex items-center text-muted-foreground";
+				iconSpan.className = "flex items-center text-muted-foreground";
 				iconSpan.innerHTML = ReactDOMServer.renderToString(
 					getConnectorIcon(doc.document_type ?? "UNKNOWN", "h-3 w-3")
 				);
 
-				const titleSpan = document.createElement("span");
-				titleSpan.className = "max-w-[120px] truncate";
-				titleSpan.textContent = doc.title;
-				titleSpan.title = doc.title;
-				titleSpan.setAttribute("data-mention-title", "true");
-
-				const statusSpan = document.createElement("span");
-				statusSpan.setAttribute(CHIP_STATUS_ATTR, "true");
-				statusSpan.className = "text-[10px] font-semibold opacity-80 hidden";
-
 				const removeBtn = document.createElement("button");
 				removeBtn.type = "button";
 				removeBtn.className =
-					"size-3 flex items-center justify-center rounded-full hover:bg-primary/20 transition-colors ml-0.5";
+					"size-3 items-center justify-center rounded-full text-muted-foreground transition-colors";
+				removeBtn.style.display = "none";
 				removeBtn.innerHTML = ReactDOMServer.renderToString(
-					createElement(X, { className: "h-2.5 w-2.5", strokeWidth: 2.5 })
+					createElement(X, { className: "h-3 w-3", strokeWidth: 2.5 })
 				);
 				removeBtn.onclick = (e) => {
 					e.preventDefault();
@@ -213,15 +208,45 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 						next.delete(docKey);
 						return next;
 					});
-					// Notify parent that a document was removed
 					onDocumentRemove?.(doc.id, doc.document_type);
 					focusAtEnd();
 				};
 
-				chip.appendChild(iconSpan);
-				chip.appendChild(titleSpan);
-				chip.appendChild(statusSpan);
-				chip.appendChild(removeBtn);
+				const titleSpan = document.createElement("span");
+				titleSpan.className = "max-w-[120px] truncate";
+				titleSpan.textContent = doc.title;
+				titleSpan.title = doc.title;
+				titleSpan.setAttribute("data-mention-title", "true");
+
+				const statusSpan = document.createElement("span");
+				statusSpan.setAttribute(CHIP_STATUS_ATTR, "true");
+				statusSpan.className = "text-[10px] font-semibold opacity-80 hidden";
+
+				const isTouchDevice = window.matchMedia("(hover: none)").matches;
+				if (isTouchDevice) {
+					// Mobile: icon on left, title, X on right
+					chip.appendChild(iconSpan);
+					chip.appendChild(titleSpan);
+					chip.appendChild(statusSpan);
+					removeBtn.style.display = "flex";
+					removeBtn.className += " ml-0.5";
+					chip.appendChild(removeBtn);
+				} else {
+					// Desktop: icon/X swap on hover in the same slot
+					iconContainer.appendChild(iconSpan);
+					iconContainer.appendChild(removeBtn);
+					chip.addEventListener("mouseenter", () => {
+						iconSpan.style.display = "none";
+						removeBtn.style.display = "flex";
+					});
+					chip.addEventListener("mouseleave", () => {
+						iconSpan.style.display = "";
+						removeBtn.style.display = "none";
+					});
+					chip.appendChild(iconContainer);
+					chip.appendChild(titleSpan);
+					chip.appendChild(statusSpan);
+				}
 
 				return chip;
 			},
@@ -388,6 +413,32 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			[]
 		);
 
+		const removeDocumentChip = useCallback(
+			(docId: number, docType?: string) => {
+				if (!editorRef.current) return;
+				const chipKey = `${docType ?? "UNKNOWN"}:${docId}`;
+				const chips = editorRef.current.querySelectorAll<HTMLSpanElement>(
+					`span[${CHIP_DATA_ATTR}="true"]`
+				);
+				for (const chip of chips) {
+					if (getChipId(chip) === docId && getChipDocType(chip) === (docType ?? "UNKNOWN")) {
+						chip.remove();
+						break;
+					}
+				}
+				setMentionedDocs((prev) => {
+					const next = new Map(prev);
+					next.delete(chipKey);
+					return next;
+				});
+
+				const text = getText();
+				const empty = text.length === 0 && mentionedDocs.size <= 1;
+				setIsEmpty(empty);
+			},
+			[getText, mentionedDocs.size]
+		);
+
 		// Expose methods via ref
 		useImperativeHandle(ref, () => ({
 			focus: () => editorRef.current?.focus(),
@@ -395,6 +446,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			getText,
 			getMentionedDocuments,
 			insertDocumentChip,
+			removeDocumentChip,
 			setDocumentChipStatus,
 		}));
 

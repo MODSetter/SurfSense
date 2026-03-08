@@ -1,9 +1,11 @@
 import {
 	type GetNotificationsRequest,
 	type GetNotificationsResponse,
+	type GetSourceTypesResponse,
 	type GetUnreadCountResponse,
 	getNotificationsRequest,
 	getNotificationsResponse,
+	getSourceTypesResponse,
 	getUnreadCountResponse,
 	type InboxItemTypeEnum,
 	type MarkAllNotificationsReadResponse,
@@ -12,6 +14,7 @@ import {
 	markAllNotificationsReadResponse,
 	markNotificationReadRequest,
 	markNotificationReadResponse,
+	type NotificationCategory,
 } from "@/contracts/types/inbox.types";
 import { ValidationError } from "../error";
 import { baseApiService } from "./base-api.service";
@@ -41,6 +44,15 @@ class NotificationsApiService {
 		}
 		if (queryParams.type) {
 			params.append("type", queryParams.type);
+		}
+		if (queryParams.category) {
+			params.append("category", queryParams.category);
+		}
+		if (queryParams.source_type) {
+			params.append("source_type", queryParams.source_type);
+		}
+		if (queryParams.filter) {
+			params.append("filter", queryParams.filter);
 		}
 		if (queryParams.before_date) {
 			params.append("before_date", queryParams.before_date);
@@ -93,15 +105,32 @@ class NotificationsApiService {
 	};
 
 	/**
+	 * Get distinct source types (connector + document types) across all
+	 * status notifications. Used to populate the inbox Status tab filter.
+	 */
+	getSourceTypes = async (searchSpaceId?: number): Promise<GetSourceTypesResponse> => {
+		const params = new URLSearchParams();
+		if (searchSpaceId !== undefined) {
+			params.append("search_space_id", String(searchSpaceId));
+		}
+		const queryString = params.toString();
+
+		return baseApiService.get(
+			`/api/v1/notifications/source-types${queryString ? `?${queryString}` : ""}`,
+			getSourceTypesResponse
+		);
+	};
+
+	/**
 	 * Get unread notification count with split between total and recent
-	 * - total_unread: All unread notifications
-	 * - recent_unread: Unread within sync window (last 14 days)
 	 * @param searchSpaceId - Optional search space ID to filter by
 	 * @param type - Optional notification type to filter by (type-safe enum)
+	 * @param category - Optional category filter ('comments' or 'status')
 	 */
 	getUnreadCount = async (
 		searchSpaceId?: number,
-		type?: InboxItemTypeEnum
+		type?: InboxItemTypeEnum,
+		category?: NotificationCategory
 	): Promise<GetUnreadCountResponse> => {
 		const params = new URLSearchParams();
 		if (searchSpaceId !== undefined) {
@@ -109,6 +138,9 @@ class NotificationsApiService {
 		}
 		if (type) {
 			params.append("type", type);
+		}
+		if (category) {
+			params.append("category", category);
 		}
 		const queryString = params.toString();
 

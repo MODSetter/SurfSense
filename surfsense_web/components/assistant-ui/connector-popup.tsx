@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import type { FC } from "react";
+import { type FC, useMemo } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -37,7 +37,7 @@ import { AllConnectorsTab } from "./connector-popup/tabs/all-connectors-tab";
 import { ConnectorAccountsListView } from "./connector-popup/views/connector-accounts-list-view";
 import { YouTubeCrawlerView } from "./connector-popup/views/youtube-crawler-view";
 
-export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger = false }) => {
+export const ConnectorIndicator: FC = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const searchParams = useSearchParams();
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -66,11 +66,15 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 	const { data: documentTypeCounts, isFetching: documentTypesLoading } =
 		useAtomValue(documentTypeCountsAtom);
 
-	// Fetch notifications to detect indexing failures
-	const { inboxItems = [] } = useInbox(
+	// Fetch status notifications to detect indexing failures
+	const { inboxItems: statusInboxItems = [] } = useInbox(
 		currentUser?.id ?? null,
 		searchSpaceId ? Number(searchSpaceId) : null,
-		"connector_indexing"
+		"status"
+	);
+	const inboxItems = useMemo(
+		() => statusInboxItems.filter((item) => item.type === "connector_indexing"),
+		[statusInboxItems]
 	);
 
 	// Check if YouTube view is active
@@ -189,40 +193,36 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 
 	return (
 		<Dialog open={isOpen} onOpenChange={handleOpenChange}>
-			{!hideTrigger && (
-				<TooltipIconButton
-					data-joyride="connector-icon"
-					tooltip={
-						hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"
-					}
-					side="bottom"
-					className={cn(
-						"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors relative",
-						"hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30",
-						"outline-none focus:outline-none focus-visible:outline-none font-semibold text-xs",
-						"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none"
-					)}
-					aria-label={
-						hasConnectors ? `View ${activeConnectorsCount} connectors` : "Add your first connector"
-					}
-					onClick={() => handleOpenChange(true)}
-				>
-					{isLoading ? (
-						<Spinner size="sm" />
-					) : (
-						<>
-							<Cable className="size-4 stroke-[1.5px]" />
-							{activeConnectorsCount > 0 && (
-								<span className="absolute -top-0.5 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm">
-									{activeConnectorsCount > 99 ? "99+" : activeConnectorsCount}
-								</span>
-							)}
-						</>
-					)}
-				</TooltipIconButton>
-			)}
+			<TooltipIconButton
+				data-joyride="connector-icon"
+				tooltip={hasConnectors ? `Manage ${activeConnectorsCount} connectors` : "Connect your data"}
+				side="bottom"
+				className={cn(
+					"size-[34px] rounded-full p-1 flex items-center justify-center transition-colors relative",
+					"hover:bg-muted-foreground/15 dark:hover:bg-muted-foreground/30",
+					"outline-none focus:outline-none focus-visible:outline-none font-semibold text-xs",
+					"border-0 ring-0 focus:ring-0 shadow-none focus:shadow-none"
+				)}
+				aria-label={
+					hasConnectors ? `View ${activeConnectorsCount} connectors` : "Add your first connector"
+				}
+				onClick={() => handleOpenChange(true)}
+			>
+				{isLoading ? (
+					<Spinner size="sm" />
+				) : (
+					<>
+						<Cable className="size-4 stroke-[1.5px]" />
+						{activeConnectorsCount > 0 && (
+							<span className="absolute -top-0.5 right-0 flex items-center justify-center min-w-[16px] h-4 px-1 text-[10px] font-medium rounded-full bg-primary text-primary-foreground shadow-sm select-none">
+								{activeConnectorsCount > 99 ? "99+" : activeConnectorsCount}
+							</span>
+						)}
+					</>
+				)}
+			</TooltipIconButton>
 
-			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border bg-muted text-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5 select-none">
+			<DialogContent className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 dark:ring-0 bg-muted dark:bg-muted text-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5 select-none">
 				<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
 				{/* YouTube Crawler View - shown when adding YouTube videos */}
 				{isYouTubeView && searchSpaceId ? (
@@ -415,7 +415,6 @@ export const ConnectorIndicator: FC<{ hideTrigger?: boolean }> = ({ hideTrigger 
 										activeDocumentTypes={activeDocumentTypes}
 										connectors={connectors as SearchSourceConnector[]}
 										indexingConnectorIds={indexingConnectorIds}
-										searchSpaceId={searchSpaceId}
 										onTabChange={handleTabChange}
 										onManage={handleStartEdit}
 										onViewAccountsList={handleViewAccountsList}

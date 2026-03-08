@@ -47,7 +47,9 @@ export function useComments({ messageId, enabled = true }: UseCommentsOptions) {
 
 			if (_batchInflight && _batchTargetIds.has(messageId)) {
 				await _batchInflight;
-				const cached = queryClient.getQueryData<GetCommentsResponse>(cacheKeys.comments.byMessage(messageId));
+				const cached = queryClient.getQueryData<GetCommentsResponse>(
+					cacheKeys.comments.byMessage(messageId)
+				);
 				if (cached) return cached;
 			}
 

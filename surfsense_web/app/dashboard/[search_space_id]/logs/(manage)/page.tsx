@@ -1222,7 +1222,6 @@ function LogRowActions({ row, t }: { row: Row<Log>; t: (key: string) => string }
 					<AlertDialog open={isOpen} onOpenChange={setIsOpen}>
 						<AlertDialogTrigger asChild>
 							<DropdownMenuItem
-								className="text-destructive focus:text-destructive"
 								onSelect={(e) => {
 									e.preventDefault();
 									setIsOpen(true);

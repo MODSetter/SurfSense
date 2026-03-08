@@ -71,7 +71,8 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 //     real-time documents table with title/created_by_id/status columns,
 //     consolidated single documents sync, pending state for document queue visibility
 // v6: added enable_summary column to search_source_connectors
-const SYNC_VERSION = 6;
+// v7: fixed connector-popup using invalid category for useInbox
+const SYNC_VERSION = 7;
 
 // Database name prefix for identifying SurfSense databases
 const DB_PREFIX = "surfsense-";

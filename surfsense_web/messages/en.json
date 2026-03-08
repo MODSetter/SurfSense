@@ -332,7 +332,8 @@
 		"upload_documents": "Upload Documents",
 		"create_shared_note": "Create Shared Note",
 		"processing_documents": "Processing documents...",
-		"active_tasks_count": "{count} active task(s)"
+		"delete_in_progress_warning": "{count} document(s) are pending or processing and cannot be deleted.",
+		"delete_conflict_error": "{count} document(s) started processing. Please try again later."
 	},
 	"add_connector": {
 		"title": "Connect Your Tools",
@@ -637,23 +638,6 @@
 		"add_first_config": "Add First Configuration",
 		"created": "Created"
 	},
-	"breadcrumb": {
-		"dashboard": "Dashboard",
-		"search_space": "Search Space",
-		"chat": "Chat",
-		"documents": "Documents",
-		"connectors": "Connectors",
-		"editor": "Editor",
-		"logs": "Logs",
-		"settings": "Settings",
-		"upload_documents": "Upload Documents",
-		"add_youtube": "Add YouTube Videos",
-		"add_webpages": "Add Webpages",
-		"add_connector": "Add Connector",
-		"manage_connectors": "Manage Connectors",
-		"edit_connector": "Edit Connector",
-		"manage": "Manage"
-	},
 	"sidebar": {
 		"chats": "Private Chats",
 		"shared_chats": "Shared Chats",
@@ -718,8 +702,11 @@
 		"filter": "Filter",
 		"all": "All",
 		"unread": "Unread",
+		"errors_only": "Errors only",
 		"connectors": "Connectors",
 		"all_connectors": "All connectors",
+		"sources": "Sources",
+		"all_sources": "All sources",
 		"close": "Close",
 		"cancel": "Cancel"
 	},
