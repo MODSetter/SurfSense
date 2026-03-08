@@ -19,6 +19,7 @@ import { useTranslations } from "next-intl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
+import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import {
 	AlertDialog,
@@ -351,6 +352,10 @@ export function DocumentsTableShell({
 	const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
 	const [viewingContent, setViewingContent] = useState<string>("");
 	const [viewingLoading, setViewingLoading] = useState(false);
+
+	const [metadataDoc, setMetadataDoc] = useState<Document | null>(null);
+	const [metadataJson, setMetadataJson] = useState<Record<string, unknown> | null>(null);
+	const [metadataLoading, setMetadataLoading] = useState(false);
 	const [previewScrollPos, setPreviewScrollPos] = useState<"top" | "middle" | "bottom">("top");
 	const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
@@ -416,6 +421,20 @@ export function DocumentsTableShell({
 		setViewingDoc(null);
 		setViewingContent("");
 		setViewingLoading(false);
+	}, []);
+
+	const handleViewMetadata = useCallback(async (doc: Document) => {
+		setMetadataDoc(doc);
+		setMetadataLoading(true);
+		try {
+			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
+			setMetadataJson(fullDoc.document_metadata ?? {});
+		} catch (err) {
+			console.error("[DocumentsTableShell] Failed to fetch document metadata:", err);
+			setMetadataJson({ error: "Failed to load document metadata" });
+		} finally {
+			setMetadataLoading(false);
+		}
 	}, []);
 
 	const handleDeleteFromMenu = useCallback(async () => {
@@ -573,10 +592,19 @@ export function DocumentsTableShell({
 								{sorted.map((doc) => {
 									const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
 									const canInteract = isSelectable(doc);
-									const handleRowClick = () => {
+									const handleRowToggle = () => {
 										if (canInteract && onToggleChatMention) {
 											onToggleChatMention(doc, isMentioned);
 										}
+									};
+									const handleRowClick = (e: React.MouseEvent) => {
+										if (e.ctrlKey || e.metaKey) {
+											e.preventDefault();
+											e.stopPropagation();
+											handleViewMetadata(doc);
+											return;
+										}
+										handleRowToggle();
 									};
 									return (
 										<RowContextMenu
@@ -600,7 +628,7 @@ export function DocumentsTableShell({
 													<div className="flex items-center justify-center h-full">
 														<Checkbox
 															checked={isMentioned}
-															onCheckedChange={() => handleRowClick()}
+															onCheckedChange={() => handleRowToggle()}
 															disabled={!canInteract}
 															aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
 															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
@@ -690,7 +718,13 @@ export function DocumentsTableShell({
 					{sorted.map((doc) => {
 						const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
 						const canInteract = isSelectable(doc);
-						const handleCardClick = () => {
+						const handleCardClick = (e?: React.MouseEvent) => {
+							if (e && (e.ctrlKey || e.metaKey)) {
+								e.preventDefault();
+								e.stopPropagation();
+								handleViewMetadata(doc);
+								return;
+							}
 							if (canInteract && onToggleChatMention) {
 								onToggleChatMention(doc, isMentioned);
 							}
@@ -775,6 +809,21 @@ export function DocumentsTableShell({
 					</div>
 				</DialogContent>
 			</Dialog>
+
+			{/* Document Metadata Viewer (Ctrl+Click) */}
+			<JsonMetadataViewer
+				title={metadataDoc?.title ?? "Document"}
+				metadata={metadataJson}
+				loading={metadataLoading}
+				open={!!metadataDoc}
+				onOpenChange={(open) => {
+					if (!open) {
+						setMetadataDoc(null);
+						setMetadataJson(null);
+						setMetadataLoading(false);
+					}
+				}}
+			/>
 
 			{/* Delete Confirmation Dialog */}
 			<AlertDialog open={!!deleteDoc} onOpenChange={(open) => !open && setDeleteDoc(null)}>
