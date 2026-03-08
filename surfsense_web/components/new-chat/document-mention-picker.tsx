@@ -396,7 +396,7 @@ export const DocumentMentionPicker = forwardRef<
 
 	return (
 		<div
-			className="fixed shadow-2xl rounded-lg border border-border overflow-hidden bg-popover flex flex-col w-[280px] sm:w-[320px]"
+			className="fixed shadow-2xl rounded-lg border border-border dark:border-white/5 overflow-hidden bg-popover dark:bg-neutral-900 flex flex-col w-[280px] sm:w-[320px] select-none"
 			style={{
 				zIndex: 9999,
 				...containerStyle,
@@ -486,6 +486,9 @@ export const DocumentMentionPicker = forwardRef<
 						{/* User Documents */}
 						{userDocsList.length > 0 && (
 							<>
+								{surfsenseDocsList.length > 0 && (
+									<div className="mx-2 my-4 border-t border-border dark:border-white/5" />
+								)}
 								<div className="px-3 py-2 text-xs font-bold text-muted-foreground/55">
 									Your Documents
 								</div>
