@@ -6,7 +6,7 @@ import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
@@ -85,6 +85,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// State for handling new chat navigation when router is out of sync
 	const [pendingNewChat, setPendingNewChat] = useState(false);
+
+	// Key used to force-remount the page component (e.g. after deleting the active chat
+	// when the router is out of sync due to replaceState)
+	const [chatResetKey, setChatResetKey] = useState(0);
 
 	// Current IDs from URL, with fallback to atom for replaceState updates
 	const currentChatId = params?.chat_id
@@ -535,7 +539,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			await deleteThread(chatToDelete.id);
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			if (currentChatId === chatToDelete.id) {
-				router.push(`/dashboard/${searchSpaceId}/new-chat`);
+				resetCurrentThread();
+				const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
+				if (isOutOfSync) {
+					window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
+					setChatResetKey((k) => k + 1);
+				} else {
+					router.push(`/dashboard/${searchSpaceId}/new-chat`);
+				}
 			}
 		} catch (error) {
 			console.error("Error deleting thread:", error);
@@ -544,7 +555,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			setShowDeleteChatDialog(false);
 			setChatToDelete(null);
 		}
-	}, [chatToDelete, queryClient, searchSpaceId, router, currentChatId]);
+	}, [
+		chatToDelete,
+		queryClient,
+		searchSpaceId,
+		resetCurrentThread,
+		currentChatId,
+		currentThreadState.id,
+		params?.chat_id,
+		router,
+	]);
 
 	// Rename handler
 	const confirmRenameChat = useCallback(async () => {
@@ -660,7 +680,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					onOpenChange: setIsDocumentsSidebarOpen,
 				}}
 			>
-				{children}
+				<Fragment key={chatResetKey}>{children}</Fragment>
 			</LayoutShell>
 
 			{/* Delete Chat Dialog */}
