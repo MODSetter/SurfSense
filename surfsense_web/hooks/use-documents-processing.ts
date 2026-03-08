@@ -3,20 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useElectricClient } from "@/lib/electric/context";
 
+export type DocumentsProcessingStatus = "idle" | "processing" | "success" | "error";
+
+const SUCCESS_LINGER_MS = 5000;
+
 /**
- * Returns whether any documents in the search space are currently being
- * uploaded or indexed (status = "pending" | "processing").
- *
- * Covers both manual file uploads (2-phase pattern) and all connector indexers,
- * since both create documents with status = pending before processing.
- *
- * The sync shape uses the same columns as useDocuments so Electric can share
- * the subscription when both hooks are active simultaneously.
+ * Returns the processing status of documents in the search space:
+ *   - "processing" — at least one doc is pending/processing (show spinner)
+ *   - "error"      — nothing processing, but failed docs exist (show red icon)
+ *   - "success"    — just transitioned from processing → all clear (green check, auto-dismisses)
+ *   - "idle"       — nothing noteworthy (show normal icon)
  */
-export function useDocumentsProcessing(searchSpaceId: number | null): boolean {
+export function useDocumentsProcessing(searchSpaceId: number | null): DocumentsProcessingStatus {
 	const electricClient = useElectricClient();
-	const [isProcessing, setIsProcessing] = useState(false);
+	const [status, setStatus] = useState<DocumentsProcessingStatus>("idle");
 	const liveQueryRef = useRef<{ unsubscribe?: () => void } | null>(null);
+	const wasProcessingRef = useRef(false);
+	const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	useEffect(() => {
 		if (!searchSpaceId || !electricClient) return;
@@ -76,10 +79,15 @@ export function useDocumentsProcessing(searchSpaceId: number | null): boolean {
 
 				if (!db.live?.query) return;
 
-				const liveQuery = await db.live.query<{ count: number | string }>(
-					`SELECT COUNT(*) as count FROM documents
-					 WHERE search_space_id = $1
-					 AND (status->>'state' = 'pending' OR status->>'state' = 'processing')`,
+				const liveQuery = await db.live.query<{
+					processing_count: number | string;
+					failed_count: number | string;
+				}>(
+					`SELECT
+						SUM(CASE WHEN status->>'state' IN ('pending', 'processing') THEN 1 ELSE 0 END) AS processing_count,
+						SUM(CASE WHEN status->>'state' = 'failed' THEN 1 ELSE 0 END) AS failed_count
+					 FROM documents
+					 WHERE search_space_id = $1`,
 					[spaceId]
 				);
 
@@ -88,10 +96,46 @@ export function useDocumentsProcessing(searchSpaceId: number | null): boolean {
 					return;
 				}
 
-				liveQuery.subscribe((result: { rows: Array<{ count: number | string }> }) => {
-					if (!mounted || !result.rows?.[0]) return;
-					setIsProcessing((Number(result.rows[0].count) || 0) > 0);
-				});
+				liveQuery.subscribe(
+					(result: {
+						rows: Array<{ processing_count: number | string; failed_count: number | string }>;
+					}) => {
+						if (!mounted || !result.rows?.[0]) return;
+
+						const processingCount = Number(result.rows[0].processing_count) || 0;
+						const failedCount = Number(result.rows[0].failed_count) || 0;
+
+						if (processingCount > 0) {
+							wasProcessingRef.current = true;
+							if (successTimerRef.current) {
+								clearTimeout(successTimerRef.current);
+								successTimerRef.current = null;
+							}
+							setStatus("processing");
+						} else if (failedCount > 0) {
+							wasProcessingRef.current = false;
+							if (successTimerRef.current) {
+								clearTimeout(successTimerRef.current);
+								successTimerRef.current = null;
+							}
+							setStatus("error");
+						} else if (wasProcessingRef.current) {
+							wasProcessingRef.current = false;
+							setStatus("success");
+							if (successTimerRef.current) {
+								clearTimeout(successTimerRef.current);
+							}
+							successTimerRef.current = setTimeout(() => {
+								if (mounted) {
+									setStatus("idle");
+									successTimerRef.current = null;
+								}
+							}, SUCCESS_LINGER_MS);
+						} else {
+							setStatus("idle");
+						}
+					}
+				);
 
 				liveQueryRef.current = liveQuery;
 			} catch (err) {
@@ -103,6 +147,10 @@ export function useDocumentsProcessing(searchSpaceId: number | null): boolean {
 
 		return () => {
 			mounted = false;
+			if (successTimerRef.current) {
+				clearTimeout(successTimerRef.current);
+				successTimerRef.current = null;
+			}
 			if (liveQueryRef.current) {
 				try {
 					liveQueryRef.current.unsubscribe?.();
@@ -114,5 +162,5 @@ export function useDocumentsProcessing(searchSpaceId: number | null): boolean {
 		};
 	}, [searchSpaceId, electricClient]);
 
-	return isProcessing;
+	return status;
 }

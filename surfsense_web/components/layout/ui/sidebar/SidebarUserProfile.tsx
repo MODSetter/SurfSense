@@ -1,6 +1,18 @@
 "use client";
 
-import { Check, ChevronUp, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
+import {
+	Check,
+	ChevronUp,
+	ExternalLink,
+	Info,
+	Languages,
+	Laptop,
+	LogOut,
+	Moon,
+	Settings,
+	Sun,
+} from "lucide-react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
@@ -16,8 +28,8 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocaleContext } from "@/contexts/LocaleContext";
+import { APP_VERSION } from "@/lib/env-config";
 import { cn } from "@/lib/utils";
 import type { User } from "../../types/layout.types";
 
@@ -35,6 +47,11 @@ const THEMES = [
 	{ value: "light" as const, name: "Light", icon: Sun },
 	{ value: "dark" as const, name: "Dark", icon: Moon },
 	{ value: "system" as const, name: "System", icon: Laptop },
+];
+
+const LEARN_MORE_LINKS = [
+	{ key: "documentation" as const, href: "https://surfsense.com/docs" },
+	{ key: "github" as const, href: "https://github.com/MODSetter/SurfSense" },
 ];
 
 interface SidebarUserProfileProps {
@@ -100,11 +117,14 @@ function UserAvatar({
 }) {
 	if (avatarUrl) {
 		return (
-			<img
+			<Image
 				src={avatarUrl}
 				alt="User avatar"
+				width={32}
+				height={32}
 				className="h-8 w-8 shrink-0 rounded-lg object-cover"
 				referrerPolicy="no-referrer"
+				unoptimized
 			/>
 		);
 	}
@@ -157,25 +177,20 @@ export function SidebarUserProfile({
 		return (
 			<div className="border-t p-2">
 				<DropdownMenu>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<DropdownMenuTrigger asChild>
-								<button
-									type="button"
-									className={cn(
-										"flex h-10 w-full items-center justify-center rounded-md",
-										"hover:bg-accent transition-colors",
-										"focus:outline-none focus-visible:outline-none",
-										"data-[state=open]:bg-transparent"
-									)}
-								>
-									<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
-									<span className="sr-only">{displayName}</span>
-								</button>
-							</DropdownMenuTrigger>
-						</TooltipTrigger>
-						<TooltipContent side="right">{displayName}</TooltipContent>
-					</Tooltip>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							className={cn(
+								"flex h-10 w-full items-center justify-center rounded-md",
+								"hover:bg-accent transition-colors",
+								"focus:outline-none focus-visible:outline-none",
+								"data-[state=open]:bg-transparent"
+							)}
+						>
+							<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
+							<span className="sr-only">{displayName}</span>
+						</button>
+					</DropdownMenuTrigger>
 
 					<DropdownMenuContent className="w-48" side="right" align="center" sideOffset={8}>
 						<DropdownMenuLabel className="font-normal">
@@ -252,6 +267,29 @@ export function SidebarUserProfile({
 											</DropdownMenuItem>
 										);
 									})}
+								</DropdownMenuSubContent>
+							</DropdownMenuPortal>
+						</DropdownMenuSub>
+
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger>
+								<Info className="h-4 w-4" />
+								{t("learn_more")}
+							</DropdownMenuSubTrigger>
+							<DropdownMenuPortal>
+								<DropdownMenuSubContent className="min-w-[180px] gap-1">
+									{LEARN_MORE_LINKS.map((link) => (
+										<DropdownMenuItem key={link.key} asChild>
+											<a href={link.href} target="_blank" rel="noopener noreferrer">
+												<span className="flex-1">{t(link.key)}</span>
+												<ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+											</a>
+										</DropdownMenuItem>
+									))}
+									<DropdownMenuSeparator className="dark:bg-neutral-700" />
+									<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">
+										v{APP_VERSION}
+									</p>
 								</DropdownMenuSubContent>
 							</DropdownMenuPortal>
 						</DropdownMenuSub>
@@ -374,6 +412,29 @@ export function SidebarUserProfile({
 										</DropdownMenuItem>
 									);
 								})}
+							</DropdownMenuSubContent>
+						</DropdownMenuPortal>
+					</DropdownMenuSub>
+
+					<DropdownMenuSub>
+						<DropdownMenuSubTrigger>
+							<Info className="h-4 w-4" />
+							{t("learn_more")}
+						</DropdownMenuSubTrigger>
+						<DropdownMenuPortal>
+							<DropdownMenuSubContent className="min-w-[180px] gap-1">
+								{LEARN_MORE_LINKS.map((link) => (
+									<DropdownMenuItem key={link.key} asChild>
+										<a href={link.href} target="_blank" rel="noopener noreferrer">
+											<span className="flex-1">{t(link.key)}</span>
+											<ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+										</a>
+									</DropdownMenuItem>
+								))}
+								<DropdownMenuSeparator className="dark:bg-neutral-700" />
+								<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">
+									v{APP_VERSION}
+								</p>
 							</DropdownMenuSubContent>
 						</DropdownMenuPortal>
 					</DropdownMenuSub>

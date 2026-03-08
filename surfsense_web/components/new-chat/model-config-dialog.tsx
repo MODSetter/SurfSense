@@ -195,8 +195,8 @@ export function ModelConfigDialog({
 							aria-modal="true"
 							className={cn(
 								"relative w-full max-w-lg h-[85vh]",
-								"rounded-xl bg-background shadow-2xl ring-1 ring-border/50",
-								"dark:bg-neutral-900 dark:ring-white/5",
+								"rounded-xl bg-background shadow-2xl",
+								"dark:bg-neutral-900",
 								"flex flex-col overflow-hidden"
 							)}
 							onClick={(e) => e.stopPropagation()}

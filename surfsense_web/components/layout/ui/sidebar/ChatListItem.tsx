@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { useTypewriter } from "@/hooks/use-typewriter";
 import { cn } from "@/lib/utils";
 
 interface ChatListItemProps {
@@ -44,6 +45,7 @@ export function ChatListItem({
 	const t = useTranslations("sidebar");
 	const isMobile = useIsMobile();
 	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const animatedName = useTypewriter(name);
 
 	const { handlers: longPressHandlers, wasLongPress } = useLongPress(
 		useCallback(() => setDropdownOpen(true), [])
@@ -69,7 +71,7 @@ export function ChatListItem({
 				)}
 			>
 				<MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-				<span className="w-[calc(100%-3rem)] ">{name}</span>
+				<span className="w-[calc(100%-3rem)] ">{animatedName}</span>
 			</button>
 
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}
@@ -86,7 +88,7 @@ export function ChatListItem({
 							<span className="sr-only">{t("more_options")}</span>
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" side="right">
+					<DropdownMenuContent align="end" side="bottom">
 						{onRename && (
 							<DropdownMenuItem
 								onClick={(e) => {

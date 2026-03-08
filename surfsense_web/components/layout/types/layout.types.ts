@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { DocumentsProcessingStatus } from "@/hooks/use-documents-processing";
 
 export interface SearchSpace {
 	id: number;
@@ -21,7 +22,7 @@ export interface NavItem {
 	icon: LucideIcon;
 	isActive?: boolean;
 	badge?: string | number;
-	showSpinner?: boolean;
+	statusIndicator?: DocumentsProcessingStatus;
 }
 
 export interface ChatItem {

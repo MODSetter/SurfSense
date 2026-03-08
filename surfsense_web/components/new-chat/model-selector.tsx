@@ -291,7 +291,7 @@ export function ModelSelector({
 			</PopoverTrigger>
 
 			<PopoverContent
-				className="w-[280px] md:w-[360px] p-0 rounded-lg shadow-lg border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
+				className="w-[280px] md:w-[360px] p-0 rounded-lg shadow-lg bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
 				align="start"
 				sideOffset={8}
 			>
@@ -304,14 +304,14 @@ export function ModelSelector({
 						<TabsList className="w-full grid grid-cols-2 rounded-none rounded-t-lg bg-transparent h-11 p-0 gap-0">
 							<TabsTrigger
 								value="llm"
-								className="gap-2 text-sm font-medium rounded-none text-muted-foreground/60 transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
+								className="gap-2 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
 							>
 								<Zap className="size-4" />
 								LLM
 							</TabsTrigger>
 							<TabsTrigger
 								value="image"
-								className="gap-2 text-sm font-medium rounded-none text-muted-foreground/60 transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
+								className="gap-2 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
 							>
 								<ImageIcon className="size-4" />
 								Image

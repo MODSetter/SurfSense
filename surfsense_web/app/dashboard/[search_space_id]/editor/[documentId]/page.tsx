@@ -18,7 +18,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { notesApiService } from "@/lib/apis/notes-api.service";
@@ -83,6 +83,7 @@ export default function EditorPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 	const [showUnsavedDialog, setShowUnsavedDialog] = useState(false);
+	const [editorTitle, setEditorTitle] = useState<string>("Untitled");
 
 	// Store the latest markdown from the editor
 	const markdownRef = useRef<string>("");
@@ -117,20 +118,18 @@ export default function EditorPage() {
 		}
 	}, [pendingNavigation, hasUnsavedChanges, router, setPendingNavigation]);
 
-	// Reset state when documentId changes
+	// Reset state and fetch document content when documentId changes
 	useEffect(() => {
 		setDocument(null);
 		setError(null);
 		setHasUnsavedChanges(false);
 		setLoading(true);
 		initialLoadDone.current = false;
-	}, [documentId]);
 
-	// Fetch document content
-	useEffect(() => {
 		async function fetchDocument() {
 			if (isNewNote) {
 				markdownRef.current = "";
+				setEditorTitle("Untitled");
 				setDocument({
 					document_id: 0,
 					title: "Untitled",
@@ -173,6 +172,7 @@ export default function EditorPage() {
 				}
 
 				markdownRef.current = data.source_markdown;
+				setEditorTitle(extractTitleFromMarkdown(data.source_markdown));
 				setDocument(data);
 				setError(null);
 				initialLoadDone.current = true;
@@ -193,20 +193,17 @@ export default function EditorPage() {
 
 	const isNote = isNewNote || document?.document_type === "NOTE";
 
-	// Extract title dynamically from current markdown for notes
 	const displayTitle = useMemo(() => {
-		if (isNote) {
-			return extractTitleFromMarkdown(markdownRef.current || document?.source_markdown);
-		}
+		if (isNote) return editorTitle;
 		return document?.title || "Untitled";
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [isNote, document?.title, document?.source_markdown, hasUnsavedChanges]);
+	}, [isNote, document?.title, editorTitle]);
 
 	// Handle markdown changes from the Plate editor
 	const handleMarkdownChange = useCallback((md: string) => {
 		markdownRef.current = md;
 		if (initialLoadDone.current) {
 			setHasUnsavedChanges(true);
+			setEditorTitle(extractTitleFromMarkdown(md));
 		}
 	}, []);
 
@@ -493,13 +490,13 @@ export default function EditorPage() {
 					</AlertDialogHeader>
 					<AlertDialogFooter>
 						<AlertDialogCancel onClick={handleCancelLeave}>Cancel</AlertDialogCancel>
-						<AlertDialogAction onClick={handleSaveAndLeave}>Save</AlertDialogAction>
 						<AlertDialogAction
 							onClick={handleConfirmLeave}
-							className="border border-input bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
+							className={buttonVariants({ variant: "secondary" })}
 						>
 							Leave without saving
 						</AlertDialogAction>
+						<AlertDialogAction onClick={handleSaveAndLeave}>Save</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
 			</AlertDialog>

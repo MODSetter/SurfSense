@@ -1720,6 +1720,8 @@ if config.AUTH_TYPE == "GOOGLE":
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
 
+        last_login = Column(TIMESTAMP(timezone=True), nullable=True)
+
         # Refresh tokens for this user
         refresh_tokens = relationship(
             "RefreshToken",
@@ -1819,6 +1821,8 @@ else:
         # User profile (can be set manually for non-OAuth users)
         display_name = Column(String, nullable=True)
         avatar_url = Column(String, nullable=True)
+
+        last_login = Column(TIMESTAMP(timezone=True), nullable=True)
 
         # Refresh tokens for this user
         refresh_tokens = relationship(

@@ -11,7 +11,7 @@ import {
 	FileX,
 	Network,
 	PenLine,
-	Plus,
+	SearchX,
 	Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -19,6 +19,7 @@ import { useTranslations } from "next-intl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
+import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import { MarkdownViewer } from "@/components/markdown-viewer";
 import {
 	AlertDialog,
@@ -222,12 +223,14 @@ function RowContextMenu({
 	onPreview,
 	onDelete,
 	searchSpaceId,
+	onEditNavigate,
 }: {
 	doc: Document;
 	children: React.ReactNode;
 	onPreview: (doc: Document) => void;
 	onDelete: (doc: Document) => void;
 	searchSpaceId: string;
+	onEditNavigate?: () => void;
 }) {
 	const router = useRouter();
 
@@ -252,9 +255,12 @@ function RowContextMenu({
 				</ContextMenuItem>
 				{isEditable && (
 					<ContextMenuItem
-						onClick={() =>
-							!isEditDisabled && router.push(`/dashboard/${searchSpaceId}/editor/${doc.id}`)
-						}
+						onClick={() => {
+							if (!isEditDisabled) {
+								onEditNavigate?.();
+								router.push(`/dashboard/${searchSpaceId}/editor/${doc.id}`);
+							}
+						}}
 						disabled={isEditDisabled}
 					>
 						<PenLine className="h-4 w-4" />
@@ -318,9 +324,10 @@ export function DocumentsTableShell({
 	hasMore = false,
 	loadingMore = false,
 	onLoadMore,
-	isSearchMode = false,
 	mentionedDocIds,
 	onToggleChatMention,
+	onEditNavigate,
+	isSearchMode = false,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -333,11 +340,14 @@ export function DocumentsTableShell({
 	hasMore?: boolean;
 	loadingMore?: boolean;
 	onLoadMore?: () => void;
-	isSearchMode?: boolean;
 	/** IDs of documents currently mentioned as chips in the chat composer */
 	mentionedDocIds?: Set<number>;
 	/** Toggle a document's mention in the chat (add if not mentioned, remove if mentioned) */
 	onToggleChatMention?: (doc: Document, mentioned: boolean) => void;
+	/** Called when user navigates to the editor via Edit — use to close containing sidebar/panel */
+	onEditNavigate?: () => void;
+	/** Whether results are filtered by a search query or type filters */
+	isSearchMode?: boolean;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
@@ -345,6 +355,10 @@ export function DocumentsTableShell({
 	const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
 	const [viewingContent, setViewingContent] = useState<string>("");
 	const [viewingLoading, setViewingLoading] = useState(false);
+
+	const [metadataDoc, setMetadataDoc] = useState<Document | null>(null);
+	const [metadataJson, setMetadataJson] = useState<Record<string, unknown> | null>(null);
+	const [metadataLoading, setMetadataLoading] = useState(false);
 	const [previewScrollPos, setPreviewScrollPos] = useState<"top" | "middle" | "bottom">("top");
 	const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
@@ -410,6 +424,20 @@ export function DocumentsTableShell({
 		setViewingDoc(null);
 		setViewingContent("");
 		setViewingLoading(false);
+	}, []);
+
+	const handleViewMetadata = useCallback(async (doc: Document) => {
+		setMetadataDoc(doc);
+		setMetadataLoading(true);
+		try {
+			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
+			setMetadataJson(fullDoc.document_metadata ?? {});
+		} catch (err) {
+			console.error("[DocumentsTableShell] Failed to fetch document metadata:", err);
+			setMetadataJson({ error: "Failed to load document metadata" });
+		} finally {
+			setMetadataLoading(false);
+		}
 	}, []);
 
 	const handleDeleteFromMenu = useCallback(async () => {
@@ -544,21 +572,34 @@ export function DocumentsTableShell({
 					</div>
 				) : sorted.length === 0 ? (
 					<div className="flex flex-1 w-full items-center justify-center">
-						<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
-							<div className="rounded-full bg-muted/50 p-4">
-								<FileX className="h-8 w-8 text-muted-foreground" />
+						{isSearchMode ? (
+							<div className="flex flex-col items-center gap-3 max-w-md px-4 text-center">
+								<SearchX className="h-8 w-8 text-muted-foreground" />
+								<div className="space-y-1">
+									<h3 className="text-sm font-medium text-muted-foreground">
+										No matching documents
+									</h3>
+									<p className="text-xs text-muted-foreground/70">
+										Try a different search term or adjust your filters.
+									</p>
+								</div>
 							</div>
-							<div className="space-y-1.5">
-								<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
-								<p className="text-sm text-muted-foreground">
-									Get started by uploading your first document.
-								</p>
+						) : (
+							<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
+								<div className="rounded-full bg-muted/50 p-4">
+									<FileX className="h-8 w-8 text-muted-foreground" />
+								</div>
+								<div className="space-y-1.5">
+									<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+									<p className="text-sm text-muted-foreground">
+										Get started by uploading your first document.
+									</p>
+								</div>
+								<Button onClick={openDialog} className="mt-2">
+									Upload Documents
+								</Button>
 							</div>
-							<Button onClick={openDialog} className="mt-2">
-								<Plus className="mr-2 h-4 w-4" />
-								Upload Documents
-							</Button>
-						</div>
+						)}
 					</div>
 				) : (
 					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
@@ -567,10 +608,19 @@ export function DocumentsTableShell({
 								{sorted.map((doc) => {
 									const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
 									const canInteract = isSelectable(doc);
-									const handleRowClick = () => {
+									const handleRowToggle = () => {
 										if (canInteract && onToggleChatMention) {
 											onToggleChatMention(doc, isMentioned);
 										}
+									};
+									const handleRowClick = (e: React.MouseEvent) => {
+										if (e.ctrlKey || e.metaKey) {
+											e.preventDefault();
+											e.stopPropagation();
+											handleViewMetadata(doc);
+											return;
+										}
+										handleRowToggle();
 									};
 									return (
 										<RowContextMenu
@@ -579,6 +629,7 @@ export function DocumentsTableShell({
 											onPreview={handleViewDocument}
 											onDelete={setDeleteDoc}
 											searchSpaceId={searchSpaceId}
+											onEditNavigate={onEditNavigate}
 										>
 											<tr
 												className={`border-b border-border/50 transition-colors ${
@@ -593,7 +644,7 @@ export function DocumentsTableShell({
 													<div className="flex items-center justify-center h-full">
 														<Checkbox
 															checked={isMentioned}
-															onCheckedChange={() => handleRowClick()}
+															onCheckedChange={() => handleRowToggle()}
 															disabled={!canInteract}
 															aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
 															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
@@ -659,21 +710,32 @@ export function DocumentsTableShell({
 				</div>
 			) : sorted.length === 0 ? (
 				<div className="md:hidden flex flex-1 w-full items-center justify-center">
-					<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
-						<div className="rounded-full bg-muted/50 p-4">
-							<FileX className="h-8 w-8 text-muted-foreground" />
+					{isSearchMode ? (
+						<div className="flex flex-col items-center gap-3 max-w-md px-4 text-center">
+							<SearchX className="h-8 w-8 text-muted-foreground" />
+							<div className="space-y-1">
+								<h3 className="text-sm font-medium text-muted-foreground">No matching documents</h3>
+								<p className="text-xs text-muted-foreground/70">
+									Try a different search term or adjust your filters.
+								</p>
+							</div>
 						</div>
-						<div className="space-y-1.5">
-							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
-							<p className="text-sm text-muted-foreground">
-								Get started by uploading your first document.
-							</p>
+					) : (
+						<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
+							<div className="rounded-full bg-muted/50 p-4">
+								<FileX className="h-8 w-8 text-muted-foreground" />
+							</div>
+							<div className="space-y-1.5">
+								<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+								<p className="text-sm text-muted-foreground">
+									Get started by uploading your first document.
+								</p>
+							</div>
+							<Button onClick={openDialog} className="mt-2">
+								Upload Documents
+							</Button>
 						</div>
-						<Button onClick={openDialog} className="mt-2">
-							<Plus className="mr-2 h-4 w-4" />
-							Upload Documents
-						</Button>
-					</div>
+					)}
 				</div>
 			) : (
 				<div
@@ -683,7 +745,13 @@ export function DocumentsTableShell({
 					{sorted.map((doc) => {
 						const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
 						const canInteract = isSelectable(doc);
-						const handleCardClick = () => {
+						const handleCardClick = (e?: React.MouseEvent) => {
+							if (e && (e.ctrlKey || e.metaKey)) {
+								e.preventDefault();
+								e.stopPropagation();
+								handleViewMetadata(doc);
+								return;
+							}
 							if (canInteract && onToggleChatMention) {
 								onToggleChatMention(doc, isMentioned);
 							}
@@ -769,6 +837,21 @@ export function DocumentsTableShell({
 				</DialogContent>
 			</Dialog>
 
+			{/* Document Metadata Viewer (Ctrl+Click) */}
+			<JsonMetadataViewer
+				title={metadataDoc?.title ?? "Document"}
+				metadata={metadataJson}
+				loading={metadataLoading}
+				open={!!metadataDoc}
+				onOpenChange={(open) => {
+					if (!open) {
+						setMetadataDoc(null);
+						setMetadataJson(null);
+						setMetadataLoading(false);
+					}
+				}}
+			/>
+
 			{/* Delete Confirmation Dialog */}
 			<AlertDialog open={!!deleteDoc} onOpenChange={(open) => !open && setDeleteDoc(null)}>
 				<AlertDialogContent>
@@ -839,6 +922,7 @@ export function DocumentsTableShell({
 									}
 									onClick={() => {
 										if (mobileActionDoc) {
+											onEditNavigate?.();
 											router.push(`/dashboard/${searchSpaceId}/editor/${mobileActionDoc.id}`);
 											setMobileActionDoc(null);
 										}

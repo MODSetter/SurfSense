@@ -1,18 +1,12 @@
 "use client";
-import {
-	IconBrandDiscord,
-	IconBrandGithub,
-	IconBrandReddit,
-	IconMenu2,
-	IconX,
-} from "@tabler/icons-react";
+import { IconBrandDiscord, IconBrandReddit, IconMenu2, IconX } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SignInButton } from "@/components/auth/sign-in-button";
+import { NavbarGitHubStars } from "@/components/homepage/github-stars-badge";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
-import { useGithubStars } from "@/hooks/use-github-stars";
 import { cn } from "@/lib/utils";
 
 export const Navbar = () => {
@@ -38,7 +32,7 @@ export const Navbar = () => {
 	}, []);
 
 	return (
-		<div className="fixed top-1 left-0 right-0 z-60 w-full">
+		<div className="fixed top-1 left-0 right-0 z-60 w-full select-none">
 			<DesktopNav navItems={navItems} isScrolled={isScrolled} />
 			<MobileNav navItems={navItems} isScrolled={isScrolled} />
 		</div>
@@ -47,7 +41,6 @@ export const Navbar = () => {
 
 const DesktopNav = ({ navItems, isScrolled }: any) => {
 	const [hovered, setHovered] = useState<number | null>(null);
-	const { compactFormat: githubStars, loading: loadingGithubStars } = useGithubStars();
 	return (
 		<motion.div
 			onMouseLeave={() => {
@@ -103,21 +96,7 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 				>
 					<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
 				</Link>
-				<Link
-					href="https://github.com/MODSetter/SurfSense"
-					target="_blank"
-					rel="noopener noreferrer"
-					className="hidden rounded-full px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center gap-1.5"
-				>
-					<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-					{loadingGithubStars ? (
-						<div className="w-6 h-5 dark:bg-neutral-800 animate-pulse"></div>
-					) : (
-						<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-							{githubStars}
-						</span>
-					)}
-				</Link>
+				<NavbarGitHubStars className="hidden md:flex" />
 				<ThemeTogglerComponent />
 				<SignInButton variant="desktop" />
 			</div>
@@ -127,10 +106,28 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 
 const MobileNav = ({ navItems, isScrolled }: any) => {
 	const [open, setOpen] = useState(false);
-	const { compactFormat: githubStars, loading: loadingGithubStars } = useGithubStars();
+	const navRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!open) return;
+
+		const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+			if (navRef.current && !navRef.current.contains(e.target as Node)) {
+				setOpen(false);
+			}
+		};
+
+		document.addEventListener("mousedown", handleClickOutside);
+		document.addEventListener("touchstart", handleClickOutside);
+		return () => {
+			document.removeEventListener("mousedown", handleClickOutside);
+			document.removeEventListener("touchstart", handleClickOutside);
+		};
+	}, [open]);
 
 	return (
 		<motion.div
+			ref={navRef}
 			animate={{ borderRadius: open ? "4px" : "2rem" }}
 			key={String(open)}
 			className={cn(
@@ -197,21 +194,7 @@ const MobileNav = ({ navItems, isScrolled }: any) => {
 							>
 								<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
 							</Link>
-							<Link
-								href="https://github.com/MODSetter/SurfSense"
-								target="_blank"
-								rel="noopener noreferrer"
-								className="flex items-center gap-1.5 rounded-lg px-3 py-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
-							>
-								<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300" />
-								{loadingGithubStars ? (
-									<div className="w-6 h-5 dark:bg-neutral-800 animate-pulse"></div>
-								) : (
-									<span className="text-sm font-medium text-neutral-600 dark:text-neutral-300">
-										{githubStars}
-									</span>
-								)}
-							</Link>
+							<NavbarGitHubStars className="rounded-lg" />
 							<ThemeTogglerComponent />
 						</div>
 						<SignInButton variant="mobile" />

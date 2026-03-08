@@ -190,9 +190,10 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 					hasMore={hasMore}
 					loadingMore={loadingMore}
 					onLoadMore={onLoadMore}
-					isSearchMode={isSearchMode}
 					mentionedDocIds={mentionedDocIds}
 					onToggleChatMention={handleToggleChatMention}
+					onEditNavigate={() => onOpenChange(false)}
+					isSearchMode={isSearchMode || activeTypes.length > 0}
 				/>
 			</div>
 		</>

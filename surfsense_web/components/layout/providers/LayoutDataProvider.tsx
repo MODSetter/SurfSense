@@ -6,7 +6,7 @@ import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
@@ -86,6 +86,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	// State for handling new chat navigation when router is out of sync
 	const [pendingNewChat, setPendingNewChat] = useState(false);
 
+	// Key used to force-remount the page component (e.g. after deleting the active chat
+	// when the router is out of sync due to replaceState)
+	const [chatResetKey, setChatResetKey] = useState(0);
+
 	// Current IDs from URL, with fallback to atom for replaceState updates
 	const currentChatId = params?.chat_id
 		? Number(Array.isArray(params.chat_id) ? params.chat_id[0] : params.chat_id)
@@ -132,8 +136,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	const totalUnreadCount = commentsInbox.unreadCount + statusInbox.unreadCount;
 
-	// Whether any documents are currently being uploaded/indexed — drives sidebar spinner
-	const isDocumentsProcessing = useDocumentsProcessing(numericSpaceId);
+	// Document processing status — drives sidebar status indicator (spinner / check / error)
+	const documentsProcessingStatus = useDocumentsProcessing(numericSpaceId);
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -271,7 +275,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				url: "#documents",
 				icon: SquareLibrary,
 				isActive: isDocumentsSidebarOpen,
-				showSpinner: isDocumentsProcessing,
+				statusIndicator: documentsProcessingStatus,
 			},
 			{
 				title: "Announcements",
@@ -287,7 +291,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
-			isDocumentsProcessing,
+			documentsProcessingStatus,
 		]
 	);
 
@@ -304,12 +308,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, []);
 
 	const handleUserSettings = useCallback(() => {
-		router.push("/dashboard/user/settings");
-	}, [router]);
+		router.push(`/dashboard/${searchSpaceId}/user-settings?tab=profile`);
+	}, [router, searchSpaceId]);
 
 	const handleSearchSpaceSettings = useCallback(
 		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/settings?section=general`);
+			router.push(`/dashboard/${space.id}/settings?tab=general`);
 		},
 		[router]
 	);
@@ -478,7 +482,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/settings?section=general`);
+		router.push(`/dashboard/${searchSpaceId}/settings?tab=general`);
 	}, [router, searchSpaceId]);
 
 	const handleManageMembers = useCallback(() => {
@@ -535,7 +539,14 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			await deleteThread(chatToDelete.id);
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			if (currentChatId === chatToDelete.id) {
-				router.push(`/dashboard/${searchSpaceId}/new-chat`);
+				resetCurrentThread();
+				const isOutOfSync = currentThreadState.id !== null && !params?.chat_id;
+				if (isOutOfSync) {
+					window.history.replaceState(null, "", `/dashboard/${searchSpaceId}/new-chat`);
+					setChatResetKey((k) => k + 1);
+				} else {
+					router.push(`/dashboard/${searchSpaceId}/new-chat`);
+				}
 			}
 		} catch (error) {
 			console.error("Error deleting thread:", error);
@@ -544,7 +555,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			setShowDeleteChatDialog(false);
 			setChatToDelete(null);
 		}
-	}, [chatToDelete, queryClient, searchSpaceId, router, currentChatId]);
+	}, [
+		chatToDelete,
+		queryClient,
+		searchSpaceId,
+		resetCurrentThread,
+		currentChatId,
+		currentThreadState.id,
+		params?.chat_id,
+		router,
+	]);
 
 	// Rename handler
 	const confirmRenameChat = useCallback(async () => {
@@ -660,7 +680,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					onOpenChange: setIsDocumentsSidebarOpen,
 				}}
 			>
-				{children}
+				<Fragment key={chatResetKey}>{children}</Fragment>
 			</LayoutShell>
 
 			{/* Delete Chat Dialog */}

@@ -79,7 +79,7 @@ export function DocumentsFilters({
 					<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
 						<div>
 							{/* Search input */}
-							<div className="p-2 border-b border-neutral-700">
+							<div className="p-2 border-b border-border dark:border-neutral-700">
 								<div className="relative">
 									<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 									<Input
@@ -108,7 +108,7 @@ export function DocumentsFilters({
 										<button
 											type="button"
 											key={value}
-											className="flex w-full items-center gap-2.5 py-2 px-3 rounded-md hover:bg-muted/50 transition-colors cursor-pointer text-left"
+											className="flex w-full items-center gap-2.5 py-2 px-3 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer text-left"
 											onClick={() => onToggleType(value, !activeTypes.includes(value))}
 										>
 											{/* Icon */}
@@ -137,11 +137,11 @@ export function DocumentsFilters({
 								)}
 							</div>
 							{activeTypes.length > 0 && (
-								<div className="px-3 pt-1.5 pb-1.5 border-t border-neutral-700">
+								<div className="px-3 pt-1.5 pb-1.5 border-t border-border dark:border-neutral-700">
 									<Button
 										variant="ghost"
 										size="sm"
-										className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground hover:bg-neutral-700"
+										className="w-full h-7 text-[11px] text-muted-foreground hover:text-foreground hover:bg-neutral-200 dark:hover:bg-neutral-700"
 										onClick={() => {
 											activeTypes.forEach((t) => {
 												onToggleType(t, false);
