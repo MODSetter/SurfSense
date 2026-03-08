@@ -546,9 +546,9 @@ function MemberRow({
 				</div>
 			</TableCell>
 
-			<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/40">
-				{formatRelativeDate(member.joined_at)}
-			</TableCell>
+		<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/40">
+			{member.user_last_login ? formatRelativeDate(member.user_last_login) : "Never"}
+		</TableCell>
 
 			<TableCell className="w-[30%] text-right py-2.5 px-4 md:px-6">
 				{showActions ? (
