@@ -446,25 +446,25 @@ function NavbarGitHubStars({
 				className
 			)}
 		>
-			<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300 group-hover:text-white shrink-0 transition-colors" />
+			<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300 shrink-0" />
 			<div className="flex items-center gap-1 rounded-md bg-neutral-100 dark:bg-neutral-800 group-hover:bg-neutral-200 dark:group-hover:bg-neutral-700 px-2 py-0.5 transition-colors">
 				<AnimatedStarCount
 					value={isLoading ? 10000 : stars}
 					itemSize={ITEM_SIZE}
 					isRolling={isLoading}
-					className="text-sm font-semibold tabular-nums text-neutral-500 dark:text-neutral-400 group-hover:text-white transition-colors"
+					className="text-sm font-semibold tabular-nums text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-800 dark:group-hover:text-neutral-200 transition-colors"
 					onComplete={() => setIsCompleted(true)}
 				/>
 				<Particles animate={isCompleted}>
 					<div className="relative size-4">
 						<StarIcon
 							aria-hidden="true"
-							className="absolute inset-0 size-4 fill-neutral-400 stroke-neutral-400 dark:fill-neutral-700 dark:stroke-neutral-700 group-hover:fill-white group-hover:stroke-white transition-colors"
+							className="absolute inset-0 size-4 fill-neutral-400 stroke-neutral-400 dark:fill-neutral-700 dark:stroke-neutral-700 group-hover:fill-neutral-600 group-hover:stroke-neutral-600 dark:group-hover:fill-neutral-300 dark:group-hover:stroke-neutral-300 transition-colors"
 						/>
 						<motion.div className="absolute inset-0" style={{ clipPath }}>
 							<StarIcon
 								aria-hidden="true"
-								className="size-4 fill-neutral-300 stroke-neutral-300 dark:fill-neutral-400 dark:stroke-neutral-400 group-hover:fill-white group-hover:stroke-white transition-colors"
+								className="size-4 fill-neutral-300 stroke-neutral-300 dark:fill-neutral-400 dark:stroke-neutral-400 group-hover:fill-neutral-500 group-hover:stroke-neutral-500 dark:group-hover:fill-neutral-200 dark:group-hover:stroke-neutral-200 transition-colors"
 							/>
 						</motion.div>
 					</div>
