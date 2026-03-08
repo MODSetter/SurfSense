@@ -132,8 +132,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	const totalUnreadCount = commentsInbox.unreadCount + statusInbox.unreadCount;
 
-	// Whether any documents are currently being uploaded/indexed — drives sidebar spinner
-	const isDocumentsProcessing = useDocumentsProcessing(numericSpaceId);
+	// Document processing status — drives sidebar status indicator (spinner / check / error)
+	const documentsProcessingStatus = useDocumentsProcessing(numericSpaceId);
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -271,7 +271,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				url: "#documents",
 				icon: SquareLibrary,
 				isActive: isDocumentsSidebarOpen,
-				showSpinner: isDocumentsProcessing,
+				statusIndicator: documentsProcessingStatus,
 			},
 			{
 				title: "Announcements",
@@ -287,7 +287,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
-			isDocumentsProcessing,
+			documentsProcessingStatus,
 		]
 	);
 
