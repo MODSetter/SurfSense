@@ -11,7 +11,7 @@ import {
 	FileX,
 	Network,
 	PenLine,
-	Plus,
+	SearchX,
 	Trash2,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -327,6 +327,7 @@ export function DocumentsTableShell({
 	mentionedDocIds,
 	onToggleChatMention,
 	onEditNavigate,
+	isSearchMode = false,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -345,6 +346,8 @@ export function DocumentsTableShell({
 	onToggleChatMention?: (doc: Document, mentioned: boolean) => void;
 	/** Called when user navigates to the editor via Edit — use to close containing sidebar/panel */
 	onEditNavigate?: () => void;
+	/** Whether results are filtered by a search query or type filters */
+	isSearchMode?: boolean;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
@@ -569,21 +572,34 @@ export function DocumentsTableShell({
 					</div>
 				) : sorted.length === 0 ? (
 					<div className="flex flex-1 w-full items-center justify-center">
-						<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
-							<div className="rounded-full bg-muted/50 p-4">
-								<FileX className="h-8 w-8 text-muted-foreground" />
+						{isSearchMode ? (
+							<div className="flex flex-col items-center gap-3 max-w-md px-4 text-center">
+								<SearchX className="h-8 w-8 text-muted-foreground" />
+								<div className="space-y-1">
+									<h3 className="text-sm font-medium text-muted-foreground">
+										No matching documents
+									</h3>
+									<p className="text-xs text-muted-foreground/70">
+										Try a different search term or adjust your filters.
+									</p>
+								</div>
 							</div>
-							<div className="space-y-1.5">
-								<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
-								<p className="text-sm text-muted-foreground">
-									Get started by uploading your first document.
-								</p>
+						) : (
+							<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
+								<div className="rounded-full bg-muted/50 p-4">
+									<FileX className="h-8 w-8 text-muted-foreground" />
+								</div>
+								<div className="space-y-1.5">
+									<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+									<p className="text-sm text-muted-foreground">
+										Get started by uploading your first document.
+									</p>
+								</div>
+								<Button onClick={openDialog} className="mt-2">
+									Upload Documents
+								</Button>
 							</div>
-							<Button onClick={openDialog} className="mt-2">
-								<Plus className="mr-2 h-4 w-4" />
-								Upload Documents
-							</Button>
-						</div>
+						)}
 					</div>
 				) : (
 					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
@@ -694,21 +710,32 @@ export function DocumentsTableShell({
 				</div>
 			) : sorted.length === 0 ? (
 				<div className="md:hidden flex flex-1 w-full items-center justify-center">
-					<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
-						<div className="rounded-full bg-muted/50 p-4">
-							<FileX className="h-8 w-8 text-muted-foreground" />
+					{isSearchMode ? (
+						<div className="flex flex-col items-center gap-3 max-w-md px-4 text-center">
+							<SearchX className="h-8 w-8 text-muted-foreground" />
+							<div className="space-y-1">
+								<h3 className="text-sm font-medium text-muted-foreground">No matching documents</h3>
+								<p className="text-xs text-muted-foreground/70">
+									Try a different search term or adjust your filters.
+								</p>
+							</div>
 						</div>
-						<div className="space-y-1.5">
-							<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
-							<p className="text-sm text-muted-foreground">
-								Get started by uploading your first document.
-							</p>
+					) : (
+						<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
+							<div className="rounded-full bg-muted/50 p-4">
+								<FileX className="h-8 w-8 text-muted-foreground" />
+							</div>
+							<div className="space-y-1.5">
+								<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+								<p className="text-sm text-muted-foreground">
+									Get started by uploading your first document.
+								</p>
+							</div>
+							<Button onClick={openDialog} className="mt-2">
+								Upload Documents
+							</Button>
 						</div>
-						<Button onClick={openDialog} className="mt-2">
-							<Plus className="mr-2 h-4 w-4" />
-							Upload Documents
-						</Button>
-					</div>
+					)}
 				</div>
 			) : (
 				<div
