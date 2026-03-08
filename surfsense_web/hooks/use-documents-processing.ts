@@ -97,7 +97,9 @@ export function useDocumentsProcessing(searchSpaceId: number | null): DocumentsP
 				}
 
 				liveQuery.subscribe(
-					(result: { rows: Array<{ processing_count: number | string; failed_count: number | string }> }) => {
+					(result: {
+						rows: Array<{ processing_count: number | string; failed_count: number | string }>;
+					}) => {
 						if (!mounted || !result.rows?.[0]) return;
 
 						const processingCount = Number(result.rows[0].processing_count) || 0;

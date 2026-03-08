@@ -37,7 +37,11 @@ function StatusBadge({ status }: { status: NavItem["statusIndicator"] }) {
 	return null;
 }
 
-function StatusIcon({ status, FallbackIcon, className }: {
+function StatusIcon({
+	status,
+	FallbackIcon,
+	className,
+}: {
 	status: NavItem["statusIndicator"];
 	FallbackIcon: NavItem["icon"];
 	className?: string;
@@ -46,10 +50,18 @@ function StatusIcon({ status, FallbackIcon, className }: {
 		return <Spinner size="sm" className={cn("shrink-0 text-primary", className)} />;
 	}
 	if (status === "success") {
-		return <CheckCircle2 className={cn("shrink-0 text-emerald-500 animate-in fade-in duration-300", className)} />;
+		return (
+			<CheckCircle2
+				className={cn("shrink-0 text-emerald-500 animate-in fade-in duration-300", className)}
+			/>
+		);
 	}
 	if (status === "error") {
-		return <CircleAlert className={cn("shrink-0 text-destructive animate-in fade-in duration-300", className)} />;
+		return (
+			<CircleAlert
+				className={cn("shrink-0 text-destructive animate-in fade-in duration-300", className)}
+			/>
+		);
 	}
 	return <FallbackIcon className={cn("shrink-0", className)} />;
 }
@@ -113,11 +125,7 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 						)}
 						{...joyrideAttr}
 					>
-						<StatusIcon
-							status={indicator}
-							FallbackIcon={Icon}
-							className="h-4 w-4"
-						/>
+						<StatusIcon status={indicator} FallbackIcon={Icon} className="h-4 w-4" />
 						<span className="flex-1 truncate">{item.title}</span>
 						{item.badge && (
 							<span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-medium">
