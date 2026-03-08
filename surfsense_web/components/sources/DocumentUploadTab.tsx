@@ -303,7 +303,7 @@ export function DocumentUploadTab({
 						{!isFileCountLimitReached && (
 							<div className="mt-2 sm:mt-4">
 								<Button
-									variant="outline"
+									variant="secondary"
 									size="sm"
 									className="text-xs sm:text-sm"
 									onClick={(e) => {
