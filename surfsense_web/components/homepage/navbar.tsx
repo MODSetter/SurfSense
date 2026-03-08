@@ -4,9 +4,9 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SignInButton } from "@/components/auth/sign-in-button";
+import { NavbarGitHubStars } from "@/components/homepage/github-stars-badge";
 import { Logo } from "@/components/Logo";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
-import { NavbarGitHubStars } from "@/components/homepage/github-stars-badge";
 import { cn } from "@/lib/utils";
 
 export const Navbar = () => {
@@ -32,7 +32,7 @@ export const Navbar = () => {
 	}, []);
 
 	return (
-		<div className="fixed top-1 left-0 right-0 z-60 w-full">
+		<div className="fixed top-1 left-0 right-0 z-60 w-full select-none">
 			<DesktopNav navItems={navItems} isScrolled={isScrolled} />
 			<MobileNav navItems={navItems} isScrolled={isScrolled} />
 		</div>
