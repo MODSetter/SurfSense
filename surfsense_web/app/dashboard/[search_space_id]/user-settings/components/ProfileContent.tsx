@@ -2,6 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -13,19 +14,18 @@ import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 
 function AvatarDisplay({ url, fallback }: { url?: string; fallback: string }) {
-	const [hasError, setHasError] = useState(false);
-
-	useEffect(() => {
-		setHasError(false);
-	}, [url]);
+	const [errorUrl, setErrorUrl] = useState<string>();
+	const hasError = errorUrl === url;
 
 	if (url && !hasError) {
 		return (
-			<img
+			<Image
 				src={url}
 				alt="Avatar"
+				width={64}
+				height={64}
 				className="h-16 w-16 rounded-xl object-cover"
-				onError={() => setHasError(true)}
+				onError={() => setErrorUrl(url)}
 			/>
 		);
 	}
