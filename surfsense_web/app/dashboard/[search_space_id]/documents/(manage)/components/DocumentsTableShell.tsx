@@ -222,12 +222,14 @@ function RowContextMenu({
 	onPreview,
 	onDelete,
 	searchSpaceId,
+	onEditNavigate,
 }: {
 	doc: Document;
 	children: React.ReactNode;
 	onPreview: (doc: Document) => void;
 	onDelete: (doc: Document) => void;
 	searchSpaceId: string;
+	onEditNavigate?: () => void;
 }) {
 	const router = useRouter();
 
@@ -252,9 +254,12 @@ function RowContextMenu({
 				</ContextMenuItem>
 				{isEditable && (
 					<ContextMenuItem
-						onClick={() =>
-							!isEditDisabled && router.push(`/dashboard/${searchSpaceId}/editor/${doc.id}`)
-						}
+						onClick={() => {
+							if (!isEditDisabled) {
+								onEditNavigate?.();
+								router.push(`/dashboard/${searchSpaceId}/editor/${doc.id}`);
+							}
+						}}
 						disabled={isEditDisabled}
 					>
 						<PenLine className="h-4 w-4" />
@@ -318,9 +323,9 @@ export function DocumentsTableShell({
 	hasMore = false,
 	loadingMore = false,
 	onLoadMore,
-	isSearchMode = false,
 	mentionedDocIds,
 	onToggleChatMention,
+	onEditNavigate,
 }: {
 	documents: Document[];
 	loading: boolean;
@@ -333,11 +338,12 @@ export function DocumentsTableShell({
 	hasMore?: boolean;
 	loadingMore?: boolean;
 	onLoadMore?: () => void;
-	isSearchMode?: boolean;
 	/** IDs of documents currently mentioned as chips in the chat composer */
 	mentionedDocIds?: Set<number>;
 	/** Toggle a document's mention in the chat (add if not mentioned, remove if mentioned) */
 	onToggleChatMention?: (doc: Document, mentioned: boolean) => void;
+	/** Called when user navigates to the editor via Edit — use to close containing sidebar/panel */
+	onEditNavigate?: () => void;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
@@ -579,6 +585,7 @@ export function DocumentsTableShell({
 											onPreview={handleViewDocument}
 											onDelete={setDeleteDoc}
 											searchSpaceId={searchSpaceId}
+											onEditNavigate={onEditNavigate}
 										>
 											<tr
 												className={`border-b border-border/50 transition-colors ${
@@ -839,6 +846,7 @@ export function DocumentsTableShell({
 									}
 									onClick={() => {
 										if (mobileActionDoc) {
+											onEditNavigate?.();
 											router.push(`/dashboard/${searchSpaceId}/editor/${mobileActionDoc.id}`);
 											setMobileActionDoc(null);
 										}
