@@ -148,7 +148,10 @@ export function DocumentUploadTab({
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
 			setFiles((prev) => {
-				const newEntries = acceptedFiles.map((f) => ({ id: crypto.randomUUID(), file: f }));
+				const newEntries = acceptedFiles.map((f) => ({
+					id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
+					file: f,
+				}));
 				const newFiles = [...prev, ...newEntries];
 
 				if (newFiles.length > MAX_FILES) {
