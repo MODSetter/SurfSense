@@ -465,10 +465,7 @@ export default function NewChatPage() {
 			let isNewThread = false;
 			if (!currentThreadId) {
 				try {
-					// Create thread with truncated prompt as initial title
-					const initialTitle =
-						userQuery.trim().slice(0, 100) + (userQuery.trim().length > 100 ? "..." : "");
-					const newThread = await createThread(searchSpaceId, initialTitle);
+					const newThread = await createThread(searchSpaceId, "New Chat");
 					currentThreadId = newThread.id;
 					setThreadId(currentThreadId);
 					// Set currentThread so share button in header appears immediately
