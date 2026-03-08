@@ -304,7 +304,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, []);
 
 	const handleUserSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/user-settings`);
+		router.push(`/dashboard/${searchSpaceId}/user-settings?tab=profile`);
 	}, [router, searchSpaceId]);
 
 	const handleSearchSpaceSettings = useCallback(

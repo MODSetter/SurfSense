@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, ChevronUp, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import {
@@ -16,7 +17,6 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useLocaleContext } from "@/contexts/LocaleContext";
 import { cn } from "@/lib/utils";
 import type { User } from "../../types/layout.types";
@@ -100,11 +100,14 @@ function UserAvatar({
 }) {
 	if (avatarUrl) {
 		return (
-			<img
+			<Image
 				src={avatarUrl}
 				alt="User avatar"
+				width={32}
+				height={32}
 				className="h-8 w-8 shrink-0 rounded-lg object-cover"
 				referrerPolicy="no-referrer"
+				unoptimized
 			/>
 		);
 	}
@@ -156,26 +159,21 @@ export function SidebarUserProfile({
 	if (isCollapsed) {
 		return (
 			<div className="border-t p-2">
-				<DropdownMenu>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<DropdownMenuTrigger asChild>
-								<button
-									type="button"
-									className={cn(
-										"flex h-10 w-full items-center justify-center rounded-md",
-										"hover:bg-accent transition-colors",
-										"focus:outline-none focus-visible:outline-none",
-										"data-[state=open]:bg-transparent"
-									)}
-								>
-									<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
-									<span className="sr-only">{displayName}</span>
-								</button>
-							</DropdownMenuTrigger>
-						</TooltipTrigger>
-						<TooltipContent side="right">{displayName}</TooltipContent>
-					</Tooltip>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<button
+						type="button"
+						className={cn(
+							"flex h-10 w-full items-center justify-center rounded-md",
+							"hover:bg-accent transition-colors",
+							"focus:outline-none focus-visible:outline-none",
+							"data-[state=open]:bg-transparent"
+						)}
+					>
+						<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
+						<span className="sr-only">{displayName}</span>
+					</button>
+				</DropdownMenuTrigger>
 
 					<DropdownMenuContent className="w-48" side="right" align="center" sideOffset={8}>
 						<DropdownMenuLabel className="font-normal">

@@ -26,6 +26,7 @@ function AvatarDisplay({ url, fallback }: { url?: string; fallback: string }) {
 				height={64}
 				className="h-16 w-16 rounded-xl object-cover"
 				onError={() => setErrorUrl(url)}
+				unoptimized
 			/>
 		);
 	}
