@@ -109,6 +109,11 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 	},
 };
 
+interface FileWithId {
+	id: string;
+	file: File;
+}
+
 const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
 
 // Upload limits — files are sent in batches of 5 to avoid proxy timeouts
@@ -122,7 +127,7 @@ export function DocumentUploadTab({
 	onAccordionStateChange,
 }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
-	const [files, setFiles] = useState<File[]>([]);
+	const [files, setFiles] = useState<FileWithId[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
 	const [shouldSummarize, setShouldSummarize] = useState(false);
@@ -143,9 +148,9 @@ export function DocumentUploadTab({
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
 			setFiles((prev) => {
-				const newFiles = [...prev, ...acceptedFiles];
+				const newEntries = acceptedFiles.map((f) => ({ id: crypto.randomUUID(), file: f }));
+				const newFiles = [...prev, ...newEntries];
 
-				// Check file count limit
 				if (newFiles.length > MAX_FILES) {
 					toast.error(t("max_files_exceeded"), {
 						description: t("max_files_exceeded_desc", { max: MAX_FILES }),
@@ -153,8 +158,7 @@ export function DocumentUploadTab({
 					return prev;
 				}
 
-				// Check total size limit
-				const newTotalSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+				const newTotalSize = newFiles.reduce((sum, entry) => sum + entry.file.size, 0);
 				if (newTotalSize > MAX_TOTAL_SIZE_BYTES) {
 					toast.error(t("max_size_exceeded"), {
 						description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
@@ -189,7 +193,7 @@ export function DocumentUploadTab({
 		return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 	};
 
-	const totalFileSize = files.reduce((total, file) => total + file.size, 0);
+	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
 
 	// Check if limits are reached
 	const isFileCountLimitReached = files.length >= MAX_FILES;
@@ -217,8 +221,9 @@ export function DocumentUploadTab({
 			setUploadProgress((prev) => (prev >= 90 ? prev : prev + Math.random() * 10));
 		}, 200);
 
+		const rawFiles = files.map((entry) => entry.file);
 		uploadDocuments(
-			{ files, search_space_id: Number(searchSpaceId), should_summarize: shouldSummarize },
+			{ files: rawFiles, search_space_id: Number(searchSpaceId), should_summarize: shouldSummarize },
 			{
 				onSuccess: () => {
 					clearInterval(progressInterval);
@@ -345,21 +350,21 @@ export function DocumentUploadTab({
 					</CardHeader>
 					<CardContent className="p-4 sm:p-6 pt-0">
 						<div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[400px] overflow-y-auto">
-							{files.map((file, index) => (
+							{files.map((entry) => (
 								<div
-									key={`${file.name}-${index}`}
+									key={entry.id}
 									className={`flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border ${cardClass} hover:bg-slate-400/10 dark:hover:bg-white/10 transition-colors`}
 								>
 									<div className="flex items-center gap-3 flex-1 min-w-0">
 										<FileType className="h-5 w-5 text-muted-foreground flex-shrink-0" />
 										<div className="flex-1 min-w-0">
-											<p className="text-sm sm:text-base font-medium truncate">{file.name}</p>
+											<p className="text-sm sm:text-base font-medium truncate">{entry.file.name}</p>
 											<div className="flex items-center gap-2 mt-1">
 												<Badge variant="secondary" className="text-xs">
-													{formatFileSize(file.size)}
+													{formatFileSize(entry.file.size)}
 												</Badge>
 												<Badge variant="outline" className="text-xs">
-													{file.type || "Unknown type"}
+													{entry.file.type || "Unknown type"}
 												</Badge>
 											</div>
 										</div>
@@ -367,7 +372,7 @@ export function DocumentUploadTab({
 									<Button
 										variant="ghost"
 										size="icon"
-										onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
+										onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
 										disabled={isUploading}
 										className="h-8 w-8"
 									>
