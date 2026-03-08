@@ -138,6 +138,7 @@ function getAvatarInitials(member: Membership): string {
 }
 
 const PAGE_SIZE = 5;
+const SKELETON_KEYS = Array.from({ length: PAGE_SIZE }, (_, i) => `skeleton-${i}`);
 
 export default function TeamManagementPage() {
 	const params = useParams();
@@ -290,9 +291,9 @@ export default function TeamManagementPage() {
 									</TableRow>
 								</TableHeader>
 								<TableBody>
-									{Array.from({ length: PAGE_SIZE }).map((_, i) => (
+									{SKELETON_KEYS.map((id) => (
 										<TableRow
-											key={`skeleton-${i}`}
+											key={id}
 											className="border-b border-border/40 hover:bg-transparent"
 										>
 											<TableCell className="w-[45%] py-2.5 px-4 md:px-6 border-r border-border/40">
@@ -564,7 +565,7 @@ function MemberRow({
 						<DropdownMenuContent
 							align="end"
 							onCloseAutoFocus={(e) => e.preventDefault()}
-							className="min-w-[120px]"
+							className="min-w-[120px] dark:bg-neutral-900 dark:border dark:border-white/5"
 						>
 							{canManageRoles &&
 								roles
@@ -607,12 +608,12 @@ function MemberRow({
 									</AlertDialogContent>
 								</AlertDialog>
 							)}
-							<DropdownMenuSeparator />
-							<DropdownMenuItem
-								onClick={() =>
-									router.push(`/dashboard/${searchSpaceId}/settings?section=team-roles`)
-								}
-							>
+						<DropdownMenuSeparator className="dark:bg-white/5" />
+						<DropdownMenuItem
+							onClick={() =>
+								router.push(`/dashboard/${searchSpaceId}/settings?section=team-roles`)
+							}
+						>
 								Manage Roles
 							</DropdownMenuItem>
 						</DropdownMenuContent>
@@ -876,10 +877,10 @@ function AllInvitesDialog({
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<Button variant="outline" className="gap-2">
-					<Link2 className="h-4 w-4 rotate-315" />
+			<Button variant="secondary" className="gap-2">
+				<Link2 className="h-4 w-4 rotate-315" />
 					Active invites
-					<span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-muted text-xs font-medium">
+					<span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200 text-xs font-medium">
 						{invites.length}
 					</span>
 				</Button>
