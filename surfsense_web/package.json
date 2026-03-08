@@ -138,7 +138,7 @@
 		"zustand": "^5.0.9"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "2.1.2",
+		"@biomejs/biome": "2.4.6",
 		"@eslint/eslintrc": "^3.3.1",
 		"@svgr/webpack": "^8.1.0",
 		"@tailwindcss/postcss": "^4.1.11",

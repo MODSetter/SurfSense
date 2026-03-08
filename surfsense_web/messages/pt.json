@@ -332,7 +332,8 @@
 		"upload_documents": "Enviar documentos",
 		"create_shared_note": "Criar nota compartilhada",
 		"processing_documents": "Processando documentos...",
-		"active_tasks_count": "{count} tarefa(s) ativa(s)"
+		"delete_in_progress_warning": "{count} documento(s) estão pendentes ou em processamento e não podem ser excluídos.",
+		"delete_conflict_error": "{count} documento(s) começaram a ser processados. Tente novamente mais tarde."
 	},
 	"add_connector": {
 		"title": "Conecte suas ferramentas",
@@ -637,23 +638,6 @@
 		"add_first_config": "Adicionar primeira configuração",
 		"created": "Criado"
 	},
-	"breadcrumb": {
-		"dashboard": "Painel",
-		"search_space": "Espaço de pesquisa",
-		"chat": "Chat",
-		"documents": "Documentos",
-		"connectors": "Conectores",
-		"editor": "Editor",
-		"logs": "Logs",
-		"settings": "Configurações",
-		"upload_documents": "Enviar documentos",
-		"add_youtube": "Adicionar vídeos do YouTube",
-		"add_webpages": "Adicionar páginas web",
-		"add_connector": "Adicionar conector",
-		"manage_connectors": "Gerenciar conectores",
-		"edit_connector": "Editar conector",
-		"manage": "Gerenciar"
-	},
 	"sidebar": {
 		"chats": "Chats privados",
 		"shared_chats": "Chats compartilhados",
@@ -718,8 +702,11 @@
 		"filter": "Filtrar",
 		"all": "Tudo",
 		"unread": "Não lido",
+		"errors_only": "Apenas erros",
 		"connectors": "Conectores",
 		"all_connectors": "Todos os conectores",
+		"sources": "Fontes",
+		"all_sources": "Todas as fontes",
 		"close": "Fechar",
 		"cancel": "Cancelar"
 	},

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 const backendBaseUrl = (process.env.INTERNAL_FASTAPI_BACKEND_URL || "http://backend:8000").replace(
 	/\/+$/,

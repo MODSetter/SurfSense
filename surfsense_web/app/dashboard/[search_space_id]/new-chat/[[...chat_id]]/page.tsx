@@ -22,6 +22,7 @@ import {
 	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
 	messageDocumentsMapAtom,
+	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import {
 	clearPlanOwnerRegistry,
@@ -31,7 +32,6 @@ import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
-import { ChatHeader } from "@/components/new-chat/chat-header";
 import { ReportPanel } from "@/components/report-panel/report-panel";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
@@ -180,11 +180,12 @@ export default function NewChatPage() {
 		interruptData: Record<string, unknown>;
 	} | null>(null);
 
-	// Get mentioned document IDs from the composer
+	// Get mentioned document IDs from the composer (derived from @ mentions + sidebar selections)
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
-	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
+	const sidebarDocuments = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setMentionedDocuments = useSetAtom(mentionedDocumentsAtom);
+	const setSidebarDocuments = useSetAtom(sidebarSelectedDocumentsAtom);
 	const setMessageDocumentsMap = useSetAtom(messageDocumentsMapAtom);
 	const setCurrentThreadState = useSetAtom(currentThreadAtom);
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
@@ -276,11 +277,8 @@ export default function NewChatPage() {
 		setThreadId(null);
 		setCurrentThread(null);
 		setMessageThinkingSteps(new Map());
-		setMentionedDocumentIds({
-			surfsense_doc_ids: [],
-			document_ids: [],
-		});
 		setMentionedDocuments([]);
+		setSidebarDocuments([]);
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
 		closeReportPanel(); // Close report panel when switching chats
@@ -345,8 +343,8 @@ export default function NewChatPage() {
 	}, [
 		urlChatId,
 		setMessageDocumentsMap,
-		setMentionedDocumentIds,
 		setMentionedDocuments,
+		setSidebarDocuments,
 		closeReportPanel,
 	]);
 
@@ -473,7 +471,7 @@ export default function NewChatPage() {
 					const newThread = await createThread(searchSpaceId, initialTitle);
 					currentThreadId = newThread.id;
 					setThreadId(currentThreadId);
-					// Set currentThread so ChatHeader can show share button immediately
+					// Set currentThread so share button in header appears immediately
 					setCurrentThread(newThread);
 
 					// Track chat creation
@@ -528,31 +526,30 @@ export default function NewChatPage() {
 				messageLength: userQuery.length,
 			});
 
-			// Store mentioned documents with this message for display
-			if (mentionedDocuments.length > 0) {
-				const docsInfo: MentionedDocumentInfo[] = mentionedDocuments.map((doc) => ({
-					id: doc.id,
-					title: doc.title,
-					document_type: doc.document_type,
-				}));
+			// Combine @-mention chips + sidebar selections for display & persistence
+			const allMentionedDocs: MentionedDocumentInfo[] = [];
+			const seenDocKeys = new Set<string>();
+			for (const doc of [...mentionedDocuments, ...sidebarDocuments]) {
+				const key = `${doc.document_type}:${doc.id}`;
+				if (!seenDocKeys.has(key)) {
+					seenDocKeys.add(key);
+					allMentionedDocs.push({ id: doc.id, title: doc.title, document_type: doc.document_type });
+				}
+			}
+
+			if (allMentionedDocs.length > 0) {
 				setMessageDocumentsMap((prev) => ({
 					...prev,
-					[userMsgId]: docsInfo,
+					[userMsgId]: allMentionedDocs,
 				}));
 			}
 
-			// Persist user message with mentioned documents (don't await, fire and forget)
 			const persistContent: unknown[] = [...message.content];
 
-			// Add mentioned documents for persistence
-			if (mentionedDocuments.length > 0) {
+			if (allMentionedDocs.length > 0) {
 				persistContent.push({
 					type: "mentioned-documents",
-					documents: mentionedDocuments.map((doc) => ({
-						id: doc.id,
-						title: doc.title,
-						document_type: doc.document_type,
-					})),
+					documents: allMentionedDocs,
 				});
 			}
 
@@ -560,7 +557,17 @@ export default function NewChatPage() {
 				role: "user",
 				content: persistContent,
 			})
-				.then(() => {
+				.then((savedMessage) => {
+					const newUserMsgId = `msg-${savedMessage.id}`;
+					setMessages((prev) =>
+						prev.map((m) => (m.id === userMsgId ? { ...m, id: newUserMsgId } : m))
+					);
+					setMessageDocumentsMap((prev) => {
+						const docs = prev[userMsgId];
+						if (!docs) return prev;
+						const { [userMsgId]: _, ...rest } = prev;
+						return { ...rest, [newUserMsgId]: docs };
+					});
 					if (isNewThread) {
 						queryClient.invalidateQueries({ queryKey: ["threads", String(searchSpaceId)] });
 					}
@@ -618,11 +625,8 @@ export default function NewChatPage() {
 
 				// Clear mentioned documents after capturing them
 				if (hasDocumentIds || hasSurfsenseDocIds) {
-					setMentionedDocumentIds({
-						surfsense_doc_ids: [],
-						document_ids: [],
-					});
 					setMentionedDocuments([]);
+					setSidebarDocuments([]);
 				}
 
 				const response = await fetch(`${backendUrl}/api/v1/new_chat`, {
@@ -746,15 +750,6 @@ export default function NewChatPage() {
 								// Invalidate thread list to refresh sidebar
 								queryClient.invalidateQueries({
 									queryKey: ["threads", String(searchSpaceId)],
-								});
-								// Invalidate thread detail for breadcrumb update
-								queryClient.invalidateQueries({
-									queryKey: [
-										"threads",
-										String(searchSpaceId),
-										"detail",
-										String(titleData.threadId),
-									],
 								});
 							}
 							break;
@@ -920,8 +915,9 @@ export default function NewChatPage() {
 			messages,
 			mentionedDocumentIds,
 			mentionedDocuments,
-			setMentionedDocumentIds,
+			sidebarDocuments,
 			setMentionedDocuments,
+			setSidebarDocuments,
 			setMessageDocumentsMap,
 			queryClient,
 			currentThread,
@@ -1674,10 +1670,7 @@ export default function NewChatPage() {
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-					<Thread
-						messageThinkingSteps={messageThinkingSteps}
-						header={<ChatHeader searchSpaceId={searchSpaceId} />}
-					/>
+					<Thread messageThinkingSteps={messageThinkingSteps} />
 				</div>
 				<ReportPanel />
 			</div>

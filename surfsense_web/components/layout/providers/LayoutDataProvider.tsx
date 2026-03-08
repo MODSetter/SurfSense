@@ -1,25 +1,28 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAtomValue, useSetAtom } from "jotai";
-import {
-	AlertTriangle,
-	Inbox,
-	LogOut,
-	Megaphone,
-	PencilIcon,
-	SquareLibrary,
-	Trash2,
-} from "lucide-react";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -32,6 +35,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useAnnouncements } from "@/hooks/use-announcements";
+import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
@@ -46,7 +50,6 @@ import { LayoutShell } from "../ui/shell";
 interface LayoutDataProviderProps {
 	searchSpaceId: string;
 	children: React.ReactNode;
-	breadcrumb?: React.ReactNode;
 }
 
 /**
@@ -60,11 +63,7 @@ function formatInboxCount(count: number): string {
 	return `${thousands}k+`;
 }
 
-export function LayoutDataProvider({
-	searchSpaceId,
-	children,
-	breadcrumb,
-}: LayoutDataProviderProps) {
+export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProviderProps) {
 	const t = useTranslations("dashboard");
 	const tCommon = useTranslations("common");
 	const tSidebar = useTranslations("sidebar");
@@ -114,40 +113,27 @@ export function LayoutDataProvider({
 	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
 	const [isInboxDocked, setIsInboxDocked] = useState(false);
 
+	// Documents sidebar state (shared atom so Composer can toggle it)
+	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
+
 	// Announcements sidebar state
 	const [isAnnouncementsSidebarOpen, setIsAnnouncementsSidebarOpen] = useState(false);
 
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
-	// Inbox hooks - separate data sources for mentions and status tabs
-	// This ensures each tab has independent pagination and data loading
+	// Per-tab inbox hooks — each has independent API loading, pagination,
+	// and Electric live queries. The Electric sync shape is shared (client-level cache).
 	const userId = user?.id ? String(user.id) : null;
+	const numericSpaceId = Number(searchSpaceId) || null;
 
-	const {
-		inboxItems: mentionItems,
-		unreadCount: mentionUnreadCount,
-		loading: mentionLoading,
-		loadingMore: mentionLoadingMore,
-		hasMore: mentionHasMore,
-		loadMore: mentionLoadMore,
-		markAsRead: markMentionAsRead,
-		markAllAsRead: markAllMentionsAsRead,
-	} = useInbox(userId, Number(searchSpaceId) || null, "new_mention");
+	const commentsInbox = useInbox(userId, numericSpaceId, "comments");
+	const statusInbox = useInbox(userId, numericSpaceId, "status");
 
-	const {
-		inboxItems: statusItems,
-		unreadCount: allUnreadCount,
-		loading: statusLoading,
-		loadingMore: statusLoadingMore,
-		hasMore: statusHasMore,
-		loadMore: statusLoadMore,
-		markAsRead: markStatusAsRead,
-		markAllAsRead: markAllStatusAsRead,
-	} = useInbox(userId, Number(searchSpaceId) || null, null);
+	const totalUnreadCount = commentsInbox.unreadCount + statusInbox.unreadCount;
 
-	const totalUnreadCount = allUnreadCount;
-	const statusOnlyUnreadCount = Math.max(0, allUnreadCount - mentionUnreadCount);
+	// Whether any documents are currently being uploaded/indexed — drives sidebar spinner
+	const isDocumentsProcessing = useDocumentsProcessing(numericSpaceId);
 
 	// Track seen notification IDs to detect new page_limit_exceeded notifications
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
@@ -155,14 +141,12 @@ export function LayoutDataProvider({
 
 	// Effect to show toast for new page_limit_exceeded notifications
 	useEffect(() => {
-		if (statusLoading) return;
+		if (statusInbox.loading) return;
 
-		// Get page_limit_exceeded notifications
-		const pageLimitNotifications = statusItems.filter(
+		const pageLimitNotifications = statusInbox.inboxItems.filter(
 			(item) => item.type === "page_limit_exceeded"
 		);
 
-		// On initial load, just mark all as seen without showing toasts
 		if (isInitialLoad.current) {
 			for (const notification of pageLimitNotifications) {
 				seenPageLimitNotifications.current.add(notification.id);
@@ -171,16 +155,13 @@ export function LayoutDataProvider({
 			return;
 		}
 
-		// Find new notifications (not yet seen)
 		const newNotifications = pageLimitNotifications.filter(
 			(notification) => !seenPageLimitNotifications.current.has(notification.id)
 		);
 
-		// Show toast for each new page_limit_exceeded notification
 		for (const notification of newNotifications) {
 			seenPageLimitNotifications.current.add(notification.id);
 
-			// Extract metadata for navigation
 			const actionUrl = isPageLimitExceededMetadata(notification.metadata)
 				? notification.metadata.action_url
 				: `/dashboard/${searchSpaceId}/more-pages`;
@@ -195,24 +176,7 @@ export function LayoutDataProvider({
 				},
 			});
 		}
-	}, [statusItems, statusLoading, searchSpaceId, router]);
-
-	// Unified mark as read that delegates to the correct hook
-	const markAsRead = useCallback(
-		async (id: number) => {
-			// Try both - one will succeed based on which list has the item
-			const mentionResult = await markMentionAsRead(id);
-			if (mentionResult) return true;
-			return markStatusAsRead(id);
-		},
-		[markMentionAsRead, markStatusAsRead]
-	);
-
-	// Mark all as read for both types
-	const markAllAsRead = useCallback(async () => {
-		await Promise.all([markAllMentionsAsRead(), markAllStatusAsRead()]);
-		return true;
-	}, [markAllMentionsAsRead, markAllStatusAsRead]);
+	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, router]);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -296,33 +260,34 @@ export function LayoutDataProvider({
 	const navItems: NavItem[] = useMemo(
 		() => [
 			{
-				title: "Documents",
-				url: `/dashboard/${searchSpaceId}/documents`,
-				icon: SquareLibrary,
-				isActive: pathname?.includes("/documents"),
-			},
-			{
 				title: "Inbox",
-				url: "#inbox", // Special URL to indicate this is handled differently
+				url: "#inbox",
 				icon: Inbox,
 				isActive: isInboxSidebarOpen,
 				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
 			},
 			{
+				title: "Documents",
+				url: "#documents",
+				icon: SquareLibrary,
+				isActive: isDocumentsSidebarOpen,
+				showSpinner: isDocumentsProcessing,
+			},
+			{
 				title: "Announcements",
-				url: "#announcements", // Special URL to indicate this is handled differently
+				url: "#announcements",
 				icon: Megaphone,
 				isActive: isAnnouncementsSidebarOpen,
 				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 			},
 		],
 		[
-			searchSpaceId,
-			pathname,
 			isInboxSidebarOpen,
+			isDocumentsSidebarOpen,
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
+			isDocumentsProcessing,
 		]
 	);
 
@@ -415,10 +380,22 @@ export function LayoutDataProvider({
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
-			// Handle inbox specially - toggle sidebar instead of navigating
 			if (item.url === "#inbox") {
 				setIsInboxSidebarOpen((prev) => {
 					if (!prev) {
+						setIsAllSharedChatsSidebarOpen(false);
+						setIsAllPrivateChatsSidebarOpen(false);
+						setIsDocumentsSidebarOpen(false);
+						setIsAnnouncementsSidebarOpen(false);
+					}
+					return !prev;
+				});
+				return;
+			}
+			if (item.url === "#documents") {
+				setIsDocumentsSidebarOpen((prev) => {
+					if (!prev) {
+						setIsInboxSidebarOpen(false);
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
 						setIsAnnouncementsSidebarOpen(false);
@@ -427,13 +404,13 @@ export function LayoutDataProvider({
 				});
 				return;
 			}
-			// Handle announcements specially - toggle sidebar instead of navigating
 			if (item.url === "#announcements") {
 				setIsAnnouncementsSidebarOpen((prev) => {
 					if (!prev) {
 						setIsInboxSidebarOpen(false);
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
+						setIsDocumentsSidebarOpen(false);
 					}
 					return !prev;
 				});
@@ -441,13 +418,7 @@ export function LayoutDataProvider({
 			}
 			router.push(item.url);
 		},
-		[
-			router,
-			setIsAllPrivateChatsSidebarOpen,
-			setIsAllSharedChatsSidebarOpen,
-			setIsAnnouncementsSidebarOpen,
-			setIsInboxSidebarOpen,
-		]
+		[router, setIsDocumentsSidebarOpen]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -544,15 +515,17 @@ export function LayoutDataProvider({
 		setIsAllSharedChatsSidebarOpen(true);
 		setIsAllPrivateChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
+		setIsDocumentsSidebarOpen(false);
 		setIsAnnouncementsSidebarOpen(false);
-	}, []);
+	}, [setIsDocumentsSidebarOpen]);
 
 	const handleViewAllPrivateChats = useCallback(() => {
 		setIsAllPrivateChatsSidebarOpen(true);
 		setIsAllSharedChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
+		setIsDocumentsSidebarOpen(false);
 		setIsAnnouncementsSidebarOpen(false);
-	}, []);
+	}, [setIsDocumentsSidebarOpen]);
 
 	// Delete handlers
 	const confirmDeleteChat = useCallback(async () => {
@@ -583,10 +556,6 @@ export function LayoutDataProvider({
 			queryClient.invalidateQueries({ queryKey: ["threads", searchSpaceId] });
 			queryClient.invalidateQueries({ queryKey: ["all-threads", searchSpaceId] });
 			queryClient.invalidateQueries({ queryKey: ["search-threads", searchSpaceId] });
-			// Invalidate thread detail for breadcrumb update
-			queryClient.invalidateQueries({
-				queryKey: ["threads", searchSpaceId, "detail", String(chatToRename.id)],
-			});
 		} catch (error) {
 			console.error("Error renaming thread:", error);
 			toast.error(tSidebar("error_renaming_chat") || "Failed to rename chat");
@@ -641,7 +610,6 @@ export function LayoutDataProvider({
 				onUserSettings={handleUserSettings}
 				onLogout={handleLogout}
 				pageUsage={pageUsage}
-				breadcrumb={breadcrumb}
 				theme={theme}
 				setTheme={setTheme}
 				isChatPage={isChatPage}
@@ -649,26 +617,27 @@ export function LayoutDataProvider({
 				inbox={{
 					isOpen: isInboxSidebarOpen,
 					onOpenChange: setIsInboxSidebarOpen,
-					// Separate data sources for each tab
-					mentions: {
-						items: mentionItems,
-						unreadCount: mentionUnreadCount,
-						loading: mentionLoading,
-						loadingMore: mentionLoadingMore,
-						hasMore: mentionHasMore,
-						loadMore: mentionLoadMore,
+					totalUnreadCount,
+					comments: {
+						items: commentsInbox.inboxItems,
+						unreadCount: commentsInbox.unreadCount,
+						loading: commentsInbox.loading,
+						loadingMore: commentsInbox.loadingMore,
+						hasMore: commentsInbox.hasMore,
+						loadMore: commentsInbox.loadMore,
+						markAsRead: commentsInbox.markAsRead,
+						markAllAsRead: commentsInbox.markAllAsRead,
 					},
 					status: {
-						items: statusItems,
-						unreadCount: statusOnlyUnreadCount,
-						loading: statusLoading,
-						loadingMore: statusLoadingMore,
-						hasMore: statusHasMore,
-						loadMore: statusLoadMore,
+						items: statusInbox.inboxItems,
+						unreadCount: statusInbox.unreadCount,
+						loading: statusInbox.loading,
+						loadingMore: statusInbox.loadingMore,
+						hasMore: statusInbox.hasMore,
+						loadMore: statusInbox.loadMore,
+						markAsRead: statusInbox.markAsRead,
+						markAllAsRead: statusInbox.markAllAsRead,
 					},
-					totalUnreadCount,
-					markAsRead,
-					markAllAsRead,
 					isDocked: isInboxDocked,
 					onDockedChange: setIsInboxDocked,
 				}}
@@ -686,36 +655,33 @@ export function LayoutDataProvider({
 					onOpenChange: setIsAllPrivateChatsSidebarOpen,
 					searchSpaceId,
 				}}
+				documentsPanel={{
+					open: isDocumentsSidebarOpen,
+					onOpenChange: setIsDocumentsSidebarOpen,
+				}}
 			>
 				{children}
 			</LayoutShell>
 
 			{/* Delete Chat Dialog */}
-			<Dialog open={showDeleteChatDialog} onOpenChange={setShowDeleteChatDialog}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Trash2 className="h-5 w-5 text-destructive" />
-							<span>{t("delete_chat")}</span>
-						</DialogTitle>
-						<DialogDescription>
+			<AlertDialog open={showDeleteChatDialog} onOpenChange={setShowDeleteChatDialog}>
+				<AlertDialogContent className="sm:max-w-md">
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("delete_chat")}</AlertDialogTitle>
+						<AlertDialogDescription>
 							{t("delete_chat_confirm")} <span className="font-medium">{chatToDelete?.name}</span>?{" "}
 							{t("action_cannot_undone")}
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="flex gap-2 sm:justify-end">
-						<Button
-							variant="outline"
-							onClick={() => setShowDeleteChatDialog(false)}
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeletingChat}>{tCommon("cancel")}</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								confirmDeleteChat();
+							}}
 							disabled={isDeletingChat}
-						>
-							{tCommon("cancel")}
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={confirmDeleteChat}
-							disabled={isDeletingChat}
-							className="gap-2"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
 							{isDeletingChat ? (
 								<>
@@ -723,15 +689,12 @@ export function LayoutDataProvider({
 									{t("deleting")}
 								</>
 							) : (
-								<>
-									<Trash2 className="h-4 w-4" />
-									{tCommon("delete")}
-								</>
+								tCommon("delete")
 							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Rename Chat Dialog */}
 			<Dialog open={showRenameChatDialog} onOpenChange={setShowRenameChatDialog}>
@@ -756,7 +719,7 @@ export function LayoutDataProvider({
 					/>
 					<DialogFooter className="flex gap-2 sm:justify-end">
 						<Button
-							variant="outline"
+							variant="secondary"
 							onClick={() => setShowRenameChatDialog(false)}
 							disabled={isRenamingChat}
 						>
@@ -773,10 +736,7 @@ export function LayoutDataProvider({
 									{tSidebar("renaming") || "Renaming"}
 								</>
 							) : (
-								<>
-									<PencilIcon className="h-4 w-4" />
-									{tSidebar("rename") || "Rename"}
-								</>
+								tSidebar("rename") || "Rename"
 							)}
 						</Button>
 					</DialogFooter>
@@ -784,30 +744,25 @@ export function LayoutDataProvider({
 			</Dialog>
 
 			{/* Delete Search Space Dialog */}
-			<Dialog open={showDeleteSearchSpaceDialog} onOpenChange={setShowDeleteSearchSpaceDialog}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<Trash2 className="h-5 w-5 text-destructive" />
-							<span>{t("delete_search_space")}</span>
-						</DialogTitle>
-						<DialogDescription>
+			<AlertDialog open={showDeleteSearchSpaceDialog} onOpenChange={setShowDeleteSearchSpaceDialog}>
+				<AlertDialogContent className="sm:max-w-md">
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("delete_search_space")}</AlertDialogTitle>
+						<AlertDialogDescription>
 							{t("delete_space_confirm", { name: searchSpaceToDelete?.name || "" })}
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="flex gap-2 sm:justify-end">
-						<Button
-							variant="outline"
-							onClick={() => setShowDeleteSearchSpaceDialog(false)}
-							disabled={isDeletingSearchSpace}
-						>
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeletingSearchSpace}>
 							{tCommon("cancel")}
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={confirmDeleteSearchSpace}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								confirmDeleteSearchSpace();
+							}}
 							disabled={isDeletingSearchSpace}
-							className="gap-2"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
 							{isDeletingSearchSpace ? (
 								<>
@@ -815,41 +770,33 @@ export function LayoutDataProvider({
 									{t("deleting")}
 								</>
 							) : (
-								<>
-									<Trash2 className="h-4 w-4" />
-									{tCommon("delete")}
-								</>
+								tCommon("delete")
 							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Leave Search Space Dialog */}
-			<Dialog open={showLeaveSearchSpaceDialog} onOpenChange={setShowLeaveSearchSpaceDialog}>
-				<DialogContent className="sm:max-w-md">
-					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2">
-							<LogOut className="h-5 w-5 text-destructive" />
-							<span>{t("leave_title")}</span>
-						</DialogTitle>
-						<DialogDescription>
+			<AlertDialog open={showLeaveSearchSpaceDialog} onOpenChange={setShowLeaveSearchSpaceDialog}>
+				<AlertDialogContent className="sm:max-w-md">
+					<AlertDialogHeader>
+						<AlertDialogTitle>{t("leave_title")}</AlertDialogTitle>
+						<AlertDialogDescription>
 							{t("leave_confirm", { name: searchSpaceToLeave?.name || "" })}
-						</DialogDescription>
-					</DialogHeader>
-					<DialogFooter className="flex gap-2 sm:justify-end">
-						<Button
-							variant="outline"
-							onClick={() => setShowLeaveSearchSpaceDialog(false)}
-							disabled={isLeavingSearchSpace}
-						>
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isLeavingSearchSpace}>
 							{tCommon("cancel")}
-						</Button>
-						<Button
-							variant="destructive"
-							onClick={confirmLeaveSearchSpace}
+						</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								confirmLeaveSearchSpace();
+							}}
 							disabled={isLeavingSearchSpace}
-							className="gap-2"
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
 							{isLeavingSearchSpace ? (
 								<>
@@ -857,15 +804,12 @@ export function LayoutDataProvider({
 									{t("leaving")}
 								</>
 							) : (
-								<>
-									<LogOut className="h-4 w-4" />
-									{t("leave")}
-								</>
+								t("leave")
 							)}
-						</Button>
-					</DialogFooter>
-				</DialogContent>
-			</Dialog>
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 
 			{/* Create Search Space Dialog */}
 			<CreateSearchSpaceDialog

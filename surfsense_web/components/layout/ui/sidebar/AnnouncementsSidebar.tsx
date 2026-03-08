@@ -2,8 +2,8 @@
 
 import { ChevronLeft } from "lucide-react";
 import { useEffect } from "react";
-import { AnnouncementsEmptyState } from "@/components/announcements/AnnouncementsEmptyState";
 import { AnnouncementCard } from "@/components/announcements/AnnouncementCard";
+import { AnnouncementsEmptyState } from "@/components/announcements/AnnouncementsEmptyState";
 import { Button } from "@/components/ui/button";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -72,4 +72,3 @@ export function AnnouncementsSidebar({
 		</SidebarSlideOutPanel>
 	);
 }
-

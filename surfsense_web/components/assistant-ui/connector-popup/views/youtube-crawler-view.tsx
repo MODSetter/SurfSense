@@ -3,7 +3,6 @@
 import { TagInput, type Tag as TagType } from "emblor";
 import { useAtom } from "jotai";
 import { ArrowLeft } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FC, useState } from "react";
 import { toast } from "sonner";
@@ -24,7 +23,6 @@ interface YouTubeCrawlerViewProps {
 
 export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId, onBack }) => {
 	const t = useTranslations("add_youtube");
-	const router = useRouter();
 	const [videoTags, setVideoTags] = useState<TagType[]>([]);
 	const [activeTagIndex, setActiveTagIndex] = useState<number | null>(null);
 	const [error, setError] = useState<string | null>(null);
@@ -74,9 +72,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 					toast(t("success_toast"), {
 						description: t("success_toast_desc"),
 					});
-					// Close the popup and navigate to documents
 					onBack();
-					router.push(`/dashboard/${searchSpaceId}/documents`);
 				},
 				onError: (error: unknown) => {
 					const errorMessage = error instanceof Error ? error.message : t("error_generic");

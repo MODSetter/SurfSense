@@ -256,7 +256,7 @@ export default function EditorPage() {
 
 				setHasUnsavedChanges(false);
 				toast.success("Note created successfully! Reindexing in background...");
-				router.push(`/dashboard/${searchSpaceId}/documents`);
+				router.push(`/dashboard/${searchSpaceId}/new-chat`);
 			} else {
 				// Existing document — save
 				const response = await authenticatedFetch(
@@ -277,7 +277,7 @@ export default function EditorPage() {
 
 				setHasUnsavedChanges(false);
 				toast.success("Document saved! Reindexing in background...");
-				router.push(`/dashboard/${searchSpaceId}/documents`);
+				router.push(`/dashboard/${searchSpaceId}/new-chat`);
 			}
 		} catch (error) {
 			console.error("Error saving document:", error);
@@ -298,7 +298,7 @@ export default function EditorPage() {
 		if (hasUnsavedChanges) {
 			setShowUnsavedDialog(true);
 		} else {
-			router.push(`/dashboard/${searchSpaceId}/documents`);
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
 	};
 
@@ -311,7 +311,7 @@ export default function EditorPage() {
 			router.push(pendingNavigation);
 			setPendingNavigation(null);
 		} else {
-			router.push(`/dashboard/${searchSpaceId}/documents`);
+			router.push(`/dashboard/${searchSpaceId}/new-chat`);
 		}
 	};
 

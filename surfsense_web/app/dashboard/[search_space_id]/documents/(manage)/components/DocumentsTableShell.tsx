@@ -1,29 +1,52 @@
 "use client";
 
-import { formatDistanceToNow } from "date-fns";
 import {
 	AlertCircle,
-	BadgeInfo,
-	Calendar,
 	CheckCircle2,
 	ChevronDown,
 	ChevronUp,
 	Clock,
+	Eye,
 	FileText,
 	FileX,
 	Network,
+	PenLine,
 	Plus,
-	User,
+	Trash2,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
-import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import { MarkdownViewer } from "@/components/markdown-viewer";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	ContextMenu,
+	ContextMenuContent,
+	ContextMenuItem,
+	ContextMenuSeparator,
+	ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+	Drawer,
+	DrawerContent,
+	DrawerHandle,
+	DrawerHeader,
+	DrawerTitle,
+} from "@/components/ui/drawer";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -35,12 +58,14 @@ import {
 	TableRow,
 } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useLongPress } from "@/hooks/use-long-press";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-import { DocumentTypeChip } from "./DocumentTypeIcon";
-import { RowActions } from "./RowActions";
-import type { ColumnVisibility, Document, DocumentStatus } from "./types";
+import { getDocumentTypeIcon, getDocumentTypeLabel } from "./DocumentTypeIcon";
+import type { Document, DocumentStatus } from "./types";
 
-// Status indicator component for document processing status
+const EDITABLE_DOCUMENT_TYPES = ["FILE", "NOTE"] as const;
+const NON_DELETABLE_DOCUMENT_TYPES = ["SURFSENSE_DOCS"] as const;
+
 function StatusIndicator({ status }: { status?: DocumentStatus }) {
 	const state = status?.state ?? "ready";
 
@@ -107,10 +132,6 @@ function sortDocuments(docs: Document[], key: SortKey, desc: boolean): Document[
 	return desc ? sorted.reverse() : sorted;
 }
 
-function formatRelativeDate(dateStr: string): string {
-	return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
-}
-
 function formatAbsoluteDate(dateStr: string): string {
 	const date = new Date(dateStr);
 	return date.toLocaleString("en-US", {
@@ -123,7 +144,7 @@ function formatAbsoluteDate(dateStr: string): string {
 	});
 }
 
-function TruncatedText({ text, className }: { text: string; className?: string }) {
+function DocumentNameTooltip({ doc, className }: { doc: Document; className?: string }) {
 	const textRef = useRef<HTMLSpanElement>(null);
 	const [isTruncated, setIsTruncated] = useState(false);
 
@@ -138,25 +159,27 @@ function TruncatedText({ text, className }: { text: string; className?: string }
 		return () => window.removeEventListener("resize", checkTruncation);
 	}, []);
 
-	if (isTruncated) {
-		return (
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<span ref={textRef} className={className}>
-						{text}
-					</span>
-				</TooltipTrigger>
-				<TooltipContent side="top" className="max-w-xs">
-					<p className="break-words">{text}</p>
-				</TooltipContent>
-			</Tooltip>
-		);
-	}
-
 	return (
-		<span ref={textRef} className={className}>
-			{text}
-		</span>
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<span ref={textRef} className={className}>
+					{doc.title}
+				</span>
+			</TooltipTrigger>
+			<TooltipContent side="top" align="start" className="max-w-sm">
+				<div className="space-y-1 text-xs">
+					{isTruncated && <p className="font-medium text-sm break-words">{doc.title}</p>}
+					<p>
+						<span className="text-muted-foreground">Owner:</span>{" "}
+						{doc.created_by_name || doc.created_by_email || "—"}
+					</p>
+					<p>
+						<span className="text-muted-foreground">Created:</span>{" "}
+						{formatAbsoluteDate(doc.created_at)}
+					</p>
+				</div>
+			</TooltipContent>
+		</Tooltip>
 	);
 }
 
@@ -180,9 +203,9 @@ function SortableHeader({
 		<button
 			type="button"
 			onClick={() => onSort(sortKey)}
-			className="flex items-center gap-1.5 text-left text-sm font-medium text-muted-foreground/70 hover:text-muted-foreground transition-colors group"
+			className="flex items-center gap-1.5 text-left text-sm font-medium text-muted-foreground hover:text-muted-foreground transition-colors group"
 		>
-			{icon && <span className="opacity-60">{icon}</span>}
+			{icon && <span>{icon}</span>}
 			{children}
 			<span
 				className={`transition-opacity ${isActive ? "opacity-100" : "opacity-0 group-hover:opacity-50"}`}
@@ -193,87 +216,184 @@ function SortableHeader({
 	);
 }
 
+function RowContextMenu({
+	doc,
+	children,
+	onPreview,
+	onDelete,
+	searchSpaceId,
+}: {
+	doc: Document;
+	children: React.ReactNode;
+	onPreview: (doc: Document) => void;
+	onDelete: (doc: Document) => void;
+	searchSpaceId: string;
+}) {
+	const router = useRouter();
+
+	const isEditable = EDITABLE_DOCUMENT_TYPES.includes(
+		doc.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
+	);
+	const isBeingProcessed = doc.status?.state === "pending" || doc.status?.state === "processing";
+	const isFileFailed = doc.document_type === "FILE" && doc.status?.state === "failed";
+	const shouldShowDelete = !NON_DELETABLE_DOCUMENT_TYPES.includes(
+		doc.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
+	);
+	const isEditDisabled = isBeingProcessed || isFileFailed;
+	const isDeleteDisabled = isBeingProcessed;
+
+	return (
+		<ContextMenu>
+			<ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+			<ContextMenuContent className="w-48">
+				<ContextMenuItem onClick={() => onPreview(doc)}>
+					<Eye className="h-4 w-4" />
+					Preview
+				</ContextMenuItem>
+				{isEditable && (
+					<ContextMenuItem
+						onClick={() =>
+							!isEditDisabled && router.push(`/dashboard/${searchSpaceId}/editor/${doc.id}`)
+						}
+						disabled={isEditDisabled}
+					>
+						<PenLine className="h-4 w-4" />
+						Edit
+					</ContextMenuItem>
+				)}
+				{shouldShowDelete && (
+					<>
+						<ContextMenuSeparator />
+						<ContextMenuItem
+							onClick={() => !isDeleteDisabled && onDelete(doc)}
+							disabled={isDeleteDisabled}
+						>
+							<Trash2 className="h-4 w-4" />
+							Delete
+						</ContextMenuItem>
+					</>
+				)}
+			</ContextMenuContent>
+		</ContextMenu>
+	);
+}
+
+function MobileCardWrapper({
+	onLongPress,
+	children,
+}: {
+	onLongPress: () => void;
+	children: React.ReactNode;
+}) {
+	const { handlers, wasLongPress } = useLongPress(onLongPress);
+
+	return (
+		// biome-ignore lint/a11y/useSemanticElements: touch-only long-press wrapper for mobile
+		<div
+			role="group"
+			onTouchStart={handlers.onTouchStart}
+			onTouchMove={handlers.onTouchMove}
+			onTouchEnd={(e) => {
+				handlers.onTouchEnd();
+				if (wasLongPress()) {
+					e.preventDefault();
+				}
+			}}
+			onContextMenu={(e) => e.preventDefault()}
+		>
+			{children}
+		</div>
+	);
+}
+
 export function DocumentsTableShell({
 	documents,
 	loading,
 	error,
-	selectedIds,
-	setSelectedIds,
-	columnVisibility,
 	sortKey,
 	sortDesc,
 	onSortChange,
 	deleteDocument,
 	searchSpaceId,
+	hasMore = false,
+	loadingMore = false,
+	onLoadMore,
+	isSearchMode = false,
+	mentionedDocIds,
+	onToggleChatMention,
 }: {
 	documents: Document[];
 	loading: boolean;
 	error: boolean;
-	selectedIds: Set<number>;
-	setSelectedIds: (update: Set<number>) => void;
-	columnVisibility: ColumnVisibility;
 	sortKey: SortKey;
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
 	deleteDocument: (id: number) => Promise<boolean>;
 	searchSpaceId: string;
+	hasMore?: boolean;
+	loadingMore?: boolean;
+	onLoadMore?: () => void;
+	isSearchMode?: boolean;
+	/** IDs of documents currently mentioned as chips in the chat composer */
+	mentionedDocIds?: Set<number>;
+	/** Toggle a document's mention in the chat (add if not mentioned, remove if mentioned) */
+	onToggleChatMention?: (doc: Document, mentioned: boolean) => void;
 }) {
 	const t = useTranslations("documents");
 	const { openDialog } = useDocumentUploadDialog();
 
-	// State for metadata viewer (opened via Ctrl/Cmd+Click)
-	// Real-time documents don't sync metadata - we fetch on-demand when viewing
-	const [metadataDoc, setMetadataDoc] = useState<Document | null>(null);
-	const [metadataContent, setMetadataContent] = useState<any>(null);
-	const [metadataLoading, setMetadataLoading] = useState(false);
-
-	// State for lazy document content viewer
-	// Real-time documents don't sync content - we fetch on-demand when viewing
 	const [viewingDoc, setViewingDoc] = useState<Document | null>(null);
 	const [viewingContent, setViewingContent] = useState<string>("");
 	const [viewingLoading, setViewingLoading] = useState(false);
-
-	// Fetch document metadata on-demand when metadata viewer is opened
-	const handleViewMetadata = useCallback(async (doc: Document) => {
-		setMetadataDoc(doc);
-
-		// If metadata is already available (from API/search), use it directly
-		if (doc.document_metadata) {
-			setMetadataContent(doc.document_metadata);
-			return;
-		}
-
-		// Otherwise, fetch from API (lazy loading for real-time synced documents)
-		setMetadataLoading(true);
-		try {
-			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
-			setMetadataContent(fullDoc.document_metadata);
-		} catch (err) {
-			console.error("[DocumentsTableShell] Failed to fetch document metadata:", err);
-			setMetadataContent(null);
-		} finally {
-			setMetadataLoading(false);
-		}
+	const [previewScrollPos, setPreviewScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		const atTop = el.scrollTop <= 2;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+		setPreviewScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
 	}, []);
 
-	// Close metadata viewer
-	const handleCloseMetadata = useCallback(() => {
-		setMetadataDoc(null);
-		setMetadataContent(null);
-		setMetadataLoading(false);
-	}, []);
+	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
+	const [isDeleting, setIsDeleting] = useState(false);
+	const [mobileActionDoc, setMobileActionDoc] = useState<Document | null>(null);
+	const router = useRouter();
 
-	// Fetch document content on-demand when viewer is opened
+	const desktopSentinelRef = useRef<HTMLDivElement>(null);
+	const mobileSentinelRef = useRef<HTMLDivElement>(null);
+	const desktopScrollRef = useRef<HTMLDivElement>(null);
+	const mobileScrollRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!onLoadMore || !hasMore || loadingMore) return;
+
+		const observers: IntersectionObserver[] = [];
+
+		const observe = (root: HTMLElement | null, sentinel: HTMLElement | null) => {
+			if (!root || !sentinel) return;
+			const observer = new IntersectionObserver(
+				(entries) => {
+					if (entries.some((e) => e.isIntersecting)) onLoadMore();
+				},
+				{ root, rootMargin: "150px", threshold: 0 }
+			);
+			observer.observe(sentinel);
+			observers.push(observer);
+		};
+
+		observe(desktopScrollRef.current, desktopSentinelRef.current);
+		observe(mobileScrollRef.current, mobileSentinelRef.current);
+
+		return () => {
+			for (const o of observers) o.disconnect();
+		};
+	}, [onLoadMore, hasMore, loadingMore]);
+
 	const handleViewDocument = useCallback(async (doc: Document) => {
 		setViewingDoc(doc);
-
-		// If content is already available (from API/search), use it directly
 		if (doc.content) {
 			setViewingContent(doc.content);
 			return;
 		}
-
-		// Otherwise, fetch from API (lazy loading for real-time synced documents)
 		setViewingLoading(true);
 		try {
 			const fullDoc = await documentsApiService.getDocument({ id: doc.id });
@@ -286,185 +406,260 @@ export function DocumentsTableShell({
 		}
 	}, []);
 
-	// Close document viewer
 	const handleCloseViewer = useCallback(() => {
 		setViewingDoc(null);
 		setViewingContent("");
 		setViewingLoading(false);
 	}, []);
 
+	const handleDeleteFromMenu = useCallback(async () => {
+		if (!deleteDoc) return;
+		setIsDeleting(true);
+		try {
+			const ok = await deleteDocument(deleteDoc.id);
+			if (!ok) toast.error("Failed to delete document");
+		} catch (error: unknown) {
+			console.error("Error deleting document:", error);
+			const status =
+				(error as { response?: { status?: number } })?.response?.status ??
+				(error as { status?: number })?.status;
+			if (status === 409) {
+				toast.error("Document is now being processed. Please try again later.");
+			} else {
+				toast.error("Failed to delete document");
+			}
+		} finally {
+			setIsDeleting(false);
+			setDeleteDoc(null);
+		}
+	}, [deleteDoc, deleteDocument]);
+
 	const sorted = React.useMemo(
 		() => sortDocuments(documents, sortKey, sortDesc),
 		[documents, sortKey, sortDesc]
 	);
 
-	// Helper: check if document can be selected (not processing/pending)
 	const isSelectable = (doc: Document) => {
 		const state = doc.status?.state;
 		return state !== "pending" && state !== "processing";
 	};
 
-	// Only consider selectable documents for "select all" logic
+	const hasChatMode = !!onToggleChatMention && !!mentionedDocIds;
+
 	const selectableDocs = sorted.filter(isSelectable);
-	const allSelectedOnPage =
-		selectableDocs.length > 0 && selectableDocs.every((d) => selectedIds.has(d.id));
-	const someSelectedOnPage =
-		selectableDocs.some((d) => selectedIds.has(d.id)) && !allSelectedOnPage;
+	const allMentionedOnPage =
+		hasChatMode &&
+		selectableDocs.length > 0 &&
+		selectableDocs.every((d) => mentionedDocIds.has(d.id));
+	const someMentionedOnPage =
+		hasChatMode && selectableDocs.some((d) => mentionedDocIds.has(d.id)) && !allMentionedOnPage;
 
 	const toggleAll = (checked: boolean) => {
-		const next = new Set(selectedIds);
-		if (checked)
-			// Only select documents that are not processing/pending
-			selectableDocs.forEach((d) => {
-				next.add(d.id);
-			});
-		else
-			sorted.forEach((d) => {
-				next.delete(d.id);
-			});
-		setSelectedIds(next);
-	};
-
-	const toggleOne = (id: number, checked: boolean) => {
-		const next = new Set(selectedIds);
-		if (checked) next.add(id);
-		else next.delete(id);
-		setSelectedIds(next);
+		if (!onToggleChatMention) return;
+		for (const doc of selectableDocs) {
+			const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+			if (checked && !isMentioned) {
+				onToggleChatMention(doc, false);
+			} else if (!checked && isMentioned) {
+				onToggleChatMention(doc, true);
+			}
+		}
 	};
 
 	const onSortHeader = (key: SortKey) => onSortChange(key);
 
 	return (
-		<motion.div
-			className="rounded-lg border border-border/40 bg-background overflow-hidden select-none"
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.2 }}
-		>
-			{loading ? (
-				<>
-					{/* Desktop Skeleton View */}
-					<div className="hidden md:flex md:flex-col">
+		<div className="bg-sidebar overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0">
+			{/* Desktop Table View */}
+			<div className="hidden md:flex md:flex-col flex-1 min-h-0">
+				<Table className="table-fixed w-full">
+					<TableHeader>
+						<TableRow className="hover:bg-transparent border-b border-border/50">
+							<TableHead className="w-10 pl-3 pr-0 text-center h-8">
+								<div className="flex items-center justify-center h-full">
+									<Checkbox
+										checked={allMentionedOnPage || (someMentionedOnPage && "indeterminate")}
+										onCheckedChange={(v) => toggleAll(!!v)}
+										aria-label={hasChatMode ? "Toggle all for chat" : "Select all"}
+										className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+									/>
+								</div>
+							</TableHead>
+							<TableHead className="h-8 px-2">
+								<SortableHeader
+									sortKey="title"
+									currentSortKey={sortKey}
+									sortDesc={sortDesc}
+									onSort={onSortHeader}
+									icon={<FileText size={14} className="text-muted-foreground" />}
+								>
+									Document
+								</SortableHeader>
+							</TableHead>
+							<TableHead className="w-10 text-center h-8 px-0">
+								<span className="flex items-center justify-center">
+									<Network size={14} className="text-muted-foreground" />
+								</span>
+							</TableHead>
+							<TableHead className="w-12 text-center h-8 pl-0 pr-3">
+								<span className="text-xs font-medium text-muted-foreground">Status</span>
+							</TableHead>
+						</TableRow>
+					</TableHeader>
+				</Table>
+				{loading ? (
+					<div className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
-							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/40">
-									<TableHead className="w-8 px-0 text-center">
-										<div className="flex items-center justify-center h-full">
-											<Skeleton className="h-4 w-4 rounded" />
-										</div>
-									</TableHead>
-									<TableHead className="w-[40%] max-w-0 border-r border-border/40">
-										<Skeleton className="h-3 w-20" />
-									</TableHead>
-									{columnVisibility.document_type && (
-										<TableHead className="w-[15%] min-w-[100px] max-w-[170px] border-r border-border/40">
-											<Skeleton className="h-3 w-14" />
-										</TableHead>
-									)}
-									{columnVisibility.created_by && (
-										<TableHead className="w-36 border-r border-border/40">
-											<Skeleton className="h-3 w-10" />
-										</TableHead>
-									)}
-									{columnVisibility.created_at && (
-										<TableHead className="w-32 border-r border-border/40">
-											<Skeleton className="h-3 w-16" />
-										</TableHead>
-									)}
-									{columnVisibility.status && (
-										<TableHead className="w-14 text-center">
-											<Skeleton className="h-3 w-12 mx-auto" />
-										</TableHead>
-									)}
-									<TableHead className="w-10">
-										<span className="sr-only">Actions</span>
-									</TableHead>
-								</TableRow>
-							</TableHeader>
+							<TableBody>
+								{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent) => (
+									<TableRow
+										key={`skeleton-${widthPercent}`}
+										className="border-b border-border/50 hover:bg-transparent"
+									>
+										<TableCell className="w-10 pl-3 pr-0 py-1.5 text-center">
+											<div className="flex items-center justify-center h-full">
+												<Skeleton className="h-4 w-4 rounded" />
+											</div>
+										</TableCell>
+										<TableCell className="px-2 py-1.5 max-w-0">
+											<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
+										</TableCell>
+										<TableCell className="w-10 px-0 py-1.5 text-center">
+											<Skeleton className="h-4 w-4 mx-auto rounded" />
+										</TableCell>
+										<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
+											<Skeleton className="h-5 w-5 mx-auto rounded-full" />
+										</TableCell>
+									</TableRow>
+								))}
+							</TableBody>
 						</Table>
-						<div className="h-[50vh] overflow-auto">
-							<Table className="table-fixed w-full">
-								<TableBody>
-									{[65, 80, 45, 72, 55, 88, 40, 60, 50, 75].map((widthPercent, index) => (
-										<TableRow
-											key={`skeleton-${index}`}
-											className="border-b border-border/40 hover:bg-transparent"
-										>
-											<TableCell className="w-8 px-0 py-2.5 text-center">
-												<div className="flex items-center justify-center h-full">
-													<Skeleton className="h-4 w-4 rounded" />
-												</div>
-											</TableCell>
-											<TableCell className="w-[40%] py-2.5 max-w-0 border-r border-border/40">
-												<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
-											</TableCell>
-											{columnVisibility.document_type && (
-												<TableCell className="w-[15%] min-w-[100px] max-w-[170px] py-2.5 border-r border-border/40 overflow-hidden">
-													<Skeleton className="h-5 w-24 rounded" />
-												</TableCell>
-											)}
-											{columnVisibility.created_by && (
-												<TableCell className="w-36 py-2.5 truncate border-r border-border/40">
-													<Skeleton className="h-4 w-20" />
-												</TableCell>
-											)}
-											{columnVisibility.created_at && (
-												<TableCell className="w-32 py-2.5 border-r border-border/40">
-													<Skeleton className="h-4 w-20" />
-												</TableCell>
-											)}
-											{columnVisibility.status && (
-												<TableCell className="w-14 py-2.5 text-center">
-													<Skeleton className="h-5 w-5 mx-auto rounded-full" />
-												</TableCell>
-											)}
-											<TableCell className="w-10 py-2.5 text-center">
-												<Skeleton className="h-6 w-6 mx-auto rounded" />
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
+					</div>
+				) : error ? (
+					<div className="flex flex-1 w-full items-center justify-center">
+						<div className="flex flex-col items-center gap-3">
+							<AlertCircle className="h-8 w-8 text-destructive" />
+							<p className="text-sm text-destructive">{t("error_loading")}</p>
 						</div>
 					</div>
-					{/* Mobile Skeleton View */}
-					<div className="md:hidden divide-y divide-border/30 h-[50vh] overflow-auto">
-						{[70, 85, 55, 78, 62, 90].map((widthPercent, index) => (
-							<div key={`skeleton-mobile-${index}`} className="px-4 py-3">
-								<div className="flex items-start gap-3">
-									<Skeleton className="h-4 w-4 mt-0.5 rounded" />
-									<div className="flex-1 min-w-0 space-y-2">
-										<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
-										<div className="flex flex-wrap items-center gap-2">
-											<Skeleton className="h-5 w-20 rounded" />
-											{columnVisibility.created_by && <Skeleton className="h-3 w-14" />}
-											{columnVisibility.created_at && <Skeleton className="h-3 w-20" />}
-										</div>
-									</div>
-									<div className="flex items-center gap-2">
-										{columnVisibility.status && <Skeleton className="h-5 w-5 rounded-full" />}
-										<Skeleton className="h-7 w-7 rounded" />
-									</div>
+				) : sorted.length === 0 ? (
+					<div className="flex flex-1 w-full items-center justify-center">
+						<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
+							<div className="rounded-full bg-muted/50 p-4">
+								<FileX className="h-8 w-8 text-muted-foreground" />
+							</div>
+							<div className="space-y-1.5">
+								<h3 className="text-lg font-semibold">{t("no_documents")}</h3>
+								<p className="text-sm text-muted-foreground">
+									Get started by uploading your first document.
+								</p>
+							</div>
+							<Button onClick={openDialog} className="mt-2">
+								<Plus className="mr-2 h-4 w-4" />
+								Upload Documents
+							</Button>
+						</div>
+					</div>
+				) : (
+					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
+						<Table className="table-fixed w-full">
+							<TableBody>
+								{sorted.map((doc) => {
+									const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+									const canInteract = isSelectable(doc);
+									const handleRowClick = () => {
+										if (canInteract && onToggleChatMention) {
+											onToggleChatMention(doc, isMentioned);
+										}
+									};
+									return (
+										<RowContextMenu
+											key={doc.id}
+											doc={doc}
+											onPreview={handleViewDocument}
+											onDelete={setDeleteDoc}
+											searchSpaceId={searchSpaceId}
+										>
+											<tr
+												className={`border-b border-border/50 transition-colors ${
+													isMentioned ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
+												} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
+												onClick={handleRowClick}
+											>
+												<TableCell
+													className="w-10 pl-3 pr-0 py-1.5 text-center"
+													onClick={(e) => e.stopPropagation()}
+												>
+													<div className="flex items-center justify-center h-full">
+														<Checkbox
+															checked={isMentioned}
+															onCheckedChange={() => handleRowClick()}
+															disabled={!canInteract}
+															aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
+														/>
+													</div>
+												</TableCell>
+												<TableCell className="px-2 py-1.5 max-w-0">
+													<DocumentNameTooltip
+														doc={doc}
+														className="truncate block text-sm text-foreground cursor-default"
+													/>
+												</TableCell>
+												<TableCell className="w-10 px-0 py-1.5 text-center">
+													<Tooltip>
+														<TooltipTrigger asChild>
+															<span className="flex items-center justify-center">
+																{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
+															</span>
+														</TooltipTrigger>
+														<TooltipContent side="top">
+															{getDocumentTypeLabel(doc.document_type)}
+														</TooltipContent>
+													</Tooltip>
+												</TableCell>
+												<TableCell className="w-12 pl-0 pr-3 py-1.5 text-center">
+													<StatusIndicator status={doc.status} />
+												</TableCell>
+											</tr>
+										</RowContextMenu>
+									);
+								})}
+							</TableBody>
+						</Table>
+						{hasMore && <div ref={desktopSentinelRef} className="py-3" />}
+					</div>
+				)}
+			</div>
+
+			{/* Mobile Card View */}
+			{loading ? (
+				<div className="md:hidden divide-y divide-border/50 flex-1 overflow-auto">
+					{[70, 85, 55, 78, 62, 90].map((widthPercent) => (
+						<div key={`skeleton-mobile-${widthPercent}`} className="px-3 py-2">
+							<div className="flex items-center gap-3">
+								<Skeleton className="h-4 w-4 rounded shrink-0" />
+								<div className="flex-1 min-w-0">
+									<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
+								</div>
+								<div className="flex items-center gap-2">
+									<Skeleton className="h-4 w-4 rounded shrink-0" />
+									<Skeleton className="h-5 w-5 rounded-full shrink-0" />
 								</div>
 							</div>
-						))}
-					</div>
-				</>
+						</div>
+					))}
+				</div>
 			) : error ? (
-				<div className="flex h-[50vh] w-full items-center justify-center">
+				<div className="md:hidden flex flex-1 w-full items-center justify-center">
 					<div className="flex flex-col items-center gap-3">
 						<AlertCircle className="h-8 w-8 text-destructive" />
 						<p className="text-sm text-destructive">{t("error_loading")}</p>
 					</div>
 				</div>
 			) : sorted.length === 0 ? (
-				<div className="flex h-[50vh] w-full items-center justify-center">
-					<motion.div
-						initial={{ opacity: 0, y: 20 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ duration: 0.4 }}
-						className="flex flex-col items-center gap-4 max-w-md px-4 text-center"
-					>
+				<div className="md:hidden flex flex-1 w-full items-center justify-center">
+					<div className="flex flex-col items-center gap-4 max-w-md px-4 text-center">
 						<div className="rounded-full bg-muted/50 p-4">
 							<FileX className="h-8 w-8 text-muted-foreground" />
 						</div>
@@ -478,315 +673,91 @@ export function DocumentsTableShell({
 							<Plus className="mr-2 h-4 w-4" />
 							Upload Documents
 						</Button>
-					</motion.div>
+					</div>
 				</div>
 			) : (
-				<>
-					{/* Desktop Table View */}
-					<div className="hidden md:flex md:flex-col">
-						{/* Fixed Header */}
-						<Table className="table-fixed w-full">
-							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/40">
-									<TableHead className="w-8 px-0 text-center">
-										<div className="flex items-center justify-center h-full">
-											<Checkbox
-												checked={allSelectedOnPage || (someSelectedOnPage && "indeterminate")}
-												onCheckedChange={(v) => toggleAll(!!v)}
-												aria-label="Select all"
-												className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-											/>
-										</div>
-									</TableHead>
-									<TableHead className="w-[40%] border-r border-border/40">
-										<SortableHeader
-											sortKey="title"
-											currentSortKey={sortKey}
-											sortDesc={sortDesc}
-											onSort={onSortHeader}
-											icon={<FileText size={14} className="text-muted-foreground" />}
-										>
-											Document
-										</SortableHeader>
-									</TableHead>
-									{columnVisibility.document_type && (
-										<TableHead className="w-[15%] min-w-[100px] max-w-[170px] border-r border-border/40">
-											<SortableHeader
-												sortKey="document_type"
-												currentSortKey={sortKey}
-												sortDesc={sortDesc}
-												onSort={onSortHeader}
-												icon={<Network size={14} className="text-muted-foreground" />}
-											>
-												Source
-											</SortableHeader>
-										</TableHead>
-									)}
-									{columnVisibility.created_by && (
-										<TableHead className="w-36 border-r border-border/40">
-											<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-												<User size={14} className="opacity-60 text-muted-foreground" />
-												User
-											</span>
-										</TableHead>
-									)}
-									{columnVisibility.created_at && (
-										<TableHead className="w-32 border-r border-border/40">
-											<SortableHeader
-												sortKey="created_at"
-												currentSortKey={sortKey}
-												sortDesc={sortDesc}
-												onSort={onSortHeader}
-												icon={<Calendar size={14} className="text-muted-foreground" />}
-											>
-												Created
-											</SortableHeader>
-										</TableHead>
-									)}
-									{columnVisibility.status && (
-										<TableHead className="w-14">
-											<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-												<BadgeInfo size={14} className="opacity-60 text-muted-foreground" />
-												Status
-											</span>
-										</TableHead>
-									)}
-									<TableHead className="w-10">
-										<span className="sr-only">Actions</span>
-									</TableHead>
-								</TableRow>
-							</TableHeader>
-						</Table>
-						{/* Scrollable Body */}
-						<div className="h-[50vh] overflow-auto">
-							<Table className="table-fixed w-full">
-								<TableBody>
-									{sorted.map((doc, index) => {
-										const title = doc.title;
-										const isSelected = selectedIds.has(doc.id);
-										const canSelect = isSelectable(doc);
-										return (
-											<motion.tr
-												key={doc.id}
-												initial={{ opacity: 0 }}
-												animate={{
-													opacity: 1,
-													transition: {
-														duration: 0.2,
-														delay: index * 0.02,
-													},
-												}}
-												className={`border-b border-border/40 transition-colors ${
-													isSelected ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
-												}`}
-											>
-												<TableCell className="w-8 px-0 py-2.5 text-center">
-													<div className="flex items-center justify-center h-full">
-														<Checkbox
-															checked={isSelected}
-															onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
-															disabled={!canSelect}
-															aria-label={
-																canSelect ? "Select row" : "Cannot select while processing"
-															}
-															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
-														/>
-													</div>
-												</TableCell>
-												<TableCell className="w-[40%] py-2.5 max-w-0 border-r border-border/40">
-													<button
-														type="button"
-														className="block w-full text-left text-sm text-foreground hover:text-foreground transition-colors cursor-pointer bg-transparent border-0 p-0 truncate"
-														onClick={(e) => {
-															// Ctrl (Win/Linux) or Cmd (Mac) + Click opens metadata
-															if (e.ctrlKey || e.metaKey) {
-																e.preventDefault();
-																e.stopPropagation();
-																handleViewMetadata(doc);
-															} else {
-																// Normal click opens document viewer (lazy loads content)
-																handleViewDocument(doc);
-															}
-														}}
-														onKeyDown={(e) => {
-															// Ctrl/Cmd + Enter opens metadata
-															if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-																e.preventDefault();
-																handleViewMetadata(doc);
-															} else if (e.key === "Enter") {
-																// Enter opens document viewer
-																handleViewDocument(doc);
-															}
-														}}
-													>
-														<TruncatedText text={title} className="truncate block" />
-													</button>
-												</TableCell>
-												{columnVisibility.document_type && (
-													<TableCell className="w-[15%] min-w-[100px] max-w-[170px] py-2.5 border-r border-border/40 overflow-hidden">
-														<DocumentTypeChip type={doc.document_type} />
-													</TableCell>
-												)}
-												{columnVisibility.created_by && (
-													<TableCell className="w-36 py-2.5 text-sm text-foreground truncate border-r border-border/40">
-														{doc.created_by_name ? (
-															doc.created_by_email ? (
-																<Tooltip>
-																	<TooltipTrigger asChild>
-																		<span className="cursor-default truncate block">
-																			{doc.created_by_name}
-																		</span>
-																	</TooltipTrigger>
-																	<TooltipContent side="top" align="start">
-																		{doc.created_by_email}
-																	</TooltipContent>
-																</Tooltip>
-															) : (
-																<span className="truncate block">{doc.created_by_name}</span>
-															)
-														) : (
-															<span className="truncate block">{doc.created_by_email || "—"}</span>
-														)}
-													</TableCell>
-												)}
-												{columnVisibility.created_at && (
-													<TableCell className="w-32 py-2.5 text-sm text-foreground border-r border-border/40">
-														<Tooltip>
-															<TooltipTrigger asChild>
-																<span className="cursor-default">
-																	{formatRelativeDate(doc.created_at)}
-																</span>
-															</TooltipTrigger>
-															<TooltipContent side="top">
-																{formatAbsoluteDate(doc.created_at)}
-															</TooltipContent>
-														</Tooltip>
-													</TableCell>
-												)}
-												{columnVisibility.status && (
-													<TableCell className="w-14 py-2.5 text-center">
-														<StatusIndicator status={doc.status} />
-													</TableCell>
-												)}
-												<TableCell className="w-10 py-2.5 text-center">
-													<RowActions
-														document={doc}
-														deleteDocument={deleteDocument}
-														searchSpaceId={searchSpaceId}
-													/>
-												</TableCell>
-											</motion.tr>
-										);
-									})}
-								</TableBody>
-							</Table>
-						</div>
-					</div>
-
-					{/* Mobile Card View - Notion Style */}
-					<div className="md:hidden divide-y divide-border/40 h-[50vh] overflow-auto">
-						{sorted.map((doc, index) => {
-							const isSelected = selectedIds.has(doc.id);
-							const canSelect = isSelectable(doc);
-							return (
-								<motion.div
-									key={doc.id}
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1, transition: { delay: index * 0.03 } }}
-									className={`px-4 py-3 transition-colors ${
-										isSelected ? "bg-primary/5" : "hover:bg-muted/20"
-									}`}
+				<div
+					ref={mobileScrollRef}
+					className="md:hidden divide-y divide-border/50 flex-1 overflow-auto"
+				>
+					{sorted.map((doc) => {
+						const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+						const canInteract = isSelectable(doc);
+						const handleCardClick = () => {
+							if (canInteract && onToggleChatMention) {
+								onToggleChatMention(doc, isMentioned);
+							}
+						};
+						return (
+							<MobileCardWrapper key={doc.id} onLongPress={() => setMobileActionDoc(doc)}>
+								<div
+									className={`relative px-3 py-2 transition-colors ${
+										isMentioned ? "bg-primary/5" : "hover:bg-muted/20"
+									} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
 								>
-									<div className="flex items-center gap-3">
-										<Checkbox
-											checked={isSelected}
-											onCheckedChange={(v) => canSelect && toggleOne(doc.id, !!v)}
-											disabled={!canSelect}
-											aria-label={canSelect ? "Select row" : "Cannot select while processing"}
-											className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canSelect ? "opacity-40 cursor-not-allowed" : ""}`}
+									{canInteract && hasChatMode && (
+										<button
+											type="button"
+											className="absolute inset-0 z-0"
+											aria-label={
+												isMentioned ? `Remove ${doc.title} from chat` : `Add ${doc.title} to chat`
+											}
+											onClick={handleCardClick}
 										/>
-										<div className="flex-1 min-w-0 space-y-1.5">
-											<button
-												type="button"
-												className="text-left text-sm text-foreground hover:text-foreground transition-colors cursor-pointer truncate block w-full bg-transparent border-0 p-0"
-												onClick={(e) => {
-													// Ctrl (Win/Linux) or Cmd (Mac) + Click opens metadata
-													if (e.ctrlKey || e.metaKey) {
-														e.preventDefault();
-														e.stopPropagation();
-														handleViewMetadata(doc);
-													} else {
-														// Normal click opens document viewer (lazy loads content)
-														handleViewDocument(doc);
-													}
-												}}
-												onKeyDown={(e) => {
-													// Ctrl/Cmd + Enter opens metadata
-													if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-														e.preventDefault();
-														handleViewMetadata(doc);
-													} else if (e.key === "Enter") {
-														// Enter opens document viewer
-														handleViewDocument(doc);
-													}
-												}}
-											>
-												{doc.title}
-											</button>
-											<div className="flex flex-wrap items-center gap-2">
-												<DocumentTypeChip type={doc.document_type} />
-												{columnVisibility.created_by && doc.created_by_name && (
-													<span className="text-xs text-foreground">{doc.created_by_name}</span>
-												)}
-												{columnVisibility.created_at && (
-													<Tooltip>
-														<TooltipTrigger asChild>
-															<span className="text-xs text-foreground cursor-default">
-																{formatRelativeDate(doc.created_at)}
-															</span>
-														</TooltipTrigger>
-														<TooltipContent side="top">
-															{formatAbsoluteDate(doc.created_at)}
-														</TooltipContent>
-													</Tooltip>
-												)}
-											</div>
-										</div>
-										<div className="flex items-center gap-2">
-											{columnVisibility.status && <StatusIndicator status={doc.status} />}
-											<RowActions
-												document={doc}
-												deleteDocument={deleteDocument}
-												searchSpaceId={searchSpaceId}
+									)}
+									<div className="relative z-10 flex items-center gap-3 pointer-events-none">
+										<span className="pointer-events-auto">
+											<Checkbox
+												checked={isMentioned}
+												onCheckedChange={() => handleCardClick()}
+												disabled={!canInteract}
+												aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+												className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary shrink-0 ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
 											/>
+										</span>
+										<div className="flex-1 min-w-0">
+											<span className="truncate block text-sm text-foreground">{doc.title}</span>
+										</div>
+										<div className="flex items-center gap-2 shrink-0">
+											<span className="flex items-center justify-center">
+												{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
+											</span>
+											<StatusIndicator status={doc.status} />
 										</div>
 									</div>
-								</motion.div>
-							);
-						})}
-					</div>
-				</>
+								</div>
+							</MobileCardWrapper>
+						);
+					})}
+					{hasMore && <div ref={mobileSentinelRef} className="py-3" />}
+				</div>
 			)}
 
-			{/* Metadata Viewer - opened via Ctrl/Cmd+Click on document title */}
-			{/* Lazy loads metadata from API for real-time synced documents */}
-			<JsonMetadataViewer
-				title={metadataDoc?.title ?? ""}
-				metadata={metadataContent}
-				loading={metadataLoading}
-				open={!!metadataDoc}
-				onOpenChange={(open) => {
-					if (!open) handleCloseMetadata();
-				}}
-			/>
-
-			{/* Document Content Viewer - lazy loads content on-demand */}
+			{/* Document Content Viewer */}
 			<Dialog open={!!viewingDoc} onOpenChange={(open) => !open && handleCloseViewer()}>
-				<DialogContent className="max-w-4xl max-h-[80vh] flex flex-col overflow-hidden pb-0">
+				<DialogContent className="max-w-4xl max-w-[92%] md:max-w-4xl max-h-[75vh] md:max-h-[80vh] flex flex-col overflow-hidden pb-0 p-3 md:p-6 gap-2 md:gap-4">
 					<DialogHeader className="flex-shrink-0">
-						<DialogTitle>{viewingDoc?.title}</DialogTitle>
+						<DialogTitle className="text-sm md:text-lg leading-tight pr-6">
+							{viewingDoc?.title}
+						</DialogTitle>
 					</DialogHeader>
-					<div className="mt-4 overflow-y-auto flex-1 min-h-0 px-6 select-text">
+					<div
+						onScroll={handlePreviewScroll}
+						className={[
+							"overflow-y-auto flex-1 min-h-0 px-1 md:px-6 select-text",
+							"max-md:text-xs",
+							"max-md:[&_h1]:text-base! max-md:[&_h1]:mt-3!",
+							"max-md:[&_h2]:text-sm! max-md:[&_h2]:mt-2!",
+							"max-md:[&_h3]:text-xs! max-md:[&_h3]:mt-2!",
+							"max-md:[&_h4]:text-xs!",
+							"max-md:[&_td]:text-[11px]! max-md:[&_td]:px-2! max-md:[&_td]:py-1.5!",
+							"max-md:[&_th]:text-[11px]! max-md:[&_th]:px-2! max-md:[&_th]:py-1.5!",
+						].join(" ")}
+						style={{
+							maskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
+							WebkitMaskImage: `linear-gradient(to bottom, ${previewScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${previewScrollPos === "bottom" ? "black" : "transparent"})`,
+						}}
+					>
 						{viewingLoading ? (
 							<div className="flex items-center justify-center py-12">
 								<Spinner size="lg" className="text-muted-foreground" />
@@ -797,6 +768,111 @@ export function DocumentsTableShell({
 					</div>
 				</DialogContent>
 			</Dialog>
-		</motion.div>
+
+			{/* Delete Confirmation Dialog */}
+			<AlertDialog open={!!deleteDoc} onOpenChange={(open) => !open && setDeleteDoc(null)}>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete document?</AlertDialogTitle>
+						<AlertDialogDescription>
+							This action cannot be undone. This will permanently delete this document from your
+							search space.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								handleDeleteFromMenu();
+							}}
+							disabled={isDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isDeleting ? "Deleting" : "Delete"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			{/* Mobile Document Actions Drawer */}
+			<Drawer open={!!mobileActionDoc} onOpenChange={(open) => !open && setMobileActionDoc(null)}>
+				<DrawerContent>
+					<DrawerHandle />
+					<DrawerHeader className="text-left">
+						<DrawerTitle className="break-words text-base">{mobileActionDoc?.title}</DrawerTitle>
+						<div className="space-y-0.5 text-xs mt-1">
+							<p>
+								<span className="text-muted-foreground">Owner:</span>{" "}
+								{mobileActionDoc?.created_by_name || mobileActionDoc?.created_by_email || "—"}
+							</p>
+							<p>
+								<span className="text-muted-foreground">Created:</span>{" "}
+								{mobileActionDoc ? formatAbsoluteDate(mobileActionDoc.created_at) : ""}
+							</p>
+						</div>
+					</DrawerHeader>
+					<div className="px-4 pb-6 flex flex-col gap-2">
+						<Button
+							variant="outline"
+							className="justify-start gap-2"
+							onClick={() => {
+								if (mobileActionDoc) handleViewDocument(mobileActionDoc);
+								setMobileActionDoc(null);
+							}}
+						>
+							<Eye className="h-4 w-4" />
+							Preview
+						</Button>
+						{mobileActionDoc &&
+							EDITABLE_DOCUMENT_TYPES.includes(
+								mobileActionDoc.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
+							) && (
+								<Button
+									variant="outline"
+									className="justify-start gap-2"
+									disabled={
+										mobileActionDoc.status?.state === "pending" ||
+										mobileActionDoc.status?.state === "processing" ||
+										(mobileActionDoc.document_type === "FILE" &&
+											mobileActionDoc.status?.state === "failed")
+									}
+									onClick={() => {
+										if (mobileActionDoc) {
+											router.push(`/dashboard/${searchSpaceId}/editor/${mobileActionDoc.id}`);
+											setMobileActionDoc(null);
+										}
+									}}
+								>
+									<PenLine className="h-4 w-4" />
+									Edit
+								</Button>
+							)}
+						{mobileActionDoc &&
+							!NON_DELETABLE_DOCUMENT_TYPES.includes(
+								mobileActionDoc.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
+							) && (
+								<Button
+									variant="destructive"
+									className="justify-start gap-2"
+									disabled={
+										mobileActionDoc.status?.state === "pending" ||
+										mobileActionDoc.status?.state === "processing"
+									}
+									onClick={() => {
+										if (mobileActionDoc) {
+											setDeleteDoc(mobileActionDoc);
+											setMobileActionDoc(null);
+										}
+									}}
+								>
+									<Trash2 className="h-4 w-4" />
+									Delete
+								</Button>
+							)}
+					</div>
+				</DrawerContent>
+			</Drawer>
+		</div>
 	);
 }
