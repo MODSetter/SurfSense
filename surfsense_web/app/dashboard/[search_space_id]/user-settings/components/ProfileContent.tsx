@@ -105,9 +105,7 @@ export function ProfileContent() {
 										value={displayName}
 										onChange={(e) => setDisplayName(e.target.value)}
 									/>
-									<p className="text-xs text-muted-foreground">
-										{t("profile_display_name_hint")}
-									</p>
+									<p className="text-xs text-muted-foreground">{t("profile_display_name_hint")}</p>
 								</div>
 
 								<div className="space-y-2">

@@ -292,10 +292,7 @@ export default function TeamManagementPage() {
 								</TableHeader>
 								<TableBody>
 									{SKELETON_KEYS.map((id) => (
-										<TableRow
-											key={id}
-											className="border-b border-border/40 hover:bg-transparent"
-										>
+										<TableRow key={id} className="border-b border-border/40 hover:bg-transparent">
 											<TableCell className="w-[45%] py-2.5 px-4 md:px-6 border-r border-border/40">
 												<div className="flex items-center gap-3">
 													<Skeleton className="h-10 w-10 rounded-full shrink-0" />
@@ -546,9 +543,9 @@ function MemberRow({
 				</div>
 			</TableCell>
 
-		<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/40">
-			{member.user_last_login ? formatRelativeDate(member.user_last_login) : "Never"}
-		</TableCell>
+			<TableCell className="hidden md:table-cell w-[25%] py-2.5 text-sm text-foreground border-r border-border/40">
+				{member.user_last_login ? formatRelativeDate(member.user_last_login) : "Never"}
+			</TableCell>
 
 			<TableCell className="w-[30%] text-right py-2.5 px-4 md:px-6">
 				{showActions ? (
@@ -608,12 +605,10 @@ function MemberRow({
 									</AlertDialogContent>
 								</AlertDialog>
 							)}
-						<DropdownMenuSeparator className="dark:bg-white/5" />
-						<DropdownMenuItem
-							onClick={() =>
-								router.push(`/dashboard/${searchSpaceId}/settings?tab=team-roles`)
-							}
-						>
+							<DropdownMenuSeparator className="dark:bg-white/5" />
+							<DropdownMenuItem
+								onClick={() => router.push(`/dashboard/${searchSpaceId}/settings?tab=team-roles`)}
+							>
 								Manage Roles
 							</DropdownMenuItem>
 						</DropdownMenuContent>
@@ -833,21 +828,21 @@ function CreateInviteDialog({
 								</div>
 							</div>
 						</div>
-					<DialogFooter className="gap-3 sm:gap-2">
-						<Button variant="secondary" onClick={handleClose}>
-							Cancel
-						</Button>
-						<Button onClick={handleCreate} disabled={creating}>
-							{creating ? (
-								<>
-									<Spinner size="sm" className="mr-2" />
-									Creating
-								</>
-							) : (
-								"Create Invite"
-							)}
-						</Button>
-					</DialogFooter>
+						<DialogFooter className="gap-3 sm:gap-2">
+							<Button variant="secondary" onClick={handleClose}>
+								Cancel
+							</Button>
+							<Button onClick={handleCreate} disabled={creating}>
+								{creating ? (
+									<>
+										<Spinner size="sm" className="mr-2" />
+										Creating
+									</>
+								) : (
+									"Create Invite"
+								)}
+							</Button>
+						</DialogFooter>
 					</>
 				)}
 			</DialogContent>
@@ -877,8 +872,8 @@ function AllInvitesDialog({
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-			<Button variant="secondary" className="gap-2">
-				<Link2 className="h-4 w-4 rotate-315" />
+				<Button variant="secondary" className="gap-2">
+					<Link2 className="h-4 w-4 rotate-315" />
 					Active invites
 					<span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200 text-xs font-medium">
 						{invites.length}

@@ -1,15 +1,10 @@
 "use client";
 
-import { UserKey, User } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { User, UserKey } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useCallback } from "react";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@/components/ui/animated-tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { ApiKeyContent } from "./components/ApiKeyContent";
 import { ProfileContent } from "./components/ProfileContent";
 

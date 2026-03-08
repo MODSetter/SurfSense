@@ -1,17 +1,17 @@
 "use client";
 
-import * as React from "react";
+import { IconBrandGithub } from "@tabler/icons-react";
+import { StarIcon } from "lucide-react";
+import type { HTMLMotionProps, UseInViewOptions } from "motion/react";
 import {
-	motion,
 	AnimatePresence,
+	motion,
 	useInView,
 	useMotionValue,
 	useSpring,
 	useTransform,
 } from "motion/react";
-import type { HTMLMotionProps, UseInViewOptions } from "motion/react";
-import { StarIcon } from "lucide-react";
-import { IconBrandGithub } from "@tabler/icons-react";
+import * as React from "react";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------

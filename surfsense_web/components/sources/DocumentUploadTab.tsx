@@ -223,7 +223,11 @@ export function DocumentUploadTab({
 
 		const rawFiles = files.map((entry) => entry.file);
 		uploadDocuments(
-			{ files: rawFiles, search_space_id: Number(searchSpaceId), should_summarize: shouldSummarize },
+			{
+				files: rawFiles,
+				search_space_id: Number(searchSpaceId),
+				should_summarize: shouldSummarize,
+			},
 			{
 				onSuccess: () => {
 					clearInterval(progressInterval);

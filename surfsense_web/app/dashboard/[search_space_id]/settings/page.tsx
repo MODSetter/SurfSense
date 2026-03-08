@@ -1,14 +1,6 @@
 "use client";
 
-import {
-	Bot,
-	Brain,
-	FileText,
-	Globe,
-	ImageIcon,
-	MessageSquare,
-	Shield,
-} from "lucide-react";
+import { Bot, Brain, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect } from "react";
@@ -19,12 +11,7 @@ import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
 import { RolesManager } from "@/components/settings/roles-manager";
-import {
-	Tabs,
-	TabsContent,
-	TabsList,
-	TabsTrigger,
-} from "@/components/ui/animated-tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { trackSettingsViewed } from "@/lib/posthog/events";
 
 const VALID_TABS = [

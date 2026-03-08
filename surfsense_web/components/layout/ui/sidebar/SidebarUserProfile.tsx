@@ -1,6 +1,17 @@
 "use client";
 
-import { Check, ChevronUp, ExternalLink, Info, Languages, Laptop, LogOut, Moon, Settings, Sun } from "lucide-react";
+import {
+	Check,
+	ChevronUp,
+	ExternalLink,
+	Info,
+	Languages,
+	Laptop,
+	LogOut,
+	Moon,
+	Settings,
+	Sun,
+} from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -165,21 +176,21 @@ export function SidebarUserProfile({
 	if (isCollapsed) {
 		return (
 			<div className="border-t p-2">
-			<DropdownMenu>
-				<DropdownMenuTrigger asChild>
-					<button
-						type="button"
-						className={cn(
-							"flex h-10 w-full items-center justify-center rounded-md",
-							"hover:bg-accent transition-colors",
-							"focus:outline-none focus-visible:outline-none",
-							"data-[state=open]:bg-transparent"
-						)}
-					>
-						<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
-						<span className="sr-only">{displayName}</span>
-					</button>
-				</DropdownMenuTrigger>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<button
+							type="button"
+							className={cn(
+								"flex h-10 w-full items-center justify-center rounded-md",
+								"hover:bg-accent transition-colors",
+								"focus:outline-none focus-visible:outline-none",
+								"data-[state=open]:bg-transparent"
+							)}
+						>
+							<UserAvatar avatarUrl={user.avatarUrl} initials={initials} bgColor={bgColor} />
+							<span className="sr-only">{displayName}</span>
+						</button>
+					</DropdownMenuTrigger>
 
 					<DropdownMenuContent className="w-48" side="right" align="center" sideOffset={8}>
 						<DropdownMenuLabel className="font-normal">
@@ -276,7 +287,9 @@ export function SidebarUserProfile({
 										</DropdownMenuItem>
 									))}
 									<DropdownMenuSeparator className="dark:bg-neutral-700" />
-									<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">v{APP_VERSION}</p>
+									<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">
+										v{APP_VERSION}
+									</p>
 								</DropdownMenuSubContent>
 							</DropdownMenuPortal>
 						</DropdownMenuSub>
@@ -419,7 +432,9 @@ export function SidebarUserProfile({
 									</DropdownMenuItem>
 								))}
 								<DropdownMenuSeparator className="dark:bg-neutral-700" />
-								<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">v{APP_VERSION}</p>
+								<p className="select-none px-2 py-1.5 text-xs text-muted-foreground/50">
+									v{APP_VERSION}
+								</p>
 							</DropdownMenuSubContent>
 						</DropdownMenuPortal>
 					</DropdownMenuSub>
