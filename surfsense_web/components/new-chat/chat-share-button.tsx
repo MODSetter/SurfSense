@@ -148,7 +148,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 						<button
 							type="button"
 							onClick={() =>
-								router.push(`/dashboard/${params.search_space_id}/settings?section=public-links`)
+								router.push(`/dashboard/${params.search_space_id}/settings?tab=public-links`)
 							}
 							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
 						>

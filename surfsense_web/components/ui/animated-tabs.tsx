@@ -79,6 +79,29 @@ const XScrollable = forwardRef<
   const dragging = useRef(false)
   const startX = useRef(0)
   const startScrollLeft = useRef(0)
+  const [scrollPos, setScrollPos] = useState<"start" | "middle" | "end">("start")
+
+  const updateScrollPos = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const canScroll = el.scrollWidth > el.clientWidth + 1
+    if (!canScroll) {
+      setScrollPos("start")
+      return
+    }
+    const atStart = el.scrollLeft <= 2
+    const atEnd = el.scrollWidth - el.scrollLeft - el.clientWidth <= 2
+    setScrollPos(atStart ? "start" : atEnd ? "end" : "middle")
+  }, [])
+
+  useEffect(() => {
+    updateScrollPos()
+    const el = scrollRef.current
+    if (!el) return
+    const ro = new ResizeObserver(updateScrollPos)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [updateScrollPos])
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (!scrollRef.current) return
@@ -106,6 +129,14 @@ const XScrollable = forwardRef<
     }
   }
 
+  const handleScroll = useCallback(() => {
+    updateScrollPos()
+  }, [updateScrollPos])
+
+  const maskStart = scrollPos === "start" ? "black" : "transparent"
+  const maskEnd = scrollPos === "end" ? "black" : "transparent"
+  const maskImage = `linear-gradient(to right, ${maskStart}, black 24px, black calc(100% - 24px), ${maskEnd})`
+
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drag-scroll container needs mouse events
     <div
@@ -124,8 +155,13 @@ const XScrollable = forwardRef<
           !showScrollbar && "scrollbar-none",
           contentClassName
         )}
+        style={{
+          maskImage,
+          WebkitMaskImage: maskImage,
+        }}
         onWheel={onWheel}
         onMouseDown={onMouseDown}
+        onScroll={handleScroll}
       >
         {children}
       </div>
@@ -329,16 +365,16 @@ const TabsList = forwardRef<
         aria-label={ariaLabel}
         {...props}
       >
+        {showBottomBorder && (
+          <div
+            className={cn(
+              "absolute bottom-0 left-0 right-0 h-px bg-border dark:bg-border z-0",
+              bottomBorderClassName
+            )}
+          />
+        )}
         <XScrollable showScrollbar={false}>
           <div className={cn("relative", showBottomBorder && "pb-px")}>
-            {showBottomBorder && (
-              <div
-                className={cn(
-                  "absolute bottom-0 left-0 right-0 h-px bg-border dark:bg-border",
-                  bottomBorderClassName
-                )}
-              />
-            )}
 
             {showHoverEffect && (
               <div

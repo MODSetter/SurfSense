@@ -158,7 +158,7 @@ const DocumentUploadPopupContent: FC<{
 											: "You need to configure a Document Summary LLM before uploading files. This LLM is used to process and summarize your uploaded documents."}
 									</p>
 									<Button asChild size="sm" variant="outline">
-										<Link href={`/dashboard/${searchSpaceId}/settings?section=models`}>
+										<Link href={`/dashboard/${searchSpaceId}/settings?tab=models`}>
 											<Settings className="mr-2 h-4 w-4" />
 											Go to Settings
 										</Link>

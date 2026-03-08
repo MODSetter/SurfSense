@@ -309,7 +309,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	const handleSearchSpaceSettings = useCallback(
 		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/settings?section=general`);
+			router.push(`/dashboard/${space.id}/settings?tab=general`);
 		},
 		[router]
 	);
@@ -478,7 +478,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/settings?section=general`);
+		router.push(`/dashboard/${searchSpaceId}/settings?tab=general`);
 	}, [router, searchSpaceId]);
 
 	const handleManageMembers = useCallback(() => {
