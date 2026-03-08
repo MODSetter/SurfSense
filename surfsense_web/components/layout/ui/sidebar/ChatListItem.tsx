@@ -86,7 +86,7 @@ export function ChatListItem({
 							<span className="sr-only">{t("more_options")}</span>
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" side="right">
+					<DropdownMenuContent align="end" side="bottom">
 						{onRename && (
 							<DropdownMenuItem
 								onClick={(e) => {
