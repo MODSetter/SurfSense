@@ -833,21 +833,21 @@ function CreateInviteDialog({
 								</div>
 							</div>
 						</div>
-						<DialogFooter>
-							<Button variant="secondary" onClick={handleClose}>
-								Cancel
-							</Button>
-							<Button onClick={handleCreate} disabled={creating}>
-								{creating ? (
-									<>
-										<Spinner size="sm" className="mr-2" />
-										Creating
-									</>
-								) : (
-									"Create Invite"
-								)}
-							</Button>
-						</DialogFooter>
+					<DialogFooter className="gap-3 sm:gap-2">
+						<Button variant="secondary" onClick={handleClose}>
+							Cancel
+						</Button>
+						<Button onClick={handleCreate} disabled={creating}>
+							{creating ? (
+								<>
+									<Spinner size="sm" className="mr-2" />
+									Creating
+								</>
+							) : (
+								"Create Invite"
+							)}
+						</Button>
+					</DialogFooter>
 					</>
 				)}
 			</DialogContent>
