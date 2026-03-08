@@ -2,7 +2,7 @@
 import { IconBrandDiscord, IconBrandReddit, IconMenu2, IconX } from "@tabler/icons-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { NavbarGitHubStars } from "@/components/homepage/github-stars-badge";
 import { Logo } from "@/components/Logo";
@@ -106,9 +106,28 @@ const DesktopNav = ({ navItems, isScrolled }: any) => {
 
 const MobileNav = ({ navItems, isScrolled }: any) => {
 	const [open, setOpen] = useState(false);
+	const navRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		if (!open) return;
+
+		const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+			if (navRef.current && !navRef.current.contains(e.target as Node)) {
+				setOpen(false);
+			}
+		};
+
+		document.addEventListener("mousedown", handleClickOutside);
+		document.addEventListener("touchstart", handleClickOutside);
+		return () => {
+			document.removeEventListener("mousedown", handleClickOutside);
+			document.removeEventListener("touchstart", handleClickOutside);
+		};
+	}, [open]);
 
 	return (
 		<motion.div
+			ref={navRef}
 			animate={{ borderRadius: open ? "4px" : "2rem" }}
 			key={String(open)}
 			className={cn(
