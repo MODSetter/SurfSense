@@ -7,11 +7,12 @@
 		"index",
 		"prerequisites",
 		"installation",
-		"docker-installation",
 		"manual-installation",
+		"docker-installation",
 		"connectors",
 		"how-to",
 		"---Developers---",
-		"testing"
+		"testing",
+		"code-of-conduct"
 	]
 }
