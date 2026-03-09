@@ -8,7 +8,7 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_sets_status_ready(db_session, db_search_space, db_user, mocker):
     """Document status is READY after successful indexing."""
@@ -31,7 +31,7 @@ async def test_sets_status_ready(db_session, db_search_space, db_user, mocker):
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_content_is_summary(db_session, db_search_space, db_user, mocker):
     """Document content is set to the LLM-generated summary."""
@@ -55,7 +55,7 @@ async def test_content_is_summary(db_session, db_search_space, db_user, mocker):
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_chunks_written_to_db(db_session, db_search_space, db_user, mocker):
     """Chunks derived from the source markdown are persisted in the DB."""
@@ -84,7 +84,7 @@ async def test_chunks_written_to_db(db_session, db_search_space, db_user, mocker
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize_raises", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize_raises", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, mocker):
     """RuntimeError is raised when the indexing step fails so the caller can fire a failure notification."""
@@ -107,7 +107,7 @@ async def test_raises_on_indexing_failure(db_session, db_search_space, db_user, 
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_reindex_updates_content(db_session, db_search_space, db_user, mocker):
     """Document content is updated to the new summary after reindexing."""
@@ -136,7 +136,7 @@ async def test_reindex_updates_content(db_session, db_search_space, db_user, moc
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_reindex_updates_content_hash(
     db_session, db_search_space, db_user, mocker
@@ -168,7 +168,7 @@ async def test_reindex_updates_content_hash(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_reindex_sets_status_ready(db_session, db_search_space, db_user, mocker):
     """Document status is READY after successful reindexing."""
@@ -196,7 +196,7 @@ async def test_reindex_sets_status_ready(db_session, db_search_space, db_user, m
     assert DocumentStatus.is_state(document.status, DocumentStatus.READY)
 
 
-@pytest.mark.usefixtures("patched_summarize", "patched_embed_text")
+@pytest.mark.usefixtures("patched_summarize", "patched_embed_texts")
 async def test_reindex_replaces_chunks(db_session, db_search_space, db_user, mocker):
     """Reindexing replaces old chunks with new content rather than appending."""
     mocker.patch(
@@ -235,7 +235,7 @@ async def test_reindex_replaces_chunks(db_session, db_search_space, db_user, moc
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_reindex_clears_reindexing_flag(
     db_session, db_search_space, db_user, mocker
@@ -266,7 +266,7 @@ async def test_reindex_clears_reindexing_flag(
     assert document.content_needs_reindexing is False
 
 
-@pytest.mark.usefixtures("patched_embed_text", "patched_chunk_text")
+@pytest.mark.usefixtures("patched_embed_texts", "patched_chunk_text")
 async def test_reindex_raises_on_failure(db_session, db_search_space, db_user, mocker):
     """RuntimeError is raised when reindexing fails so the caller can handle it."""
     mocker.patch(
