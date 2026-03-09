@@ -959,7 +959,7 @@ class Chunk(BaseModel, TimestampMixin):
     embedding = Column(Vector(config.embedding_model_instance.dimension))
 
     document_id = Column(
-        Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False
+        Integer, ForeignKey("documents.id", ondelete="CASCADE"), nullable=False, index=True
     )
     document = relationship("Document", back_populates="chunks")
 
