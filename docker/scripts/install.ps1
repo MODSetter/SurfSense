@@ -320,9 +320,9 @@ Write-Host "         Your personal AI-powered search engine  [$versionDisplay]" 
 Write-Host ("=" * 62) -ForegroundColor Cyan
 Write-Host ""
 
-Write-Info "  Frontend:  http://localhost:3000"
-Write-Info "  Backend:   http://localhost:8000"
-Write-Info "  API Docs:  http://localhost:8000/docs"
+Write-Info "  Frontend:  http://localhost:3929"
+Write-Info "  Backend:   http://localhost:8929"
+Write-Info "  API Docs:  http://localhost:8929/docs"
 Write-Info ""
 Write-Info "  Config:    $InstallDir\.env"
 Write-Info "  Logs:      cd $InstallDir; docker compose logs -f"
