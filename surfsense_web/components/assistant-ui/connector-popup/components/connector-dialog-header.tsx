@@ -30,10 +30,10 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 		>
 			<DialogHeader>
 				<DialogTitle className="text-xl sm:text-3xl font-semibold tracking-tight">
-					Connectors
+					Manage Connectors
 				</DialogTitle>
 				<DialogDescription className="text-xs sm:text-base text-muted-foreground/80 mt-1 sm:mt-1.5">
-					Search across all your apps and data in one place.
+					Connect Surfsense to your favorite tools and services.
 				</DialogDescription>
 			</DialogHeader>
 
