@@ -5,6 +5,7 @@
 	"pages": [
 		"---Guides---",
 		"index",
+		"prerequisites",
 		"installation",
 		"docker-installation",
 		"manual-installation",

@@ -1,0 +1,86 @@
+---
+title: Prerequisites
+description: Required setup's before setting up SurfSense
+icon: ClipboardCheck
+---
+
+
+## Auth Setup 
+
+SurfSense supports both Google OAuth and local email/password authentication. Google OAuth is optional - if you prefer local authentication, you can skip this section.
+
+**Note**: Google OAuth setup is **required** in your `.env` files if you want to use the Gmail and Google Calendar connectors in SurfSense.
+
+To set up Google OAuth:
+
+1. Login to your [Google Developer Console](https://console.cloud.google.com/)
+2. Enable the required APIs:
+   - **People API** (required for basic Google OAuth)
+![Google Developer Console People API](/docs/connectors/google/google_oauth_people_api.png)
+3. Set up OAuth consent screen.
+![Google Developer Console OAuth consent screen](/docs/connectors/google/google_oauth_screen.png)
+4. Create OAuth client ID and secret.
+![Google Developer Console OAuth client ID](/docs/connectors/google/google_oauth_client.png)
+5. It should look like this.
+![Google Developer Console Config](/docs/connectors/google/google_oauth_config.png)
+
+---
+
+## File Upload's
+
+SurfSense supports three ETL (Extract, Transform, Load) services for converting files to LLM-friendly formats:
+
+### Option 1: Unstructured 
+
+Files are converted using [Unstructured](https://github.com/Unstructured-IO/unstructured)
+
+1. Get an Unstructured.io API key from [Unstructured Platform](https://platform.unstructured.io/)
+2. You should be able to generate API keys once registered
+![Unstructured Dashboard](/docs/unstructured.png)
+
+### Option 2: LlamaIndex (LlamaCloud)
+
+Files are converted using [LlamaIndex](https://www.llamaindex.ai/) which offers 50+ file format support.
+
+1. Get a LlamaIndex API key from [LlamaCloud](https://cloud.llamaindex.ai/)
+2. Sign up for a LlamaCloud account to access their parsing services
+3. LlamaCloud provides enhanced parsing capabilities for complex documents
+
+### Option 3: Docling (Recommended for Privacy)
+
+Files are processed locally using [Docling](https://github.com/DS4SD/docling) - IBM's open-source document parsing library.
+
+1. **No API key required** - all processing happens locally
+2. **Privacy-focused** - documents never leave your system
+3. **Supported formats**: PDF, Office documents (Word, Excel, PowerPoint), images (PNG, JPEG, TIFF, BMP, WebP), HTML, CSV, AsciiDoc
+4. **Enhanced features**: Advanced table detection, image extraction, and structured document parsing
+5. **GPU acceleration** support for faster processing (when available)
+
+**Note**: You only need to set up one of these services.
+
+---
+
+## LLM Observability (Optional)
+
+This is not required for SurfSense to work. But it is always a good idea to monitor LLM interactions. So we do not have those WTH moments.
+
+1. Get a LangSmith API key from [smith.langchain.com](https://smith.langchain.com/)
+2. This helps in observing SurfSense Researcher Agent.
+![LangSmith](/docs/langsmith.png)
+
+---
+
+## Crawler 
+
+SurfSense have 2 options for saving webpages:
+- [SurfSense Extension](https://github.com/MODSetter/SurfSense/tree/main/surfsense_browser_extension) (Overall better experience & ability to save private webpages, recommended)
+- Crawler (If you want to save public webpages)
+
+**NOTE:** SurfSense currently uses [Firecrawl.py](https://www.firecrawl.dev/) for web crawling. If you plan on using the crawler, you will need to create a Firecrawl account and get an API key.
+
+
+---
+
+## Next Steps
+
+Once you have all prerequisites in place, proceed to the [installation guide](/docs/installation) to set up SurfSense.
