@@ -59,13 +59,16 @@ def embed_texts(texts: list[str]) -> list[np.ndarray]:
     """Batch-embed multiple texts in a single call.
 
     Each text is truncated to fit the model's context window before embedding.
-    Uses ``embed_batch`` under the hood, which every chonkie provider
-    (OpenAI, Azure, Cohere, SentenceTransformers, etc.) optimizes
-    into fewer API calls / GPU passes than sequential ``embed``.
+    For API-based models (``://`` in the model string) this uses
+    ``embed_batch`` to collapse many network round-trips into one.
+    For local models (SentenceTransformers) it falls back to sequential
+    ``embed`` calls to avoid padding overhead.
     """
     if not texts:
         return []
     truncated = [truncate_for_embedding(t) for t in texts]
+    if config.is_local_embedding_model:
+        return [config.embedding_model_instance.embed(t) for t in truncated]
     return config.embedding_model_instance.embed_batch(truncated)
 
 
