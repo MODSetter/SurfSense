@@ -32,11 +32,24 @@ const GoogleLogo = ({ className }: { className?: string }) => (
 	</svg>
 );
 
+function useIsDesktop(breakpoint = 1024) {
+	const [isDesktop, setIsDesktop] = useState(false);
+	useEffect(() => {
+		const mql = window.matchMedia(`(min-width: ${breakpoint}px)`);
+		setIsDesktop(mql.matches);
+		const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+		mql.addEventListener("change", handler);
+		return () => mql.removeEventListener("change", handler);
+	}, [breakpoint]);
+	return isDesktop;
+}
+
 export function HeroSection() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const parentRef = useRef<HTMLDivElement>(null);
 	const heroVariant = useFeatureFlagVariantKey("notebooklm_superpowers_flag");
 	const isNotebookLMVariant = heroVariant === "superpowers";
+	const isDesktop = useIsDesktop();
 
 	return (
 		<div
@@ -44,42 +57,46 @@ export function HeroSection() {
 			className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-24 md:px-8 md:py-48"
 		>
 			<BackgroundGrids />
-			<CollisionMechanism
-				parentRef={parentRef}
-				beamOptions={{
-					initialX: -400,
-					translateX: 600,
-					duration: 7,
-					repeatDelay: 3,
-				}}
-			/>
-			<CollisionMechanism
-				parentRef={parentRef}
-				beamOptions={{
-					initialX: -200,
-					translateX: 800,
-					duration: 4,
-					repeatDelay: 3,
-				}}
-			/>
-			<CollisionMechanism
-				parentRef={parentRef}
-				beamOptions={{
-					initialX: 200,
-					translateX: 1200,
-					duration: 5,
-					repeatDelay: 3,
-				}}
-			/>
-			<CollisionMechanism
-				parentRef={parentRef}
-				beamOptions={{
-					initialX: 400,
-					translateX: 1400,
-					duration: 6,
-					repeatDelay: 3,
-				}}
-			/>
+			{isDesktop && (
+				<>
+					<CollisionMechanism
+						parentRef={parentRef}
+						beamOptions={{
+							initialX: -400,
+							translateX: 600,
+							duration: 7,
+							repeatDelay: 3,
+						}}
+					/>
+					<CollisionMechanism
+						parentRef={parentRef}
+						beamOptions={{
+							initialX: -200,
+							translateX: 800,
+							duration: 4,
+							repeatDelay: 3,
+						}}
+					/>
+					<CollisionMechanism
+						parentRef={parentRef}
+						beamOptions={{
+							initialX: 200,
+							translateX: 1200,
+							duration: 5,
+							repeatDelay: 3,
+						}}
+					/>
+					<CollisionMechanism
+						parentRef={parentRef}
+						beamOptions={{
+							initialX: 400,
+							translateX: 1400,
+							duration: 6,
+							repeatDelay: 3,
+						}}
+					/>
+				</>
+			)}
 
 			<h2 className="relative z-50 mx-auto mb-4 mt-8 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
 				{isNotebookLMVariant ? (

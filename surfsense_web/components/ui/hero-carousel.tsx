@@ -9,59 +9,57 @@ const carouselItems = [
 		title: "Connect & Sync",
 		description:
 			"Connect data sources like Notion, Drive and Gmail. Automatically sync to keep them updated.",
-		src: "/homepage/hero_tutorial/ConnectorFlowGif.gif",
+		src: "/homepage/hero_tutorial/ConnectorFlowGif.mp4",
 	},
 	{
 		title: "Upload Documents",
 		description: "Upload documents directly, from images to massive PDFs.",
-		src: "/homepage/hero_tutorial/DocUploadGif.gif",
+		src: "/homepage/hero_tutorial/DocUploadGif.mp4",
 	},
 	{
 		title: "Search & Citation",
 		description: "Ask questions and get cited responses from your knowledge base.",
-		src: "/homepage/hero_tutorial/BSNCGif.gif",
+		src: "/homepage/hero_tutorial/BSNCGif.mp4",
 	},
 	{
 		title: "Targeted Document Q&A",
 		description: "Mention specific documents in chat for targeted answers.",
-		src: "/homepage/hero_tutorial/BQnaGif_compressed.gif",
+		src: "/homepage/hero_tutorial/BQnaGif_compressed.mp4",
 	},
 	{
 		title: "Produce Reports Instantly",
 		description: "Generate reports from your sources in many formats.",
-		src: "/homepage/hero_tutorial/ReportGenGif_compressed.gif",
+		src: "/homepage/hero_tutorial/ReportGenGif_compressed.mp4",
 	},
 	{
 		title: "Create Podcasts",
 		description: "Turn anything into a podcast in under 20 seconds.",
-		src: "/homepage/hero_tutorial/PodcastGenGif.gif",
+		src: "/homepage/hero_tutorial/PodcastGenGif.mp4",
 	},
 	{
 		title: "Image Generation",
 		description: "Generate high-quality images easily from your conversations.",
-		src: "/homepage/hero_tutorial/ImageGenGif.gif",
+		src: "/homepage/hero_tutorial/ImageGenGif.mp4",
 	},
 	{
 		title: "Collaborative AI Chat",
 		description: "Collaborate on AI-powered conversations in realtime with your team.",
-		src: "/homepage/hero_realtime/RealTimeChatGif.gif",
+		src: "/homepage/hero_realtime/RealTimeChatGif.mp4",
 	},
 	{
 		title: "Realtime Comments",
 		description: "Add comments and tag teammates on any message.",
-		src: "/homepage/hero_realtime/RealTimeCommentsFlow.gif",
+		src: "/homepage/hero_realtime/RealTimeCommentsFlow.mp4",
 	},
 ];
 
 function HeroCarouselCard({
-	index,
 	title,
 	description,
 	src,
 	isActive,
 	onExpandedChange,
 }: {
-	index: number;
 	title: string;
 	description: string;
 	src: string;
@@ -69,53 +67,50 @@ function HeroCarouselCard({
 	onExpandedChange?: (expanded: boolean) => void;
 }) {
 	const { expanded, open, close } = useExpandedGif();
+	const videoRef = useRef<HTMLVideoElement>(null);
+	const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
+	const [hasLoaded, setHasLoaded] = useState(false);
 
 	useEffect(() => {
 		onExpandedChange?.(expanded);
 	}, [expanded, onExpandedChange]);
-	const imgRef = useRef<HTMLImageElement>(null);
-	const [frozenFrame, setFrozenFrame] = useState<string | null>(null);
-	const [playKey, setPlayKey] = useState(0);
 
-	const captureFrame = useCallback((img: HTMLImageElement) => {
+	const captureFrame = useCallback((video: HTMLVideoElement) => {
 		try {
 			const canvas = document.createElement("canvas");
-			canvas.width = img.naturalWidth;
-			canvas.height = img.naturalHeight;
-			canvas.getContext("2d")?.drawImage(img, 0, 0);
-			setFrozenFrame(canvas.toDataURL());
+			canvas.width = video.videoWidth;
+			canvas.height = video.videoHeight;
+			canvas.getContext("2d")?.drawImage(video, 0, 0);
+			setFrozenFrame(canvas.toDataURL("image/jpeg", 0.85));
 		} catch {
-			/* cross-origin or other issue */
+			/* tainted canvas */
 		}
 	}, []);
 
 	useEffect(() => {
+		const video = videoRef.current;
 		if (isActive) {
-			setPlayKey((k) => k + 1);
-			setFrozenFrame(null);
+			setHasLoaded(false);
+			if (video) {
+				video.currentTime = 0;
+				video.play().catch(() => {});
+			}
 		} else {
-			const img = imgRef.current;
-			if (img && img.complete && img.naturalWidth > 0) {
-				captureFrame(img);
+			if (video) {
+				if (video.readyState >= 2) captureFrame(video);
+				video.pause();
 			}
 		}
 	}, [isActive, captureFrame]);
 
-	useEffect(() => {
-		if (!isActive && !frozenFrame) {
-			const img = new Image();
-			img.onload = () => captureFrame(img);
-			img.src = src;
-		}
-	}, [isActive, frozenFrame, src, captureFrame]);
+	const handleCanPlay = useCallback(() => {
+		setHasLoaded(true);
+	}, []);
 
 	return (
 		<>
 			<div className="rounded-2xl border border-neutral-200/60 bg-white shadow-xl sm:rounded-3xl dark:border-neutral-700/60 dark:bg-neutral-900">
 				<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
-					{/* <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-xs font-semibold text-white sm:h-8 sm:w-8 sm:text-sm dark:bg-white dark:text-neutral-900">
-						{index + 1}
-					</span> */}
 					<div className="min-w-0">
 						<h3 className="truncate text-base font-semibold text-neutral-900 sm:text-xl dark:text-white">
 							{title}
@@ -130,13 +125,28 @@ function HeroCarouselCard({
 					onClick={isActive ? open : undefined}
 				>
 					{isActive ? (
-						<img
-							ref={imgRef}
-							key={`gif_${index}_${playKey}`}
-							src={src}
-							alt={title}
-							className="w-full rounded-lg sm:rounded-xl"
-						/>
+						<div className="relative">
+							<video
+								ref={videoRef}
+								src={src}
+								autoPlay
+								loop
+								muted
+								playsInline
+								onCanPlay={handleCanPlay}
+								className="w-full rounded-lg sm:rounded-xl"
+							/>
+							{!hasLoaded && frozenFrame && (
+								<img
+									src={frozenFrame}
+									alt={title}
+									className="absolute inset-0 w-full rounded-lg sm:rounded-xl"
+								/>
+							)}
+							{!hasLoaded && !frozenFrame && (
+								<div className="aspect-video w-full animate-pulse rounded-lg bg-neutral-100 sm:rounded-xl dark:bg-neutral-800" />
+							)}
+						</div>
 					) : frozenFrame ? (
 						<img src={frozenFrame} alt={title} className="w-full rounded-lg sm:rounded-xl" />
 					) : (
@@ -284,7 +294,6 @@ function HeroCarousel() {
 										transition={{ duration: 0.7, ease: [0.32, 0.72, 0, 1] }}
 									>
 										<HeroCarouselCard
-											index={i}
 											title={item.title}
 											description={item.description}
 											src={item.src}

@@ -105,11 +105,19 @@ export function DocumentsFilters({
 									</div>
 								) : (
 									filteredTypes.map((value: DocumentTypeEnum, i) => (
-										<button
-											type="button"
+										<div
+											role="option"
+											aria-selected={activeTypes.includes(value)}
+											tabIndex={0}
 											key={value}
 											className="flex w-full items-center gap-2.5 py-2 px-3 rounded-md hover:bg-neutral-200 dark:hover:bg-neutral-700 transition-colors cursor-pointer text-left"
 											onClick={() => onToggleType(value, !activeTypes.includes(value))}
+											onKeyDown={(e) => {
+												if (e.key === "Enter" || e.key === " ") {
+													e.preventDefault();
+													onToggleType(value, !activeTypes.includes(value));
+												}
+											}}
 										>
 											{/* Icon */}
 											<div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted/50 text-foreground/80">
@@ -132,7 +140,7 @@ export function DocumentsFilters({
 												onCheckedChange={(checked: boolean) => onToggleType(value, !!checked)}
 												className="h-4 w-4 shrink-0 rounded border-muted-foreground/30 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
 											/>
-										</button>
+										</div>
 									))
 								)}
 							</div>
