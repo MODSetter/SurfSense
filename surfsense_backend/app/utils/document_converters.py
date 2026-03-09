@@ -55,6 +55,20 @@ def embed_text(text: str) -> np.ndarray:
     return config.embedding_model_instance.embed(truncate_for_embedding(text))
 
 
+def embed_texts(texts: list[str]) -> list[np.ndarray]:
+    """Batch-embed multiple texts in a single call.
+
+    Each text is truncated to fit the model's context window before embedding.
+    Uses ``embed_batch`` under the hood, which every chonkie provider
+    (OpenAI, Azure, Cohere, SentenceTransformers, etc.) optimizes
+    into fewer API calls / GPU passes than sequential ``embed``.
+    """
+    if not texts:
+        return []
+    truncated = [truncate_for_embedding(t) for t in texts]
+    return config.embedding_model_instance.embed_batch(truncated)
+
+
 def get_model_context_window(model_name: str) -> int:
     """Get the total context window size for a model (input + output tokens)."""
     try:
