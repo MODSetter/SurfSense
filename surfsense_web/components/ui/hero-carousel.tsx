@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ExpandedGifOverlay, useExpandedGif } from "@/components/ui/expanded-gif-overlay";
 
@@ -164,7 +165,6 @@ function HeroCarouselCard({
 
 function HeroCarousel() {
 	const [activeIndex, setActiveIndex] = useState(0);
-	const [isPaused, setIsPaused] = useState(false);
 	const [isGifExpanded, setIsGifExpanded] = useState(false);
 	const [containerWidth, setContainerWidth] = useState(0);
 	const [cardHeight, setCardHeight] = useState(420);
@@ -179,6 +179,14 @@ function HeroCarousel() {
 		},
 		[activeIndex]
 	);
+
+	const goToPrev = useCallback(() => {
+		goTo(activeIndex <= 0 ? carouselItems.length - 1 : activeIndex - 1);
+	}, [activeIndex, goTo]);
+
+	const goToNext = useCallback(() => {
+		goTo(activeIndex >= carouselItems.length - 1 ? 0 : activeIndex + 1);
+	}, [activeIndex, goTo]);
 
 	useEffect(() => {
 		const el = containerRef.current;
@@ -199,15 +207,6 @@ function HeroCarousel() {
 		observer.observe(el);
 		return () => observer.disconnect();
 	}, [activeIndex, containerWidth]);
-
-	useEffect(() => {
-		if (isPaused || isGifExpanded) return;
-		const timer = setTimeout(() => {
-			directionRef.current = "forward";
-			setActiveIndex((prev) => (prev >= carouselItems.length - 1 ? 0 : prev + 1));
-		}, 8000);
-		return () => clearTimeout(timer);
-	}, [activeIndex, isPaused, isGifExpanded]);
 
 	const cardWidth =
 		containerWidth < 640
@@ -254,14 +253,7 @@ function HeroCarousel() {
 
 	return (
 		<div className="w-full py-4 sm:py-8">
-			<div
-				ref={containerRef}
-				className="relative mx-auto w-full"
-				onMouseEnter={() => setIsPaused(true)}
-				onMouseLeave={() => setIsPaused(false)}
-				onTouchStart={() => setIsPaused(true)}
-				onTouchEnd={() => setIsPaused(false)}
-			>
+			<div ref={containerRef} className="relative mx-auto w-full">
 				<div
 					className="relative z-6 transition-[height] duration-700"
 					style={{ perspective: `${perspective}px`, height: cardHeight }}
@@ -312,20 +304,40 @@ function HeroCarousel() {
 				</div>
 			</div>
 
-			<div className="relative z-5 mt-6 flex justify-center gap-2">
-				{carouselItems.map((_, i) => (
-					<button
-						key={`dot_${i}`}
-						type="button"
-						onClick={() => !isGifExpanded && goTo(i)}
-						className={`h-2 rounded-full transition-all duration-300 ${
-							i === activeIndex
-								? "w-6 bg-neutral-900 dark:bg-white"
-								: "w-2 bg-neutral-300 hover:bg-neutral-400 dark:bg-neutral-600 dark:hover:bg-neutral-500"
-						}`}
-						aria-label={`Go to slide ${i + 1}`}
-					/>
-				))}
+			<div className="relative z-5 mt-6 flex items-center justify-center gap-4">
+				<button
+					type="button"
+					onClick={() => !isGifExpanded && goToPrev()}
+					className="flex size-9 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+					aria-label="Previous slide"
+				>
+					<ChevronLeft className="size-5" />
+				</button>
+
+				<div className="flex items-center gap-2">
+					{carouselItems.map((_, i) => (
+						<button
+							key={`dot_${i}`}
+							type="button"
+							onClick={() => !isGifExpanded && goTo(i)}
+							className={`h-2 rounded-full transition-all duration-300 ${
+								i === activeIndex
+									? "w-6 bg-neutral-900 dark:bg-white"
+									: "w-2 bg-neutral-300 hover:bg-neutral-400 dark:bg-neutral-600 dark:hover:bg-neutral-500"
+							}`}
+							aria-label={`Go to slide ${i + 1}`}
+						/>
+					))}
+				</div>
+
+				<button
+					type="button"
+					onClick={() => !isGifExpanded && goToNext()}
+					className="flex size-9 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+					aria-label="Next slide"
+				>
+					<ChevronRight className="size-5" />
+				</button>
 			</div>
 		</div>
 	);
