@@ -223,12 +223,11 @@ async def create_document_chunks(content: str) -> list[Chunk]:
     Returns:
         List of Chunk objects with embeddings
     """
+    chunk_texts = [c.text for c in config.chunker_instance.chunk(content)]
+    chunk_embeddings = embed_texts(chunk_texts)
     return [
-        Chunk(
-            content=chunk.text,
-            embedding=embed_text(chunk.text),
-        )
-        for chunk in config.chunker_instance.chunk(content)
+        Chunk(content=text, embedding=emb)
+        for text, emb in zip(chunk_texts, chunk_embeddings)
     ]
 
 
