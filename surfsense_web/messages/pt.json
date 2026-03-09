@@ -405,7 +405,7 @@
 	},
 	"add_webpage": {
 		"title": "Adicionar páginas web para rastreamento",
-		"subtitle": "Insira URLs para rastrear e adicionar à sua coleção de documentos",
+		"subtitle": "Adicione páginas web à sua base de conhecimento para indexação em massa e sincronização periódica",
 		"label": "Insira URLs para rastrear",
 		"placeholder": "Insira uma URL e pressione Enter",
 		"hint": "Adicione múltiplas URLs pressionando Enter após cada uma",
@@ -414,6 +414,7 @@
 		"tip_2": "Certifique-se de que os sites permitem rastreamento",
 		"tip_3": "Páginas web públicas funcionam melhor",
 		"tip_4": "O rastreamento pode levar algum tempo dependendo do tamanho do site",
+		"chat_tip": "Quer uma resposta rápida de uma página web sem indexá-la? Basta colar a URL diretamente no chat.",
 		"cancel": "Cancelar",
 		"submit": "Enviar URLs para rastreamento",
 		"submitting": "Enviando...",

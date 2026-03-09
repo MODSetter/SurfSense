@@ -405,7 +405,7 @@
 	},
 	"add_webpage": {
 		"title": "Add Webpages for Crawling",
-		"subtitle": "Enter URLs to crawl and add to your document collection",
+		"subtitle": "Add webpages to your knowledge base for bulk indexing and periodic sync",
 		"label": "Enter URLs to crawl",
 		"placeholder": "Enter a URL and press Enter",
 		"hint": "Add multiple URLs by pressing Enter after each one",
@@ -414,6 +414,7 @@
 		"tip_2": "Make sure the websites allow crawling",
 		"tip_3": "Public webpages work best",
 		"tip_4": "Crawling may take some time depending on the website size",
+		"chat_tip": "Want a quick answer from a webpage without indexing it? Just paste the URL directly into the chat instead.",
 		"cancel": "Cancel",
 		"submit": "Submit URLs for Crawling",
 		"submitting": "Submitting...",

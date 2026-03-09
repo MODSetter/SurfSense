@@ -100,7 +100,7 @@ export const CRAWLERS = [
 	{
 		id: "webcrawler-connector",
 		title: "Web Pages",
-		description: "Crawl web content",
+		description: "Index and periodically sync web content",
 		connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 	},
 ] as const;

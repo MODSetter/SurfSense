@@ -389,7 +389,7 @@
 	},
 	"add_webpage": {
 		"title": "添加网页爬取",
-		"subtitle": "输入要爬取的 URL 并添加到您的文档集合",
+		"subtitle": "将网页添加到您的知识库，用于批量索引和定期同步",
 		"label": "输入要爬取的 URL",
 		"placeholder": "输入 URL 并按 Enter",
 		"hint": "按 Enter 键添加多个 URL",
@@ -398,6 +398,7 @@
 		"tip_2": "确保网站允许爬取",
 		"tip_3": "公开网页效果最佳",
 		"tip_4": "爬取时间可能会根据网站大小而有所不同",
+		"chat_tip": "想要从网页快速获取答案而无需索引？只需将 URL 直接粘贴到聊天中即可。",
 		"cancel": "取消",
 		"submit": "提交 URL 进行爬取",
 		"submitting": "提交中...",
