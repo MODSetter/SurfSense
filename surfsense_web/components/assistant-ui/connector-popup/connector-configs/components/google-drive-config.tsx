@@ -1,6 +1,8 @@
 "use client";
 
 import {
+	ChevronDown,
+	ChevronRight,
 	File,
 	FileSpreadsheet,
 	FileText,
@@ -12,7 +14,6 @@ import {
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { GoogleDriveFolderTree } from "@/components/connectors/google-drive-folder-tree";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -97,8 +98,10 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 
 	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
-	const [showFolderSelector, setShowFolderSelector] = useState(false);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
+
+	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
+	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
 
 	// Update selected folders and files when connector config changes
 	useEffect(() => {
@@ -225,8 +228,21 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					</div>
 				)}
 
-				{showFolderSelector ? (
-					<div className="space-y-2 sm:space-y-3">
+			{isEditMode ? (
+				<div className="space-y-2">
+					<button
+						type="button"
+						onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
+						className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+					>
+						{isFolderTreeOpen ? (
+							<ChevronDown className="size-4" />
+						) : (
+							<ChevronRight className="size-4" />
+						)}
+						Change Selection
+					</button>
+					{isFolderTreeOpen && (
 						<GoogleDriveFolderTree
 							connectorId={connector.id}
 							selectedFolders={selectedFolders}
@@ -234,26 +250,17 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 							selectedFiles={selectedFiles}
 							onSelectFiles={handleSelectFiles}
 						/>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => setShowFolderSelector(false)}
-							className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-						>
-							Done Selecting
-						</Button>
-					</div>
-				) : (
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => setShowFolderSelector(true)}
-						className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-					>
-						{totalSelected > 0 ? "Change Selection" : "Select Folders & Files"}
-					</Button>
-				)}
+					)}
+				</div>
+			) : (
+				<GoogleDriveFolderTree
+					connectorId={connector.id}
+					selectedFolders={selectedFolders}
+					onSelectFolders={handleSelectFolders}
+					selectedFiles={selectedFiles}
+					onSelectFiles={handleSelectFiles}
+				/>
+			)}
 			</div>
 
 			{/* Indexing Options */}
