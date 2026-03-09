@@ -1,0 +1,6 @@
+{
+	"title": "Docker Installation",
+	"pages": ["install-script", "docker-compose", "updating", "dev-compose", "migrate-from-allinone"],
+	"icon": "Container",
+	"defaultOpen": false
+}

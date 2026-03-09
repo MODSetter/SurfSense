@@ -55,7 +55,25 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			priority: 0.9,
 		},
 		{
-			url: "https://www.surfsense.com/docs/docker-installation",
+			url: "https://www.surfsense.com/docs/docker-installation/install-script",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.9,
+		},
+		{
+			url: "https://www.surfsense.com/docs/docker-installation/docker-compose",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.9,
+		},
+		{
+			url: "https://www.surfsense.com/docs/docker-installation/updating",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.9,
+		},
+		{
+			url: "https://www.surfsense.com/docs/docker-installation/dev-compose",
 			lastModified,
 			changeFrequency: "daily",
 			priority: 0.9,
