@@ -263,8 +263,8 @@ def _mock_external_apis(monkeypatch):
         AsyncMock(return_value="Mocked summary."),
     )
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.embed_text",
-        MagicMock(return_value=[0.1] * _EMBEDDING_DIM),
+        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),
     )
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
