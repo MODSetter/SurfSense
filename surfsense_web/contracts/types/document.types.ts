@@ -131,7 +131,8 @@ export const createDocumentRequest = document
 	});
 
 export const createDocumentResponse = z.object({
-	message: z.literal("Documents created successfully"),
+	message: z.literal("Documents queued for background processing"),
+	status: z.literal("queued"),
 });
 
 /**

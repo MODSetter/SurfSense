@@ -42,6 +42,7 @@ from .search_spaces_routes import router as search_spaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .surfsense_docs_routes import router as surfsense_docs_router
 from .teams_add_connector_route import router as teams_add_connector_router
+from .youtube_routes import router as youtube_router
 
 router = APIRouter()
 
@@ -79,3 +80,4 @@ router.include_router(notifications_router)  # Notifications with Electric SQL s
 router.include_router(composio_router)  # Composio OAuth and toolkit management
 router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
+router.include_router(youtube_router)  # YouTube playlist resolution

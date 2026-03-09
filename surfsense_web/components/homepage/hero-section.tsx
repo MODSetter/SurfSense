@@ -1,5 +1,4 @@
 "use client";
-import { useFeatureFlagVariantKey } from "@posthog/react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import type React from "react";
@@ -47,8 +46,6 @@ function useIsDesktop(breakpoint = 1024) {
 export function HeroSection() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const parentRef = useRef<HTMLDivElement>(null);
-	const heroVariant = useFeatureFlagVariantKey("notebooklm_superpowers_flag");
-	const isNotebookLMVariant = heroVariant === "superpowers";
 	const isDesktop = useIsDesktop();
 
 	return (
@@ -99,19 +96,11 @@ export function HeroSection() {
 			)}
 
 			<h2 className="relative z-50 mx-auto mb-4 mt-8 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
-				{isNotebookLMVariant ? (
-					<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
-						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-							<Balancer>NotebookLM with Superpowers</Balancer>
-						</div>
+				<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
+					<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
+						<Balancer>NotebookLM for Teams</Balancer>
 					</div>
-				) : (
-					<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
-						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-							<Balancer>NotebookLM for Teams</Balancer>
-						</div>
-					</div>
-				)}
+				</div>
 			</h2>
 			<p className="relative z-50 mx-auto mt-4 max-w-lg px-6 text-center text-sm leading-relaxed text-gray-600 sm:text-base sm:leading-relaxed md:max-w-xl md:text-lg md:leading-relaxed dark:text-gray-200">
 				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
@@ -187,20 +176,6 @@ function GetStartedButton() {
 	);
 }
 
-function ContactSalesButton() {
-	return (
-		<motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-			<Link
-				href="/contact"
-				//target="_blank"
-				rel="noopener noreferrer"
-				className="group relative z-20 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-neutral-700 shadow-lg ring-1 ring-neutral-200/50 transition-shadow duration-300 hover:shadow-xl sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
-			>
-				Contact Sales
-			</Link>
-		</motion.div>
-	);
-}
 
 const BackgroundGrids = () => {
 	return (
