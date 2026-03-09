@@ -1,9 +1,9 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AlertCircle, Bot, ChevronRight, Globe, Shuffle, User, X, Zap } from "lucide-react";
+import { AlertCircle, X, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -15,13 +15,15 @@ import { LLMConfigForm, type LLMConfigFormData } from "@/components/shared/llm-c
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import type {
 	GlobalNewLLMConfig,
+	LiteLLMProvider,
 	NewLLMConfigPublic,
 } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
 
-interface ModelConfigSidebarProps {
+interface ModelConfigDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	config: NewLLMConfigPublic | GlobalNewLLMConfig | null;
@@ -30,28 +32,34 @@ interface ModelConfigSidebarProps {
 	mode: "create" | "edit" | "view";
 }
 
-export function ModelConfigSidebar({
+export function ModelConfigDialog({
 	open,
 	onOpenChange,
 	config,
 	isGlobal,
 	searchSpaceId,
 	mode,
-}: ModelConfigSidebarProps) {
+}: ModelConfigDialogProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [mounted, setMounted] = useState(false);
+	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const scrollRef = useRef<HTMLDivElement>(null);
 
-	// Handle SSR - only render portal on client
 	useEffect(() => {
 		setMounted(true);
 	}, []);
 
-	// Mutations - use mutateAsync from the atom value
+	const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		const atTop = el.scrollTop <= 2;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+		setScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+	}, []);
+
 	const { mutateAsync: createConfig } = useAtomValue(createNewLLMConfigMutationAtom);
 	const { mutateAsync: updateConfig } = useAtomValue(updateNewLLMConfigMutationAtom);
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
-	// Handle escape key
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && open) {
@@ -62,10 +70,8 @@ export function ModelConfigSidebar({
 		return () => window.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
 
-	// Check if this is Auto mode
 	const isAutoMode = config && "is_auto_mode" in config && config.is_auto_mode;
 
-	// Get title based on mode
 	const getTitle = () => {
 		if (mode === "create") return "Add New Configuration";
 		if (isAutoMode) return "Auto Mode (Fastest)";
@@ -73,19 +79,23 @@ export function ModelConfigSidebar({
 		return "Edit Configuration";
 	};
 
-	// Handle form submit
+	const getSubtitle = () => {
+		if (mode === "create") return "Set up a new LLM provider for this search space";
+		if (isAutoMode) return "Automatically routes requests across providers";
+		if (isGlobal) return "Read-only global configuration";
+		return "Update your configuration settings";
+	};
+
 	const handleSubmit = useCallback(
 		async (data: LLMConfigFormData) => {
 			setIsSubmitting(true);
 			try {
 				if (mode === "create") {
-					// Create new config
 					const result = await createConfig({
 						...data,
 						search_space_id: searchSpaceId,
 					});
 
-					// Assign the new config to the agent role
 					if (result?.id) {
 						await updatePreferences({
 							search_space_id: searchSpaceId,
@@ -98,7 +108,6 @@ export function ModelConfigSidebar({
 					toast.success("Configuration created and assigned!");
 					onOpenChange(false);
 				} else if (!isGlobal && config) {
-					// Update existing user config
 					await updateConfig({
 						id: config.id,
 						data: {
@@ -137,7 +146,6 @@ export function ModelConfigSidebar({
 		]
 	);
 
-	// Handle "Use this model" for global configs
 	const handleUseGlobalConfig = useCallback(async () => {
 		if (!config || !isGlobal) return;
 		setIsSubmitting(true);
@@ -160,7 +168,7 @@ export function ModelConfigSidebar({
 
 	if (!mounted) return null;
 
-	const sidebarContent = (
+	const dialogContent = (
 		<AnimatePresence>
 			{open && (
 				<>
@@ -169,93 +177,84 @@ export function ModelConfigSidebar({
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-[24] bg-black/20 backdrop-blur-sm"
+						transition={{ duration: 0.15 }}
+						className="fixed inset-0 z-[24] bg-black/50 backdrop-blur-sm"
 						onClick={() => onOpenChange(false)}
 					/>
 
-					{/* Sidebar Panel */}
+					{/* Dialog */}
 					<motion.div
-						initial={{ x: "100%", opacity: 0 }}
-						animate={{ x: 0, opacity: 1 }}
-						exit={{ x: "100%", opacity: 0 }}
-						transition={{
-							type: "spring",
-							damping: 30,
-							stiffness: 300,
-						}}
-						className={cn(
-							"fixed right-0 top-0 z-[25] h-full w-full sm:w-[480px] lg:w-[540px]",
-							"bg-background border-l border-border/50 shadow-2xl",
-							"flex flex-col"
-						)}
+						initial={{ opacity: 0, scale: 0.96 }}
+						animate={{ opacity: 1, scale: 1 }}
+						exit={{ opacity: 0, scale: 0.96 }}
+						transition={{ duration: 0.15, ease: "easeOut" }}
+						className="fixed inset-0 z-[25] flex items-center justify-center p-4 sm:p-6"
 					>
-						{/* Header */}
 						<div
+							role="dialog"
+							aria-modal="true"
 							className={cn(
-								"flex items-center justify-between px-6 py-4 border-b border-border/50",
-								isAutoMode ? "bg-gradient-to-r from-violet-500/10 to-purple-500/10" : "bg-muted/20"
+								"relative w-full max-w-lg h-[85vh]",
+								"rounded-xl bg-background shadow-2xl",
+								"dark:bg-neutral-900",
+								"flex flex-col overflow-hidden"
 							)}
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => {
+								if (e.key === "Escape") onOpenChange(false);
+							}}
 						>
-							<div className="flex items-center gap-3">
-								<div
-									className={cn(
-										"flex items-center justify-center size-10 rounded-xl",
-										isAutoMode ? "bg-gradient-to-br from-violet-500 to-purple-600" : "bg-primary/10"
-									)}
-								>
-									{isAutoMode ? (
-										<Shuffle className="size-5 text-white" />
-									) : (
-										<Bot className="size-5 text-primary" />
-									)}
-								</div>
-								<div>
-									<h2 className="text-base sm:text-lg font-semibold">{getTitle()}</h2>
-									<div className="flex items-center gap-2 mt-0.5">
-										{isAutoMode ? (
-											<Badge
-												variant="secondary"
-												className="gap-1 text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
-											>
-												<Zap className="size-3" />
+							{/* Header */}
+							<div className="flex items-start justify-between px-6 pt-6 pb-4">
+								<div className="space-y-1 pr-8">
+									<div className="flex items-center gap-2">
+										<h2 className="text-lg font-semibold tracking-tight">{getTitle()}</h2>
+										{isAutoMode && (
+											<Badge variant="secondary" className="text-[10px]">
 												Recommended
 											</Badge>
-										) : isGlobal ? (
-											<Badge variant="secondary" className="gap-1 text-xs">
-												<Globe className="size-3" />
+										)}
+										{isGlobal && !isAutoMode && mode !== "create" && (
+											<Badge variant="secondary" className="text-[10px]">
 												Global
 											</Badge>
-										) : mode !== "create" ? (
-											<Badge variant="outline" className="gap-1 text-xs">
-												<User className="size-3" />
+										)}
+										{!isGlobal && mode !== "create" && !isAutoMode && (
+											<Badge variant="outline" className="text-[10px]">
 												Custom
 											</Badge>
-										) : null}
-										{config && !isAutoMode && (
-											<span className="text-xs text-muted-foreground">{config.model_name}</span>
 										)}
 									</div>
+									<p className="text-sm text-muted-foreground">{getSubtitle()}</p>
+									{config && !isAutoMode && mode !== "create" && (
+										<p className="text-xs font-mono text-muted-foreground/70">
+											{config.model_name}
+										</p>
+									)}
 								</div>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={() => onOpenChange(false)}
+									className="absolute right-4 top-4 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+								>
+									<X className="h-4 w-4" />
+									<span className="sr-only">Close</span>
+								</Button>
 							</div>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={() => onOpenChange(false)}
-								className="h-8 w-8 rounded-full"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">Close</span>
-							</Button>
-						</div>
 
-						{/* Content - use overflow-y-auto instead of ScrollArea for better compatibility */}
-						<div className="flex-1 overflow-y-auto">
-							<div className="p-6">
-								{/* Auto mode info banner */}
+							{/* Scrollable content */}
+							<div
+								ref={scrollRef}
+								onScroll={handleScroll}
+								className="flex-1 overflow-y-auto px-6 py-5"
+								style={{
+									maskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
 								{isAutoMode && (
-									<Alert className="mb-6 border-violet-500/30 bg-violet-500/5">
-										<Shuffle className="size-4 text-violet-500" />
+									<Alert className="mb-5 border-violet-500/30 bg-violet-500/5">
 										<AlertDescription className="text-sm text-violet-700 dark:text-violet-400">
 											Auto mode automatically distributes requests across all available LLM
 											providers to optimize performance and avoid rate limits.
@@ -263,9 +262,8 @@ export function ModelConfigSidebar({
 									</Alert>
 								)}
 
-								{/* Global config notice */}
 								{isGlobal && !isAutoMode && mode !== "create" && (
-									<Alert className="mb-6 border-amber-500/30 bg-amber-500/5">
+									<Alert className="mb-5 border-amber-500/30 bg-amber-500/5">
 										<AlertCircle className="size-4 text-amber-500" />
 										<AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
 											Global configurations are read-only. To customize settings, create a new
@@ -274,20 +272,17 @@ export function ModelConfigSidebar({
 									</Alert>
 								)}
 
-								{/* Form */}
 								{mode === "create" ? (
 									<LLMConfigForm
 										searchSpaceId={searchSpaceId}
 										onSubmit={handleSubmit}
-										onCancel={() => onOpenChange(false)}
 										isSubmitting={isSubmitting}
 										mode="create"
-										submitLabel="Create & Use"
+										formId="model-config-form"
+										hideActions
 									/>
 								) : isAutoMode && config ? (
-									// Special view for Auto mode
 									<div className="space-y-6">
-										{/* Auto Mode Features */}
 										<div className="space-y-4">
 											<div className="space-y-1.5">
 												<div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -339,36 +334,9 @@ export function ModelConfigSidebar({
 												</div>
 											</div>
 										</div>
-
-										{/* Action Buttons */}
-										<div className="flex gap-3 pt-4 border-t border-border/50">
-											<Button
-												variant="outline"
-												className="flex-1"
-												onClick={() => onOpenChange(false)}
-											>
-												Close
-											</Button>
-											<Button
-												className="flex-1 gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-												onClick={handleUseGlobalConfig}
-												disabled={isSubmitting}
-											>
-												{isSubmitting ? (
-													<>Loading...</>
-												) : (
-													<>
-														<ChevronRight className="size-4" />
-														Use Auto Mode
-													</>
-												)}
-											</Button>
-										</div>
 									</div>
 								) : isGlobal && config ? (
-									// Read-only view for global configs
 									<div className="space-y-6">
-										{/* Config Details */}
 										<div className="space-y-4">
 											<div className="grid gap-4 sm:grid-cols-2">
 												<div className="space-y-1.5">
@@ -436,43 +404,17 @@ export function ModelConfigSidebar({
 												</>
 											)}
 										</div>
-
-										{/* Action Buttons */}
-										<div className="flex gap-3 pt-4 border-t border-border/50">
-											<Button
-												variant="outline"
-												className="flex-1"
-												onClick={() => onOpenChange(false)}
-											>
-												Close
-											</Button>
-											<Button
-												className="flex-1 gap-2"
-												onClick={handleUseGlobalConfig}
-												disabled={isSubmitting}
-											>
-												{isSubmitting ? (
-													<>Loading...</>
-												) : (
-													<>
-														<ChevronRight className="size-4" />
-														Use This Model
-													</>
-												)}
-											</Button>
-										</div>
 									</div>
 								) : config ? (
-									// Edit form for user configs
 									<LLMConfigForm
 										searchSpaceId={searchSpaceId}
 										initialData={{
 											name: config.name,
 											description: config.description,
-											provider: config.provider,
+											provider: config.provider as LiteLLMProvider,
 											custom_provider: config.custom_provider,
 											model_name: config.model_name,
-											api_key: config.api_key,
+											api_key: "api_key" in config ? (config.api_key as string) : "",
 											api_base: config.api_base,
 											litellm_params: config.litellm_params,
 											system_instructions: config.system_instructions,
@@ -481,11 +423,59 @@ export function ModelConfigSidebar({
 											search_space_id: searchSpaceId,
 										}}
 										onSubmit={handleSubmit}
-										onCancel={() => onOpenChange(false)}
 										isSubmitting={isSubmitting}
 										mode="edit"
-										submitLabel="Save Changes"
+										formId="model-config-form"
+										hideActions
 									/>
+								) : null}
+							</div>
+
+							{/* Fixed footer */}
+							<div className="shrink-0 px-6 py-4 flex items-center justify-end gap-3">
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => onOpenChange(false)}
+									disabled={isSubmitting}
+									className="text-sm h-9"
+								>
+									Cancel
+								</Button>
+								{mode === "create" || (!isGlobal && !isAutoMode && config) ? (
+									<Button
+										type="submit"
+										form="model-config-form"
+										disabled={isSubmitting}
+										className="text-sm h-9 min-w-[120px]"
+									>
+										{isSubmitting ? (
+											<>
+												<Spinner size="sm" />
+												{mode === "edit" ? "Saving" : "Creating"}
+											</>
+										) : mode === "edit" ? (
+											"Save Changes"
+										) : (
+											"Create & Use"
+										)}
+									</Button>
+								) : isAutoMode ? (
+									<Button
+										className="text-sm h-9 gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+										onClick={handleUseGlobalConfig}
+										disabled={isSubmitting}
+									>
+										{isSubmitting ? "Loading..." : "Use Auto Mode"}
+									</Button>
+								) : isGlobal && config ? (
+									<Button
+										className="text-sm h-9 gap-2"
+										onClick={handleUseGlobalConfig}
+										disabled={isSubmitting}
+									>
+										{isSubmitting ? "Loading..." : "Use This Model"}
+									</Button>
 								) : null}
 							</div>
 						</div>
@@ -495,5 +485,5 @@ export function ModelConfigSidebar({
 		</AnimatePresence>
 	);
 
-	return typeof document !== "undefined" ? createPortal(sidebarContent, document.body) : null;
+	return typeof document !== "undefined" ? createPortal(dialogContent, document.body) : null;
 }

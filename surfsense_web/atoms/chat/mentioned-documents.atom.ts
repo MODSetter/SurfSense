@@ -1,25 +1,46 @@
 "use client";
 
 import { atom } from "jotai";
-import type { Document, SurfsenseDocsDocument } from "@/contracts/types/document.types";
+import type { Document } from "@/contracts/types/document.types";
 
 /**
- * Atom to store the IDs of documents mentioned in the current chat composer.
- * This is used to pass document context to the backend when sending a message.
- */
-export const mentionedDocumentIdsAtom = atom<{
-	surfsense_doc_ids: number[];
-	document_ids: number[];
-}>({
-	surfsense_doc_ids: [],
-	document_ids: [],
-});
-
-/**
- * Atom to store the full document objects mentioned in the current chat composer.
- * This persists across component remounts.
+ * Atom to store the full document objects mentioned via @-mention chips
+ * in the current chat composer. This persists across component remounts.
  */
 export const mentionedDocumentsAtom = atom<Pick<Document, "id" | "title" | "document_type">[]>([]);
+
+/**
+ * Atom to store documents selected via the sidebar checkboxes / row clicks.
+ * These are NOT inserted as chips – the composer shows a count badge instead.
+ */
+export const sidebarSelectedDocumentsAtom = atom<
+	Pick<Document, "id" | "title" | "document_type">[]
+>([]);
+
+/**
+ * Derived read-only atom that merges @-mention chips and sidebar selections
+ * into a single deduplicated set of document IDs for the backend.
+ */
+export const mentionedDocumentIdsAtom = atom((get) => {
+	const chipDocs = get(mentionedDocumentsAtom);
+	const sidebarDocs = get(sidebarSelectedDocumentsAtom);
+	const allDocs = [...chipDocs, ...sidebarDocs];
+	const seen = new Set<string>();
+	const deduped = allDocs.filter((d) => {
+		const key = `${d.document_type}:${d.id}`;
+		if (seen.has(key)) return false;
+		seen.add(key);
+		return true;
+	});
+	return {
+		surfsense_doc_ids: deduped
+			.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
+			.map((doc) => doc.id),
+		document_ids: deduped
+			.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
+			.map((doc) => doc.id),
+	};
+});
 
 /**
  * Simplified document info for display purposes

@@ -108,6 +108,9 @@ export default function RootLayout({
 	// Locale state is managed by LocaleContext and persisted in localStorage
 	return (
 		<html lang="en" suppressHydrationWarning>
+			<head>
+				<link rel="preconnect" href="https://api.github.com" />
+			</head>
 			<body className={cn(roboto.className, "bg-white dark:bg-black antialiased h-full w-full ")}>
 				<PostHogProvider>
 					<LocaleProvider>

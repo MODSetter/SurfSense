@@ -1,16 +1,13 @@
 import posthog from "posthog-js";
 
-if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+function initPostHog() {
+	if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) return;
+
 	posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-		// Use reverse proxy to bypass ad blockers
 		api_host: "/ingest",
-		// Required for toolbar and other UI features to work correctly
 		ui_host: "https://us.posthog.com",
 		defaults: "2025-11-30",
-		// Disable automatic pageview capture, as we capture manually with PostHogProvider
-		// This ensures proper pageview tracking with Next.js client-side navigation
 		capture_pageview: "history_change",
-		// Enable session recording
 		capture_pageleave: true,
 		before_send: (event) => {
 			if (event.properties) {
@@ -21,17 +18,20 @@ if (process.env.NEXT_PUBLIC_POSTHOG_KEY) {
 			}
 			return event;
 		},
-		loaded: (posthog) => {
-			// Expose PostHog to window for console access and toolbar
+		loaded: (ph) => {
 			if (typeof window !== "undefined") {
-				window.posthog = posthog;
+				window.posthog = ph;
 			}
 		},
 	});
 }
 
-// Always expose posthog to window for debugging/toolbar access
-// This allows testing feature flags even without POSTHOG_KEY configured
 if (typeof window !== "undefined") {
 	window.posthog = posthog;
+
+	if ("requestIdleCallback" in window) {
+		requestIdleCallback(initPostHog);
+	} else {
+		setTimeout(initPostHog, 3500);
+	}
 }

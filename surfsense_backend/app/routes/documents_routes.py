@@ -320,6 +320,8 @@ async def read_documents(
     page_size: int = 50,
     search_space_id: int | None = None,
     document_types: str | None = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -391,6 +393,19 @@ async def read_documents(
 
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
+
+        # Apply sorting
+        from sqlalchemy import asc as sa_asc, desc as sa_desc
+
+        sort_column_map = {
+            "created_at": Document.created_at,
+            "title": Document.title,
+            "document_type": Document.document_type,
+        }
+        sort_col = sort_column_map.get(sort_by, Document.created_at)
+        query = query.order_by(
+            sa_desc(sort_col) if sort_order == "desc" else sa_asc(sort_col)
+        )
 
         # Calculate offset
         offset = 0

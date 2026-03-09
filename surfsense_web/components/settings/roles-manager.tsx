@@ -578,10 +578,7 @@ function RolesContent({
 														<DropdownMenuSeparator />
 														<AlertDialog>
 															<AlertDialogTrigger asChild>
-																<DropdownMenuItem
-																	className="text-destructive focus:text-destructive"
-																	onSelect={(e) => e.preventDefault()}
-																>
+																<DropdownMenuItem onSelect={(e) => e.preventDefault()}>
 																	<Trash2 className="h-4 w-4 mr-2" />
 																	Delete Role
 																</DropdownMenuItem>

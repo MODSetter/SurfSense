@@ -1,14 +1,7 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	AlertTriangleIcon,
-	CheckIcon,
-	InfoIcon,
-	Loader2Icon,
-	PencilIcon,
-	XIcon,
-} from "lucide-react";
+import { AlertTriangleIcon, CheckIcon, InfoIcon, Loader2Icon, Pen, XIcon } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -618,7 +611,7 @@ function ApprovalCard({
 						)}
 						{canEdit && (
 							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-								<PencilIcon />
+								<Pen />
 								Edit
 							</Button>
 						)}

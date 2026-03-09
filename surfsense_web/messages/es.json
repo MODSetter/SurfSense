@@ -332,7 +332,8 @@
 		"upload_documents": "Subir documentos",
 		"create_shared_note": "Crear nota compartida",
 		"processing_documents": "Procesando documentos...",
-		"active_tasks_count": "{count} tarea(s) activa(s)"
+		"delete_in_progress_warning": "{count} documento(s) están pendientes o en proceso y no se pueden eliminar.",
+		"delete_conflict_error": "{count} documento(s) comenzaron a procesarse. Inténtelo de nuevo más tarde."
 	},
 	"add_connector": {
 		"title": "Conecta tus herramientas",
@@ -637,23 +638,6 @@
 		"add_first_config": "Agregar primera configuración",
 		"created": "Creado"
 	},
-	"breadcrumb": {
-		"dashboard": "Panel de control",
-		"search_space": "Espacio de búsqueda",
-		"chat": "Chat",
-		"documents": "Documentos",
-		"connectors": "Conectores",
-		"editor": "Editor",
-		"logs": "Registros",
-		"settings": "Configuración",
-		"upload_documents": "Subir documentos",
-		"add_youtube": "Agregar videos de YouTube",
-		"add_webpages": "Agregar páginas web",
-		"add_connector": "Agregar conector",
-		"manage_connectors": "Administrar conectores",
-		"edit_connector": "Editar conector",
-		"manage": "Administrar"
-	},
 	"sidebar": {
 		"chats": "Chats privados",
 		"shared_chats": "Chats compartidos",
@@ -701,6 +685,9 @@
 		"system": "Sistema",
 		"logout": "Cerrar sesión",
 		"loggingOut": "Cerrando sesión...",
+		"learn_more": "Más información",
+		"documentation": "Documentación",
+		"github": "GitHub",
 		"inbox": "Bandeja de entrada",
 		"search_inbox": "Buscar en bandeja de entrada",
 		"mark_all_read": "Marcar todo como leído",
@@ -718,8 +705,11 @@
 		"filter": "Filtrar",
 		"all": "Todo",
 		"unread": "No leído",
+		"errors_only": "Solo errores",
 		"connectors": "Conectores",
 		"all_connectors": "Todos los conectores",
+		"sources": "Fuentes",
+		"all_sources": "Todas las fuentes",
 		"close": "Cerrar",
 		"cancel": "Cancelar"
 	},

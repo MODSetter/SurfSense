@@ -316,7 +316,8 @@
 		"upload_documents": "上传文档",
 		"create_shared_note": "创建共享笔记",
 		"processing_documents": "正在处理文档...",
-		"active_tasks_count": "{count} 个正在进行的工作项"
+		"delete_in_progress_warning": "{count} 个文档正在等待或处理中，无法删除。",
+		"delete_conflict_error": "{count} 个文档已开始处理，请稍后再试。"
 	},
 	"add_connector": {
 		"title": "连接您的工具",
@@ -621,23 +622,6 @@
 		"add_first_config": "添加首个配置",
 		"created": "创建于"
 	},
-	"breadcrumb": {
-		"dashboard": "仪表盘",
-		"search_space": "搜索空间",
-		"chat": "聊天",
-		"documents": "文档",
-		"connectors": "连接器",
-		"editor": "编辑器",
-		"logs": "日志",
-		"settings": "设置",
-		"upload_documents": "上传文档",
-		"add_youtube": "添加 YouTube 视频",
-		"add_webpages": "添加网页",
-		"add_connector": "添加连接器",
-		"manage_connectors": "管理连接器",
-		"edit_connector": "编辑连接器",
-		"manage": "管理"
-	},
 	"sidebar": {
 		"chats": "私人对话",
 		"shared_chats": "共享对话",
@@ -685,6 +669,9 @@
 		"system": "系统",
 		"logout": "退出登录",
 		"loggingOut": "正在退出...",
+		"learn_more": "了解更多",
+		"documentation": "文档",
+		"github": "GitHub",
 		"inbox": "收件箱",
 		"search_inbox": "搜索收件箱",
 		"mark_all_read": "全部标记为已读",
@@ -702,8 +689,11 @@
 		"filter": "筛选",
 		"all": "全部",
 		"unread": "未读",
+		"errors_only": "仅错误",
 		"connectors": "连接器",
 		"all_connectors": "所有连接器",
+		"sources": "来源",
+		"all_sources": "所有来源",
 		"close": "关闭",
 		"cancel": "取消"
 	},

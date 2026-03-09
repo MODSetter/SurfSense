@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import Depends, Request, Response
@@ -12,6 +13,7 @@ from fastapi_users.authentication import (
 )
 from fastapi_users.db import SQLAlchemyUserDatabase
 from pydantic import BaseModel
+from sqlalchemy import update
 
 from app.config import config
 from app.db import (
@@ -122,6 +124,23 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 logger.warning(f"Failed to fetch Google profile: {e}")
 
         return user
+
+    async def on_after_login(
+        self,
+        user: User,
+        request: Request | None = None,
+        response: Response | None = None,
+    ) -> None:
+        try:
+            async with async_session_maker() as session:
+                await session.execute(
+                    update(User)
+                    .where(User.id == user.id)
+                    .values(last_login=datetime.now(UTC))
+                )
+                await session.commit()
+        except Exception as e:
+            logger.warning(f"Failed to update last_login for user {user.id}: {e}")
 
     async def on_after_register(self, user: User, request: Request | None = None):
         """

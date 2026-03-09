@@ -72,12 +72,15 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 	// Query to check if thread has public snapshots
 	const { data: snapshotsData } = useQuery({
 		queryKey: ["thread-snapshots", thread?.id],
-		queryFn: () => chatThreadsApiService.listPublicChatSnapshots({ thread_id: thread!.id }),
+		queryFn: () => {
+			const id = thread?.id;
+			if (id == null) throw new Error("Missing thread id");
+			return chatThreadsApiService.listPublicChatSnapshots({ thread_id: id });
+		},
 		enabled: !!thread?.id,
 		staleTime: 30000, // Cache for 30 seconds
 	});
 	const hasPublicSnapshots = (snapshotsData?.snapshots?.length ?? 0) > 0;
-	const snapshotCount = snapshotsData?.snapshots?.length ?? 0;
 
 	// Use Jotai visibility if available (synced from chat page), otherwise fall back to thread prop
 	const currentVisibility = currentThreadState.visibility ?? thread?.visibility ?? "PRIVATE";
@@ -145,18 +148,14 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 						<button
 							type="button"
 							onClick={() =>
-								router.push(`/dashboard/${params.search_space_id}/settings?section=public-links`)
+								router.push(`/dashboard/${params.search_space_id}/settings?tab=public-links`)
 							}
 							className="flex items-center justify-center h-8 w-8 rounded-md bg-muted/50 hover:bg-muted transition-colors"
 						>
 							<Earth className="h-4 w-4 text-muted-foreground" />
 						</button>
 					</TooltipTrigger>
-					<TooltipContent>
-						{snapshotCount === 1
-							? "This chat has a public link"
-							: `This chat has ${snapshotCount} public links`}
-					</TooltipContent>
+					<TooltipContent>Manage public links</TooltipContent>
 				</Tooltip>
 			)}
 
@@ -167,7 +166,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 							<Button
 								variant="outline"
 								size="icon"
-								className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0"
+								className="h-8 w-8 md:w-auto md:px-3 md:gap-2 relative bg-muted hover:bg-muted/80 border-0 select-none"
 							>
 								<CurrentIcon className="h-4 w-4" />
 								<span className="hidden md:inline text-sm">{buttonLabel}</span>
@@ -178,12 +177,12 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 				</Tooltip>
 
 				<PopoverContent
-					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60"
+					className="w-[280px] md:w-[320px] p-0 rounded-lg shadow-lg border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
 					align="end"
 					sideOffset={8}
 					onCloseAutoFocus={(e) => e.preventDefault()}
 				>
-					<div className="p-1.5 space-y-1 select-none">
+					<div className="p-1.5 space-y-1">
 						{/* Visibility Options */}
 						{visibilityOptions.map((option) => {
 							const isSelected = currentVisibility === option.value;
@@ -196,27 +195,32 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									onClick={() => handleVisibilityChange(option.value)}
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/50 cursor-pointer",
+										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
 										"focus:outline-none",
-										isSelected && "bg-accent/80"
+										isSelected && "bg-accent/80 dark:bg-white/10"
 									)}
 								>
 									<div
 										className={cn(
 											"size-7 rounded-md shrink-0 grid place-items-center",
-											isSelected ? "bg-primary/10" : "bg-muted"
+											isSelected ? "bg-primary/10 dark:bg-white/10" : "bg-muted dark:bg-white/5"
 										)}
 									>
 										<Icon
 											className={cn(
 												"size-4 block",
-												isSelected ? "text-primary" : "text-muted-foreground"
+												isSelected ? "text-primary dark:text-white" : "text-muted-foreground"
 											)}
 										/>
 									</div>
 									<div className="flex-1 text-left min-w-0">
 										<div className="flex items-center gap-1.5">
-											<span className={cn("text-sm font-medium", isSelected && "text-primary")}>
+											<span
+												className={cn(
+													"text-sm font-medium",
+													isSelected && "text-primary dark:text-white"
+												)}
+											>
 												{option.label}
 											</span>
 										</div>
@@ -231,7 +235,7 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 						{canCreatePublicLink && (
 							<>
 								{/* Divider */}
-								<div className="border-t border-border my-1" />
+								<div className="border-t border-border dark:border-white/5 my-1" />
 
 								{/* Public Link Option */}
 								<button
@@ -240,12 +244,12 @@ export function ChatShareButton({ thread, onVisibilityChange, className }: ChatS
 									disabled={isCreatingSnapshot}
 									className={cn(
 										"w-full flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-all",
-										"hover:bg-accent/50 cursor-pointer",
+										"hover:bg-accent/50 dark:hover:bg-white/10 cursor-pointer",
 										"focus:outline-none",
 										"disabled:opacity-50 disabled:cursor-not-allowed"
 									)}
 								>
-									<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted">
+									<div className="size-7 rounded-md shrink-0 grid place-items-center bg-muted dark:bg-white/5">
 										<Earth className="size-4 block text-muted-foreground" />
 									</div>
 									<div className="flex-1 text-left min-w-0">

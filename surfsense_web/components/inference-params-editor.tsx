@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -76,7 +76,7 @@ export default function InferenceParamsEditor({ params, setParams }: InferencePa
 						<SelectTrigger id="param-key" className="w-full">
 							<SelectValue placeholder="Select parameter" />
 						</SelectTrigger>
-						<SelectContent>
+						<SelectContent className="bg-muted dark:border-neutral-700">
 							{PARAM_KEYS.map((key) => (
 								<SelectItem key={key} value={key}>
 									{key}
@@ -104,7 +104,7 @@ export default function InferenceParamsEditor({ params, setParams }: InferencePa
 					onClick={handleAdd}
 					disabled={!selectedKey || value === ""}
 				>
-					<Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-2" /> Add Parameter
+					Add Parameter
 				</Button>
 			</div>
 

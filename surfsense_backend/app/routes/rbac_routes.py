@@ -510,6 +510,7 @@ async def list_members(
                 "user_email": member_user.email if member_user else None,
                 "user_display_name": member_user.display_name if member_user else None,
                 "user_avatar_url": member_user.avatar_url if member_user else None,
+                "user_last_login": member_user.last_login if member_user else None,
             }
             response.append(membership_dict)
 
@@ -602,6 +603,7 @@ async def update_member_role(
             "created_at": db_membership.created_at,
             "role": db_membership.role,
             "user_email": member_user.email if member_user else None,
+            "user_last_login": member_user.last_login if member_user else None,
         }
 
     except HTTPException:

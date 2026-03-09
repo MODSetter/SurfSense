@@ -13,9 +13,7 @@ import {
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
-import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import { DocumentUploadDialogProvider } from "@/components/assistant-ui/document-upload-popup";
-import { DashboardBreadcrumb } from "@/components/dashboard-breadcrumb";
 import { LayoutDataProvider } from "@/components/layout";
 import { OnboardingTour } from "@/components/onboarding-tour";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,8 +25,6 @@ export function DashboardClientLayout({
 }: {
 	children: React.ReactNode;
 	searchSpaceId: string;
-	navSecondary?: any[];
-	navMain?: any[];
 }) {
 	const t = useTranslations("dashboard");
 	const router = useRouter();
@@ -190,11 +186,7 @@ export function DashboardClientLayout({
 	return (
 		<DocumentUploadDialogProvider>
 			<OnboardingTour />
-			<LayoutDataProvider searchSpaceId={searchSpaceId} breadcrumb={<DashboardBreadcrumb />}>
-				{children}
-			</LayoutDataProvider>
-			{/* Global connector dialog - triggered from documents page */}
-			<ConnectorIndicator hideTrigger />
+			<LayoutDataProvider searchSpaceId={searchSpaceId}>{children}</LayoutDataProvider>
 		</DocumentUploadDialogProvider>
 	);
 }

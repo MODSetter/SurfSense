@@ -159,13 +159,13 @@ export function SearchSpaceAvatar({
 			)}
 			{onSettings && onDelete && <DropdownMenuSeparator />}
 			{onDelete && isOwner && (
-				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+				<DropdownMenuItem onClick={onDelete}>
 					<Trash2 className="mr-2 h-4 w-4" />
 					{tCommon("delete")}
 				</DropdownMenuItem>
 			)}
 			{onDelete && !isOwner && (
-				<DropdownMenuItem variant="destructive" onClick={onDelete}>
+				<DropdownMenuItem onClick={onDelete}>
 					<Trash2 className="mr-2 h-4 w-4" />
 					{t("leave")}
 				</DropdownMenuItem>
@@ -217,13 +217,13 @@ export function SearchSpaceAvatar({
 					)}
 					{onSettings && onDelete && <ContextMenuSeparator />}
 					{onDelete && isOwner && (
-						<ContextMenuItem variant="destructive" onClick={onDelete}>
+						<ContextMenuItem onClick={onDelete}>
 							<Trash2 className="mr-2 h-4 w-4" />
 							{tCommon("delete")}
 						</ContextMenuItem>
 					)}
 					{onDelete && !isOwner && (
-						<ContextMenuItem variant="destructive" onClick={onDelete}>
+						<ContextMenuItem onClick={onDelete}>
 							<Trash2 className="mr-2 h-4 w-4" />
 							{t("leave")}
 						</ContextMenuItem>

@@ -9,6 +9,7 @@ import {
 	Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -17,6 +18,9 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useLongPress } from "@/hooks/use-long-press";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useTypewriter } from "@/hooks/use-typewriter";
 import { cn } from "@/lib/utils";
 
 interface ChatListItemProps {
@@ -39,12 +43,25 @@ export function ChatListItem({
 	onDelete,
 }: ChatListItemProps) {
 	const t = useTranslations("sidebar");
+	const isMobile = useIsMobile();
+	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const animatedName = useTypewriter(name);
+
+	const { handlers: longPressHandlers, wasLongPress } = useLongPress(
+		useCallback(() => setDropdownOpen(true), [])
+	);
+
+	const handleClick = useCallback(() => {
+		if (wasLongPress()) return;
+		onClick?.();
+	}, [onClick, wasLongPress]);
 
 	return (
 		<div className="group/item relative w-full">
 			<button
 				type="button"
-				onClick={onClick}
+				onClick={handleClick}
+				{...(isMobile ? longPressHandlers : {})}
 				className={cn(
 					"flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm text-left transition-colors",
 					"[&>span:last-child]:truncate",
@@ -54,19 +71,24 @@ export function ChatListItem({
 				)}
 			>
 				<MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-				<span className="w-[calc(100%-3rem)] ">{name}</span>
+				<span className="w-[calc(100%-3rem)] ">{animatedName}</span>
 			</button>
 
-			{/* Actions dropdown */}
-			<div className="absolute right-1 top-1/2 -translate-y-1/2 opacity-100 md:opacity-0 md:group-hover/item:opacity-100 transition-opacity">
-				<DropdownMenu>
+			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}
+			<div
+				className={cn(
+					"absolute right-1 top-1/2 -translate-y-1/2 transition-opacity",
+					isMobile ? "opacity-0 pointer-events-none" : "opacity-0 group-hover/item:opacity-100"
+				)}
+			>
+				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 					<DropdownMenuTrigger asChild>
 						<Button variant="ghost" size="icon" className="h-6 w-6">
 							<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 							<span className="sr-only">{t("more_options")}</span>
 						</Button>
 					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end" side="right">
+					<DropdownMenuContent align="end" side="bottom">
 						{onRename && (
 							<DropdownMenuItem
 								onClick={(e) => {
@@ -105,7 +127,6 @@ export function ChatListItem({
 									e.stopPropagation();
 									onDelete();
 								}}
-								className="text-destructive focus:text-destructive"
 							>
 								<Trash2 className="mr-2 h-4 w-4" />
 								<span>{t("delete")}</span>

@@ -332,7 +332,8 @@
 		"upload_documents": "दस्तावेज़ अपलोड करें",
 		"create_shared_note": "साझा नोट बनाएं",
 		"processing_documents": "दस्तावेज़ प्रोसेस हो रहे हैं...",
-		"active_tasks_count": "{count} सक्रिय कार्य"
+		"delete_in_progress_warning": "{count} दस्तावेज़ लंबित या प्रसंस्करण में हैं और हटाए नहीं जा सकते।",
+		"delete_conflict_error": "{count} दस्तावेज़ प्रसंस्करण शुरू हो गया है। कृपया बाद में पुनः प्रयास करें।"
 	},
 	"add_connector": {
 		"title": "अपने टूल कनेक्ट करें",
@@ -637,23 +638,6 @@
 		"add_first_config": "पहली कॉन्फ़िगरेशन जोड़ें",
 		"created": "बनाया गया"
 	},
-	"breadcrumb": {
-		"dashboard": "डैशबोर्ड",
-		"search_space": "सर्च स्पेस",
-		"chat": "चैट",
-		"documents": "दस्तावेज़",
-		"connectors": "कनेक्टर",
-		"editor": "एडिटर",
-		"logs": "लॉग",
-		"settings": "सेटिंग्स",
-		"upload_documents": "दस्तावेज़ अपलोड करें",
-		"add_youtube": "YouTube वीडियो जोड़ें",
-		"add_webpages": "वेबपेज जोड़ें",
-		"add_connector": "कनेक्टर जोड़ें",
-		"manage_connectors": "कनेक्टर प्रबंधित करें",
-		"edit_connector": "कनेक्टर संपादित करें",
-		"manage": "प्रबंधित करें"
-	},
 	"sidebar": {
 		"chats": "निजी चैट",
 		"shared_chats": "साझा चैट",
@@ -701,6 +685,9 @@
 		"system": "सिस्टम",
 		"logout": "लॉगआउट",
 		"loggingOut": "लॉगआउट हो रहा है...",
+		"learn_more": "और जानें",
+		"documentation": "दस्तावेज़ीकरण",
+		"github": "GitHub",
 		"inbox": "इनबॉक्स",
 		"search_inbox": "इनबॉक्स में खोजें",
 		"mark_all_read": "सभी पढ़ा हुआ चिह्नित करें",
@@ -718,8 +705,11 @@
 		"filter": "फ़िल्टर",
 		"all": "सभी",
 		"unread": "अपठित",
+		"errors_only": "केवल त्रुटियाँ",
 		"connectors": "कनेक्टर",
 		"all_connectors": "सभी कनेक्टर",
+		"sources": "स्रोत",
+		"all_sources": "सभी स्रोत",
 		"close": "बंद करें",
 		"cancel": "रद्द करें"
 	},

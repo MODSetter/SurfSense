@@ -1,19 +1,9 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import {
-	AlertCircle,
-	Check,
-	ChevronsUpDown,
-	Globe,
-	ImageIcon,
-	Key,
-	Shuffle,
-	X,
-	Zap,
-} from "lucide-react";
+import { AlertCircle, Check, ChevronsUpDown, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import {
@@ -48,10 +38,11 @@ import { IMAGE_GEN_MODELS, IMAGE_GEN_PROVIDERS } from "@/contracts/enums/image-g
 import type {
 	GlobalImageGenConfig,
 	ImageGenerationConfig,
+	ImageGenProvider,
 } from "@/contracts/types/new-llm-config.types";
 import { cn } from "@/lib/utils";
 
-interface ImageConfigSidebarProps {
+interface ImageConfigDialogProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	config: ImageGenerationConfig | GlobalImageGenConfig | null;
@@ -70,24 +61,25 @@ const INITIAL_FORM = {
 	api_version: "",
 };
 
-export function ImageConfigSidebar({
+export function ImageConfigDialog({
 	open,
 	onOpenChange,
 	config,
 	isGlobal,
 	searchSpaceId,
 	mode,
-}: ImageConfigSidebarProps) {
+}: ImageConfigDialogProps) {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [mounted, setMounted] = useState(false);
 	const [formData, setFormData] = useState(INITIAL_FORM);
 	const [modelComboboxOpen, setModelComboboxOpen] = useState(false);
+	const [scrollPos, setScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const scrollRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		setMounted(true);
 	}, []);
 
-	// Reset form when opening
 	useEffect(() => {
 		if (open) {
 			if (mode === "edit" && config && !isGlobal) {
@@ -103,15 +95,14 @@ export function ImageConfigSidebar({
 			} else if (mode === "create") {
 				setFormData(INITIAL_FORM);
 			}
+			setScrollPos("top");
 		}
 	}, [open, mode, config, isGlobal]);
 
-	// Mutations
 	const { mutateAsync: createConfig } = useAtomValue(createImageGenConfigMutationAtom);
 	const { mutateAsync: updateConfig } = useAtomValue(updateImageGenConfigMutationAtom);
 	const { mutateAsync: updatePreferences } = useAtomValue(updateLLMPreferencesMutationAtom);
 
-	// Escape key
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
 			if (e.key === "Escape" && open) onOpenChange(false);
@@ -119,6 +110,13 @@ export function ImageConfigSidebar({
 		window.addEventListener("keydown", handleEscape);
 		return () => window.removeEventListener("keydown", handleEscape);
 	}, [open, onOpenChange]);
+
+	const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		const atTop = el.scrollTop <= 2;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+		setScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+	}, []);
 
 	const isAutoMode = config && "is_auto_mode" in config && config.is_auto_mode;
 
@@ -134,13 +132,20 @@ export function ImageConfigSidebar({
 		return "Edit Image Model";
 	};
 
+	const getSubtitle = () => {
+		if (mode === "create") return "Set up a new image generation provider";
+		if (isAutoMode) return "Automatically routes requests across providers";
+		if (isGlobal) return "Read-only global configuration";
+		return "Update your image model settings";
+	};
+
 	const handleSubmit = useCallback(async () => {
 		setIsSubmitting(true);
 		try {
 			if (mode === "create") {
 				const result = await createConfig({
 					name: formData.name,
-					provider: formData.provider,
+					provider: formData.provider as ImageGenProvider,
 					model_name: formData.model_name,
 					api_key: formData.api_key,
 					api_base: formData.api_base || undefined,
@@ -148,7 +153,6 @@ export function ImageConfigSidebar({
 					description: formData.description || undefined,
 					search_space_id: searchSpaceId,
 				});
-				// Set as active image model
 				if (result?.id) {
 					await updatePreferences({
 						search_space_id: searchSpaceId,
@@ -163,7 +167,7 @@ export function ImageConfigSidebar({
 					data: {
 						name: formData.name,
 						description: formData.description || undefined,
-						provider: formData.provider,
+						provider: formData.provider as ImageGenProvider,
 						model_name: formData.model_name,
 						api_key: formData.api_key,
 						api_base: formData.api_base || undefined,
@@ -214,126 +218,96 @@ export function ImageConfigSidebar({
 
 	if (!mounted) return null;
 
-	const sidebarContent = (
+	const dialogContent = (
 		<AnimatePresence>
 			{open && (
 				<>
-					{/* Backdrop */}
 					<motion.div
 						initial={{ opacity: 0 }}
 						animate={{ opacity: 1 }}
 						exit={{ opacity: 0 }}
-						transition={{ duration: 0.2 }}
-						className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm"
+						transition={{ duration: 0.15 }}
+						className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
 						onClick={() => onOpenChange(false)}
 					/>
 
-					{/* Sidebar */}
 					<motion.div
-						initial={{ x: "100%", opacity: 0 }}
-						animate={{ x: 0, opacity: 1 }}
-						exit={{ x: "100%", opacity: 0 }}
-						transition={{ type: "spring", damping: 30, stiffness: 300 }}
-						className={cn(
-							"fixed right-0 top-0 z-50 h-full w-full sm:w-[480px] lg:w-[540px]",
-							"bg-background border-l border-border/50 shadow-2xl",
-							"flex flex-col"
-						)}
+						initial={{ opacity: 0, scale: 0.96 }}
+						animate={{ opacity: 1, scale: 1 }}
+						exit={{ opacity: 0, scale: 0.96 }}
+						transition={{ duration: 0.15, ease: "easeOut" }}
+						className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
 					>
-						{/* Header */}
 						<div
+							role="dialog"
+							aria-modal="true"
 							className={cn(
-								"flex items-center justify-between px-6 py-4 border-b border-border/50",
-								isAutoMode
-									? "bg-gradient-to-r from-violet-500/10 to-purple-500/10"
-									: "bg-gradient-to-r from-teal-500/10 to-cyan-500/10"
+								"relative w-full max-w-lg h-[85vh]",
+								"rounded-xl bg-background shadow-2xl",
+								"dark:bg-neutral-900",
+								"flex flex-col overflow-hidden"
 							)}
+							onClick={(e) => e.stopPropagation()}
+							onKeyDown={(e) => {
+								if (e.key === "Escape") onOpenChange(false);
+							}}
 						>
-							<div className="flex items-center gap-3">
-								<div
-									className={cn(
-										"flex items-center justify-center size-10 rounded-xl",
-										isAutoMode
-											? "bg-gradient-to-br from-violet-500 to-purple-600"
-											: "bg-gradient-to-br from-teal-500 to-cyan-600"
-									)}
-								>
-									{isAutoMode ? (
-										<Shuffle className="size-5 text-white" />
-									) : (
-										<ImageIcon className="size-5 text-white" />
-									)}
-								</div>
-								<div>
-									<h2 className="text-base sm:text-lg font-semibold">{getTitle()}</h2>
-									<div className="flex items-center gap-2 mt-0.5">
-										{isAutoMode ? (
-											<Badge
-												variant="secondary"
-												className="gap-1 text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300"
-											>
-												<Zap className="size-3" />
+							{/* Header */}
+							<div className="flex items-start justify-between px-6 pt-6 pb-4">
+								<div className="space-y-1 pr-8">
+									<div className="flex items-center gap-2">
+										<h2 className="text-lg font-semibold tracking-tight">{getTitle()}</h2>
+										{isAutoMode && (
+											<Badge variant="secondary" className="text-[10px]">
 												Recommended
 											</Badge>
-										) : isGlobal ? (
-											<Badge variant="secondary" className="gap-1 text-xs">
-												<Globe className="size-3" />
+										)}
+										{isGlobal && !isAutoMode && mode !== "create" && (
+											<Badge variant="secondary" className="text-[10px]">
 												Global
 											</Badge>
-										) : null}
-										{config && !isAutoMode && (
-											<span className="text-xs text-muted-foreground">{config.model_name}</span>
 										)}
 									</div>
+									<p className="text-sm text-muted-foreground">{getSubtitle()}</p>
+									{config && !isAutoMode && mode !== "create" && (
+										<p className="text-xs font-mono text-muted-foreground/70">
+											{config.model_name}
+										</p>
+									)}
 								</div>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={() => onOpenChange(false)}
+									className="absolute right-4 top-4 h-8 w-8 rounded-full text-muted-foreground hover:text-foreground"
+								>
+									<X className="h-4 w-4" />
+									<span className="sr-only">Close</span>
+								</Button>
 							</div>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={() => onOpenChange(false)}
-								className="h-8 w-8 rounded-full"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">Close</span>
-							</Button>
-						</div>
 
-						{/* Content */}
-						<div className="flex-1 overflow-y-auto">
-							<div className="p-6">
-								{/* Auto mode */}
+							{/* Scrollable content */}
+							<div
+								ref={scrollRef}
+								onScroll={handleScroll}
+								className="flex-1 overflow-y-auto px-6 py-5"
+								style={{
+									maskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${scrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${scrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
 								{isAutoMode && (
-									<>
-										<Alert className="mb-6 border-violet-500/30 bg-violet-500/5">
-											<Shuffle className="size-4 text-violet-500" />
-											<AlertDescription className="text-sm text-violet-700 dark:text-violet-400">
-												Auto mode distributes image generation requests across all configured
-												providers for optimal performance and rate limit protection.
-											</AlertDescription>
-										</Alert>
-										<div className="flex gap-3 pt-4 border-t border-border/50">
-											<Button
-												variant="outline"
-												className="flex-1"
-												onClick={() => onOpenChange(false)}
-											>
-												Close
-											</Button>
-											<Button
-												className="flex-1 gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
-												onClick={handleUseGlobalConfig}
-												disabled={isSubmitting}
-											>
-												{isSubmitting ? "Loading..." : "Use Auto Mode"}
-											</Button>
-										</div>
-									</>
+									<Alert className="mb-5 border-violet-500/30 bg-violet-500/5">
+										<AlertDescription className="text-sm text-violet-700 dark:text-violet-400">
+											Auto mode distributes image generation requests across all configured
+											providers for optimal performance and rate limit protection.
+										</AlertDescription>
+									</Alert>
 								)}
 
-								{/* Global config (read-only) */}
 								{isGlobal && !isAutoMode && config && (
 									<>
-										<Alert className="mb-6 border-amber-500/30 bg-amber-500/5">
+										<Alert className="mb-5 border-amber-500/30 bg-amber-500/5">
 											<AlertCircle className="size-4 text-amber-500" />
 											<AlertDescription className="text-sm text-amber-700 dark:text-amber-400">
 												Global configurations are read-only. To customize, create a new model.
@@ -372,29 +346,11 @@ export function ImageConfigSidebar({
 												</div>
 											</div>
 										</div>
-										<div className="flex gap-3 pt-6 border-t border-border/50 mt-6">
-											<Button
-												variant="outline"
-												className="flex-1"
-												onClick={() => onOpenChange(false)}
-											>
-												Close
-											</Button>
-											<Button
-												className="flex-1 gap-2"
-												onClick={handleUseGlobalConfig}
-												disabled={isSubmitting}
-											>
-												{isSubmitting ? "Loading..." : "Use This Model"}
-											</Button>
-										</div>
 									</>
 								)}
 
-								{/* Create / Edit form */}
 								{(mode === "create" || (mode === "edit" && !isGlobal)) && (
 									<div className="space-y-4">
-										{/* Name */}
 										<div className="space-y-2">
 											<Label className="text-sm font-medium">Name *</Label>
 											<Input
@@ -404,7 +360,6 @@ export function ImageConfigSidebar({
 											/>
 										</div>
 
-										{/* Description */}
 										<div className="space-y-2">
 											<Label className="text-sm font-medium">Description</Label>
 											<Input
@@ -418,7 +373,6 @@ export function ImageConfigSidebar({
 
 										<Separator />
 
-										{/* Provider */}
 										<div className="space-y-2">
 											<Label className="text-sm font-medium">Provider *</Label>
 											<Select
@@ -430,20 +384,16 @@ export function ImageConfigSidebar({
 												<SelectTrigger>
 													<SelectValue placeholder="Select a provider" />
 												</SelectTrigger>
-												<SelectContent>
+												<SelectContent className="bg-muted dark:border-neutral-700">
 													{IMAGE_GEN_PROVIDERS.map((p) => (
-														<SelectItem key={p.value} value={p.value}>
-															<div className="flex flex-col">
-																<span className="font-medium">{p.label}</span>
-																<span className="text-xs text-muted-foreground">{p.example}</span>
-															</div>
+														<SelectItem key={p.value} value={p.value} description={p.example}>
+															{p.label}
 														</SelectItem>
 													))}
 												</SelectContent>
 											</Select>
 										</div>
 
-										{/* Model Name */}
 										<div className="space-y-2">
 											<Label className="text-sm font-medium">Model Name *</Label>
 											{suggestedModels.length > 0 ? (
@@ -452,14 +402,17 @@ export function ImageConfigSidebar({
 														<Button
 															variant="outline"
 															role="combobox"
-															className="w-full justify-between font-normal"
+															className="w-full justify-between font-normal bg-transparent"
 														>
 															{formData.model_name || "Select or type a model..."}
 															<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 														</Button>
 													</PopoverTrigger>
-													<PopoverContent className="w-full p-0" align="start">
-														<Command>
+													<PopoverContent
+														className="w-full p-0 bg-muted dark:border-neutral-700"
+														align="start"
+													>
+														<Command className="bg-transparent">
 															<CommandInput
 																placeholder="Search or type model..."
 																value={formData.model_name}
@@ -513,11 +466,8 @@ export function ImageConfigSidebar({
 											)}
 										</div>
 
-										{/* API Key */}
 										<div className="space-y-2">
-											<Label className="text-sm font-medium flex items-center gap-1.5">
-												<Key className="h-3.5 w-3.5" /> API Key *
-											</Label>
+											<Label className="text-sm font-medium">API Key *</Label>
 											<Input
 												type="password"
 												placeholder="sk-..."
@@ -526,7 +476,6 @@ export function ImageConfigSidebar({
 											/>
 										</div>
 
-										{/* API Base */}
 										<div className="space-y-2">
 											<Label className="text-sm font-medium">API Base URL</Label>
 											<Input
@@ -536,7 +485,6 @@ export function ImageConfigSidebar({
 											/>
 										</div>
 
-										{/* Azure API Version */}
 										{formData.provider === "AZURE_OPENAI" && (
 											<div className="space-y-2">
 												<Label className="text-sm font-medium">API Version (Azure)</Label>
@@ -549,27 +497,55 @@ export function ImageConfigSidebar({
 												/>
 											</div>
 										)}
-
-										{/* Actions */}
-										<div className="flex gap-3 pt-4 border-t">
-											<Button
-												variant="outline"
-												className="flex-1"
-												onClick={() => onOpenChange(false)}
-											>
-												Cancel
-											</Button>
-											<Button
-												className="flex-1 gap-2 bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700"
-												onClick={handleSubmit}
-												disabled={isSubmitting || !isFormValid}
-											>
-												{isSubmitting ? <Spinner size="sm" className="mr-2" /> : null}
-												{mode === "edit" ? "Save Changes" : "Create & Use"}
-											</Button>
-										</div>
 									</div>
 								)}
+							</div>
+
+							{/* Fixed footer */}
+							<div className="shrink-0 px-6 py-4 flex items-center justify-end gap-3">
+								<Button
+									type="button"
+									variant="secondary"
+									onClick={() => onOpenChange(false)}
+									disabled={isSubmitting}
+									className="text-sm h-9"
+								>
+									Cancel
+								</Button>
+								{mode === "create" || (mode === "edit" && !isGlobal) ? (
+									<Button
+										onClick={handleSubmit}
+										disabled={isSubmitting || !isFormValid}
+										className="text-sm h-9 min-w-[120px]"
+									>
+										{isSubmitting ? (
+											<>
+												<Spinner size="sm" />
+												{mode === "edit" ? "Saving" : "Creating"}
+											</>
+										) : mode === "edit" ? (
+											"Save Changes"
+										) : (
+											"Create & Use"
+										)}
+									</Button>
+								) : isAutoMode ? (
+									<Button
+										className="text-sm h-9 gap-2 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+										onClick={handleUseGlobalConfig}
+										disabled={isSubmitting}
+									>
+										{isSubmitting ? "Loading..." : "Use Auto Mode"}
+									</Button>
+								) : isGlobal && config ? (
+									<Button
+										className="text-sm h-9 gap-2"
+										onClick={handleUseGlobalConfig}
+										disabled={isSubmitting}
+									>
+										{isSubmitting ? "Loading..." : "Use This Model"}
+									</Button>
+								) : null}
 							</div>
 						</div>
 					</motion.div>
@@ -578,5 +554,5 @@ export function ImageConfigSidebar({
 		</AnimatePresence>
 	);
 
-	return typeof document !== "undefined" ? createPortal(sidebarContent, document.body) : null;
+	return typeof document !== "undefined" ? createPortal(dialogContent, document.body) : null;
 }

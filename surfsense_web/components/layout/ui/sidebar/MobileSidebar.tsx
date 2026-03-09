@@ -166,9 +166,30 @@ export function MobileSidebar({
 								: undefined
 						}
 						user={user}
-						onSettings={onSettings}
-						onManageMembers={onManageMembers}
-						onUserSettings={onUserSettings}
+						onSettings={
+							onSettings
+								? () => {
+										onOpenChange(false);
+										onSettings();
+									}
+								: undefined
+						}
+						onManageMembers={
+							onManageMembers
+								? () => {
+										onOpenChange(false);
+										onManageMembers();
+									}
+								: undefined
+						}
+						onUserSettings={
+							onUserSettings
+								? () => {
+										onOpenChange(false);
+										onUserSettings();
+									}
+								: undefined
+						}
 						onLogout={onLogout}
 						pageUsage={pageUsage}
 						theme={theme}
