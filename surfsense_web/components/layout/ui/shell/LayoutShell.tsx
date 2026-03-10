@@ -97,6 +97,8 @@ interface LayoutShellProps {
 	documentsPanel?: {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
+		isDocked?: boolean;
+		onDockedChange?: (docked: boolean) => void;
 	};
 }
 
@@ -319,6 +321,16 @@ export function LayoutShell({
 							/>
 						)}
 
+						{/* Docked Documents Sidebar - renders as flex sibling between sidebar and content */}
+						{documentsPanel?.isDocked && (
+							<DocumentsSidebar
+								open={documentsPanel.open}
+								onOpenChange={documentsPanel.onOpenChange}
+								isDocked={documentsPanel.isDocked}
+								onDockedChange={documentsPanel.onDockedChange}
+							/>
+						)}
+
 						<main className="flex-1 flex flex-col min-w-0">
 							<Header />
 
@@ -340,11 +352,13 @@ export function LayoutShell({
 							/>
 						)}
 
-						{/* Documents Sidebar - slide-out panel */}
-						{documentsPanel && (
+						{/* Documents Sidebar - floating slide-out panel (non-docked mode) */}
+						{documentsPanel && !documentsPanel.isDocked && (
 							<DocumentsSidebar
 								open={documentsPanel.open}
 								onOpenChange={documentsPanel.onOpenChange}
+								isDocked={false}
+								onDockedChange={documentsPanel.onDockedChange}
 							/>
 						)}
 

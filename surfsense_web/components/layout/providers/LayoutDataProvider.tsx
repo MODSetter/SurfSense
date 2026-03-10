@@ -119,6 +119,19 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
+	const [isDocumentsDocked, setIsDocumentsDocked] = useState(true);
+
+	// Open documents sidebar by default on desktop (docked mode)
+	const documentsInitialized = useRef(false);
+	useEffect(() => {
+		if (!documentsInitialized.current) {
+			documentsInitialized.current = true;
+			const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+			if (isDesktop) {
+				setIsDocumentsSidebarOpen(true);
+			}
+		}
+	}, [setIsDocumentsSidebarOpen]);
 
 	// Announcements sidebar state
 	const [isAnnouncementsSidebarOpen, setIsAnnouncementsSidebarOpen] = useState(false);
@@ -678,6 +691,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				documentsPanel={{
 					open: isDocumentsSidebarOpen,
 					onOpenChange: setIsDocumentsSidebarOpen,
+					isDocked: isDocumentsDocked,
+					onDockedChange: setIsDocumentsDocked,
 				}}
 			>
 				<Fragment key={chatResetKey}>{children}</Fragment>

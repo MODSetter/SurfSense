@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue } from "jotai";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -14,6 +14,7 @@ import {
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useDocumentSearch } from "@/hooks/use-document-search";
@@ -24,9 +25,11 @@ import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 interface DocumentsSidebarProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	isDocked?: boolean;
+	onDockedChange?: (docked: boolean) => void;
 }
 
-export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) {
+export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDockedChange }: DocumentsSidebarProps) {
 	const t = useTranslations("documents");
 	const tSidebar = useTranslations("sidebar");
 	const params = useParams();
@@ -164,6 +167,37 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 						)}
 						<h2 className="text-lg font-semibold">{t("title") || "Documents"}</h2>
 					</div>
+					<div className="flex items-center gap-1">
+						{!isMobile && onDockedChange && (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="h-8 w-8 rounded-full"
+										onClick={() => {
+											if (isDocked) {
+												onDockedChange(false);
+												onOpenChange(false);
+											} else {
+												onDockedChange(true);
+											}
+										}}
+									>
+										{isDocked ? (
+											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
+										) : (
+											<ChevronRight className="h-4 w-4 text-muted-foreground" />
+										)}
+										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
+									</Button>
+								</TooltipTrigger>
+								<TooltipContent className="z-80">
+									{isDocked ? "Collapse panel" : "Expand panel"}
+								</TooltipContent>
+							</Tooltip>
+						)}
+					</div>
 				</div>
 			</div>
 
@@ -198,6 +232,17 @@ export function DocumentsSidebar({ open, onOpenChange }: DocumentsSidebarProps) 
 			</div>
 		</>
 	);
+
+	if (isDocked && open && !isMobile) {
+		return (
+			<aside
+				className="h-full w-[480px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
+				aria-label={t("title") || "Documents"}
+			>
+				{documentsContent}
+			</aside>
+		);
+	}
 
 	return (
 		<SidebarSlideOutPanel
