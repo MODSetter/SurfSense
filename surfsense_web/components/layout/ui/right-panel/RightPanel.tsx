@@ -54,8 +54,8 @@ export function RightPanelExpandButton() {
 					<Button
 						variant="ghost"
 						size="icon"
-					onClick={() => startTransition(() => setCollapsed(false))}
-					className="h-8 w-8 shrink-0"
+						onClick={() => startTransition(() => setCollapsed(false))}
+						className="h-8 w-8 shrink-0"
 					>
 						<PanelRight className="h-4 w-4" />
 						<span className="sr-only">Expand panel</span>
@@ -109,57 +109,57 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 	return (
 		<AnimatePresence>
 			{isVisible && (
-			<motion.aside
-				key="right-panel"
-				initial={{ width: 0, opacity: 0 }}
-				animate={{ width: targetWidth, opacity: 1 }}
-				exit={{ width: 0, opacity: 0 }}
-				transition={{
-					width: { type: "spring", stiffness: 400, damping: 35, mass: 0.8 },
-					opacity: { duration: 0.2, ease: "easeOut" },
-				}}
-				style={{ willChange: "width, opacity", contain: "layout style" }}
-				className="flex h-full shrink-0 flex-col border-l bg-background overflow-hidden"
-			>
-				<div className="relative flex-1 min-h-0 overflow-hidden">
-					<AnimatePresence mode="popLayout" initial={false}>
-						{contentKey === "sources" && documentsPanel && (
-							<motion.div
-								key="sources"
-								initial={{ opacity: 0, x: 8 }}
-								animate={{ opacity: 1, x: 0 }}
-								exit={{ opacity: 0, x: -8 }}
-								transition={{ duration: 0.15, ease: "easeOut" }}
-								className="h-full"
-							>
-								<DocumentsSidebar
-									open={documentsPanel.open}
-									onOpenChange={documentsPanel.onOpenChange}
-									embedded
-									headerAction={collapseButton}
-								/>
-							</motion.div>
-						)}
-						{contentKey === "report" && (
-							<motion.div
-								key="report"
-								initial={{ opacity: 0, x: 8 }}
-								animate={{ opacity: 1, x: 0 }}
-								exit={{ opacity: 0, x: -8 }}
-								transition={{ duration: 0.15, ease: "easeOut" }}
-								className="h-full"
-							>
-								<div className="flex h-full flex-col">
-									<ReportPanelContent
-										reportId={reportState.reportId!}
-										title={reportState.title || "Report"}
-										onClose={closeReport}
-										shareToken={reportState.shareToken}
+				<motion.aside
+					key="right-panel"
+					initial={{ width: 0, opacity: 0 }}
+					animate={{ width: targetWidth, opacity: 1 }}
+					exit={{ width: 0, opacity: 0 }}
+					transition={{
+						width: { type: "spring", stiffness: 400, damping: 35, mass: 0.8 },
+						opacity: { duration: 0.2, ease: "easeOut" },
+					}}
+					style={{ willChange: "width, opacity", contain: "layout style" }}
+					className="flex h-full shrink-0 flex-col border-l bg-background overflow-hidden"
+				>
+					<div className="relative flex-1 min-h-0 overflow-hidden">
+						<AnimatePresence mode="popLayout" initial={false}>
+							{contentKey === "sources" && documentsPanel && (
+								<motion.div
+									key="sources"
+									initial={{ opacity: 0, x: 8 }}
+									animate={{ opacity: 1, x: 0 }}
+									exit={{ opacity: 0, x: -8 }}
+									transition={{ duration: 0.15, ease: "easeOut" }}
+									className="h-full"
+								>
+									<DocumentsSidebar
+										open={documentsPanel.open}
+										onOpenChange={documentsPanel.onOpenChange}
+										embedded
+										headerAction={collapseButton}
 									/>
-								</div>
-							</motion.div>
-						)}
-					</AnimatePresence>
+								</motion.div>
+							)}
+							{contentKey === "report" && (
+								<motion.div
+									key="report"
+									initial={{ opacity: 0, x: 8 }}
+									animate={{ opacity: 1, x: 0 }}
+									exit={{ opacity: 0, x: -8 }}
+									transition={{ duration: 0.15, ease: "easeOut" }}
+									className="h-full"
+								>
+									<div className="flex h-full flex-col">
+										<ReportPanelContent
+											reportId={reportState.reportId!}
+											title={reportState.title || "Report"}
+											onClose={closeReport}
+											shareToken={reportState.shareToken}
+										/>
+									</div>
+								</motion.div>
+							)}
+						</AnimatePresence>
 					</div>
 				</motion.aside>
 			)}

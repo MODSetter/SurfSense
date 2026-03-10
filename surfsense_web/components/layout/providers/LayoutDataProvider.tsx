@@ -37,9 +37,9 @@ import {
 import { Input } from "@/components/ui/input";
 import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useAnnouncements } from "@/hooks/use-announcements";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
@@ -316,13 +316,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				isActive: isInboxSidebarOpen,
 				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
 			},
-		{
-			title: "Documents",
-			url: "#documents",
-			icon: SquareLibrary,
-			isActive: isMobile ? isDocumentsSidebarOpen : (isDocumentsSidebarOpen && !isRightPanelCollapsed),
-			statusIndicator: documentsProcessingStatus,
-		},
+			{
+				title: "Documents",
+				url: "#documents",
+				icon: SquareLibrary,
+				isActive: isMobile
+					? isDocumentsSidebarOpen
+					: isDocumentsSidebarOpen && !isRightPanelCollapsed,
+				statusIndicator: documentsProcessingStatus,
+			},
 			{
 				title: "Announcements",
 				url: "#announcements",
@@ -331,16 +333,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 			},
 		],
-	[
-		isMobile,
-		isInboxSidebarOpen,
-		isDocumentsSidebarOpen,
-		isRightPanelCollapsed,
-		totalUnreadCount,
-		isAnnouncementsSidebarOpen,
-		announcementUnreadCount,
-		documentsProcessingStatus,
-	]
+		[
+			isMobile,
+			isInboxSidebarOpen,
+			isDocumentsSidebarOpen,
+			isRightPanelCollapsed,
+			totalUnreadCount,
+			isAnnouncementsSidebarOpen,
+			announcementUnreadCount,
+			documentsProcessingStatus,
+		]
 	);
 
 	// Handlers

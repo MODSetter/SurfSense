@@ -277,38 +277,42 @@ export function LayoutShell({
 
 					{/* Main container with sidebar and content - relative for inbox positioning */}
 					<div className="relative flex flex-1 rounded-xl border bg-background overflow-hidden">
-					<Sidebar
-						searchSpace={searchSpace}
-						isCollapsed={isCollapsed}
-						onToggleCollapse={toggleCollapsed}
-						navItems={navItems}
-						onNavItemClick={onNavItemClick}
-						chats={chats}
-						sharedChats={sharedChats}
-						activeChatId={activeChatId}
-						onNewChat={onNewChat}
-						onChatSelect={onChatSelect}
-						onChatRename={onChatRename}
-						onChatDelete={onChatDelete}
-						onChatArchive={onChatArchive}
-						onViewAllSharedChats={onViewAllSharedChats}
-						onViewAllPrivateChats={onViewAllPrivateChats}
-						user={user}
-						onSettings={onSettings}
-						onManageMembers={onManageMembers}
-						onUserSettings={onUserSettings}
-						onLogout={onLogout}
-						pageUsage={pageUsage}
-						theme={theme}
-						setTheme={setTheme}
-						className="hidden md:flex border-r shrink-0"
-						isLoadingChats={isLoadingChats}
-						sidebarWidth={sidebarWidth}
-						onResizeMouseDown={onResizeMouseDown}
-						isResizing={isResizing}
-					/>
+						<Sidebar
+							searchSpace={searchSpace}
+							isCollapsed={isCollapsed}
+							onToggleCollapse={toggleCollapsed}
+							navItems={navItems}
+							onNavItemClick={onNavItemClick}
+							chats={chats}
+							sharedChats={sharedChats}
+							activeChatId={activeChatId}
+							onNewChat={onNewChat}
+							onChatSelect={onChatSelect}
+							onChatRename={onChatRename}
+							onChatDelete={onChatDelete}
+							onChatArchive={onChatArchive}
+							onViewAllSharedChats={onViewAllSharedChats}
+							onViewAllPrivateChats={onViewAllPrivateChats}
+							user={user}
+							onSettings={onSettings}
+							onManageMembers={onManageMembers}
+							onUserSettings={onUserSettings}
+							onLogout={onLogout}
+							pageUsage={pageUsage}
+							theme={theme}
+							setTheme={setTheme}
+							className="hidden md:flex border-r shrink-0"
+							isLoadingChats={isLoadingChats}
+							sidebarWidth={sidebarWidth}
+							onResizeMouseDown={onResizeMouseDown}
+							isResizing={isResizing}
+						/>
 
-						<motion.main layout="position" style={{ contain: "inline-size" }} className="flex-1 flex flex-col min-w-0">
+						<motion.main
+							layout="position"
+							style={{ contain: "inline-size" }}
+							className="flex-1 flex flex-col min-w-0"
+						>
 							<Header />
 
 							<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
