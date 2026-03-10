@@ -1,4 +1,5 @@
 import { atom } from "jotai";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 
 interface ReportPanelState {
 	isOpen: boolean;
@@ -43,10 +44,15 @@ export const openReportPanelAtom = atom(
 			wordCount: wordCount ?? null,
 			shareToken: shareToken ?? null,
 		});
+		set(documentsSidebarOpenAtom, false);
 	}
 );
 
 /** Action atom to close the report panel */
-export const closeReportPanelAtom = atom(null, (_, set) => {
+export const closeReportPanelAtom = atom(null, (get, set) => {
+	const wasOpen = get(reportPanelAtom).isOpen;
 	set(reportPanelAtom, initialState);
+	if (wasOpen) {
+		set(documentsSidebarOpenAtom, true);
+	}
 });
