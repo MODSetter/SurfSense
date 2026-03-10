@@ -9,7 +9,14 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardFooter,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -108,37 +115,26 @@ export default function MorePagesPage() {
 									<div
 										className={cn(
 											"flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-											task.completed
-												? "bg-primary text-primary-foreground"
-												: "bg-muted"
+											task.completed ? "bg-primary text-primary-foreground" : "bg-muted"
 										)}
 									>
-										{task.completed ? (
-											<Check className="h-4 w-4" />
-										) : (
-											<Star className="h-4 w-4" />
-										)}
+										{task.completed ? <Check className="h-4 w-4" /> : <Star className="h-4 w-4" />}
 									</div>
 									<div className="min-w-0 flex-1">
 										<p
 											className={cn(
 												"text-sm font-medium",
-												task.completed &&
-													"text-muted-foreground line-through"
+												task.completed && "text-muted-foreground line-through"
 											)}
 										>
 											{task.title}
 										</p>
-										<p className="text-xs text-muted-foreground">
-											+{task.pages_reward} pages
-										</p>
+										<p className="text-xs text-muted-foreground">+{task.pages_reward} pages</p>
 									</div>
 									<Button
 										variant={task.completed ? "ghost" : "outline"}
 										size="sm"
-										disabled={
-											task.completed || completeMutation.isPending
-										}
+										disabled={task.completed || completeMutation.isPending}
 										onClick={() => handleTaskClick(task)}
 										asChild={!task.completed}
 									>
@@ -181,8 +177,9 @@ export default function MorePagesPage() {
 							</Badge>
 						</div>
 						<CardDescription>
-							For a limited time, get <span className="font-semibold text-foreground">6,000 additional pages</span> at
-							no cost. Contact us and we&apos;ll upgrade your account instantly.
+							For a limited time, get{" "}
+							<span className="font-semibold text-foreground">6,000 additional pages</span> at no
+							cost. Contact us and we&apos;ll upgrade your account instantly.
 						</CardDescription>
 					</CardHeader>
 					<CardFooter className="pt-2">
@@ -196,9 +193,7 @@ export default function MorePagesPage() {
 							<DialogContent className="select-none sm:max-w-sm">
 								<DialogHeader>
 									<DialogTitle>Get in Touch</DialogTitle>
-									<DialogDescription>
-										Pick the option that works best for you.
-									</DialogDescription>
+									<DialogDescription>Pick the option that works best for you.</DialogDescription>
 								</DialogHeader>
 								<div className="flex flex-col gap-2">
 									<Button asChild>

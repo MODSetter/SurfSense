@@ -156,9 +156,7 @@ class NotificationsApiService {
 	 * Get unread counts for all categories in a single request.
 	 * Replaces 2 separate getUnreadCount calls (comments + status).
 	 */
-	getBatchUnreadCounts = async (
-		searchSpaceId?: number
-	): Promise<GetBatchUnreadCountResponse> => {
+	getBatchUnreadCounts = async (searchSpaceId?: number): Promise<GetBatchUnreadCountResponse> => {
 		const params = new URLSearchParams();
 		if (searchSpaceId !== undefined) {
 			params.append("search_space_id", String(searchSpaceId));

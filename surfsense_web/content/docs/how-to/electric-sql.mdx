@@ -5,7 +5,7 @@ description: Setting up Electric SQL for real-time data synchronization in SurfS
 
 [Electric SQL](https://electric-sql.com/) enables real-time data synchronization in SurfSense, providing instant updates for inbox items, document indexing status, and connector sync progress without manual refresh. The frontend uses [PGlite](https://pglite.dev/) (a lightweight PostgreSQL in the browser) to maintain a local database that syncs with the backend via Electric SQL.
 
-## What Does Electric SQL Do?
+## What does Electric SQL do?
 
 When you index documents or receive inbox updates, Electric SQL pushes updates to your browser in real-time. The data flows like this:
 
@@ -23,45 +23,24 @@ This means:
 
 ## Docker Setup
 
-The `docker-compose.yml` includes the Electric SQL service. It is pre-configured to connect to the Docker-managed `db` container out of the box.
+- The `docker-compose.yml` includes the Electric SQL service, pre-configured to connect to the Docker-managed `db` container.
+- No additional configuration is required. Electric SQL works with the Docker PostgreSQL instance out of the box.
 
-```bash
-docker compose up -d
-```
+## Manual Setup (Development Only)
 
-The Electric SQL service configuration in `docker-compose.yml`:
-
-```yaml
-electric:
-  image: electricsql/electric:1.4.6
-  ports:
-    - "${ELECTRIC_PORT:-5133}:3000"
-  environment:
-    DATABASE_URL: ${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
-    ELECTRIC_INSECURE: "true"
-    ELECTRIC_WRITE_TO_PG_MODE: direct
-  depends_on:
-    db:
-      condition: service_healthy
-```
-
-No additional configuration is required — Electric SQL is pre-configured to work with the Docker PostgreSQL instance.
-
-## Manual Setup
-
-Follow the steps below based on your PostgreSQL setup.
+This section is intended for local development environments. Follow the steps below based on your PostgreSQL setup.
 
 ### Step 1: Configure Environment Variables
 
 Ensure your environment files are configured. If you haven't set up SurfSense yet, follow the [Manual Installation Guide](/docs/manual-installation) first.
 
-For Electric SQL, verify these variables are set in `docker/.env`:
+For Electric SQL, verify these variables are set:
+
+**Backend (`surfsense_backend/.env`):**
 
 ```bash
-ELECTRIC_PORT=5133
 ELECTRIC_DB_USER=electric
 ELECTRIC_DB_PASSWORD=electric_password
-NEXT_PUBLIC_ELECTRIC_URL=http://localhost:5133
 ```
 
 **Frontend (`surfsense_web/.env`):**
@@ -71,22 +50,31 @@ NEXT_PUBLIC_ELECTRIC_URL=http://localhost:5133
 NEXT_PUBLIC_ELECTRIC_AUTH_MODE=insecure
 ```
 
+Next, choose the option that matches your PostgreSQL setup:
+
 ---
 
 ### Option A: Using Docker PostgreSQL
 
-If you're using the Docker-managed PostgreSQL instance, no extra configuration is needed. Just start the services:
+If you're using the Docker-managed PostgreSQL instance, no extra configuration is needed. Just start the services using the development compose file (which exposes the PostgreSQL port to your host machine):
 
 ```bash
-docker compose up -d db electric
+docker compose -f docker-compose.dev.yml up -d db electric
 ```
 
-Then run the database migration and start the backend:
+Then run the database migration, start the backend, and launch the frontend:
 
 ```bash
 cd surfsense_backend
 uv run alembic upgrade head
 uv run main.py
+```
+
+In a separate terminal, start the frontend:
+
+```bash
+cd surfsense_web
+pnpm run dev
 ```
 
 Electric SQL is now configured and connected to your Docker PostgreSQL database.
@@ -148,7 +136,7 @@ ELECTRIC_DATABASE_URL=postgresql://electric:electric_password@host.docker.intern
 **4. Start Electric SQL only (skip the Docker `db` container):**
 
 ```bash
-docker compose up -d --no-deps electric
+docker compose -f docker-compose.dev.yml up -d --no-deps electric
 ```
 
 The `--no-deps` flag starts only the `electric` service without starting the Docker-managed `db` container.
@@ -161,18 +149,32 @@ uv run alembic upgrade head
 uv run main.py
 ```
 
+In a separate terminal, start the frontend:
+
+```bash
+cd surfsense_web
+pnpm run dev
+```
+
 Electric SQL is now configured and connected to your local PostgreSQL database.
 
 ## Environment Variables Reference
 
+**Required for manual setup:**
+
 | Variable | Location | Description | Default |
 |----------|----------|-------------|---------|
-| `ELECTRIC_PORT` | `docker/.env` | Port to expose Electric SQL | `5133` |
-| `ELECTRIC_DB_USER` | `docker/.env` | Database user for Electric replication | `electric` |
-| `ELECTRIC_DB_PASSWORD` | `docker/.env` | Database password for Electric replication | `electric_password` |
-| `ELECTRIC_DATABASE_URL` | `docker/.env` | Full connection URL override for Electric. Set to use `host.docker.internal` when pointing at a local Postgres instance | *(built from above defaults)* |
-| `NEXT_PUBLIC_ELECTRIC_URL` | Frontend `.env` | Electric SQL server URL (PGlite connects to this) | `http://localhost:5133` |
-| `NEXT_PUBLIC_ELECTRIC_AUTH_MODE` | Frontend `.env` | Authentication mode (`insecure` for dev, `secure` for production) | `insecure` |
+| `ELECTRIC_DB_USER` | `surfsense_backend/.env` | Database user for Electric replication | `electric` |
+| `ELECTRIC_DB_PASSWORD` | `surfsense_backend/.env` | Database password for Electric replication | `electric_password` |
+| `NEXT_PUBLIC_ELECTRIC_URL` | `surfsense_web/.env` | Electric SQL server URL (PGlite connects to this) | `http://localhost:5133` |
+| `NEXT_PUBLIC_ELECTRIC_AUTH_MODE` | `surfsense_web/.env` | Authentication mode (`insecure` for dev, `secure` for production) | `insecure` |
+
+**Optional / Docker-only:**
+
+| Variable | Location | Description | Default |
+|----------|----------|-------------|---------|
+| `ELECTRIC_PORT` | `docker/.env` | Port to expose Electric SQL on the host | `5133` (dev), `5929` (production) |
+| `ELECTRIC_DATABASE_URL` | `docker/.env` | Full connection URL override for Electric. Only needed for Option B (local Postgres via `host.docker.internal`) | *(built from above defaults)* |
 
 ## Verify Setup
 

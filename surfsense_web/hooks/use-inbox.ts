@@ -59,7 +59,7 @@ export function useInbox(
 	searchSpaceId: number | null,
 	category: NotificationCategory,
 	prefetchedUnread?: { total_unread: number; recent_unread: number } | null,
-	prefetchedUnreadReady = true,
+	prefetchedUnreadReady = true
 ) {
 	const electricClient = useElectricClient();
 

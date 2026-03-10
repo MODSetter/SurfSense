@@ -700,7 +700,12 @@ function PermissionsEditor({
 								tabIndex={0}
 								className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors"
 								onClick={() => toggleCategoryExpanded(category)}
-								onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleCategoryExpanded(category); } }}
+								onKeyDown={(e) => {
+									if (e.key === "Enter" || e.key === " ") {
+										e.preventDefault();
+										toggleCategoryExpanded(category);
+									}
+								}}
 							>
 								<div className="flex items-center gap-2.5">
 									<IconComponent className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -763,7 +768,12 @@ function PermissionsEditor({
 														isSelected ? "bg-muted/60 hover:bg-muted/80" : "hover:bg-muted/40"
 													)}
 													onClick={() => onTogglePermission(perm.value)}
-													onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onTogglePermission(perm.value); } }}
+													onKeyDown={(e) => {
+														if (e.key === "Enter" || e.key === " ") {
+															e.preventDefault();
+															onTogglePermission(perm.value);
+														}
+													}}
 												>
 													<div className="flex-1 min-w-0 text-left">
 														<span className="text-sm font-medium">{actionLabel}</span>

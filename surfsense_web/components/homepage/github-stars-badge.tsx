@@ -1,8 +1,16 @@
 "use client";
 
 import { IconBrandGithub } from "@tabler/icons-react";
+import { StarIcon } from "lucide-react";
 import type { HTMLMotionProps, UseInViewOptions } from "motion/react";
-import { motion, useInView, useMotionValue, useSpring } from "motion/react";
+import {
+	AnimatePresence,
+	motion,
+	useInView,
+	useMotionValue,
+	useSpring,
+	useTransform,
+} from "motion/react";
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +51,122 @@ function useIsInView<T extends HTMLElement = HTMLElement>(
 	});
 	const isInView = !inView || inViewResult;
 	return { ref: localRef, isInView };
+}
+
+// ---------------------------------------------------------------------------
+// Particles (for star burst effect on completion)
+// ---------------------------------------------------------------------------
+type ParticlesContextType = { animate: boolean; isInView: boolean };
+const [ParticlesProvider, useParticles] =
+	getStrictContext<ParticlesContextType>("ParticlesContext");
+
+function Particles({
+	ref,
+	animate = true,
+	inView = false,
+	inViewMargin = "0px",
+	inViewOnce = true,
+	children,
+	style,
+	...props
+}: Omit<HTMLMotionProps<"div">, "children"> & {
+	animate?: boolean;
+	children: React.ReactNode;
+} & UseIsInViewOptions) {
+	const { ref: localRef, isInView } = useIsInView(ref as React.Ref<HTMLDivElement>, {
+		inView,
+		inViewOnce,
+		inViewMargin,
+	});
+	return (
+		<ParticlesProvider value={{ animate, isInView }}>
+			<motion.div ref={localRef} style={{ position: "relative", ...style }} {...props}>
+				{children}
+			</motion.div>
+		</ParticlesProvider>
+	);
+}
+
+function ParticlesEffect({
+	side = "top",
+	align = "center",
+	count = 6,
+	radius = 30,
+	spread = 360,
+	duration = 0.8,
+	holdDelay = 0.05,
+	sideOffset = 0,
+	alignOffset = 0,
+	delay = 0,
+	transition,
+	style,
+	...props
+}: Omit<HTMLMotionProps<"div">, "children"> & {
+	side?: "top" | "bottom" | "left" | "right";
+	align?: "start" | "center" | "end";
+	count?: number;
+	radius?: number;
+	spread?: number;
+	duration?: number;
+	holdDelay?: number;
+	sideOffset?: number;
+	alignOffset?: number;
+	delay?: number;
+}) {
+	const { animate, isInView } = useParticles();
+	const isVertical = side === "top" || side === "bottom";
+	const alignPct = align === "start" ? "0%" : align === "end" ? "100%" : "50%";
+
+	const top = isVertical
+		? side === "top"
+			? `calc(0% - ${sideOffset}px)`
+			: `calc(100% + ${sideOffset}px)`
+		: `calc(${alignPct} + ${alignOffset}px)`;
+	const left = isVertical
+		? `calc(${alignPct} + ${alignOffset}px)`
+		: side === "left"
+			? `calc(0% - ${sideOffset}px)`
+			: `calc(100% + ${sideOffset}px)`;
+
+	const containerStyle: React.CSSProperties = {
+		position: "absolute",
+		top,
+		left,
+		transform: "translate(-50%, -50%)",
+	};
+	const angleStep = (spread * (Math.PI / 180)) / Math.max(1, count - 1);
+
+	return (
+		<AnimatePresence>
+			{animate &&
+				isInView &&
+				[...Array(count)].map((_, i) => {
+					const angle = i * angleStep;
+					const x = Math.cos(angle) * radius;
+					const y = Math.sin(angle) * radius;
+					return (
+						<motion.div
+							key={`particle-${angle}`}
+							style={{ ...containerStyle, ...style }}
+							initial={{ scale: 0, opacity: 0 }}
+							animate={{
+								x: `${x}px`,
+								y: `${y}px`,
+								scale: [0, 1, 0],
+								opacity: [0, 1, 0],
+							}}
+							transition={{
+								duration,
+								delay: delay + i * holdDelay,
+								ease: "easeOut",
+								...transition,
+							}}
+							{...props}
+						/>
+					);
+				})}
+		</AnimatePresence>
+	);
 }
 
 // ---------------------------------------------------------------------------
@@ -193,41 +317,17 @@ function AnimatedStarCount({
 	value,
 	itemSize = 22,
 	isRolling = false,
-	animated = true,
 	className,
 	onComplete,
 }: {
 	value: number;
 	itemSize?: number;
 	isRolling?: boolean;
-	animated?: boolean;
 	className?: string;
 	onComplete?: () => void;
 }) {
 	const formatted = numberFormatter.format(value);
 	const chars = formatted.split("");
-
-	if (!animated) {
-		return (
-			<div className="flex items-center">
-				{chars.map((char, idx) => (
-					<div
-						key={`static-${idx}-${char}`}
-						className={className}
-						style={{
-							height: itemSize,
-							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							width: char >= "0" && char <= "9" ? undefined : "0.3em",
-						}}
-					>
-						{char}
-					</div>
-				))}
-			</div>
-		);
-	}
 
 	let totalDigits = 0;
 	for (const c of chars) {
@@ -307,13 +407,13 @@ function NavbarGitHubStars({
 	href = "https://github.com/MODSetter/SurfSense",
 	className,
 }: NavbarGitHubStarsProps) {
-	const [hasMounted, setHasMounted] = React.useState(false);
 	const [stars, setStars] = React.useState(0);
 	const [isLoading, setIsLoading] = React.useState(true);
+	const [isCompleted, setIsCompleted] = React.useState(false);
 
-	React.useEffect(() => {
-		setHasMounted(true);
-	}, []);
+	const fillRaw = useMotionValue(0);
+	const fillSpring = useSpring(fillRaw, { stiffness: 12, damping: 14 });
+	const clipPath = useTransform(fillSpring, (v) => `inset(${100 - v * 100}% 0 0 0)`);
 
 	React.useEffect(() => {
 		const abortController = new AbortController();
@@ -324,6 +424,7 @@ function NavbarGitHubStars({
 			.then((data) => {
 				if (data && typeof data.stargazers_count === "number") {
 					setStars(data.stargazers_count);
+					fillRaw.set(1);
 				}
 			})
 			.catch((err) => {
@@ -333,7 +434,7 @@ function NavbarGitHubStars({
 			})
 			.finally(() => setIsLoading(false));
 		return () => abortController.abort();
-	}, [username, repo]);
+	}, [username, repo, fillRaw]);
 
 	return (
 		<a
@@ -341,20 +442,37 @@ function NavbarGitHubStars({
 			target="_blank"
 			rel="noopener noreferrer"
 			className={cn(
-				"group inline-flex items-center rounded-full border border-neutral-200 bg-white/80 px-3 py-1.5 text-sm backdrop-blur-sm transition-colors dark:border-neutral-800 dark:bg-neutral-950/80",
-				"hover:bg-neutral-100 dark:hover:bg-neutral-900",
+				"group flex items-center gap-2 rounded-full px-3 py-1.5 transition-colors",
 				className
 			)}
 		>
-			<IconBrandGithub className="h-5 w-5 shrink-0 text-neutral-600 transition-colors dark:text-neutral-300 group-hover:text-neutral-800 dark:group-hover:text-neutral-100" />
-			<div className="ml-2 flex items-center text-neutral-500 transition-colors dark:text-neutral-400 group-hover:text-neutral-800 dark:group-hover:text-neutral-200">
+			<IconBrandGithub className="h-5 w-5 text-neutral-600 dark:text-neutral-300 shrink-0" />
+			<div className="flex items-center gap-1 rounded-md bg-neutral-100 dark:bg-neutral-800 group-hover:bg-neutral-200 dark:group-hover:bg-neutral-700 px-2 py-0.5 transition-colors">
 				<AnimatedStarCount
 					value={isLoading ? 10000 : stars}
 					itemSize={ITEM_SIZE}
-					isRolling={hasMounted && isLoading}
-					animated={hasMounted}
+					isRolling={isLoading}
 					className="text-sm font-semibold tabular-nums text-neutral-500 dark:text-neutral-400 group-hover:text-neutral-800 dark:group-hover:text-neutral-200 transition-colors"
+					onComplete={() => setIsCompleted(true)}
 				/>
+				<Particles animate={isCompleted}>
+					<div className="relative size-4">
+						<StarIcon
+							aria-hidden="true"
+							className="absolute inset-0 size-4 fill-neutral-400 stroke-neutral-400 dark:fill-neutral-700 dark:stroke-neutral-700 group-hover:fill-neutral-600 group-hover:stroke-neutral-600 dark:group-hover:fill-neutral-300 dark:group-hover:stroke-neutral-300 transition-colors"
+						/>
+						<motion.div className="absolute inset-0" style={{ clipPath }}>
+							<StarIcon
+								aria-hidden="true"
+								className="size-4 fill-neutral-300 stroke-neutral-300 dark:fill-neutral-400 dark:stroke-neutral-400 group-hover:fill-neutral-500 group-hover:stroke-neutral-500 dark:group-hover:fill-neutral-200 dark:group-hover:stroke-neutral-200 transition-colors"
+							/>
+						</motion.div>
+					</div>
+					<ParticlesEffect
+						delay={0.3}
+						className="size-1 rounded-full bg-neutral-300 dark:bg-neutral-400"
+					/>
+				</Particles>
 			</div>
 		</a>
 	);
