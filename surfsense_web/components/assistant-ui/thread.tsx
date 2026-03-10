@@ -14,7 +14,7 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
-	Cable,
+	Unplug,
 	CheckIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
@@ -35,6 +35,7 @@ import {
 	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
+import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -486,6 +487,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const connectorCount = connectors?.length ?? 0;
+	const { data: typeCounts } = useAtomValue(documentTypeCountsAtom);
+	const totalDocuments = useMemo(
+		() => (typeCounts ? Object.values(typeCounts).reduce((sum, n) => sum + n, 0) : 0),
+		[typeCounts]
+	);
 
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
@@ -542,23 +548,25 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<Upload className="size-4 shrink-0" />
 							Upload files
 						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() => {
-								setAddMenuOpen(false);
-								setDocumentsSidebarOpen(true);
-							}}
-						>
-							<SquareLibrary className="size-4 shrink-0" />
-							Documents
-						</DropdownMenuItem>
+						{totalDocuments > 0 && (
+							<DropdownMenuItem
+								onClick={() => {
+									setAddMenuOpen(false);
+									setDocumentsSidebarOpen(true);
+								}}
+							>
+								<SquareLibrary className="size-4 shrink-0" />
+								Manage Documents
+							</DropdownMenuItem>
+						)}
 						<DropdownMenuItem
 							onClick={() => {
 								setAddMenuOpen(false);
 								connectorRef.current?.open();
 							}}
 						>
-							<Cable className="size-4 shrink-0" />
-							Manage connectors
+							<Unplug className="size-4 shrink-0" />
+							{connectorCount > 0 ? "Manage connectors" : "Connect your tools"}
 							{connectorCount > 0 && (
 								<span className="ml-auto text-xs text-muted-foreground">
 									{connectorCount}

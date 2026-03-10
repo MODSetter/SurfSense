@@ -1,7 +1,7 @@
 "use client";
 
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Unplug } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -220,9 +220,10 @@ export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDocke
 					onClick={() => setConnectorDialogOpen(true)}
 					className="flex items-center gap-2 min-w-0 flex-1 text-left"
 				>
-					<span className="truncate text-xs text-muted-foreground">
-						Connect your tools
-					</span>
+				<Unplug className="size-4 shrink-0 text-muted-foreground" />
+				<span className="truncate text-xs text-muted-foreground">
+					Connect your tools
+				</span>
 					<AvatarGroup className="ml-auto shrink-0">
 						{SHOWCASE_CONNECTORS.map(({ type, label }, i) => (
 							<Tooltip key={type}>
