@@ -3054,3 +3054,78 @@ async def test_mcp_server_connection(
             "message": f"Failed to test connection: {e!s}",
             "tools": [],
         }
+
+
+# ---------------------------------------------------------------------------
+# Google Picker token endpoint (unified for native & Composio Drive)
+# ---------------------------------------------------------------------------
+
+DRIVE_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+}
+
+
+@router.get("/connectors/{connector_id}/drive-picker-token")
+async def get_drive_picker_token(
+    connector_id: int,
+    session: AsyncSession = Depends(get_async_session),
+    user: User = Depends(current_active_user),
+):
+    """Return an OAuth access token + client ID for the Google Picker API."""
+    result = await session.execute(
+        select(SearchSourceConnector).filter(SearchSourceConnector.id == connector_id)
+    )
+    connector = result.scalars().first()
+    if not connector:
+        raise HTTPException(status_code=404, detail="Connector not found")
+
+    if connector.connector_type not in DRIVE_CONNECTOR_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="This endpoint is only for Google Drive connectors",
+        )
+
+    picker_api_key = config.GOOGLE_PICKER_API_KEY
+    if not picker_api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="GOOGLE_PICKER_API_KEY is not configured on the server",
+        )
+
+    try:
+        if connector.connector_type == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR:
+            from app.connectors.google_drive.credentials import get_valid_credentials
+
+            credentials = await get_valid_credentials(session, connector_id)
+            return {
+                "access_token": credentials.token,
+                "client_id": config.GOOGLE_OAUTH_CLIENT_ID,
+                "picker_api_key": picker_api_key,
+            }
+
+        # Composio path
+        composio_account_id = (connector.config or {}).get(
+            "composio_connected_account_id"
+        )
+        if not composio_account_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Composio connected account not found. Please reconnect.",
+            )
+        service = ComposioService()
+        access_token = service.get_access_token(composio_account_id)
+        return {
+            "access_token": access_token,
+            "client_id": config.GOOGLE_OAUTH_CLIENT_ID,
+            "picker_api_key": picker_api_key,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get Drive picker token: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to retrieve access token: {e!s}",
+        ) from e

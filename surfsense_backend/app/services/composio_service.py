@@ -247,6 +247,19 @@ class ComposioService:
             )
             return False
 
+    def get_access_token(self, connected_account_id: str) -> str:
+        """Retrieve the raw OAuth access token for a Composio connected account."""
+        account = self.client.connected_accounts.get(nanoid=connected_account_id)
+        token = getattr(getattr(account, "state", None), "val", None)
+        if token is None:
+            raise ValueError(
+                f"No state.val on connected account {connected_account_id}"
+            )
+        access_token = getattr(token, "access_token", None)
+        if not access_token:
+            raise ValueError(f"No access_token in state.val for {connected_account_id}")
+        return access_token
+
     async def execute_tool(
         self,
         connected_account_id: str,
