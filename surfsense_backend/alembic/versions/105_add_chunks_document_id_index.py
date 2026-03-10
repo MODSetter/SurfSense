@@ -1,7 +1,7 @@
-"""104_add_chunks_document_id_index
+"""105_add_chunks_document_id_index
 
-Revision ID: 104
-Revises: 103
+Revision ID: 105
+Revises: 104
 Create Date: 2026-03-09
 
 Adds a B-tree index on chunks.document_id to speed up chunk lookups
@@ -15,8 +15,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "104"
-down_revision: str | None = "103"
+revision: str = "105"
+down_revision: str | None = "104"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
