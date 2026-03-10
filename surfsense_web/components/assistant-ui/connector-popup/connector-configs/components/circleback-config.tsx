@@ -166,7 +166,7 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 					<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20">
 						<Info className="h-3 w-3 sm:h-4 sm:w-4" />
 						<AlertTitle className="text-xs sm:text-sm">Configuration Instructions</AlertTitle>
-						<AlertDescription className="text-[10px] sm:text-xs !pl-0 mt-1">
+						<AlertDescription className="text-[10px] sm:text-xs mt-1">
 							Configure this URL in Circleback Settings → Automations → Create automation → Send
 							webhook request. The webhook will automatically send meeting notes, transcripts, and
 							action items to this search space.

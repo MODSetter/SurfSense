@@ -124,9 +124,9 @@ export const WebcrawlerConfig: FC<ConnectorConfigProps> = ({ connector, onConfig
 			</div>
 
 			{/* Info Alert */}
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center gap-2 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<Info className="h-3 w-3 sm:h-4 sm:w-4 shrink-0" />
-				<AlertDescription className="text-[10px] sm:text-xs !pl-0">
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
+				<Info className="size-4 shrink-0" />
+				<AlertDescription className="text-[10px] sm:text-xs">
 					Configuration is saved when you start indexing. You can update these settings anytime from
 					the connector management page.
 				</AlertDescription>
