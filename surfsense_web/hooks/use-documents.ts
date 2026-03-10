@@ -61,7 +61,7 @@ export function toDisplayDoc(item: ApiDocumentInput): DocumentDisplay {
 }
 
 const EMPTY_TYPE_FILTER: DocumentTypeEnum[] = [];
-const INITIAL_PAGE_SIZE = 20;
+const INITIAL_PAGE_SIZE = 50;
 const SCROLL_PAGE_SIZE = 5;
 
 function isValidDocument(doc: DocumentElectric): boolean {
