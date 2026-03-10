@@ -79,6 +79,7 @@ import {
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
+import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
 import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
@@ -315,6 +316,16 @@ const Composer: FC = () => {
 			return () => clearTimeout(timeoutId);
 		}
 	}, [isThreadEmpty]);
+
+	// Close document picker when a slide-out panel (inbox, shared/private chats) opens
+	useEffect(() => {
+		const handler = () => {
+			setShowDocumentPopover(false);
+			setMentionQuery("");
+		};
+		window.addEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
+		return () => window.removeEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
+	}, []);
 
 	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
