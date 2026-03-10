@@ -563,6 +563,7 @@ export const useConnectorDialog = () => {
 					periodic_indexing_enabled: false,
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
+					enable_summary: false,
 				},
 				queryParams: {
 					search_space_id: searchSpaceId,
@@ -667,6 +668,7 @@ export const useConnectorDialog = () => {
 						connector_type: connectorData.connector_type as EnumConnectorName,
 						is_active: true,
 						next_scheduled_at: connectorData.next_scheduled_at as string | null,
+						enable_summary: false,
 					},
 					queryParams: {
 						search_space_id: searchSpaceId,
