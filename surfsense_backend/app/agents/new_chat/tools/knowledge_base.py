@@ -647,6 +647,14 @@ async def search_knowledge_base_async(
         top_k,
     )
 
+    # --- Fast-path: no connectors left after filtering ---
+    if not connectors:
+        perf.info(
+            "[kb_search] TOTAL in %.3fs — no connectors to search, returning empty",
+            time.perf_counter() - t0,
+        )
+        return "No documents found in the knowledge base. The search space has no indexed content yet."
+
     # --- Fast-path: degenerate queries (*, **, empty, etc.) ---
     # Semantic embedding of '*' is noise and plainto_tsquery('english', '*')
     # yields an empty tsquery, so both retrieval signals are useless.

@@ -15,6 +15,7 @@ from sqlalchemy import (
     Column,
     Enum as SQLAlchemyEnum,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -1423,6 +1424,24 @@ class Log(BaseModel, TimestampMixin):
 
 class Notification(BaseModel, TimestampMixin):
     __tablename__ = "notifications"
+    __table_args__ = (
+        # Composite index for unread-count queries that filter by
+        # (user_id, read, type) and order by created_at.
+        Index(
+            "ix_notifications_user_read_type_created",
+            "user_id",
+            "read",
+            "type",
+            "created_at",
+        ),
+        # Covers the common list query: user_id + search_space_id + created_at DESC
+        Index(
+            "ix_notifications_user_space_created",
+            "user_id",
+            "search_space_id",
+            "created_at",
+        ),
+    )
 
     user_id = Column(
         UUID(as_uuid=True),
@@ -1431,10 +1450,13 @@ class Notification(BaseModel, TimestampMixin):
         index=True,
     )
     search_space_id = Column(
-        Integer, ForeignKey("searchspaces.id", ondelete="CASCADE"), nullable=True
+        Integer,
+        ForeignKey("searchspaces.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
     )
     type = Column(
-        String(50), nullable=False
+        String(50), nullable=False, index=True
     )  # 'connector_indexing', 'document_processing', etc.
     title = Column(String(200), nullable=False)
     message = Column(Text, nullable=False)

@@ -10,6 +10,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
+import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -37,6 +38,7 @@ import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
+import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
@@ -131,10 +133,38 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const userId = user?.id ? String(user.id) : null;
 	const numericSpaceId = Number(searchSpaceId) || null;
 
-	const commentsInbox = useInbox(userId, numericSpaceId, "comments");
-	const statusInbox = useInbox(userId, numericSpaceId, "status");
+	// Batch-fetch unread counts for all categories in a single request
+	// instead of 2 separate /unread-count calls.
+	const { data: batchUnread, isLoading: isBatchUnreadLoading } = useQuery({
+		queryKey: cacheKeys.notifications.batchUnreadCounts(numericSpaceId),
+		queryFn: () => notificationsApiService.getBatchUnreadCounts(numericSpaceId ?? undefined),
+		enabled: !!userId && !!numericSpaceId,
+		staleTime: 30_000,
+	});
+
+	const commentsInbox = useInbox(
+		userId,
+		numericSpaceId,
+		"comments",
+		batchUnread?.comments,
+		!isBatchUnreadLoading
+	);
+	const statusInbox = useInbox(
+		userId,
+		numericSpaceId,
+		"status",
+		batchUnread?.status,
+		!isBatchUnreadLoading
+	);
 
 	const totalUnreadCount = commentsInbox.unreadCount + statusInbox.unreadCount;
+
+	// Sync status inbox items to a shared atom so child components
+	// (e.g. ConnectorPopup) can read them without creating duplicate useInbox hooks.
+	const setStatusInboxItems = useSetAtom(statusInboxItemsAtom);
+	useEffect(() => {
+		setStatusInboxItems(statusInbox.inboxItems);
+	}, [statusInbox.inboxItems, setStatusInboxItems]);
 
 	// Document processing status — drives sidebar status indicator (spinner / check / error)
 	const documentsProcessingStatus = useDocumentsProcessing(numericSpaceId);

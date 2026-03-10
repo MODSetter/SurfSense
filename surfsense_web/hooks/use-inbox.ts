@@ -57,7 +57,9 @@ function getSyncCutoffDate(): string {
 export function useInbox(
 	userId: string | null,
 	searchSpaceId: number | null,
-	category: NotificationCategory
+	category: NotificationCategory,
+	prefetchedUnread?: { total_unread: number; recent_unread: number } | null,
+	prefetchedUnreadReady = true,
 ) {
 	const electricClient = useElectricClient();
 
@@ -77,9 +79,12 @@ export function useInbox(
 	const olderUnreadOffsetRef = useRef<number | null>(null);
 	const apiUnreadTotalRef = useRef(0);
 
-	// EFFECT 1: Fetch first page + unread count from API with category filter
+	// EFFECT 1: Fetch first page + unread count from API with category filter.
+	// When prefetchedUnreadReady=false, we wait for the batch query to settle
+	// before deciding whether we need an individual unread-count fallback call.
 	useEffect(() => {
 		if (!userId || !searchSpaceId) return;
+		if (!prefetchedUnreadReady) return;
 
 		let cancelled = false;
 
@@ -94,15 +99,22 @@ export function useInbox(
 
 		const fetchInitialData = async () => {
 			try {
+				const notificationsPromise = notificationsApiService.getNotifications({
+					queryParams: {
+						search_space_id: searchSpaceId,
+						category,
+						limit: INITIAL_PAGE_SIZE,
+					},
+				});
+
+				// Use prefetched counts when available, otherwise fetch individually.
+				const unreadPromise = prefetchedUnread
+					? Promise.resolve(prefetchedUnread)
+					: notificationsApiService.getUnreadCount(searchSpaceId, undefined, category);
+
 				const [notificationsResponse, unreadResponse] = await Promise.all([
-					notificationsApiService.getNotifications({
-						queryParams: {
-							search_space_id: searchSpaceId,
-							category,
-							limit: INITIAL_PAGE_SIZE,
-						},
-					}),
-					notificationsApiService.getUnreadCount(searchSpaceId, undefined, category),
+					notificationsPromise,
+					unreadPromise,
 				]);
 
 				if (cancelled) return;
@@ -127,7 +139,7 @@ export function useInbox(
 		return () => {
 			cancelled = true;
 		};
-	}, [userId, searchSpaceId, category]);
+	}, [userId, searchSpaceId, category, prefetchedUnread, prefetchedUnreadReady]);
 
 	// EFFECT 2: Electric sync (shared shape) + per-instance type-filtered live queries
 	useEffect(() => {
