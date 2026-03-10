@@ -25,6 +25,7 @@ import {
 	SquareIcon,
 	SquareLibrary,
 	Upload,
+	X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -34,6 +35,7 @@ import {
 	mentionedDocumentsAtom,
 	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
@@ -68,6 +70,7 @@ import {
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
+import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
 	DropdownMenu,
@@ -76,6 +79,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
@@ -229,6 +233,78 @@ const ThreadWelcome: FC = () => {
 			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
 				<Composer />
 			</div>
+		</div>
+	);
+};
+
+const BANNER_CONNECTORS = [
+	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
+	{ type: "GOOGLE_GMAIL_CONNECTOR", label: "Gmail" },
+	{ type: "NOTION_CONNECTOR", label: "Notion" },
+	{ type: "YOUTUBE_CONNECTOR", label: "YouTube" },
+	{ type: "SLACK_CONNECTOR", label: "Slack" },
+] as const;
+
+const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
+
+const ConnectToolsBanner: FC = () => {
+	const { data: connectors } = useAtomValue(connectorsAtom);
+	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const [dismissed, setDismissed] = useState(() => {
+		if (typeof window === "undefined") return false;
+		return localStorage.getItem(BANNER_DISMISSED_KEY) === "true";
+	});
+
+	const hasConnectors = (connectors?.length ?? 0) > 0;
+
+	if (dismissed || hasConnectors) return null;
+
+	const handleDismiss = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setDismissed(true);
+		localStorage.setItem(BANNER_DISMISSED_KEY, "true");
+	};
+
+	return (
+		<div className="md:hidden border-t border-border/50 bg-muted-foreground/[0.04]">
+			<button
+				type="button"
+				className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-muted-foreground/[0.06] active:bg-muted-foreground/[0.1]"
+				onClick={() => setConnectorDialogOpen(true)}
+			>
+				<Unplug className="size-4 text-muted-foreground/70 shrink-0" />
+				<span className="text-[13px] text-muted-foreground/80 flex-1">
+					Connect your tools
+				</span>
+				<AvatarGroup className="shrink-0">
+					{BANNER_CONNECTORS.map(({ type, label }, i) => (
+						<Avatar
+							key={type}
+							className="size-6"
+							style={{ zIndex: BANNER_CONNECTORS.length - i }}
+						>
+							<AvatarFallback className="bg-muted text-[10px]">
+								{getConnectorIcon(type, "size-3.5")}
+							</AvatarFallback>
+						</Avatar>
+					))}
+				</AvatarGroup>
+				<span
+					role="button"
+					tabIndex={0}
+					onClick={handleDismiss}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							handleDismiss(e as unknown as React.MouseEvent);
+						}
+					}}
+					className="shrink-0 ml-0.5 p-0.5 text-muted-foreground/40 hover:text-foreground transition-colors"
+					aria-label="Dismiss"
+				>
+					<X className="size-3.5" />
+				</span>
+			</button>
 		</div>
 	);
 };
@@ -440,9 +516,9 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<div className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow">
-				{/* Inline editor with @mention support */}
-				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
+		<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+			{/* Inline editor with @mention support */}
+			<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
 						placeholder={currentPlaceholder}
@@ -481,6 +557,7 @@ const Composer: FC = () => {
 						document.body
 					)}
 				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
+				<ConnectToolsBanner />
 			</div>
 		</ComposerPrimitive.Root>
 	);
@@ -529,7 +606,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
-		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
+		<div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				<DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
 					<DropdownMenuTrigger asChild>

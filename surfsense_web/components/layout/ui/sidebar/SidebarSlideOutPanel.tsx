@@ -49,17 +49,19 @@ export function SidebarSlideOutPanel({
 		<AnimatePresence>
 			{open && (
 				<>
-					{/* Backdrop overlay with blur — only covers the main content area (right of sidebar) */}
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.15 }}
-						style={{ left: isMobile ? 0 : sidebarWidth }}
-						className="absolute inset-y-0 right-0 z-20 bg-black/30 backdrop-blur-sm"
-						onClick={() => onOpenChange(false)}
-						aria-hidden="true"
-					/>
+					{/* Backdrop overlay with blur — desktop only, covers main content area (right of sidebar) */}
+					{!isMobile && (
+						<motion.div
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.15 }}
+							style={{ left: sidebarWidth }}
+							className="absolute inset-y-0 right-0 z-20 bg-black/30 backdrop-blur-sm"
+							onClick={() => onOpenChange(false)}
+							aria-hidden="true"
+						/>
+					)}
 
 					{/* Clip container - positioned at sidebar edge with overflow hidden */}
 					<div
