@@ -1,6 +1,6 @@
 "use client";
 
-import { useAtom, useAtomValue } from "jotai";
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,15 +12,26 @@ import {
 	type SortKey,
 } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsTableShell";
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
+import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useDocumentSearch } from "@/hooks/use-document-search";
 import { useDocuments } from "@/hooks/use-documents";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
+
+const SHOWCASE_CONNECTORS = [
+	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
+	{ type: "GOOGLE_GMAIL_CONNECTOR", label: "Gmail" },
+	{ type: "NOTION_CONNECTOR", label: "Notion" },
+	{ type: "YOUTUBE_CONNECTOR", label: "YouTube" },
+	{ type: "SLACK_CONNECTOR", label: "Slack" },
+] as const;
 
 interface DocumentsSidebarProps {
 	open: boolean;
@@ -35,6 +46,7 @@ export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDocke
 	const params = useParams();
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = Number(params.search_space_id);
+	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
@@ -199,6 +211,38 @@ export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDocke
 						)}
 					</div>
 				</div>
+			</div>
+
+		{/* Connected tools strip */}
+			<div className="shrink-0 mx-4 mb-3 flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
+				<button
+					type="button"
+					onClick={() => setConnectorDialogOpen(true)}
+					className="flex items-center gap-2 min-w-0 flex-1 text-left"
+				>
+					<span className="truncate text-xs text-muted-foreground">
+						Connect your tools
+					</span>
+					<AvatarGroup className="ml-auto shrink-0">
+						{SHOWCASE_CONNECTORS.map(({ type, label }, i) => (
+							<Tooltip key={type}>
+								<TooltipTrigger asChild>
+									<Avatar
+										className="size-6"
+										style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
+									>
+										<AvatarFallback className="bg-muted text-[10px]">
+											{getConnectorIcon(type, "size-3.5")}
+										</AvatarFallback>
+									</Avatar>
+								</TooltipTrigger>
+								<TooltipContent side="top" className="text-xs">
+									{label}
+								</TooltipContent>
+							</Tooltip>
+						))}
+					</AvatarGroup>
+				</button>
 			</div>
 
 			<div className="flex-1 min-h-0 overflow-x-hidden pt-0 flex flex-col">

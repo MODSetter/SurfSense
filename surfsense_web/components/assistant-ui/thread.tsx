@@ -549,6 +549,15 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					</PopoverContent>
 				</Popover>
 				<ConnectorIndicator ref={connectorRef} showTrigger={false} />
+				{sidebarDocs.length > 0 && (
+					<button
+						type="button"
+						onClick={() => setDocumentsSidebarOpen(true)}
+						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
+					>
+						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
+					</button>
+				)}
 			</div>
 
 			{!hasModelConfigured && (
@@ -559,15 +568,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 			)}
 
 			<div className="flex items-center gap-2">
-				{sidebarDocs.length > 0 && (
-					<button
-						type="button"
-						onClick={() => setDocumentsSidebarOpen(true)}
-						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
-					>
-						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
-					</button>
-				)}
 
 				<AssistantIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
