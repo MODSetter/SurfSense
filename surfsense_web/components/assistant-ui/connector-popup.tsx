@@ -19,8 +19,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
-import { useInbox } from "@/hooks/use-inbox";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
@@ -75,12 +75,9 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 	const { data: documentTypeCounts, isFetching: documentTypesLoading } =
 		useAtomValue(documentTypeCountsAtom);
 
-	// Fetch status notifications to detect indexing failures
-	const { inboxItems: statusInboxItems = [] } = useInbox(
-		currentUser?.id ?? null,
-		searchSpaceId ? Number(searchSpaceId) : null,
-		"status"
-	);
+	// Read status inbox items from shared atom (populated by LayoutDataProvider)
+	// instead of creating a duplicate useInbox("status") hook.
+	const statusInboxItems = useAtomValue(statusInboxItemsAtom);
 	const inboxItems = useMemo(
 		() => statusInboxItems.filter((item) => item.type === "connector_indexing"),
 		[statusInboxItems]

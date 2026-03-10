@@ -306,6 +306,9 @@ class ConnectorService:
             document_type,
         )
 
+        if not chunk_results and not doc_results:
+            return []
+
         # Helper to extract document_id from our doc-grouped result
         def _doc_id(item: dict[str, Any]) -> int | None:
             doc = item.get("document", {})

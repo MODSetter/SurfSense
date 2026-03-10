@@ -98,5 +98,7 @@ export const cacheKeys = {
 			["notifications", "search", searchSpaceId, search, tab] as const,
 		sourceTypes: (searchSpaceId: number | null) =>
 			["notifications", "source-types", searchSpaceId] as const,
+		batchUnreadCounts: (searchSpaceId: number | null) =>
+			["notifications", "unread-counts-batch", searchSpaceId] as const,
 	},
 };

@@ -35,7 +35,6 @@ from app.db import (
     shielded_async_session,
 )
 from app.schemas.new_chat import (
-    NewChatMessageAppend,
     NewChatMessageRead,
     NewChatRequest,
     NewChatThreadCreate,
@@ -891,8 +890,16 @@ async def append_message(
                 status_code=400, detail="Missing required field: content"
             )
 
-        # Create message object manually
-        message = NewChatMessageAppend(role=role, content=content)
+        # Validate role early (before any DB work)
+        role_str = role.lower() if isinstance(role, str) else role
+        try:
+            message_role = NewChatMessageRole(role_str)
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid role: {role}. Must be 'user', 'assistant', or 'system'.",
+            ) from None
+
         # Get thread
         result = await session.execute(
             select(NewChatThread).filter(NewChatThread.id == thread_id)
@@ -913,23 +920,11 @@ async def append_message(
         # Check thread-level access based on visibility
         await check_thread_access(session, thread, user)
 
-        # Convert string role to enum
-        role_str = (
-            message.role.lower() if isinstance(message.role, str) else message.role
-        )
-        try:
-            message_role = NewChatMessageRole(role_str)
-        except ValueError:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid role: {message.role}. Must be 'user', 'assistant', or 'system'.",
-            ) from None
-
         # Create message
         db_message = NewChatMessage(
             thread_id=thread_id,
             role=message_role,
-            content=message.content,
+            content=content,
             author_id=user.id,
         )
         session.add(db_message)
@@ -937,11 +932,12 @@ async def append_message(
         # Update thread's updated_at timestamp
         thread.updated_at = datetime.now(UTC)
 
-        # Note: Title generation now happens in stream_new_chat.py after the first response
-        # using LLM to generate a descriptive title (with truncation as fallback)
-
+        # flush assigns the PK/defaults without a round-trip SELECT
+        await session.flush()
         await session.commit()
-        await session.refresh(db_message)
+
+        # Return the in-memory object (already has id from flush) instead of
+        # doing an extra refresh() SELECT.
         return db_message
 
     except HTTPException:

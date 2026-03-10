@@ -10,7 +10,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import desc, func, literal, literal_column, select, update
+from sqlalchemy import case, desc, func, literal, literal_column, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import Notification, User, get_async_session
@@ -106,6 +106,73 @@ class UnreadCountResponse(BaseModel):
 
     total_unread: int
     recent_unread: int  # Within SYNC_WINDOW_DAYS
+
+
+class CategoryUnreadCount(BaseModel):
+    total_unread: int
+    recent_unread: int
+
+
+class BatchUnreadCountResponse(BaseModel):
+    """Batched unread counts for all categories in a single response."""
+
+    comments: CategoryUnreadCount
+    status: CategoryUnreadCount
+
+
+@router.get("/unread-counts-batch", response_model=BatchUnreadCountResponse)
+async def get_unread_counts_batch(
+    search_space_id: int | None = Query(None, description="Filter by search space ID"),
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+) -> BatchUnreadCountResponse:
+    """
+    Get unread counts for all notification categories in a single DB query.
+
+    Replaces multiple separate calls to /unread-count with different category
+    filters, reducing round-trips from 2+ to 1.
+    """
+    cutoff_date = datetime.now(UTC) - timedelta(days=SYNC_WINDOW_DAYS)
+
+    base_filter = [
+        Notification.user_id == user.id,
+        Notification.read == False,  # noqa: E712
+    ]
+
+    if search_space_id is not None:
+        base_filter.append(
+            (Notification.search_space_id == search_space_id)
+            | (Notification.search_space_id.is_(None))
+        )
+
+    is_comments = Notification.type.in_(CATEGORY_TYPES["comments"])
+    is_status = Notification.type.in_(CATEGORY_TYPES["status"])
+    is_recent = Notification.created_at > cutoff_date
+
+    query = select(
+        func.count(case((is_comments, Notification.id))).label("comments_total"),
+        func.count(case((is_comments & is_recent, Notification.id))).label(
+            "comments_recent"
+        ),
+        func.count(case((is_status, Notification.id))).label("status_total"),
+        func.count(case((is_status & is_recent, Notification.id))).label(
+            "status_recent"
+        ),
+    ).where(*base_filter)
+
+    result = await session.execute(query)
+    row = result.one()
+
+    return BatchUnreadCountResponse(
+        comments=CategoryUnreadCount(
+            total_unread=row.comments_total,
+            recent_unread=row.comments_recent,
+        ),
+        status=CategoryUnreadCount(
+            total_unread=row.status_total,
+            recent_unread=row.status_recent,
+        ),
+    )
 
 
 @router.get("/source-types", response_model=SourceTypesResponse)
