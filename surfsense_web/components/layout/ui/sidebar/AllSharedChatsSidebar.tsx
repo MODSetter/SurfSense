@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,6 +40,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { useLongPress } from "@/hooks/use-long-press";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
 	deleteThread,
@@ -84,6 +85,15 @@ export function AllSharedChatsSidebar({
 	const [newTitle, setNewTitle] = useState("");
 	const [isRenaming, setIsRenaming] = useState(false);
 	const debouncedSearchQuery = useDebouncedValue(searchQuery, 300);
+
+	const pendingThreadIdRef = useRef<number | null>(null);
+	const { handlers: longPressHandlers, wasLongPress } = useLongPress(
+		useCallback(() => {
+			if (pendingThreadIdRef.current !== null) {
+				setOpenDropdownId(pendingThreadIdRef.current);
+			}
+		}, [])
+	);
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
@@ -357,7 +367,16 @@ export function AllSharedChatsSidebar({
 									{isMobile ? (
 										<button
 											type="button"
-											onClick={() => handleThreadClick(thread.id)}
+											onClick={() => {
+												if (wasLongPress()) return;
+												handleThreadClick(thread.id);
+											}}
+											onTouchStart={() => {
+												pendingThreadIdRef.current = thread.id;
+												longPressHandlers.onTouchStart();
+											}}
+											onTouchEnd={longPressHandlers.onTouchEnd}
+											onTouchMove={longPressHandlers.onTouchMove}
 											disabled={isBusy}
 											className="flex items-center gap-2 flex-1 min-w-0 text-left overflow-hidden"
 										>
@@ -396,7 +415,9 @@ export function AllSharedChatsSidebar({
 												size="icon"
 												className={cn(
 													"h-6 w-6 shrink-0",
-													"md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
+													isMobile
+														? "opacity-0 pointer-events-none absolute"
+														: "md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100",
 													"transition-opacity"
 												)}
 												disabled={isBusy}
@@ -435,10 +456,7 @@ export function AllSharedChatsSidebar({
 												)}
 											</DropdownMenuItem>
 											<DropdownMenuSeparator />
-											<DropdownMenuItem
-												onClick={() => handleDeleteThread(thread.id)}
-												className="text-destructive focus:text-destructive"
-											>
+											<DropdownMenuItem onClick={() => handleDeleteThread(thread.id)}>
 												<Trash2 className="mr-2 h-4 w-4" />
 												<span>{t("delete") || "Delete"}</span>
 											</DropdownMenuItem>
@@ -496,7 +514,7 @@ export function AllSharedChatsSidebar({
 					/>
 					<DialogFooter className="flex gap-2 sm:justify-end">
 						<Button
-							variant="outline"
+							variant="secondary"
 							onClick={() => setShowRenameDialog(false)}
 							disabled={isRenaming}
 						>

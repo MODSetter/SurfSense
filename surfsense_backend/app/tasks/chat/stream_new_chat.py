@@ -1366,6 +1366,38 @@ async def stream_new_chat(
         del mentioned_documents, mentioned_surfsense_docs, recent_reports
         del langchain_messages, final_query
 
+        # Check if this is the first assistant response so we can generate
+        # a title in parallel with the agent stream (better UX than waiting
+        # until after the full response).
+        assistant_count_result = await session.execute(
+            select(func.count(NewChatMessage.id)).filter(
+                NewChatMessage.thread_id == chat_id,
+                NewChatMessage.role == "assistant",
+            )
+        )
+        is_first_response = (assistant_count_result.scalar() or 0) == 0
+
+        title_task: asyncio.Task[str | None] | None = None
+        if is_first_response:
+
+            async def _generate_title() -> str | None:
+                try:
+                    title_chain = TITLE_GENERATION_PROMPT_TEMPLATE | llm
+                    title_result = await title_chain.ainvoke(
+                        {"user_query": user_query[:500]}
+                    )
+                    if title_result and hasattr(title_result, "content"):
+                        raw_title = title_result.content.strip()
+                        if raw_title and len(raw_title) <= 100:
+                            return raw_title.strip("\"'")
+                except Exception:
+                    pass
+                return None
+
+            title_task = asyncio.create_task(_generate_title())
+
+        title_emitted = False
+
         _t_stream_start = time.perf_counter()
         _first_event_logged = False
         async for sse in _stream_agent_events(
@@ -1390,6 +1422,23 @@ async def stream_new_chat(
                 _first_event_logged = True
             yield sse
 
+            # Inject title update mid-stream as soon as the background task finishes
+            if title_task is not None and title_task.done() and not title_emitted:
+                generated_title = title_task.result()
+                if generated_title:
+                    async with shielded_async_session() as title_session:
+                        title_thread_result = await title_session.execute(
+                            select(NewChatThread).filter(NewChatThread.id == chat_id)
+                        )
+                        title_thread = title_thread_result.scalars().first()
+                        if title_thread:
+                            title_thread.title = generated_title
+                            await title_session.commit()
+                    yield streaming_service.format_thread_title_update(
+                        chat_id, generated_title
+                    )
+                title_emitted = True
+
         _perf_log.info(
             "[stream_new_chat] Agent stream completed in %.3fs (chat_id=%s)",
             time.perf_counter() - _t_stream_start,
@@ -1398,62 +1447,28 @@ async def stream_new_chat(
         log_system_snapshot("stream_new_chat_END")
 
         if stream_result.is_interrupted:
+            if title_task is not None and not title_task.done():
+                title_task.cancel()
             yield streaming_service.format_finish_step()
             yield streaming_service.format_finish()
             yield streaming_service.format_done()
             return
 
-        accumulated_text = stream_result.accumulated_text
-
-        assistant_count_result = await session.execute(
-            select(func.count(NewChatMessage.id)).filter(
-                NewChatMessage.thread_id == chat_id,
-                NewChatMessage.role == "assistant",
-            )
-        )
-        assistant_message_count = assistant_count_result.scalar() or 0
-
-        # Only generate title on the first response (no prior assistant messages)
-        if assistant_message_count == 0:
-            generated_title = None
-            try:
-                # Generate title using the same LLM
-                title_chain = TITLE_GENERATION_PROMPT_TEMPLATE | llm
-                # Truncate inputs to avoid context length issues
-                truncated_query = user_query[:500]
-                truncated_response = accumulated_text[:1000]
-                title_result = await title_chain.ainvoke(
-                    {
-                        "user_query": truncated_query,
-                        "assistant_response": truncated_response,
-                    }
-                )
-
-                # Extract and clean the title
-                if title_result and hasattr(title_result, "content"):
-                    raw_title = title_result.content.strip()
-                    # Validate the title (reasonable length)
-                    if raw_title and len(raw_title) <= 100:
-                        # Remove any quotes or extra formatting
-                        generated_title = raw_title.strip("\"'")
-            except Exception:
-                generated_title = None
-
-            # Only update if LLM succeeded (keep truncated prompt title as fallback)
+        # If the title task didn't finish during streaming, await it now
+        if title_task is not None and not title_emitted:
+            generated_title = await title_task
             if generated_title:
-                # Fetch thread and update title
-                thread_result = await session.execute(
-                    select(NewChatThread).filter(NewChatThread.id == chat_id)
-                )
-                thread = thread_result.scalars().first()
-                if thread:
-                    thread.title = generated_title
-                    await session.commit()
-
-                    # Notify frontend of the title update
-                    yield streaming_service.format_thread_title_update(
-                        chat_id, generated_title
+                async with shielded_async_session() as title_session:
+                    title_thread_result = await title_session.execute(
+                        select(NewChatThread).filter(NewChatThread.id == chat_id)
                     )
+                    title_thread = title_thread_result.scalars().first()
+                    if title_thread:
+                        title_thread.title = generated_title
+                        await title_session.commit()
+                yield streaming_service.format_thread_title_update(
+                    chat_id, generated_title
+                )
 
         # Finish the step and message
         yield streaming_service.format_finish_step()

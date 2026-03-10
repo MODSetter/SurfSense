@@ -5,3 +5,5 @@ export const globalDocumentsQueryParamsAtom = atom<GetDocumentsRequest["queryPar
 	page_size: 10,
 	page: 0,
 });
+
+export const documentsSidebarOpenAtom = atom(false);

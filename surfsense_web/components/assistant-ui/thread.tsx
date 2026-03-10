@@ -18,23 +18,21 @@ import {
 	ChevronLeftIcon,
 	ChevronRightIcon,
 	CopyIcon,
-	Dot,
 	DownloadIcon,
-	FileWarning,
-	Paperclip,
+	PlusIcon,
 	RefreshCwIcon,
 	SquareIcon,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { toast } from "sonner";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import { showCommentsGutterAtom } from "@/atoms/chat/current-thread.atom";
 import {
-	mentionedDocumentIdsAtom,
 	mentionedDocumentsAtom,
+	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
 	globalNewLLMConfigsAtom,
@@ -45,6 +43,7 @@ import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
@@ -63,11 +62,9 @@ import {
 } from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
-import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
@@ -80,37 +77,19 @@ const CYCLING_PLACEHOLDERS = [
 	"Check if this week's Slack messages reference any GitHub issues.",
 ];
 
-const CHAT_UPLOAD_ACCEPT =
-	".pdf,.doc,.docx,.txt,.md,.markdown,.ppt,.pptx,.xls,.xlsx,.xlsm,.xlsb,.csv,.html,.htm,.xml,.rtf,.epub,.jpg,.jpeg,.png,.bmp,.webp,.tiff,.tif,.mp3,.mp4,.mpeg,.mpga,.m4a,.wav,.webm";
-
-const CHAT_MAX_FILES = 10;
-const CHAT_MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB per file
-const CHAT_MAX_TOTAL_SIZE_BYTES = 200 * 1024 * 1024; // 200 MB total
-
-type UploadState = "pending" | "processing" | "ready" | "failed";
-
-interface UploadedMentionDoc {
-	id: number;
-	title: string;
-	document_type: Document["document_type"];
-	state: UploadState;
-	reason?: string | null;
-}
-
 interface ThreadProps {
 	messageThinkingSteps?: Map<string, ThinkingStep[]>;
-	header?: React.ReactNode;
 }
 
-export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map(), header }) => {
+export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
 	return (
 		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
-			<ThreadContent header={header} />
+			<ThreadContent />
 		</ThinkingStepsContext.Provider>
 	);
 };
 
-const ThreadContent: FC<{ header?: React.ReactNode }> = ({ header }) => {
+const ThreadContent: FC = () => {
 	const showGutter = useAtomValue(showCommentsGutterAtom);
 
 	return (
@@ -122,14 +101,11 @@ const ThreadContent: FC<{ header?: React.ReactNode }> = ({ header }) => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
-				autoScroll
 				className={cn(
 					"aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4 transition-[padding] duration-300 ease-out",
 					showGutter && "lg:pr-30"
 				)}
 			>
-				{header && <div className="sticky top-0 z-10 mb-4">{header}</div>}
-
 				<AssistantIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
 				</AssistantIf>
@@ -250,19 +226,13 @@ const ThreadWelcome: FC = () => {
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
+	const setSidebarDocs = useSetAtom(sidebarSelectedDocumentsAtom);
 	const [showDocumentPopover, setShowDocumentPopover] = useState(false);
 	const [mentionQuery, setMentionQuery] = useState("");
-	const [uploadedMentionDocs, setUploadedMentionDocs] = useState<
-		Record<number, UploadedMentionDoc>
-	>({});
-	const [isUploadingDocs, setIsUploadingDocs] = useState(false);
 	const editorRef = useRef<InlineMentionEditorRef>(null);
 	const editorContainerRef = useRef<HTMLDivElement>(null);
-	const uploadInputRef = useRef<HTMLInputElement>(null);
-	const isFileDialogOpenRef = useRef(false);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
-	const setMentionedDocumentIds = useSetAtom(mentionedDocumentIdsAtom);
 	const composerRuntime = useComposerRuntime();
 	const hasAutoFocusedRef = useRef(false);
 
@@ -317,7 +287,7 @@ const Composer: FC = () => {
 	const assistantIdsKey = useAssistantState(({ thread }) =>
 		thread.messages
 			.filter((m) => m.role === "assistant" && m.id?.startsWith("msg-"))
-			.map((m) => m.id!.replace("msg-", ""))
+			.map((m) => m.id?.replace("msg-", ""))
 			.join(",")
 	);
 	const assistantDbMessageIds = useMemo(
@@ -336,18 +306,6 @@ const Composer: FC = () => {
 			return () => clearTimeout(timeoutId);
 		}
 	}, [isThreadEmpty]);
-
-	// Sync mentioned document IDs to atom for inclusion in chat request payload
-	useEffect(() => {
-		setMentionedDocumentIds({
-			surfsense_doc_ids: mentionedDocuments
-				.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
-				.map((doc) => doc.id),
-			document_ids: mentionedDocuments
-				.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
-				.map((doc) => doc.id),
-		});
-	}, [mentionedDocuments, setMentionedDocumentIds]);
 
 	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
@@ -401,75 +359,35 @@ const Composer: FC = () => {
 		[showDocumentPopover]
 	);
 
-	const uploadedMentionedDocs = useMemo(
-		() => mentionedDocuments.filter((doc) => uploadedMentionDocs[doc.id]),
-		[mentionedDocuments, uploadedMentionDocs]
-	);
-
-	const blockingUploadedMentions = useMemo(
-		() =>
-			uploadedMentionedDocs.filter((doc) => {
-				const state = uploadedMentionDocs[doc.id]?.state;
-				return state === "pending" || state === "processing" || state === "failed";
-			}),
-		[uploadedMentionedDocs, uploadedMentionDocs]
-	);
-
 	// Submit message (blocked during streaming, document picker open, or AI responding to another user)
 	const handleSubmit = useCallback(() => {
-		if (
-			isThreadRunning ||
-			isBlockedByOtherUser ||
-			isUploadingDocs ||
-			blockingUploadedMentions.length > 0
-		) {
+		if (isThreadRunning || isBlockedByOtherUser) {
 			return;
 		}
 		if (!showDocumentPopover) {
 			composerRuntime.send();
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
-			setMentionedDocumentIds({
-				surfsense_doc_ids: [],
-				document_ids: [],
-			});
+			setSidebarDocs([]);
 		}
 	}, [
 		showDocumentPopover,
 		isThreadRunning,
 		isBlockedByOtherUser,
-		isUploadingDocs,
-		blockingUploadedMentions.length,
 		composerRuntime,
 		setMentionedDocuments,
-		setMentionedDocumentIds,
+		setSidebarDocs,
 	]);
 
-	// Remove document from mentions and sync IDs to atom
 	const handleDocumentRemove = useCallback(
 		(docId: number, docType?: string) => {
-			setMentionedDocuments((prev) => {
-				const updated = prev.filter((doc) => !(doc.id === docId && doc.document_type === docType));
-				setMentionedDocumentIds({
-					surfsense_doc_ids: updated
-						.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
-						.map((doc) => doc.id),
-					document_ids: updated
-						.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
-						.map((doc) => doc.id),
-				});
-				return updated;
-			});
-			setUploadedMentionDocs((prev) => {
-				if (!(docId in prev)) return prev;
-				const { [docId]: _removed, ...rest } = prev;
-				return rest;
-			});
+			setMentionedDocuments((prev) =>
+				prev.filter((doc) => !(doc.id === docId && doc.document_type === docType))
+			);
 		},
-		[setMentionedDocuments, setMentionedDocumentIds]
+		[setMentionedDocuments]
 	);
 
-	// Add selected documents from picker, insert chips, and sync IDs to atom
 	const handleDocumentsMention = useCallback(
 		(documents: Pick<Document, "id" | "title" | "document_type">[]) => {
 			const existingKeys = new Set(mentionedDocuments.map((d) => `${d.document_type}:${d.id}`));
@@ -486,184 +404,13 @@ const Composer: FC = () => {
 				const uniqueNewDocs = documents.filter(
 					(doc) => !existingKeySet.has(`${doc.document_type}:${doc.id}`)
 				);
-				const updated = [...prev, ...uniqueNewDocs];
-				setMentionedDocumentIds({
-					surfsense_doc_ids: updated
-						.filter((doc) => doc.document_type === "SURFSENSE_DOCS")
-						.map((doc) => doc.id),
-					document_ids: updated
-						.filter((doc) => doc.document_type !== "SURFSENSE_DOCS")
-						.map((doc) => doc.id),
-				});
-				return updated;
+				return [...prev, ...uniqueNewDocs];
 			});
 
 			setMentionQuery("");
 		},
-		[mentionedDocuments, setMentionedDocuments, setMentionedDocumentIds]
+		[mentionedDocuments, setMentionedDocuments]
 	);
-
-	const refreshUploadedDocStatuses = useCallback(
-		async (documentIds: number[]) => {
-			if (!search_space_id || documentIds.length === 0) return;
-			const statusResponse = await documentsApiService.getDocumentsStatus({
-				queryParams: {
-					search_space_id: Number(search_space_id),
-					document_ids: documentIds,
-				},
-			});
-
-			setUploadedMentionDocs((prev) => {
-				const next = { ...prev };
-				for (const item of statusResponse.items) {
-					next[item.id] = {
-						id: item.id,
-						title: item.title,
-						document_type: item.document_type,
-						state: item.status.state,
-						reason: item.status.reason,
-					};
-				}
-				return next;
-			});
-
-			handleDocumentsMention(
-				statusResponse.items.map((item) => ({
-					id: item.id,
-					title: item.title,
-					document_type: item.document_type,
-				}))
-			);
-		},
-		[search_space_id, handleDocumentsMention]
-	);
-
-	const handleUploadClick = useCallback(() => {
-		if (isFileDialogOpenRef.current) return;
-		isFileDialogOpenRef.current = true;
-		uploadInputRef.current?.click();
-		// Reset after a delay to handle cancellation (which doesn't fire the change event).
-		setTimeout(() => {
-			isFileDialogOpenRef.current = false;
-		}, 1000);
-	}, []);
-
-	const handleUploadInputChange = useCallback(
-		async (event: React.ChangeEvent<HTMLInputElement>) => {
-			isFileDialogOpenRef.current = false;
-			const files = Array.from(event.target.files ?? []);
-			event.target.value = "";
-			if (files.length === 0 || !search_space_id) return;
-
-			if (files.length > CHAT_MAX_FILES) {
-				toast.error(`Too many files. Maximum ${CHAT_MAX_FILES} files per upload.`);
-				return;
-			}
-
-			let totalSize = 0;
-			for (const file of files) {
-				if (file.size > CHAT_MAX_FILE_SIZE_BYTES) {
-					toast.error(
-						`File "${file.name}" (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the ${CHAT_MAX_FILE_SIZE_BYTES / (1024 * 1024)} MB per-file limit.`
-					);
-					return;
-				}
-				totalSize += file.size;
-			}
-			if (totalSize > CHAT_MAX_TOTAL_SIZE_BYTES) {
-				toast.error(
-					`Total upload size (${(totalSize / (1024 * 1024)).toFixed(1)} MB) exceeds the ${CHAT_MAX_TOTAL_SIZE_BYTES / (1024 * 1024)} MB limit.`
-				);
-				return;
-			}
-
-			setIsUploadingDocs(true);
-			try {
-				const uploadResponse = await documentsApiService.uploadDocument({
-					files,
-					search_space_id: Number(search_space_id),
-				});
-				const uploadedIds = uploadResponse.document_ids ?? [];
-				const duplicateIds = uploadResponse.duplicate_document_ids ?? [];
-				const idsToMention = Array.from(new Set([...uploadedIds, ...duplicateIds]));
-				if (idsToMention.length === 0) {
-					toast.warning("No documents were created or matched from selected files.");
-					return;
-				}
-
-				await refreshUploadedDocStatuses(idsToMention);
-				if (uploadedIds.length > 0 && duplicateIds.length > 0) {
-					toast.success(
-						`Uploaded ${uploadedIds.length} file${uploadedIds.length > 1 ? "s" : ""} and matched ${duplicateIds.length} existing file${duplicateIds.length > 1 ? "s" : ""}.`
-					);
-				} else if (uploadedIds.length > 0) {
-					toast.success(`Uploaded ${uploadedIds.length} file${uploadedIds.length > 1 ? "s" : ""}`);
-				} else {
-					toast.success(
-						`Matched ${duplicateIds.length} existing file${duplicateIds.length > 1 ? "s" : ""} and added mention${duplicateIds.length > 1 ? "s" : ""}.`
-					);
-				}
-			} catch (error) {
-				const message = error instanceof Error ? error.message : "Upload failed";
-				toast.error(`Upload failed: ${message}`);
-			} finally {
-				setIsUploadingDocs(false);
-			}
-		},
-		[search_space_id, refreshUploadedDocStatuses]
-	);
-
-	// Poll status for uploaded mentioned documents until all are ready or removed.
-	useEffect(() => {
-		const trackedIds = uploadedMentionedDocs.map((doc) => doc.id);
-		const needsPolling = trackedIds.some((id) => {
-			const state = uploadedMentionDocs[id]?.state;
-			return state === "pending" || state === "processing";
-		});
-		if (!needsPolling) return;
-
-		const interval = setInterval(() => {
-			refreshUploadedDocStatuses(trackedIds).catch((error) => {
-				console.error("[Composer] Failed to refresh uploaded mention statuses:", error);
-			});
-		}, 2500);
-
-		return () => clearInterval(interval);
-	}, [uploadedMentionedDocs, uploadedMentionDocs, refreshUploadedDocStatuses]);
-
-	// Push upload status directly onto mention chips (instead of separate status rows).
-	useEffect(() => {
-		for (const doc of uploadedMentionedDocs) {
-			const state = uploadedMentionDocs[doc.id]?.state ?? "pending";
-			const statusLabel =
-				state === "ready"
-					? null
-					: state === "failed"
-						? "failed"
-						: state === "processing"
-							? "indexing"
-							: "queued";
-			editorRef.current?.setDocumentChipStatus(doc.id, doc.document_type, statusLabel, state);
-		}
-	}, [uploadedMentionedDocs, uploadedMentionDocs]);
-
-	// Prune upload status entries that are no longer mentioned in the composer.
-	useEffect(() => {
-		const activeIds = new Set(mentionedDocuments.map((doc) => doc.id));
-		setUploadedMentionDocs((prev) => {
-			let changed = false;
-			const next: Record<number, UploadedMentionDoc> = {};
-			for (const [key, value] of Object.entries(prev)) {
-				const id = Number(key);
-				if (activeIds.has(id)) {
-					next[id] = value;
-				} else {
-					changed = true;
-				}
-			}
-			return changed ? next : prev;
-		});
-	}, [mentionedDocuments]);
 
 	return (
 		<ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col gap-2">
@@ -688,15 +435,6 @@ const Composer: FC = () => {
 						className="min-h-[24px]"
 					/>
 				</div>
-				<input
-					ref={uploadInputRef}
-					type="file"
-					multiple
-					accept={CHAT_UPLOAD_ACCEPT}
-					onChange={handleUploadInputChange}
-					className="hidden"
-				/>
-
 				{/* Document picker popover (portal to body for proper z-index stacking) */}
 				{showDocumentPopover &&
 					typeof document !== "undefined" &&
@@ -722,15 +460,7 @@ const Composer: FC = () => {
 						/>,
 						document.body
 					)}
-				<ComposerAction
-					isBlockedByOtherUser={isBlockedByOtherUser}
-					onUploadClick={handleUploadClick}
-					isUploadingDocs={isUploadingDocs}
-					blockingUploadedMentionsCount={blockingUploadedMentions.length}
-					hasFailedUploadedMentions={blockingUploadedMentions.some(
-						(doc) => uploadedMentionDocs[doc.id]?.state === "failed"
-					)}
-				/>
+				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
 			</div>
 		</ComposerPrimitive.Root>
 	);
@@ -738,29 +468,20 @@ const Composer: FC = () => {
 
 interface ComposerActionProps {
 	isBlockedByOtherUser?: boolean;
-	onUploadClick: () => void;
-	isUploadingDocs: boolean;
-	blockingUploadedMentionsCount: number;
-	hasFailedUploadedMentions: boolean;
 }
 
-const ComposerAction: FC<ComposerActionProps> = ({
-	isBlockedByOtherUser = false,
-	onUploadClick,
-	isUploadingDocs,
-	blockingUploadedMentionsCount,
-	hasFailedUploadedMentions,
-}) => {
+const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false }) => {
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
+	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
+	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 
-	// Check if composer text is empty (chips are represented in mentionedDocuments atom)
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
 	});
 	const isComposerEmpty = isComposerTextEmpty && mentionedDocuments.length === 0;
 
-	// Check if a model is configured
 	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
 	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
 	const { data: preferences } = useAtomValue(llmPreferencesAtom);
@@ -770,121 +491,91 @@ const ComposerAction: FC<ComposerActionProps> = ({
 		const agentLlmId = preferences.agent_llm_id;
 		if (agentLlmId === null || agentLlmId === undefined) return false;
 
-		// Check if the configured model actually exists
-		// Auto mode (ID 0) and global configs (negative IDs) are in globalConfigs
 		if (agentLlmId <= 0) {
 			return globalConfigs?.some((c) => c.id === agentLlmId) ?? false;
 		}
 		return userConfigs?.some((c) => c.id === agentLlmId) ?? false;
 	}, [preferences, globalConfigs, userConfigs]);
 
-	const isSendDisabled =
-		isComposerEmpty ||
-		!hasModelConfigured ||
-		isBlockedByOtherUser ||
-		isUploadingDocs ||
-		blockingUploadedMentionsCount > 0;
+	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
 				<TooltipIconButton
-					tooltip={
-						isUploadingDocs ? (
-							"Uploading documents..."
-						) : (
-							<div className="flex flex-col gap-0.5">
-								<span className="font-medium">Upload and mention files</span>
-								<span className="text-xs text-muted-foreground flex items-center">
-									Max 10 files <Dot className="size-3" /> 50 MB each
-								</span>
-								<span className="text-xs text-muted-foreground">Total upload limit: 200 MB</span>
-							</div>
-						)
-					}
+					tooltip="Upload"
 					side="bottom"
 					variant="ghost"
 					size="icon"
 					className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-					aria-label="Upload files"
-					onClick={onUploadClick}
-					disabled={isUploadingDocs}
+					aria-label="Upload documents"
+					onClick={openUploadDialog}
 				>
-					{isUploadingDocs ? (
-						<Spinner size="sm" className="text-muted-foreground" />
-					) : (
-						<Paperclip className="size-4" />
-					)}
+					<PlusIcon className="size-4" />
 				</TooltipIconButton>
 				<ConnectorIndicator />
 			</div>
 
-			{blockingUploadedMentionsCount > 0 && (
-				<div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-					{hasFailedUploadedMentions ? <FileWarning className="size-3" /> : <Spinner size="xs" />}
-					<span>
-						{hasFailedUploadedMentions
-							? "Remove or retry failed uploads"
-							: "Waiting for uploaded files to finish indexing"}
-					</span>
-				</div>
-			)}
-
-			{/* Show warning when no model is configured */}
-			{!hasModelConfigured && blockingUploadedMentionsCount === 0 && (
+			{!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
 					<AlertCircle className="size-3" />
 					<span>Select a model</span>
 				</div>
 			)}
 
-			<AssistantIf condition={({ thread }) => !thread.isRunning}>
-				<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
-					<TooltipIconButton
-						tooltip={
-							isBlockedByOtherUser
-								? "Wait for AI to finish responding"
-								: hasFailedUploadedMentions
-									? "Remove or retry failed uploads before sending"
-									: blockingUploadedMentionsCount > 0
-										? "Waiting for uploaded files to finish indexing"
-										: isUploadingDocs
-											? "Uploading documents..."
-											: !hasModelConfigured
-												? "Please select a model from the header to start chatting"
-												: isComposerEmpty
-													? "Enter a message to send"
-													: "Send message"
-						}
-						side="bottom"
-						type="submit"
-						variant="default"
-						size="icon"
-						className={cn(
-							"aui-composer-send size-8 rounded-full",
-							isSendDisabled && "cursor-not-allowed opacity-50"
-						)}
-						aria-label="Send message"
-						disabled={isSendDisabled}
-					>
-						<ArrowUpIcon className="aui-composer-send-icon size-4" />
-					</TooltipIconButton>
-				</ComposerPrimitive.Send>
-			</AssistantIf>
-
-			<AssistantIf condition={({ thread }) => thread.isRunning}>
-				<ComposerPrimitive.Cancel asChild>
-					<Button
+			<div className="flex items-center gap-2">
+				{sidebarDocs.length > 0 && (
+					<button
 						type="button"
-						variant="default"
-						size="icon"
-						className="aui-composer-cancel size-8 rounded-full"
-						aria-label="Stop generating"
+						onClick={() => setDocumentsSidebarOpen(true)}
+						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
 					>
-						<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
-					</Button>
-				</ComposerPrimitive.Cancel>
-			</AssistantIf>
+						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
+					</button>
+				)}
+
+				<AssistantIf condition={({ thread }) => !thread.isRunning}>
+					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
+						<TooltipIconButton
+							tooltip={
+								isBlockedByOtherUser
+									? "Wait for AI to finish responding"
+									: !hasModelConfigured
+										? "Please select a model from the header to start chatting"
+										: isComposerEmpty
+											? "Enter a message to send"
+											: "Send message"
+							}
+							side="bottom"
+							type="submit"
+							variant="default"
+							size="icon"
+							className={cn(
+								"aui-composer-send size-8 rounded-full",
+								isSendDisabled && "cursor-not-allowed opacity-50"
+							)}
+							aria-label="Send message"
+							disabled={isSendDisabled}
+						>
+							<ArrowUpIcon className="aui-composer-send-icon size-4" />
+						</TooltipIconButton>
+					</ComposerPrimitive.Send>
+				</AssistantIf>
+
+				<AssistantIf condition={({ thread }) => thread.isRunning}>
+					<ComposerPrimitive.Cancel asChild>
+						<Button
+							type="button"
+							variant="default"
+							size="icon"
+							className="aui-composer-cancel size-8 rounded-full"
+							aria-label="Stop generating"
+						>
+							<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
+						</Button>
+					</ComposerPrimitive.Cancel>
+				</AssistantIf>
+			</div>
 		</div>
 	);
 };

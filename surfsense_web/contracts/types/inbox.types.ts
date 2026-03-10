@@ -198,12 +198,21 @@ export const pageLimitExceededInboxItem = inboxItem.extend({
 // =============================================================================
 
 /**
+ * Notification category for tab-level filtering
+ */
+export const notificationCategory = z.enum(["comments", "status"]);
+export type NotificationCategory = z.infer<typeof notificationCategory>;
+
+/**
  * Request schema for getting notifications
  */
 export const getNotificationsRequest = z.object({
 	queryParams: z.object({
 		search_space_id: z.number().optional(),
 		type: inboxItemTypeEnum.optional(),
+		category: notificationCategory.optional(),
+		source_type: z.string().optional(),
+		filter: z.enum(["unread", "errors"]).optional(),
 		before_date: z.string().optional(),
 		search: z.string().optional(),
 		limit: z.number().min(1).max(100).optional(),
@@ -259,6 +268,20 @@ export const getUnreadCountRequest = z.object({
 export const getUnreadCountResponse = z.object({
 	total_unread: z.number(),
 	recent_unread: z.number(), // Within SYNC_WINDOW_DAYS (14 days)
+});
+
+/**
+ * Response schema for notification source types (status tab filter)
+ */
+export const sourceTypeItem = z.object({
+	key: z.string(),
+	type: z.string(),
+	category: z.enum(["connector", "document"]),
+	count: z.number(),
+});
+
+export const getSourceTypesResponse = z.object({
+	sources: z.array(sourceTypeItem),
 });
 
 // =============================================================================
@@ -387,3 +410,5 @@ export type MarkNotificationReadResponse = z.infer<typeof markNotificationReadRe
 export type MarkAllNotificationsReadResponse = z.infer<typeof markAllNotificationsReadResponse>;
 export type GetUnreadCountRequest = z.infer<typeof getUnreadCountRequest>;
 export type GetUnreadCountResponse = z.infer<typeof getUnreadCountResponse>;
+export type SourceTypeItem = z.infer<typeof sourceTypeItem>;
+export type GetSourceTypesResponse = z.infer<typeof getSourceTypesResponse>;

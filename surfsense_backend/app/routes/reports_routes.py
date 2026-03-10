@@ -1,11 +1,12 @@
 """
-Report routes for read, update, export (PDF/DOCX), and delete operations.
+Report routes for read, update, export, and delete operations.
 
 Reports are generated inline by the agent tool during chat and stored as
 Markdown in the database.  Users can edit report content via the Plate editor
 and save changes through the PUT endpoint.
-Export to PDF/DOCX is on-demand — PDF uses pypandoc (Markdown→Typst) + typst-py
-(Typst→PDF); DOCX uses pypandoc directly.
+Export is on-demand in multiple formats (PDF, DOCX, HTML, LaTeX, EPUB, ODT,
+plain text).  PDF uses pypandoc (Markdown->Typst) + typst-py; the rest use
+pypandoc directly with format-specific templates and options.
 
 Authorization: lightweight search-space membership checks (no granular RBAC)
 since reports are chat-generated artifacts, not standalone managed resources.
@@ -36,6 +37,11 @@ from app.db import (
 )
 from app.schemas import ReportContentRead, ReportContentUpdate, ReportRead
 from app.schemas.reports import ReportVersionInfo
+from app.templates.export_helpers import (
+    get_html_css_path,
+    get_reference_docx_path,
+    get_typst_template_path,
+)
 from app.users import current_active_user
 from app.utils.rbac import check_search_space_access
 
@@ -49,6 +55,32 @@ MAX_REPORT_LIST_LIMIT = 500
 class ExportFormat(StrEnum):
     PDF = "pdf"
     DOCX = "docx"
+    HTML = "html"
+    LATEX = "latex"
+    EPUB = "epub"
+    ODT = "odt"
+    PLAIN = "plain"
+
+
+_MEDIA_TYPES: dict[ExportFormat, str] = {
+    ExportFormat.PDF: "application/pdf",
+    ExportFormat.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    ExportFormat.HTML: "text/html; charset=utf-8",
+    ExportFormat.LATEX: "application/x-tex",
+    ExportFormat.EPUB: "application/epub+zip",
+    ExportFormat.ODT: "application/vnd.oasis.opendocument.text",
+    ExportFormat.PLAIN: "text/plain; charset=utf-8",
+}
+
+_FILE_EXTENSIONS: dict[ExportFormat, str] = {
+    ExportFormat.PDF: "pdf",
+    ExportFormat.DOCX: "docx",
+    ExportFormat.HTML: "html",
+    ExportFormat.LATEX: "tex",
+    ExportFormat.EPUB: "epub",
+    ExportFormat.ODT: "odt",
+    ExportFormat.PLAIN: "txt",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -305,13 +337,14 @@ async def update_report_content(
 async def export_report(
     report_id: int,
     format: ExportFormat = Query(
-        ExportFormat.PDF, description="Export format: pdf or docx"
+        ExportFormat.PDF,
+        description="Export format: pdf, docx, html, latex, epub, odt, or plain",
     ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
     """
-    Export a report as PDF or DOCX.
+    Export a report in the requested format.
     """
     try:
         report = await _get_report_with_access(report_id, session, user)
@@ -329,83 +362,124 @@ async def export_report(
         # etc.) into $/$$ form that pandoc's tex_math_dollars extension can parse.
         markdown_content = _normalize_latex_delimiters(markdown_content)
 
-        # Convert Markdown to the requested format.
-        #
-        # DOCX: pypandoc (pandoc) handles the full conversion directly.
-        #
-        # PDF: two-step pipeline — pypandoc converts Markdown → Typst markup,
-        # then the `typst` Python library compiles Typst → PDF.  This avoids
-        # requiring the Typst CLI on the system PATH; the typst pip package
-        # bundles the compiler as a native extension.  Typst produces
-        # professional styling for tables, headings, code blocks, etc.
-        #
         # Use "gfm" as the base input format because LLM output uses GFM-style
         # pipe tables that pandoc's stricter default "markdown" may mangle.
         # The +tex_math_dollars extension enables $/$$ math recognition.
 
+        formatted_date = report.created_at.strftime("%B %d, %Y")
+        report_title = report.title or "Report"
+        input_fmt = "gfm+tex_math_dollars"
+        meta_args = ["-M", f"title:{report_title}", "-M", f"date:{formatted_date}"]
+
         def _convert_and_read() -> bytes:
-            """Run all blocking I/O (tempfile, pandoc/typst, file read, cleanup) in a thread."""
+            """Run all blocking I/O in a thread."""
+
+            # -- PDF: Markdown -> Typst markup -> typst-py -> PDF bytes ------
             if format == ExportFormat.PDF:
-                # Step 1: Markdown → Typst markup via pandoc.
-                # We must set mainfont / monofont so the generated template's
-                # `font` parameter is non-empty; without it pandoc emits
-                # `font: ()` which makes Typst error with
-                # "font fallback list must not be empty".
-                # We use fonts that ship embedded inside typst-py so this
-                # works even on systems with no fonts installed.
+                typst_template = str(get_typst_template_path())
                 typst_markup: str = pypandoc.convert_text(
                     markdown_content,
                     "typst",
-                    format="gfm+tex_math_dollars",
+                    format=input_fmt,
                     extra_args=[
                         "--standalone",
+                        f"--template={typst_template}",
                         "-V",
                         "mainfont:Libertinus Serif",
                         "-V",
-                        "monofont:DejaVu Sans Mono",
+                        "codefont:DejaVu Sans Mono",
+                        *meta_args,
                     ],
                 )
-                # Step 2: Typst markup → PDF via typst Python library
-                pdf_bytes: bytes = typst.compile(typst_markup.encode("utf-8"))
-                return pdf_bytes
-            else:
-                # DOCX: let pandoc handle the full conversion
-                fd, tmp_path = tempfile.mkstemp(suffix=f".{format.value}")
-                os.close(fd)
-                try:
-                    pypandoc.convert_text(
-                        markdown_content,
-                        format.value,
-                        format="gfm+tex_math_dollars",
-                        extra_args=["--standalone"],
-                        outputfile=tmp_path,
-                    )
-                    with open(tmp_path, "rb") as f:
-                        return f.read()
-                finally:
-                    os.unlink(tmp_path)
+                return typst.compile(typst_markup.encode("utf-8"))
+
+            # -- DOCX: styled reference doc ----------------------------------
+            if format == ExportFormat.DOCX:
+                return _pandoc_to_tempfile(
+                    format.value,
+                    [
+                        "--standalone",
+                        f"--reference-doc={get_reference_docx_path()}",
+                        *meta_args,
+                    ],
+                )
+
+            # -- HTML: self-contained with custom CSS ------------------------
+            if format == ExportFormat.HTML:
+                html_str: str = pypandoc.convert_text(
+                    markdown_content,
+                    "html5",
+                    format=input_fmt,
+                    extra_args=[
+                        "--standalone",
+                        "--embed-resources",
+                        f"--css={get_html_css_path()}",
+                        "--syntax-highlighting=pygments",
+                        *meta_args,
+                    ],
+                )
+                return html_str.encode("utf-8")
+
+            # -- EPUB: binary output via tempfile ----------------------------
+            if format == ExportFormat.EPUB:
+                return _pandoc_to_tempfile("epub3", ["--standalone", *meta_args])
+
+            # -- ODT: binary output via tempfile -----------------------------
+            if format == ExportFormat.ODT:
+                return _pandoc_to_tempfile("odt", ["--standalone", *meta_args])
+
+            # -- LaTeX: text output ------------------------------------------
+            if format == ExportFormat.LATEX:
+                tex_str: str = pypandoc.convert_text(
+                    markdown_content,
+                    "latex",
+                    format=input_fmt,
+                    extra_args=["--standalone", *meta_args],
+                )
+                return tex_str.encode("utf-8")
+
+            # -- Plain text: text output -------------------------------------
+            plain_str: str = pypandoc.convert_text(
+                markdown_content,
+                "plain",
+                format=input_fmt,
+                extra_args=["--wrap=auto", "--columns=80"],
+            )
+            return plain_str.encode("utf-8")
+
+        def _pandoc_to_tempfile(output_format: str, extra_args: list[str]) -> bytes:
+            """Convert via pandoc to a binary format using a temp file."""
+            fd, tmp_path = tempfile.mkstemp(suffix=f".{output_format}")
+            os.close(fd)
+            try:
+                pypandoc.convert_text(
+                    markdown_content,
+                    output_format,
+                    format=input_fmt,
+                    extra_args=extra_args,
+                    outputfile=tmp_path,
+                )
+                with open(tmp_path, "rb") as f:
+                    return f.read()
+            finally:
+                os.unlink(tmp_path)
 
         loop = asyncio.get_running_loop()
         output = await loop.run_in_executor(None, _convert_and_read)
 
-        # Sanitize filename
         safe_title = (
             "".join(
                 c if c.isalnum() or c in " -_" else "_" for c in report.title
             ).strip()[:80]
             or "report"
         )
-
-        media_types = {
-            ExportFormat.PDF: "application/pdf",
-            ExportFormat.DOCX: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }
+        ext = _FILE_EXTENSIONS[format]
 
         return StreamingResponse(
             io.BytesIO(output),
-            media_type=media_types[format],
+            media_type=_MEDIA_TYPES[format],
             headers={
-                "Content-Disposition": f'attachment; filename="{safe_title}.{format.value}"',
+                "Content-Disposition": f'attachment; filename="{safe_title}.{ext}"',
             },
         )
 

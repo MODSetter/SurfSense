@@ -195,6 +195,18 @@ button {
 	background-color: hsl(var(--muted-foreground) / 0.4);
 }
 
+/* Hide scrollbar on mobile, only visible while scrolling */
+@media (max-width: 767px) {
+	.scrollbar-thin {
+		scrollbar-width: none;
+	}
+
+	.scrollbar-thin::-webkit-scrollbar {
+		width: 0;
+		display: none;
+	}
+}
+
 /* Human-in-the-loop approval card animations */
 @keyframes pulse-subtle {
 	0%,
@@ -231,7 +243,7 @@ button {
 	}
 }
 
-@source '../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}';
-@source '../node_modules/streamdown/dist/*.js';
-@source '../node_modules/@streamdown/code/dist/*.js';
-@source '../node_modules/@streamdown/math/dist/*.js';
+@source "../node_modules/@llamaindex/chat-ui/**/*.{ts,tsx}";
+@source "../node_modules/streamdown/dist/*.js";
+@source "../node_modules/@streamdown/code/dist/*.js";
+@source "../node_modules/@streamdown/math/dist/*.js";

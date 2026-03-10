@@ -6,7 +6,7 @@ import {
 	CheckIcon,
 	FileIcon,
 	Loader2Icon,
-	PencilIcon,
+	Pen,
 	RefreshCwIcon,
 	XIcon,
 } from "lucide-react";
@@ -400,7 +400,7 @@ function ApprovalCard({
 						)}
 						{canEdit && (
 							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-								<PencilIcon />
+								<Pen />
 								Edit
 							</Button>
 						)}

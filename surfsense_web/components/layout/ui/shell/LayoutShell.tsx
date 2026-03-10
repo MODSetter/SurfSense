@@ -13,37 +13,34 @@ import { IconRail } from "../icon-rail";
 import {
 	AllPrivateChatsSidebar,
 	AllSharedChatsSidebar,
+	AnnouncementsSidebar,
+	DocumentsSidebar,
 	InboxSidebar,
 	MobileSidebar,
 	MobileSidebarTrigger,
 	Sidebar,
 } from "../sidebar";
 
-// Tab-specific data source props
+// Per-tab data source
 interface TabDataSource {
 	items: InboxItem[];
 	unreadCount: number;
 	loading: boolean;
-	loadingMore?: boolean;
-	hasMore?: boolean;
-	loadMore?: () => void;
+	loadingMore: boolean;
+	hasMore: boolean;
+	loadMore: () => void;
+	markAsRead: (id: number) => Promise<boolean>;
+	markAllAsRead: () => Promise<boolean>;
 }
 
-// Inbox-related props with separate data sources per tab
+// Inbox-related props — per-tab data sources with independent loading/pagination
 interface InboxProps {
 	isOpen: boolean;
 	onOpenChange: (open: boolean) => void;
-	/** Mentions tab data source with independent pagination */
-	mentions: TabDataSource;
-	/** Status tab data source with independent pagination */
-	status: TabDataSource;
-	/** Combined unread count for nav badge */
 	totalUnreadCount: number;
-	markAsRead: (id: number) => Promise<boolean>;
-	markAllAsRead: () => Promise<boolean>;
-	/** Whether the inbox is docked (permanent) */
+	comments: TabDataSource;
+	status: TabDataSource;
 	isDocked?: boolean;
-	/** Callback to change docked state */
 	onDockedChange?: (docked: boolean) => void;
 }
 
@@ -73,7 +70,6 @@ interface LayoutShellProps {
 	onUserSettings?: () => void;
 	onLogout?: () => void;
 	pageUsage?: PageUsage;
-	breadcrumb?: React.ReactNode;
 	theme?: string;
 	setTheme?: (theme: "light" | "dark" | "system") => void;
 	defaultCollapsed?: boolean;
@@ -82,6 +78,10 @@ interface LayoutShellProps {
 	className?: string;
 	// Inbox props
 	inbox?: InboxProps;
+	announcementsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
 	isLoadingChats?: boolean;
 	// All chats panel props
 	allSharedChatsPanel?: {
@@ -93,6 +93,10 @@ interface LayoutShellProps {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
 		searchSpaceId: string;
+	};
+	documentsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
 	};
 }
 
@@ -122,7 +126,6 @@ export function LayoutShell({
 	onUserSettings,
 	onLogout,
 	pageUsage,
-	breadcrumb,
 	theme,
 	setTheme,
 	defaultCollapsed = false,
@@ -130,9 +133,11 @@ export function LayoutShell({
 	children,
 	className,
 	inbox,
+	announcementsPanel,
 	isLoadingChats = false,
 	allSharedChatsPanel,
 	allPrivateChatsPanel,
+	documentsPanel,
 }: LayoutShellProps) {
 	const isMobile = useIsMobile();
 	const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -156,7 +161,6 @@ export function LayoutShell({
 				<TooltipProvider delayDuration={0}>
 					<div className={cn("flex h-screen w-full flex-col bg-background", className)}>
 						<Header
-							breadcrumb={breadcrumb}
 							mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
 						/>
 
@@ -202,11 +206,26 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								mentions={inbox.mentions}
+								comments={inbox.comments}
 								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-								markAsRead={inbox.markAsRead}
-								markAllAsRead={inbox.markAllAsRead}
+								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+							/>
+						)}
+
+						{/* Mobile Documents Sidebar - slide-out panel */}
+						{documentsPanel && (
+							<DocumentsSidebar
+								open={documentsPanel.open}
+								onOpenChange={documentsPanel.onOpenChange}
+							/>
+						)}
+
+						{/* Mobile Announcements Sidebar */}
+						{announcementsPanel?.open && (
+							<AnnouncementsSidebar
+								open={announcementsPanel.open}
+								onOpenChange={announcementsPanel.onOpenChange}
 								onCloseMobileSidebar={() => setMobileMenuOpen(false)}
 							/>
 						)}
@@ -292,18 +311,16 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								mentions={inbox.mentions}
+								comments={inbox.comments}
 								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-								markAsRead={inbox.markAsRead}
-								markAllAsRead={inbox.markAllAsRead}
 								isDocked={inbox.isDocked}
 								onDockedChange={inbox.onDockedChange}
 							/>
 						)}
 
 						<main className="flex-1 flex flex-col min-w-0">
-							<Header breadcrumb={breadcrumb} />
+							<Header />
 
 							<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 								{children}
@@ -315,13 +332,27 @@ export function LayoutShell({
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
-								mentions={inbox.mentions}
+								comments={inbox.comments}
 								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-								markAsRead={inbox.markAsRead}
-								markAllAsRead={inbox.markAllAsRead}
 								isDocked={false}
 								onDockedChange={inbox.onDockedChange}
+							/>
+						)}
+
+						{/* Documents Sidebar - slide-out panel */}
+						{documentsPanel && (
+							<DocumentsSidebar
+								open={documentsPanel.open}
+								onOpenChange={documentsPanel.onOpenChange}
+							/>
+						)}
+
+						{/* Announcements Sidebar */}
+						{announcementsPanel && (
+							<AnnouncementsSidebar
+								open={announcementsPanel.open}
+								onOpenChange={announcementsPanel.onOpenChange}
 							/>
 						)}
 

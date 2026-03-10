@@ -2,7 +2,7 @@
 
 import { useAtom } from "jotai";
 import { CheckCircle2, FileType, Info, Upload, X } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
@@ -109,6 +109,11 @@ const FILE_TYPE_CONFIG: Record<string, Record<string, string[]>> = {
 	},
 };
 
+interface FileWithId {
+	id: string;
+	file: File;
+}
+
 const cardClass = "border border-border bg-slate-400/5 dark:bg-white/5";
 
 // Upload limits — files are sent in batches of 5 to avoid proxy timeouts
@@ -122,7 +127,7 @@ export function DocumentUploadTab({
 	onAccordionStateChange,
 }: DocumentUploadTabProps) {
 	const t = useTranslations("upload_documents");
-	const [files, setFiles] = useState<File[]>([]);
+	const [files, setFiles] = useState<FileWithId[]>([]);
 	const [uploadProgress, setUploadProgress] = useState(0);
 	const [accordionValue, setAccordionValue] = useState<string>("");
 	const [shouldSummarize, setShouldSummarize] = useState(false);
@@ -143,9 +148,12 @@ export function DocumentUploadTab({
 	const onDrop = useCallback(
 		(acceptedFiles: File[]) => {
 			setFiles((prev) => {
-				const newFiles = [...prev, ...acceptedFiles];
+				const newEntries = acceptedFiles.map((f) => ({
+					id: crypto.randomUUID?.() ?? `file-${Date.now()}-${Math.random().toString(36)}`,
+					file: f,
+				}));
+				const newFiles = [...prev, ...newEntries];
 
-				// Check file count limit
 				if (newFiles.length > MAX_FILES) {
 					toast.error(t("max_files_exceeded"), {
 						description: t("max_files_exceeded_desc", { max: MAX_FILES }),
@@ -153,8 +161,7 @@ export function DocumentUploadTab({
 					return prev;
 				}
 
-				// Check total size limit
-				const newTotalSize = newFiles.reduce((sum, file) => sum + file.size, 0);
+				const newTotalSize = newFiles.reduce((sum, entry) => sum + entry.file.size, 0);
 				if (newTotalSize > MAX_TOTAL_SIZE_BYTES) {
 					toast.error(t("max_size_exceeded"), {
 						description: t("max_size_exceeded_desc", { max: MAX_TOTAL_SIZE_MB }),
@@ -189,7 +196,7 @@ export function DocumentUploadTab({
 		return `${parseFloat((bytes / k ** i).toFixed(2))} ${sizes[i]}`;
 	};
 
-	const totalFileSize = files.reduce((total, file) => total + file.size, 0);
+	const totalFileSize = files.reduce((total, entry) => total + entry.file.size, 0);
 
 	// Check if limits are reached
 	const isFileCountLimitReached = files.length >= MAX_FILES;
@@ -217,8 +224,13 @@ export function DocumentUploadTab({
 			setUploadProgress((prev) => (prev >= 90 ? prev : prev + Math.random() * 10));
 		}, 200);
 
+		const rawFiles = files.map((entry) => entry.file);
 		uploadDocuments(
-			{ files, search_space_id: Number(searchSpaceId), should_summarize: shouldSummarize },
+			{
+				files: rawFiles,
+				search_space_id: Number(searchSpaceId),
+				should_summarize: shouldSummarize,
+			},
 			{
 				onSuccess: () => {
 					clearInterval(progressInterval);
@@ -241,12 +253,7 @@ export function DocumentUploadTab({
 	};
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 20 }}
-			animate={{ opacity: 1, y: 0 }}
-			transition={{ duration: 0.3 }}
-			className="space-y-3 sm:space-y-6 max-w-4xl mx-auto pt-0"
-		>
+		<div className="space-y-3 sm:space-y-6 max-w-4xl mx-auto pt-0">
 			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5 flex items-start gap-3 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg~*]:pl-0">
 				<Info className="h-4 w-4 shrink-0 mt-0.5" />
 				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
@@ -287,14 +294,10 @@ export function DocumentUploadTab({
 								</div>
 							</div>
 						) : isDragActive ? (
-							<motion.div
-								initial={{ opacity: 0, scale: 0.8 }}
-								animate={{ opacity: 1, scale: 1 }}
-								className="flex flex-col items-center gap-2 sm:gap-4"
-							>
+							<div className="flex flex-col items-center gap-2 sm:gap-4">
 								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-primary" />
 								<p className="text-sm sm:text-lg font-medium text-primary">{t("drop_files")}</p>
-							</motion.div>
+							</div>
 						) : (
 							<div className="flex flex-col items-center gap-2 sm:gap-4">
 								<Upload className="h-8 w-8 sm:h-12 sm:w-12 text-muted-foreground" />
@@ -312,7 +315,7 @@ export function DocumentUploadTab({
 						{!isFileCountLimitReached && (
 							<div className="mt-2 sm:mt-4">
 								<Button
-									variant="outline"
+									variant="secondary"
 									size="sm"
 									className="text-xs sm:text-sm"
 									onClick={(e) => {
@@ -329,124 +332,102 @@ export function DocumentUploadTab({
 				</CardContent>
 			</Card>
 
-			<AnimatePresence mode="wait">
-				{files.length > 0 && (
-					<motion.div
-						initial={{ opacity: 0, height: 0 }}
-						animate={{ opacity: 1, height: "auto" }}
-						exit={{ opacity: 0, height: 0 }}
-						transition={{ duration: 0.3 }}
-					>
-						<Card className={cardClass}>
-							<CardHeader className="p-4 sm:p-6">
-								<div className="flex items-center justify-between gap-2">
-									<div className="min-w-0 flex-1">
-										<CardTitle className="text-base sm:text-2xl">
-											{t("selected_files", { count: files.length })}
-										</CardTitle>
-										<CardDescription className="text-xs sm:text-sm">
-											{t("total_size")}: {formatFileSize(totalFileSize)}
-										</CardDescription>
+			{files.length > 0 && (
+				<Card className={cardClass}>
+					<CardHeader className="p-4 sm:p-6">
+						<div className="flex items-center justify-between gap-2">
+							<div className="min-w-0 flex-1">
+								<CardTitle className="text-base sm:text-2xl">
+									{t("selected_files", { count: files.length })}
+								</CardTitle>
+								<CardDescription className="text-xs sm:text-sm">
+									{t("total_size")}: {formatFileSize(totalFileSize)}
+								</CardDescription>
+							</div>
+							<Button
+								variant="outline"
+								size="sm"
+								className="text-xs sm:text-sm shrink-0"
+								onClick={() => setFiles([])}
+								disabled={isUploading}
+							>
+								{t("clear_all")}
+							</Button>
+						</div>
+					</CardHeader>
+					<CardContent className="p-4 sm:p-6 pt-0">
+						<div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[400px] overflow-y-auto">
+							{files.map((entry) => (
+								<div
+									key={entry.id}
+									className={`flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border ${cardClass} hover:bg-slate-400/10 dark:hover:bg-white/10 transition-colors`}
+								>
+									<div className="flex items-center gap-3 flex-1 min-w-0">
+										<FileType className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+										<div className="flex-1 min-w-0">
+											<p className="text-sm sm:text-base font-medium truncate">{entry.file.name}</p>
+											<div className="flex items-center gap-2 mt-1">
+												<Badge variant="secondary" className="text-xs">
+													{formatFileSize(entry.file.size)}
+												</Badge>
+												<Badge variant="outline" className="text-xs">
+													{entry.file.type || "Unknown type"}
+												</Badge>
+											</div>
+										</div>
 									</div>
 									<Button
-										variant="outline"
-										size="sm"
-										className="text-xs sm:text-sm shrink-0"
-										onClick={() => setFiles([])}
+										variant="ghost"
+										size="icon"
+										onClick={() => setFiles((prev) => prev.filter((e) => e.id !== entry.id))}
 										disabled={isUploading}
+										className="h-8 w-8"
 									>
-										{t("clear_all")}
+										<X className="h-4 w-4" />
 									</Button>
 								</div>
-							</CardHeader>
-							<CardContent className="p-4 sm:p-6 pt-0">
-								<div className="space-y-2 sm:space-y-3 max-h-[250px] sm:max-h-[400px] overflow-y-auto">
-									<AnimatePresence>
-										{files.map((file, index) => (
-											<motion.div
-												key={`${file.name}-${index}`}
-												initial={{ opacity: 0, x: -20 }}
-												animate={{ opacity: 1, x: 0 }}
-												exit={{ opacity: 0, x: 20 }}
-												className={`flex items-center justify-between p-2 sm:p-4 rounded-lg border border-border ${cardClass} hover:bg-slate-400/10 dark:hover:bg-white/10 transition-colors`}
-											>
-												<div className="flex items-center gap-3 flex-1 min-w-0">
-													<FileType className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-													<div className="flex-1 min-w-0">
-														<p className="text-sm sm:text-base font-medium truncate">{file.name}</p>
-														<div className="flex items-center gap-2 mt-1">
-															<Badge variant="secondary" className="text-xs">
-																{formatFileSize(file.size)}
-															</Badge>
-															<Badge variant="outline" className="text-xs">
-																{file.type || "Unknown type"}
-															</Badge>
-														</div>
-													</div>
-												</div>
-												<Button
-													variant="ghost"
-													size="icon"
-													onClick={() => setFiles((prev) => prev.filter((_, i) => i !== index))}
-													disabled={isUploading}
-													className="h-8 w-8"
-												>
-													<X className="h-4 w-4" />
-												</Button>
-											</motion.div>
-										))}
-									</AnimatePresence>
-								</div>
+							))}
+						</div>
 
-								{isUploading && (
-									<motion.div
-										initial={{ opacity: 0, y: 10 }}
-										animate={{ opacity: 1, y: 0 }}
-										className="mt-3 sm:mt-6 space-y-2 sm:space-y-3"
-									>
-										<Separator className="bg-border" />
-										<div className="space-y-2">
-											<div className="flex items-center justify-between text-xs sm:text-sm">
-												<span>{t("uploading_files")}</span>
-												<span>{Math.round(uploadProgress)}%</span>
-											</div>
-											<Progress value={uploadProgress} className="h-2" />
-										</div>
-									</motion.div>
+						{isUploading && (
+							<div className="mt-3 sm:mt-6 space-y-2 sm:space-y-3">
+								<Separator className="bg-border" />
+								<div className="space-y-2">
+									<div className="flex items-center justify-between text-xs sm:text-sm">
+										<span>{t("uploading_files")}</span>
+										<span>{Math.round(uploadProgress)}%</span>
+									</div>
+									<Progress value={uploadProgress} className="h-2" />
+								</div>
+							</div>
+						)}
+
+						<div className="mt-3 sm:mt-6">
+							<SummaryConfig enabled={shouldSummarize} onEnabledChange={setShouldSummarize} />
+						</div>
+
+						<div className="mt-3 sm:mt-6">
+							<Button
+								className="w-full py-3 sm:py-6 text-xs sm:text-base font-medium"
+								onClick={handleUpload}
+								disabled={isUploading || files.length === 0}
+							>
+								{isUploading ? (
+									<span className="flex items-center gap-2">
+										<Spinner size="sm" />
+										{t("uploading")}
+									</span>
+								) : (
+									<span className="flex items-center gap-2">
+										<CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
+										{t("upload_button", { count: files.length })}
+									</span>
 								)}
-
-								<div className="mt-3 sm:mt-6">
-									<SummaryConfig enabled={shouldSummarize} onEnabledChange={setShouldSummarize} />
-								</div>
-
-								<motion.div
-									className="mt-3 sm:mt-6"
-									initial={{ opacity: 0, y: 10 }}
-									animate={{ opacity: 1, y: 0 }}
-								>
-									<Button
-										className="w-full py-3 sm:py-6 text-xs sm:text-base font-medium"
-										onClick={handleUpload}
-										disabled={isUploading || files.length === 0}
-									>
-										{isUploading ? (
-											<span className="flex items-center gap-2">
-												<Spinner size="sm" />
-												{t("uploading")}
-											</span>
-										) : (
-											<span className="flex items-center gap-2">
-												<CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" />
-												{t("upload_button", { count: files.length })}
-											</span>
-										)}
-									</Button>
-								</motion.div>
-							</CardContent>
-						</Card>
-					</motion.div>
-				)}
-			</AnimatePresence>
+							</Button>
+						</div>
+					</CardContent>
+				</Card>
+			)}
 
 			<Accordion
 				type="single"
@@ -479,6 +460,6 @@ export function DocumentUploadTab({
 					</AccordionContent>
 				</AccordionItem>
 			</Accordion>
-		</motion.div>
+		</div>
 	);
 }

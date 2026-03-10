@@ -1,0 +1,333 @@
+// ---------------------------------------------------------------------------
+// SurfSense – Professional PDF Report Template (Pandoc → Typst)
+//
+// This file is a *pandoc template* (uses $$variable$$ syntax) that emits Typst
+// source code.  Pandoc substitutes the variables at conversion time; Typst
+// then compiles the result into a PDF.
+// ---------------------------------------------------------------------------
+
+// ── Pandoc helpers ─────────────────────────────────────────────────────────
+
+#let horizontalrule = line(length: 100%, stroke: 0.5pt + luma(180))
+
+#show terms: it => {
+  it.children
+    .map(child => [
+      #strong[#child.term]
+      #block(inset: (left: 1.5em, top: -0.4em))[#child.description]
+    ])
+    .join()
+}
+
+#set table(inset: 8pt)
+
+#show figure.where(
+  kind: table
+): set figure.caption(position: $if(table-caption-position)$$table-caption-position$$else$top$endif$)
+
+#show figure.where(
+  kind: image
+): set figure.caption(position: $if(figure-caption-position)$$figure-caption-position$$else$bottom$endif$)
+
+$if(highlighting-definitions)$
+$highlighting-definitions$
+
+$endif$
+
+// ── Colour palette ─────────────────────────────────────────────────────────
+
+#let accent      = rgb("#2563eb")   // Blue-600
+#let heading-dark = rgb("#1e293b")  // Slate-900
+#let subtle-bg    = rgb("#f8fafc")  // Slate-50
+#let border-color = rgb("#e2e8f0")  // Slate-200
+#let muted        = rgb("#64748b")  // Slate-500
+
+// ── conf – document setup & styling ────────────────────────────────────────
+
+#let conf(
+  title: none,
+  subtitle: none,
+  authors: (),
+  keywords: (),
+  date: none,
+  abstract-title: none,
+  abstract: none,
+  thanks: none,
+  cols: 1,
+  margin: (x: 1.25in, y: 1.25in),
+  paper: "us-letter",
+  lang: "en",
+  region: "US",
+  font: (),
+  fontsize: 11pt,
+  mathfont: none,
+  codefont: none,
+  linestretch: 1.5,
+  sectionnumbering: none,
+  linkcolor: none,
+  citecolor: none,
+  filecolor: none,
+  pagenumbering: "1",
+  doc,
+) = {
+  set document(title: title, keywords: keywords)
+
+  // ── Page layout ──────────────────────────────────────────────────────────
+
+  set page(
+    paper: paper,
+    margin: (x: 1.25in, top: 1.2in, bottom: 1in),
+    numbering: "1",
+
+    header: context {
+      if counter(page).get().first() > 1 {
+        set text(size: 8.5pt, fill: muted)
+        if title != none { title } else { [] }
+        h(1fr)
+        text[Report]
+        v(4pt)
+        line(length: 100%, stroke: 0.4pt + border-color)
+      }
+    },
+
+    footer: context {
+      set text(size: 8.5pt, fill: muted)
+      line(length: 100%, stroke: 0.4pt + border-color)
+      v(4pt)
+      h(1fr)
+      [Page #counter(page).display("1 of 1", both: true)]
+      h(1fr)
+    },
+  )
+
+  // ── Typography ───────────────────────────────────────────────────────────
+
+  set text(lang: lang, region: region, font: font, size: fontsize)
+  set par(justify: true, leading: linestretch * 0.65em, first-line-indent: 0pt)
+
+  // ── Headings ─────────────────────────────────────────────────────────────
+
+  set heading(numbering: sectionnumbering)
+
+  show heading.where(level: 1): it => block(above: 1.6em, below: 0.8em, breakable: false)[
+    #text(size: 1.5em, weight: "bold", fill: heading-dark)[#it.body]
+    #v(0.2em)
+    #line(length: 100%, stroke: 1.5pt + accent)
+  ]
+
+  show heading.where(level: 2): it => block(above: 1.4em, below: 0.6em, breakable: false)[
+    #text(size: 1.25em, weight: "bold", fill: heading-dark)[#it.body]
+    #v(0.1em)
+    #line(length: 40%, stroke: 0.75pt + border-color)
+  ]
+
+  show heading.where(level: 3): it => block(above: 1.2em, below: 0.5em, breakable: false)[
+    #text(size: 1.1em, weight: "semibold", fill: heading-dark)[#it.body]
+  ]
+
+  show heading.where(level: 4): it => block(above: 1em, below: 0.4em, breakable: false)[
+    #text(size: 1em, weight: "semibold", fill: muted, style: "italic")[#it.body]
+  ]
+
+  // ── Code blocks ──────────────────────────────────────────────────────────
+
+  show raw.where(block: true): it => {
+    block(
+      fill: subtle-bg,
+      stroke: 0.5pt + border-color,
+      inset: (x: 12pt, y: 10pt),
+      radius: 4pt,
+      width: 100%,
+      breakable: true,
+    )[#text(size: 9pt)[#it]]
+  }
+
+  show raw.where(block: false): box.with(
+    fill: subtle-bg,
+    stroke: 0.5pt + border-color,
+    inset: (x: 4pt, y: 2pt),
+    radius: 2pt,
+  )
+
+  // ── Tables ───────────────────────────────────────────────────────────────
+
+  set table(
+    inset: (x: 10pt, y: 6pt),
+    stroke: (x: none, y: 0.5pt + border-color),
+  )
+
+  // ── Links ────────────────────────────────────────────────────────────────
+
+  show link: set text(fill: accent)
+
+  // ── Block quotes ─────────────────────────────────────────────────────────
+
+  show quote: it => block(
+    inset: (left: 14pt, rest: 8pt),
+    stroke: (left: 3pt + accent),
+  )[#text(fill: muted)[#it.body]]
+
+  // ── Math ─────────────────────────────────────────────────────────────────
+
+  show math.equation: set text(font: mathfont) if mathfont != none
+  show raw: set text(font: codefont) if codefont != none
+
+  // ── Title block ──────────────────────────────────────────────────────────
+
+  if title != none {
+    v(2em)
+    align(center)[
+      #block(below: 0.6em)[
+        #text(size: 2em, weight: "bold", fill: heading-dark)[#title]
+      ]
+      #if subtitle != none {
+        block(below: 0.5em)[
+          #text(size: 1.3em, fill: muted)[#subtitle]
+        ]
+      }
+      #if authors != none and authors != () {
+        v(0.2em)
+        grid(
+          columns: (1fr,) * calc.min(authors.len(), 3),
+          row-gutter: 1.5em,
+          ..authors.map(author => align(center)[
+            #text(weight: "semibold")[#author.name]
+          ]),
+        )
+      }
+      #if date != none {
+        block(above: 0.6em)[
+          #text(size: 0.95em, fill: muted)[#date]
+        ]
+      }
+    ]
+    v(0.6em)
+    line(length: 60%, stroke: 1pt + border-color)
+    v(1.2em)
+  }
+
+  if abstract != none {
+    block(
+      inset: (x: 2em, y: 1em),
+      stroke: (left: 3pt + accent),
+    )[
+      #text(weight: "semibold")[#abstract-title] #h(0.5em) #abstract
+    ]
+    v(1em)
+  }
+
+  doc
+}
+
+// ── Smart quotes ───────────────────────────────────────────────────────────
+
+$if(smart)$
+$else$
+#set smartquote(enabled: false)
+
+$endif$
+// ── Apply conf to document ─────────────────────────────────────────────────
+
+$for(header-includes)$
+$header-includes$
+
+$endfor$
+#show: doc => conf(
+$if(title)$
+  title: [$title$],
+$endif$
+$if(subtitle)$
+  subtitle: [$subtitle$],
+$endif$
+$if(author)$
+  authors: (
+$for(author)$
+$if(author.name)$
+    ( name: [$author.name$],
+      affiliation: [$author.affiliation$],
+      email: [$author.email$] ),
+$else$
+    ( name: [$author$],
+      affiliation: "",
+      email: "" ),
+$endif$
+$endfor$
+    ),
+$endif$
+$if(date)$
+  date: [$date$],
+$endif$
+$if(lang)$
+  lang: "$lang$",
+$endif$
+$if(region)$
+  region: "$region$",
+$endif$
+$if(abstract-title)$
+  abstract-title: [$abstract-title$],
+$endif$
+$if(abstract)$
+  abstract: [$abstract$],
+$endif$
+$if(margin)$
+  margin: ($for(margin/pairs)$$margin.key$: $margin.value$,$endfor$),
+$endif$
+$if(papersize)$
+  paper: "$papersize$",
+$endif$
+$if(mainfont)$
+  font: ("$mainfont$",),
+$endif$
+$if(fontsize)$
+  fontsize: $fontsize$,
+$endif$
+$if(mathfont)$
+  mathfont: ($for(mathfont)$"$mathfont$",$endfor$),
+$endif$
+$if(codefont)$
+  codefont: ($for(codefont)$"$codefont$",$endfor$),
+$endif$
+$if(linestretch)$
+  linestretch: $linestretch$,
+$endif$
+$if(section-numbering)$
+  sectionnumbering: "$section-numbering$",
+$endif$
+  pagenumbering: $if(page-numbering)$"$page-numbering$"$else$none$endif$,
+  cols: $if(columns)$$columns$$else$1$endif$,
+  doc,
+)
+
+$for(include-before)$
+$include-before$
+
+$endfor$
+$if(toc)$
+#outline(
+  title: auto,
+  depth: $toc-depth$
+);
+$endif$
+
+$body$
+
+$if(citations)$
+$for(nocite-ids)$
+#cite(label("${it}"), form: none)
+$endfor$
+$if(csl)$
+
+#set bibliography(style: "$csl$")
+$elseif(bibliographystyle)$
+
+#set bibliography(style: "$bibliographystyle$")
+$endif$
+$if(bibliography)$
+
+#bibliography($for(bibliography)$"$bibliography$"$sep$,$endfor$$if(full-bibliography)$, full: true$endif$)
+$endif$
+$endif$
+$for(include-after)$
+
+$include-after$
+$endfor$

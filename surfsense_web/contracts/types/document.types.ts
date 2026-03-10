@@ -92,11 +92,16 @@ export const surfsenseDocsDocumentWithChunks = surfsenseDocsDocument.extend({
 /**
  * Get documents
  */
+export const documentSortByEnum = z.enum(["created_at", "title", "document_type"]);
+export const sortOrderEnum = z.enum(["asc", "desc"]);
+
 export const getDocumentsRequest = z.object({
 	queryParams: paginationQueryParams
 		.extend({
 			search_space_id: z.number().or(z.string()).optional(),
 			document_types: z.array(documentTypeEnum).optional(),
+			sort_by: documentSortByEnum.optional(),
+			sort_order: sortOrderEnum.optional(),
 		})
 		.nullish(),
 });
@@ -126,7 +131,8 @@ export const createDocumentRequest = document
 	});
 
 export const createDocumentResponse = z.object({
-	message: z.literal("Documents created successfully"),
+	message: z.literal("Documents queued for background processing"),
+	status: z.literal("queued"),
 });
 
 /**
@@ -311,6 +317,8 @@ export type UpdateDocumentResponse = z.infer<typeof updateDocumentResponse>;
 export type DeleteDocumentRequest = z.infer<typeof deleteDocumentRequest>;
 export type DeleteDocumentResponse = z.infer<typeof deleteDocumentResponse>;
 export type DocumentTypeEnum = z.infer<typeof documentTypeEnum>;
+export type DocumentSortBy = z.infer<typeof documentSortByEnum>;
+export type SortOrder = z.infer<typeof sortOrderEnum>;
 export type SurfsenseDocsChunk = z.infer<typeof surfsenseDocsChunk>;
 export type SurfsenseDocsDocument = z.infer<typeof surfsenseDocsDocument>;
 export type SurfsenseDocsDocumentWithChunks = z.infer<typeof surfsenseDocsDocumentWithChunks>;

@@ -15,6 +15,8 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuLabel,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -114,7 +116,7 @@ function ReportPanelContent({
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [copied, setCopied] = useState(false);
-	const [exporting, setExporting] = useState<"pdf" | "docx" | "md" | null>(null);
+	const [exporting, setExporting] = useState<string | null>(null);
 	const [saving, setSaving] = useState(false);
 
 	// Editor state — tracks the latest markdown from the Plate editor
@@ -196,18 +198,30 @@ function ReportPanelContent({
 		}
 	}, [currentMarkdown]);
 
+	// Maps backend format values to download file extensions
+	const FILE_EXTENSIONS: Record<string, string> = {
+		pdf: "pdf",
+		docx: "docx",
+		html: "html",
+		latex: "tex",
+		epub: "epub",
+		odt: "odt",
+		plain: "txt",
+		md: "md",
+	};
+
 	// Export report
 	const handleExport = useCallback(
-		async (format: "pdf" | "docx" | "md") => {
+		async (format: string) => {
 			setExporting(format);
 			const safeTitle =
 				title
 					.replace(/[^a-zA-Z0-9 _-]/g, "_")
 					.trim()
 					.slice(0, 80) || "report";
+			const ext = FILE_EXTENSIONS[format] ?? format;
 			try {
 				if (format === "md") {
-					// Download markdown content directly as a .md file (uses latest editor content)
 					if (!currentMarkdown) return;
 					const blob = new Blob([currentMarkdown], {
 						type: "text/markdown;charset=utf-8",
@@ -215,7 +229,7 @@ function ReportPanelContent({
 					const url = URL.createObjectURL(blob);
 					const a = document.createElement("a");
 					a.href = url;
-					a.download = `${safeTitle}.md`;
+					a.download = `${safeTitle}.${ext}`;
 					document.body.appendChild(a);
 					a.click();
 					document.body.removeChild(a);
@@ -234,7 +248,7 @@ function ReportPanelContent({
 					const url = URL.createObjectURL(blob);
 					const a = document.createElement("a");
 					a.href = url;
-					a.download = `${safeTitle}.${format}`;
+					a.download = `${safeTitle}.${ext}`;
 					document.body.appendChild(a);
 					a.click();
 					document.body.removeChild(a);
@@ -334,28 +348,42 @@ function ReportPanelContent({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="start"
-							className={`min-w-[180px] bg-muted dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
+							className={`min-w-[200px] dark:bg-neutral-900 dark:border dark:border-white/5${insideDrawer ? " z-[100]" : ""}`}
 						>
-							<DropdownMenuItem onClick={() => handleExport("md")}>
-								Download Markdown
-							</DropdownMenuItem>
-							{/* PDF/DOCX export requires server-side conversion via authenticated endpoint.
-						    Hide for public viewers who have no auth token. */}
 							{!shareToken && (
 								<>
-									<DropdownMenuItem
-										onClick={() => handleExport("pdf")}
-										disabled={exporting !== null}
-									>
-										Download PDF
+									<DropdownMenuLabel className="text-xs text-muted-foreground">Documents</DropdownMenuLabel>
+									<DropdownMenuItem onClick={() => handleExport("pdf")} disabled={exporting !== null}>
+										PDF (.pdf)
 									</DropdownMenuItem>
-									<DropdownMenuItem
-										onClick={() => handleExport("docx")}
-										disabled={exporting !== null}
-									>
-										Download DOCX
+									<DropdownMenuItem onClick={() => handleExport("docx")} disabled={exporting !== null}>
+										Word (.docx)
+									</DropdownMenuItem>
+									<DropdownMenuItem onClick={() => handleExport("odt")} disabled={exporting !== null}>
+										OpenDocument (.odt)
+									</DropdownMenuItem>
+									<DropdownMenuSeparator />
+									<DropdownMenuLabel className="text-xs text-muted-foreground">Web &amp; E-Book</DropdownMenuLabel>
+									<DropdownMenuItem onClick={() => handleExport("html")} disabled={exporting !== null}>
+										HTML (.html)
+									</DropdownMenuItem>
+									<DropdownMenuItem onClick={() => handleExport("epub")} disabled={exporting !== null}>
+										EPUB (.epub)
+									</DropdownMenuItem>
+									<DropdownMenuSeparator />
+									<DropdownMenuLabel className="text-xs text-muted-foreground">Source &amp; Plain</DropdownMenuLabel>
+									<DropdownMenuItem onClick={() => handleExport("latex")} disabled={exporting !== null}>
+										LaTeX (.tex)
 									</DropdownMenuItem>
 								</>
+							)}
+							<DropdownMenuItem onClick={() => handleExport("md")} disabled={exporting !== null}>
+								Markdown (.md)
+							</DropdownMenuItem>
+							{!shareToken && (
+								<DropdownMenuItem onClick={() => handleExport("plain")} disabled={exporting !== null}>
+									Plain Text (.txt)
+								</DropdownMenuItem>
 							)}
 						</DropdownMenuContent>
 					</DropdownMenu>
@@ -371,7 +399,7 @@ function ReportPanelContent({
 							</DropdownMenuTrigger>
 							<DropdownMenuContent
 								align="start"
-								className={`min-w-[120px] bg-muted dark:border dark:border-neutral-700${insideDrawer ? " z-[100]" : ""}`}
+								className={`min-w-[120px] dark:bg-neutral-900 dark:border dark:border-white/5${insideDrawer ? " z-[100]" : ""}`}
 							>
 								{versions.map((v, i) => (
 									<DropdownMenuItem

@@ -1,18 +1,13 @@
 "use client";
 
-import { ArrowRight, Cable } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { Cable } from "lucide-react";
 import type { FC } from "react";
-import { useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import { TabsContent } from "@/components/ui/tabs";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import type { LogActiveTask, LogSummary } from "@/contracts/types/log.types";
-import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 import { cn } from "@/lib/utils";
 import { COMPOSIO_CONNECTORS, OAUTH_CONNECTORS } from "../constants/connector-constants";
 import { getDocumentCountForConnector } from "../utils/connector-document-mapping";
@@ -25,18 +20,9 @@ interface ActiveConnectorsTabProps {
 	activeDocumentTypes: Array<[string, number]>;
 	connectors: SearchSourceConnector[];
 	indexingConnectorIds: Set<number>;
-	searchSpaceId: string;
 	onTabChange: (value: string) => void;
 	onManage?: (connector: SearchSourceConnector) => void;
 	onViewAccountsList?: (connectorType: string, connectorTitle: string) => void;
-}
-
-/**
- * Check if a connector type is indexable
- */
-function isIndexableConnector(connectorType: string): boolean {
-	const nonIndexableTypes = ["MCP_CONNECTOR"];
-	return !nonIndexableTypes.includes(connectorType);
 }
 
 export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
@@ -45,17 +31,10 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 	activeDocumentTypes,
 	connectors,
 	indexingConnectorIds,
-	searchSpaceId,
-	onTabChange,
+	onTabChange: _onTabChange,
 	onManage,
 	onViewAccountsList,
 }) => {
-	const router = useRouter();
-
-	const handleViewAllDocuments = () => {
-		router.push(`/dashboard/${searchSpaceId}/documents`);
-	};
-
 	// Convert activeDocumentTypes array to Record for utility function
 	const documentTypeCounts = activeDocumentTypes.reduce(
 		(acc, [docType, count]) => {
@@ -300,15 +279,6 @@ export const ActiveConnectorsTab: FC<ActiveConnectorsTabProps> = ({
 						<div className="space-y-4">
 							<div className="flex items-center justify-between">
 								<h3 className="text-sm font-semibold text-muted-foreground">Documents</h3>
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={handleViewAllDocuments}
-									className="h-7 text-xs text-muted-foreground hover:text-foreground gap-1.5"
-								>
-									View all documents
-									<ArrowRight className="size-3" />
-								</Button>
 							</div>
 							<div className="flex flex-wrap items-center gap-2">
 								{standaloneDocuments.map((doc) => (

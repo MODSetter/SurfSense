@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config as app_config
 from app.db import Document, DocumentStatus, DocumentType, Log, Notification
-from app.indexing_pipeline.adapters.file_upload_adapter import index_uploaded_file
+from app.indexing_pipeline.adapters.file_upload_adapter import UploadDocumentAdapter
 from app.services.llm_service import get_user_long_context_llm
 from app.services.notification_service import NotificationService
 from app.services.task_logging_service import TaskLoggingService
@@ -1871,13 +1871,13 @@ async def process_file_in_background_with_document(
 
         user_llm = await get_user_long_context_llm(session, user_id, search_space_id)
 
-        await index_uploaded_file(
+        adapter = UploadDocumentAdapter(session)
+        await adapter.index(
             markdown_content=markdown_content,
             filename=filename,
             etl_service=etl_service,
             search_space_id=search_space_id,
             user_id=user_id,
-            session=session,
             llm=user_llm,
             should_summarize=should_summarize,
         )

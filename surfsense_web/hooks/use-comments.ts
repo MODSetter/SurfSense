@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef } from "react";
+import type { GetCommentsResponse } from "@/contracts/types/chat-comments.types";
 import { chatCommentsApiService } from "@/lib/apis/chat-comments-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 
@@ -22,20 +23,20 @@ let _batchTargetIds = new Set<number>();
 let _batchReady: Promise<void> | null = null;
 let _resolveBatchReady: (() => void) | null = null;
 
-function resetBatchGate() {
+function resetBatchGate(resolveImmediately = false) {
 	_batchReady = new Promise<void>((r) => {
 		_resolveBatchReady = r;
+		if (resolveImmediately) r();
 	});
 }
 
 // Open the initial gate immediately (no batch pending yet)
-resetBatchGate();
-_resolveBatchReady?.();
+resetBatchGate(true);
 
 export function useComments({ messageId, enabled = true }: UseCommentsOptions) {
 	const queryClient = useQueryClient();
 
-	return useQuery({
+	return useQuery<GetCommentsResponse>({
 		queryKey: cacheKeys.comments.byMessage(messageId),
 		queryFn: async () => {
 			// Wait for the batch gate so the useEffect in useBatchCommentsPreload
@@ -46,7 +47,9 @@ export function useComments({ messageId, enabled = true }: UseCommentsOptions) {
 
 			if (_batchInflight && _batchTargetIds.has(messageId)) {
 				await _batchInflight;
-				const cached = queryClient.getQueryData(cacheKeys.comments.byMessage(messageId));
+				const cached = queryClient.getQueryData<GetCommentsResponse>(
+					cacheKeys.comments.byMessage(messageId)
+				);
 				if (cached) return cached;
 			}
 

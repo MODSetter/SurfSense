@@ -1,6 +1,5 @@
 "use client";
 
-import { SlashInputPlugin } from "@platejs/slash-command/react";
 import {
 	ChevronRightIcon,
 	Code2Icon,
@@ -177,7 +176,7 @@ export function SlashInputElement({ children, ...props }: PlateElementProps) {
 			<InlineCombobox element={props.element} trigger="/">
 				<InlineComboboxInput />
 
-				<InlineComboboxContent className="dark:bg-neutral-800 dark:border dark:border-neutral-700">
+				<InlineComboboxContent className="dark:bg-neutral-900 dark:border dark:border-white/5">
 					<InlineComboboxEmpty>No results found.</InlineComboboxEmpty>
 
 					{slashCommandGroups.map(({ heading, items }) => (

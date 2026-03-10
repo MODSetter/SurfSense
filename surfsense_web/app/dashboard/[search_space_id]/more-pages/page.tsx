@@ -2,13 +2,14 @@
 
 import { IconCalendar, IconMailFilled } from "@tabler/icons-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, Gift, Mail, Star } from "lucide-react";
+import { Check, ExternalLink, Gift, Mail, Star, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import Link from "next/link";
 import { useEffect } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import {
 	Dialog,
 	DialogContent,
@@ -33,29 +34,24 @@ import { cn } from "@/lib/utils";
 export default function MorePagesPage() {
 	const queryClient = useQueryClient();
 
-	// Track page view on mount
 	useEffect(() => {
 		trackIncentivePageViewed();
 	}, []);
 
-	// Fetch tasks from API
 	const { data, isLoading } = useQuery({
 		queryKey: ["incentive-tasks"],
 		queryFn: () => incentiveTasksApiService.getTasks(),
 	});
 
-	// Mutation to complete a task
 	const completeMutation = useMutation({
 		mutationFn: incentiveTasksApiService.completeTask,
 		onSuccess: (response, taskType) => {
 			if (response.success) {
 				toast.success(response.message);
-				// Track task completion
 				const task = data?.tasks.find((t) => t.task_type === taskType);
 				if (task) {
 					trackIncentiveTaskCompleted(taskType, task.pages_reward);
 				}
-				// Invalidate queries to refresh data
 				queryClient.invalidateQueries({ queryKey: ["incentive-tasks"] });
 				queryClient.invalidateQueries({ queryKey: ["user"] });
 			}
@@ -72,21 +68,21 @@ export default function MorePagesPage() {
 		}
 	};
 
-	const allCompleted = data?.tasks.every((t) => t.completed) ?? false;
-
 	return (
 		<div className="flex min-h-[calc(100vh-64px)] select-none items-center justify-center px-4 py-8">
 			<motion.div
 				initial={{ opacity: 0, y: 20 }}
 				animate={{ opacity: 1, y: 0 }}
 				transition={{ duration: 0.3 }}
-				className="w-full max-w-md"
+				className="w-full max-w-md space-y-6"
 			>
 				{/* Header */}
-				<div className="mb-6 text-center">
+				<div className="text-center">
 					<Gift className="mx-auto mb-3 h-8 w-8 text-primary" />
 					<h2 className="text-xl font-bold tracking-tight">Get More Pages</h2>
-					<p className="text-sm text-muted-foreground">Complete tasks to earn additional pages</p>
+					<p className="mt-1 text-sm text-muted-foreground">
+						Complete tasks to earn additional pages
+					</p>
 				</div>
 
 				{/* Tasks */}
@@ -112,26 +108,37 @@ export default function MorePagesPage() {
 									<div
 										className={cn(
 											"flex h-9 w-9 shrink-0 items-center justify-center rounded-full",
-											task.completed ? "bg-primary text-primary-foreground" : "bg-muted"
+											task.completed
+												? "bg-primary text-primary-foreground"
+												: "bg-muted"
 										)}
 									>
-										{task.completed ? <Check className="h-4 w-4" /> : <Star className="h-4 w-4" />}
+										{task.completed ? (
+											<Check className="h-4 w-4" />
+										) : (
+											<Star className="h-4 w-4" />
+										)}
 									</div>
-									<div className="flex-1 min-w-0">
+									<div className="min-w-0 flex-1">
 										<p
 											className={cn(
 												"text-sm font-medium",
-												task.completed && "text-muted-foreground line-through"
+												task.completed &&
+													"text-muted-foreground line-through"
 											)}
 										>
 											{task.title}
 										</p>
-										<p className="text-xs text-muted-foreground">+{task.pages_reward} pages</p>
+										<p className="text-xs text-muted-foreground">
+											+{task.pages_reward} pages
+										</p>
 									</div>
 									<Button
 										variant={task.completed ? "ghost" : "outline"}
 										size="sm"
-										disabled={task.completed || completeMutation.isPending}
+										disabled={
+											task.completed || completeMutation.isPending
+										}
 										onClick={() => handleTaskClick(task)}
 										asChild={!task.completed}
 									>
@@ -161,50 +168,60 @@ export default function MorePagesPage() {
 					</div>
 				)}
 
-				{/* Contact */}
-				<Separator className="my-6" />
-				<div className="text-center">
-					<p className="mb-3 text-sm text-muted-foreground">
-						{allCompleted ? "Thanks! Need even more pages?" : "Need more pages?"}
-					</p>
-					<Dialog onOpenChange={(open) => open && trackIncentiveContactOpened()}>
-						<DialogTrigger asChild>
-							<Button variant="outline" size="sm" className="gap-2">
-								<Mail className="h-4 w-4" />
-								Contact Us
-							</Button>
-						</DialogTrigger>
-						<DialogContent className="select-none sm:max-w-md">
-							<DialogHeader>
-								<DialogTitle>Contact Us</DialogTitle>
-								<DialogDescription>Schedule a meeting or send us an email.</DialogDescription>
-							</DialogHeader>
-							<div className="flex flex-col items-center gap-4 py-4">
-								<Link
-									href="https://cal.com/mod-rohan"
-									target="_blank"
-									rel="noopener noreferrer"
-									className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition hover:bg-primary/90"
-								>
-									<IconCalendar className="h-4 w-4" />
-									Schedule a Meeting
-								</Link>
-								<div className="flex items-center gap-2 text-muted-foreground">
-									<span className="h-px w-8 bg-border" />
-									<span className="text-xs">or</span>
-									<span className="h-px w-8 bg-border" />
+				{/* PRO Upgrade */}
+				<Separator />
+
+				<Card className="overflow-hidden border-emerald-500/20">
+					<CardHeader className="pb-2">
+						<div className="flex items-center gap-2">
+							<Zap className="h-4 w-4 text-emerald-500" />
+							<CardTitle className="text-base">Upgrade to PRO</CardTitle>
+							<Badge className="bg-emerald-600 text-white border-transparent hover:bg-emerald-600">
+								FREE
+							</Badge>
+						</div>
+						<CardDescription>
+							For a limited time, get <span className="font-semibold text-foreground">6,000 additional pages</span> at
+							no cost. Contact us and we&apos;ll upgrade your account instantly.
+						</CardDescription>
+					</CardHeader>
+					<CardFooter className="pt-2">
+						<Dialog onOpenChange={(open) => open && trackIncentiveContactOpened()}>
+							<DialogTrigger asChild>
+								<Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
+									<Mail className="h-4 w-4" />
+									Contact Us to Upgrade
+								</Button>
+							</DialogTrigger>
+							<DialogContent className="select-none sm:max-w-sm">
+								<DialogHeader>
+									<DialogTitle>Get in Touch</DialogTitle>
+									<DialogDescription>
+										Pick the option that works best for you.
+									</DialogDescription>
+								</DialogHeader>
+								<div className="flex flex-col gap-2">
+									<Button asChild>
+										<Link
+											href="https://cal.com/mod-rohan"
+											target="_blank"
+											rel="noopener noreferrer"
+										>
+											<IconCalendar className="h-4 w-4" />
+											Schedule a Meeting
+										</Link>
+									</Button>
+									<Button variant="outline" asChild>
+										<Link href="mailto:rohan@surfsense.com">
+											<IconMailFilled className="h-4 w-4" />
+											rohan@surfsense.com
+										</Link>
+									</Button>
 								</div>
-								<Link
-									href="mailto:rohan@surfsense.com"
-									className="flex items-center gap-2 text-sm text-muted-foreground transition hover:text-foreground"
-								>
-									<IconMailFilled className="h-4 w-4" />
-									rohan@surfsense.com
-								</Link>
-							</div>
-						</DialogContent>
-					</Dialog>
-				</div>
+							</DialogContent>
+						</Dialog>
+					</CardFooter>
+				</Card>
 			</motion.div>
 		</div>
 	);

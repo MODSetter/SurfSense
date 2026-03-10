@@ -1,10 +1,29 @@
 "use client";
 
-import { CTAHomepage } from "@/components/homepage/cta";
-import { FeaturesBentoGrid } from "@/components/homepage/features-bento-grid";
-import { FeaturesCards } from "@/components/homepage/features-card";
+import dynamic from "next/dynamic";
 import { HeroSection } from "@/components/homepage/hero-section";
-import ExternalIntegrations from "@/components/homepage/integrations";
+
+const FeaturesCards = dynamic(
+	() => import("@/components/homepage/features-card").then((m) => ({ default: m.FeaturesCards })),
+	{ ssr: false }
+);
+
+const FeaturesBentoGrid = dynamic(
+	() =>
+		import("@/components/homepage/features-bento-grid").then((m) => ({
+			default: m.FeaturesBentoGrid,
+		})),
+	{ ssr: false }
+);
+
+const ExternalIntegrations = dynamic(() => import("@/components/homepage/integrations"), {
+	ssr: false,
+});
+
+const CTAHomepage = dynamic(
+	() => import("@/components/homepage/cta").then((m) => ({ default: m.CTAHomepage })),
+	{ ssr: false }
+);
 
 export default function HomePage() {
 	return (
