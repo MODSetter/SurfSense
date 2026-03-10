@@ -236,7 +236,7 @@ export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDocke
 	if (isDocked && open && !isMobile) {
 		return (
 			<aside
-				className="h-full w-[480px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
+				className="h-full w-[380px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
 				aria-label={t("title") || "Documents"}
 			>
 				{documentsContent}
@@ -249,7 +249,7 @@ export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDocke
 			open={open}
 			onOpenChange={onOpenChange}
 			ariaLabel={t("title") || "Documents"}
-			width={isMobile ? undefined : 480}
+			width={isMobile ? undefined : 380}
 		>
 			{documentsContent}
 		</SidebarSlideOutPanel>
