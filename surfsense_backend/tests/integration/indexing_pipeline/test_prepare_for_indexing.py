@@ -33,7 +33,7 @@ async def test_new_document_is_persisted_with_pending_status(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_unchanged_ready_document_is_skipped(
     db_session,
@@ -56,7 +56,7 @@ async def test_unchanged_ready_document_is_skipped(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_title_only_change_updates_title_in_db(
     db_session,
@@ -339,7 +339,7 @@ async def test_same_content_from_different_source_is_skipped(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize_raises", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize_raises", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_failed_document_with_unchanged_content_is_requeued(
     db_session,

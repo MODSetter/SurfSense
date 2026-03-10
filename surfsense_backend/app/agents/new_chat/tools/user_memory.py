@@ -9,6 +9,7 @@ Features:
 - recall_memory: Retrieve relevant memories using semantic search
 """
 
+import asyncio
 import logging
 from typing import Any
 from uuid import UUID
@@ -177,8 +178,7 @@ def create_save_memory_tool(
                 # Delete oldest memory to make room
                 await delete_oldest_memory(db_session, user_id, search_space_id)
 
-            # Generate embedding for the memory
-            embedding = embed_text(content)
+            embedding = await asyncio.to_thread(embed_text, content)
 
             # Create new memory using ORM
             # The pgvector Vector column type handles embedding conversion automatically
@@ -267,8 +267,7 @@ def create_recall_memory_tool(
             uuid_user_id = _to_uuid(user_id)
 
             if query:
-                # Semantic search using embeddings
-                query_embedding = embed_text(query)
+                query_embedding = await asyncio.to_thread(embed_text, query)
 
                 # Build query with vector similarity
                 stmt = (
