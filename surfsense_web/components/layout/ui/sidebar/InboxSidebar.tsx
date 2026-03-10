@@ -10,7 +10,6 @@ import {
 	CheckCheck,
 	CheckCircle2,
 	ChevronLeft,
-	ChevronRight,
 	History,
 	Inbox,
 	LayoutGrid,
@@ -148,8 +147,6 @@ interface InboxSidebarProps {
 	status: TabDataSource;
 	totalUnreadCount: number;
 	onCloseMobileSidebar?: () => void;
-	isDocked?: boolean;
-	onDockedChange?: (docked: boolean) => void;
 }
 
 export function InboxSidebar({
@@ -159,8 +156,6 @@ export function InboxSidebar({
 	status,
 	totalUnreadCount,
 	onCloseMobileSidebar,
-	isDocked = false,
-	onDockedChange,
 }: InboxSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
@@ -821,35 +816,6 @@ export function InboxSidebar({
 								</TooltipContent>
 							</Tooltip>
 						)}
-						{!isMobile && onDockedChange && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full"
-										onClick={() => {
-											if (isDocked) {
-												onDockedChange(false);
-												onOpenChange(false);
-											} else {
-												onDockedChange(true);
-											}
-										}}
-									>
-										{isDocked ? (
-											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
-										) : (
-											<ChevronRight className="h-4 w-4 text-muted-foreground" />
-										)}
-										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{isDocked ? "Collapse panel" : "Expand panel"}
-								</TooltipContent>
-							</Tooltip>
-						)}
 					</div>
 				</div>
 
@@ -1091,17 +1057,6 @@ export function InboxSidebar({
 			</div>
 		</>
 	);
-
-	if (isDocked && open && !isMobile) {
-		return (
-			<aside
-				className="h-full w-[360px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
-				aria-label={t("inbox") || "Inbox"}
-			>
-				{inboxContent}
-			</aside>
-		);
-	}
 
 	return (
 		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("inbox") || "Inbox"}>

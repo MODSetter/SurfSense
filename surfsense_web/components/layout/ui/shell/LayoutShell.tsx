@@ -40,8 +40,6 @@ interface InboxProps {
 	totalUnreadCount: number;
 	comments: TabDataSource;
 	status: TabDataSource;
-	isDocked?: boolean;
-	onDockedChange?: (docked: boolean) => void;
 }
 
 interface LayoutShellProps {
@@ -308,19 +306,6 @@ export function LayoutShell({
 							isResizing={isResizing}
 						/>
 
-						{/* Docked Inbox Sidebar - renders as flex sibling between sidebar and content */}
-						{inbox?.isDocked && (
-							<InboxSidebar
-								open={inbox.isOpen}
-								onOpenChange={inbox.onOpenChange}
-								comments={inbox.comments}
-								status={inbox.status}
-								totalUnreadCount={inbox.totalUnreadCount}
-								isDocked={inbox.isDocked}
-								onDockedChange={inbox.onDockedChange}
-							/>
-						)}
-
 						{/* Docked Documents Sidebar - renders as flex sibling between sidebar and content */}
 						{documentsPanel?.isDocked && (
 							<DocumentsSidebar
@@ -339,16 +324,14 @@ export function LayoutShell({
 							</div>
 						</main>
 
-						{/* Floating Inbox Sidebar - positioned absolutely on top of content */}
-						{inbox && !inbox.isDocked && (
+						{/* Inbox Sidebar - slide-out panel */}
+						{inbox && (
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
 								comments={inbox.comments}
 								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-								isDocked={false}
-								onDockedChange={inbox.onDockedChange}
 							/>
 						)}
 

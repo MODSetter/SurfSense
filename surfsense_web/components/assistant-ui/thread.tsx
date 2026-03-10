@@ -73,6 +73,7 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
+	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Document } from "@/contracts/types/document.types";
@@ -559,6 +560,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								Manage Documents
 							</DropdownMenuItem>
 						)}
+						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							onClick={() => {
 								setAddMenuOpen(false);

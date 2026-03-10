@@ -117,7 +117,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Inbox sidebar state
 	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
-	const [isInboxDocked, setIsInboxDocked] = useState(false);
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
@@ -432,7 +431,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					if (!prev) {
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
-						setIsDocumentsSidebarOpen(false);
 						setIsAnnouncementsSidebarOpen(false);
 					}
 					return !prev;
@@ -457,7 +455,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						setIsInboxSidebarOpen(false);
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
-						setIsDocumentsSidebarOpen(false);
 					}
 					return !prev;
 				});
@@ -562,17 +559,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsAllSharedChatsSidebarOpen(true);
 		setIsAllPrivateChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
-		setIsDocumentsSidebarOpen(false);
 		setIsAnnouncementsSidebarOpen(false);
-	}, [setIsDocumentsSidebarOpen]);
+	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
 		setIsAllPrivateChatsSidebarOpen(true);
 		setIsAllSharedChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
-		setIsDocumentsSidebarOpen(false);
 		setIsAnnouncementsSidebarOpen(false);
-	}, [setIsDocumentsSidebarOpen]);
+	}, []);
 
 	// Delete handlers
 	const confirmDeleteChat = useCallback(async () => {
@@ -701,9 +696,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAsRead: statusInbox.markAsRead,
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
-					isDocked: isInboxDocked,
-					onDockedChange: setIsInboxDocked,
-				}}
+					}}
 				announcementsPanel={{
 					open: isAnnouncementsSidebarOpen,
 					onOpenChange: setIsAnnouncementsSidebarOpen,
