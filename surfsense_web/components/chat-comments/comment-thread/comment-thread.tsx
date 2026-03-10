@@ -138,6 +138,7 @@ export function CommentThread({
 									onSubmit={handleReplySubmit}
 									onCancel={handleReplyCancel}
 									autoFocus
+									compact
 								/>
 							</div>
 						) : (

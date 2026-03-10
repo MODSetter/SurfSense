@@ -1,0 +1,50 @@
+---
+title: Updating
+description: How to update your SurfSense Docker deployment
+---
+
+## Watchtower Daemon (recommended)
+
+Auto-updates every 24 hours. If you used the [install script](/docs/docker-installation/install-script), Watchtower is already running. No extra setup needed.
+
+For [manual Docker Compose](/docs/docker-installation/docker-compose) installs, start Watchtower separately:
+
+```bash
+docker run -d --name watchtower \
+  --restart unless-stopped \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower \
+  --label-enable \
+  --interval 86400
+```
+
+## Watchtower One-Time Update
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+  nickfedor/watchtower --run-once \
+  --label-filter "com.docker.compose.project=surfsense"
+```
+
+<Callout type="warn">
+Use `nickfedor/watchtower`. The original `containrrr/watchtower` is no longer maintained and may fail with newer Docker versions.
+</Callout>
+
+## Manual Update
+
+```bash
+cd surfsense   # or SurfSense/docker if you cloned manually
+docker compose pull && docker compose up -d
+```
+
+Database migrations are applied automatically on every startup.
+
+---
+
+## Migrating from the All-in-One Container
+
+<Callout type="warn">
+If you were previously using `docker-compose.quickstart.yml` (the legacy all-in-one `surfsense` container), your data lives in a `surfsense-data` volume and requires a **one-time migration** before switching to the current setup. PostgreSQL has been upgraded from version 14 to 17, so a simple volume swap will not work.
+
+See the full step-by-step guide: [Migrate from the All-in-One Container](/docs/docker-installation/migrate-from-allinone).
+</Callout>

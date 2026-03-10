@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import Chunk, Document, DocumentStatus
 from app.indexing_pipeline.connector_document import ConnectorDocument
 from app.indexing_pipeline.document_chunker import chunk_text
-from app.indexing_pipeline.document_embedder import embed_text
+from app.indexing_pipeline.document_embedder import embed_texts
 from app.indexing_pipeline.document_hashing import (
     compute_content_hash,
     compute_unique_identifier_hash,
@@ -195,25 +195,23 @@ class IndexingPipelineService:
             else:
                 content = connector_doc.source_markdown
 
-            t_step = time.perf_counter()
-            embedding = embed_text(content)
-            perf.debug(
-                "[indexing] embed_text (summary) doc=%d in %.3fs",
-                document.id,
-                time.perf_counter() - t_step,
-            )
-
             await self.session.execute(
                 delete(Chunk).where(Chunk.document_id == document.id)
             )
 
             t_step = time.perf_counter()
+            chunk_texts = chunk_text(
+                connector_doc.source_markdown,
+                use_code_chunker=connector_doc.should_use_code_chunker,
+            )
+
+            texts_to_embed = [content, *chunk_texts]
+            embeddings = embed_texts(texts_to_embed)
+            summary_embedding, *chunk_embeddings = embeddings
+
             chunks = [
-                Chunk(content=text, embedding=embed_text(text))
-                for text in chunk_text(
-                    connector_doc.source_markdown,
-                    use_code_chunker=connector_doc.should_use_code_chunker,
-                )
+                Chunk(content=text, embedding=emb)
+                for text, emb in zip(chunk_texts, chunk_embeddings)
             ]
             perf.info(
                 "[indexing] chunk+embed doc=%d chunks=%d in %.3fs",
@@ -223,7 +221,7 @@ class IndexingPipelineService:
             )
 
             document.content = content
-            document.embedding = embedding
+            document.embedding = summary_embedding
             attach_chunks_to_document(document, chunks)
             document.updated_at = datetime.now(UTC)
             document.status = DocumentStatus.ready()

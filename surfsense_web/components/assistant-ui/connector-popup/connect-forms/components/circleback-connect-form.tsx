@@ -64,15 +64,13 @@ export const CirclebackConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmit
 
 	return (
 		<div className="space-y-6 pb-6">
-			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3 flex items-center [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg+div]:translate-y-0">
-				<Webhook className="h-3 w-3 sm:h-4 sm:w-4 shrink-0 ml-1" />
-				<div className="-ml-1">
-					<AlertTitle className="text-xs sm:text-sm">Webhook-Based Integration</AlertTitle>
-					<AlertDescription className="text-[10px] sm:text-xs !pl-0">
-						Circleback uses webhooks to automatically send meeting data. After connecting, you'll
-						receive a webhook URL to configure in your Circleback settings.
-					</AlertDescription>
-				</div>
+			<Alert className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 p-2 sm:p-3">
+				<Webhook className="size-4 shrink-0" />
+				<AlertTitle className="text-xs sm:text-sm">Webhook-Based Integration</AlertTitle>
+				<AlertDescription className="text-[10px] sm:text-xs">
+					Circleback uses webhooks to automatically send meeting data. After connecting, you'll
+					receive a webhook URL to configure in your Circleback settings.
+				</AlertDescription>
 			</Alert>
 
 			<div className="rounded-xl border border-border bg-slate-400/5 dark:bg-white/5 p-3 sm:p-6 space-y-3 sm:space-y-4">

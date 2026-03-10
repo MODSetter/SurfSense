@@ -8,6 +8,7 @@ The documentation is indexed at deployment time from MDX files and stored
 in dedicated tables (surfsense_docs_documents, surfsense_docs_chunks).
 """
 
+import asyncio
 import json
 
 from langchain_core.tools import tool
@@ -100,7 +101,7 @@ async def search_surfsense_docs_async(
         Formatted string with relevant documentation content
     """
     # Get embedding for the query
-    query_embedding = embed_text(query)
+    query_embedding = await asyncio.to_thread(embed_text, query)
 
     # Vector similarity search on chunks, joining with documents
     stmt = (

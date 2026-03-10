@@ -1,6 +1,8 @@
 "use client";
 
 import {
+	ChevronDown,
+	ChevronRight,
 	File,
 	FileSpreadsheet,
 	FileText,

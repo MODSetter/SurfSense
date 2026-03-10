@@ -264,7 +264,9 @@ class ConnectorService:
         # Reuse caller-provided embedding or compute once for both retrievers.
         if query_embedding is None:
             t_embed = time.perf_counter()
-            query_embedding = config.embedding_model_instance.embed(query_text)
+            query_embedding = await asyncio.to_thread(
+                config.embedding_model_instance.embed, query_text
+            )
             perf.info(
                 "[connector_svc] _combined_rrf embedding in %.3fs type=%s",
                 time.perf_counter() - t_embed,

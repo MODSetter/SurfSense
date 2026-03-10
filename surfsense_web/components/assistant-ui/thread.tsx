@@ -14,7 +14,6 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
-	Cable,
 	CheckIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
@@ -23,17 +22,20 @@ import {
 	PlusIcon,
 	RefreshCwIcon,
 	SquareIcon,
-	SquareLibrary,
+	Unplug,
+	Upload,
+	X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
-import { showCommentsGutterAtom } from "@/atoms/chat/current-thread.atom";
 import {
 	mentionedDocumentsAtom,
 	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -48,6 +50,7 @@ import {
 	ConnectorIndicator,
 	type ConnectorIndicatorHandle,
 } from "@/components/assistant-ui/connector-popup";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
@@ -60,13 +63,21 @@ import {
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
+import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
+import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
@@ -95,8 +106,6 @@ export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) =>
 };
 
 const ThreadContent: FC = () => {
-	const showGutter = useAtomValue(showCommentsGutterAtom);
-
 	return (
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
@@ -106,10 +115,7 @@ const ThreadContent: FC = () => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
-				className={cn(
-					"aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4 transition-[padding] duration-300 ease-out",
-					showGutter && "lg:pr-30"
-				)}
+				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
 			>
 				<AssistantIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
@@ -228,6 +234,72 @@ const ThreadWelcome: FC = () => {
 	);
 };
 
+const BANNER_CONNECTORS = [
+	{ type: "GOOGLE_DRIVE_CONNECTOR", label: "Google Drive" },
+	{ type: "GOOGLE_GMAIL_CONNECTOR", label: "Gmail" },
+	{ type: "NOTION_CONNECTOR", label: "Notion" },
+	{ type: "YOUTUBE_CONNECTOR", label: "YouTube" },
+	{ type: "SLACK_CONNECTOR", label: "Slack" },
+] as const;
+
+const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
+
+const ConnectToolsBanner: FC = () => {
+	const { data: connectors } = useAtomValue(connectorsAtom);
+	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const [dismissed, setDismissed] = useState(() => {
+		if (typeof window === "undefined") return false;
+		return localStorage.getItem(BANNER_DISMISSED_KEY) === "true";
+	});
+
+	const hasConnectors = (connectors?.length ?? 0) > 0;
+
+	if (dismissed || hasConnectors) return null;
+
+	const handleDismiss = (e: React.MouseEvent) => {
+		e.stopPropagation();
+		setDismissed(true);
+		localStorage.setItem(BANNER_DISMISSED_KEY, "true");
+	};
+
+	return (
+		<div className="md:hidden border-t border-border/50 bg-muted-foreground/[0.04]">
+			<button
+				type="button"
+				className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-muted-foreground/[0.06] active:bg-muted-foreground/[0.1]"
+				onClick={() => setConnectorDialogOpen(true)}
+			>
+				<Unplug className="size-4 text-muted-foreground/70 shrink-0" />
+				<span className="text-[13px] text-muted-foreground/80 flex-1">Connect your tools</span>
+				<AvatarGroup className="shrink-0">
+					{BANNER_CONNECTORS.map(({ type, label }, i) => (
+						<Avatar key={type} className="size-6" style={{ zIndex: BANNER_CONNECTORS.length - i }}>
+							<AvatarFallback className="bg-muted text-[10px]">
+								{getConnectorIcon(type, "size-3.5")}
+							</AvatarFallback>
+						</Avatar>
+					))}
+				</AvatarGroup>
+				<span
+					role="button"
+					tabIndex={0}
+					onClick={handleDismiss}
+					onKeyDown={(e) => {
+						if (e.key === "Enter" || e.key === " ") {
+							e.preventDefault();
+							handleDismiss(e as unknown as React.MouseEvent);
+						}
+					}}
+					className="shrink-0 ml-0.5 p-0.5 text-muted-foreground/40 hover:text-foreground transition-colors"
+					aria-label="Dismiss"
+				>
+					<X className="size-3.5" />
+				</span>
+			</button>
+		</div>
+	);
+};
+
 const Composer: FC = () => {
 	// Document mention state (atoms persist across component remounts)
 	const [mentionedDocuments, setMentionedDocuments] = useAtom(mentionedDocumentsAtom);
@@ -311,6 +383,16 @@ const Composer: FC = () => {
 			return () => clearTimeout(timeoutId);
 		}
 	}, [isThreadEmpty]);
+
+	// Close document picker when a slide-out panel (inbox, shared/private chats) opens
+	useEffect(() => {
+		const handler = () => {
+			setShowDocumentPopover(false);
+			setMentionQuery("");
+		};
+		window.addEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
+		return () => window.removeEventListener(SLIDEOUT_PANEL_OPENED_EVENT, handler);
+	}, []);
 
 	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
@@ -425,9 +507,9 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-			<div className="aui-composer-attachment-dropzone flex w-full flex-col rounded-2xl border-input bg-muted px-1 pt-2 outline-none transition-shadow">
+			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
 				{/* Inline editor with @mention support */}
-				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-3 pt-3 pb-6">
+				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
 						placeholder={currentPlaceholder}
@@ -466,6 +548,7 @@ const Composer: FC = () => {
 						document.body
 					)}
 				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
+				<ConnectToolsBanner />
 			</div>
 		</ComposerPrimitive.Root>
 	);
@@ -481,7 +564,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
 	const connectorRef = useRef<ConnectorIndicatorHandle>(null);
 	const [addMenuOpen, setAddMenuOpen] = useState(false);
-
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
+	const { data: connectors } = useAtomValue(connectorsAtom);
+	const connectorCount = connectors?.length ?? 0;
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
@@ -506,55 +591,61 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
-		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
+		<div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
-				<Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-					<PopoverTrigger asChild>
+				<DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+					<DropdownMenuTrigger asChild>
 						<TooltipIconButton
-							tooltip="Configuration"
+							tooltip="Add files and more"
 							side="bottom"
 							variant="ghost"
 							size="icon"
 							className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-							aria-label="Configuration"
+							aria-label="Add files and more"
 							data-joyride="connector-icon"
 						>
 							<PlusIcon className="size-4" />
 						</TooltipIconButton>
-					</PopoverTrigger>
-					<PopoverContent
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
 						side="bottom"
 						align="start"
 						sideOffset={12}
-						className="w-[calc(100vw-2rem)] max-w-60 sm:w-60 p-2"
+						className="w-[calc(100vw-2rem)] max-w-60 sm:w-60"
 					>
-						<div className="flex flex-col gap-0.5">
-							<button
-								type="button"
-								className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-								onClick={() => {
-									setAddMenuOpen(false);
-									setDocumentsSidebarOpen(true);
-								}}
-							>
-								<SquareLibrary className="size-4 shrink-0" />
-								Documents
-							</button>
-							<button
-								type="button"
-								className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-								onClick={() => {
-									setAddMenuOpen(false);
-									connectorRef.current?.open();
-								}}
-							>
-								<Cable className="size-4 shrink-0" />
-								Manage connectors
-							</button>
-						</div>
-					</PopoverContent>
-				</Popover>
+						<DropdownMenuItem
+							onClick={() => {
+								setAddMenuOpen(false);
+								openUploadDialog();
+							}}
+						>
+							<Upload className="size-4 shrink-0" />
+							Upload files
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={() => {
+								setAddMenuOpen(false);
+								connectorRef.current?.open();
+							}}
+						>
+							<Unplug className="size-4 shrink-0" />
+							{connectorCount > 0 ? "Manage tools" : "Connect your tools"}
+							{connectorCount > 0 && (
+								<span className="ml-auto text-xs text-muted-foreground">{connectorCount}</span>
+							)}
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 				<ConnectorIndicator ref={connectorRef} showTrigger={false} />
+				{sidebarDocs.length > 0 && (
+					<button
+						type="button"
+						onClick={() => setDocumentsSidebarOpen(true)}
+						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
+					>
+						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
+					</button>
+				)}
 			</div>
 
 			{!hasModelConfigured && (
@@ -565,16 +656,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 			)}
 
 			<div className="flex items-center gap-2">
-				{sidebarDocs.length > 0 && (
-					<button
-						type="button"
-						onClick={() => setDocumentsSidebarOpen(true)}
-						className="rounded-full border border-border/60 bg-accent/50 px-2.5 py-1 text-xs font-medium text-foreground/80 transition-colors hover:bg-accent"
-					>
-						{sidebarDocs.length} {sidebarDocs.length === 1 ? "source" : "sources"} selected
-					</button>
-				)}
-
 				<AssistantIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton

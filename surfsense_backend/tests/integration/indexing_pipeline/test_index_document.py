@@ -11,7 +11,7 @@ pytestmark = pytest.mark.integration
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_sets_status_ready(
     db_session,
@@ -38,7 +38,7 @@ async def test_sets_status_ready(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_content_is_summary_when_should_summarize_true(
     db_session,
@@ -65,7 +65,7 @@ async def test_content_is_summary_when_should_summarize_true(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_content_is_source_markdown_when_should_summarize_false(
     db_session,
@@ -95,7 +95,7 @@ async def test_content_is_source_markdown_when_should_summarize_false(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_chunks_written_to_db(
     db_session,
@@ -123,7 +123,7 @@ async def test_chunks_written_to_db(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_embedding_written_to_db(
     db_session,
@@ -151,7 +151,7 @@ async def test_embedding_written_to_db(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_updated_at_advances_after_indexing(
     db_session,
@@ -183,7 +183,7 @@ async def test_updated_at_advances_after_indexing(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_no_llm_falls_back_to_source_markdown(
     db_session,
@@ -214,7 +214,7 @@ async def test_no_llm_falls_back_to_source_markdown(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_fallback_summary_used_when_llm_unavailable(
     db_session,
@@ -245,7 +245,7 @@ async def test_fallback_summary_used_when_llm_unavailable(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_reindex_replaces_old_chunks(
     db_session,
@@ -282,7 +282,7 @@ async def test_reindex_replaces_old_chunks(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize_raises", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize_raises", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_llm_error_sets_status_failed(
     db_session,
@@ -309,7 +309,7 @@ async def test_llm_error_sets_status_failed(
 
 
 @pytest.mark.usefixtures(
-    "patched_summarize_raises", "patched_embed_text", "patched_chunk_text"
+    "patched_summarize_raises", "patched_embed_texts", "patched_chunk_text"
 )
 async def test_llm_error_leaves_no_partial_data(
     db_session,

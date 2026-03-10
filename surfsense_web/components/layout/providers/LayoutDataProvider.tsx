@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -38,6 +39,7 @@ import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
@@ -74,6 +76,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const pathname = usePathname();
 	const queryClient = useQueryClient();
 	const { theme, setTheme } = useTheme();
+	const isMobile = useIsMobile();
 
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
@@ -117,10 +120,23 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Inbox sidebar state
 	const [isInboxSidebarOpen, setIsInboxSidebarOpen] = useState(false);
-	const [isInboxDocked, setIsInboxDocked] = useState(false);
 
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
+	const [isDocumentsDocked, setIsDocumentsDocked] = useState(true);
+	const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useAtom(rightPanelCollapsedAtom);
+
+	// Open documents sidebar by default on desktop (docked mode)
+	const documentsInitialized = useRef(false);
+	useEffect(() => {
+		if (!documentsInitialized.current) {
+			documentsInitialized.current = true;
+			const isDesktop = typeof window !== "undefined" && window.innerWidth >= 768;
+			if (isDesktop) {
+				setIsDocumentsSidebarOpen(true);
+			}
+		}
+	}, [setIsDocumentsSidebarOpen]);
 
 	// Announcements sidebar state
 	const [isAnnouncementsSidebarOpen, setIsAnnouncementsSidebarOpen] = useState(false);
@@ -304,7 +320,9 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				title: "Documents",
 				url: "#documents",
 				icon: SquareLibrary,
-				isActive: isDocumentsSidebarOpen,
+				isActive: isMobile
+					? isDocumentsSidebarOpen
+					: isDocumentsSidebarOpen && !isRightPanelCollapsed,
 				statusIndicator: documentsProcessingStatus,
 			},
 			{
@@ -316,8 +334,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			},
 		],
 		[
+			isMobile,
 			isInboxSidebarOpen,
 			isDocumentsSidebarOpen,
+			isRightPanelCollapsed,
 			totalUnreadCount,
 			isAnnouncementsSidebarOpen,
 			announcementUnreadCount,
@@ -419,7 +439,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 					if (!prev) {
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
-						setIsDocumentsSidebarOpen(false);
 						setIsAnnouncementsSidebarOpen(false);
 					}
 					return !prev;
@@ -427,15 +446,28 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				return;
 			}
 			if (item.url === "#documents") {
-				setIsDocumentsSidebarOpen((prev) => {
-					if (!prev) {
+				if (!isMobile) {
+					if (!isDocumentsSidebarOpen) {
+						setIsDocumentsSidebarOpen(true);
+						setIsRightPanelCollapsed(false);
 						setIsInboxSidebarOpen(false);
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
 						setIsAnnouncementsSidebarOpen(false);
+					} else {
+						setIsRightPanelCollapsed((prev) => !prev);
 					}
-					return !prev;
-				});
+				} else {
+					setIsDocumentsSidebarOpen((prev) => {
+						if (!prev) {
+							setIsInboxSidebarOpen(false);
+							setIsAllSharedChatsSidebarOpen(false);
+							setIsAllPrivateChatsSidebarOpen(false);
+							setIsAnnouncementsSidebarOpen(false);
+						}
+						return !prev;
+					});
+				}
 				return;
 			}
 			if (item.url === "#announcements") {
@@ -444,7 +476,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						setIsInboxSidebarOpen(false);
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
-						setIsDocumentsSidebarOpen(false);
 					}
 					return !prev;
 				});
@@ -452,7 +483,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			}
 			router.push(item.url);
 		},
-		[router, setIsDocumentsSidebarOpen]
+		[router, isMobile, isDocumentsSidebarOpen, setIsDocumentsSidebarOpen, setIsRightPanelCollapsed]
 	);
 
 	const handleNewChat = useCallback(() => {
@@ -549,17 +580,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsAllSharedChatsSidebarOpen(true);
 		setIsAllPrivateChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
-		setIsDocumentsSidebarOpen(false);
 		setIsAnnouncementsSidebarOpen(false);
-	}, [setIsDocumentsSidebarOpen]);
+	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
 		setIsAllPrivateChatsSidebarOpen(true);
 		setIsAllSharedChatsSidebarOpen(false);
 		setIsInboxSidebarOpen(false);
-		setIsDocumentsSidebarOpen(false);
 		setIsAnnouncementsSidebarOpen(false);
-	}, [setIsDocumentsSidebarOpen]);
+	}, []);
 
 	// Delete handlers
 	const confirmDeleteChat = useCallback(async () => {
@@ -688,8 +717,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAsRead: statusInbox.markAsRead,
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
-					isDocked: isInboxDocked,
-					onDockedChange: setIsInboxDocked,
 				}}
 				announcementsPanel={{
 					open: isAnnouncementsSidebarOpen,
@@ -708,6 +735,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				documentsPanel={{
 					open: isDocumentsSidebarOpen,
 					onOpenChange: setIsDocumentsSidebarOpen,
+					isDocked: isDocumentsDocked,
+					onDockedChange: setIsDocumentsDocked,
 				}}
 			>
 				<Fragment key={chatResetKey}>{children}</Fragment>

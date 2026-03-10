@@ -328,6 +328,7 @@ class Config:
         EMBEDDING_MODEL,
         **embedding_kwargs,
     )
+    is_local_embedding_model = "://" not in (EMBEDDING_MODEL or "")
     chunker_instance = RecursiveChunker(
         chunk_size=getattr(embedding_model_instance, "max_seq_length", 512)
     )
