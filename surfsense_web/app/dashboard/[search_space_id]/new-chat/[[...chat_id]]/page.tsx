@@ -32,7 +32,7 @@ import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
-import { ReportPanel } from "@/components/report-panel/report-panel";
+import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
@@ -1668,7 +1668,7 @@ export default function NewChatPage() {
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 					<Thread messageThinkingSteps={messageThinkingSteps} />
 				</div>
-				<ReportPanel />
+				<MobileReportPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);

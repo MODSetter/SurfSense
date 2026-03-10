@@ -22,7 +22,6 @@ import {
 	PlusIcon,
 	RefreshCwIcon,
 	SquareIcon,
-	SquareLibrary,
 	Unplug,
 	Upload,
 	X,
@@ -37,7 +36,6 @@ import {
 } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
-import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -77,7 +75,6 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -570,12 +567,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const connectorCount = connectors?.length ?? 0;
-	const { data: typeCounts } = useAtomValue(documentTypeCountsAtom);
-	const totalDocuments = useMemo(
-		() => (typeCounts ? Object.values(typeCounts).reduce((sum, n) => sum + n, 0) : 0),
-		[typeCounts]
-	);
-
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
@@ -631,18 +622,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<Upload className="size-4 shrink-0" />
 							Upload files
 						</DropdownMenuItem>
-						{totalDocuments > 0 && (
-							<DropdownMenuItem
-								onClick={() => {
-									setAddMenuOpen(false);
-									setDocumentsSidebarOpen(true);
-								}}
-							>
-								<SquareLibrary className="size-4 shrink-0" />
-								Manage Documents
-							</DropdownMenuItem>
-						)}
-						<DropdownMenuSeparator />
 						<DropdownMenuItem
 							onClick={() => {
 								setAddMenuOpen(false);
@@ -650,7 +629,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							}}
 						>
 							<Unplug className="size-4 shrink-0" />
-							{connectorCount > 0 ? "Manage connectors" : "Connect your tools"}
+							{connectorCount > 0 ? "Manage tools" : "Connect your tools"}
 							{connectorCount > 0 && (
 								<span className="ml-auto text-xs text-muted-foreground">{connectorCount}</span>
 							)}

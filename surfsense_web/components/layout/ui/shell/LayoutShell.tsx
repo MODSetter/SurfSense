@@ -10,6 +10,7 @@ import { useSidebarResize } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
+import { RightPanel } from "../right-panel/RightPanel";
 import {
 	AllPrivateChatsSidebar,
 	AllSharedChatsSidebar,
@@ -275,46 +276,36 @@ export function LayoutShell({
 
 					{/* Main container with sidebar and content - relative for inbox positioning */}
 					<div className="relative flex flex-1 rounded-xl border bg-background overflow-hidden">
-						<Sidebar
-							searchSpace={searchSpace}
-							isCollapsed={isCollapsed}
-							onToggleCollapse={toggleCollapsed}
-							navItems={navItems}
-							onNavItemClick={onNavItemClick}
-							chats={chats}
-							sharedChats={sharedChats}
-							activeChatId={activeChatId}
-							onNewChat={onNewChat}
-							onChatSelect={onChatSelect}
-							onChatRename={onChatRename}
-							onChatDelete={onChatDelete}
-							onChatArchive={onChatArchive}
-							onViewAllSharedChats={onViewAllSharedChats}
-							onViewAllPrivateChats={onViewAllPrivateChats}
-							user={user}
-							onSettings={onSettings}
-							onManageMembers={onManageMembers}
-							onUserSettings={onUserSettings}
-							onLogout={onLogout}
-							pageUsage={pageUsage}
-							theme={theme}
-							setTheme={setTheme}
-							className="hidden md:flex border-r shrink-0"
-							isLoadingChats={isLoadingChats}
-							sidebarWidth={sidebarWidth}
-							onResizeMouseDown={onResizeMouseDown}
-							isResizing={isResizing}
-						/>
-
-						{/* Docked Documents Sidebar - renders as flex sibling between sidebar and content */}
-						{documentsPanel?.isDocked && (
-							<DocumentsSidebar
-								open={documentsPanel.open}
-								onOpenChange={documentsPanel.onOpenChange}
-								isDocked={documentsPanel.isDocked}
-								onDockedChange={documentsPanel.onDockedChange}
-							/>
-						)}
+					<Sidebar
+						searchSpace={searchSpace}
+						isCollapsed={isCollapsed}
+						onToggleCollapse={toggleCollapsed}
+						navItems={navItems}
+						onNavItemClick={onNavItemClick}
+						chats={chats}
+						sharedChats={sharedChats}
+						activeChatId={activeChatId}
+						onNewChat={onNewChat}
+						onChatSelect={onChatSelect}
+						onChatRename={onChatRename}
+						onChatDelete={onChatDelete}
+						onChatArchive={onChatArchive}
+						onViewAllSharedChats={onViewAllSharedChats}
+						onViewAllPrivateChats={onViewAllPrivateChats}
+						user={user}
+						onSettings={onSettings}
+						onManageMembers={onManageMembers}
+						onUserSettings={onUserSettings}
+						onLogout={onLogout}
+						pageUsage={pageUsage}
+						theme={theme}
+						setTheme={setTheme}
+						className="hidden md:flex border-r shrink-0"
+						isLoadingChats={isLoadingChats}
+						sidebarWidth={sidebarWidth}
+						onResizeMouseDown={onResizeMouseDown}
+						isResizing={isResizing}
+					/>
 
 						<main className="flex-1 flex flex-col min-w-0">
 							<Header />
@@ -324,6 +315,16 @@ export function LayoutShell({
 							</div>
 						</main>
 
+						{/* Right panel — tabbed Sources/Report (desktop only) */}
+						{documentsPanel && (
+							<RightPanel
+								documentsPanel={{
+									open: documentsPanel.open,
+									onOpenChange: documentsPanel.onOpenChange,
+								}}
+							/>
+						)}
+
 						{/* Inbox Sidebar - slide-out panel */}
 						{inbox && (
 							<InboxSidebar
@@ -332,16 +333,6 @@ export function LayoutShell({
 								comments={inbox.comments}
 								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-							/>
-						)}
-
-						{/* Documents Sidebar - floating slide-out panel (non-docked mode) */}
-						{documentsPanel && !documentsPanel.isDocked && (
-							<DocumentsSidebar
-								open={documentsPanel.open}
-								onOpenChange={documentsPanel.onOpenChange}
-								isDocked={false}
-								onDockedChange={documentsPanel.onDockedChange}
 							/>
 						)}
 

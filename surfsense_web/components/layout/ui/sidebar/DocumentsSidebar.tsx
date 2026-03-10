@@ -30,7 +30,11 @@ const SHOWCASE_CONNECTORS = [
 	{ type: "GOOGLE_GMAIL_CONNECTOR", label: "Gmail" },
 	{ type: "NOTION_CONNECTOR", label: "Notion" },
 	{ type: "YOUTUBE_CONNECTOR", label: "YouTube" },
+	{ type: "GOOGLE_CALENDAR_CONNECTOR", label: "Google Calendar" },
 	{ type: "SLACK_CONNECTOR", label: "Slack" },
+	{ type: "LINEAR_CONNECTOR", label: "Linear" },
+	{ type: "JIRA_CONNECTOR", label: "Jira" },
+	{ type: "GITHUB_CONNECTOR", label: "GitHub" },
 ] as const;
 
 interface DocumentsSidebarProps {
@@ -38,6 +42,10 @@ interface DocumentsSidebarProps {
 	onOpenChange: (open: boolean) => void;
 	isDocked?: boolean;
 	onDockedChange?: (docked: boolean) => void;
+	/** When true, renders content without any wrapper — parent provides the container */
+	embedded?: boolean;
+	/** Optional action element rendered in the header row (e.g. collapse button) */
+	headerAction?: React.ReactNode;
 }
 
 export function DocumentsSidebar({
@@ -45,6 +53,8 @@ export function DocumentsSidebar({
 	onOpenChange,
 	isDocked = false,
 	onDockedChange,
+	embedded = false,
+	headerAction,
 }: DocumentsSidebarProps) {
 	const t = useTranslations("documents");
 	const tSidebar = useTranslations("sidebar");
@@ -168,8 +178,8 @@ export function DocumentsSidebar({
 
 	const documentsContent = (
 		<>
-			<div className="shrink-0 p-4 pb-10">
-				<div className="flex items-center justify-between">
+		<div className="shrink-0 flex h-14 items-center px-4">
+			<div className="flex w-full items-center justify-between">
 					<div className="flex items-center gap-2">
 						{isMobile && (
 							<Button
@@ -214,12 +224,13 @@ export function DocumentsSidebar({
 								</TooltipContent>
 							</Tooltip>
 						)}
+						{headerAction}
 					</div>
 				</div>
 			</div>
 
 			{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
+			<div className="shrink-0 mx-4 mt-2 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
 				<button
 					type="button"
 					onClick={() => setConnectorDialogOpen(true)}
@@ -277,6 +288,14 @@ export function DocumentsSidebar({
 			</div>
 		</>
 	);
+
+	if (embedded) {
+		return (
+			<div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
+				{documentsContent}
+			</div>
+		);
+	}
 
 	if (isDocked && open && !isMobile) {
 		return (

@@ -1,0 +1,129 @@
+"use client";
+
+import { useAtom, useAtomValue, useSetAtom } from "jotai";
+import { PanelRight, PanelRightClose } from "lucide-react";
+import { useEffect } from "react";
+import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
+import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
+import { ReportPanelContent } from "@/components/report-panel/report-panel";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { DocumentsSidebar } from "../sidebar";
+
+interface RightPanelProps {
+	documentsPanel?: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+	};
+}
+
+function CollapseButton({ onClick }: { onClick: () => void }) {
+	return (
+		<Tooltip>
+			<TooltipTrigger asChild>
+				<Button variant="ghost" size="icon" onClick={onClick} className="h-8 w-8 shrink-0">
+					<PanelRightClose className="h-4 w-4" />
+					<span className="sr-only">Collapse panel</span>
+				</Button>
+			</TooltipTrigger>
+			<TooltipContent side="left">Collapse panel</TooltipContent>
+		</Tooltip>
+	);
+}
+
+/**
+ * Absolutely positioned expand button — renders at top-right of the main
+ * container so it occupies the same screen position as the collapse button
+ * inside the Documents header.
+ */
+export function RightPanelExpandButton() {
+	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
+	const reportState = useAtomValue(reportPanelAtom);
+	const reportOpen = reportState.isOpen && !!reportState.reportId;
+	const hasContent = documentsOpen || reportOpen;
+
+	if (!collapsed || !hasContent) return null;
+
+	return (
+		<div className="absolute top-4 right-4 z-20">
+			<Tooltip>
+				<TooltipTrigger asChild>
+					<Button
+						variant="ghost"
+						size="icon"
+						onClick={() => setCollapsed(false)}
+						className="h-8 w-8 shrink-0"
+					>
+						<PanelRight className="h-4 w-4" />
+						<span className="sr-only">Expand panel</span>
+					</Button>
+				</TooltipTrigger>
+				<TooltipContent side="left">Expand panel</TooltipContent>
+			</Tooltip>
+		</div>
+	);
+}
+
+export function RightPanel({ documentsPanel }: RightPanelProps) {
+	const [activeTab] = useAtom(rightPanelTabAtom);
+	const reportState = useAtomValue(reportPanelAtom);
+	const closeReport = useSetAtom(closeReportPanelAtom);
+	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
+
+	const documentsOpen = documentsPanel?.open ?? false;
+	const reportOpen = reportState.isOpen && !!reportState.reportId;
+
+	// Close report on Escape key (works on Windows, macOS, and Linux)
+	// Must be called before early returns to satisfy Rules of Hooks.
+	useEffect(() => {
+		if (!reportOpen) return;
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				closeReport();
+			}
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [reportOpen, closeReport]);
+
+	if (!documentsOpen && !reportOpen) return null;
+	if (collapsed) return null;
+
+	const effectiveTab =
+		activeTab === "report" && !reportOpen
+			? "sources"
+			: activeTab === "sources" && !documentsOpen
+				? "report"
+				: activeTab;
+
+	const collapseButton = <CollapseButton onClick={() => setCollapsed(true)} />;
+
+	const panelWidth = effectiveTab === "sources" ? "w-[420px]" : "w-[640px]";
+
+	return (
+		<aside className={`flex h-full ${panelWidth} shrink-0 flex-col border-l bg-background animate-in slide-in-from-right-4 duration-200 ease-out transition-[width] `}>
+			<div className="flex-1 min-h-0 overflow-hidden">
+				{effectiveTab === "sources" && documentsOpen && documentsPanel && (
+					<DocumentsSidebar
+						open={documentsPanel.open}
+						onOpenChange={documentsPanel.onOpenChange}
+						embedded
+						headerAction={collapseButton}
+					/>
+				)}
+				{effectiveTab === "report" && reportOpen && (
+					<div className="flex h-full flex-col">
+						<ReportPanelContent
+							reportId={reportState.reportId!}
+							title={reportState.title || "Report"}
+							onClose={closeReport}
+							shareToken={reportState.shareToken}
+						/>
+					</div>
+				)}
+			</div>
+		</aside>
+	);
+}

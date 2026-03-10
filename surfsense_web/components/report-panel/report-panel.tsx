@@ -95,9 +95,9 @@ function ReportPanelSkeleton() {
 }
 
 /**
- * Inner content component used by both desktop panel and mobile drawer
+ * Inner content component used by desktop panel, mobile drawer, and the layout right panel
  */
-function ReportPanelContent({
+export function ReportPanelContent({
 	reportId,
 	title,
 	onClose,
@@ -576,6 +576,21 @@ export function ReportPanel() {
 	if (isDesktop) {
 		return <DesktopReportPanel />;
 	}
+
+	return <MobileReportDrawer />;
+}
+
+/**
+ * MobileReportPanel — mobile-only report drawer
+ *
+ * Used in the dashboard chat page where the desktop report is handled
+ * by the layout-level RightPanel instead.
+ */
+export function MobileReportPanel() {
+	const panelState = useAtomValue(reportPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+	if (isDesktop || !panelState.isOpen || !panelState.reportId) return null;
 
 	return <MobileReportDrawer />;
 }
