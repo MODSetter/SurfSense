@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { type FC, forwardRef, useImperativeHandle, useMemo } from "react";
+import { type FC, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import {
@@ -21,6 +21,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
+import { PICKER_CLOSE_EVENT, PICKER_OPEN_EVENT } from "@/hooks/use-google-picker";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
 import { ConnectorConnectView } from "./connector-popup/connector-configs/views/connector-connect-view";
@@ -143,6 +144,18 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			setConnectorName,
 		} = useConnectorDialog();
 
+		const [pickerOpen, setPickerOpen] = useState(false);
+		useEffect(() => {
+			const onOpen = () => setPickerOpen(true);
+			const onClose = () => setPickerOpen(false);
+			window.addEventListener(PICKER_OPEN_EVENT, onOpen);
+			window.addEventListener(PICKER_CLOSE_EVENT, onClose);
+			return () => {
+				window.removeEventListener(PICKER_OPEN_EVENT, onOpen);
+				window.removeEventListener(PICKER_CLOSE_EVENT, onClose);
+			};
+		}, []);
+
 		// Fetch connectors using Electric SQL + PGlite for real-time updates
 		// This provides instant updates when connectors change, without polling
 		const {
@@ -202,7 +215,14 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 		if (!searchSpaceId) return null;
 
 		return (
-			<Dialog open={isOpen} onOpenChange={handleOpenChange}>
+			<Dialog
+				open={isOpen}
+				onOpenChange={(open) => {
+					if (!open && pickerOpen) return;
+					handleOpenChange(open);
+				}}
+				modal={!pickerOpen}
+			>
 				{showTrigger && (
 					<TooltipIconButton
 						data-joyride="connector-icon"

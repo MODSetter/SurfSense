@@ -10,6 +10,9 @@ from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 from typing import Any
 
+from bs4 import BeautifulSoup
+from markdownify import markdownify as md
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -130,6 +133,16 @@ class ComposioGmailConnector(ComposioConnector):
             message_id=message_id,
         )
 
+    @staticmethod
+    def _html_to_markdown(html: str) -> str:
+        """Convert HTML (especially email layouts with nested tables) to clean markdown."""
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup.find_all(["style", "script", "img"]):
+            tag.decompose()
+        for tag in soup.find_all(["table", "thead", "tbody", "tfoot", "tr", "td", "th"]):
+            tag.unwrap()
+        return md(str(soup)).strip()
+
     def format_gmail_message_to_markdown(self, message: dict[str, Any]) -> str:
         """
         Format a Gmail message to markdown.
@@ -178,9 +191,10 @@ class ComposioGmailConnector(ComposioConnector):
 
             markdown_content += "\n---\n\n"
 
-            # Composio provides full message text in 'messageText'
+            # Composio provides full message text in 'messageText' which is often raw HTML
             message_text = message.get("messageText", "")
             if message_text:
+                message_text = self._html_to_markdown(message_text)
                 markdown_content += f"## Content\n\n{message_text}\n\n"
             else:
                 # Fallback to snippet if no messageText

@@ -48,10 +48,8 @@ const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
 	include_subfolders: true,
 };
 
-// Helper to get appropriate icon for file type based on file name
 function getFileIconFromName(fileName: string, className: string = "size-3.5 shrink-0") {
 	const lowerName = fileName.toLowerCase();
-	// Spreadsheets
 	if (
 		lowerName.endsWith(".xlsx") ||
 		lowerName.endsWith(".xls") ||
@@ -60,7 +58,6 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	) {
 		return <FileSpreadsheet className={`${className} text-green-500`} />;
 	}
-	// Presentations
 	if (
 		lowerName.endsWith(".pptx") ||
 		lowerName.endsWith(".ppt") ||
@@ -68,7 +65,6 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	) {
 		return <Presentation className={`${className} text-orange-500`} />;
 	}
-	// Documents (word, text only - not PDF)
 	if (
 		lowerName.endsWith(".docx") ||
 		lowerName.endsWith(".doc") ||
@@ -79,7 +75,6 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	) {
 		return <FileText className={`${className} text-gray-500`} />;
 	}
-	// Images
 	if (
 		lowerName.endsWith(".png") ||
 		lowerName.endsWith(".jpg") ||
@@ -90,7 +85,6 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	) {
 		return <Image className={`${className} text-purple-500`} />;
 	}
-	// Default (including PDF)
 	return <File className={`${className} text-gray-500`} />;
 }
 
@@ -100,7 +94,6 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 }) => {
 	const isIndexable = connector.config?.is_indexable as boolean;
 
-	// Initialize with existing selected folders and files from connector config
 	const existingFolders =
 		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 	const existingFiles = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
@@ -114,7 +107,6 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
 	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
 
-	// Update selected folders and files when connector config changes
 	useEffect(() => {
 		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
@@ -171,7 +163,6 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 
 	const totalSelected = selectedFolders.length + selectedFiles.length;
 
-	// Only show configuration if the connector is indexable
 	if (!isIndexable) {
 		return <div className="space-y-6" />;
 	}
