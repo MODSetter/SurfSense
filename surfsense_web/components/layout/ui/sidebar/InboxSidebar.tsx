@@ -10,7 +10,6 @@ import {
 	CheckCheck,
 	CheckCircle2,
 	ChevronLeft,
-	ChevronRight,
 	History,
 	Inbox,
 	LayoutGrid,
@@ -23,7 +22,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
-import { setCommentsCollapsedAtom, setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
+import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -148,8 +147,6 @@ interface InboxSidebarProps {
 	status: TabDataSource;
 	totalUnreadCount: number;
 	onCloseMobileSidebar?: () => void;
-	isDocked?: boolean;
-	onDockedChange?: (docked: boolean) => void;
 }
 
 export function InboxSidebar({
@@ -159,8 +156,6 @@ export function InboxSidebar({
 	status,
 	totalUnreadCount,
 	onCloseMobileSidebar,
-	isDocked = false,
-	onDockedChange,
 }: InboxSidebarProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
@@ -168,7 +163,6 @@ export function InboxSidebar({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = params?.search_space_id ? Number(params.search_space_id) : null;
 
-	const [, setCommentsCollapsed] = useAtom(setCommentsCollapsedAtom);
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
 	const [searchQuery, setSearchQuery] = useState("");
@@ -822,37 +816,6 @@ export function InboxSidebar({
 								</TooltipContent>
 							</Tooltip>
 						)}
-						{!isMobile && onDockedChange && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 rounded-full"
-										onClick={() => {
-											if (isDocked) {
-												setCommentsCollapsed(false);
-												onDockedChange(false);
-												onOpenChange(false);
-											} else {
-												setCommentsCollapsed(true);
-												onDockedChange(true);
-											}
-										}}
-									>
-										{isDocked ? (
-											<ChevronLeft className="h-4 w-4 text-muted-foreground" />
-										) : (
-											<ChevronRight className="h-4 w-4 text-muted-foreground" />
-										)}
-										<span className="sr-only">{isDocked ? "Collapse panel" : "Expand panel"}</span>
-									</Button>
-								</TooltipTrigger>
-								<TooltipContent className="z-80">
-									{isDocked ? "Collapse panel" : "Expand panel"}
-								</TooltipContent>
-							</Tooltip>
-						)}
 					</div>
 				</div>
 
@@ -1094,17 +1057,6 @@ export function InboxSidebar({
 			</div>
 		</>
 	);
-
-	if (isDocked && open && !isMobile) {
-		return (
-			<aside
-				className="h-full w-[360px] shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r"
-				aria-label={t("inbox") || "Inbox"}
-			>
-				{inboxContent}
-			</aside>
-		);
-	}
 
 	return (
 		<SidebarSlideOutPanel open={open} onOpenChange={onOpenChange} ariaLabel={t("inbox") || "Inbox"}>

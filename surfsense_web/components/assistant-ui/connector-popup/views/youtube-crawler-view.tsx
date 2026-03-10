@@ -280,9 +280,7 @@ export const YouTubeCrawlerView: FC<YouTubeCrawlerViewProps> = ({ searchSpaceId,
 
 					<div className="flex items-start gap-3 rounded-lg border border-blue-200/50 bg-blue-50/50 dark:border-blue-500/20 dark:bg-blue-950/20 p-4 text-sm">
 						<Info className="size-4 mt-0.5 shrink-0 text-blue-600 dark:text-blue-400" />
-						<p className="text-muted-foreground">
-							{t("chat_tip")}
-						</p>
+						<p className="text-muted-foreground">{t("chat_tip")}</p>
 					</div>
 
 					<div className="bg-muted/50 rounded-lg p-4 text-sm">

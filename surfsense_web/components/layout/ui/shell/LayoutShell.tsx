@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/hooks/use-inbox";
@@ -10,6 +11,7 @@ import { useSidebarResize } from "../../hooks/useSidebarResize";
 import type { ChatItem, NavItem, PageUsage, SearchSpace, User } from "../../types/layout.types";
 import { Header } from "../header";
 import { IconRail } from "../icon-rail";
+import { RightPanel } from "../right-panel/RightPanel";
 import {
 	AllPrivateChatsSidebar,
 	AllSharedChatsSidebar,
@@ -40,8 +42,6 @@ interface InboxProps {
 	totalUnreadCount: number;
 	comments: TabDataSource;
 	status: TabDataSource;
-	isDocked?: boolean;
-	onDockedChange?: (docked: boolean) => void;
 }
 
 interface LayoutShellProps {
@@ -97,6 +97,8 @@ interface LayoutShellProps {
 	documentsPanel?: {
 		open: boolean;
 		onOpenChange: (open: boolean) => void;
+		isDocked?: boolean;
+		onDockedChange?: (docked: boolean) => void;
 	};
 }
 
@@ -306,45 +308,36 @@ export function LayoutShell({
 							isResizing={isResizing}
 						/>
 
-						{/* Docked Inbox Sidebar - renders as flex sibling between sidebar and content */}
-						{inbox?.isDocked && (
-							<InboxSidebar
-								open={inbox.isOpen}
-								onOpenChange={inbox.onOpenChange}
-								comments={inbox.comments}
-								status={inbox.status}
-								totalUnreadCount={inbox.totalUnreadCount}
-								isDocked={inbox.isDocked}
-								onDockedChange={inbox.onDockedChange}
-							/>
-						)}
-
-						<main className="flex-1 flex flex-col min-w-0">
+						<motion.main
+							layout="position"
+							style={{ contain: "inline-size" }}
+							className="flex-1 flex flex-col min-w-0"
+						>
 							<Header />
 
 							<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 								{children}
 							</div>
-						</main>
+						</motion.main>
 
-						{/* Floating Inbox Sidebar - positioned absolutely on top of content */}
-						{inbox && !inbox.isDocked && (
+						{/* Right panel — tabbed Sources/Report (desktop only) */}
+						{documentsPanel && (
+							<RightPanel
+								documentsPanel={{
+									open: documentsPanel.open,
+									onOpenChange: documentsPanel.onOpenChange,
+								}}
+							/>
+						)}
+
+						{/* Inbox Sidebar - slide-out panel */}
+						{inbox && (
 							<InboxSidebar
 								open={inbox.isOpen}
 								onOpenChange={inbox.onOpenChange}
 								comments={inbox.comments}
 								status={inbox.status}
 								totalUnreadCount={inbox.totalUnreadCount}
-								isDocked={false}
-								onDockedChange={inbox.onDockedChange}
-							/>
-						)}
-
-						{/* Documents Sidebar - slide-out panel */}
-						{documentsPanel && (
-							<DocumentsSidebar
-								open={documentsPanel.open}
-								onOpenChange={documentsPanel.onOpenChange}
 							/>
 						)}
 

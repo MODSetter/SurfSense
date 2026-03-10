@@ -1,13 +1,6 @@
 "use client";
 
-import {
-	ArchiveIcon,
-	MessageSquare,
-	MoreHorizontal,
-	PenLine,
-	RotateCcwIcon,
-	Trash2,
-} from "lucide-react";
+import { ArchiveIcon, MoreHorizontal, PenLine, RotateCcwIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -64,21 +57,26 @@ export function ChatListItem({
 				{...(isMobile ? longPressHandlers : {})}
 				className={cn(
 					"flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm text-left transition-colors",
-					"[&>span:last-child]:truncate",
-					"hover:bg-accent hover:text-accent-foreground",
+					"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 					"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 					isActive && "bg-accent text-accent-foreground"
 				)}
 			>
-				<MessageSquare className="h-4 w-4 shrink-0 text-muted-foreground" />
-				<span className="w-[calc(100%-3rem)] ">{animatedName}</span>
+				<span className="truncate">{animatedName}</span>
 			</button>
 
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}
 			<div
 				className={cn(
-					"absolute right-1 top-1/2 -translate-y-1/2 transition-opacity",
-					isMobile ? "opacity-0 pointer-events-none" : "opacity-0 group-hover/item:opacity-100"
+					"absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md",
+					isActive
+						? "bg-gradient-to-l from-accent from-60% to-transparent"
+						: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
+					isMobile
+						? "opacity-0 pointer-events-none"
+						: isActive
+							? "opacity-100"
+							: "opacity-0 group-hover/item:opacity-100"
 				)}
 			>
 				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>

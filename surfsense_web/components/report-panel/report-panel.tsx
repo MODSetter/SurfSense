@@ -95,9 +95,9 @@ function ReportPanelSkeleton() {
 }
 
 /**
- * Inner content component used by both desktop panel and mobile drawer
+ * Inner content component used by desktop panel, mobile drawer, and the layout right panel
  */
-function ReportPanelContent({
+export function ReportPanelContent({
 	reportId,
 	title,
 	onClose,
@@ -294,32 +294,11 @@ function ReportPanelContent({
 		}
 	}, [activeReportId, currentMarkdown]);
 
-	// Show full-page skeleton only on initial load (no data loaded yet).
-	// Once we have versions/content from a prior fetch, keep the action bar visible.
-	const hasLoadedBefore = versions.length > 0 || reportContent !== null;
-
-	if (isLoading && !hasLoadedBefore) {
-		return (
-			<>
-				{/* Minimal top bar with close button even during initial load */}
-				<div className="flex items-center justify-end px-4 py-2 shrink-0">
-					{onClose && (
-						<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-							<XIcon className="size-4" />
-							<span className="sr-only">Close report panel</span>
-						</Button>
-					)}
-				</div>
-				<ReportPanelSkeleton />
-			</>
-		);
-	}
-
 	const activeVersionIndex = versions.findIndex((v) => v.id === activeReportId);
 
 	return (
 		<>
-			{/* Action bar — always visible after initial load */}
+			{/* Action bar — always visible; buttons are disabled while loading */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
 					{/* Copy button */}
@@ -352,27 +331,51 @@ function ReportPanelContent({
 						>
 							{!shareToken && (
 								<>
-									<DropdownMenuLabel className="text-xs text-muted-foreground">Documents</DropdownMenuLabel>
-									<DropdownMenuItem onClick={() => handleExport("pdf")} disabled={exporting !== null}>
+									<DropdownMenuLabel className="text-xs text-muted-foreground">
+										Documents
+									</DropdownMenuLabel>
+									<DropdownMenuItem
+										onClick={() => handleExport("pdf")}
+										disabled={exporting !== null}
+									>
 										PDF (.pdf)
 									</DropdownMenuItem>
-									<DropdownMenuItem onClick={() => handleExport("docx")} disabled={exporting !== null}>
+									<DropdownMenuItem
+										onClick={() => handleExport("docx")}
+										disabled={exporting !== null}
+									>
 										Word (.docx)
 									</DropdownMenuItem>
-									<DropdownMenuItem onClick={() => handleExport("odt")} disabled={exporting !== null}>
+									<DropdownMenuItem
+										onClick={() => handleExport("odt")}
+										disabled={exporting !== null}
+									>
 										OpenDocument (.odt)
 									</DropdownMenuItem>
 									<DropdownMenuSeparator />
-									<DropdownMenuLabel className="text-xs text-muted-foreground">Web &amp; E-Book</DropdownMenuLabel>
-									<DropdownMenuItem onClick={() => handleExport("html")} disabled={exporting !== null}>
+									<DropdownMenuLabel className="text-xs text-muted-foreground">
+										Web &amp; E-Book
+									</DropdownMenuLabel>
+									<DropdownMenuItem
+										onClick={() => handleExport("html")}
+										disabled={exporting !== null}
+									>
 										HTML (.html)
 									</DropdownMenuItem>
-									<DropdownMenuItem onClick={() => handleExport("epub")} disabled={exporting !== null}>
+									<DropdownMenuItem
+										onClick={() => handleExport("epub")}
+										disabled={exporting !== null}
+									>
 										EPUB (.epub)
 									</DropdownMenuItem>
 									<DropdownMenuSeparator />
-									<DropdownMenuLabel className="text-xs text-muted-foreground">Source &amp; Plain</DropdownMenuLabel>
-									<DropdownMenuItem onClick={() => handleExport("latex")} disabled={exporting !== null}>
+									<DropdownMenuLabel className="text-xs text-muted-foreground">
+										Source &amp; Plain
+									</DropdownMenuLabel>
+									<DropdownMenuItem
+										onClick={() => handleExport("latex")}
+										disabled={exporting !== null}
+									>
 										LaTeX (.tex)
 									</DropdownMenuItem>
 								</>
@@ -381,7 +384,10 @@ function ReportPanelContent({
 								Markdown (.md)
 							</DropdownMenuItem>
 							{!shareToken && (
-								<DropdownMenuItem onClick={() => handleExport("plain")} disabled={exporting !== null}>
+								<DropdownMenuItem
+									onClick={() => handleExport("plain")}
+									disabled={exporting !== null}
+								>
 									Plain Text (.txt)
 								</DropdownMenuItem>
 							)}
@@ -538,9 +544,6 @@ function MobileReportDrawer() {
  *
  * On desktop (lg+): Renders as a right-side split panel (flex sibling to the chat thread)
  * On mobile/tablet: Renders as a Vaul bottom drawer
- *
- * When open on desktop, the comments gutter is automatically suppressed
- * (handled via showCommentsGutterAtom in current-thread.atom.ts)
  */
 export function ReportPanel() {
 	const panelState = useAtomValue(reportPanelAtom);
@@ -552,6 +555,21 @@ export function ReportPanel() {
 	if (isDesktop) {
 		return <DesktopReportPanel />;
 	}
+
+	return <MobileReportDrawer />;
+}
+
+/**
+ * MobileReportPanel — mobile-only report drawer
+ *
+ * Used in the dashboard chat page where the desktop report is handled
+ * by the layout-level RightPanel instead.
+ */
+export function MobileReportPanel() {
+	const panelState = useAtomValue(reportPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+	if (isDesktop || !panelState.isOpen || !panelState.reportId) return null;
 
 	return <MobileReportDrawer />;
 }

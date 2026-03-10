@@ -1,24 +1,9 @@
 "use client";
 
-import { useAtom } from "jotai";
-import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 import { CommentComposer } from "../comment-composer/comment-composer";
 import { CommentThread } from "../comment-thread/comment-thread";
 import type { CommentPanelProps } from "./types";
-
-function getInitials(name: string | null | undefined, email: string): string {
-	if (name) {
-		return name
-			.split(" ")
-			.map((part) => part[0])
-			.join("")
-			.toUpperCase()
-			.slice(0, 2);
-	}
-	return email[0].toUpperCase();
-}
 
 export function CommentPanel({
 	threads,
@@ -33,20 +18,23 @@ export function CommentPanel({
 	maxHeight,
 	variant = "desktop",
 }: CommentPanelProps) {
-	const [{ data: currentUser }] = useAtom(currentUserAtom);
-
 	const handleCommentSubmit = (content: string) => {
 		onCreateComment(content);
 	};
 
 	const isMobile = variant === "mobile";
+	const isInline = variant === "inline";
 
 	if (isLoading) {
 		return (
 			<div
 				className={cn(
 					"flex min-h-[120px] items-center justify-center p-4",
-					!isMobile && "w-96 rounded-lg border bg-card"
+					isInline &&
+						"w-full rounded-xl border-sidebar-border border bg-sidebar text-sidebar-foreground shadow-lg",
+					!isMobile &&
+						!isInline &&
+						"w-96 rounded-lg border-sidebar-border border bg-sidebar text-sidebar-foreground"
 				)}
 			>
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -65,8 +53,18 @@ export function CommentPanel({
 
 	return (
 		<div
-			className={cn("flex flex-col", isMobile ? "w-full" : "w-85 rounded-lg border bg-card")}
-			style={!isMobile && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
+			className={cn(
+				"flex flex-col",
+				isMobile && "w-full",
+				isInline &&
+					"w-full rounded-xl border-sidebar-border border bg-sidebar text-sidebar-foreground shadow-lg max-h-80",
+				!isMobile &&
+					!isInline &&
+					"w-85 rounded-lg border-sidebar-border border bg-sidebar text-sidebar-foreground"
+			)}
+			style={
+				!isMobile && !isInline && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined
+			}
 		>
 			{hasThreads && (
 				<div className={cn("min-h-0 flex-1 overflow-y-auto scrollbar-thin", isMobile && "pb-24")}>
@@ -87,25 +85,6 @@ export function CommentPanel({
 				</div>
 			)}
 
-			{!hasThreads && currentUser && (
-				<div className="flex items-center gap-3 px-4 pt-4 pb-1">
-					<Avatar className="size-10">
-						<AvatarImage
-							src={currentUser.avatar_url ?? undefined}
-							alt={currentUser.display_name ?? currentUser.email}
-						/>
-						<AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
-							{getInitials(currentUser.display_name, currentUser.email)}
-						</AvatarFallback>
-					</Avatar>
-					<div className="flex flex-col">
-						<span className="text-sm font-medium">
-							{currentUser.display_name ?? currentUser.email}
-						</span>
-					</div>
-				</div>
-			)}
-
 			<div className={cn("p-3", isMobile && "fixed bottom-0 left-0 right-0 z-50 bg-card border-t")}>
 				<CommentComposer
 					members={members}
@@ -115,6 +94,7 @@ export function CommentPanel({
 					isSubmitting={isSubmitting}
 					onSubmit={handleCommentSubmit}
 					autoFocus={!hasThreads}
+					compact
 				/>
 			</div>
 		</div>

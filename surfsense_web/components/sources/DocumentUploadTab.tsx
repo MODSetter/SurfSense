@@ -254,7 +254,7 @@ export function DocumentUploadTab({
 
 	return (
 		<div className="space-y-3 sm:space-y-6 max-w-4xl mx-auto pt-0">
-			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5 flex items-start gap-3 [&>svg]:relative [&>svg]:left-0 [&>svg]:top-0 [&>svg~*]:pl-0">
+			<Alert className="border border-border bg-slate-400/5 dark:bg-white/5">
 				<Info className="h-4 w-4 shrink-0 mt-0.5" />
 				<AlertDescription className="text-xs sm:text-sm leading-relaxed pt-0.5">
 					{t("file_size_limit")}{" "}

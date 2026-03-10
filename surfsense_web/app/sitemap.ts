@@ -55,7 +55,37 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			priority: 0.9,
 		},
 		{
-			url: "https://www.surfsense.com/docs/docker-installation",
+			url: "https://www.surfsense.com/docs/prerequisites",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.9,
+		},
+		{
+			url: "https://www.surfsense.com/docs/docker-installation/install-script",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.9,
+		},
+		{
+			url: "https://www.surfsense.com/docs/docker-installation/docker-compose",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.9,
+		},
+		{
+			url: "https://www.surfsense.com/docs/docker-installation/updating",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.9,
+		},
+		{
+			url: "https://www.surfsense.com/docs/docker-installation/dev-compose",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.9,
+		},
+		{
+			url: "https://www.surfsense.com/docs/docker-installation/migrate-from-allinone",
 			lastModified,
 			changeFrequency: "daily",
 			priority: 0.9,
@@ -164,6 +194,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			priority: 0.8,
 		},
 		{
+			url: "https://www.surfsense.com/docs/connectors/obsidian",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.8,
+		},
+		{
 			url: "https://www.surfsense.com/docs/connectors/slack",
 			lastModified,
 			changeFrequency: "daily",
@@ -181,6 +217,25 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			lastModified,
 			changeFrequency: "daily",
 			priority: 0.8,
+		},
+		{
+			url: "https://www.surfsense.com/docs/how-to/realtime-collaboration",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.8,
+		},
+		// Developer documentation
+		{
+			url: "https://www.surfsense.com/docs/testing",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.7,
+		},
+		{
+			url: "https://www.surfsense.com/docs/code-of-conduct",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.7,
 		},
 	];
 }

@@ -1,9 +1,12 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import { useEffect } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 import { useSidebarContextSafe } from "../../hooks";
+
+export const SLIDEOUT_PANEL_OPENED_EVENT = "slideout-panel-opened";
 
 const SIDEBAR_COLLAPSED_WIDTH = 60;
 
@@ -36,20 +39,29 @@ export function SidebarSlideOutPanel({
 		? SIDEBAR_COLLAPSED_WIDTH
 		: (sidebarContext?.sidebarWidth ?? 240);
 
+	useEffect(() => {
+		if (open) {
+			window.dispatchEvent(new Event(SLIDEOUT_PANEL_OPENED_EVENT));
+		}
+	}, [open]);
+
 	return (
 		<AnimatePresence>
 			{open && (
 				<>
-					{/* Click-away layer - covers the full container including the sidebar */}
-					<motion.div
-						initial={{ opacity: 0 }}
-						animate={{ opacity: 1 }}
-						exit={{ opacity: 0 }}
-						transition={{ duration: 0.15 }}
-						className="absolute inset-0 z-[5]"
-						onClick={() => onOpenChange(false)}
-						aria-hidden="true"
-					/>
+					{/* Backdrop overlay with blur — desktop only, covers main content area (right of sidebar) */}
+					{!isMobile && (
+						<motion.div
+							initial={{ opacity: 0 }}
+							animate={{ opacity: 1 }}
+							exit={{ opacity: 0 }}
+							transition={{ duration: 0.15 }}
+							style={{ left: sidebarWidth }}
+							className="absolute inset-y-0 right-0 z-20 bg-black/30 backdrop-blur-sm"
+							onClick={() => onOpenChange(false)}
+							aria-hidden="true"
+						/>
+					)}
 
 					{/* Clip container - positioned at sidebar edge with overflow hidden */}
 					<div
@@ -57,7 +69,7 @@ export function SidebarSlideOutPanel({
 							left: isMobile ? 0 : sidebarWidth,
 							width: isMobile ? "100%" : width,
 						}}
-						className={cn("absolute z-10 overflow-hidden pointer-events-none", "inset-y-0")}
+						className={cn("absolute z-30 overflow-hidden pointer-events-none", "inset-y-0")}
 					>
 						<motion.div
 							initial={{ x: "-100%" }}

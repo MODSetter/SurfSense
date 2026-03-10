@@ -8,7 +8,7 @@
 # For production with prebuilt images, use docker/docker-compose.yml instead.
 # =============================================================================
 
-name: surfsense
+name: surfsense-dev
 
 services:
   db:
@@ -162,8 +162,9 @@ services:
     image: electricsql/electric:1.4.10
     ports:
       - "${ELECTRIC_PORT:-5133}:3000"
-    # depends_on:
-    #   - db
+    depends_on:
+      db:
+        condition: service_healthy
     environment:
       - DATABASE_URL=${ELECTRIC_DATABASE_URL:-postgresql://${ELECTRIC_DB_USER:-electric}:${ELECTRIC_DB_PASSWORD:-electric_password}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
       - ELECTRIC_INSECURE=true
@@ -197,10 +198,10 @@ services:
 
 volumes:
   postgres_data:
-    name: surfsense-postgres
+    name: surfsense-dev-postgres
   pgadmin_data:
-    name: surfsense-pgadmin
+    name: surfsense-dev-pgadmin
   redis_data:
-    name: surfsense-redis
+    name: surfsense-dev-redis
   shared_temp:
-    name: surfsense-shared-temp
+    name: surfsense-dev-shared-temp
