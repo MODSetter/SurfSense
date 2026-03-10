@@ -372,6 +372,12 @@ importers:
       '@types/canvas-confetti':
         specifier: ^1.9.0
         version: 1.9.0
+      '@types/gapi':
+        specifier: ^0.0.47
+        version: 0.0.47
+      '@types/google.picker':
+        specifier: ^0.0.52
+        version: 0.0.52
       '@types/node':
         specifier: ^20.19.9
         version: 20.19.33
@@ -3806,6 +3812,12 @@ packages:
 
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
+
+  '@types/gapi@0.0.47':
+    resolution: {integrity: sha512-/ZsLuq6BffMgbKMtZyDZ8vwQvTyKhKQ1G2K6VyWCgtHHhfSSXbk4+4JwImZiTjWNXfI2q1ZStAwFFHSkNoTkHA==}
+
+  '@types/google.picker@0.0.52':
+    resolution: {integrity: sha512-k0HyW8HxJePomM2r0JWq9nE9XG6qY93lVpoVnaV4WjQggDHrGwDKq3G8CGpcBWhQlJBTxX9jDIrI7RQnqjM63w==}
 
   '@types/hast@2.3.10':
     resolution: {integrity: sha512-McWspRw8xx8J9HurkVBfYj0xKoE25tOFlHGdx4MJ5xORQrMGZNqJhVQWaIbm6Oyla5kYOXtDiopzKRJzEOkwJw==}
@@ -10485,6 +10497,10 @@ snapshots:
       '@types/estree': 1.0.8
 
   '@types/estree@1.0.8': {}
+
+  '@types/gapi@0.0.47': {}
+
+  '@types/google.picker@0.0.52': {}
 
   '@types/hast@2.3.10':
     dependencies:

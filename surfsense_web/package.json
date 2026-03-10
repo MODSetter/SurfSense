@@ -144,6 +144,8 @@
 		"@tailwindcss/postcss": "^4.1.11",
 		"@tailwindcss/typography": "^0.5.16",
 		"@types/canvas-confetti": "^1.9.0",
+		"@types/gapi": "^0.0.47",
+		"@types/google.picker": "^0.0.52",
 		"@types/node": "^20.19.9",
 		"@types/pg": "^8.15.5",
 		"@types/react": "^19.1.8",

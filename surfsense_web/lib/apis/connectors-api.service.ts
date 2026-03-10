@@ -266,6 +266,17 @@ class ConnectorsApiService {
 		);
 	};
 
+	/**
+	 * Get Google Picker token (access_token + client_id + picker_api_key) for a Drive connector
+	 */
+	getDrivePickerToken = async (connectorId: number) => {
+		return baseApiService.get<{
+			access_token: string;
+			client_id: string;
+			picker_api_key: string;
+		}>(`/api/v1/connectors/${connectorId}/drive-picker-token`);
+	};
+
 	// =============================================================================
 	// MCP Connector Methods
 	// =============================================================================
