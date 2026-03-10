@@ -505,12 +505,12 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				<Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
 					<PopoverTrigger asChild>
 						<TooltipIconButton
-							tooltip="Configuration"
+							tooltip="Add files and more"
 							side="bottom"
 							variant="ghost"
 							size="icon"
 							className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-							aria-label="Configuration"
+							aria-label="Add files and more"
 							data-joyride="connector-icon"
 						>
 							<PlusIcon className="size-4" />
