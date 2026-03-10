@@ -4,7 +4,6 @@ Helpers for report export templates.
 * ``get_typst_template_path()``  - path to the custom Pandoc -> Typst template.
 * ``get_html_css_path()``        - path to the CSS stylesheet for HTML exports.
 * ``get_reference_docx_path()``  - path to a styled reference.docx for Pandoc.
-* ``get_reference_pptx_path()``  - path to a styled reference.pptx for Pandoc.
 
 The reference DOCX is generated lazily on first call from Pandoc's built-in
 default, then restyled with *python-docx* and cached on disk so subsequent
@@ -20,12 +19,10 @@ from pathlib import Path
 _DIR = Path(__file__).resolve().parent
 _GENERATED_DIR = _DIR / "_generated"
 _REFERENCE_DOCX = _GENERATED_DIR / "reference.docx"
-_REFERENCE_PPTX = _GENERATED_DIR / "reference.pptx"
 _TYPST_TEMPLATE = _DIR / "report_pdf.typst"
 _HTML_CSS = _DIR / "report_html.css"
 
 _docx_lock = threading.Lock()
-_pptx_lock = threading.Lock()
 
 
 def get_typst_template_path() -> Path:
@@ -34,17 +31,6 @@ def get_typst_template_path() -> Path:
 
 def get_html_css_path() -> Path:
     return _HTML_CSS
-
-
-def get_reference_pptx_path() -> Path:
-    """Return path to the styled reference.pptx, creating it if absent."""
-    if _REFERENCE_PPTX.exists():
-        return _REFERENCE_PPTX
-    with _pptx_lock:
-        if _REFERENCE_PPTX.exists():
-            return _REFERENCE_PPTX
-        _generate_reference_pptx()
-    return _REFERENCE_PPTX
 
 
 def get_reference_docx_path() -> Path:
@@ -197,59 +183,6 @@ def _generate_reference_docx() -> None:
             pf.alignment = WD_ALIGN_PARAGRAPH.CENTER
 
     doc.save(str(_REFERENCE_DOCX))
-
-
-# ---------------------------------------------------------------------------
-# Reference PPTX generation
-# ---------------------------------------------------------------------------
-
-
-def _generate_reference_pptx() -> None:
-    """Build a reference.pptx with smaller fonts for report-to-slide conversion."""
-    import pypandoc
-    from lxml import etree
-
-    _GENERATED_DIR.mkdir(parents=True, exist_ok=True)
-
-    pandoc_bin = pypandoc.get_pandoc_path()
-    result = subprocess.run(
-        [pandoc_bin, "--print-default-data-file", "reference.pptx"],
-        capture_output=True,
-        check=True,
-    )
-    _REFERENCE_PPTX.write_bytes(result.stdout)
-
-    from pptx import Presentation
-
-    prs = Presentation(str(_REFERENCE_PPTX))
-    master = prs.slide_masters[0]
-
-    ns = {
-        "a": "http://schemas.openxmlformats.org/drawingml/2006/main",
-        "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
-    }
-
-    # Shrink body text: 24pt -> 16pt base, scaling down per level
-    body_sizes = [1600, 1400, 1300, 1200, 1100, 1100, 1100, 1100, 1100]
-    body_style = master._element.find(".//p:txStyles/p:bodyStyle", ns)
-    if body_style is not None:
-        for lvl_el in body_style:
-            tag = etree.QName(lvl_el).localname
-            if tag.startswith("lvl") and tag.endswith("pPr"):
-                idx = int(tag[3]) - 1
-                def_rpr = lvl_el.find("a:defRPr", ns)
-                if def_rpr is not None and idx < len(body_sizes):
-                    def_rpr.set("sz", str(body_sizes[idx]))
-
-    # Shrink title: 33pt -> 26pt
-    title_style = master._element.find(".//p:txStyles/p:titleStyle", ns)
-    if title_style is not None:
-        for lvl_el in title_style:
-            def_rpr = lvl_el.find("a:defRPr", ns)
-            if def_rpr is not None:
-                def_rpr.set("sz", "2600")
-
-    prs.save(str(_REFERENCE_PPTX))
 
 
 # ---------------------------------------------------------------------------

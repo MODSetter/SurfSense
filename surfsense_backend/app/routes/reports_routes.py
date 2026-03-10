@@ -1,12 +1,12 @@
 """
-Report routes for read, update, export (PDF/DOCX), and delete operations.
+Report routes for read, update, export, and delete operations.
 
 Reports are generated inline by the agent tool during chat and stored as
 Markdown in the database.  Users can edit report content via the Plate editor
 and save changes through the PUT endpoint.
-Export is on-demand in multiple formats (PDF, DOCX, HTML, PPTX, LaTeX, EPUB,
-ODT, plain text).  PDF uses pypandoc (Markdown->Typst) + typst-py; the rest
-use pypandoc directly with format-specific templates and options.
+Export is on-demand in multiple formats (PDF, DOCX, HTML, LaTeX, EPUB, ODT,
+plain text).  PDF uses pypandoc (Markdown->Typst) + typst-py; the rest use
+pypandoc directly with format-specific templates and options.
 
 Authorization: lightweight search-space membership checks (no granular RBAC)
 since reports are chat-generated artifacts, not standalone managed resources.
@@ -338,7 +338,7 @@ async def export_report(
     report_id: int,
     format: ExportFormat = Query(
         ExportFormat.PDF,
-        description="Export format: pdf, docx, html, pptx, latex, epub, odt, or plain",
+        description="Export format: pdf, docx, html, latex, epub, odt, or plain",
     ),
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),

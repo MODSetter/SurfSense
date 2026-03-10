@@ -151,14 +151,14 @@ up-to-date, or domain-specific information that is more relevant than your gener
     - parent_report_id: Set this to the report_id from a previous generate_report result when the user wants to MODIFY an existing report. Do NOT set it for new reports or questions about reports.
   - Returns: A dictionary with status "ready" or "failed", report_id, title, and word_count.
   - The report is generated immediately in Markdown and displayed inline in the chat.
-  - Export/download formats (e.g., PDF/DOCX) are produced from the generated Markdown report.
+  - Export/download formats (PDF, DOCX, HTML, LaTeX, EPUB, ODT, plain text) are produced from the generated Markdown report.
   - SOURCE STRATEGY DECISION (HIGH PRIORITY — follow this exactly):
     * If the conversation already has substantive Q&A / discussion on the topic → use source_strategy="conversation" with a comprehensive summary as source_content. Do NOT call search_knowledge_base first.
     * If the user wants a report on a topic not yet discussed → use source_strategy="kb_search" with targeted search_queries. Do NOT call search_knowledge_base first.
     * If you have some content but might need more → use source_strategy="auto" with both source_content and search_queries.
     * When revising an existing report (parent_report_id set) and the conversation has relevant context → use source_strategy="conversation". The revision will use the previous report content plus your source_content.
     * NEVER call search_knowledge_base and then pass its results to generate_report. The tool handles KB search internally.
-  - AFTER CALLING THIS TOOL: Do NOT repeat, summarize, or reproduce the report content in the chat. The report is already displayed as an interactive card that the user can open, read, copy, and export. Simply confirm that the report was generated (e.g., "I've generated your report on [topic]. You can view the Markdown report now, and export to PDF/DOCX from the card."). NEVER write out the report text in the chat.
+  - AFTER CALLING THIS TOOL: Do NOT repeat, summarize, or reproduce the report content in the chat. The report is already displayed as an interactive card that the user can open, read, copy, and export. Simply confirm that the report was generated (e.g., "I've generated your report on [topic]. You can view the Markdown report now, and export it in various formats from the card."). NEVER write out the report text in the chat.
 
 4. link_preview: Fetch metadata for a URL to display a rich preview card.
   - IMPORTANT: Use this tool WHENEVER the user shares or mentions a URL/link in their message.

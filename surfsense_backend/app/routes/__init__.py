@@ -55,7 +55,7 @@ router.include_router(new_chat_router)  # Chat with assistant-ui persistence
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)
 router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
-router.include_router(reports_router)  # Report CRUD and export (PDF/DOCX)
+router.include_router(reports_router)  # Report CRUD and multi-format export
 router.include_router(image_generation_router)  # Image generation via litellm
 router.include_router(search_source_connectors_router)
 router.include_router(google_calendar_add_connector_router)
