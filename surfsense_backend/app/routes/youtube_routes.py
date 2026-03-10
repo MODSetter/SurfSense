@@ -50,9 +50,7 @@ async def get_playlist_videos(
                 detail="No videos found in the playlist. It may be private or empty.",
             )
 
-        video_urls = [
-            f"https://www.youtube.com/watch?v={vid}" for vid in video_ids
-        ]
+        video_urls = [f"https://www.youtube.com/watch?v={vid}" for vid in video_ids]
         return {"video_urls": video_urls, "count": len(video_urls)}
 
     except HTTPException:
@@ -74,12 +72,15 @@ async def _fetch_playlist_via_innertube(playlist_id: str) -> list[str]:
     proxies = get_requests_proxies()
 
     try:
-        async with aiohttp.ClientSession() as session, session.post(
-            _INNERTUBE_API_URL,
-            json=payload,
-            headers={"Content-Type": "application/json"},
-            proxy=proxies["http"] if proxies else None,
-        ) as response:
+        async with (
+            aiohttp.ClientSession() as session,
+            session.post(
+                _INNERTUBE_API_URL,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                proxy=proxies["http"] if proxies else None,
+            ) as response,
+        ):
             if response.status != 200:
                 logger.warning(
                     "Innertube API returned %d for playlist %s",
@@ -118,14 +119,14 @@ async def _fetch_playlist_via_html(playlist_id: str) -> list[str]:
                 proxy=proxies["http"] if proxies else None,
             ) as response,
         ):
-                if response.status != 200:
-                    logger.warning(
-                        "HTML fallback returned %d for playlist %s",
-                        response.status,
-                        playlist_id,
-                    )
-                    return []
-                html = await response.text()
+            if response.status != 200:
+                logger.warning(
+                    "HTML fallback returned %d for playlist %s",
+                    response.status,
+                    playlist_id,
+                )
+                return []
+            html = await response.text()
 
         yt_data = _extract_yt_initial_data(html)
         if not yt_data:
