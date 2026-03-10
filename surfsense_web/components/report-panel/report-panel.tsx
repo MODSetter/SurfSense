@@ -352,27 +352,51 @@ function ReportPanelContent({
 						>
 							{!shareToken && (
 								<>
-									<DropdownMenuLabel className="text-xs text-muted-foreground">Documents</DropdownMenuLabel>
-									<DropdownMenuItem onClick={() => handleExport("pdf")} disabled={exporting !== null}>
+									<DropdownMenuLabel className="text-xs text-muted-foreground">
+										Documents
+									</DropdownMenuLabel>
+									<DropdownMenuItem
+										onClick={() => handleExport("pdf")}
+										disabled={exporting !== null}
+									>
 										PDF (.pdf)
 									</DropdownMenuItem>
-									<DropdownMenuItem onClick={() => handleExport("docx")} disabled={exporting !== null}>
+									<DropdownMenuItem
+										onClick={() => handleExport("docx")}
+										disabled={exporting !== null}
+									>
 										Word (.docx)
 									</DropdownMenuItem>
-									<DropdownMenuItem onClick={() => handleExport("odt")} disabled={exporting !== null}>
+									<DropdownMenuItem
+										onClick={() => handleExport("odt")}
+										disabled={exporting !== null}
+									>
 										OpenDocument (.odt)
 									</DropdownMenuItem>
 									<DropdownMenuSeparator />
-									<DropdownMenuLabel className="text-xs text-muted-foreground">Web &amp; E-Book</DropdownMenuLabel>
-									<DropdownMenuItem onClick={() => handleExport("html")} disabled={exporting !== null}>
+									<DropdownMenuLabel className="text-xs text-muted-foreground">
+										Web &amp; E-Book
+									</DropdownMenuLabel>
+									<DropdownMenuItem
+										onClick={() => handleExport("html")}
+										disabled={exporting !== null}
+									>
 										HTML (.html)
 									</DropdownMenuItem>
-									<DropdownMenuItem onClick={() => handleExport("epub")} disabled={exporting !== null}>
+									<DropdownMenuItem
+										onClick={() => handleExport("epub")}
+										disabled={exporting !== null}
+									>
 										EPUB (.epub)
 									</DropdownMenuItem>
 									<DropdownMenuSeparator />
-									<DropdownMenuLabel className="text-xs text-muted-foreground">Source &amp; Plain</DropdownMenuLabel>
-									<DropdownMenuItem onClick={() => handleExport("latex")} disabled={exporting !== null}>
+									<DropdownMenuLabel className="text-xs text-muted-foreground">
+										Source &amp; Plain
+									</DropdownMenuLabel>
+									<DropdownMenuItem
+										onClick={() => handleExport("latex")}
+										disabled={exporting !== null}
+									>
 										LaTeX (.tex)
 									</DropdownMenuItem>
 								</>
@@ -381,7 +405,10 @@ function ReportPanelContent({
 								Markdown (.md)
 							</DropdownMenuItem>
 							{!shareToken && (
-								<DropdownMenuItem onClick={() => handleExport("plain")} disabled={exporting !== null}>
+								<DropdownMenuItem
+									onClick={() => handleExport("plain")}
+									disabled={exporting !== null}
+								>
 									Plain Text (.txt)
 								</DropdownMenuItem>
 							)}

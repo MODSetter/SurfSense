@@ -14,8 +14,8 @@ import {
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
@@ -40,7 +40,12 @@ interface DocumentsSidebarProps {
 	onDockedChange?: (docked: boolean) => void;
 }
 
-export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDockedChange }: DocumentsSidebarProps) {
+export function DocumentsSidebar({
+	open,
+	onOpenChange,
+	isDocked = false,
+	onDockedChange,
+}: DocumentsSidebarProps) {
 	const t = useTranslations("documents");
 	const tSidebar = useTranslations("sidebar");
 	const params = useParams();
@@ -213,25 +218,20 @@ export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDocke
 				</div>
 			</div>
 
-		{/* Connected tools strip */}
+			{/* Connected tools strip */}
 			<div className="shrink-0 mx-4 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
 				<button
 					type="button"
 					onClick={() => setConnectorDialogOpen(true)}
 					className="flex items-center gap-2 min-w-0 flex-1 text-left"
 				>
-				<Unplug className="size-4 shrink-0 text-muted-foreground" />
-				<span className="truncate text-xs text-muted-foreground">
-					Connect your tools
-				</span>
+					<Unplug className="size-4 shrink-0 text-muted-foreground" />
+					<span className="truncate text-xs text-muted-foreground">Connect your tools</span>
 					<AvatarGroup className="ml-auto shrink-0">
 						{SHOWCASE_CONNECTORS.map(({ type, label }, i) => (
 							<Tooltip key={type}>
 								<TooltipTrigger asChild>
-									<Avatar
-										className="size-6"
-										style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}
-									>
+									<Avatar className="size-6" style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}>
 										<AvatarFallback className="bg-muted text-[10px]">
 											{getConnectorIcon(type, "size-3.5")}
 										</AvatarFallback>

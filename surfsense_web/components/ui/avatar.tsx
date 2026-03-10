@@ -39,13 +39,7 @@ function AvatarFallback({
 }
 
 function AvatarGroup({ className, ...props }: React.ComponentProps<"div">) {
-	return (
-		<div
-			data-slot="avatar-group"
-			className={cn("flex -space-x-2", className)}
-			{...props}
-		/>
-	);
+	return <div data-slot="avatar-group" className={cn("flex -space-x-2", className)} {...props} />;
 }
 
 function AvatarGroupCount({ className, ...props }: React.ComponentProps<"span">) {

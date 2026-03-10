@@ -14,7 +14,6 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
-	Unplug,
 	CheckIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
@@ -24,6 +23,7 @@ import {
 	RefreshCwIcon,
 	SquareIcon,
 	SquareLibrary,
+	Unplug,
 	Upload,
 	X,
 } from "lucide-react";
@@ -47,12 +47,12 @@ import {
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import {
 	ConnectorIndicator,
 	type ConnectorIndicatorHandle,
 } from "@/components/assistant-ui/connector-popup";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
@@ -65,6 +65,7 @@ import {
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
+import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
 import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
@@ -83,7 +84,6 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
-import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
 import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
@@ -273,16 +273,10 @@ const ConnectToolsBanner: FC = () => {
 				onClick={() => setConnectorDialogOpen(true)}
 			>
 				<Unplug className="size-4 text-muted-foreground/70 shrink-0" />
-				<span className="text-[13px] text-muted-foreground/80 flex-1">
-					Connect your tools
-				</span>
+				<span className="text-[13px] text-muted-foreground/80 flex-1">Connect your tools</span>
 				<AvatarGroup className="shrink-0">
 					{BANNER_CONNECTORS.map(({ type, label }, i) => (
-						<Avatar
-							key={type}
-							className="size-6"
-							style={{ zIndex: BANNER_CONNECTORS.length - i }}
-						>
+						<Avatar key={type} className="size-6" style={{ zIndex: BANNER_CONNECTORS.length - i }}>
 							<AvatarFallback className="bg-muted text-[10px]">
 								{getConnectorIcon(type, "size-3.5")}
 							</AvatarFallback>
@@ -516,9 +510,9 @@ const Composer: FC = () => {
 				currentUserId={currentUser?.id ?? null}
 				members={members ?? []}
 			/>
-		<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
-			{/* Inline editor with @mention support */}
-			<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
+			<div className="aui-composer-attachment-dropzone flex w-full flex-col overflow-hidden rounded-2xl border-input bg-muted pt-2 outline-none transition-shadow">
+				{/* Inline editor with @mention support */}
+				<div ref={editorContainerRef} className="aui-composer-input-wrapper px-4 pt-3 pb-6">
 					<InlineMentionEditor
 						ref={editorRef}
 						placeholder={currentPlaceholder}
@@ -658,9 +652,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<Unplug className="size-4 shrink-0" />
 							{connectorCount > 0 ? "Manage connectors" : "Connect your tools"}
 							{connectorCount > 0 && (
-								<span className="ml-auto text-xs text-muted-foreground">
-									{connectorCount}
-								</span>
+								<span className="ml-auto text-xs text-muted-foreground">{connectorCount}</span>
 							)}
 						</DropdownMenuItem>
 					</DropdownMenuContent>
@@ -685,7 +677,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 			)}
 
 			<div className="flex items-center gap-2">
-
 				<AssistantIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton

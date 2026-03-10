@@ -10,10 +10,7 @@ import { useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import {
-	commentsEnabledAtom,
-	targetCommentIdAtom,
-} from "@/atoms/chat/current-thread.atom";
+import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
@@ -139,7 +136,8 @@ export const AssistantMessage: FC = () => {
 				commentPanelRef.current?.contains(target) ||
 				commentTriggerRef.current?.contains(target) ||
 				target.closest?.("[data-radix-popper-content-wrapper]")
-			) return;
+			)
+				return;
 			setIsInlineOpen(false);
 		};
 		document.addEventListener("mousedown", handleClickOutside);
@@ -178,7 +176,9 @@ export const AssistantMessage: FC = () => {
 					<button
 						ref={isDesktop ? commentTriggerRef : undefined}
 						type="button"
-						onClick={isDesktop ? () => setIsInlineOpen((prev) => !prev) : () => setIsSheetOpen(true)}
+						onClick={
+							isDesktop ? () => setIsInlineOpen((prev) => !prev) : () => setIsSheetOpen(true)
+						}
 						className={cn(
 							"flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
 							isDesktop && isInlineOpen
@@ -206,11 +206,7 @@ export const AssistantMessage: FC = () => {
 					ref={commentPanelRef}
 					className="absolute right-0 top-10 z-30 w-full max-w-md animate-in fade-in slide-in-from-top-2 duration-200"
 				>
-					<CommentPanelContainer
-						messageId={dbMessageId}
-						isOpen={true}
-						variant="inline"
-					/>
+					<CommentPanelContainer messageId={dbMessageId} isOpen={true} variant="inline" />
 				</div>
 			)}
 

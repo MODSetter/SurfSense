@@ -696,7 +696,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						markAsRead: statusInbox.markAsRead,
 						markAllAsRead: statusInbox.markAllAsRead,
 					},
-					}}
+				}}
 				announcementsPanel={{
 					open: isAnnouncementsSidebarOpen,
 					onOpenChange: setIsAnnouncementsSidebarOpen,

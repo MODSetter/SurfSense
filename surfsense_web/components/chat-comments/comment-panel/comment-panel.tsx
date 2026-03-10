@@ -73,7 +73,9 @@ export function CommentPanel({
 				isInline && "w-full rounded-xl border bg-card shadow-lg max-h-80",
 				!isMobile && !isInline && "w-85 rounded-lg border bg-card"
 			)}
-			style={!isMobile && !isInline && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
+			style={
+				!isMobile && !isInline && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined
+			}
 		>
 			{hasThreads && (
 				<div className={cn("min-h-0 flex-1 overflow-y-auto scrollbar-thin", isMobile && "pb-24")}>

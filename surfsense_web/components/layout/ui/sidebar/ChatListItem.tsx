@@ -1,12 +1,6 @@
 "use client";
 
-import {
-	ArchiveIcon,
-	MoreHorizontal,
-	PenLine,
-	RotateCcwIcon,
-	Trash2,
-} from "lucide-react";
+import { ArchiveIcon, MoreHorizontal, PenLine, RotateCcwIcon, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
