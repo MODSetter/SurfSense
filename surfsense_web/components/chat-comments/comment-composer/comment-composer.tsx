@@ -315,10 +315,7 @@ export function CommentComposer({
 					size={compact ? "icon" : "sm"}
 					onClick={handleSubmit}
 					disabled={!canSubmit}
-					className={cn(
-						!canSubmit && "opacity-50",
-						compact && "size-8 shrink-0 rounded-full"
-					)}
+					className={cn(!canSubmit && "opacity-50", compact && "size-8 shrink-0 rounded-full")}
 				>
 					{compact ? (
 						<ArrowUp className="size-4" />

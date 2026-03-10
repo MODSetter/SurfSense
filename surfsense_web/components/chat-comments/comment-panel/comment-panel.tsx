@@ -29,16 +29,19 @@ export function CommentPanel({
 		return (
 			<div
 				className={cn(
-			"flex min-h-[120px] items-center justify-center p-4",
-		isInline && "w-full rounded-xl border-sidebar-border border bg-sidebar text-sidebar-foreground shadow-lg",
-		!isMobile && !isInline && "w-96 rounded-lg border-sidebar-border border bg-sidebar text-sidebar-foreground"
-		)}
-	>
-		<div className="flex items-center gap-2 text-sm text-muted-foreground">
-			<div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-			Loading comments...
-		</div>
-	</div>
+					"flex min-h-[120px] items-center justify-center p-4",
+					isInline &&
+						"w-full rounded-xl border-sidebar-border border bg-sidebar text-sidebar-foreground shadow-lg",
+					!isMobile &&
+						!isInline &&
+						"w-96 rounded-lg border-sidebar-border border bg-sidebar text-sidebar-foreground"
+				)}
+			>
+				<div className="flex items-center gap-2 text-sm text-muted-foreground">
+					<div className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+					Loading comments...
+				</div>
+			</div>
 		);
 	}
 
@@ -53,8 +56,11 @@ export function CommentPanel({
 			className={cn(
 				"flex flex-col",
 				isMobile && "w-full",
-	isInline && "w-full rounded-xl border-sidebar-border border bg-sidebar text-sidebar-foreground shadow-lg max-h-80",
-	!isMobile && !isInline && "w-85 rounded-lg border-sidebar-border border bg-sidebar text-sidebar-foreground"
+				isInline &&
+					"w-full rounded-xl border-sidebar-border border bg-sidebar text-sidebar-foreground shadow-lg max-h-80",
+				!isMobile &&
+					!isInline &&
+					"w-85 rounded-lg border-sidebar-border border bg-sidebar text-sidebar-foreground"
 			)}
 			style={
 				!isMobile && !isInline && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined
@@ -79,18 +85,18 @@ export function CommentPanel({
 				</div>
 			)}
 
-		<div className={cn("p-3", isMobile && "fixed bottom-0 left-0 right-0 z-50 bg-card border-t")}>
-			<CommentComposer
-				members={members}
-				membersLoading={membersLoading}
-				placeholder="Comment or @mention"
-				submitLabel="Comment"
-				isSubmitting={isSubmitting}
-				onSubmit={handleCommentSubmit}
-				autoFocus={!hasThreads}
-				compact
-			/>
-		</div>
+			<div className={cn("p-3", isMobile && "fixed bottom-0 left-0 right-0 z-50 bg-card border-t")}>
+				<CommentComposer
+					members={members}
+					membersLoading={membersLoading}
+					placeholder="Comment or @mention"
+					submitLabel="Comment"
+					isSubmitting={isSubmitting}
+					onSubmit={handleCommentSubmit}
+					autoFocus={!hasThreads}
+					compact
+				/>
+			</div>
 		</div>
 	);
 }
