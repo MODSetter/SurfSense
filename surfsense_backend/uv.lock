@@ -4210,17 +4210,6 @@ wheels = [
 ]
 
 [[package]]
-name = "mmdc"
-version = "0.4.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "phasma" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/14/39/3179a0e6684f91aae3f41cb80d99b97d40177f0fb8a08a971bb45ae4c115/mmdc-0.4.1-py3-none-any.whl", hash = "sha256:84bccd4ab7a473c40511043c243242ca88fbad806351f8161765589117afbbd3", size = 472040 },
-]
-
-[[package]]
 name = "mmh3"
 version = "5.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -5428,17 +5417,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/7d/d8/fd6009cee3e03214667df488cdcf9609461d729968da94e4f95d6359d304/pgvector-0.3.6.tar.gz", hash = "sha256:31d01690e6ea26cea8a633cde5f0f55f5b246d9c8292d68efdef8c22ec994ade", size = 25421 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fb/81/f457d6d361e04d061bef413749a6e1ab04d98cfeec6d8abcfe40184750f3/pgvector-0.3.6-py3-none-any.whl", hash = "sha256:f6c269b3c110ccb7496bac87202148ed18f34b390a0189c783e351062400a75a", size = 24880 },
-]
-
-[[package]]
-name = "phasma"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/d9/f2/c6f39c7a3b2ddcd6fea71c8158a27480a498de7e85d0165d44fb15087062/phasma-0.5.0-py3-none-macosx_10_9_universal2.whl", hash = "sha256:d209e9c2720fbc9ea1e07bd0ae67d1b90075a88886a7438121a084d07bda56c7", size = 17231073 },
-    { url = "https://files.pythonhosted.org/packages/9d/46/d01f3b175a7bdf6cdfcc6b688aca00d4b77a545ab8ac00b29d696e5a915c/phasma-0.5.0-py3-none-manylinux_2_17_i686.whl", hash = "sha256:cd3772db3bc52ac8478fc23b82ea7636c1889b76f2394ceb03bdc1efac01e348", size = 27270663 },
-    { url = "https://files.pythonhosted.org/packages/87/76/24065a7ab6e771575a74e071dfe39a17a9447ab8cd2e0b92ea31eeb60b70/phasma-0.5.0-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:768365d8035f48f574b6496924aaa33ee8b52d2862ccfae8255d7e37d4ceb340", size = 26241614 },
-    { url = "https://files.pythonhosted.org/packages/3b/04/809333d3ad0676c982fa016df88e94d3830bf1413b07de679ae74930c9fa/phasma-0.5.0-py3-none-win_amd64.whl", hash = "sha256:99dc29b11d55b9574772c5a7c0feb407704e8e20f2f534791c3c125a5dda4cd9", size = 18220978 },
 ]
 
 [[package]]
@@ -7910,7 +7888,6 @@ dependencies = [
     { name = "markdown" },
     { name = "markdownify" },
     { name = "mcp" },
-    { name = "mmdc" },
     { name = "notion-client" },
     { name = "numpy" },
     { name = "pgvector" },
@@ -7988,7 +7965,6 @@ requires-dist = [
     { name = "markdown", specifier = ">=3.7" },
     { name = "markdownify", specifier = ">=0.14.1" },
     { name = "mcp", specifier = ">=1.25.0" },
-    { name = "mmdc", specifier = ">=0.4.0" },
     { name = "notion-client", specifier = ">=2.3.0" },
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "pgvector", specifier = ">=0.3.6" },
