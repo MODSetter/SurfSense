@@ -177,7 +177,7 @@ export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDocke
 								<span className="sr-only">{tSidebar("close") || "Close"}</span>
 							</Button>
 						)}
-						<h2 className="text-lg font-semibold">{t("title") || "Documents"}</h2>
+						<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
 					</div>
 					<div className="flex items-center gap-1">
 						{!isMobile && onDockedChange && (
@@ -214,7 +214,7 @@ export function DocumentsSidebar({ open, onOpenChange, isDocked = false, onDocke
 			</div>
 
 		{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mb-3 flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
+			<div className="shrink-0 mx-4 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
 				<button
 					type="button"
 					onClick={() => setConnectorDialogOpen(true)}

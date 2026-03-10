@@ -24,6 +24,7 @@ import {
 	RefreshCwIcon,
 	SquareIcon,
 	SquareLibrary,
+	Upload,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -33,6 +34,7 @@ import {
 	mentionedDocumentsAtom,
 	sidebarSelectedDocumentsAtom,
 } from "@/atoms/chat/mentioned-documents.atom";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import {
@@ -42,6 +44,7 @@ import {
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
 import {
 	ConnectorIndicator,
@@ -65,7 +68,12 @@ import {
 } from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
@@ -475,6 +483,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
 	const connectorRef = useRef<ConnectorIndicatorHandle>(null);
 	const [addMenuOpen, setAddMenuOpen] = useState(false);
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
+	const { data: connectors } = useAtomValue(connectorsAtom);
+	const connectorCount = connectors?.length ?? 0;
 
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
@@ -502,8 +513,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
-				<Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-					<PopoverTrigger asChild>
+				<DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+					<DropdownMenuTrigger asChild>
 						<TooltipIconButton
 							tooltip="Add files and more"
 							side="bottom"
@@ -515,39 +526,47 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						>
 							<PlusIcon className="size-4" />
 						</TooltipIconButton>
-					</PopoverTrigger>
-					<PopoverContent
+					</DropdownMenuTrigger>
+					<DropdownMenuContent
 						side="bottom"
 						align="start"
 						sideOffset={12}
-						className="w-[calc(100vw-2rem)] max-w-60 sm:w-60 p-2"
+						className="w-[calc(100vw-2rem)] max-w-60 sm:w-60"
 					>
-						<div className="flex flex-col gap-0.5">
-							<button
-								type="button"
-								className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-								onClick={() => {
-									setAddMenuOpen(false);
-									setDocumentsSidebarOpen(true);
-								}}
-							>
-								<SquareLibrary className="size-4 shrink-0" />
-								Documents
-							</button>
-							<button
-								type="button"
-								className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-								onClick={() => {
-									setAddMenuOpen(false);
-									connectorRef.current?.open();
-								}}
-							>
-								<Cable className="size-4 shrink-0" />
-								Manage connectors
-							</button>
-						</div>
-					</PopoverContent>
-				</Popover>
+						<DropdownMenuItem
+							onClick={() => {
+								setAddMenuOpen(false);
+								openUploadDialog();
+							}}
+						>
+							<Upload className="size-4 shrink-0" />
+							Upload files
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={() => {
+								setAddMenuOpen(false);
+								setDocumentsSidebarOpen(true);
+							}}
+						>
+							<SquareLibrary className="size-4 shrink-0" />
+							Documents
+						</DropdownMenuItem>
+						<DropdownMenuItem
+							onClick={() => {
+								setAddMenuOpen(false);
+								connectorRef.current?.open();
+							}}
+						>
+							<Cable className="size-4 shrink-0" />
+							Manage connectors
+							{connectorCount > 0 && (
+								<span className="ml-auto text-xs text-muted-foreground">
+									{connectorCount}
+								</span>
+							)}
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 				<ConnectorIndicator ref={connectorRef} showTrigger={false} />
 				{sidebarDocs.length > 0 && (
 					<button
