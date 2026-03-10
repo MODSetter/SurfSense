@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { currentThreadAtom, resetCurrentThreadAtom } from "@/atoms/chat/current-thread.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
+import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -36,6 +37,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
 import { useAnnouncements } from "@/hooks/use-announcements";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
 import { notificationsApiService } from "@/lib/apis/notifications-api.service";
@@ -74,6 +76,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const pathname = usePathname();
 	const queryClient = useQueryClient();
 	const { theme, setTheme } = useTheme();
+	const isMobile = useIsMobile();
 
 	// Announcements
 	const { unreadCount: announcementUnreadCount } = useAnnouncements();
@@ -121,6 +124,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	// Documents sidebar state (shared atom so Composer can toggle it)
 	const [isDocumentsSidebarOpen, setIsDocumentsSidebarOpen] = useAtom(documentsSidebarOpenAtom);
 	const [isDocumentsDocked, setIsDocumentsDocked] = useState(true);
+	const [isRightPanelCollapsed, setIsRightPanelCollapsed] = useAtom(rightPanelCollapsedAtom);
 
 	// Open documents sidebar by default on desktop (docked mode)
 	const documentsInitialized = useRef(false);
@@ -312,13 +316,13 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				isActive: isInboxSidebarOpen,
 				badge: totalUnreadCount > 0 ? formatInboxCount(totalUnreadCount) : undefined,
 			},
-			{
-				title: "Documents",
-				url: "#documents",
-				icon: SquareLibrary,
-				isActive: isDocumentsSidebarOpen,
-				statusIndicator: documentsProcessingStatus,
-			},
+		{
+			title: "Documents",
+			url: "#documents",
+			icon: SquareLibrary,
+			isActive: isMobile ? isDocumentsSidebarOpen : (isDocumentsSidebarOpen && !isRightPanelCollapsed),
+			statusIndicator: documentsProcessingStatus,
+		},
 			{
 				title: "Announcements",
 				url: "#announcements",
@@ -327,14 +331,16 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				badge: announcementUnreadCount > 0 ? formatInboxCount(announcementUnreadCount) : undefined,
 			},
 		],
-		[
-			isInboxSidebarOpen,
-			isDocumentsSidebarOpen,
-			totalUnreadCount,
-			isAnnouncementsSidebarOpen,
-			announcementUnreadCount,
-			documentsProcessingStatus,
-		]
+	[
+		isMobile,
+		isInboxSidebarOpen,
+		isDocumentsSidebarOpen,
+		isRightPanelCollapsed,
+		totalUnreadCount,
+		isAnnouncementsSidebarOpen,
+		announcementUnreadCount,
+		documentsProcessingStatus,
+	]
 	);
 
 	// Handlers
@@ -438,15 +444,28 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				return;
 			}
 			if (item.url === "#documents") {
-				setIsDocumentsSidebarOpen((prev) => {
-					if (!prev) {
+				if (!isMobile) {
+					if (!isDocumentsSidebarOpen) {
+						setIsDocumentsSidebarOpen(true);
+						setIsRightPanelCollapsed(false);
 						setIsInboxSidebarOpen(false);
 						setIsAllSharedChatsSidebarOpen(false);
 						setIsAllPrivateChatsSidebarOpen(false);
 						setIsAnnouncementsSidebarOpen(false);
+					} else {
+						setIsRightPanelCollapsed((prev) => !prev);
 					}
-					return !prev;
-				});
+				} else {
+					setIsDocumentsSidebarOpen((prev) => {
+						if (!prev) {
+							setIsInboxSidebarOpen(false);
+							setIsAllSharedChatsSidebarOpen(false);
+							setIsAllPrivateChatsSidebarOpen(false);
+							setIsAnnouncementsSidebarOpen(false);
+						}
+						return !prev;
+					});
+				}
 				return;
 			}
 			if (item.url === "#announcements") {
@@ -462,7 +481,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			}
 			router.push(item.url);
 		},
-		[router, setIsDocumentsSidebarOpen]
+		[router, isMobile, isDocumentsSidebarOpen, setIsDocumentsSidebarOpen, setIsRightPanelCollapsed]
 	);
 
 	const handleNewChat = useCallback(() => {
