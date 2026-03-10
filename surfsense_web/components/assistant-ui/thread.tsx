@@ -14,6 +14,7 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
+	Cable,
 	CheckIcon,
 	ChevronLeftIcon,
 	ChevronRightIcon,
@@ -22,6 +23,7 @@ import {
 	PlusIcon,
 	RefreshCwIcon,
 	SquareIcon,
+	SquareLibrary,
 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -42,8 +44,10 @@ import {
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
-import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
+import {
+	ConnectorIndicator,
+	type ConnectorIndicatorHandle,
+} from "@/components/assistant-ui/connector-popup";
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
@@ -62,6 +66,7 @@ import {
 } from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
@@ -474,7 +479,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
-	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
+	const connectorRef = useRef<ConnectorIndicatorHandle>(null);
+	const [addMenuOpen, setAddMenuOpen] = useState(false);
 
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
@@ -502,18 +508,53 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-2 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
-				<TooltipIconButton
-					tooltip="Upload"
-					side="bottom"
-					variant="ghost"
-					size="icon"
-					className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-					aria-label="Upload documents"
-					onClick={openUploadDialog}
-				>
-					<PlusIcon className="size-4" />
-				</TooltipIconButton>
-				<ConnectorIndicator />
+				<Popover open={addMenuOpen} onOpenChange={setAddMenuOpen}>
+					<PopoverTrigger asChild>
+						<TooltipIconButton
+							tooltip="Configuration"
+							side="bottom"
+							variant="ghost"
+							size="icon"
+							className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+							aria-label="Configuration"
+							data-joyride="connector-icon"
+						>
+							<PlusIcon className="size-4" />
+						</TooltipIconButton>
+					</PopoverTrigger>
+					<PopoverContent
+						side="bottom"
+						align="start"
+						sideOffset={12}
+						className="w-[calc(100vw-2rem)] max-w-60 sm:w-60 p-2"
+					>
+						<div className="flex flex-col gap-0.5">
+							<button
+								type="button"
+								className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+								onClick={() => {
+									setAddMenuOpen(false);
+									setDocumentsSidebarOpen(true);
+								}}
+							>
+								<SquareLibrary className="size-4 shrink-0" />
+								Documents
+							</button>
+							<button
+								type="button"
+								className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+								onClick={() => {
+									setAddMenuOpen(false);
+									connectorRef.current?.open();
+								}}
+							>
+								<Cable className="size-4 shrink-0" />
+								Manage connectors
+							</button>
+						</div>
+					</PopoverContent>
+				</Popover>
+				<ConnectorIndicator ref={connectorRef} showTrigger={false} />
 			</div>
 
 			{!hasModelConfigured && (
