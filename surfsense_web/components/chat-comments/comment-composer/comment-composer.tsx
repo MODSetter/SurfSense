@@ -1,6 +1,6 @@
 "use client";
 
-import { Send, X } from "lucide-react";
+import { ArrowUp, Send, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -86,6 +86,7 @@ export function CommentComposer({
 	onCancel,
 	autoFocus = false,
 	initialValue = "",
+	compact = false,
 }: CommentComposerProps) {
 	const [displayContent, setDisplayContent] = useState(initialValue);
 	const [insertedMentions, setInsertedMentions] = useState<InsertedMention[]>([]);
@@ -257,44 +258,46 @@ export function CommentComposer({
 	}, [adjustTextareaHeight]);
 
 	return (
-		<div className="flex flex-col gap-2">
-			<Popover
-				open={mentionState.isActive}
-				onOpenChange={(open) => !open && closeMentionPicker()}
-				modal={false}
-			>
-				<PopoverAnchor asChild>
-					<Textarea
-						ref={textareaRef}
-						value={displayContent}
-						onChange={handleInputChange}
-						onKeyDown={handleKeyDown}
-						placeholder={placeholder}
-						className="min-h-[40px] max-h-[200px] resize-none overflow-y-auto scrollbar-thin"
-						rows={1}
-						disabled={isSubmitting}
-					/>
-				</PopoverAnchor>
-				<PopoverContent
-					side="top"
-					align="start"
-					sideOffset={4}
-					collisionPadding={8}
-					className="w-72 p-0"
-					onOpenAutoFocus={(e) => e.preventDefault()}
+		<div className={cn("flex", compact ? "flex-row items-center gap-2" : "flex-col gap-2")}>
+			<div className={cn(compact && "flex-1 min-w-0")}>
+				<Popover
+					open={mentionState.isActive}
+					onOpenChange={(open) => !open && closeMentionPicker()}
+					modal={false}
 				>
-					<MemberMentionPicker
-						members={members}
-						query={mentionState.query}
-						highlightedIndex={highlightedIndex}
-						isLoading={membersLoading}
-						onSelect={insertMention}
-						onHighlightChange={setHighlightedIndex}
-					/>
-				</PopoverContent>
-			</Popover>
+					<PopoverAnchor asChild>
+						<Textarea
+							ref={textareaRef}
+							value={displayContent}
+							onChange={handleInputChange}
+							onKeyDown={handleKeyDown}
+							placeholder={placeholder}
+							className="min-h-[40px] max-h-[200px] w-full resize-none overflow-y-auto scrollbar-thin border-none shadow-none focus-visible:ring-0 bg-transparent dark:bg-transparent"
+							rows={1}
+							disabled={isSubmitting}
+						/>
+					</PopoverAnchor>
+					<PopoverContent
+						side="top"
+						align="start"
+						sideOffset={4}
+						collisionPadding={8}
+						className="w-72 p-0"
+						onOpenAutoFocus={(e) => e.preventDefault()}
+					>
+						<MemberMentionPicker
+							members={members}
+							query={mentionState.query}
+							highlightedIndex={highlightedIndex}
+							isLoading={membersLoading}
+							onSelect={insertMention}
+							onHighlightChange={setHighlightedIndex}
+						/>
+					</PopoverContent>
+				</Popover>
+			</div>
 
-			<div className="flex items-center justify-end gap-2">
+			<div className={cn("flex items-center gap-2", !compact && "justify-end")}>
 				{onCancel && (
 					<Button
 						type="button"
@@ -309,13 +312,22 @@ export function CommentComposer({
 				)}
 				<Button
 					type="button"
-					size="sm"
+					size={compact ? "icon" : "sm"}
 					onClick={handleSubmit}
 					disabled={!canSubmit}
-					className={cn(!canSubmit && "opacity-50")}
+					className={cn(
+						!canSubmit && "opacity-50",
+						compact && "size-8 shrink-0 rounded-full"
+					)}
 				>
-					<Send className="mr-1 size-4" />
-					{submitLabel}
+					{compact ? (
+						<ArrowUp className="size-4" />
+					) : (
+						<>
+							<Send className="mr-1 size-4" />
+							{submitLabel}
+						</>
+					)}
 				</Button>
 			</div>
 		</div>

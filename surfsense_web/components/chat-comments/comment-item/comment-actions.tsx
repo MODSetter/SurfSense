@@ -6,7 +6,6 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { CommentActionsProps } from "./types";
@@ -34,8 +33,7 @@ export function CommentActions({ canEdit, canDelete, onEdit, onDelete }: Comment
 						Edit
 					</DropdownMenuItem>
 				)}
-				{canEdit && canDelete && <DropdownMenuSeparator />}
-				{canDelete && (
+					{canDelete && (
 					<DropdownMenuItem onClick={onDelete}>
 						<Trash2 className="mr-2 size-4" />
 						Delete

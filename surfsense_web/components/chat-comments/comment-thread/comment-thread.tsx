@@ -129,16 +129,17 @@ export function CommentThread({
 
 						{isReplyComposerOpen ? (
 							<div className="pt-3">
-								<CommentComposer
-									members={members}
-									membersLoading={membersLoading}
-									placeholder="Reply or @mention"
-									submitLabel="Reply"
-									isSubmitting={isSubmitting}
-									onSubmit={handleReplySubmit}
-									onCancel={handleReplyCancel}
-									autoFocus
-								/>
+							<CommentComposer
+								members={members}
+								membersLoading={membersLoading}
+								placeholder="Reply or @mention"
+								submitLabel="Reply"
+								isSubmitting={isSubmitting}
+								onSubmit={handleReplySubmit}
+								onCancel={handleReplyCancel}
+								autoFocus
+								compact
+							/>
 							</div>
 						) : (
 							<Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={handleReply}>
