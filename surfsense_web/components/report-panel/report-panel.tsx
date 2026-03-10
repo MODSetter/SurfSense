@@ -294,32 +294,11 @@ export function ReportPanelContent({
 		}
 	}, [activeReportId, currentMarkdown]);
 
-	// Show full-page skeleton only on initial load (no data loaded yet).
-	// Once we have versions/content from a prior fetch, keep the action bar visible.
-	const hasLoadedBefore = versions.length > 0 || reportContent !== null;
-
-	if (isLoading && !hasLoadedBefore) {
-		return (
-			<>
-				{/* Minimal top bar with close button even during initial load */}
-				<div className="flex items-center justify-end px-4 py-2 shrink-0">
-					{onClose && (
-						<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
-							<XIcon className="size-4" />
-							<span className="sr-only">Close report panel</span>
-						</Button>
-					)}
-				</div>
-				<ReportPanelSkeleton />
-			</>
-		);
-	}
-
 	const activeVersionIndex = versions.findIndex((v) => v.id === activeReportId);
 
 	return (
 		<>
-			{/* Action bar — always visible after initial load */}
+			{/* Action bar — always visible; buttons are disabled while loading */}
 			<div className="flex items-center justify-between px-4 py-2 shrink-0">
 				<div className="flex items-center gap-2">
 					{/* Copy button */}
