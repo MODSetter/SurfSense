@@ -6,12 +6,12 @@ import {
 	FileText,
 	FolderClosed,
 	Image,
-	Loader2,
 	Presentation,
 	X,
 } from "lucide-react";
 import type { FC } from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { ComposioDriveFolderTree } from "@/components/connectors/composio-drive-folder-tree";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import { type PickerResult, useGooglePicker } from "@/hooks/use-google-picker";
 
 interface ComposioDriveConfigProps {
 	connector: SearchSourceConnector;
@@ -31,7 +30,7 @@ interface ComposioDriveConfigProps {
 	onNameChange?: (name: string) => void;
 }
 
-interface SelectedItem {
+interface SelectedFolder {
 	id: string;
 	name: string;
 }
@@ -94,18 +93,20 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 }) => {
 	const isIndexable = connector.config?.is_indexable as boolean;
 
-	const existingFolders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
-	const existingFiles = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
+	const existingFolders =
+		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
+	const existingFiles = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
 	const existingIndexingOptions =
 		(connector.config?.indexing_options as IndexingOptions | undefined) || DEFAULT_INDEXING_OPTIONS;
 
-	const [selectedFolders, setSelectedFolders] = useState<SelectedItem[]>(existingFolders);
-	const [selectedFiles, setSelectedFiles] = useState<SelectedItem[]>(existingFiles);
+	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
+	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
+	const [showFolderSelector, setShowFolderSelector] = useState(false);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
 
 	useEffect(() => {
-		const folders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
-		const files = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
+		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
+		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
 		const options =
 			(connector.config?.indexing_options as IndexingOptions | undefined) ||
 			DEFAULT_INDEXING_OPTIONS;
@@ -115,8 +116,8 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 	}, [connector.config]);
 
 	const updateConfig = (
-		folders: SelectedItem[],
-		files: SelectedItem[],
+		folders: SelectedFolder[],
+		files: SelectedFolder[],
 		options: IndexingOptions
 	) => {
 		if (onConfigChange) {
@@ -129,26 +130,15 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 		}
 	};
 
-	const handlePicked = useCallback(
-		(result: PickerResult) => {
-			const folders = result.folders.map((f) => ({ id: f.id, name: f.name }));
-			const files = result.files.map((f) => ({ id: f.id, name: f.name }));
-			setSelectedFolders(folders);
-			setSelectedFiles(files);
-			updateConfig(folders, files, indexingOptions);
-		},
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-		[indexingOptions, connector.config]
-	);
+	const handleSelectFolders = (folders: SelectedFolder[]) => {
+		setSelectedFolders(folders);
+		updateConfig(folders, selectedFiles, indexingOptions);
+	};
 
-	const {
-		openPicker,
-		loading: pickerLoading,
-		error: pickerError,
-	} = useGooglePicker({
-		connectorId: connector.id,
-		onPicked: handlePicked,
-	});
+	const handleSelectFiles = (files: SelectedFolder[]) => {
+		setSelectedFiles(files);
+		updateConfig(selectedFolders, files, indexingOptions);
+	};
 
 	const handleIndexingOptionChange = (key: keyof IndexingOptions, value: number | boolean) => {
 		const newOptions = { ...indexingOptions, [key]: value };
@@ -157,13 +147,13 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 	};
 
 	const handleRemoveFolder = (folderId: string) => {
-		const newFolders = selectedFolders.filter((f) => f.id !== folderId);
+		const newFolders = selectedFolders.filter((folder) => folder.id !== folderId);
 		setSelectedFolders(newFolders);
 		updateConfig(newFolders, selectedFiles, indexingOptions);
 	};
 
 	const handleRemoveFile = (fileId: string) => {
-		const newFiles = selectedFiles.filter((f) => f.id !== fileId);
+		const newFiles = selectedFiles.filter((file) => file.id !== fileId);
 		setSelectedFiles(newFiles);
 		updateConfig(selectedFolders, newFiles, indexingOptions);
 	};
@@ -242,18 +232,35 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 					</div>
 				)}
 
-				<Button
-					type="button"
-					variant="outline"
-					onClick={openPicker}
-					disabled={pickerLoading}
-					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-				>
-					{pickerLoading && <Loader2 className="size-3.5 mr-1.5 animate-spin" />}
-					{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}
-				</Button>
-
-				{pickerError && <p className="text-xs text-destructive">{pickerError}</p>}
+				{showFolderSelector ? (
+					<div className="space-y-2 sm:space-y-3">
+						<ComposioDriveFolderTree
+							connectorId={connector.id}
+							selectedFolders={selectedFolders}
+							onSelectFolders={handleSelectFolders}
+							selectedFiles={selectedFiles}
+							onSelectFiles={handleSelectFiles}
+						/>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							onClick={() => setShowFolderSelector(false)}
+							className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+						>
+							Done Selecting
+						</Button>
+					</div>
+				) : (
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() => setShowFolderSelector(true)}
+						className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+					>
+						{totalSelected > 0 ? "Change Selection" : "Select Folders & Files"}
+					</Button>
+				)}
 			</div>
 
 			{/* Indexing Options */}

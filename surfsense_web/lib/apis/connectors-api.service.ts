@@ -273,7 +273,7 @@ class ConnectorsApiService {
 		return baseApiService.get<{
 			access_token: string;
 			client_id: string;
-			picker_api_key: string;
+			picker_api_key: string | null;
 		}>(`/api/v1/connectors/${connectorId}/drive-picker-token`);
 	};
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { connectorsApiService } from "@/lib/apis/connectors-api.service";
 
 export interface PickerItem {
@@ -21,6 +21,8 @@ interface UseGooglePickerOptions {
 
 const PICKER_SCRIPT_URL = "https://apis.google.com/js/api.js";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
+export const PICKER_OPEN_EVENT = "google-picker-open";
+export const PICKER_CLOSE_EVENT = "google-picker-close";
 
 let scriptLoadPromise: Promise<void> | null = null;
 let pickerApiPromise: Promise<void> | null = null;
@@ -68,6 +70,25 @@ export function useGooglePicker({ connectorId, onPicked }: UseGooglePickerOption
 	const onPickedRef = useRef(onPicked);
 	onPickedRef.current = onPicked;
 	const openingRef = useRef(false);
+	const pickerRef = useRef<google.picker.Picker | null>(null);
+
+	const closePicker = useCallback(() => {
+		if (!pickerRef.current) return;
+		window.dispatchEvent(new Event(PICKER_CLOSE_EVENT));
+		pickerRef.current.dispose();
+		pickerRef.current = null;
+		openingRef.current = false;
+	}, []);
+
+	useEffect(() => {
+		const onEscape = (e: KeyboardEvent) => {
+			if (e.key === "Escape" && pickerRef.current) {
+				closePicker();
+			}
+		};
+		window.addEventListener("keydown", onEscape);
+		return () => window.removeEventListener("keydown", onEscape);
+	}, [closePicker]);
 
 	const openPicker = useCallback(async () => {
 		if (openingRef.current) return;
@@ -87,15 +108,18 @@ export function useGooglePicker({ connectorId, onPicked }: UseGooglePickerOption
 				.setIncludeFolders(true)
 				.setSelectFolderEnabled(true);
 
-			let pickerInstance: google.picker.Picker | null = null;
-
-			const picker = new google.picker.PickerBuilder()
+			const builder = new google.picker.PickerBuilder()
 				.addView(docsView)
 				.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
 				.setOAuthToken(access_token)
-				.setDeveloperKey(picker_api_key)
 				.setOrigin(window.location.protocol + "//" + window.location.host)
-				.setTitle("Select files and folders to index")
+				.setTitle("Select files and folders to index");
+
+			if (picker_api_key) {
+				builder.setDeveloperKey(picker_api_key);
+			}
+
+			const picker = builder
 				.setCallback((data: google.picker.ResponseObject) => {
 					const action = data[google.picker.Response.ACTION];
 
@@ -128,16 +152,16 @@ export function useGooglePicker({ connectorId, onPicked }: UseGooglePickerOption
 						action === google.picker.Action.CANCEL ||
 						action === google.picker.Action.ERROR
 					) {
-						pickerInstance?.dispose();
-						pickerInstance = null;
-						openingRef.current = false;
+						closePicker();
 					}
 				})
 				.build();
 
-			pickerInstance = picker;
+			pickerRef.current = picker;
+			window.dispatchEvent(new Event(PICKER_OPEN_EVENT));
 			picker.setVisible(true);
 		} catch (err) {
+			window.dispatchEvent(new Event(PICKER_CLOSE_EVENT));
 			openingRef.current = false;
 			const msg = err instanceof Error ? err.message : "Failed to open Google Picker";
 			setError(msg);
@@ -145,7 +169,7 @@ export function useGooglePicker({ connectorId, onPicked }: UseGooglePickerOption
 		} finally {
 			setLoading(false);
 		}
-	}, [connectorId]);
+	}, [connectorId, closePicker]);
 
-	return { openPicker, loading, error };
+	return { openPicker, closePicker, loading, error };
 }
