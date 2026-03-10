@@ -28,6 +28,7 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
 import {
+	AUTO_INDEX_CONNECTOR_TYPES,
 	COMPOSIO_CONNECTORS,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
@@ -118,6 +119,56 @@ export const useConnectorDialog = () => {
 				return `${minutes} minutes`;
 		}
 	}, []);
+
+	const handleAutoIndex = useCallback(
+		async (
+			connector: SearchSourceConnector,
+			connectorTitle: string,
+			connectorType: string
+		) => {
+			if (!searchSpaceId) return;
+
+			setIsOpen(true);
+			try {
+				await indexConnector({
+					connector_id: connector.id,
+					queryParams: { search_space_id: searchSpaceId },
+				});
+
+				trackIndexWithDateRangeStarted(
+					Number(searchSpaceId),
+					connectorType,
+					connector.id,
+					{ hasStartDate: false, hasEndDate: false }
+				);
+
+				toast.success(`${connectorTitle} connected!`, {
+					description: "Syncing started. Your data will be available shortly.",
+				});
+			} catch (error) {
+				console.error("Auto-index failed:", error);
+				toast.success(`${connectorTitle} connected!`, {
+					description:
+						"Connected successfully, but syncing could not start. You can start it from settings.",
+				});
+			}
+
+			const url = new URL(window.location.href);
+			url.searchParams.delete("success");
+			url.searchParams.delete("connector");
+			url.searchParams.delete("connectorId");
+			url.searchParams.delete("view");
+			url.searchParams.delete("modal");
+			url.searchParams.delete("tab");
+			router.replace(url.pathname + url.search, { scroll: false });
+
+			queryClient.invalidateQueries({
+				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+			});
+			await refetchAllConnectors();
+		},
+		[searchSpaceId, indexConnector, refetchAllConnectors, setIsOpen, router]
+	);
 
 	// Synchronize state with URL query params
 	useEffect(() => {
@@ -336,7 +387,7 @@ export const useConnectorDialog = () => {
 			}
 
 			if (params.success === "true" && searchSpaceId && params.modal === "connectors") {
-				refetchAllConnectors().then((result) => {
+				refetchAllConnectors().then(async (result) => {
 					if (!result.data) return;
 
 					let newConnector: SearchSourceConnector | undefined;
@@ -376,27 +427,37 @@ export const useConnectorDialog = () => {
 					if (newConnector && oauthConnector) {
 						const connectorValidation = searchSourceConnector.safeParse(newConnector);
 						if (connectorValidation.success) {
-							// Track connector connected event for OAuth/Composio connectors
 							trackConnectorConnected(
 								Number(searchSpaceId),
 								oauthConnector.connectorType,
 								newConnector.id
 							);
 
-							const config = validateIndexingConfigState({
-								connectorType: oauthConnector.connectorType,
-								connectorId: newConnector.id,
-								connectorTitle: oauthConnector.title,
-							});
-							setIndexingConfig(config);
-							setIndexingConnector(newConnector);
-							setIndexingConnectorConfig(newConnector.config);
-							setIsOpen(true);
-							const url = new URL(window.location.href);
-							url.searchParams.delete("success");
-							url.searchParams.set("connectorId", newConnector.id.toString());
-							url.searchParams.set("view", "configure");
-							window.history.replaceState({}, "", url.toString());
+							if (
+								newConnector.is_indexable &&
+								AUTO_INDEX_CONNECTOR_TYPES.has(oauthConnector.connectorType)
+							) {
+								await handleAutoIndex(
+									newConnector,
+									oauthConnector.title,
+									oauthConnector.connectorType
+								);
+							} else {
+								const config = validateIndexingConfigState({
+									connectorType: oauthConnector.connectorType,
+									connectorId: newConnector.id,
+									connectorTitle: oauthConnector.title,
+								});
+								setIndexingConfig(config);
+								setIndexingConnector(newConnector);
+								setIndexingConnectorConfig(newConnector.config);
+								setIsOpen(true);
+								const url = new URL(window.location.href);
+								url.searchParams.delete("success");
+								url.searchParams.set("connectorId", newConnector.id.toString());
+								url.searchParams.set("view", "configure");
+								window.history.replaceState({}, "", url.toString());
+							}
 						} else {
 							console.warn("Invalid connector data after OAuth:", connectorValidation.error);
 							toast.error("Failed to validate connector data");
@@ -408,7 +469,7 @@ export const useConnectorDialog = () => {
 			// Invalid query params - log but don't crash
 			console.warn("Invalid connector popup query params in OAuth success handler:", error);
 		}
-	}, [searchParams, searchSpaceId, refetchAllConnectors, setIsOpen]);
+	}, [searchParams, searchSpaceId, refetchAllConnectors, setIsOpen, handleAutoIndex]);
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(
@@ -1592,6 +1653,7 @@ export const useConnectorDialog = () => {
 		handleCreateWebcrawler,
 		handleCreateYouTubeCrawler,
 		handleSubmitConnectForm,
+		handleAutoIndex,
 		handleStartIndexing,
 		handleSkipIndexing,
 		handleStartEdit,

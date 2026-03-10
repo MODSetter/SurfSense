@@ -241,5 +241,22 @@ export const COMPOSIO_TOOLKITS = [
 	},
 ] as const;
 
+// Skip IndexingConfigurationView and auto-index with defaults after OAuth
+export const AUTO_INDEX_CONNECTOR_TYPES = new Set<string>([
+	EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
+	EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
+	EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+	EnumConnectorName.AIRTABLE_CONNECTOR,
+	EnumConnectorName.NOTION_CONNECTOR,
+	EnumConnectorName.LINEAR_CONNECTOR,
+	EnumConnectorName.SLACK_CONNECTOR,
+	EnumConnectorName.TEAMS_CONNECTOR,
+	EnumConnectorName.DISCORD_CONNECTOR,
+	EnumConnectorName.JIRA_CONNECTOR,
+	EnumConnectorName.CONFLUENCE_CONNECTOR,
+	EnumConnectorName.CLICKUP_CONNECTOR,
+]);
+
 // Re-export IndexingConfigState from schemas for backward compatibility
 export type { IndexingConfigState } from "./connector-popup.schemas";
