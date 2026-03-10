@@ -405,7 +405,6 @@ export default function NewChatPage() {
 			id: currentThread?.id ?? null,
 			visibility: currentThread?.visibility ?? null,
 			hasComments: currentThread?.has_comments ?? false,
-			addingCommentToMessageId: null,
 		}));
 	}, [currentThread, setCurrentThreadState]);
 

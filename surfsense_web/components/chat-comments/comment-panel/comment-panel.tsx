@@ -40,13 +40,15 @@ export function CommentPanel({
 	};
 
 	const isMobile = variant === "mobile";
+	const isInline = variant === "inline";
 
 	if (isLoading) {
 		return (
 			<div
 				className={cn(
 					"flex min-h-[120px] items-center justify-center p-4",
-					!isMobile && "w-96 rounded-lg border bg-card"
+					isInline && "w-full rounded-xl border bg-card shadow-lg",
+					!isMobile && !isInline && "w-96 rounded-lg border bg-card"
 				)}
 			>
 				<div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -65,8 +67,13 @@ export function CommentPanel({
 
 	return (
 		<div
-			className={cn("flex flex-col", isMobile ? "w-full" : "w-85 rounded-lg border bg-card")}
-			style={!isMobile && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
+			className={cn(
+				"flex flex-col",
+				isMobile && "w-full",
+				isInline && "w-full rounded-xl border bg-card shadow-lg max-h-80",
+				!isMobile && !isInline && "w-85 rounded-lg border bg-card"
+			)}
+			style={!isMobile && !isInline && effectiveMaxHeight ? { maxHeight: effectiveMaxHeight } : undefined}
 		>
 			{hasThreads && (
 				<div className={cn("min-h-0 flex-1 overflow-y-auto scrollbar-thin", isMobile && "pb-24")}>

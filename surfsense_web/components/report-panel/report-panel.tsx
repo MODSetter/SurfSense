@@ -538,9 +538,6 @@ function MobileReportDrawer() {
  *
  * On desktop (lg+): Renders as a right-side split panel (flex sibling to the chat thread)
  * On mobile/tablet: Renders as a Vaul bottom drawer
- *
- * When open on desktop, the comments gutter is automatically suppressed
- * (handled via showCommentsGutterAtom in current-thread.atom.ts)
  */
 export function ReportPanel() {
 	const panelState = useAtomValue(reportPanelAtom);

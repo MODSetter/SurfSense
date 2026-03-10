@@ -29,7 +29,6 @@ import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
-import { showCommentsGutterAtom } from "@/atoms/chat/current-thread.atom";
 import {
 	mentionedDocumentsAtom,
 	sidebarSelectedDocumentsAtom,
@@ -95,8 +94,6 @@ export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) =>
 };
 
 const ThreadContent: FC = () => {
-	const showGutter = useAtomValue(showCommentsGutterAtom);
-
 	return (
 		<ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
@@ -106,10 +103,7 @@ const ThreadContent: FC = () => {
 		>
 			<ThreadPrimitive.Viewport
 				turnAnchor="top"
-				className={cn(
-					"aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4 transition-[padding] duration-300 ease-out",
-					showGutter && "lg:pr-30"
-				)}
+				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
 			>
 				<AssistantIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />

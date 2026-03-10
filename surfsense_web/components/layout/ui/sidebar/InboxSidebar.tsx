@@ -23,7 +23,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
-import { setCommentsCollapsedAtom, setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
+import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -168,7 +168,6 @@ export function InboxSidebar({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = params?.search_space_id ? Number(params.search_space_id) : null;
 
-	const [, setCommentsCollapsed] = useAtom(setCommentsCollapsedAtom);
 	const [, setTargetCommentId] = useAtom(setTargetCommentIdAtom);
 
 	const [searchQuery, setSearchQuery] = useState("");
@@ -831,11 +830,9 @@ export function InboxSidebar({
 										className="h-8 w-8 rounded-full"
 										onClick={() => {
 											if (isDocked) {
-												setCommentsCollapsed(false);
 												onDockedChange(false);
 												onOpenChange(false);
 											} else {
-												setCommentsCollapsed(true);
 												onDockedChange(true);
 											}
 										}}

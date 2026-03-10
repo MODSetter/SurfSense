@@ -6,13 +6,11 @@ import {
 	useAssistantState,
 	useMessage,
 } from "@assistant-ui/react";
-import { useAtom, useAtomValue } from "jotai";
+import { useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-	addingCommentToMessageIdAtom,
-	commentsCollapsedAtom,
 	commentsEnabledAtom,
 	targetCommentIdAtom,
 } from "@/atoms/chat/current-thread.atom";
@@ -26,7 +24,6 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
-import { CommentTrigger } from "@/components/chat-comments/comment-trigger/comment-trigger";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -96,20 +93,17 @@ function parseMessageId(assistantUiMessageId: string | undefined): number | null
 }
 
 export const AssistantMessage: FC = () => {
-	const [messageHeight, setMessageHeight] = useState<number | undefined>(undefined);
 	const [isSheetOpen, setIsSheetOpen] = useState(false);
+	const [isInlineOpen, setIsInlineOpen] = useState(false);
 	const messageRef = useRef<HTMLDivElement>(null);
+	const commentPanelRef = useRef<HTMLDivElement>(null);
+	const commentTriggerRef = useRef<HTMLButtonElement>(null);
 	const messageId = useAssistantState(({ message }) => message?.id);
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const dbMessageId = parseMessageId(messageId);
 	const commentsEnabled = useAtomValue(commentsEnabledAtom);
-	const commentsCollapsed = useAtomValue(commentsCollapsedAtom);
-	const [addingCommentToMessageId, setAddingCommentToMessageId] = useAtom(
-		addingCommentToMessageIdAtom
-	);
 
-	// Screen size detection for responsive comment UI
-	// Mobile: < 768px (bottom sheet), Medium: 768px - 1024px (right sheet), Desktop: >= 1024px (inline panel)
+	// Desktop: >= 1024px (inline expandable), Medium: 768px-1023px (right sheet), Mobile: <768px (bottom sheet)
 	const isMediumScreen = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 
@@ -122,10 +116,8 @@ export const AssistantMessage: FC = () => {
 		enabled: !!dbMessageId,
 	});
 
-	// Target comment navigation - read target from global atom
 	const targetCommentId = useAtomValue(targetCommentIdAtom);
 
-	// Check if target comment belongs to this message (including replies)
 	const hasTargetComment = useMemo(() => {
 		if (!targetCommentId || !commentsData?.comments) return false;
 		return commentsData.comments.some(
@@ -135,27 +127,35 @@ export const AssistantMessage: FC = () => {
 
 	const commentCount = commentsData?.total_count ?? 0;
 	const hasComments = commentCount > 0;
-	const isAddingComment = dbMessageId !== null && addingCommentToMessageId === dbMessageId;
-	const showCommentPanel = hasComments || isAddingComment;
 
-	const handleToggleAddComment = () => {
-		if (!dbMessageId) return;
-		setAddingCommentToMessageId(isAddingComment ? null : dbMessageId);
-	};
+	const showCommentTrigger = searchSpaceId && commentsEnabled && !isMessageStreaming && dbMessageId;
 
-	const handleCommentTriggerClick = () => {
-		setIsSheetOpen(true);
-	};
-
+	// Close floating panel when clicking outside (but not on portaled popover/dropdown content)
 	useEffect(() => {
-		if (!messageRef.current) return;
-		const el = messageRef.current;
-		const update = () => setMessageHeight(el.offsetHeight);
-		update();
-		const observer = new ResizeObserver(update);
-		observer.observe(el);
-		return () => observer.disconnect();
-	}, []);
+		if (!isInlineOpen) return;
+		const handleClickOutside = (e: MouseEvent) => {
+			const target = e.target as Element;
+			if (
+				commentPanelRef.current?.contains(target) ||
+				commentTriggerRef.current?.contains(target) ||
+				target.closest?.("[data-radix-popper-content-wrapper]")
+			) return;
+			setIsInlineOpen(false);
+		};
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, [isInlineOpen]);
+
+	// Auto-open floating panel on desktop when this message has the target comment
+	useEffect(() => {
+		if (hasTargetComment && isDesktop && commentsLoaded) {
+			setIsInlineOpen(true);
+			const timeoutId = setTimeout(() => {
+				messageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+			}, 100);
+			return () => clearTimeout(timeoutId);
+		}
+	}, [hasTargetComment, isDesktop, commentsLoaded]);
 
 	// Auto-open sheet on mobile/tablet when this message has the target comment
 	useEffect(() => {
@@ -164,20 +164,6 @@ export const AssistantMessage: FC = () => {
 		}
 	}, [hasTargetComment, isDesktop, commentsLoaded]);
 
-	// Scroll message into view when it contains target comment (desktop)
-	useEffect(() => {
-		if (hasTargetComment && isDesktop && commentsLoaded && messageRef.current) {
-			// Small delay to ensure DOM is ready after comments render
-			const timeoutId = setTimeout(() => {
-				messageRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-			}, 100);
-			return () => clearTimeout(timeoutId);
-		}
-	}, [hasTargetComment, isDesktop, commentsLoaded]);
-
-	const showCommentTrigger = searchSpaceId && commentsEnabled && !isMessageStreaming && dbMessageId;
-
-	// Determine sheet side based on screen size
 	const sheetSide = isMediumScreen ? "right" : "bottom";
 
 	return (
@@ -186,54 +172,23 @@ export const AssistantMessage: FC = () => {
 			className="aui-assistant-message-root group fade-in slide-in-from-bottom-1 relative mx-auto w-full max-w-(--thread-max-width) animate-in py-3 duration-150"
 			data-role="assistant"
 		>
-			<AssistantMessageInner />
-
-			{/* Desktop comment panel - only on lg screens and above, hidden when collapsed */}
-			{searchSpaceId && commentsEnabled && !isMessageStreaming && !commentsCollapsed && (
-				<div className="absolute left-full top-0 ml-4 hidden lg:block w-72">
-					<div
-						className={`sticky top-3 ${showCommentPanel ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity`}
-					>
-						{!hasComments && (
-							<CommentTrigger
-								commentCount={0}
-								isOpen={isAddingComment}
-								onClick={handleToggleAddComment}
-								disabled={!dbMessageId}
-							/>
-						)}
-
-						{showCommentPanel && dbMessageId && (
-							<div
-								className={
-									hasComments ? "" : "mt-2 animate-in fade-in slide-in-from-top-2 duration-200"
-								}
-							>
-								<CommentPanelContainer
-									messageId={dbMessageId}
-									isOpen={true}
-									maxHeight={messageHeight}
-								/>
-							</div>
-						)}
-					</div>
-				</div>
-			)}
-
-			{/* Mobile & Medium screen comment trigger - shown below lg breakpoint */}
-			{showCommentTrigger && !isDesktop && (
-				<div className="ml-2 mt-1 flex justify-start">
+			{/* Comment trigger — right-aligned, just below user query on all screen sizes */}
+			{showCommentTrigger && (
+				<div className="mr-2 mb-1 flex justify-end">
 					<button
+						ref={isDesktop ? commentTriggerRef : undefined}
 						type="button"
-						onClick={handleCommentTriggerClick}
+						onClick={isDesktop ? () => setIsInlineOpen((prev) => !prev) : () => setIsSheetOpen(true)}
 						className={cn(
-							"flex items-center gap-2 rounded-full px-3 py-1.5 text-sm transition-colors",
-							hasComments
-								? "border border-primary/50 bg-primary/5 text-primary hover:bg-primary/10"
-								: "text-muted-foreground hover:bg-muted hover:text-foreground"
+							"flex items-center gap-1.5 rounded-full px-3 py-1 text-sm transition-colors",
+							isDesktop && isInlineOpen
+								? "bg-primary/10 text-primary"
+								: hasComments
+									? "text-primary hover:bg-primary/10"
+									: "text-muted-foreground hover:text-foreground hover:bg-muted"
 						)}
 					>
-						<MessageSquare className={cn("size-4", hasComments && "fill-current")} />
+						<MessageSquare className={cn("size-3.5", hasComments && "fill-current")} />
 						{hasComments ? (
 							<span>
 								{commentCount} {commentCount === 1 ? "comment" : "comments"}
@@ -245,7 +200,23 @@ export const AssistantMessage: FC = () => {
 				</div>
 			)}
 
-			{/* Comment sheet - bottom for mobile, right for medium screens */}
+			{/* Desktop floating comment panel — overlays on top of chat content */}
+			{showCommentTrigger && isDesktop && isInlineOpen && dbMessageId && (
+				<div
+					ref={commentPanelRef}
+					className="absolute right-0 top-10 z-30 w-full max-w-md animate-in fade-in slide-in-from-top-2 duration-200"
+				>
+					<CommentPanelContainer
+						messageId={dbMessageId}
+						isOpen={true}
+						variant="inline"
+					/>
+				</div>
+			)}
+
+			<AssistantMessageInner />
+
+			{/* Comment sheet — bottom for mobile, right for medium screens */}
 			{showCommentTrigger && !isDesktop && (
 				<CommentSheet
 					messageId={dbMessageId}
