@@ -138,7 +138,9 @@ export const useConnectorDialog = () => {
 			const endDate = new Date(now);
 			endDate.setDate(endDate.getDate() + (defaults?.daysForward ?? 0));
 
-			setIsOpen(true);
+			const toastId = "auto-index";
+			toast.loading(`Setting up ${connectorTitle}...`, { id: toastId });
+
 			try {
 				await updateConnector({
 					id: connector.id,
@@ -165,32 +167,24 @@ export const useConnectorDialog = () => {
 				);
 
 				toast.success(`${connectorTitle} connected!`, {
-					description: "Syncing started. Your data will be available shortly.",
+					id: toastId,
+					description: defaults?.syncDescription ?? "Syncing started.",
 				});
 			} catch (error) {
 				console.error("Auto-index failed:", error);
-				toast.success(`${connectorTitle} connected!`, {
-					description:
-						"Connected successfully, but syncing could not start. You can start it from settings.",
+				toast.error(`${connectorTitle} connected, but sync failed`, {
+					id: toastId,
+					description: "You can start syncing from settings.",
 				});
+			} finally {
+				queryClient.invalidateQueries({
+					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+				});
+				await refetchAllConnectors();
+				isAutoIndexingRef.current = false;
 			}
-
-			const url = new URL(window.location.href);
-			url.searchParams.delete("success");
-			url.searchParams.delete("connector");
-			url.searchParams.delete("connectorId");
-			url.searchParams.delete("view");
-			url.searchParams.delete("modal");
-			url.searchParams.delete("tab");
-			router.replace(url.pathname + url.search, { scroll: false });
-
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-			});
-			await refetchAllConnectors();
-			isAutoIndexingRef.current = false;
 		},
-		[searchSpaceId, indexConnector, updateConnector, refetchAllConnectors, setIsOpen, router]
+		[searchSpaceId, indexConnector, updateConnector, refetchAllConnectors]
 	);
 
 	// Synchronize state with URL query params
@@ -410,8 +404,29 @@ export const useConnectorDialog = () => {
 			}
 
 			if (params.success === "true" && searchSpaceId && params.modal === "connectors") {
+				// For auto-index connectors: close modal and show loading toast before refetch
+				const earlyConnector = params.connector
+					? OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
+						COMPOSIO_CONNECTORS.find((c) => c.id === params.connector)
+					: null;
+
+				if (earlyConnector && AUTO_INDEX_CONNECTOR_TYPES.has(earlyConnector.connectorType)) {
+					toast.loading(`Setting up ${earlyConnector.title}...`, { id: "auto-index" });
+					const url = new URL(window.location.href);
+					url.searchParams.delete("success");
+					url.searchParams.delete("connector");
+					url.searchParams.delete("connectorId");
+					url.searchParams.delete("view");
+					url.searchParams.delete("modal");
+					url.searchParams.delete("tab");
+					router.replace(url.pathname + url.search, { scroll: false });
+				}
+
 				refetchAllConnectors().then(async (result) => {
-					if (!result.data) return;
+					if (!result.data) {
+						toast.dismiss("auto-index");
+						return;
+					}
 
 					let newConnector: SearchSourceConnector | undefined;
 					let oauthConnector:
@@ -466,6 +481,7 @@ export const useConnectorDialog = () => {
 									oauthConnector.connectorType
 								);
 							} else {
+								toast.dismiss("auto-index");
 								const config = validateIndexingConfigState({
 									connectorType: oauthConnector.connectorType,
 									connectorId: newConnector.id,
@@ -483,8 +499,11 @@ export const useConnectorDialog = () => {
 							}
 						} else {
 							console.warn("Invalid connector data after OAuth:", connectorValidation.error);
+							toast.dismiss("auto-index");
 							toast.error("Failed to validate connector data");
 						}
+					} else {
+						toast.dismiss("auto-index");
 					}
 				});
 			}
@@ -492,7 +511,7 @@ export const useConnectorDialog = () => {
 			// Invalid query params - log but don't crash
 			console.warn("Invalid connector popup query params in OAuth success handler:", error);
 		}
-	}, [searchParams, searchSpaceId, refetchAllConnectors, setIsOpen, handleAutoIndex]);
+	}, [searchParams, searchSpaceId, refetchAllConnectors, setIsOpen, handleAutoIndex, router]);
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(

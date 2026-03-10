@@ -241,25 +241,27 @@ export const COMPOSIO_TOOLKITS = [
 	},
 ] as const;
 
-// Per-connector defaults for auto-indexing after OAuth (days back, days forward, periodic frequency in minutes)
-export const AUTO_INDEX_DEFAULTS: Record<string, { daysBack: number; daysForward: number; frequencyMinutes: number }> = {
-	// Messaging — high volume, recent messages matter most
-	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
-	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
-	[EnumConnectorName.SLACK_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
-	[EnumConnectorName.DISCORD_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
-	[EnumConnectorName.TEAMS_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
-	// Calendar — past context + upcoming events
-	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: { daysBack: 90, daysForward: 90, frequencyMinutes: 1440 },
-	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: { daysBack: 90, daysForward: 90, frequencyMinutes: 1440 },
-	// Project management — medium-term relevance
-	[EnumConnectorName.LINEAR_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440 },
-	[EnumConnectorName.JIRA_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440 },
-	[EnumConnectorName.CLICKUP_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440 },
-	// Knowledge bases — evergreen content
-	[EnumConnectorName.NOTION_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440 },
-	[EnumConnectorName.CONFLUENCE_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440 },
-	[EnumConnectorName.AIRTABLE_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440 },
+export interface AutoIndexConfig {
+	daysBack: number;
+	daysForward: number;
+	frequencyMinutes: number;
+	syncDescription: string;
+}
+
+export const AUTO_INDEX_DEFAULTS: Record<string, AutoIndexConfig> = {
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your last 30 days of emails." },
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your last 30 days of emails." },
+	[EnumConnectorName.SLACK_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your last 30 days of messages." },
+	[EnumConnectorName.DISCORD_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your last 30 days of messages." },
+	[EnumConnectorName.TEAMS_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your last 30 days of messages." },
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: { daysBack: 90, daysForward: 90, frequencyMinutes: 1440, syncDescription: "Syncing 90 days of past and upcoming events." },
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: { daysBack: 90, daysForward: 90, frequencyMinutes: 1440, syncDescription: "Syncing 90 days of past and upcoming events." },
+	[EnumConnectorName.LINEAR_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your last 90 days of issues." },
+	[EnumConnectorName.JIRA_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your last 90 days of issues." },
+	[EnumConnectorName.CLICKUP_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your last 90 days of tasks." },
+	[EnumConnectorName.NOTION_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your pages." },
+	[EnumConnectorName.CONFLUENCE_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your documentation." },
+	[EnumConnectorName.AIRTABLE_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440, syncDescription: "Syncing your bases." },
 };
 
 export const AUTO_INDEX_CONNECTOR_TYPES = new Set<string>(Object.keys(AUTO_INDEX_DEFAULTS));
