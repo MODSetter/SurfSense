@@ -87,7 +87,14 @@ export function useGooglePicker({ connectorId, onPicked }: UseGooglePickerOption
 			}
 		};
 		window.addEventListener("keydown", onEscape);
-		return () => window.removeEventListener("keydown", onEscape);
+		return () => {
+			window.removeEventListener("keydown", onEscape);
+			if (pickerRef.current) {
+				pickerRef.current.dispose();
+				pickerRef.current = null;
+			}
+			openingRef.current = false;
+		};
 	}, [closePicker]);
 
 	const openPicker = useCallback(async () => {
@@ -147,13 +154,17 @@ export function useGooglePicker({ connectorId, onPicked }: UseGooglePickerOption
 						}
 					}
 
-					if (
-						action === google.picker.Action.PICKED ||
-						action === google.picker.Action.CANCEL ||
-						action === google.picker.Action.ERROR
-					) {
-						closePicker();
-					}
+				if (action === google.picker.Action.ERROR) {
+					setError("Google Drive encountered an error. Please try again.");
+				}
+
+				if (
+					action === google.picker.Action.PICKED ||
+					action === google.picker.Action.CANCEL ||
+					action === google.picker.Action.ERROR
+				) {
+					closePicker();
+				}
 				})
 				.build();
 

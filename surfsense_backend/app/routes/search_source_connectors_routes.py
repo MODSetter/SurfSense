@@ -52,7 +52,9 @@ from app.schemas import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
-from app.services.composio_service import ComposioService
+import asyncio
+
+from app.services.composio_service import ComposioService, get_composio_service
 from app.services.notification_service import NotificationService
 from app.tasks.connector_indexers import (
     index_airtable_records,
@@ -3080,6 +3082,14 @@ async def get_drive_picker_token(
     if not connector:
         raise HTTPException(status_code=404, detail="Connector not found")
 
+    await check_permission(
+        session,
+        user,
+        connector.search_space_id,
+        Permission.CONNECTORS_READ.value,
+        "You don't have permission to access this connector",
+    )
+
     if connector.connector_type not in DRIVE_CONNECTOR_TYPES:
         raise HTTPException(
             status_code=400,
@@ -3113,8 +3123,8 @@ async def get_drive_picker_token(
                 status_code=400,
                 detail="Composio connected account not found. Please reconnect.",
             )
-        service = ComposioService()
-        access_token = service.get_access_token(composio_account_id)
+        service = get_composio_service()
+        access_token = await asyncio.to_thread(service.get_access_token, composio_account_id)
         return {
             "access_token": access_token,
             "client_id": config.GOOGLE_OAUTH_CLIENT_ID,
@@ -3127,5 +3137,5 @@ async def get_drive_picker_token(
         logger.error(f"Failed to get Drive picker token: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to retrieve access token: {e!s}",
+            detail="Failed to retrieve access token. Check server logs for details.",
         ) from e
