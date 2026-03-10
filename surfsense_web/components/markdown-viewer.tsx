@@ -1,6 +1,5 @@
 import { createCodePlugin } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
-import Image from "next/image";
 import { Streamdown, type StreamdownProps } from "streamdown";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
@@ -126,12 +125,12 @@ export function MarkdownViewer({ content, className }: MarkdownViewerProps) {
 		),
 		hr: ({ ...props }) => <hr className="my-4 border-muted" {...props} />,
 		img: ({ src, alt, width: _w, height: _h, ...props }) => (
-			<Image
+			// eslint-disable-next-line @next/next/no-img-element
+			<img
 				className="max-w-full h-auto my-4 rounded"
 				alt={alt || "markdown image"}
-				height={100}
-				width={100}
 				src={typeof src === "string" ? src : ""}
+				loading="lazy"
 				{...props}
 			/>
 		),
