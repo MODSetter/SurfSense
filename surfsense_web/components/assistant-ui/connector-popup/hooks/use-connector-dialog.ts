@@ -29,6 +29,7 @@ import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
 import {
 	AUTO_INDEX_CONNECTOR_TYPES,
+	AUTO_INDEX_DEFAULTS,
 	COMPOSIO_CONNECTORS,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
@@ -81,6 +82,7 @@ export const useConnectorDialog = () => {
 	const [connectingConnectorType, setConnectingConnectorType] = useState<string | null>(null);
 	const [isCreatingConnector, setIsCreatingConnector] = useState(false);
 	const isCreatingConnectorRef = useRef(false);
+	const isAutoIndexingRef = useRef(false);
 
 	// Accounts list view state (for OAuth connectors with multiple accounts)
 	const [viewingAccountsType, setViewingAccountsType] = useState<{
@@ -126,20 +128,40 @@ export const useConnectorDialog = () => {
 			connectorTitle: string,
 			connectorType: string
 		) => {
-			if (!searchSpaceId) return;
+			if (!searchSpaceId || isAutoIndexingRef.current) return;
+			isAutoIndexingRef.current = true;
+
+			const defaults = AUTO_INDEX_DEFAULTS[connectorType];
+			const now = new Date();
+			const startDate = new Date(now);
+			startDate.setDate(startDate.getDate() - (defaults?.daysBack ?? 365));
+			const endDate = new Date(now);
+			endDate.setDate(endDate.getDate() + (defaults?.daysForward ?? 0));
 
 			setIsOpen(true);
 			try {
+				await updateConnector({
+					id: connector.id,
+					data: {
+						periodic_indexing_enabled: true,
+						indexing_frequency_minutes: defaults?.frequencyMinutes ?? 1440,
+					},
+				});
+
 				await indexConnector({
 					connector_id: connector.id,
-					queryParams: { search_space_id: searchSpaceId },
+					queryParams: {
+						search_space_id: searchSpaceId,
+						start_date: format(startDate, "yyyy-MM-dd"),
+						end_date: format(endDate, "yyyy-MM-dd"),
+					},
 				});
 
 				trackIndexWithDateRangeStarted(
 					Number(searchSpaceId),
 					connectorType,
 					connector.id,
-					{ hasStartDate: false, hasEndDate: false }
+					{ hasStartDate: true, hasEndDate: true }
 				);
 
 				toast.success(`${connectorTitle} connected!`, {
@@ -166,8 +188,9 @@ export const useConnectorDialog = () => {
 				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 			});
 			await refetchAllConnectors();
+			isAutoIndexingRef.current = false;
 		},
-		[searchSpaceId, indexConnector, refetchAllConnectors, setIsOpen, router]
+		[searchSpaceId, indexConnector, updateConnector, refetchAllConnectors, setIsOpen, router]
 	);
 
 	// Synchronize state with URL query params

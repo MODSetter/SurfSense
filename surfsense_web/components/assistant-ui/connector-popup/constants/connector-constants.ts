@@ -241,22 +241,28 @@ export const COMPOSIO_TOOLKITS = [
 	},
 ] as const;
 
-// Skip IndexingConfigurationView and auto-index with defaults after OAuth
-export const AUTO_INDEX_CONNECTOR_TYPES = new Set<string>([
-	EnumConnectorName.GOOGLE_GMAIL_CONNECTOR,
-	EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR,
-	EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR,
-	EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
-	EnumConnectorName.AIRTABLE_CONNECTOR,
-	EnumConnectorName.NOTION_CONNECTOR,
-	EnumConnectorName.LINEAR_CONNECTOR,
-	EnumConnectorName.SLACK_CONNECTOR,
-	EnumConnectorName.TEAMS_CONNECTOR,
-	EnumConnectorName.DISCORD_CONNECTOR,
-	EnumConnectorName.JIRA_CONNECTOR,
-	EnumConnectorName.CONFLUENCE_CONNECTOR,
-	EnumConnectorName.CLICKUP_CONNECTOR,
-]);
+// Per-connector defaults for auto-indexing after OAuth (days back, days forward, periodic frequency in minutes)
+export const AUTO_INDEX_DEFAULTS: Record<string, { daysBack: number; daysForward: number; frequencyMinutes: number }> = {
+	// Messaging — high volume, recent messages matter most
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
+	[EnumConnectorName.SLACK_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
+	[EnumConnectorName.DISCORD_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
+	[EnumConnectorName.TEAMS_CONNECTOR]: { daysBack: 30, daysForward: 0, frequencyMinutes: 1440 },
+	// Calendar — past context + upcoming events
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: { daysBack: 90, daysForward: 90, frequencyMinutes: 1440 },
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: { daysBack: 90, daysForward: 90, frequencyMinutes: 1440 },
+	// Project management — medium-term relevance
+	[EnumConnectorName.LINEAR_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440 },
+	[EnumConnectorName.JIRA_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440 },
+	[EnumConnectorName.CLICKUP_CONNECTOR]: { daysBack: 90, daysForward: 0, frequencyMinutes: 1440 },
+	// Knowledge bases — evergreen content
+	[EnumConnectorName.NOTION_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440 },
+	[EnumConnectorName.CONFLUENCE_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440 },
+	[EnumConnectorName.AIRTABLE_CONNECTOR]: { daysBack: 365, daysForward: 0, frequencyMinutes: 1440 },
+};
+
+export const AUTO_INDEX_CONNECTOR_TYPES = new Set<string>(Object.keys(AUTO_INDEX_DEFAULTS));
 
 // Re-export IndexingConfigState from schemas for backward compatibility
 export type { IndexingConfigState } from "./connector-popup.schemas";
