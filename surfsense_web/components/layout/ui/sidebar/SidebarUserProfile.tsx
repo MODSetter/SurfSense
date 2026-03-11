@@ -9,7 +9,7 @@ import {
 	Laptop,
 	LogOut,
 	Moon,
-	Settings,
+	UserCog,
 	Sun,
 } from "lucide-react";
 import Image from "next/image";
@@ -206,7 +206,7 @@ export function SidebarUserProfile({
 						<DropdownMenuSeparator className="dark:bg-neutral-700" />
 
 						<DropdownMenuItem onClick={onUserSettings}>
-							<Settings className="h-4 w-4" />
+							<UserCog className="h-4 w-4" />
 							{t("user_settings")}
 						</DropdownMenuItem>
 
@@ -351,7 +351,7 @@ export function SidebarUserProfile({
 					<DropdownMenuSeparator className="dark:bg-neutral-700" />
 
 					<DropdownMenuItem onClick={onUserSettings}>
-						<Settings className="h-4 w-4" />
+						<UserCog className="h-4 w-4" />
 						{t("user_settings")}
 					</DropdownMenuItem>
 
