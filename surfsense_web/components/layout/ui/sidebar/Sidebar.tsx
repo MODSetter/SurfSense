@@ -2,6 +2,7 @@
 
 import { FolderOpen, PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -89,6 +90,7 @@ export function Sidebar({
 	isResizing = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
+	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
 	return (
 		<div
@@ -103,6 +105,12 @@ export function Sidebar({
 			{/* Resize handle on right border */}
 			{!isCollapsed && onResizeMouseDown && (
 				<div
+					role="slider"
+					aria-label="Resize sidebar"
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={50}
+					tabIndex={0}
 					onMouseDown={onResizeMouseDown}
 					className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-border active:bg-border z-10"
 				/>
@@ -209,18 +217,20 @@ export function Sidebar({
 								<div
 									className={`flex flex-col gap-0.5 max-h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${sharedChats.length > 4 ? "pb-8" : ""}`}
 								>
-									{sharedChats.slice(0, 20).map((chat) => (
-										<ChatListItem
-											key={chat.id}
-											name={chat.name}
-											isActive={chat.id === activeChatId}
-											archived={chat.archived}
-											onClick={() => onChatSelect(chat)}
-											onRename={() => onChatRename?.(chat)}
-											onArchive={() => onChatArchive?.(chat)}
-											onDelete={() => onChatDelete?.(chat)}
-										/>
-									))}
+								{sharedChats.slice(0, 20).map((chat) => (
+									<ChatListItem
+										key={chat.id}
+										name={chat.name}
+										isActive={chat.id === activeChatId}
+										archived={chat.archived}
+										dropdownOpen={openDropdownChatId === chat.id}
+										onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
+										onClick={() => onChatSelect(chat)}
+										onRename={() => onChatRename?.(chat)}
+										onArchive={() => onChatArchive?.(chat)}
+										onDelete={() => onChatDelete?.(chat)}
+									/>
+								))}
 								</div>
 								{/* Gradient fade indicator when more than 4 items */}
 								{sharedChats.length > 4 && (
@@ -281,18 +291,20 @@ export function Sidebar({
 								<div
 									className={`flex flex-col gap-0.5 h-full overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent ${chats.length > 4 ? "pb-8" : ""}`}
 								>
-									{chats.slice(0, 20).map((chat) => (
-										<ChatListItem
-											key={chat.id}
-											name={chat.name}
-											isActive={chat.id === activeChatId}
-											archived={chat.archived}
-											onClick={() => onChatSelect(chat)}
-											onRename={() => onChatRename?.(chat)}
-											onArchive={() => onChatArchive?.(chat)}
-											onDelete={() => onChatDelete?.(chat)}
-										/>
-									))}
+								{chats.slice(0, 20).map((chat) => (
+									<ChatListItem
+										key={chat.id}
+										name={chat.name}
+										isActive={chat.id === activeChatId}
+										archived={chat.archived}
+										dropdownOpen={openDropdownChatId === chat.id}
+										onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
+										onClick={() => onChatSelect(chat)}
+										onRename={() => onChatRename?.(chat)}
+										onArchive={() => onChatArchive?.(chat)}
+										onDelete={() => onChatDelete?.(chat)}
+									/>
+								))}
 								</div>
 								{/* Gradient fade indicator when more than 4 items */}
 								{chats.length > 4 && (

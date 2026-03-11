@@ -627,7 +627,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					side="bottom"
 					align="start"
 					sideOffset={12}
-					className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0"
+					className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
 					onOpenAutoFocus={(e) => e.preventDefault()}
 				>
 						<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">

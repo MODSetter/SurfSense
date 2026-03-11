@@ -8,7 +8,6 @@ import {
 	DropdownMenu,
 	DropdownMenuContent,
 	DropdownMenuItem,
-	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLongPress } from "@/hooks/use-long-press";
@@ -20,6 +19,8 @@ interface ChatListItemProps {
 	name: string;
 	isActive?: boolean;
 	archived?: boolean;
+	dropdownOpen?: boolean;
+	onDropdownOpenChange?: (open: boolean) => void;
 	onClick?: () => void;
 	onRename?: () => void;
 	onArchive?: () => void;
@@ -30,6 +31,8 @@ export function ChatListItem({
 	name,
 	isActive,
 	archived,
+	dropdownOpen: controlledOpen,
+	onDropdownOpenChange,
 	onClick,
 	onRename,
 	onArchive,
@@ -37,11 +40,13 @@ export function ChatListItem({
 }: ChatListItemProps) {
 	const t = useTranslations("sidebar");
 	const isMobile = useIsMobile();
-	const [dropdownOpen, setDropdownOpen] = useState(false);
+	const [internalOpen, setInternalOpen] = useState(false);
+	const dropdownOpen = controlledOpen ?? internalOpen;
+	const setDropdownOpen = onDropdownOpenChange ?? setInternalOpen;
 	const animatedName = useTypewriter(name);
 
 	const { handlers: longPressHandlers, wasLongPress } = useLongPress(
-		useCallback(() => setDropdownOpen(true), [])
+		useCallback(() => setDropdownOpen(true), [setDropdownOpen])
 	);
 
 	const handleClick = useCallback(() => {
@@ -68,12 +73,12 @@ export function ChatListItem({
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}
 			<div
 				className={cn(
-					"absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md",
+					"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md",
 					isActive
 						? "bg-gradient-to-l from-accent from-60% to-transparent"
 						: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
 					isMobile
-						? "opacity-0 pointer-events-none"
+						? "opacity-0"
 						: isActive
 							? "opacity-100"
 							: "opacity-0 group-hover/item:opacity-100"
@@ -81,7 +86,7 @@ export function ChatListItem({
 			>
 				<DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
 					<DropdownMenuTrigger asChild>
-						<Button variant="ghost" size="icon" className="h-6 w-6">
+						<Button variant="ghost" size="icon" className="pointer-events-auto h-6 w-6">
 							<MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
 							<span className="sr-only">{t("more_options")}</span>
 						</Button>
@@ -118,8 +123,7 @@ export function ChatListItem({
 								)}
 							</DropdownMenuItem>
 						)}
-						{onArchive && onDelete && <DropdownMenuSeparator />}
-						{onDelete && (
+					{onDelete && (
 							<DropdownMenuItem
 								onClick={(e) => {
 									e.stopPropagation();
