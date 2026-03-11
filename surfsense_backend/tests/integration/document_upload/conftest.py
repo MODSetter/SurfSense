@@ -183,7 +183,7 @@ async def _cleanup_documents(
     for doc_id in cleanup_doc_ids:
         try:
             resp = await delete_document(client, headers, doc_id)
-            if resp.status_code == 409:
+            if resp.status_code != 200:
                 remaining_ids.append(doc_id)
         except Exception:
             remaining_ids.append(doc_id)
@@ -271,6 +271,15 @@ def _mock_external_apis(monkeypatch):
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
         MagicMock(return_value=["Test chunk content."]),
+    )
+
+
+@pytest.fixture(autouse=True)
+def _mock_celery_delete_task(monkeypatch):
+    """Mock Celery delete dispatch — no broker is available in CI."""
+    monkeypatch.setattr(
+        "app.tasks.celery_tasks.document_tasks.delete_document_task.delay",
+        lambda *args, **kwargs: None,
     )
 
 

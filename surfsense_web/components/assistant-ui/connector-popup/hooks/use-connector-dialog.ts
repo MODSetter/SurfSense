@@ -123,11 +123,7 @@ export const useConnectorDialog = () => {
 	}, []);
 
 	const handleAutoIndex = useCallback(
-		async (
-			connector: SearchSourceConnector,
-			connectorTitle: string,
-			connectorType: string
-		) => {
+		async (connector: SearchSourceConnector, connectorTitle: string, connectorType: string) => {
 			if (!searchSpaceId || isAutoIndexingRef.current) return;
 			isAutoIndexingRef.current = true;
 
@@ -159,12 +155,10 @@ export const useConnectorDialog = () => {
 					},
 				});
 
-				trackIndexWithDateRangeStarted(
-					Number(searchSpaceId),
-					connectorType,
-					connector.id,
-					{ hasStartDate: true, hasEndDate: true }
-				);
+				trackIndexWithDateRangeStarted(Number(searchSpaceId), connectorType, connector.id, {
+					hasStartDate: true,
+					hasEndDate: true,
+				});
 
 				toast.success(`${connectorTitle} connected!`, {
 					id: toastId,
@@ -317,8 +311,14 @@ export const useConnectorDialog = () => {
 					}
 				}
 			} else {
-				setIsOpen(false);
-				// Clear indexing config when modal is closed
+				// Do NOT call setIsOpen(false) here. Closing the dialog is handled
+				// explicitly by handleOpenChange and the individual action handlers.
+				// Relying on URL params to close the dialog caused a race condition
+				// where Next.js router updates from tab switches briefly produced
+				// stale searchParams without the "modal" key, closing the popup.
+
+				// Still clean up sub-view state when the modal param is gone
+				// (e.g. after browser back navigation or explicit handler URL cleanup).
 				if (indexingConfig) {
 					setIndexingConfig(null);
 					setIndexingConnector(null);
@@ -331,7 +331,6 @@ export const useConnectorDialog = () => {
 					setIsScrolled(false);
 					setSearchQuery("");
 				}
-				// Clear editing connector when modal is closed
 				if (editingConnector) {
 					setEditingConnector(null);
 					setConnectorName(null);
@@ -344,15 +343,12 @@ export const useConnectorDialog = () => {
 					setIsScrolled(false);
 					setSearchQuery("");
 				}
-				// Clear connecting connector type when modal is closed
 				if (connectingConnectorType) {
 					setConnectingConnectorType(null);
 				}
-				// Clear viewing accounts type when modal is closed
 				if (viewingAccountsType) {
 					setViewingAccountsType(null);
 				}
-				// Clear YouTube view when modal is closed (handled by view param check)
 			}
 		} catch (error) {
 			// Invalid query params - log but don't crash
@@ -412,6 +408,7 @@ export const useConnectorDialog = () => {
 
 				if (earlyConnector && AUTO_INDEX_CONNECTOR_TYPES.has(earlyConnector.connectorType)) {
 					toast.loading(`Setting up ${earlyConnector.title}...`, { id: "auto-index" });
+					setIsOpen(false);
 					const url = new URL(window.location.href);
 					url.searchParams.delete("success");
 					url.searchParams.delete("connector");
@@ -795,6 +792,8 @@ export const useConnectorDialog = () => {
 										: `${connectorTitle} connected and syncing started!`;
 								toast.success(successMessage);
 
+								// Close dialog and clean up URL
+								setIsOpen(false);
 								const url = new URL(window.location.href);
 								url.searchParams.delete("modal");
 								url.searchParams.delete("tab");
@@ -860,7 +859,8 @@ export const useConnectorDialog = () => {
 									// Refresh connectors list before closing modal
 									await refetchAllConnectors();
 
-									// Close modal and return to main view
+									// Close dialog and clean up URL
+									setIsOpen(false);
 									const url = new URL(window.location.href);
 									url.searchParams.delete("modal");
 									url.searchParams.delete("tab");
@@ -894,6 +894,7 @@ export const useConnectorDialog = () => {
 			updateConnector,
 			indexConnector,
 			router,
+			setIsOpen,
 		]
 	);
 
@@ -1124,7 +1125,8 @@ export const useConnectorDialog = () => {
 
 				toast.success(`${indexingConfig.connectorTitle} indexing started`);
 
-				// Update URL - the effect will handle closing the modal and clearing state
+				// Close dialog and clean up URL
+				setIsOpen(false);
 				const url = new URL(window.location.href);
 				url.searchParams.delete("modal");
 				url.searchParams.delete("tab");
@@ -1156,12 +1158,14 @@ export const useConnectorDialog = () => {
 			enableSummary,
 			router,
 			indexingConnectorConfig,
+			setIsOpen,
 		]
 	);
 
 	// Handle skipping indexing
 	const handleSkipIndexing = useCallback(() => {
-		// Update URL - the effect will handle closing the modal and clearing state
+		// Close dialog and clean up URL
+		setIsOpen(false);
 		const url = new URL(window.location.href);
 		url.searchParams.delete("modal");
 		url.searchParams.delete("tab");
@@ -1169,7 +1173,7 @@ export const useConnectorDialog = () => {
 		url.searchParams.delete("connector");
 		url.searchParams.delete("view");
 		router.replace(url.pathname + url.search, { scroll: false });
-	}, [router]);
+	}, [router, setIsOpen]);
 
 	// Handle starting edit mode
 	const handleStartEdit = useCallback(
@@ -1411,7 +1415,8 @@ export const useConnectorDialog = () => {
 						: indexingDescription,
 				});
 
-				// Update URL - the effect will handle closing the modal and clearing state
+				// Close dialog and clean up URL
+				setIsOpen(false);
 				const url = new URL(window.location.href);
 				url.searchParams.delete("modal");
 				url.searchParams.delete("tab");
@@ -1445,6 +1450,7 @@ export const useConnectorDialog = () => {
 			router,
 			connectorConfig,
 			connectorName,
+			setIsOpen,
 		]
 	);
 
@@ -1481,7 +1487,8 @@ export const useConnectorDialog = () => {
 					url.searchParams.set("view", "mcp-list");
 					url.searchParams.delete("connectorId");
 				} else {
-					// Close modal for all other cases
+					// Close dialog for all other cases
+					setIsOpen(false);
 					url.searchParams.delete("modal");
 					url.searchParams.delete("tab");
 					url.searchParams.delete("view");
@@ -1500,7 +1507,7 @@ export const useConnectorDialog = () => {
 				setIsDisconnecting(false);
 			}
 		},
-		[editingConnector, searchSpaceId, deleteConnector, router, cameFromMCPList]
+		[editingConnector, searchSpaceId, deleteConnector, router, cameFromMCPList, setIsOpen]
 	);
 
 	// Handle quick index (index with selected date range, or backend defaults if none selected)

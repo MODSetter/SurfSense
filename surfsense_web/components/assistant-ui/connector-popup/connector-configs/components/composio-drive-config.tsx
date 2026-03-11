@@ -235,39 +235,39 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 					</div>
 				)}
 
-			{isEditMode ? (
-				<div className="space-y-2">
-					<button
-						type="button"
-						onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
-						className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
-					>
-						{isFolderTreeOpen ? (
-							<ChevronDown className="size-4" />
-						) : (
-							<ChevronRight className="size-4" />
+				{isEditMode ? (
+					<div className="space-y-2">
+						<button
+							type="button"
+							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
+							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+						>
+							{isFolderTreeOpen ? (
+								<ChevronDown className="size-4" />
+							) : (
+								<ChevronRight className="size-4" />
+							)}
+							Change Selection
+						</button>
+						{isFolderTreeOpen && (
+							<ComposioDriveFolderTree
+								connectorId={connector.id}
+								selectedFolders={selectedFolders}
+								onSelectFolders={handleSelectFolders}
+								selectedFiles={selectedFiles}
+								onSelectFiles={handleSelectFiles}
+							/>
 						)}
-						Change Selection
-					</button>
-					{isFolderTreeOpen && (
-						<ComposioDriveFolderTree
-							connectorId={connector.id}
-							selectedFolders={selectedFolders}
-							onSelectFolders={handleSelectFolders}
-							selectedFiles={selectedFiles}
-							onSelectFiles={handleSelectFiles}
-						/>
-					)}
-				</div>
-			) : (
-				<ComposioDriveFolderTree
-					connectorId={connector.id}
-					selectedFolders={selectedFolders}
-					onSelectFolders={handleSelectFolders}
-					selectedFiles={selectedFiles}
-					onSelectFiles={handleSelectFiles}
-				/>
-			)}
+					</div>
+				) : (
+					<ComposioDriveFolderTree
+						connectorId={connector.id}
+						selectedFolders={selectedFolders}
+						onSelectFolders={handleSelectFolders}
+						selectedFiles={selectedFiles}
+						onSelectFiles={handleSelectFiles}
+					/>
+				)}
 			</div>
 
 			{/* Indexing Options */}

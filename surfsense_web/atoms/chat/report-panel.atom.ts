@@ -1,5 +1,4 @@
 import { atom } from "jotai";
-import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
 
 interface ReportPanelState {
@@ -25,11 +24,14 @@ export const reportPanelAtom = atom<ReportPanelState>(initialState);
 /** Derived read-only atom for checking if panel is open */
 export const reportPanelOpenAtom = atom((get) => get(reportPanelAtom).isOpen);
 
+/** Snapshot of `rightPanelCollapsedAtom` taken before the report opens */
+const preReportCollapsedAtom = atom<boolean | null>(null);
+
 /** Action atom to open the report panel with a specific report */
 export const openReportPanelAtom = atom(
 	null,
 	(
-		_get,
+		get,
 		set,
 		{
 			reportId,
@@ -38,6 +40,9 @@ export const openReportPanelAtom = atom(
 			shareToken,
 		}: { reportId: number; title: string; wordCount?: number; shareToken?: string | null }
 	) => {
+		if (!get(reportPanelAtom).isOpen) {
+			set(preReportCollapsedAtom, get(rightPanelCollapsedAtom));
+		}
 		set(reportPanelAtom, {
 			isOpen: true,
 			reportId,
@@ -47,12 +52,16 @@ export const openReportPanelAtom = atom(
 		});
 		set(rightPanelTabAtom, "report");
 		set(rightPanelCollapsedAtom, false);
-		set(documentsSidebarOpenAtom, true);
 	}
 );
 
 /** Action atom to close the report panel */
-export const closeReportPanelAtom = atom(null, (_get, set) => {
+export const closeReportPanelAtom = atom(null, (get, set) => {
 	set(reportPanelAtom, initialState);
 	set(rightPanelTabAtom, "sources");
+	const prev = get(preReportCollapsedAtom);
+	if (prev !== null) {
+		set(rightPanelCollapsedAtom, prev);
+		set(preReportCollapsedAtom, null);
+	}
 });
