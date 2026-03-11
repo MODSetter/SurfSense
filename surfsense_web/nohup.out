@@ -1,0 +1,97 @@
+
+> surfsense_web@0.0.12 dev /Users/mac_1/Documents/GitHub/SurfSense/surfsense_web
+> next dev --turbopack -p 3999
+
+▲ Next.js 16.1.0 (Turbopack)
+- Local:         http://localhost:3999
+- Network:       http://10.56.57.248:3999
+- Environments: .env
+
+✓ Starting...
+[MDX] generated files in 21.16537500000004ms
+[MDX] started dev server
+✓ Ready in 2.3s
+ GET / 200 in 1750ms (compile: 1438ms, render: 313ms)
+ GET / 200 in 71ms (compile: 5ms, render: 66ms)
+ GET /dashboard/%7Bid%7D/new-chat 200 in 1979ms (compile: 1630ms, render: 349ms)
+Error: ENVIRONMENT_FALLBACK: There is no `timeZone` configured, this can lead to markup mismatches caused by environment differences. Consider adding a global default: https://next-intl.dev/docs/configuration#time-zone
+    at LoginContent (app/(home)/login/page.tsx:17:27)
+  15 |
+  16 | function LoginContent() {
+> 17 | 	const t = useTranslations("auth");
+     | 	                         ^
+  18 | 	const tCommon = useTranslations("common");
+  19 | 	const [authType, setAuthType] = useState<string | null>(null);
+  20 | 	const [isLoading, setIsLoading] = useState(true); {
+  code: 'ENVIRONMENT_FALLBACK',
+  originalMessage: 'There is no `timeZone` configured, this can lead to markup mismatches caused by environment differences. Consider adding a global default: https://next-intl.dev/docs/configuration#time-zone'
+}
+ GET /login 200 in 196ms (compile: 77ms, render: 119ms)
+ GET / 200 in 83ms (compile: 7ms, render: 76ms)
+ GET / 200 in 61ms (compile: 6ms, render: 55ms)
+ GET /login 200 in 56ms (compile: 8ms, render: 48ms)
+ GET / 200 in 90ms (compile: 21ms, render: 69ms)
+ GET /login 200 in 53ms (compile: 20ms, render: 34ms)
+ GET /login 200 in 79ms (compile: 8ms, render: 71ms)
+ GET /auth/callback?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxOTUxYzAxMC00MzZmLTQ2MzYtODljYS01ZDg2ZjU3OTUxZGYiLCJhdWQiOlsiZmFzdGFwaS11c2VyczphdXRoIl0sImV4cCI6MTc3MDg3MDY3M30.O28yYMtWQuLeYdjEn2SpHGBSEzp8gzhyCnNTY4deQF4 200 in 59ms (compile: 32ms, render: 27ms)
+ GET /dashboard/%7Bid%7D/new-chat 200 in 64ms (compile: 11ms, render: 53ms)
+ GET /dashboard/%7Bid%7D/new-chat 200 in 60ms (compile: 11ms, render: 49ms)
+ GET /dashboard/%7Bid%7D/crypto 200 in 568ms (compile: 544ms, render: 24ms)
+ GET /dashboard/%7Bid%7D/new-chat 200 in 33ms (compile: 11ms, render: 23ms)
+ GET /dashboard/%7Bid%7D/new-chat?query=Analyze+BULLA 200 in 25ms (compile: 7ms, render: 18ms)
+ GET / 200 in 75ms (compile: 5ms, render: 70ms)
+ GET /login 200 in 53ms (compile: 6ms, render: 47ms)
+ GET /auth/callback?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxOTUxYzAxMC00MzZmLTQ2MzYtODljYS01ZDg2ZjU3OTUxZGYiLCJhdWQiOlsiZmFzdGFwaS11c2VyczphdXRoIl0sImV4cCI6MTc3MDg3MTQxMn0.HscRbBjnqK86Bppg8IFq5OMgxOJppOosPXKtFJjQ2X0 200 in 28ms (compile: 6ms, render: 22ms)
+ GET /dashboard 200 in 233ms (compile: 28ms, render: 205ms)
+ GET /dashboard/7/new-chat 200 in 33ms (compile: 9ms, render: 24ms)
+ GET /dashboard/7/documents 200 in 784ms (compile: 757ms, render: 27ms)
+ GET /dashboard/7/documents 200 in 21ms (compile: 7ms, render: 15ms)
+ GET /dashboard/7/new-chat 200 in 61ms (compile: 11ms, render: 50ms)
+ GET /dashboard/7/new-chat 200 in 32ms (compile: 10ms, render: 22ms)
+ GET /dashboard/7/new-chat/19 200 in 29ms (compile: 8ms, render: 22ms)
+ GET /dashboard/7/new-chat/19 200 in 42ms (compile: 16ms, render: 27ms)
+ GET /dashboard/7/crypto 200 in 26ms (compile: 8ms, render: 18ms)
+ GET /dashboard/7/crypto 200 in 31ms (compile: 13ms, render: 18ms)
+ GET /dashboard/7/crypto 200 in 20ms (compile: 5ms, render: 14ms)
+ GET /dashboard/7/crypto 200 in 16ms (compile: 3ms, render: 13ms)
+ GET /dashboard/7/crypto 200 in 20ms (compile: 3ms, render: 17ms)
+ GET /dashboard/7/new-chat/19 200 in 65ms (compile: 13ms, render: 52ms)
+ GET /dashboard/7/documents 200 in 31ms (compile: 9ms, render: 22ms)
+ GET /dashboard/7/documents 200 in 40ms (compile: 19ms, render: 21ms)
+ GET /dashboard/7/crypto 200 in 28ms (compile: 8ms, render: 20ms)
+ GET /dashboard/7/new-chat/19 200 in 32ms (compile: 10ms, render: 21ms)
+ GET /dashboard/7/documents 200 in 28ms (compile: 10ms, render: 17ms)
+ GET /dashboard/7/crypto 200 in 35ms (compile: 12ms, render: 22ms)
+ GET /dashboard/7/logs 200 in 490ms (compile: 470ms, render: 20ms)
+ GET /dashboard/7 200 in 458ms (compile: 412ms, render: 46ms)
+ GET /dashboard/7/new-chat 200 in 35ms (compile: 8ms, render: 27ms)
+ GET /dashboard/%7Bid%7D/new-chat?query=Analyze+BULLA 200 in 115ms (compile: 33ms, render: 82ms)
+ GET / 200 in 76ms (compile: 7ms, render: 70ms)
+ GET /dashboard/7/new-chat/19 200 in 104ms (compile: 13ms, render: 91ms)
+ GET /login 200 in 55ms (compile: 6ms, render: 49ms)
+ GET /dashboard/7/new-chat 200 in 57ms (compile: 18ms, render: 39ms)
+ GET /login 200 in 51ms (compile: 4ms, render: 48ms)
+ GET /login 200 in 87ms (compile: 34ms, render: 54ms)
+[MDX] closing dev server
+  Downloading swc package @next/swc-wasm-nodejs... to /Users/mac_1/Library/Caches/next-swc
+npm warn Unknown env config "network-timeout". This will stop working in the next major version of npm.
+npm warn Unknown env config "allow-build-scripts". This will stop working in the next major version of npm.
+npm warn Unknown env config "verify-deps-before-run". This will stop working in the next major version of npm.
+npm warn Unknown env config "_jsr-registry". This will stop working in the next major version of npm.
+npm warn Unknown env config "_windsurf-registry". This will stop working in the next major version of npm.
+npm warn Unknown env config "enable-pre-post-scripts". This will stop working in the next major version of npm.
+npm warn Unknown env config "store-dir". This will stop working in the next major version of npm.
+npm warn Unknown env config "cache-dir". This will stop working in the next major version of npm.
+⚠ Attempted to load @next/swc-darwin-arm64, but an error occurred: dlopen(/Users/mac_1/Documents/GitHub/SurfSense/surfsense_web/node_modules/.pnpm/@next+swc-darwin-arm64@16.1.0/node_modules/@next/swc-darwin-arm64/next-swc.darwin-arm64.node, 0x0001): tried: '/Users/mac_1/Documents/GitHub/SurfSense/surfsense_web/node_modules/.pnpm/@next+swc-darwin-arm64@16.1.0/node_modules/@next/swc-darwin-arm64/next-swc.darwin-arm64.node' (code signature in <DEA08FB5-0F64-35DA-947E-EADD3218E146> '/Users/mac_1/Documents/GitHub/SurfSense/surfsense_web/node_modules/.pnpm/@next+swc-darwin-arm64@16.1.0/node_modules/@next/swc-darwin-arm64/next-swc.darwin-arm64.node' not valid for use in process: library load denied by system policy), '/System/Volumes/Preboot/Cryptexes/OS/Users/mac_1/Documents/GitHub/SurfSense/surfsense_web/node_modules/.pnpm/@next+swc-darwin-arm64@16.1.0/node_modules/@next/swc-darwin-arm64/next-swc.darwin-arm64.node' (no such file), '/Users/mac_1/Documents/GitHub/SurfSense/surfsense_web/node_modules/.pnpm/@next+swc-darwin-arm64@16.1.0/node_modules/@next/swc-darwin-arm64/next-swc.darwin-arm64.node' (code signature in <DEA08FB5-0F64-35DA-947E-EADD3218E146> '/Users/mac_1/Documents/GitHub/SurfSense/surfsense_web/node_modules/.pnpm/@next+swc-darwin-arm64@16.1.0/node_modules/@next/swc-darwin-arm64/next-swc.darwin-arm64.node' not valid for use in process: library load denied by system policy)
+⚠ TypeError: fetch failed
+    at ignore-listed frames {
+  [cause]: Error: getaddrinfo ENOTFOUND registry.npmjs.org
+      at ignore-listed frames {
+    errno: -3008,
+    code: 'ENOTFOUND',
+    syscall: 'getaddrinfo',
+    hostname: 'registry.npmjs.org'
+  }
+}
+⨯ Failed to load SWC binary for darwin/arm64, see more info here: https://nextjs.org/docs/messages/failed-loading-swc
+[?25h
