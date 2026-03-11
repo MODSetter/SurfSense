@@ -73,6 +73,7 @@ import { useCommentsElectric } from "@/hooks/use-comments-electric";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
 	agentToolsAtom,
 	disabledToolsAtom,
@@ -562,7 +563,16 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
+	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
+	const isDesktop = useMediaQuery("(min-width: 640px)");
+	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+		const el = e.currentTarget;
+		const atTop = el.scrollTop <= 2;
+		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+		setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
+	}, []);
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
@@ -613,32 +623,46 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<Wrench className="size-4" />
 						</TooltipIconButton>
 					</PopoverTrigger>
-					<PopoverContent
-						side="top"
-						align="start"
-						sideOffset={12}
-						className="w-[calc(100vw-2rem)] max-w-80 sm:w-80 p-0"
-					>
-						<div className="flex items-center justify-between px-3 py-2.5 border-b">
-							<span className="text-sm font-medium">Agent Tools</span>
-							<span className="text-xs text-muted-foreground">
+				<PopoverContent
+					side="bottom"
+					align="start"
+					sideOffset={12}
+					className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0"
+					onOpenAutoFocus={(e) => e.preventDefault()}
+				>
+						<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
+							<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
+							<span className="text-[10px] sm:text-xs text-muted-foreground">
 								{enabledCount}/{agentTools?.length ?? 0} enabled
 							</span>
 						</div>
-						<div className="max-h-64 overflow-y-auto py-1">
+						<div
+							className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
+							onScroll={handleToolsScroll}
+							style={{
+								maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
+								WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
+							}}
+						>
 							{agentTools?.map((tool) => {
 								const isDisabled = disabledTools.includes(tool.name);
+								const row = (
+									<label className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 cursor-pointer hover:bg-muted-foreground/10 transition-colors">
+										<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">{formatToolName(tool.name)}</span>
+										<Switch
+											checked={!isDisabled}
+											onCheckedChange={() => toggleTool(tool.name)}
+											className="shrink-0 scale-[0.6] sm:scale-75"
+										/>
+									</label>
+								);
+								if (!isDesktop) {
+									return <div key={tool.name}>{row}</div>;
+								}
 								return (
 									<Tooltip key={tool.name}>
 										<TooltipTrigger asChild>
-											<label className="flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-muted-foreground/10 transition-colors">
-												<span className="flex-1 min-w-0 text-sm font-medium truncate">{formatToolName(tool.name)}</span>
-												<Switch
-													checked={!isDisabled}
-													onCheckedChange={() => toggleTool(tool.name)}
-													className="shrink-0 scale-75"
-												/>
-											</label>
+											{row}
 										</TooltipTrigger>
 										<TooltipContent side="right" className="max-w-64 text-xs">
 											{tool.description}
@@ -654,6 +678,19 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						</div>
 					</PopoverContent>
 				</Popover>
+				{!isDesktop && (
+					<TooltipIconButton
+						tooltip="Manage connectors"
+						side="bottom"
+						variant="ghost"
+						size="icon"
+						className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+						aria-label="Manage connectors"
+						onClick={() => setConnectorDialogOpen(true)}
+					>
+						<Unplug className="size-4" />
+					</TooltipIconButton>
+				)}
 				{sidebarDocs.length > 0 && (
 					<button
 						type="button"

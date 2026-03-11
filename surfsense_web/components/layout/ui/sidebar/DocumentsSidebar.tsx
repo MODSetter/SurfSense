@@ -233,35 +233,63 @@ export function DocumentsSidebar({
 			</div>
 
 			{/* Connected tools strip */}
-			<div className="shrink-0 mx-4 mt-2 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2">
-				<button
-					type="button"
-					onClick={() => setConnectorDialogOpen(true)}
-					className="flex items-center gap-2 min-w-0 flex-1 text-left"
+		<div className="shrink-0 mx-4 mt-2 mb-3 flex select-none items-center gap-2 rounded-lg border bg-muted/50 transition-colors hover:bg-muted/80">
+			<button
+				type="button"
+				onClick={() => setConnectorDialogOpen(true)}
+				className="flex items-center gap-2 min-w-0 flex-1 text-left px-3 py-2"
 				>
-					<Unplug className="size-4 shrink-0 text-muted-foreground" />
-					<span className="truncate text-xs text-muted-foreground">
-						{connectorCount > 0 ? "Manage connectors" : "Connect connectors"}
+				<Unplug className="size-4 shrink-0 text-muted-foreground" />
+				<span className="truncate text-xs text-muted-foreground">
+					{connectorCount > 0 ? "Manage connectors" : "Connect your connectors"}
+				</span>
+				{connectorCount > 0 && (
+					<span className="shrink-0 rounded-full bg-muted-foreground/15 px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+						{connectorCount}
 					</span>
-					{connectorCount > 0 && (
-						<span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">{connectorCount}</span>
-					)}
-					<AvatarGroup className="ml-auto shrink-0">
-						{SHOWCASE_CONNECTORS.map(({ type, label }, i) => (
-							<Tooltip key={type}>
-								<TooltipTrigger asChild>
-									<Avatar className="size-6" style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}>
+				)}
+			<AvatarGroup className="ml-auto shrink-0">
+				{connectorCount > 0 && connectors
+					? connectors
+							.slice(0, isMobile ? 5 : 9)
+							.map((connector, i) => {
+								const avatar = (
+									<Avatar key={connector.id} className="size-6" style={{ zIndex: Math.max(9 - i, 1) }}>
+										<AvatarFallback className="bg-muted text-[10px]">
+											{getConnectorIcon(connector.connector_type, "size-3.5")}
+										</AvatarFallback>
+									</Avatar>
+								);
+								if (isMobile) return avatar;
+								return (
+									<Tooltip key={connector.id}>
+										<TooltipTrigger asChild>{avatar}</TooltipTrigger>
+										<TooltipContent side="top" className="text-xs">
+											{connector.name}
+										</TooltipContent>
+									</Tooltip>
+								);
+							})
+					: (isMobile ? SHOWCASE_CONNECTORS.slice(0, 5) : SHOWCASE_CONNECTORS).map(({ type, label }, i) => {
+								const avatar = (
+									<Avatar key={type} className="size-6" style={{ zIndex: SHOWCASE_CONNECTORS.length - i }}>
 										<AvatarFallback className="bg-muted text-[10px]">
 											{getConnectorIcon(type, "size-3.5")}
 										</AvatarFallback>
 									</Avatar>
-								</TooltipTrigger>
-								<TooltipContent side="top" className="text-xs">
-									{label}
-								</TooltipContent>
-							</Tooltip>
-						))}
-					</AvatarGroup>
+								);
+								if (isMobile) return avatar;
+								return (
+									<Tooltip key={type}>
+										<TooltipTrigger asChild>{avatar}</TooltipTrigger>
+										<TooltipContent side="top" className="text-xs">
+											{label}
+										</TooltipContent>
+									</Tooltip>
+								);
+							})
+				}
+				</AvatarGroup>
 				</button>
 			</div>
 
