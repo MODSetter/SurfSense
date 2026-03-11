@@ -1,6 +1,5 @@
 "use client";
 
-import { motion } from "motion/react";
 import { useMemo, useState } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/hooks/use-inbox";
@@ -308,17 +307,13 @@ export function LayoutShell({
 							isResizing={isResizing}
 						/>
 
-						<motion.main
-							layout={isResizing ? false : "position"}
-							style={{ contain: "inline-size" }}
-							className="flex-1 flex flex-col min-w-0"
-						>
+						<main className="flex-1 flex flex-col min-w-0">
 							<Header />
 
 							<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
 								{children}
 							</div>
-						</motion.main>
+						</main>
 
 						{/* Right panel — tabbed Sources/Report (desktop only) */}
 						{documentsPanel && (

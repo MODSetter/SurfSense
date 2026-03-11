@@ -262,6 +262,15 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		}
 	}, [pendingNewChat, params?.chat_id, router, searchSpaceId, resetCurrentThread]);
 
+	// Reset transient slide-out panels when switching search spaces.
+	// Some browsers can retain overlay/backdrop state across route transitions.
+	useEffect(() => {
+		setIsInboxSidebarOpen(false);
+		setIsAllSharedChatsSidebarOpen(false);
+		setIsAllPrivateChatsSidebarOpen(false);
+		setIsAnnouncementsSidebarOpen(false);
+	}, [searchSpaceId]);
+
 	const searchSpaces: SearchSpace[] = useMemo(() => {
 		if (!searchSpacesData || !Array.isArray(searchSpacesData)) return [];
 		return searchSpacesData.map((space) => ({

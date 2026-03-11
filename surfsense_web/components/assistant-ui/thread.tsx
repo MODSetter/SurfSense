@@ -220,14 +220,12 @@ const ThreadWelcome: FC = () => {
 
 	return (
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
-			{/* Greeting positioned above the composer - fixed position */}
+			{/* Greeting positioned above the composer */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
-				<h1 className="aui-thread-welcome-message-inner fade-in slide-in-from-bottom-2 animate-in text-3xl md:text-5xl delay-100 duration-500 ease-out fill-mode-both">
-					{greeting}
-				</h1>
+				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-5xl">{greeting}</h1>
 			</div>
 			{/* Composer - top edge fixed, expands downward only */}
-			<div className="fade-in slide-in-from-bottom-3 animate-in delay-200 duration-500 ease-out fill-mode-both w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
+			<div className="w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
 				<Composer />
 			</div>
 		</div>
