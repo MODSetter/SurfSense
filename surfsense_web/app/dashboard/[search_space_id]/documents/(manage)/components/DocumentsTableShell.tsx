@@ -320,6 +320,7 @@ export function DocumentsTableShell({
 	sortDesc,
 	onSortChange,
 	deleteDocument,
+	bulkDeleteDocuments,
 	searchSpaceId,
 	hasMore = false,
 	loadingMore = false,
@@ -336,6 +337,7 @@ export function DocumentsTableShell({
 	sortDesc: boolean;
 	onSortChange: (key: SortKey) => void;
 	deleteDocument: (id: number) => Promise<boolean>;
+	bulkDeleteDocuments?: (ids: number[]) => Promise<{ success: number; failed: number }>;
 	searchSpaceId: string;
 	hasMore?: boolean;
 	loadingMore?: boolean;
@@ -370,6 +372,8 @@ export function DocumentsTableShell({
 	const [deleteDoc, setDeleteDoc] = useState<Document | null>(null);
 	const [isDeleting, setIsDeleting] = useState(false);
 	const [mobileActionDoc, setMobileActionDoc] = useState<Document | null>(null);
+	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 	const router = useRouter();
 
 	const desktopSentinelRef = useRef<HTMLDivElement>(null);
@@ -496,45 +500,119 @@ export function DocumentsTableShell({
 
 	const onSortHeader = (key: SortKey) => onSortChange(key);
 
+	const deletableSelectedIds = React.useMemo(() => {
+		if (!mentionedDocIds || mentionedDocIds.size === 0) return [];
+		return sorted
+			.filter((doc) => {
+				if (!mentionedDocIds.has(doc.id)) return false;
+				const state = doc.status?.state;
+				return (
+					state !== "pending" &&
+					state !== "processing" &&
+					!NON_DELETABLE_DOCUMENT_TYPES.includes(
+						doc.document_type as (typeof NON_DELETABLE_DOCUMENT_TYPES)[number]
+					)
+				);
+			})
+			.map((doc) => doc.id);
+	}, [sorted, mentionedDocIds]);
+
+	const hasDeletableSelection = deletableSelectedIds.length > 0;
+
+	const handleBulkDelete = useCallback(async () => {
+		if (deletableSelectedIds.length === 0) return;
+		setIsBulkDeleting(true);
+		try {
+			if (bulkDeleteDocuments) {
+				const { success, failed } = await bulkDeleteDocuments(deletableSelectedIds);
+				if (success > 0) {
+					toast.success(`Deleted ${success} document${success !== 1 ? "s" : ""}`);
+				}
+				if (failed > 0) {
+					toast.error(`Failed to delete ${failed} document${failed !== 1 ? "s" : ""}`);
+				}
+			} else {
+				const results = await Promise.allSettled(
+					deletableSelectedIds.map((id) => deleteDocument(id))
+				);
+				const successCount = results.filter(
+					(r) => r.status === "fulfilled" && r.value === true
+				).length;
+				const failCount = deletableSelectedIds.length - successCount;
+				if (successCount > 0) {
+					toast.success(
+						`Deleted ${successCount} document${successCount !== 1 ? "s" : ""}`
+					);
+				}
+				if (failCount > 0) {
+					toast.error(
+						`Failed to delete ${failCount} document${failCount !== 1 ? "s" : ""}`
+					);
+				}
+			}
+		} catch {
+			toast.error("Failed to delete documents");
+		}
+		setIsBulkDeleting(false);
+		setBulkDeleteConfirmOpen(false);
+	}, [deletableSelectedIds, bulkDeleteDocuments, deleteDocument]);
+
 	return (
 		<div className="bg-sidebar overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0">
 			{/* Desktop Table View */}
 			<div className="hidden md:flex md:flex-col flex-1 min-h-0">
-				<Table className="table-fixed w-full">
-					<TableHeader>
-						<TableRow className="hover:bg-transparent border-b border-border/50">
-							<TableHead className="w-10 pl-3 pr-0 text-center h-8">
-								<div className="flex items-center justify-center h-full">
-									<Checkbox
-										checked={allMentionedOnPage || (someMentionedOnPage && "indeterminate")}
-										onCheckedChange={(v) => toggleAll(!!v)}
-										aria-label={hasChatMode ? "Toggle all for chat" : "Select all"}
-										className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-									/>
-								</div>
-							</TableHead>
-							<TableHead className="h-8 px-2">
-								<SortableHeader
-									sortKey="title"
-									currentSortKey={sortKey}
-									sortDesc={sortDesc}
-									onSort={onSortHeader}
-									icon={<FileText size={14} className="text-muted-foreground" />}
-								>
-									Document
-								</SortableHeader>
-							</TableHead>
-							<TableHead className="w-10 text-center h-8 px-0">
-								<span className="flex items-center justify-center">
-									<Network size={14} className="text-muted-foreground" />
-								</span>
-							</TableHead>
-							<TableHead className="w-12 text-center h-8 pl-0 pr-3">
+			<Table className="table-fixed w-full">
+				<TableHeader>
+					<TableRow className="hover:bg-transparent border-b border-border/50">
+						<TableHead className="w-10 pl-3 pr-0 text-center h-8">
+							<div className="flex items-center justify-center h-full">
+								<Checkbox
+									checked={allMentionedOnPage || (someMentionedOnPage && "indeterminate")}
+									onCheckedChange={(v) => toggleAll(!!v)}
+									aria-label={hasChatMode ? "Toggle all for chat" : "Select all"}
+									className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+								/>
+							</div>
+						</TableHead>
+						<TableHead className="h-8 px-2">
+							<SortableHeader
+								sortKey="title"
+								currentSortKey={sortKey}
+								sortDesc={sortDesc}
+								onSort={onSortHeader}
+								icon={<FileText size={14} className="text-muted-foreground" />}
+							>
+								Document
+							</SortableHeader>
+						</TableHead>
+						<TableHead className="w-10 text-center h-8 px-0">
+							<span className="flex items-center justify-center">
+								<Network size={14} className="text-muted-foreground" />
+							</span>
+						</TableHead>
+						<TableHead className="w-12 text-center h-8 pl-0 pr-3">
+							{hasDeletableSelection ? (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<button
+											type="button"
+											onClick={() => setBulkDeleteConfirmOpen(true)}
+											className="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+										>
+											<Trash2 size={14} />
+										</button>
+									</TooltipTrigger>
+									<TooltipContent>
+										Delete {deletableSelectedIds.length} selected
+									</TooltipContent>
+								</Tooltip>
+							) : (
 								<span className="text-xs font-medium text-muted-foreground">Status</span>
-							</TableHead>
-						</TableRow>
-					</TableHeader>
-				</Table>
+							)}
+						</TableHead>
+					</TableRow>
+				</TableHeader>
+			</Table>
 				{loading ? (
 					<div className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
@@ -605,50 +683,50 @@ export function DocumentsTableShell({
 					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
 							<TableBody>
-								{sorted.map((doc) => {
-									const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
-									const canInteract = isSelectable(doc);
-									const handleRowToggle = () => {
-										if (canInteract && onToggleChatMention) {
-											onToggleChatMention(doc, isMentioned);
-										}
-									};
-									const handleRowClick = (e: React.MouseEvent) => {
-										if (e.ctrlKey || e.metaKey) {
-											e.preventDefault();
-											e.stopPropagation();
-											handleViewMetadata(doc);
-											return;
-										}
-										handleRowToggle();
-									};
-									return (
-										<RowContextMenu
-											key={doc.id}
-											doc={doc}
-											onPreview={handleViewDocument}
-											onDelete={setDeleteDoc}
-											searchSpaceId={searchSpaceId}
-											onEditNavigate={onEditNavigate}
+							{sorted.map((doc) => {
+								const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+								const canInteract = isSelectable(doc);
+								const handleRowToggle = () => {
+									if (canInteract && onToggleChatMention) {
+										onToggleChatMention(doc, isMentioned);
+									}
+								};
+								const handleRowClick = (e: React.MouseEvent) => {
+									if (e.ctrlKey || e.metaKey) {
+										e.preventDefault();
+										e.stopPropagation();
+										handleViewMetadata(doc);
+										return;
+									}
+									handleRowToggle();
+								};
+								return (
+									<RowContextMenu
+										key={doc.id}
+										doc={doc}
+										onPreview={handleViewDocument}
+										onDelete={setDeleteDoc}
+										searchSpaceId={searchSpaceId}
+										onEditNavigate={onEditNavigate}
+									>
+										<tr
+											className={`border-b border-border/50 transition-colors ${
+												isMentioned ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
+											} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
+											onClick={handleRowClick}
 										>
-											<tr
-												className={`border-b border-border/50 transition-colors ${
-													isMentioned ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
-												} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
-												onClick={handleRowClick}
-											>
 												<TableCell
 													className="w-10 pl-3 pr-0 py-1.5 text-center"
 													onClick={(e) => e.stopPropagation()}
 												>
 													<div className="flex items-center justify-center h-full">
-														<Checkbox
-															checked={isMentioned}
-															onCheckedChange={() => handleRowToggle()}
-															disabled={!canInteract}
-															aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
-														/>
+												<Checkbox
+													checked={isMentioned}
+													onCheckedChange={() => handleRowToggle()}
+													disabled={!canInteract}
+													aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+													className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
+												/>
 													</div>
 												</TableCell>
 												<TableCell className="px-2 py-1.5 max-w-0">
@@ -742,6 +820,22 @@ export function DocumentsTableShell({
 					ref={mobileScrollRef}
 					className="md:hidden divide-y divide-border/50 flex-1 overflow-auto"
 				>
+					{hasDeletableSelection && (
+						<div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border/50 sticky top-0 z-10">
+							<span className="text-xs text-muted-foreground">
+								{deletableSelectedIds.length} deletable selected
+							</span>
+							<Button
+								variant="destructive"
+								size="sm"
+								className="h-7 px-2.5 text-xs"
+								onClick={() => setBulkDeleteConfirmOpen(true)}
+							>
+								<Trash2 size={12} className="mr-1" />
+								Delete
+							</Button>
+						</div>
+					)}
 					{sorted.map((doc) => {
 						const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
 						const canInteract = isSelectable(doc);
@@ -957,6 +1051,41 @@ export function DocumentsTableShell({
 					</div>
 				</DrawerContent>
 			</Drawer>
+
+			{/* Bulk Delete Confirmation Dialog */}
+			<AlertDialog
+				open={bulkDeleteConfirmOpen}
+				onOpenChange={(open) => !open && !isBulkDeleting && setBulkDeleteConfirmOpen(false)}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>
+							Delete {deletableSelectedIds.length} document
+							{deletableSelectedIds.length !== 1 ? "s" : ""}?
+						</AlertDialogTitle>
+						<AlertDialogDescription>
+							This action cannot be undone.{" "}
+							{deletableSelectedIds.length === 1
+								? "This document"
+								: `These ${deletableSelectedIds.length} documents`}{" "}
+							will be permanently deleted from your search space.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isBulkDeleting}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(e) => {
+								e.preventDefault();
+								handleBulkDelete();
+							}}
+							disabled={isBulkDeleting}
+							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							{isBulkDeleting ? "Deleting..." : "Delete"}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
 		</div>
 	);
 }

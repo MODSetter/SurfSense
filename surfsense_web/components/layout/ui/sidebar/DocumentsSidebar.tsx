@@ -102,6 +102,7 @@ export function DocumentsSidebar({
 		loadingMore: realtimeLoadingMore,
 		hasMore: realtimeHasMore,
 		loadMore: realtimeLoadMore,
+		removeItems: realtimeRemoveItems,
 		error: realtimeError,
 	} = useDocuments(searchSpaceId, activeTypes, sortKey, sortDesc ? "desc" : "asc");
 
@@ -137,6 +138,7 @@ export function DocumentsSidebar({
 				await deleteDocumentMutation({ id });
 				toast.success(t("delete_success") || "Document deleted");
 				setSidebarDocs((prev) => prev.filter((d) => d.id !== id));
+				realtimeRemoveItems([id]);
 				if (isSearchMode) {
 					searchRemoveItems([id]);
 				}
@@ -146,7 +148,30 @@ export function DocumentsSidebar({
 				return false;
 			}
 		},
-		[deleteDocumentMutation, isSearchMode, t, searchRemoveItems, setSidebarDocs]
+		[deleteDocumentMutation, isSearchMode, t, searchRemoveItems, realtimeRemoveItems, setSidebarDocs]
+	);
+
+	const handleBulkDeleteDocuments = useCallback(
+		async (ids: number[]): Promise<{ success: number; failed: number }> => {
+			const successIds: number[] = [];
+			const results = await Promise.allSettled(
+				ids.map(async (id) => {
+					await deleteDocumentMutation({ id });
+					successIds.push(id);
+				})
+			);
+			if (successIds.length > 0) {
+				setSidebarDocs((prev) => prev.filter((d) => !successIds.includes(d.id)));
+				realtimeRemoveItems(successIds);
+				if (isSearchMode) {
+					searchRemoveItems(successIds);
+				}
+			}
+			const success = results.filter((r) => r.status === "fulfilled").length;
+			const failed = results.filter((r) => r.status === "rejected").length;
+			return { success, failed };
+		},
+		[deleteDocumentMutation, isSearchMode, searchRemoveItems, realtimeRemoveItems, setSidebarDocs]
 	);
 
 	const sortKeyRef = useRef(sortKey);
@@ -319,6 +344,7 @@ export function DocumentsSidebar({
 					sortDesc={sortDesc}
 					onSortChange={handleSortChange}
 					deleteDocument={handleDeleteDocument}
+					bulkDeleteDocuments={handleBulkDeleteDocuments}
 					searchSpaceId={String(searchSpaceId)}
 					hasMore={hasMore}
 					loadingMore={loadingMore}

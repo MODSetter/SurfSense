@@ -181,6 +181,24 @@ export const useConnectorDialog = () => {
 		[searchSpaceId, indexConnector, updateConnector, refetchAllConnectors]
 	);
 
+	// When the dialog is opened externally (via setConnectorDialogOpen atom from
+	// thread.tsx / DocumentsSidebar.tsx), the URL is not updated. Sync it here
+	// so that other handlers that read window.location.href see modal=connectors.
+	const activeTabRef = useRef(activeTab);
+	activeTabRef.current = activeTab;
+	useEffect(() => {
+		if (isOpen) {
+			const url = new URL(window.location.href);
+			const modalParam = url.searchParams.get("modal");
+			const tabParam = url.searchParams.get("tab");
+			if (modalParam !== "connectors" || (tabParam !== "all" && tabParam !== "active")) {
+				url.searchParams.set("modal", "connectors");
+				url.searchParams.set("tab", activeTabRef.current);
+				window.history.replaceState({ modal: true }, "", url.toString());
+			}
+		}
+	}, [isOpen]);
+
 	// Synchronize state with URL query params
 	useEffect(() => {
 		try {
@@ -1647,12 +1665,13 @@ export const useConnectorDialog = () => {
 		[activeTab, isStartingIndexing, isDisconnecting, isSaving, isCreatingConnector, setIsOpen]
 	);
 
-	// Handle tab change
+	// Handle tab change — only update React state.
+	// Avoid window.history.replaceState here: Next.js intercepts it, triggers a
+	// searchParams update/transition, and the resulting concurrent re-render can
+	// cause Radix Dialog's DismissableLayer to detect a transient focus-outside
+	// event, which fires onOpenChange(false) and closes the dialog.
 	const handleTabChange = useCallback((value: string) => {
 		setActiveTab(value);
-		const url = new URL(window.location.href);
-		url.searchParams.set("tab", value);
-		window.history.replaceState({ modal: true }, "", url.toString());
 	}, []);
 
 	// Handle scroll

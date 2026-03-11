@@ -490,6 +490,12 @@ export function useDocuments(
 		apiToDisplayDoc,
 	]);
 
+	const removeItems = useCallback((ids: number[]) => {
+		const idSet = new Set(ids);
+		setDocuments((prev) => prev.filter((item) => !idSet.has(item.id)));
+		setTotal((prev) => Math.max(0, prev - ids.length));
+	}, []);
+
 	return {
 		documents,
 		typeCounts,
@@ -498,6 +504,7 @@ export function useDocuments(
 		loadingMore,
 		hasMore,
 		loadMore,
+		removeItems,
 		error,
 	};
 }

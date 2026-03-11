@@ -83,7 +83,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Atoms
 	const { data: user } = useAtomValue(currentUserAtom);
-	const { data: searchSpacesData, refetch: refetchSearchSpaces } = useAtomValue(searchSpacesAtom);
+	const { data: searchSpacesData, refetch: refetchSearchSpaces, isSuccess: searchSpacesLoaded } = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
@@ -276,6 +276,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		return searchSpaces.find((s) => s.id === Number(searchSpaceId)) ?? null;
 	}, [searchSpaceId, searchSpaces]);
 
+	// Safety redirect: if the current search space is no longer in the user's list
+	// (e.g. deleted by background task, membership revoked), redirect to a valid space.
+	useEffect(() => {
+		if (!searchSpacesLoaded || !searchSpaceId || isDeletingSearchSpace || isLeavingSearchSpace) return;
+		if (searchSpaces.length > 0 && !activeSearchSpace) {
+			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
+		} else if (searchSpaces.length === 0 && searchSpacesLoaded) {
+			router.replace("/dashboard");
+		}
+	}, [searchSpacesLoaded, searchSpaceId, searchSpaces, activeSearchSpace, isDeletingSearchSpace, isLeavingSearchSpace, router]);
+
 	// Transform and split chats into private and shared based on visibility
 	const { myChats, sharedChats } = useMemo(() => {
 		if (!threadsData?.threads) return { myChats: [], sharedChats: [] };
@@ -384,17 +395,27 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsDeletingSearchSpace(true);
 		try {
 			await deleteSearchSpace({ id: searchSpaceToDelete.id });
-			refetchSearchSpaces();
-			if (Number(searchSpaceId) === searchSpaceToDelete.id && searchSpaces.length > 1) {
-				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToDelete.id);
-				if (remaining.length > 0) {
-					router.push(`/dashboard/${remaining[0].id}/new-chat`);
+
+			const isCurrentSpace = Number(searchSpaceId) === searchSpaceToDelete.id;
+
+			// Await refetch so we have the freshest list (backend now hides [DELETING] spaces)
+			const result = await refetchSearchSpaces();
+			const updatedSpaces = (result.data ?? []).filter(
+				(s) => s.id !== searchSpaceToDelete.id
+			);
+
+			if (isCurrentSpace) {
+				if (updatedSpaces.length > 0) {
+					router.push(`/dashboard/${updatedSpaces[0].id}/new-chat`);
+				} else {
+					router.push("/dashboard");
 				}
-			} else if (searchSpaces.length === 1) {
-				router.push("/dashboard");
 			}
 		} catch (error) {
 			console.error("Error deleting search space:", error);
+			toast.error(
+				t.has("delete_space_error") ? t("delete_space_error") : "Failed to delete search space"
+			);
 		} finally {
 			setIsDeletingSearchSpace(false);
 			setShowDeleteSearchSpaceDialog(false);
@@ -405,8 +426,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		deleteSearchSpace,
 		refetchSearchSpaces,
 		searchSpaceId,
-		searchSpaces,
 		router,
+		t,
 	]);
 
 	const confirmLeaveSearchSpace = useCallback(async () => {
@@ -414,23 +435,30 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsLeavingSearchSpace(true);
 		try {
 			await searchSpacesApiService.leaveSearchSpace(searchSpaceToLeave.id);
-			refetchSearchSpaces();
-			if (Number(searchSpaceId) === searchSpaceToLeave.id && searchSpaces.length > 1) {
-				const remaining = searchSpaces.filter((s) => s.id !== searchSpaceToLeave.id);
-				if (remaining.length > 0) {
-					router.push(`/dashboard/${remaining[0].id}/new-chat`);
+
+			const isCurrentSpace = Number(searchSpaceId) === searchSpaceToLeave.id;
+
+			const result = await refetchSearchSpaces();
+			const updatedSpaces = (result.data ?? []).filter(
+				(s) => s.id !== searchSpaceToLeave.id
+			);
+
+			if (isCurrentSpace) {
+				if (updatedSpaces.length > 0) {
+					router.push(`/dashboard/${updatedSpaces[0].id}/new-chat`);
+				} else {
+					router.push("/dashboard");
 				}
-			} else if (searchSpaces.length === 1) {
-				router.push("/dashboard");
 			}
 		} catch (error) {
 			console.error("Error leaving search space:", error);
+			toast.error(t.has("leave_error") ? t("leave_error") : "Failed to leave search space");
 		} finally {
 			setIsLeavingSearchSpace(false);
 			setShowLeaveSearchSpaceDialog(false);
 			setSearchSpaceToLeave(null);
 		}
-	}, [searchSpaceToLeave, refetchSearchSpaces, searchSpaceId, searchSpaces, router]);
+	}, [searchSpaceToLeave, refetchSearchSpaces, searchSpaceId, router, t]);
 
 	const handleNavItemClick = useCallback(
 		(item: NavItem) => {
