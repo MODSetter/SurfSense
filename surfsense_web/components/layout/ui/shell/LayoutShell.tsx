@@ -315,15 +315,15 @@ export function LayoutShell({
 							</div>
 						</main>
 
-					{/* Right panel — tabbed Sources/Report (desktop only) */}
-					{documentsPanel && (
-						<RightPanel
-							documentsPanel={{
-								open: documentsPanel.open,
-								onOpenChange: documentsPanel.onOpenChange,
-							}}
-						/>
-					)}
+						{/* Right panel — tabbed Sources/Report (desktop only) */}
+						{documentsPanel && (
+							<RightPanel
+								documentsPanel={{
+									open: documentsPanel.open,
+									onOpenChange: documentsPanel.onOpenChange,
+								}}
+							/>
+						)}
 
 						{/* Inbox Sidebar - slide-out panel */}
 						{inbox && (
