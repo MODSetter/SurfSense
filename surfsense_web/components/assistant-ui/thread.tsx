@@ -28,6 +28,13 @@ import {
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import {
+	agentToolsAtom,
+	disabledToolsAtom,
+	enabledToolCountAtom,
+	hydrateDisabledToolsAtom,
+	toggleToolAtom,
+} from "@/atoms/agent-tools/agent-tools.atoms";
 import { chatSessionStateAtom } from "@/atoms/chat/chat-session-state.atom";
 import {
 	mentionedDocumentsAtom,
@@ -66,21 +73,14 @@ import {
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Switch } from "@/components/ui/switch";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import {
-	agentToolsAtom,
-	disabledToolsAtom,
-	enabledToolCountAtom,
-	hydrateDisabledToolsAtom,
-	toggleToolAtom,
-} from "@/atoms/agent-tools/agent-tools.atoms";
 import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
@@ -623,13 +623,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<Wrench className="size-4" />
 						</TooltipIconButton>
 					</PopoverTrigger>
-				<PopoverContent
-					side="bottom"
-					align="start"
-					sideOffset={12}
-					className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
-					onOpenAutoFocus={(e) => e.preventDefault()}
-				>
+					<PopoverContent
+						side="bottom"
+						align="start"
+						sideOffset={12}
+						className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
+						onOpenAutoFocus={(e) => e.preventDefault()}
+					>
 						<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
 							<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
 							<span className="text-[10px] sm:text-xs text-muted-foreground">
@@ -648,7 +648,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								const isDisabled = disabledTools.includes(tool.name);
 								const row = (
 									<label className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 cursor-pointer hover:bg-muted-foreground/10 transition-colors">
-										<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">{formatToolName(tool.name)}</span>
+										<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+											{formatToolName(tool.name)}
+										</span>
 										<Switch
 											checked={!isDisabled}
 											onCheckedChange={() => toggleTool(tool.name)}
@@ -661,9 +663,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								}
 								return (
 									<Tooltip key={tool.name}>
-										<TooltipTrigger asChild>
-											{row}
-										</TooltipTrigger>
+										<TooltipTrigger asChild>{row}</TooltipTrigger>
 										<TooltipContent side="right" className="max-w-64 text-xs">
 											{tool.description}
 										</TooltipContent>

@@ -123,7 +123,7 @@ export function ChatListItem({
 								)}
 							</DropdownMenuItem>
 						)}
-					{onDelete && (
+						{onDelete && (
 							<DropdownMenuItem
 								onClick={(e) => {
 									e.stopPropagation();

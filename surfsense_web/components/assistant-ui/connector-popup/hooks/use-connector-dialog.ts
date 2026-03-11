@@ -123,11 +123,7 @@ export const useConnectorDialog = () => {
 	}, []);
 
 	const handleAutoIndex = useCallback(
-		async (
-			connector: SearchSourceConnector,
-			connectorTitle: string,
-			connectorType: string
-		) => {
+		async (connector: SearchSourceConnector, connectorTitle: string, connectorType: string) => {
 			if (!searchSpaceId || isAutoIndexingRef.current) return;
 			isAutoIndexingRef.current = true;
 
@@ -159,12 +155,10 @@ export const useConnectorDialog = () => {
 					},
 				});
 
-				trackIndexWithDateRangeStarted(
-					Number(searchSpaceId),
-					connectorType,
-					connector.id,
-					{ hasStartDate: true, hasEndDate: true }
-				);
+				trackIndexWithDateRangeStarted(Number(searchSpaceId), connectorType, connector.id, {
+					hasStartDate: true,
+					hasEndDate: true,
+				});
 
 				toast.success(`${connectorTitle} connected!`, {
 					id: toastId,
@@ -316,46 +310,46 @@ export const useConnectorDialog = () => {
 						}
 					}
 				}
-		} else {
-			// Do NOT call setIsOpen(false) here. Closing the dialog is handled
-			// explicitly by handleOpenChange and the individual action handlers.
-			// Relying on URL params to close the dialog caused a race condition
-			// where Next.js router updates from tab switches briefly produced
-			// stale searchParams without the "modal" key, closing the popup.
+			} else {
+				// Do NOT call setIsOpen(false) here. Closing the dialog is handled
+				// explicitly by handleOpenChange and the individual action handlers.
+				// Relying on URL params to close the dialog caused a race condition
+				// where Next.js router updates from tab switches briefly produced
+				// stale searchParams without the "modal" key, closing the popup.
 
-			// Still clean up sub-view state when the modal param is gone
-			// (e.g. after browser back navigation or explicit handler URL cleanup).
-			if (indexingConfig) {
-				setIndexingConfig(null);
-				setIndexingConnector(null);
-				setIndexingConnectorConfig(null);
-				setStartDate(undefined);
-				setEndDate(undefined);
-				setPeriodicEnabled(false);
-				setFrequencyMinutes("1440");
-				setEnableSummary(false);
-				setIsScrolled(false);
-				setSearchQuery("");
+				// Still clean up sub-view state when the modal param is gone
+				// (e.g. after browser back navigation or explicit handler URL cleanup).
+				if (indexingConfig) {
+					setIndexingConfig(null);
+					setIndexingConnector(null);
+					setIndexingConnectorConfig(null);
+					setStartDate(undefined);
+					setEndDate(undefined);
+					setPeriodicEnabled(false);
+					setFrequencyMinutes("1440");
+					setEnableSummary(false);
+					setIsScrolled(false);
+					setSearchQuery("");
+				}
+				if (editingConnector) {
+					setEditingConnector(null);
+					setConnectorName(null);
+					setConnectorConfig(null);
+					setStartDate(undefined);
+					setEndDate(undefined);
+					setPeriodicEnabled(false);
+					setFrequencyMinutes("1440");
+					setEnableSummary(false);
+					setIsScrolled(false);
+					setSearchQuery("");
+				}
+				if (connectingConnectorType) {
+					setConnectingConnectorType(null);
+				}
+				if (viewingAccountsType) {
+					setViewingAccountsType(null);
+				}
 			}
-			if (editingConnector) {
-				setEditingConnector(null);
-				setConnectorName(null);
-				setConnectorConfig(null);
-				setStartDate(undefined);
-				setEndDate(undefined);
-				setPeriodicEnabled(false);
-				setFrequencyMinutes("1440");
-				setEnableSummary(false);
-				setIsScrolled(false);
-				setSearchQuery("");
-			}
-			if (connectingConnectorType) {
-				setConnectingConnectorType(null);
-			}
-			if (viewingAccountsType) {
-				setViewingAccountsType(null);
-			}
-		}
 		} catch (error) {
 			// Invalid query params - log but don't crash
 			console.warn("Invalid connector popup query params:", error);
@@ -412,18 +406,18 @@ export const useConnectorDialog = () => {
 						COMPOSIO_CONNECTORS.find((c) => c.id === params.connector)
 					: null;
 
-			if (earlyConnector && AUTO_INDEX_CONNECTOR_TYPES.has(earlyConnector.connectorType)) {
-				toast.loading(`Setting up ${earlyConnector.title}...`, { id: "auto-index" });
-				setIsOpen(false);
-				const url = new URL(window.location.href);
-				url.searchParams.delete("success");
-				url.searchParams.delete("connector");
-				url.searchParams.delete("connectorId");
-				url.searchParams.delete("view");
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				router.replace(url.pathname + url.search, { scroll: false });
-			}
+				if (earlyConnector && AUTO_INDEX_CONNECTOR_TYPES.has(earlyConnector.connectorType)) {
+					toast.loading(`Setting up ${earlyConnector.title}...`, { id: "auto-index" });
+					setIsOpen(false);
+					const url = new URL(window.location.href);
+					url.searchParams.delete("success");
+					url.searchParams.delete("connector");
+					url.searchParams.delete("connectorId");
+					url.searchParams.delete("view");
+					url.searchParams.delete("modal");
+					url.searchParams.delete("tab");
+					router.replace(url.pathname + url.search, { scroll: false });
+				}
 
 				refetchAllConnectors().then(async (result) => {
 					if (!result.data) {
@@ -792,22 +786,22 @@ export const useConnectorDialog = () => {
 									},
 								});
 
-							const successMessage =
-								currentConnectorType === "MCP_CONNECTOR"
-									? `${connector.name} added successfully`
-									: `${connectorTitle} connected and syncing started!`;
-							toast.success(successMessage);
+								const successMessage =
+									currentConnectorType === "MCP_CONNECTOR"
+										? `${connector.name} added successfully`
+										: `${connectorTitle} connected and syncing started!`;
+								toast.success(successMessage);
 
-							// Close dialog and clean up URL
-							setIsOpen(false);
-							const url = new URL(window.location.href);
-							url.searchParams.delete("modal");
-							url.searchParams.delete("tab");
-							url.searchParams.delete("view");
-							url.searchParams.delete("connectorType");
-							router.replace(url.pathname + url.search, { scroll: false });
+								// Close dialog and clean up URL
+								setIsOpen(false);
+								const url = new URL(window.location.href);
+								url.searchParams.delete("modal");
+								url.searchParams.delete("tab");
+								url.searchParams.delete("view");
+								url.searchParams.delete("connectorType");
+								router.replace(url.pathname + url.search, { scroll: false });
 
-							// Clear indexing config state since we're not showing the view
+								// Clear indexing config state since we're not showing the view
 								setIndexingConfig(null);
 								setIndexingConnector(null);
 								setIndexingConnectorConfig(null);
@@ -855,24 +849,24 @@ export const useConnectorDialog = () => {
 									// Refresh connectors list
 									await refetchAllConnectors();
 								} else {
-								// Other non-indexable connectors - just show success message and close
-								const successMessage =
-									currentConnectorType === "MCP_CONNECTOR"
-										? `${connector.name} added successfully`
-										: `${connectorTitle} connected successfully!`;
-								toast.success(successMessage);
+									// Other non-indexable connectors - just show success message and close
+									const successMessage =
+										currentConnectorType === "MCP_CONNECTOR"
+											? `${connector.name} added successfully`
+											: `${connectorTitle} connected successfully!`;
+									toast.success(successMessage);
 
-								// Refresh connectors list before closing modal
-								await refetchAllConnectors();
+									// Refresh connectors list before closing modal
+									await refetchAllConnectors();
 
-								// Close dialog and clean up URL
-								setIsOpen(false);
-								const url = new URL(window.location.href);
-								url.searchParams.delete("modal");
-								url.searchParams.delete("tab");
-								url.searchParams.delete("view");
-								url.searchParams.delete("connectorType");
-								router.replace(url.pathname + url.search, { scroll: false });
+									// Close dialog and clean up URL
+									setIsOpen(false);
+									const url = new URL(window.location.href);
+									url.searchParams.delete("modal");
+									url.searchParams.delete("tab");
+									url.searchParams.delete("view");
+									url.searchParams.delete("connectorType");
+									router.replace(url.pathname + url.search, { scroll: false });
 
 									// Clear indexing config state
 									setIndexingConfig(null);
@@ -1129,19 +1123,19 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-			toast.success(`${indexingConfig.connectorTitle} indexing started`);
+				toast.success(`${indexingConfig.connectorTitle} indexing started`);
 
-			// Close dialog and clean up URL
-			setIsOpen(false);
-			const url = new URL(window.location.href);
-			url.searchParams.delete("modal");
-			url.searchParams.delete("tab");
-			url.searchParams.delete("success");
-			url.searchParams.delete("connector");
-			url.searchParams.delete("view");
-			router.replace(url.pathname + url.search, { scroll: false });
+				// Close dialog and clean up URL
+				setIsOpen(false);
+				const url = new URL(window.location.href);
+				url.searchParams.delete("modal");
+				url.searchParams.delete("tab");
+				url.searchParams.delete("success");
+				url.searchParams.delete("connector");
+				url.searchParams.delete("view");
+				router.replace(url.pathname + url.search, { scroll: false });
 
-			refreshConnectors();
+				refreshConnectors();
 				queryClient.invalidateQueries({
 					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 				});
@@ -1421,43 +1415,43 @@ export const useConnectorDialog = () => {
 						: indexingDescription,
 				});
 
-			// Close dialog and clean up URL
-			setIsOpen(false);
-			const url = new URL(window.location.href);
-			url.searchParams.delete("modal");
-			url.searchParams.delete("tab");
-			url.searchParams.delete("view");
-			url.searchParams.delete("connectorId");
-			router.replace(url.pathname + url.search, { scroll: false });
+				// Close dialog and clean up URL
+				setIsOpen(false);
+				const url = new URL(window.location.href);
+				url.searchParams.delete("modal");
+				url.searchParams.delete("tab");
+				url.searchParams.delete("view");
+				url.searchParams.delete("connectorId");
+				router.replace(url.pathname + url.search, { scroll: false });
 
-			refreshConnectors();
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-			});
-		} catch (error) {
-			console.error("Error saving connector:", error);
-			toast.error("Failed to save connector changes");
-		} finally {
-			setIsSaving(false);
-		}
-	},
-	[
-		editingConnector,
-		searchSpaceId,
-		isSaving,
-		startDate,
-		endDate,
-		indexConnector,
-		updateConnector,
-		periodicEnabled,
-		frequencyMinutes,
-		enableSummary,
-		getFrequencyLabel,
-		router,
-		connectorConfig,
-		connectorName,
-		setIsOpen,
-	]
+				refreshConnectors();
+				queryClient.invalidateQueries({
+					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+				});
+			} catch (error) {
+				console.error("Error saving connector:", error);
+				toast.error("Failed to save connector changes");
+			} finally {
+				setIsSaving(false);
+			}
+		},
+		[
+			editingConnector,
+			searchSpaceId,
+			isSaving,
+			startDate,
+			endDate,
+			indexConnector,
+			updateConnector,
+			periodicEnabled,
+			frequencyMinutes,
+			enableSummary,
+			getFrequencyLabel,
+			router,
+			connectorConfig,
+			connectorName,
+			setIsOpen,
+		]
 	);
 
 	// Handle disconnecting connector
@@ -1484,36 +1478,36 @@ export const useConnectorDialog = () => {
 						: `${editingConnector.name} disconnected successfully`
 				);
 
-			// Update URL - for MCP from list view, go back to list; otherwise close modal
-			const url = new URL(window.location.href);
-			if (editingConnector.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
-				// Go back to MCP list view only if we came from there
-				setViewingMCPList(true);
-				url.searchParams.set("modal", "connectors");
-				url.searchParams.set("view", "mcp-list");
-				url.searchParams.delete("connectorId");
-			} else {
-				// Close dialog for all other cases
-				setIsOpen(false);
-				url.searchParams.delete("modal");
-				url.searchParams.delete("tab");
-				url.searchParams.delete("view");
-				url.searchParams.delete("connectorId");
-			}
-			router.replace(url.pathname + url.search, { scroll: false });
+				// Update URL - for MCP from list view, go back to list; otherwise close modal
+				const url = new URL(window.location.href);
+				if (editingConnector.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
+					// Go back to MCP list view only if we came from there
+					setViewingMCPList(true);
+					url.searchParams.set("modal", "connectors");
+					url.searchParams.set("view", "mcp-list");
+					url.searchParams.delete("connectorId");
+				} else {
+					// Close dialog for all other cases
+					setIsOpen(false);
+					url.searchParams.delete("modal");
+					url.searchParams.delete("tab");
+					url.searchParams.delete("view");
+					url.searchParams.delete("connectorId");
+				}
+				router.replace(url.pathname + url.search, { scroll: false });
 
-			refreshConnectors();
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-			});
-		} catch (error) {
-			console.error("Error disconnecting connector:", error);
-			toast.error("Failed to disconnect connector");
-		} finally {
-			setIsDisconnecting(false);
-		}
-	},
-	[editingConnector, searchSpaceId, deleteConnector, router, cameFromMCPList, setIsOpen]
+				refreshConnectors();
+				queryClient.invalidateQueries({
+					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+				});
+			} catch (error) {
+				console.error("Error disconnecting connector:", error);
+				toast.error("Failed to disconnect connector");
+			} finally {
+				setIsDisconnecting(false);
+			}
+		},
+		[editingConnector, searchSpaceId, deleteConnector, router, cameFromMCPList, setIsOpen]
 	);
 
 	// Handle quick index (index with selected date range, or backend defaults if none selected)
