@@ -10,11 +10,10 @@ import logging
 from typing import Any
 
 from bs4 import BeautifulSoup
-from markdownify import markdownify as md
-
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from markdownify import markdownify as md
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
@@ -356,7 +355,9 @@ class GoogleGmailConnector:
         soup = BeautifulSoup(html, "html.parser")
         for tag in soup.find_all(["style", "script", "img"]):
             tag.decompose()
-        for tag in soup.find_all(["table", "thead", "tbody", "tfoot", "tr", "td", "th"]):
+        for tag in soup.find_all(
+            ["table", "thead", "tbody", "tfoot", "tr", "td", "th"]
+        ):
             tag.unwrap()
         return md(str(soup)).strip()
 

@@ -130,9 +130,7 @@ def patched_summarize_raises(monkeypatch) -> AsyncMock:
 
 @pytest.fixture
 def patched_embed_texts(monkeypatch) -> MagicMock:
-    mock = MagicMock(
-        side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]
-    )
+    mock = MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts])
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
         mock,

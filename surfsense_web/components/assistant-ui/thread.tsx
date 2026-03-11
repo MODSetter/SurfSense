@@ -19,11 +19,10 @@ import {
 	ChevronRightIcon,
 	CopyIcon,
 	DownloadIcon,
-	PlusIcon,
 	RefreshCwIcon,
 	SquareIcon,
 	Unplug,
-	Upload,
+	Wrench,
 	X,
 } from "lucide-react";
 import { useParams } from "next/navigation";
@@ -46,11 +45,7 @@ import {
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { AssistantMessage } from "@/components/assistant-ui/assistant-message";
 import { ChatSessionStatus } from "@/components/assistant-ui/chat-session-status";
-import {
-	ConnectorIndicator,
-	type ConnectorIndicatorHandle,
-} from "@/components/assistant-ui/connector-popup";
-import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
+import { ConnectorIndicator } from "@/components/assistant-ui/connector-popup";
 import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
@@ -71,16 +66,20 @@ import {
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+	agentToolsAtom,
+	disabledToolsAtom,
+	enabledToolCountAtom,
+	hydrateDisabledToolsAtom,
+	toggleToolAtom,
+} from "@/atoms/agent-tools/agent-tools.atoms";
 import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
@@ -548,6 +547,7 @@ const Composer: FC = () => {
 						document.body
 					)}
 				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
+				<ConnectorIndicator showTrigger={false} />
 				<ConnectToolsBanner />
 			</div>
 		</ComposerPrimitive.Root>
@@ -562,11 +562,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const mentionedDocuments = useAtomValue(mentionedDocumentsAtom);
 	const sidebarDocs = useAtomValue(sidebarSelectedDocumentsAtom);
 	const setDocumentsSidebarOpen = useSetAtom(documentsSidebarOpenAtom);
-	const connectorRef = useRef<ConnectorIndicatorHandle>(null);
-	const [addMenuOpen, setAddMenuOpen] = useState(false);
-	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
-	const { data: connectors } = useAtomValue(connectorsAtom);
-	const connectorCount = connectors?.length ?? 0;
+	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const isComposerTextEmpty = useAssistantState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
@@ -576,6 +572,16 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const { data: userConfigs } = useAtomValue(newLLMConfigsAtom);
 	const { data: globalConfigs } = useAtomValue(globalNewLLMConfigsAtom);
 	const { data: preferences } = useAtomValue(llmPreferencesAtom);
+
+	const { data: agentTools } = useAtomValue(agentToolsAtom);
+	const disabledTools = useAtomValue(disabledToolsAtom);
+	const toggleTool = useSetAtom(toggleToolAtom);
+	const hydrateDisabled = useSetAtom(hydrateDisabledToolsAtom);
+	const enabledCount = useAtomValue(enabledToolCountAtom);
+
+	useEffect(() => {
+		hydrateDisabled();
+	}, [hydrateDisabled]);
 
 	const hasModelConfigured = useMemo(() => {
 		if (!preferences) return false;
@@ -593,50 +599,61 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
-				<DropdownMenu open={addMenuOpen} onOpenChange={setAddMenuOpen}>
-					<DropdownMenuTrigger asChild>
+				<Popover open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
+					<PopoverTrigger asChild>
 						<TooltipIconButton
-							tooltip="Add files and more"
+							tooltip="Manage tools"
 							side="bottom"
 							variant="ghost"
 							size="icon"
 							className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-							aria-label="Add files and more"
+							aria-label="Manage tools"
 							data-joyride="connector-icon"
 						>
-							<PlusIcon className="size-4" />
+							<Wrench className="size-4" />
 						</TooltipIconButton>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent
-						side="bottom"
+					</PopoverTrigger>
+					<PopoverContent
+						side="top"
 						align="start"
 						sideOffset={12}
-						className="w-[calc(100vw-2rem)] max-w-60 sm:w-60"
+						className="w-[calc(100vw-2rem)] max-w-80 sm:w-80 p-0"
 					>
-						<DropdownMenuItem
-							onClick={() => {
-								setAddMenuOpen(false);
-								openUploadDialog();
-							}}
-						>
-							<Upload className="size-4 shrink-0" />
-							Upload files
-						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() => {
-								setAddMenuOpen(false);
-								connectorRef.current?.open();
-							}}
-						>
-							<Unplug className="size-4 shrink-0" />
-							{connectorCount > 0 ? "Manage tools" : "Connect your tools"}
-							{connectorCount > 0 && (
-								<span className="ml-auto text-xs text-muted-foreground">{connectorCount}</span>
+						<div className="flex items-center justify-between px-3 py-2.5 border-b">
+							<span className="text-sm font-medium">Agent Tools</span>
+							<span className="text-xs text-muted-foreground">
+								{enabledCount}/{agentTools?.length ?? 0} enabled
+							</span>
+						</div>
+						<div className="max-h-64 overflow-y-auto py-1">
+							{agentTools?.map((tool) => {
+								const isDisabled = disabledTools.includes(tool.name);
+								return (
+									<Tooltip key={tool.name}>
+										<TooltipTrigger asChild>
+											<label className="flex items-center gap-3 px-3 py-1.5 cursor-pointer hover:bg-muted-foreground/10 transition-colors">
+												<span className="flex-1 min-w-0 text-sm font-medium truncate">{formatToolName(tool.name)}</span>
+												<Switch
+													checked={!isDisabled}
+													onCheckedChange={() => toggleTool(tool.name)}
+													className="shrink-0 scale-75"
+												/>
+											</label>
+										</TooltipTrigger>
+										<TooltipContent side="right" className="max-w-64 text-xs">
+											{tool.description}
+										</TooltipContent>
+									</Tooltip>
+								);
+							})}
+							{!agentTools?.length && (
+								<div className="px-3 py-4 text-center text-xs text-muted-foreground">
+									Loading tools...
+								</div>
 							)}
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
-				<ConnectorIndicator ref={connectorRef} showTrigger={false} />
+						</div>
+					</PopoverContent>
+				</Popover>
 				{sidebarDocs.length > 0 && (
 					<button
 						type="button"
@@ -701,6 +718,14 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		</div>
 	);
 };
+
+/** Convert snake_case tool names to human-readable labels */
+function formatToolName(name: string): string {
+	return name
+		.split("_")
+		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+		.join(" ");
+}
 
 const MessageError: FC = () => {
 	return (

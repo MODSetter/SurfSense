@@ -12,6 +12,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
+import { disabledToolsAtom } from "@/atoms/agent-tools/agent-tools.atoms";
 import {
 	clearTargetCommentIdAtom,
 	currentThreadAtom,
@@ -179,6 +180,9 @@ export default function NewChatPage() {
 		assistantMsgId: string;
 		interruptData: Record<string, unknown>;
 	} | null>(null);
+
+	// Get disabled tools from the tool toggle UI
+	const disabledTools = useAtomValue(disabledToolsAtom);
 
 	// Get mentioned document IDs from the composer (derived from @ mentions + sidebar selections)
 	const mentionedDocumentIds = useAtomValue(mentionedDocumentIdsAtom);
@@ -640,6 +644,7 @@ export default function NewChatPage() {
 						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
 							? mentionedDocumentIds.surfsense_doc_ids
 							: undefined,
+						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 					}),
 					signal: controller.signal,
 				});
@@ -918,6 +923,7 @@ export default function NewChatPage() {
 			queryClient,
 			currentThread,
 			currentUser,
+			disabledTools,
 		]
 	);
 
@@ -1371,6 +1377,7 @@ export default function NewChatPage() {
 					body: JSON.stringify({
 						search_space_id: searchSpaceId,
 						user_query: newUserQuery || null,
+						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 					}),
 					signal: controller.signal,
 				});
@@ -1542,7 +1549,7 @@ export default function NewChatPage() {
 				abortControllerRef.current = null;
 			}
 		},
-		[threadId, searchSpaceId, messages, setMessageThinkingSteps]
+		[threadId, searchSpaceId, messages, setMessageThinkingSteps, disabledTools]
 	);
 
 	// Handle editing a message - truncates history and regenerates with new query

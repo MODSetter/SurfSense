@@ -35,6 +35,7 @@ from app.db import (
     shielded_async_session,
 )
 from app.schemas.new_chat import (
+    AgentToolInfo,
     NewChatMessageRead,
     NewChatRequest,
     NewChatThreadCreate,
@@ -1025,6 +1026,32 @@ async def list_messages(
 
 
 # =============================================================================
+# Agent Tools Endpoint
+# =============================================================================
+
+
+@router.get("/agent/tools", response_model=list[AgentToolInfo])
+async def list_agent_tools(
+    _user: User = Depends(current_active_user),
+):
+    """Return the list of built-in agent tools with their metadata.
+
+    Hidden (WIP) tools are excluded from the response.
+    """
+    from app.agents.new_chat.tools.registry import BUILTIN_TOOLS
+
+    return [
+        AgentToolInfo(
+            name=t.name,
+            description=t.description,
+            enabled_by_default=t.enabled_by_default,
+        )
+        for t in BUILTIN_TOOLS
+        if not t.hidden
+    ]
+
+
+# =============================================================================
 # Chat Streaming Endpoint
 # =============================================================================
 
@@ -1108,6 +1135,7 @@ async def handle_new_chat(
                 needs_history_bootstrap=thread.needs_history_bootstrap,
                 thread_visibility=thread.visibility,
                 current_user_display_name=user.display_name or "A team member",
+                disabled_tools=request.disabled_tools,
             ),
             media_type="text/event-stream",
             headers={
@@ -1344,6 +1372,7 @@ async def regenerate_response(
                     needs_history_bootstrap=thread.needs_history_bootstrap,
                     thread_visibility=thread.visibility,
                     current_user_display_name=user.display_name or "A team member",
+                    disabled_tools=request.disabled_tools,
                 ):
                     yield chunk
                 streaming_completed = True

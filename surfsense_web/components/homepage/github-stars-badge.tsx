@@ -203,7 +203,7 @@ function DigitWheel({
 
 		const seq = Array.from({ length: cycles * 10 }, (_, i) => ({
 			id: `s${i}`,
-			value: Math.floor(Math.random() * 10),
+			value: (i * 7 + 3) % 10,
 		}));
 		const target = { id: "target", value: digit };
 		if (reverse) {
@@ -217,7 +217,7 @@ function DigitWheel({
 	const maxOffset = (sequence.length - 1) * itemSize;
 	const endY = reverse ? 0 : -maxOffset;
 
-	const rollingStartItem = React.useRef(Math.floor(Math.random() * 10));
+	const rollingStartItem = React.useRef(0);
 	const startOffset = rollingStartItem.current * itemSize;
 
 	const y = useMotionValue(

@@ -211,7 +211,7 @@ class IndexingPipelineService:
 
             chunks = [
                 Chunk(content=text, embedding=emb)
-                for text, emb in zip(chunk_texts, chunk_embeddings)
+                for text, emb in zip(chunk_texts, chunk_embeddings, strict=False)
             ]
             perf.info(
                 "[indexing] chunk+embed doc=%d chunks=%d in %.3fs",

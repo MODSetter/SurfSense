@@ -12,7 +12,6 @@ from typing import Any
 
 from bs4 import BeautifulSoup
 from markdownify import markdownify as md
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
@@ -139,7 +138,9 @@ class ComposioGmailConnector(ComposioConnector):
         soup = BeautifulSoup(html, "html.parser")
         for tag in soup.find_all(["style", "script", "img"]):
             tag.decompose()
-        for tag in soup.find_all(["table", "thead", "tbody", "tfoot", "tr", "td", "th"]):
+        for tag in soup.find_all(
+            ["table", "thead", "tbody", "tfoot", "tr", "td", "th"]
+        ):
             tag.unwrap()
         return md(str(soup)).strip()
 

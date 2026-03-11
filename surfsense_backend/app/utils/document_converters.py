@@ -230,7 +230,7 @@ async def create_document_chunks(content: str) -> list[Chunk]:
     chunk_embeddings = embed_texts(chunk_texts)
     return [
         Chunk(content=text, embedding=emb)
-        for text, emb in zip(chunk_texts, chunk_embeddings)
+        for text, emb in zip(chunk_texts, chunk_embeddings, strict=False)
     ]
 
 

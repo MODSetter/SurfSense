@@ -67,6 +67,9 @@ export const cacheKeys = {
 		all: (searchSpaceId: string) => ["invites", searchSpaceId] as const,
 		info: (inviteCode: string) => ["invites", "info", inviteCode] as const,
 	},
+	agentTools: {
+		all: () => ["agent-tools"] as const,
+	},
 	connectors: {
 		all: (searchSpaceId: string) => ["connectors", searchSpaceId] as const,
 		withQueryParams: (queries: GetConnectorsRequest["queryParams"]) =>

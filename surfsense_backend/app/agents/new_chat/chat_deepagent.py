@@ -303,9 +303,11 @@ async def create_surfsense_deep_agent(
         len(tools),
     )
 
-    # Build system prompt based on agent_config
+    # Build system prompt based on agent_config, scoped to the tools actually enabled
     _t0 = time.perf_counter()
     _sandbox_enabled = sandbox_backend is not None
+    _enabled_tool_names = {t.name for t in tools}
+    _user_disabled_tool_names = set(disabled_tools) if disabled_tools else set()
     if agent_config is not None:
         system_prompt = build_configurable_system_prompt(
             custom_system_instructions=agent_config.system_instructions,
@@ -313,11 +315,15 @@ async def create_surfsense_deep_agent(
             citations_enabled=agent_config.citations_enabled,
             thread_visibility=thread_visibility,
             sandbox_enabled=_sandbox_enabled,
+            enabled_tool_names=_enabled_tool_names,
+            disabled_tool_names=_user_disabled_tool_names,
         )
     else:
         system_prompt = build_surfsense_system_prompt(
             thread_visibility=thread_visibility,
             sandbox_enabled=_sandbox_enabled,
+            enabled_tool_names=_enabled_tool_names,
+            disabled_tool_names=_user_disabled_tool_names,
         )
     _perf_log.info(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0

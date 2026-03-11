@@ -1022,6 +1022,7 @@ async def stream_new_chat(
     needs_history_bootstrap: bool = False,
     thread_visibility: ChatVisibility | None = None,
     current_user_display_name: str | None = None,
+    disabled_tools: list[str] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
     Stream chat responses from the new SurfSense deep agent.
@@ -1153,6 +1154,7 @@ async def stream_new_chat(
             firecrawl_api_key=firecrawl_api_key,
             thread_visibility=visibility,
             sandbox_backend=sandbox_backend,
+            disabled_tools=disabled_tools,
         )
         _perf_log.info(
             "[stream_new_chat] Agent created in %.3fs", time.perf_counter() - _t0

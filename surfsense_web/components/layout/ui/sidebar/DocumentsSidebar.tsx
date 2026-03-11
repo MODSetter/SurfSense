@@ -13,6 +13,7 @@ import {
 } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentsTableShell";
 import { sidebarSelectedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { connectorDialogOpenAtom } from "@/atoms/connector-dialog/connector-dialog.atoms";
+import { connectorsAtom } from "@/atoms/connectors/connector-query.atoms";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,8 @@ export function DocumentsSidebar({
 	const isMobile = !useMediaQuery("(min-width: 640px)");
 	const searchSpaceId = Number(params.search_space_id);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
+	const { data: connectors } = useAtomValue(connectorsAtom);
+	const connectorCount = connectors?.length ?? 0;
 
 	const [search, setSearch] = useState("");
 	const debouncedSearch = useDebouncedValue(search, 250);
@@ -237,7 +240,12 @@ export function DocumentsSidebar({
 					className="flex items-center gap-2 min-w-0 flex-1 text-left"
 				>
 					<Unplug className="size-4 shrink-0 text-muted-foreground" />
-					<span className="truncate text-xs text-muted-foreground">Connect your tools</span>
+					<span className="truncate text-xs text-muted-foreground">
+						{connectorCount > 0 ? "Manage connectors" : "Connect connectors"}
+					</span>
+					{connectorCount > 0 && (
+						<span className="ml-auto shrink-0 text-xs font-medium text-muted-foreground">{connectorCount}</span>
+					)}
 					<AvatarGroup className="ml-auto shrink-0">
 						{SHOWCASE_CONNECTORS.map(({ type, label }, i) => (
 							<Tooltip key={type}>

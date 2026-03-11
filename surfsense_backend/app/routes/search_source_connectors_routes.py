@@ -18,6 +18,7 @@ Note: OAuth connectors (Gmail, Drive, Slack, etc.) support multiple accounts per
 Non-OAuth connectors (BookStack, GitHub, etc.) are limited to one per search space.
 """
 
+import asyncio
 import logging
 from contextlib import suppress
 from datetime import UTC, datetime, timedelta
@@ -52,8 +53,6 @@ from app.schemas import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
-import asyncio
-
 from app.services.composio_service import ComposioService, get_composio_service
 from app.services.notification_service import NotificationService
 from app.tasks.connector_indexers import (
@@ -3124,7 +3123,9 @@ async def get_drive_picker_token(
                 detail="Composio connected account not found. Please reconnect.",
             )
         service = get_composio_service()
-        access_token = await asyncio.to_thread(service.get_access_token, composio_account_id)
+        access_token = await asyncio.to_thread(
+            service.get_access_token, composio_account_id
+        )
         return {
             "access_token": access_token,
             "client_id": config.GOOGLE_OAUTH_CLIENT_ID,
