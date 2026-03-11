@@ -148,7 +148,14 @@ export function DocumentsSidebar({
 				return false;
 			}
 		},
-		[deleteDocumentMutation, isSearchMode, t, searchRemoveItems, realtimeRemoveItems, setSidebarDocs]
+		[
+			deleteDocumentMutation,
+			isSearchMode,
+			t,
+			searchRemoveItems,
+			realtimeRemoveItems,
+			setSidebarDocs,
+		]
 	);
 
 	const handleBulkDeleteDocuments = useCallback(

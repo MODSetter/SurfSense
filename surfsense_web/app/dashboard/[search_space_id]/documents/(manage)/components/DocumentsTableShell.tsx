@@ -540,14 +540,10 @@ export function DocumentsTableShell({
 				).length;
 				const failCount = deletableSelectedIds.length - successCount;
 				if (successCount > 0) {
-					toast.success(
-						`Deleted ${successCount} document${successCount !== 1 ? "s" : ""}`
-					);
+					toast.success(`Deleted ${successCount} document${successCount !== 1 ? "s" : ""}`);
 				}
 				if (failCount > 0) {
-					toast.error(
-						`Failed to delete ${failCount} document${failCount !== 1 ? "s" : ""}`
-					);
+					toast.error(`Failed to delete ${failCount} document${failCount !== 1 ? "s" : ""}`);
 				}
 			}
 		} catch {
@@ -561,58 +557,56 @@ export function DocumentsTableShell({
 		<div className="bg-sidebar overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0">
 			{/* Desktop Table View */}
 			<div className="hidden md:flex md:flex-col flex-1 min-h-0">
-			<Table className="table-fixed w-full">
-				<TableHeader>
-					<TableRow className="hover:bg-transparent border-b border-border/50">
-						<TableHead className="w-10 pl-3 pr-0 text-center h-8">
-							<div className="flex items-center justify-center h-full">
-								<Checkbox
-									checked={allMentionedOnPage || (someMentionedOnPage && "indeterminate")}
-									onCheckedChange={(v) => toggleAll(!!v)}
-									aria-label={hasChatMode ? "Toggle all for chat" : "Select all"}
-									className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-								/>
-							</div>
-						</TableHead>
-						<TableHead className="h-8 px-2">
-							<SortableHeader
-								sortKey="title"
-								currentSortKey={sortKey}
-								sortDesc={sortDesc}
-								onSort={onSortHeader}
-								icon={<FileText size={14} className="text-muted-foreground" />}
-							>
-								Document
-							</SortableHeader>
-						</TableHead>
-						<TableHead className="w-10 text-center h-8 px-0">
-							<span className="flex items-center justify-center">
-								<Network size={14} className="text-muted-foreground" />
-							</span>
-						</TableHead>
-						<TableHead className="w-12 text-center h-8 pl-0 pr-3">
-							{hasDeletableSelection ? (
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<button
-											type="button"
-											onClick={() => setBulkDeleteConfirmOpen(true)}
-											className="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-										>
-											<Trash2 size={14} />
-										</button>
-									</TooltipTrigger>
-									<TooltipContent>
-										Delete {deletableSelectedIds.length} selected
-									</TooltipContent>
-								</Tooltip>
-							) : (
-								<span className="text-xs font-medium text-muted-foreground">Status</span>
-							)}
-						</TableHead>
-					</TableRow>
-				</TableHeader>
-			</Table>
+				<Table className="table-fixed w-full">
+					<TableHeader>
+						<TableRow className="hover:bg-transparent border-b border-border/50">
+							<TableHead className="w-10 pl-3 pr-0 text-center h-8">
+								<div className="flex items-center justify-center h-full">
+									<Checkbox
+										checked={allMentionedOnPage || (someMentionedOnPage && "indeterminate")}
+										onCheckedChange={(v) => toggleAll(!!v)}
+										aria-label={hasChatMode ? "Toggle all for chat" : "Select all"}
+										className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+									/>
+								</div>
+							</TableHead>
+							<TableHead className="h-8 px-2">
+								<SortableHeader
+									sortKey="title"
+									currentSortKey={sortKey}
+									sortDesc={sortDesc}
+									onSort={onSortHeader}
+									icon={<FileText size={14} className="text-muted-foreground" />}
+								>
+									Document
+								</SortableHeader>
+							</TableHead>
+							<TableHead className="w-10 text-center h-8 px-0">
+								<span className="flex items-center justify-center">
+									<Network size={14} className="text-muted-foreground" />
+								</span>
+							</TableHead>
+							<TableHead className="w-12 text-center h-8 pl-0 pr-3">
+								{hasDeletableSelection ? (
+									<Tooltip>
+										<TooltipTrigger asChild>
+											<button
+												type="button"
+												onClick={() => setBulkDeleteConfirmOpen(true)}
+												className="inline-flex items-center justify-center h-6 w-6 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+											>
+												<Trash2 size={14} />
+											</button>
+										</TooltipTrigger>
+										<TooltipContent>Delete {deletableSelectedIds.length} selected</TooltipContent>
+									</Tooltip>
+								) : (
+									<span className="text-xs font-medium text-muted-foreground">Status</span>
+								)}
+							</TableHead>
+						</TableRow>
+					</TableHeader>
+				</Table>
 				{loading ? (
 					<div className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
@@ -683,50 +677,50 @@ export function DocumentsTableShell({
 					<div ref={desktopScrollRef} className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
 							<TableBody>
-							{sorted.map((doc) => {
-								const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
-								const canInteract = isSelectable(doc);
-								const handleRowToggle = () => {
-									if (canInteract && onToggleChatMention) {
-										onToggleChatMention(doc, isMentioned);
-									}
-								};
-								const handleRowClick = (e: React.MouseEvent) => {
-									if (e.ctrlKey || e.metaKey) {
-										e.preventDefault();
-										e.stopPropagation();
-										handleViewMetadata(doc);
-										return;
-									}
-									handleRowToggle();
-								};
-								return (
-									<RowContextMenu
-										key={doc.id}
-										doc={doc}
-										onPreview={handleViewDocument}
-										onDelete={setDeleteDoc}
-										searchSpaceId={searchSpaceId}
-										onEditNavigate={onEditNavigate}
-									>
-										<tr
-											className={`border-b border-border/50 transition-colors ${
-												isMentioned ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
-											} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
-											onClick={handleRowClick}
+								{sorted.map((doc) => {
+									const isMentioned = mentionedDocIds?.has(doc.id) ?? false;
+									const canInteract = isSelectable(doc);
+									const handleRowToggle = () => {
+										if (canInteract && onToggleChatMention) {
+											onToggleChatMention(doc, isMentioned);
+										}
+									};
+									const handleRowClick = (e: React.MouseEvent) => {
+										if (e.ctrlKey || e.metaKey) {
+											e.preventDefault();
+											e.stopPropagation();
+											handleViewMetadata(doc);
+											return;
+										}
+										handleRowToggle();
+									};
+									return (
+										<RowContextMenu
+											key={doc.id}
+											doc={doc}
+											onPreview={handleViewDocument}
+											onDelete={setDeleteDoc}
+											searchSpaceId={searchSpaceId}
+											onEditNavigate={onEditNavigate}
 										>
+											<tr
+												className={`border-b border-border/50 transition-colors ${
+													isMentioned ? "bg-primary/5 hover:bg-primary/8" : "hover:bg-muted/30"
+												} ${canInteract && hasChatMode ? "cursor-pointer" : ""}`}
+												onClick={handleRowClick}
+											>
 												<TableCell
 													className="w-10 pl-3 pr-0 py-1.5 text-center"
 													onClick={(e) => e.stopPropagation()}
 												>
 													<div className="flex items-center justify-center h-full">
-												<Checkbox
-													checked={isMentioned}
-													onCheckedChange={() => handleRowToggle()}
-													disabled={!canInteract}
-													aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-													className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
-												/>
+														<Checkbox
+															checked={isMentioned}
+															onCheckedChange={() => handleRowToggle()}
+															disabled={!canInteract}
+															aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+															className={`border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary ${!canInteract ? "opacity-40 cursor-not-allowed" : ""}`}
+														/>
 													</div>
 												</TableCell>
 												<TableCell className="px-2 py-1.5 max-w-0">

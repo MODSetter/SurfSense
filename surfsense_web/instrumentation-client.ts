@@ -10,8 +10,8 @@ function initPostHog() {
 			defaults: "2025-11-30",
 			capture_pageview: "history_change",
 			capture_pageleave: true,
-		before_send: (event) => {
-			if (event?.properties) {
+			before_send: (event) => {
+				if (event?.properties) {
 					const params = new URLSearchParams(window.location.search);
 					const ref = params.get("ref");
 					if (ref) {

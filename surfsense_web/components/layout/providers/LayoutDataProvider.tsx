@@ -83,7 +83,11 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	// Atoms
 	const { data: user } = useAtomValue(currentUserAtom);
-	const { data: searchSpacesData, refetch: refetchSearchSpaces, isSuccess: searchSpacesLoaded } = useAtomValue(searchSpacesAtom);
+	const {
+		data: searchSpacesData,
+		refetch: refetchSearchSpaces,
+		isSuccess: searchSpacesLoaded,
+	} = useAtomValue(searchSpacesAtom);
 	const { mutateAsync: deleteSearchSpace } = useAtomValue(deleteSearchSpaceMutationAtom);
 	const currentThreadState = useAtomValue(currentThreadAtom);
 	const resetCurrentThread = useSetAtom(resetCurrentThreadAtom);
@@ -279,13 +283,22 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	// Safety redirect: if the current search space is no longer in the user's list
 	// (e.g. deleted by background task, membership revoked), redirect to a valid space.
 	useEffect(() => {
-		if (!searchSpacesLoaded || !searchSpaceId || isDeletingSearchSpace || isLeavingSearchSpace) return;
+		if (!searchSpacesLoaded || !searchSpaceId || isDeletingSearchSpace || isLeavingSearchSpace)
+			return;
 		if (searchSpaces.length > 0 && !activeSearchSpace) {
 			router.replace(`/dashboard/${searchSpaces[0].id}/new-chat`);
 		} else if (searchSpaces.length === 0 && searchSpacesLoaded) {
 			router.replace("/dashboard");
 		}
-	}, [searchSpacesLoaded, searchSpaceId, searchSpaces, activeSearchSpace, isDeletingSearchSpace, isLeavingSearchSpace, router]);
+	}, [
+		searchSpacesLoaded,
+		searchSpaceId,
+		searchSpaces,
+		activeSearchSpace,
+		isDeletingSearchSpace,
+		isLeavingSearchSpace,
+		router,
+	]);
 
 	// Transform and split chats into private and shared based on visibility
 	const { myChats, sharedChats } = useMemo(() => {
@@ -400,9 +413,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 			// Await refetch so we have the freshest list (backend now hides [DELETING] spaces)
 			const result = await refetchSearchSpaces();
-			const updatedSpaces = (result.data ?? []).filter(
-				(s) => s.id !== searchSpaceToDelete.id
-			);
+			const updatedSpaces = (result.data ?? []).filter((s) => s.id !== searchSpaceToDelete.id);
 
 			if (isCurrentSpace) {
 				if (updatedSpaces.length > 0) {
@@ -421,14 +432,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			setShowDeleteSearchSpaceDialog(false);
 			setSearchSpaceToDelete(null);
 		}
-	}, [
-		searchSpaceToDelete,
-		deleteSearchSpace,
-		refetchSearchSpaces,
-		searchSpaceId,
-		router,
-		t,
-	]);
+	}, [searchSpaceToDelete, deleteSearchSpace, refetchSearchSpaces, searchSpaceId, router, t]);
 
 	const confirmLeaveSearchSpace = useCallback(async () => {
 		if (!searchSpaceToLeave) return;
@@ -439,9 +443,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			const isCurrentSpace = Number(searchSpaceId) === searchSpaceToLeave.id;
 
 			const result = await refetchSearchSpaces();
-			const updatedSpaces = (result.data ?? []).filter(
-				(s) => s.id !== searchSpaceToLeave.id
-			);
+			const updatedSpaces = (result.data ?? []).filter((s) => s.id !== searchSpaceToLeave.id);
 
 			if (isCurrentSpace) {
 				if (updatedSpaces.length > 0) {
