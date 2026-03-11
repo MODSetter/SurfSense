@@ -125,11 +125,14 @@ async def read_search_spaces(
                    If False (default), return all search spaces the user has access to.
     """
     try:
+        # Exclude spaces that are pending background deletion
+        not_deleting = ~SearchSpace.name.startswith("[DELETING] ")
+
         if owned_only:
             # Return only search spaces where user is the original creator (user_id)
             result = await session.execute(
                 select(SearchSpace)
-                .filter(SearchSpace.user_id == user.id)
+                .filter(SearchSpace.user_id == user.id, not_deleting)
                 .order_by(SearchSpace.id.asc())
                 .offset(skip)
                 .limit(limit)
@@ -139,7 +142,7 @@ async def read_search_spaces(
             result = await session.execute(
                 select(SearchSpace)
                 .join(SearchSpaceMembership)
-                .filter(SearchSpaceMembership.user_id == user.id)
+                .filter(SearchSpaceMembership.user_id == user.id, not_deleting)
                 .order_by(SearchSpace.id.asc())
                 .offset(skip)
                 .limit(limit)

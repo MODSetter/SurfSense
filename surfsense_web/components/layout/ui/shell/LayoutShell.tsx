@@ -309,7 +309,7 @@ export function LayoutShell({
 						/>
 
 						<motion.main
-							layout="position"
+							layout={isResizing ? false : "position"}
 							style={{ contain: "inline-size" }}
 							className="flex-1 flex flex-col min-w-0"
 						>

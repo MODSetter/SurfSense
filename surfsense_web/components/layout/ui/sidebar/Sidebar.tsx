@@ -2,6 +2,7 @@
 
 import { FolderOpen, PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -89,6 +90,7 @@ export function Sidebar({
 	isResizing = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
+	const [openDropdownChatId, setOpenDropdownChatId] = useState<number | null>(null);
 
 	return (
 		<div
@@ -103,6 +105,12 @@ export function Sidebar({
 			{/* Resize handle on right border */}
 			{!isCollapsed && onResizeMouseDown && (
 				<div
+					role="slider"
+					aria-label="Resize sidebar"
+					aria-valuemin={0}
+					aria-valuemax={100}
+					aria-valuenow={50}
+					tabIndex={0}
 					onMouseDown={onResizeMouseDown}
 					className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-border active:bg-border z-10"
 				/>
@@ -215,6 +223,8 @@ export function Sidebar({
 											name={chat.name}
 											isActive={chat.id === activeChatId}
 											archived={chat.archived}
+											dropdownOpen={openDropdownChatId === chat.id}
+											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
 											onClick={() => onChatSelect(chat)}
 											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}
@@ -287,6 +297,8 @@ export function Sidebar({
 											name={chat.name}
 											isActive={chat.id === activeChatId}
 											archived={chat.archived}
+											dropdownOpen={openDropdownChatId === chat.id}
+											onDropdownOpenChange={(open) => setOpenDropdownChatId(open ? chat.id : null)}
 											onClick={() => onChatSelect(chat)}
 											onRename={() => onChatRename?.(chat)}
 											onArchive={() => onChatArchive?.(chat)}
