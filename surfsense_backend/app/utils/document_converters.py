@@ -55,6 +55,23 @@ def embed_text(text: str) -> np.ndarray:
     return config.embedding_model_instance.embed(truncate_for_embedding(text))
 
 
+def embed_texts(texts: list[str]) -> list[np.ndarray]:
+    """Batch-embed multiple texts in a single call.
+
+    Each text is truncated to fit the model's context window before embedding.
+    For API-based models (``://`` in the model string) this uses
+    ``embed_batch`` to collapse many network round-trips into one.
+    For local models (SentenceTransformers) it falls back to sequential
+    ``embed`` calls to avoid padding overhead.
+    """
+    if not texts:
+        return []
+    truncated = [truncate_for_embedding(t) for t in texts]
+    if config.is_local_embedding_model:
+        return [config.embedding_model_instance.embed(t) for t in truncated]
+    return config.embedding_model_instance.embed_batch(truncated)
+
+
 def get_model_context_window(model_name: str) -> int:
     """Get the total context window size for a model (input + output tokens)."""
     try:
@@ -209,12 +226,11 @@ async def create_document_chunks(content: str) -> list[Chunk]:
     Returns:
         List of Chunk objects with embeddings
     """
+    chunk_texts = [c.text for c in config.chunker_instance.chunk(content)]
+    chunk_embeddings = embed_texts(chunk_texts)
     return [
-        Chunk(
-            content=chunk.text,
-            embedding=embed_text(chunk.text),
-        )
-        for chunk in config.chunker_instance.chunk(content)
+        Chunk(content=text, embedding=emb)
+        for text, emb in zip(chunk_texts, chunk_embeddings, strict=False)
     ]
 
 

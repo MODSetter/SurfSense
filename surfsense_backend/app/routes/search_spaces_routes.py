@@ -274,6 +274,9 @@ async def delete_search_space(
     """
     Delete a search space.
     Requires SETTINGS_DELETE permission (only owners have this by default).
+
+    Heavy cascade deletion (documents, chunks, threads, etc.) is dispatched
+    to Celery so the response is immediate and durable across API restarts.
     """
     try:
         # Check permission - only those with SETTINGS_DELETE can delete
@@ -293,8 +296,34 @@ async def delete_search_space(
         if not db_search_space:
             raise HTTPException(status_code=404, detail="Search space not found")
 
-        await session.delete(db_search_space)
+        if (db_search_space.name or "").startswith("[DELETING] "):
+            raise HTTPException(
+                status_code=409,
+                detail="Search space is already being deleted.",
+            )
+
+        # Soft-delete marker (length-safe for String(100)) so users see pending state.
+        prefix = "[DELETING] "
+        max_len = 100
+        available = max_len - len(prefix)
+        base_name = db_search_space.name or ""
+        db_search_space.name = f"{prefix}{base_name[:available]}"
         await session.commit()
+
+        # Dispatch durable background deletion via Celery.
+        # If queue dispatch fails, revert name to avoid stuck "[DELETING]" state.
+        try:
+            from app.tasks.celery_tasks.document_tasks import delete_search_space_task
+
+            delete_search_space_task.delay(search_space_id)
+        except Exception as dispatch_error:
+            db_search_space.name = base_name
+            await session.commit()
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to queue background deletion. Please try again.",
+            ) from dispatch_error
+
         return {"message": "Search space deleted successfully"}
     except HTTPException:
         raise

@@ -320,6 +320,8 @@ async def read_documents(
     page_size: int = 50,
     search_space_id: int | None = None,
     document_types: str | None = None,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
     session: AsyncSession = Depends(get_async_session),
     user: User = Depends(current_active_user),
 ):
@@ -391,6 +393,19 @@ async def read_documents(
 
         total_result = await session.execute(count_query)
         total = total_result.scalar() or 0
+
+        # Apply sorting
+        from sqlalchemy import asc as sa_asc, desc as sa_desc
+
+        sort_column_map = {
+            "created_at": Document.created_at,
+            "title": Document.title,
+            "document_type": Document.document_type,
+        }
+        sort_col = sort_column_map.get(sort_by, Document.created_at)
+        query = query.order_by(
+            sa_desc(sort_col) if sort_order == "desc" else sa_asc(sort_col)
+        )
 
         # Calculate offset
         offset = 0
@@ -1041,6 +1056,9 @@ async def delete_document(
     Delete a document.
     Requires DOCUMENTS_DELETE permission for the search space.
     Documents in "processing" state cannot be deleted.
+
+    Heavy cascade deletion runs asynchronously via Celery so the API
+    response is fast and the deletion remains durable across API restarts.
     """
     try:
         result = await session.execute(
@@ -1053,12 +1071,16 @@ async def delete_document(
                 status_code=404, detail=f"Document with id {document_id} not found"
             )
 
-        # Check if document is pending or currently being processed
         doc_state = document.status.get("state") if document.status else None
         if doc_state in ("pending", "processing"):
             raise HTTPException(
-                status_code=409,  # Conflict
+                status_code=409,
                 detail="Cannot delete document while it is pending or being processed. Please wait for processing to complete.",
+            )
+        if doc_state == "deleting":
+            raise HTTPException(
+                status_code=409,
+                detail="Document is already being deleted.",
             )
 
         # Check permission for the search space
@@ -1070,8 +1092,25 @@ async def delete_document(
             "You don't have permission to delete documents in this search space",
         )
 
-        await session.delete(document)
+        # Mark the document as "deleting" so it's excluded from searches,
+        # then commit immediately so the user gets a fast response.
+        document.status = {"state": "deleting"}
         await session.commit()
+
+        # Dispatch durable background deletion via Celery.
+        # If queue dispatch fails, revert status to avoid a stuck "deleting" document.
+        try:
+            from app.tasks.celery_tasks.document_tasks import delete_document_task
+
+            delete_document_task.delay(document_id)
+        except Exception as dispatch_error:
+            document.status = {"state": "ready"}
+            await session.commit()
+            raise HTTPException(
+                status_code=503,
+                detail="Failed to queue background deletion. Please try again.",
+            ) from dispatch_error
+
         return {"message": "Document deleted successfully"}
     except HTTPException:
         raise

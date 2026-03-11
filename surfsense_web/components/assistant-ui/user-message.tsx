@@ -1,6 +1,6 @@
 import { ActionBarPrimitive, MessagePrimitive, useAssistantState } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { FileText, PencilIcon } from "lucide-react";
+import { FileText, Pen } from "lucide-react";
 import { type FC, useState } from "react";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
@@ -125,7 +125,7 @@ const UserActionBar: FC = () => {
 			{canEdit && (
 				<ActionBarPrimitive.Edit asChild>
 					<TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4">
-						<PencilIcon />
+						<Pen />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Edit>
 			)}

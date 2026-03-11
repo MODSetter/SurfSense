@@ -268,7 +268,7 @@ function ThreadListItemComponent({
 						</DropdownMenuItem>
 					)}
 					<DropdownMenuSeparator />
-					<DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+					<DropdownMenuItem onClick={onDelete}>
 						<TrashIcon className="mr-2 size-4" />
 						Delete
 					</DropdownMenuItem>

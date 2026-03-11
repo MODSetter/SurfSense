@@ -1,5 +1,4 @@
 "use client";
-import { useFeatureFlagVariantKey } from "@posthog/react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import type React from "react";
@@ -32,11 +31,22 @@ const GoogleLogo = ({ className }: { className?: string }) => (
 	</svg>
 );
 
+function useIsDesktop(breakpoint = 1024) {
+	const [isDesktop, setIsDesktop] = useState(false);
+	useEffect(() => {
+		const mql = window.matchMedia(`(min-width: ${breakpoint}px)`);
+		setIsDesktop(mql.matches);
+		const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+		mql.addEventListener("change", handler);
+		return () => mql.removeEventListener("change", handler);
+	}, [breakpoint]);
+	return isDesktop;
+}
+
 export function HeroSection() {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const parentRef = useRef<HTMLDivElement>(null);
-	const heroVariant = useFeatureFlagVariantKey("notebooklm_superpowers_flag");
-	const isNotebookLMVariant = heroVariant === "superpowers";
+	const isDesktop = useIsDesktop();
 
 	return (
 		<div
@@ -44,57 +54,53 @@ export function HeroSection() {
 			className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-24 md:px-8 md:py-48"
 		>
 			<BackgroundGrids />
-			<CollisionMechanism
-				parentRef={parentRef}
-				beamOptions={{
-					initialX: -400,
-					translateX: 600,
-					duration: 7,
-					repeatDelay: 3,
-				}}
-			/>
-			<CollisionMechanism
-				parentRef={parentRef}
-				beamOptions={{
-					initialX: -200,
-					translateX: 800,
-					duration: 4,
-					repeatDelay: 3,
-				}}
-			/>
-			<CollisionMechanism
-				parentRef={parentRef}
-				beamOptions={{
-					initialX: 200,
-					translateX: 1200,
-					duration: 5,
-					repeatDelay: 3,
-				}}
-			/>
-			<CollisionMechanism
-				parentRef={parentRef}
-				beamOptions={{
-					initialX: 400,
-					translateX: 1400,
-					duration: 6,
-					repeatDelay: 3,
-				}}
-			/>
+			{isDesktop && (
+				<>
+					<CollisionMechanism
+						parentRef={parentRef}
+						beamOptions={{
+							initialX: -400,
+							translateX: 600,
+							duration: 7,
+							repeatDelay: 3,
+						}}
+					/>
+					<CollisionMechanism
+						parentRef={parentRef}
+						beamOptions={{
+							initialX: -200,
+							translateX: 800,
+							duration: 4,
+							repeatDelay: 3,
+						}}
+					/>
+					<CollisionMechanism
+						parentRef={parentRef}
+						beamOptions={{
+							initialX: 200,
+							translateX: 1200,
+							duration: 5,
+							repeatDelay: 3,
+						}}
+					/>
+					<CollisionMechanism
+						parentRef={parentRef}
+						beamOptions={{
+							initialX: 400,
+							translateX: 1400,
+							duration: 6,
+							repeatDelay: 3,
+						}}
+					/>
+				</>
+			)}
 
 			<h2 className="relative z-50 mx-auto mb-4 mt-8 max-w-4xl text-balance text-center text-3xl font-semibold tracking-tight text-gray-700 md:text-7xl dark:text-neutral-300">
-				{isNotebookLMVariant ? (
-					<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
-						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-							<Balancer>NotebookLM with Superpowers</Balancer>
-						</div>
+				<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
+					<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
+						<Balancer>NotebookLM for Teams</Balancer>
 					</div>
-				) : (
-					<div className="relative mx-auto inline-block w-max filter-[drop-shadow(0px_1px_3px_rgba(27,37,80,0.14))]">
-						<div className="text-black [text-shadow:0_0_rgba(0,0,0,0.1)] dark:text-white">
-							<Balancer>NotebookLM for Teams</Balancer>
-						</div>
-					</div>
-				)}
+				</div>
 			</h2>
 			<p className="relative z-50 mx-auto mt-4 max-w-lg px-6 text-center text-sm leading-relaxed text-gray-600 sm:text-base sm:leading-relaxed md:max-w-xl md:text-lg md:leading-relaxed dark:text-gray-200">
 				Connect any LLM to your internal knowledge sources and chat with it in real time alongside
@@ -170,24 +176,9 @@ function GetStartedButton() {
 	);
 }
 
-function ContactSalesButton() {
-	return (
-		<motion.div whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
-			<Link
-				href="/contact"
-				//target="_blank"
-				rel="noopener noreferrer"
-				className="group relative z-20 flex h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-white px-6 py-2.5 text-sm font-semibold text-neutral-700 shadow-lg ring-1 ring-neutral-200/50 transition-shadow duration-300 hover:shadow-xl sm:w-56 dark:bg-neutral-900 dark:text-neutral-200 dark:ring-neutral-700/50"
-			>
-				Contact Sales
-			</Link>
-		</motion.div>
-	);
-}
-
 const BackgroundGrids = () => {
 	return (
-		<div className="pointer-events-none absolute inset-0 z-0 grid h-full w-full -rotate-45 transform select-none grid-cols-2 gap-10 md:grid-cols-4">
+		<div className="pointer-events-none absolute inset-0 z-0 grid h-screen w-full -rotate-45 transform select-none grid-cols-2 gap-10 md:grid-cols-4">
 			<div className="relative h-full w-full">
 				<GridLineVertical className="left-0" />
 				<GridLineVertical className="left-auto right-0" />

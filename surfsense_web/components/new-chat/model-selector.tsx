@@ -2,7 +2,7 @@
 
 import { useAtomValue } from "jotai";
 import { Bot, Check, ChevronDown, Edit3, ImageIcon, Plus, Zap } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { type UIEvent, useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	globalImageGenConfigsAtom,
@@ -57,6 +57,17 @@ export function ModelSelector({
 	const [activeTab, setActiveTab] = useState<"llm" | "image">("llm");
 	const [llmSearchQuery, setLlmSearchQuery] = useState("");
 	const [imageSearchQuery, setImageSearchQuery] = useState("");
+	const [llmScrollPos, setLlmScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const [imageScrollPos, setImageScrollPos] = useState<"top" | "middle" | "bottom">("top");
+	const handleListScroll = useCallback(
+		(setter: typeof setLlmScrollPos) => (e: UIEvent<HTMLDivElement>) => {
+			const el = e.currentTarget;
+			const atTop = el.scrollTop <= 2;
+			const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
+			setter(atTop ? "top" : atBottom ? "bottom" : "middle");
+		},
+		[]
+	);
 
 	// LLM data
 	const { data: llmUserConfigs, isLoading: llmUserLoading } = useAtomValue(newLLMConfigsAtom);
@@ -253,7 +264,7 @@ export function ModelSelector({
 							)}
 
 							{/* Divider */}
-							<div className="h-4 w-px bg-border/60 mx-0.5" />
+							<div className="h-4 w-px bg-border/60 dark:bg-white/10 mx-0.5" />
 
 							{/* Image section */}
 							{currentImageConfig ? (
@@ -280,7 +291,7 @@ export function ModelSelector({
 			</PopoverTrigger>
 
 			<PopoverContent
-				className="w-[280px] md:w-[360px] p-0 rounded-lg shadow-lg border-border/60 dark:bg-muted dark:border dark:border-neutral-700 select-none"
+				className="w-[280px] md:w-[360px] p-0 rounded-lg shadow-lg bg-white border-border/60 dark:bg-neutral-900 dark:border dark:border-white/5 select-none"
 				align="start"
 				sideOffset={8}
 			>
@@ -289,18 +300,18 @@ export function ModelSelector({
 					onValueChange={(v) => setActiveTab(v as "llm" | "image")}
 					className="w-full"
 				>
-					<div className="border-b border-border/80 dark:border-white/5">
+					<div className="border-b border-border/80 dark:border-neutral-800">
 						<TabsList className="w-full grid grid-cols-2 rounded-none rounded-t-lg bg-transparent h-11 p-0 gap-0">
 							<TabsTrigger
 								value="llm"
-								className="gap-2 text-sm font-medium rounded-none text-muted-foreground/60 transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
+								className="gap-2 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
 							>
 								<Zap className="size-4" />
 								LLM
 							</TabsTrigger>
 							<TabsTrigger
 								value="image"
-								className="gap-2 text-sm font-medium rounded-none text-muted-foreground/60 transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
+								className="gap-2 text-sm font-medium rounded-none text-muted-foreground transition-all duration-200 h-full bg-transparent data-[state=active]:bg-transparent shadow-none data-[state=active]:shadow-none border-b-[1.5px] border-transparent data-[state=active]:border-foreground dark:data-[state=active]:border-white data-[state=active]:text-foreground"
 							>
 								<ImageIcon className="size-4" />
 								Image
@@ -312,7 +323,7 @@ export function ModelSelector({
 					<TabsContent value="llm" className="mt-0">
 						<Command
 							shouldFilter={false}
-							className="rounded-none rounded-b-lg relative dark:bg-muted [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
+							className="rounded-none rounded-b-lg relative dark:bg-neutral-900 [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
 						>
 							{totalLLMModels > 3 && (
 								<div className="px-2 md:px-3 py-1.5 md:py-2">
@@ -325,7 +336,14 @@ export function ModelSelector({
 								</div>
 							)}
 
-							<CommandList className="max-h-[300px] md:max-h-[400px] overflow-y-auto">
+							<CommandList
+								className="max-h-[300px] md:max-h-[400px] overflow-y-auto"
+								onScroll={handleListScroll(setLlmScrollPos)}
+								style={{
+									maskImage: `linear-gradient(to bottom, ${llmScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${llmScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${llmScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${llmScrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
 										<Bot className="size-8 text-muted-foreground" />
@@ -350,8 +368,8 @@ export function ModelSelector({
 													onSelect={() => handleSelectLLM(config)}
 													className={cn(
 														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all",
-														"hover:bg-accent/50 dark:hover:bg-white/10",
-														isSelected && "bg-accent/80 dark:bg-white/10",
+														"hover:bg-accent/50 dark:hover:bg-white/[0.06]",
+														isSelected && "bg-accent/80 dark:bg-white/[0.06]",
 														isAutoMode && ""
 													)}
 												>
@@ -426,8 +444,8 @@ export function ModelSelector({
 													onSelect={() => handleSelectLLM(config)}
 													className={cn(
 														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all",
-														"hover:bg-accent/50 dark:hover:bg-white/10",
-														isSelected && "bg-accent/80 dark:bg-white/10"
+														"hover:bg-accent/50 dark:hover:bg-white/[0.06]",
+														isSelected && "bg-accent/80 dark:bg-white/[0.06]"
 													)}
 												>
 													<div className="flex items-center justify-between w-full gap-2">
@@ -471,11 +489,11 @@ export function ModelSelector({
 								)}
 
 								{/* Add New LLM Config */}
-								<div className="p-2 bg-muted/20 dark:bg-muted">
+								<div className="p-2 bg-muted/20 dark:bg-neutral-900">
 									<Button
 										variant="ghost"
 										size="sm"
-										className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/10"
+										className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
 										onClick={() => {
 											setOpen(false);
 											onAddNewLLM();
@@ -493,7 +511,7 @@ export function ModelSelector({
 					<TabsContent value="image" className="mt-0">
 						<Command
 							shouldFilter={false}
-							className="rounded-none rounded-b-lg dark:bg-muted [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
+							className="rounded-none rounded-b-lg dark:bg-neutral-900 [&_[data-slot=command-input-wrapper]]:border-0 [&_[data-slot=command-input-wrapper]]:px-0 [&_[data-slot=command-input-wrapper]]:gap-2"
 						>
 							{totalImageModels > 3 && (
 								<div className="px-2 md:px-3 py-1.5 md:py-2">
@@ -505,7 +523,14 @@ export function ModelSelector({
 									/>
 								</div>
 							)}
-							<CommandList className="max-h-[300px] md:max-h-[400px] overflow-y-auto">
+							<CommandList
+								className="max-h-[300px] md:max-h-[400px] overflow-y-auto"
+								onScroll={handleListScroll(setImageScrollPos)}
+								style={{
+									maskImage: `linear-gradient(to bottom, ${imageScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${imageScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${imageScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${imageScrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
 								<CommandEmpty className="py-8 text-center">
 									<div className="flex flex-col items-center gap-2">
 										<ImageIcon className="size-8 text-muted-foreground" />
@@ -528,8 +553,8 @@ export function ModelSelector({
 													value={`img-g-${config.id}`}
 													onSelect={() => handleSelectImage(config.id)}
 													className={cn(
-														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/10",
-														isSelected && "bg-accent/80 dark:bg-white/10",
+														"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/[0.06]",
+														isSelected && "bg-accent/80 dark:bg-white/[0.06]",
 														isAuto && ""
 													)}
 												>
@@ -593,8 +618,8 @@ export function ModelSelector({
 														value={`img-u-${config.id}`}
 														onSelect={() => handleSelectImage(config.id)}
 														className={cn(
-															"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/10",
-															isSelected && "bg-accent/80 dark:bg-white/10"
+															"mx-2 rounded-lg mb-1 cursor-pointer group transition-all hover:bg-accent/50 dark:hover:bg-white/[0.06]",
+															isSelected && "bg-accent/80 dark:bg-white/[0.06]"
 														)}
 													>
 														<div className="flex items-center gap-3 min-w-0 flex-1">
@@ -634,11 +659,11 @@ export function ModelSelector({
 
 								{/* Add New Image Config */}
 								{onAddNewImage && (
-									<div className="p-2 bg-muted/20 dark:bg-muted">
+									<div className="p-2 bg-muted/20 dark:bg-neutral-900">
 										<Button
 											variant="ghost"
 											size="sm"
-											className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/10"
+											className="w-full justify-start gap-2 h-9 rounded-lg hover:bg-accent/50 dark:hover:bg-white/[0.06]"
 											onClick={() => {
 												setOpen(false);
 												onAddNewImage();

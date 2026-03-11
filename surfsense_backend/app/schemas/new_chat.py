@@ -172,6 +172,9 @@ class NewChatRequest(BaseModel):
     mentioned_surfsense_doc_ids: list[int] | None = (
         None  # Optional SurfSense documentation IDs mentioned with @ in the chat
     )
+    disabled_tools: list[str] | None = (
+        None  # Optional list of tool names the user has disabled from the UI
+    )
 
 
 class RegenerateRequest(BaseModel):
@@ -191,6 +194,20 @@ class RegenerateRequest(BaseModel):
     )
     mentioned_document_ids: list[int] | None = None
     mentioned_surfsense_doc_ids: list[int] | None = None
+    disabled_tools: list[str] | None = None
+
+
+# =============================================================================
+# Agent Tools Schemas
+# =============================================================================
+
+
+class AgentToolInfo(BaseModel):
+    """Schema for a single agent tool's public metadata."""
+
+    name: str
+    description: str
+    enabled_by_default: bool
 
 
 class ResumeDecision(BaseModel):

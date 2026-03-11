@@ -1,6 +1,8 @@
 "use client";
 
 import {
+	ChevronDown,
+	ChevronRight,
 	File,
 	FileSpreadsheet,
 	FileText,
@@ -12,7 +14,6 @@ import {
 import type { FC } from "react";
 import { useEffect, useState } from "react";
 import { ComposioDriveFolderTree } from "@/components/connectors/composio-drive-folder-tree";
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -47,10 +48,8 @@ const DEFAULT_INDEXING_OPTIONS: IndexingOptions = {
 	include_subfolders: true,
 };
 
-// Helper to get appropriate icon for file type based on file name
 function getFileIconFromName(fileName: string, className: string = "size-3.5 shrink-0") {
 	const lowerName = fileName.toLowerCase();
-	// Spreadsheets
 	if (
 		lowerName.endsWith(".xlsx") ||
 		lowerName.endsWith(".xls") ||
@@ -59,7 +58,6 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	) {
 		return <FileSpreadsheet className={`${className} text-green-500`} />;
 	}
-	// Presentations
 	if (
 		lowerName.endsWith(".pptx") ||
 		lowerName.endsWith(".ppt") ||
@@ -67,7 +65,6 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	) {
 		return <Presentation className={`${className} text-orange-500`} />;
 	}
-	// Documents (word, text only - not PDF)
 	if (
 		lowerName.endsWith(".docx") ||
 		lowerName.endsWith(".doc") ||
@@ -78,7 +75,6 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	) {
 		return <FileText className={`${className} text-gray-500`} />;
 	}
-	// Images
 	if (
 		lowerName.endsWith(".png") ||
 		lowerName.endsWith(".jpg") ||
@@ -89,7 +85,6 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	) {
 		return <Image className={`${className} text-purple-500`} />;
 	}
-	// Default (including PDF)
 	return <File className={`${className} text-gray-500`} />;
 }
 
@@ -99,7 +94,6 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 }) => {
 	const isIndexable = connector.config?.is_indexable as boolean;
 
-	// Initialize with existing selected folders and files from connector config
 	const existingFolders =
 		(connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 	const existingFiles = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
@@ -108,10 +102,11 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 
 	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
-	const [showFolderSelector, setShowFolderSelector] = useState(false);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
 
-	// Update selected folders and files when connector config changes
+	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
+	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
+
 	useEffect(() => {
 		const folders = (connector.config?.selected_folders as SelectedFolder[] | undefined) || [];
 		const files = (connector.config?.selected_files as SelectedFolder[] | undefined) || [];
@@ -168,7 +163,6 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 
 	const totalSelected = selectedFolders.length + selectedFiles.length;
 
-	// Only show configuration if the connector is indexable
 	if (!isIndexable) {
 		return <div className="space-y-6" />;
 	}
@@ -241,8 +235,21 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 					</div>
 				)}
 
-				{showFolderSelector ? (
-					<div className="space-y-2 sm:space-y-3">
+			{isEditMode ? (
+				<div className="space-y-2">
+					<button
+						type="button"
+						onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
+						className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+					>
+						{isFolderTreeOpen ? (
+							<ChevronDown className="size-4" />
+						) : (
+							<ChevronRight className="size-4" />
+						)}
+						Change Selection
+					</button>
+					{isFolderTreeOpen && (
 						<ComposioDriveFolderTree
 							connectorId={connector.id}
 							selectedFolders={selectedFolders}
@@ -250,26 +257,17 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 							selectedFiles={selectedFiles}
 							onSelectFiles={handleSelectFiles}
 						/>
-						<Button
-							type="button"
-							variant="outline"
-							size="sm"
-							onClick={() => setShowFolderSelector(false)}
-							className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-						>
-							Done Selecting
-						</Button>
-					</div>
-				) : (
-					<Button
-						type="button"
-						variant="outline"
-						onClick={() => setShowFolderSelector(true)}
-						className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-					>
-						{totalSelected > 0 ? "Change Selection" : "Select Folders & Files"}
-					</Button>
-				)}
+					)}
+				</div>
+			) : (
+				<ComposioDriveFolderTree
+					connectorId={connector.id}
+					selectedFolders={selectedFolders}
+					onSelectFolders={handleSelectFolders}
+					selectedFiles={selectedFiles}
+					onSelectFiles={handleSelectFiles}
+				/>
+			)}
 			</div>
 
 			{/* Indexing Options */}

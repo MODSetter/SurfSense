@@ -2,16 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAtomValue } from "jotai";
-import {
-	Bot,
-	Check,
-	ChevronDown,
-	ChevronsUpDown,
-	Key,
-	MessageSquareQuote,
-	Rocket,
-	Sparkles,
-} from "lucide-react";
+import { Check, ChevronDown, ChevronsUpDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -88,6 +79,8 @@ interface LLMConfigFormProps {
 	submitLabel?: string;
 	showAdvanced?: boolean;
 	compact?: boolean;
+	formId?: string;
+	hideActions?: boolean;
 }
 
 export function LLMConfigForm({
@@ -100,6 +93,8 @@ export function LLMConfigForm({
 	submitLabel,
 	showAdvanced = true,
 	compact = false,
+	formId,
+	hideActions = false,
 }: LLMConfigFormProps) {
 	const { data: defaultInstructions, isSuccess: defaultInstructionsLoaded } = useAtomValue(
 		defaultSystemInstructionsAtom
@@ -164,11 +159,10 @@ export function LLMConfigForm({
 
 	return (
 		<Form {...form}>
-			<form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
+			<form id={formId} onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-6">
 				{/* Model Configuration Section */}
 				<div className="space-y-4">
-					<div className="flex items-center gap-2 text-xs sm:text-sm font-medium text-muted-foreground">
-						<Bot className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+					<div className="text-xs sm:text-sm font-medium text-muted-foreground">
 						Model Configuration
 					</div>
 
@@ -179,16 +173,9 @@ export function LLMConfigForm({
 							name="name"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="flex items-center gap-2 text-xs sm:text-sm">
-										<Sparkles className="h-3.5 w-3.5 text-violet-500" />
-										Configuration Name
-									</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">Configuration Name</FormLabel>
 									<FormControl>
-										<Input
-											placeholder="e.g., My GPT-4 Agent"
-											className="transition-all focus-visible:ring-violet-500/50"
-											{...field}
-										/>
+										<Input placeholder="e.g., My GPT-4 Agent" {...field} />
 									</FormControl>
 									<FormMessage />
 								</FormItem>
@@ -224,19 +211,18 @@ export function LLMConfigForm({
 								<FormLabel className="text-xs sm:text-sm">LLM Provider</FormLabel>
 								<Select value={field.value} onValueChange={handleProviderChange}>
 									<FormControl>
-										<SelectTrigger className="transition-all focus:ring-violet-500/50">
+										<SelectTrigger>
 											<SelectValue placeholder="Select a provider" />
 										</SelectTrigger>
 									</FormControl>
-									<SelectContent className="max-h-[300px]">
+									<SelectContent className="max-h-[300px] bg-muted dark:border-neutral-700">
 										{LLM_PROVIDERS.map((provider) => (
-											<SelectItem key={provider.value} value={provider.value}>
-												<div className="flex flex-col py-0.5">
-													<span className="font-medium">{provider.label}</span>
-													<span className="text-xs text-muted-foreground">
-														{provider.description}
-													</span>
-												</div>
+											<SelectItem
+												key={provider.value}
+												value={provider.value}
+												description={provider.description}
+											>
+												{provider.label}
 											</SelectItem>
 										))}
 									</SelectContent>
@@ -290,7 +276,7 @@ export function LLMConfigForm({
 												role="combobox"
 												aria-expanded={modelComboboxOpen}
 												className={cn(
-													"w-full justify-between font-normal",
+													"w-full justify-between font-normal bg-transparent",
 													!field.value && "text-muted-foreground"
 												)}
 											>
@@ -299,8 +285,11 @@ export function LLMConfigForm({
 											</Button>
 										</FormControl>
 									</PopoverTrigger>
-									<PopoverContent className="w-full p-0" align="start">
-										<Command shouldFilter={false}>
+									<PopoverContent
+										className="w-full p-0 bg-muted dark:border-neutral-700"
+										align="start"
+									>
+										<Command shouldFilter={false} className="bg-transparent">
 											<CommandInput
 												placeholder={selectedProvider?.example || "Type model name..."}
 												value={field.value}
@@ -371,10 +360,7 @@ export function LLMConfigForm({
 							name="api_key"
 							render={({ field }) => (
 								<FormItem>
-									<FormLabel className="flex items-center gap-2 text-xs sm:text-sm">
-										<Key className="h-3.5 w-3.5 text-amber-500" />
-										API Key
-									</FormLabel>
+									<FormLabel className="text-xs sm:text-sm">API Key</FormLabel>
 									<FormControl>
 										<Input
 											type="password"
@@ -460,10 +446,7 @@ export function LLMConfigForm({
 									type="button"
 									className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
 								>
-									<div className="flex items-center gap-2">
-										<Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-										Advanced Parameters
-									</div>
+									<span>Advanced Parameters</span>
 									<ChevronDown
 										className={cn(
 											"h-4 w-4 transition-transform duration-200",
@@ -501,10 +484,7 @@ export function LLMConfigForm({
 							type="button"
 							className="flex w-full items-center justify-between py-2 text-xs sm:text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
 						>
-							<div className="flex items-center gap-2">
-								<MessageSquareQuote className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-								System Instructions
-							</div>
+							<span>System Instructions</span>
 							<ChevronDown
 								className={cn(
 									"h-4 w-4 transition-transform duration-200",
@@ -575,42 +555,43 @@ export function LLMConfigForm({
 					</CollapsibleContent>
 				</Collapsible>
 
-				{/* Action Buttons */}
-				<div
-					className={cn(
-						"flex gap-3 pt-4",
-						compact ? "justify-end" : "justify-center sm:justify-end"
-					)}
-				>
-					{onCancel && (
-						<Button
-							type="button"
-							variant="outline"
-							onClick={onCancel}
-							disabled={isSubmitting}
-							className="text-xs sm:text-sm h-9 sm:h-10"
-						>
-							Cancel
-						</Button>
-					)}
-					<Button
-						type="submit"
-						disabled={isSubmitting}
-						className="gap-2 min-w-[140px] sm:min-w-[160px] text-xs sm:text-sm h-9 sm:h-10"
-					>
-						{isSubmitting ? (
-							<>
-								<Spinner size="sm" />
-								{mode === "edit" ? "Updating..." : "Creating"}
-							</>
-						) : (
-							<>
-								{!compact && <Rocket className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
-								{submitLabel ?? (mode === "edit" ? "Update Configuration" : "Create Configuration")}
-							</>
+				{!hideActions && (
+					<div
+						className={cn(
+							"flex gap-3 pt-4",
+							compact ? "justify-end" : "justify-center sm:justify-end"
 						)}
-					</Button>
-				</div>
+					>
+						{onCancel && (
+							<Button
+								type="button"
+								variant="outline"
+								onClick={onCancel}
+								disabled={isSubmitting}
+								className="text-xs sm:text-sm h-9 sm:h-10"
+							>
+								Cancel
+							</Button>
+						)}
+						<Button
+							type="submit"
+							disabled={isSubmitting}
+							className="gap-2 min-w-[140px] sm:min-w-[160px] text-xs sm:text-sm h-9 sm:h-10"
+						>
+							{isSubmitting ? (
+								<>
+									<Spinner size="sm" />
+									{mode === "edit" ? "Updating..." : "Creating"}
+								</>
+							) : (
+								<>
+									{submitLabel ??
+										(mode === "edit" ? "Update Configuration" : "Create Configuration")}
+								</>
+							)}
+						</Button>
+					</div>
+				)}
 			</form>
 		</Form>
 	);

@@ -7,12 +7,13 @@ Allows fetching emails from Gmail mailbox using Google OAuth credentials.
 import base64
 import json
 import logging
-import re
 from typing import Any
 
+from bs4 import BeautifulSoup
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from markdownify import markdownify as md
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
@@ -348,6 +349,18 @@ class GoogleGmailConnector:
         except Exception as e:
             return [], f"Error fetching recent messages: {e!s}"
 
+    @staticmethod
+    def _html_to_markdown(html: str) -> str:
+        """Convert HTML (especially email layouts with nested tables) to clean markdown."""
+        soup = BeautifulSoup(html, "html.parser")
+        for tag in soup.find_all(["style", "script", "img"]):
+            tag.decompose()
+        for tag in soup.find_all(
+            ["table", "thead", "tbody", "tfoot", "tr", "td", "th"]
+        ):
+            tag.unwrap()
+        return md(str(soup)).strip()
+
     def extract_message_text(self, message: dict[str, Any]) -> str:
         """
         Extract text content from a Gmail message.
@@ -387,13 +400,10 @@ class GoogleGmailConnector:
                     )
                     text_content += decoded_data + "\n"
                 elif mime_type == "text/html" and data and not text_content:
-                    # Use HTML as fallback if no plain text
                     decoded_data = base64.urlsafe_b64decode(data + "===").decode(
                         "utf-8", errors="ignore"
                     )
-                    # Basic HTML tag removal (you might want to use a proper HTML parser)
-
-                    text_content = re.sub(r"<[^>]+>", "", decoded_data)
+                    text_content = self._html_to_markdown(decoded_data)
 
             return text_content.strip()
 

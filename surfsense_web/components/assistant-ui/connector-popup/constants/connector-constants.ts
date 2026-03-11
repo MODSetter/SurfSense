@@ -2,7 +2,6 @@ import { EnumConnectorName } from "@/contracts/enums/connector";
 
 // OAuth Connectors (Quick Connect)
 export const OAUTH_CONNECTORS = [
-	// // Uncomment for managed Google Connections
 	// {
 	// 	id: "google-drive-connector",
 	// 	title: "Google Drive",
@@ -100,7 +99,7 @@ export const CRAWLERS = [
 	{
 		id: "webcrawler-connector",
 		title: "Web Pages",
-		description: "Crawl web content",
+		description: "Index and periodically sync web content",
 		connectorType: EnumConnectorName.WEBCRAWLER_CONNECTOR,
 	},
 ] as const;
@@ -240,6 +239,96 @@ export const COMPOSIO_TOOLKITS = [
 		isIndexable: false,
 	},
 ] as const;
+
+export interface AutoIndexConfig {
+	daysBack: number;
+	daysForward: number;
+	frequencyMinutes: number;
+	syncDescription: string;
+}
+
+export const AUTO_INDEX_DEFAULTS: Record<string, AutoIndexConfig> = {
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of emails.",
+	},
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of emails.",
+	},
+	[EnumConnectorName.SLACK_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of messages.",
+	},
+	[EnumConnectorName.DISCORD_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of messages.",
+	},
+	[EnumConnectorName.TEAMS_CONNECTOR]: {
+		daysBack: 30,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 30 days of messages.",
+	},
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 90,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing 90 days of past and upcoming events.",
+	},
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 90,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing 90 days of past and upcoming events.",
+	},
+	[EnumConnectorName.LINEAR_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 90 days of issues.",
+	},
+	[EnumConnectorName.JIRA_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 90 days of issues.",
+	},
+	[EnumConnectorName.CLICKUP_CONNECTOR]: {
+		daysBack: 90,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your last 90 days of tasks.",
+	},
+	[EnumConnectorName.NOTION_CONNECTOR]: {
+		daysBack: 365,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your pages.",
+	},
+	[EnumConnectorName.CONFLUENCE_CONNECTOR]: {
+		daysBack: 365,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your documentation.",
+	},
+	[EnumConnectorName.AIRTABLE_CONNECTOR]: {
+		daysBack: 365,
+		daysForward: 0,
+		frequencyMinutes: 1440,
+		syncDescription: "Syncing your bases.",
+	},
+};
+
+export const AUTO_INDEX_CONNECTOR_TYPES = new Set<string>(Object.keys(AUTO_INDEX_DEFAULTS));
 
 // Re-export IndexingConfigState from schemas for backward compatibility
 export type { IndexingConfigState } from "./connector-popup.schemas";

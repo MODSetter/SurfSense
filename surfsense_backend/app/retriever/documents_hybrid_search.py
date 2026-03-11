@@ -190,8 +190,12 @@ class DocumentHybridSearchRetriever:
         tsvector = func.to_tsvector("english", Document.content)
         tsquery = func.plainto_tsquery("english", query_text)
 
-        # Base conditions for document filtering - search space is required
-        base_conditions = [Document.search_space_id == search_space_id]
+        # Base conditions for document filtering - search space is required.
+        # Exclude documents in "deleting" state (background deletion in progress).
+        base_conditions = [
+            Document.search_space_id == search_space_id,
+            func.coalesce(Document.status["state"].astext, "ready") != "deleting",
+        ]
 
         # Add document type filter if provided
         if document_type is not None:

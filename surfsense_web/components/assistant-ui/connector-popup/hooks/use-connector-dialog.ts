@@ -28,6 +28,8 @@ import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { queryClient } from "@/lib/query-client/client";
 import type { IndexingConfigState } from "../constants/connector-constants";
 import {
+	AUTO_INDEX_CONNECTOR_TYPES,
+	AUTO_INDEX_DEFAULTS,
 	COMPOSIO_CONNECTORS,
 	OAUTH_CONNECTORS,
 	OTHER_CONNECTORS,
@@ -80,6 +82,7 @@ export const useConnectorDialog = () => {
 	const [connectingConnectorType, setConnectingConnectorType] = useState<string | null>(null);
 	const [isCreatingConnector, setIsCreatingConnector] = useState(false);
 	const isCreatingConnectorRef = useRef(false);
+	const isAutoIndexingRef = useRef(false);
 
 	// Accounts list view state (for OAuth connectors with multiple accounts)
 	const [viewingAccountsType, setViewingAccountsType] = useState<{
@@ -118,6 +121,71 @@ export const useConnectorDialog = () => {
 				return `${minutes} minutes`;
 		}
 	}, []);
+
+	const handleAutoIndex = useCallback(
+		async (
+			connector: SearchSourceConnector,
+			connectorTitle: string,
+			connectorType: string
+		) => {
+			if (!searchSpaceId || isAutoIndexingRef.current) return;
+			isAutoIndexingRef.current = true;
+
+			const defaults = AUTO_INDEX_DEFAULTS[connectorType];
+			const now = new Date();
+			const startDate = new Date(now);
+			startDate.setDate(startDate.getDate() - (defaults?.daysBack ?? 365));
+			const endDate = new Date(now);
+			endDate.setDate(endDate.getDate() + (defaults?.daysForward ?? 0));
+
+			const toastId = "auto-index";
+			toast.loading(`Setting up ${connectorTitle}...`, { id: toastId });
+
+			try {
+				await updateConnector({
+					id: connector.id,
+					data: {
+						periodic_indexing_enabled: true,
+						indexing_frequency_minutes: defaults?.frequencyMinutes ?? 1440,
+					},
+				});
+
+				await indexConnector({
+					connector_id: connector.id,
+					queryParams: {
+						search_space_id: searchSpaceId,
+						start_date: format(startDate, "yyyy-MM-dd"),
+						end_date: format(endDate, "yyyy-MM-dd"),
+					},
+				});
+
+				trackIndexWithDateRangeStarted(
+					Number(searchSpaceId),
+					connectorType,
+					connector.id,
+					{ hasStartDate: true, hasEndDate: true }
+				);
+
+				toast.success(`${connectorTitle} connected!`, {
+					id: toastId,
+					description: defaults?.syncDescription ?? "Syncing started.",
+				});
+			} catch (error) {
+				console.error("Auto-index failed:", error);
+				toast.error(`${connectorTitle} connected, but sync failed`, {
+					id: toastId,
+					description: "You can start syncing from settings.",
+				});
+			} finally {
+				queryClient.invalidateQueries({
+					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+				});
+				await refetchAllConnectors();
+				isAutoIndexingRef.current = false;
+			}
+		},
+		[searchSpaceId, indexConnector, updateConnector, refetchAllConnectors]
+	);
 
 	// Synchronize state with URL query params
 	useEffect(() => {
@@ -336,8 +404,29 @@ export const useConnectorDialog = () => {
 			}
 
 			if (params.success === "true" && searchSpaceId && params.modal === "connectors") {
-				refetchAllConnectors().then((result) => {
-					if (!result.data) return;
+				// For auto-index connectors: close modal and show loading toast before refetch
+				const earlyConnector = params.connector
+					? OAUTH_CONNECTORS.find((c) => c.id === params.connector) ||
+						COMPOSIO_CONNECTORS.find((c) => c.id === params.connector)
+					: null;
+
+				if (earlyConnector && AUTO_INDEX_CONNECTOR_TYPES.has(earlyConnector.connectorType)) {
+					toast.loading(`Setting up ${earlyConnector.title}...`, { id: "auto-index" });
+					const url = new URL(window.location.href);
+					url.searchParams.delete("success");
+					url.searchParams.delete("connector");
+					url.searchParams.delete("connectorId");
+					url.searchParams.delete("view");
+					url.searchParams.delete("modal");
+					url.searchParams.delete("tab");
+					router.replace(url.pathname + url.search, { scroll: false });
+				}
+
+				refetchAllConnectors().then(async (result) => {
+					if (!result.data) {
+						toast.dismiss("auto-index");
+						return;
+					}
 
 					let newConnector: SearchSourceConnector | undefined;
 					let oauthConnector:
@@ -376,31 +465,45 @@ export const useConnectorDialog = () => {
 					if (newConnector && oauthConnector) {
 						const connectorValidation = searchSourceConnector.safeParse(newConnector);
 						if (connectorValidation.success) {
-							// Track connector connected event for OAuth/Composio connectors
 							trackConnectorConnected(
 								Number(searchSpaceId),
 								oauthConnector.connectorType,
 								newConnector.id
 							);
 
-							const config = validateIndexingConfigState({
-								connectorType: oauthConnector.connectorType,
-								connectorId: newConnector.id,
-								connectorTitle: oauthConnector.title,
-							});
-							setIndexingConfig(config);
-							setIndexingConnector(newConnector);
-							setIndexingConnectorConfig(newConnector.config);
-							setIsOpen(true);
-							const url = new URL(window.location.href);
-							url.searchParams.delete("success");
-							url.searchParams.set("connectorId", newConnector.id.toString());
-							url.searchParams.set("view", "configure");
-							window.history.replaceState({}, "", url.toString());
+							if (
+								newConnector.is_indexable &&
+								AUTO_INDEX_CONNECTOR_TYPES.has(oauthConnector.connectorType)
+							) {
+								await handleAutoIndex(
+									newConnector,
+									oauthConnector.title,
+									oauthConnector.connectorType
+								);
+							} else {
+								toast.dismiss("auto-index");
+								const config = validateIndexingConfigState({
+									connectorType: oauthConnector.connectorType,
+									connectorId: newConnector.id,
+									connectorTitle: oauthConnector.title,
+								});
+								setIndexingConfig(config);
+								setIndexingConnector(newConnector);
+								setIndexingConnectorConfig(newConnector.config);
+								setIsOpen(true);
+								const url = new URL(window.location.href);
+								url.searchParams.delete("success");
+								url.searchParams.set("connectorId", newConnector.id.toString());
+								url.searchParams.set("view", "configure");
+								window.history.replaceState({}, "", url.toString());
+							}
 						} else {
 							console.warn("Invalid connector data after OAuth:", connectorValidation.error);
+							toast.dismiss("auto-index");
 							toast.error("Failed to validate connector data");
 						}
+					} else {
+						toast.dismiss("auto-index");
 					}
 				});
 			}
@@ -408,7 +511,7 @@ export const useConnectorDialog = () => {
 			// Invalid query params - log but don't crash
 			console.warn("Invalid connector popup query params in OAuth success handler:", error);
 		}
-	}, [searchParams, searchSpaceId, refetchAllConnectors, setIsOpen]);
+	}, [searchParams, searchSpaceId, refetchAllConnectors, setIsOpen, handleAutoIndex, router]);
 
 	// Handle OAuth connection
 	const handleConnectOAuth = useCallback(
@@ -479,6 +582,7 @@ export const useConnectorDialog = () => {
 					periodic_indexing_enabled: false,
 					indexing_frequency_minutes: null,
 					next_scheduled_at: null,
+					enable_summary: false,
 				},
 				queryParams: {
 					search_space_id: searchSpaceId,
@@ -583,6 +687,7 @@ export const useConnectorDialog = () => {
 						connector_type: connectorData.connector_type as EnumConnectorName,
 						is_active: true,
 						next_scheduled_at: connectorData.next_scheduled_at as string | null,
+						enable_summary: false,
 					},
 					queryParams: {
 						search_space_id: searchSpaceId,
@@ -1592,6 +1697,7 @@ export const useConnectorDialog = () => {
 		handleCreateWebcrawler,
 		handleCreateYouTubeCrawler,
 		handleSubmitConnectForm,
+		handleAutoIndex,
 		handleStartIndexing,
 		handleSkipIndexing,
 		handleStartEdit,

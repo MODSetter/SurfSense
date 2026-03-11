@@ -67,6 +67,7 @@ dependencies = [
     "typst>=0.14.0",
     "deepagents>=0.4.3",
     "langchain-daytona>=0.0.2",
+    "pypandoc>=1.16.2",
 ]
 
 [dependency-groups]

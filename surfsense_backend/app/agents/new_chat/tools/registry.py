@@ -97,6 +97,7 @@ class ToolDefinition:
     factory: Callable[[dict[str, Any]], BaseTool]
     requires: list[str] = field(default_factory=list)
     enabled_by_default: bool = True
+    hidden: bool = False
 
 
 # =============================================================================
@@ -139,7 +140,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
     # need to call search_knowledge_base separately before generating.
     ToolDefinition(
         name="generate_report",
-        description="Generate a structured Markdown report from provided content",
+        description="Generate a structured report from provided content and export it",
         factory=lambda deps: create_generate_report_tool(
             search_space_id=deps["search_space_id"],
             thread_id=deps["thread_id"],
@@ -234,7 +235,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
     ),
     # =========================================================================
-    # LINEAR TOOLS - create, update, delete issues
+    # LINEAR TOOLS - create, update, delete issues (WIP - hidden from UI)
     # =========================================================================
     ToolDefinition(
         name="create_linear_issue",
@@ -245,6 +246,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        enabled_by_default=False,
+        hidden=True,
     ),
     ToolDefinition(
         name="update_linear_issue",
@@ -255,6 +258,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        enabled_by_default=False,
+        hidden=True,
     ),
     ToolDefinition(
         name="delete_linear_issue",
@@ -265,9 +270,11 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        enabled_by_default=False,
+        hidden=True,
     ),
     # =========================================================================
-    # NOTION TOOLS - create, update, delete pages
+    # NOTION TOOLS - create, update, delete pages (WIP - hidden from UI)
     # =========================================================================
     ToolDefinition(
         name="create_notion_page",
@@ -278,6 +285,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        enabled_by_default=False,
+        hidden=True,
     ),
     ToolDefinition(
         name="update_notion_page",
@@ -288,6 +297,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        enabled_by_default=False,
+        hidden=True,
     ),
     ToolDefinition(
         name="delete_notion_page",
@@ -298,9 +309,11 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        enabled_by_default=False,
+        hidden=True,
     ),
     # =========================================================================
-    # GOOGLE DRIVE TOOLS - create files, delete files
+    # GOOGLE DRIVE TOOLS - create files, delete files (WIP - hidden from UI)
     # =========================================================================
     ToolDefinition(
         name="create_google_drive_file",
@@ -311,6 +324,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        enabled_by_default=False,
+        hidden=True,
     ),
     ToolDefinition(
         name="delete_google_drive_file",
@@ -321,6 +336,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
+        enabled_by_default=False,
+        hidden=True,
     ),
 ]
 
@@ -344,7 +361,7 @@ def get_all_tool_names() -> list[str]:
 
 
 def get_default_enabled_tools() -> list[str]:
-    """Get names of tools that are enabled by default."""
+    """Get names of tools that are enabled by default (excludes hidden tools)."""
     return [tool_def.name for tool_def in BUILTIN_TOOLS if tool_def.enabled_by_default]
 
 
@@ -393,10 +410,10 @@ def build_tools(
     if disabled_tools:
         tool_names_to_use -= set(disabled_tools)
 
-    # Build the tools
+    # Build the tools (skip hidden/WIP tools unconditionally)
     tools: list[BaseTool] = []
     for tool_def in BUILTIN_TOOLS:
-        if tool_def.name not in tool_names_to_use:
+        if tool_def.hidden or tool_def.name not in tool_names_to_use:
             continue
 
         # Check that all required dependencies are provided

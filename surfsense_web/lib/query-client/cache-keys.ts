@@ -67,6 +67,9 @@ export const cacheKeys = {
 		all: (searchSpaceId: string) => ["invites", searchSpaceId] as const,
 		info: (inviteCode: string) => ["invites", "info", inviteCode] as const,
 	},
+	agentTools: {
+		all: () => ["agent-tools"] as const,
+	},
 	connectors: {
 		all: (searchSpaceId: string) => ["connectors", searchSpaceId] as const,
 		withQueryParams: (queries: GetConnectorsRequest["queryParams"]) =>
@@ -96,5 +99,9 @@ export const cacheKeys = {
 	notifications: {
 		search: (searchSpaceId: number | null, search: string, tab: string) =>
 			["notifications", "search", searchSpaceId, search, tab] as const,
+		sourceTypes: (searchSpaceId: number | null) =>
+			["notifications", "source-types", searchSpaceId] as const,
+		batchUnreadCounts: (searchSpaceId: number | null) =>
+			["notifications", "unread-counts-batch", searchSpaceId] as const,
 	},
 };

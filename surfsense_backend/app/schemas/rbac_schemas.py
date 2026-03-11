@@ -77,6 +77,7 @@ class MembershipRead(BaseModel):
     user_email: str | None = None
     user_display_name: str | None = None
     user_avatar_url: str | None = None
+    user_last_login: datetime | None = None
 
     class Config:
         from_attributes = True

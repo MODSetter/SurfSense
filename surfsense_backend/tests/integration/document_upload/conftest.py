@@ -22,7 +22,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.pool import NullPool
 
-from app.app import app
+from app.app import app, limiter
 from app.config import config as app_config
 from app.db import Base
 from app.services.task_dispatcher import get_task_dispatcher
@@ -34,6 +34,8 @@ from tests.utils.helpers import (
     get_auth_token,
     get_search_space_id,
 )
+
+limiter.enabled = False
 
 _EMBEDDING_DIM = app_config.embedding_model_instance.dimension
 _ASYNCPG_URL = TEST_DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://")
@@ -263,8 +265,8 @@ def _mock_external_apis(monkeypatch):
         AsyncMock(return_value="Mocked summary."),
     )
     monkeypatch.setattr(
-        "app.indexing_pipeline.indexing_pipeline_service.embed_text",
-        MagicMock(return_value=[0.1] * _EMBEDDING_DIM),
+        "app.indexing_pipeline.indexing_pipeline_service.embed_texts",
+        MagicMock(side_effect=lambda texts: [[0.1] * _EMBEDDING_DIM for _ in texts]),
     )
     monkeypatch.setattr(
         "app.indexing_pipeline.indexing_pipeline_service.chunk_text",
