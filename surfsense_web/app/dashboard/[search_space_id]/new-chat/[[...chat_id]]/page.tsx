@@ -276,7 +276,7 @@ export default function NewChatPage() {
 	const initializeThread = useCallback(async () => {
 		setIsInitializing(true);
 
-		// Reset all state when switching between chats to prevent stale data
+		// Reset all state when switching between chats/search spaces to prevent stale data
 		setMessages([]);
 		setThreadId(null);
 		setCurrentThread(null);
@@ -284,8 +284,8 @@ export default function NewChatPage() {
 		setMentionedDocuments([]);
 		setSidebarDocuments([]);
 		setMessageDocumentsMap({});
-		clearPlanOwnerRegistry(); // Reset plan ownership for new chat
-		closeReportPanel(); // Close report panel when switching chats
+		clearPlanOwnerRegistry();
+		closeReportPanel();
 
 		try {
 			if (urlChatId > 0) {
@@ -346,6 +346,7 @@ export default function NewChatPage() {
 		}
 	}, [
 		urlChatId,
+		searchSpaceId,
 		setMessageDocumentsMap,
 		setMentionedDocuments,
 		setSidebarDocuments,
@@ -1671,7 +1672,7 @@ export default function NewChatPage() {
 			<DeleteGoogleDriveFileToolUI />
 			<SandboxExecuteToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
-			<div className="flex h-[calc(100dvh-64px)] overflow-hidden">
+			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 					<Thread messageThinkingSteps={messageThinkingSteps} />
 				</div>
