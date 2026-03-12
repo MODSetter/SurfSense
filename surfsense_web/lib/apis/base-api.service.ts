@@ -91,7 +91,8 @@ class BaseApiService {
 			// Validate the bearer token
 			const isNoAuthEndpoint =
 				this.noAuthEndpoints.includes(url) ||
-				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix));
+				this.noAuthPrefixes.some((prefix) => url.startsWith(prefix)) ||
+				/^\/api\/v1\/invites\/[^/]+\/info$/.test(url);
 			if (!this.bearerToken && !isNoAuthEndpoint) {
 				throw new AuthenticationError("You are not authenticated. Please login again.");
 			}
