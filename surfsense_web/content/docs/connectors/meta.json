@@ -1,6 +1,6 @@
 {
 	"title": "Connectors",
-	"icon": "Cable",
+	"icon": "Unplug",
 	"pages": [
 		"google-drive",
 		"gmail",
