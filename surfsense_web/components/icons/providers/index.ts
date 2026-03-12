@@ -12,6 +12,7 @@ export { default as FireworksAiIcon } from "./fireworksai.svg";
 export { default as GeminiIcon } from "./gemini.svg";
 export { default as GroqIcon } from "./groq.svg";
 export { default as HuggingFaceIcon } from "./huggingface.svg";
+export { default as MiniMaxIcon } from "./minimax.svg";
 export { default as MistralIcon } from "./mistral.svg";
 export { default as MoonshotIcon } from "./moonshot.svg";
 export { default as NscaleIcon } from "./nscale.svg";
