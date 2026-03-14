@@ -1,10 +1,9 @@
 """
 Platform-level web search service backed by SearXNG.
 
-Provides caching via Redis, a circuit breaker for resilience, and a health
-check endpoint.  Configuration is read from environment variables rather
-than per-search-space database rows — this service is a platform capability
-that is always available when ``SEARXNG_DEFAULT_HOST`` is set.
+Redis is used only for result caching (graceful degradation if unavailable).
+The circuit breaker is fully in-process — no external dependency, zero
+latency overhead.
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import threading
 import time
 from typing import Any
 from urllib.parse import urljoin
@@ -31,7 +31,7 @@ _EMPTY_RESULT: dict[str, Any] = {
 }
 
 # ---------------------------------------------------------------------------
-# Redis helpers
+# Redis — used only for result caching
 # ---------------------------------------------------------------------------
 
 _redis_client: redis.Redis | None = None
@@ -45,54 +45,50 @@ def _get_redis() -> redis.Redis:
 
 
 # ---------------------------------------------------------------------------
-# Circuit Breaker
+# In-process Circuit Breaker (no Redis dependency)
 # ---------------------------------------------------------------------------
 
-_CB_FAILURES_KEY = "websearch:circuit:failures"
-_CB_OPEN_KEY = "websearch:circuit:open"
 _CB_FAILURE_THRESHOLD = 5
 _CB_FAILURE_WINDOW_SECONDS = 60
 _CB_COOLDOWN_SECONDS = 30
 
+_cb_lock = threading.Lock()
+_cb_failure_count: int = 0
+_cb_last_failure_time: float = 0.0
+_cb_open_until: float = 0.0
+
 
 def _circuit_is_open() -> bool:
-    try:
-        return _get_redis().exists(_CB_OPEN_KEY) == 1
-    except redis.RedisError:
-        return False
+    return time.monotonic() < _cb_open_until
 
 
 def _record_failure() -> None:
-    try:
-        r = _get_redis()
-        pipe = r.pipeline()
-        pipe.incr(_CB_FAILURES_KEY)
-        pipe.expire(_CB_FAILURES_KEY, _CB_FAILURE_WINDOW_SECONDS)
-        pipe.execute()
-
-        failures = int(r.get(_CB_FAILURES_KEY) or 0)
-        if failures >= _CB_FAILURE_THRESHOLD:
-            r.setex(_CB_OPEN_KEY, _CB_COOLDOWN_SECONDS, "1")
+    global _cb_failure_count, _cb_last_failure_time, _cb_open_until
+    now = time.monotonic()
+    with _cb_lock:
+        if now - _cb_last_failure_time > _CB_FAILURE_WINDOW_SECONDS:
+            _cb_failure_count = 0
+        _cb_failure_count += 1
+        _cb_last_failure_time = now
+        if _cb_failure_count >= _CB_FAILURE_THRESHOLD:
+            _cb_open_until = now + _CB_COOLDOWN_SECONDS
             logger.warning(
                 "Circuit breaker OPENED after %d failures — "
                 "SearXNG calls paused for %ds",
-                failures,
+                _cb_failure_count,
                 _CB_COOLDOWN_SECONDS,
             )
-    except redis.RedisError:
-        pass
 
 
 def _record_success() -> None:
-    try:
-        r = _get_redis()
-        r.delete(_CB_FAILURES_KEY, _CB_OPEN_KEY)
-    except redis.RedisError:
-        pass
+    global _cb_failure_count, _cb_open_until
+    with _cb_lock:
+        _cb_failure_count = 0
+        _cb_open_until = 0.0
 
 
 # ---------------------------------------------------------------------------
-# Result Caching
+# Result Caching (Redis, graceful degradation)
 # ---------------------------------------------------------------------------
 
 _CACHE_TTL_SECONDS = 300  # 5 minutes
@@ -177,7 +173,6 @@ async def search(
     if not host:
         return dict(_EMPTY_RESULT), []
 
-    # --- Circuit breaker ---
     if _circuit_is_open():
         logger.info("Web search skipped — circuit breaker is open")
         result = dict(_EMPTY_RESULT)
@@ -185,14 +180,12 @@ async def search(
         result["status"] = "degraded"
         return result, []
 
-    # --- Cache lookup ---
     ck = _cache_key(query, engines, language)
     cached = _cache_get(ck)
     if cached is not None:
         logger.debug("Web search cache HIT for query=%r", query[:60])
         return cached["result"], cached["documents"]
 
-    # --- Build request ---
     params: dict[str, Any] = {
         "q": query,
         "format": "json",
@@ -208,7 +201,6 @@ async def search(
     searx_endpoint = urljoin(host if host.endswith("/") else f"{host}/", "search")
     headers = {"Accept": "application/json"}
 
-    # --- HTTP call with one retry on transient errors ---
     data: dict[str, Any] | None = None
     last_error: Exception | None = None
 
@@ -247,7 +239,6 @@ async def search(
     if not searx_results:
         return dict(_EMPTY_RESULT), []
 
-    # --- Format results ---
     sources_list: list[dict[str, Any]] = []
     documents: list[dict[str, Any]] = []
 
@@ -286,7 +277,6 @@ async def search(
         "sources": sources_list,
     }
 
-    # --- Cache store ---
     _cache_set(ck, {"result": result_object, "documents": documents})
 
     return result_object, documents

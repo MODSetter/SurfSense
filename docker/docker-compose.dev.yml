@@ -59,14 +59,9 @@ services:
 
   searxng:
     image: searxng/searxng:2024.12.23
-    ports:
-      - "${SEARXNG_PORT:-8888}:8080"
     volumes:
-      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
-      - ./searxng/limiter.toml:/etc/searxng/limiter.toml:ro
-      - searxng_data:/etc/searxng
+      - ./searxng:/etc/searxng
     environment:
-      - SEARXNG_BASE_URL=http://localhost:${SEARXNG_PORT:-8888}/
       - SEARXNG_SECRET=${SEARXNG_SECRET:-surfsense-searxng-secret}
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
@@ -226,5 +221,3 @@ volumes:
     name: surfsense-dev-redis
   shared_temp:
     name: surfsense-dev-shared-temp
-  searxng_data:
-    name: surfsense-dev-searxng
