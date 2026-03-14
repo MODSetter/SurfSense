@@ -513,6 +513,15 @@ async def health_check():
     return {"status": "ok"}
 
 
+@app.get("/api/v1/platform/web-search/health", tags=["platform"])
+@limiter.exempt
+async def web_search_health(user: User = Depends(current_active_user)):
+    """Return the health status of the platform web search (SearXNG) service."""
+    from app.services import web_search_service
+
+    return await web_search_service.health_check()
+
+
 @app.get("/verify-token")
 async def authenticated_route(
     user: User = Depends(current_active_user),

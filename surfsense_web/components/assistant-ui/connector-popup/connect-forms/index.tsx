@@ -8,7 +8,6 @@ import { LinkupApiConnectForm } from "./components/linkup-api-connect-form";
 import { LumaConnectForm } from "./components/luma-connect-form";
 import { MCPConnectForm } from "./components/mcp-connect-form";
 import { ObsidianConnectForm } from "./components/obsidian-connect-form";
-import { SearxngConnectForm } from "./components/searxng-connect-form";
 import { TavilyApiConnectForm } from "./components/tavily-api-connect-form";
 
 export interface ConnectFormProps {
@@ -41,8 +40,6 @@ export function getConnectFormComponent(connectorType: string): ConnectFormCompo
 	switch (connectorType) {
 		case "TAVILY_API":
 			return TavilyApiConnectForm;
-		case "SEARXNG_API":
-			return SearxngConnectForm;
 		case "LINKUP_API":
 			return LinkupApiConnectForm;
 		case "BAIDU_SEARCH_API":

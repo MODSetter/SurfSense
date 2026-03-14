@@ -42,6 +42,24 @@ services:
       timeout: 5s
       retries: 5
 
+  searxng:
+    image: searxng/searxng:2024.12.23
+    volumes:
+      - ./searxng/settings.yml:/etc/searxng/settings.yml:ro
+      - ./searxng/limiter.toml:/etc/searxng/limiter.toml:ro
+      - searxng_data:/etc/searxng
+    environment:
+      SEARXNG_BASE_URL: http://localhost:${SEARXNG_PORT:-8888}/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:-surfsense-searxng-secret}
+    ports:
+      - "${SEARXNG_PORT:-8888}:8080"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     image: ghcr.io/modsetter/surfsense-backend:${SURFSENSE_VERSION:-latest}
     ports:
@@ -62,6 +80,7 @@ services:
       ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
       ELECTRIC_DB_PASSWORD: ${ELECTRIC_DB_PASSWORD:-electric_password}
       NEXT_FRONTEND_URL: ${NEXT_FRONTEND_URL:-http://localhost:${FRONTEND_PORT:-3929}}
+      SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
       # DAYTONA_SANDBOX_ENABLED: "TRUE"
       # DAYTONA_API_KEY: ${DAYTONA_API_KEY:-}
@@ -74,6 +93,8 @@ services:
       db:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      searxng:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -98,6 +119,7 @@ services:
       PYTHONPATH: /app
       ELECTRIC_DB_USER: ${ELECTRIC_DB_USER:-electric}
       ELECTRIC_DB_PASSWORD: ${ELECTRIC_DB_PASSWORD:-electric_password}
+      SEARXNG_DEFAULT_HOST: ${SEARXNG_DEFAULT_HOST:-http://searxng:8080}
       SERVICE_ROLE: worker
     depends_on:
       db:
@@ -193,3 +215,5 @@ volumes:
     name: surfsense-redis
   shared_temp:
     name: surfsense-shared-temp
+  searxng_data:
+    name: surfsense-searxng

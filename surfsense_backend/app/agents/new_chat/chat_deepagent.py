@@ -233,6 +233,28 @@ async def create_surfsense_deep_agent(
         available_document_types = await connector_service.get_available_document_types(
             search_space_id
         )
+
+        # Platform web search: inject SEARXNG_API when the service is available
+        # and the search space hasn't disabled web search.
+        from app.db import SearchSpace
+        from app.services import web_search_service
+
+        _LIVE_SEARCH_CONNECTORS = {"TAVILY_API", "SEARXNG_API", "LINKUP_API", "BAIDU_SEARCH_API"}
+
+        space = await db_session.get(SearchSpace, search_space_id)
+        web_search_enabled = space.web_search_enabled if space else True
+
+        if web_search_enabled and web_search_service.is_available():
+            if available_connectors is None:
+                available_connectors = list(_ALWAYS_AVAILABLE_DOC_TYPES)
+            if "SEARXNG_API" not in available_connectors:
+                available_connectors.append("SEARXNG_API")
+
+        if not web_search_enabled and available_connectors:
+            available_connectors = [
+                c for c in available_connectors if c not in _LIVE_SEARCH_CONNECTORS
+            ]
+
     except Exception as e:
         logging.warning(f"Failed to discover available connectors/document types: {e}")
     _perf_log.info(

@@ -9,6 +9,8 @@ export const searchSpace = z.object({
 	user_id: z.string(),
 	citations_enabled: z.boolean(),
 	qna_custom_instructions: z.string().nullable(),
+	web_search_enabled: z.boolean(),
+	web_search_config: z.record(z.unknown()).nullable(),
 	member_count: z.number(),
 	is_owner: z.boolean(),
 });
@@ -49,7 +51,14 @@ export const getSearchSpaceResponse = searchSpace.omit({ member_count: true, is_
 export const updateSearchSpaceRequest = z.object({
 	id: z.number(),
 	data: searchSpace
-		.pick({ name: true, description: true, citations_enabled: true, qna_custom_instructions: true })
+		.pick({
+			name: true,
+			description: true,
+			citations_enabled: true,
+			qna_custom_instructions: true,
+			web_search_enabled: true,
+			web_search_config: true,
+		})
 		.partial(),
 });
 

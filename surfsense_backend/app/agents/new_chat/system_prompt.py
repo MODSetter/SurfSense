@@ -101,8 +101,9 @@ _TOOL_INSTRUCTIONS["search_knowledge_base"] = """
     including calendar apps, note-taking apps (Obsidian, Notion), chat apps (Slack, Discord), and more.
   - IMPORTANT (REAL-TIME / PUBLIC WEB QUERIES): For questions that require current public web data
     (e.g., live exchange rates, stock prices, breaking news, weather, current events), you MUST call
-    `search_knowledge_base` using live web connectors via `connectors_to_search`:
-    ["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"].
+    `search_knowledge_base` using live web connectors via `connectors_to_search`.
+    Use whichever of these live connectors are available: ["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"].
+    Only connectors listed in the tool's available connector enums section will actually return results.
   - For these real-time/public web queries, DO NOT answer from memory and DO NOT say you lack internet
     access before attempting a live connector search.
   - If the live connectors return no relevant results, explain that live web sources did not return enough

@@ -1204,6 +1204,12 @@ class SearchSpace(BaseModel, TimestampMixin):
         Integer, nullable=True, default=0
     )  # For image generation, defaults to Auto mode
 
+    # Platform web search capability (opt-out via toggle)
+    web_search_enabled = Column(
+        Boolean, nullable=False, default=True, server_default=text("true")
+    )
+    web_search_config = Column(JSONB, nullable=True)
+
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("user.id", ondelete="CASCADE"), nullable=False
     )
