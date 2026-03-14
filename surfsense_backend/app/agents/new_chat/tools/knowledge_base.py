@@ -27,7 +27,6 @@ from app.utils.perf import get_perf_logger
 # These are never filtered by available_document_types.
 _LIVE_SEARCH_CONNECTORS: set[str] = {
     "TAVILY_API",
-    "SEARXNG_API",
     "LINKUP_API",
     "BAIDU_SEARCH_API",
 }
@@ -191,7 +190,6 @@ _ALL_CONNECTORS: list[str] = [
     "DISCORD_CONNECTOR",
     "AIRTABLE_CONNECTOR",
     "TAVILY_API",
-    "SEARXNG_API",
     "LINKUP_API",
     "BAIDU_SEARCH_API",
     "LUMA_CONNECTOR",
@@ -228,7 +226,6 @@ CONNECTOR_DESCRIPTIONS: dict[str, str] = {
     "DISCORD_CONNECTOR": "Discord server conversations and shared content (personal community)",
     "AIRTABLE_CONNECTOR": "Airtable records, tables, and database content (personal data)",
     "TAVILY_API": "Tavily web search API results (real-time web search)",
-    "SEARXNG_API": "SearxNG search API results (privacy-focused web search)",
     "LINKUP_API": "Linkup search API results (web search)",
     "BAIDU_SEARCH_API": "Baidu search API results (Chinese web search)",
     "LUMA_CONNECTOR": "Luma events and meetings",
@@ -479,7 +476,6 @@ def format_documents_for_context(
     # a numeric chunk_id (the numeric IDs are meaningless auto-incremented counters).
     live_search_connectors = {
         "TAVILY_API",
-        "SEARXNG_API",
         "LINKUP_API",
         "BAIDU_SEARCH_API",
     }
@@ -705,7 +701,6 @@ async def search_knowledge_base_async(
     # Specs for live-search connectors (external APIs, no local DB/embedding).
     live_connector_specs: dict[str, tuple[str, bool, bool, dict[str, Any]]] = {
         "TAVILY_API": ("search_tavily", False, True, {}),
-        "SEARXNG_API": ("search_searxng", False, True, {}),
         "LINKUP_API": ("search_linkup", False, False, {"mode": "standard"}),
         "BAIDU_SEARCH_API": ("search_baidu", False, True, {}),
     }
@@ -979,7 +974,7 @@ IMPORTANT:
 - Only connectors that are enabled/configured for this search space are available.{doc_types_info}
 - For real-time/public web queries (e.g., current exchange rates, stock prices, breaking news, weather),
   explicitly include live web connectors in `connectors_to_search`, prioritizing:
-  ["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"].
+  ["LINKUP_API", "TAVILY_API", "BAIDU_SEARCH_API"].
 
 ## Available connector enums for `connectors_to_search`
 

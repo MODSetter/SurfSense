@@ -68,6 +68,7 @@ from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
+from .web_search import create_web_search_tool
 from .shared_memory import (
     create_recall_shared_memory_tool,
     create_save_shared_memory_tool,
@@ -186,7 +187,13 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=[],  # firecrawl_api_key is optional
     ),
-    # Note: write_todos is now provided by TodoListMiddleware from deepagents
+    # Web search tool — real-time web search via platform SearXNG
+    ToolDefinition(
+        name="web_search",
+        description="Search the web for real-time information using the platform SearXNG instance",
+        factory=lambda deps: create_web_search_tool(),
+        requires=[],
+    ),
     # Surfsense documentation search tool
     ToolDefinition(
         name="search_surfsense_docs",

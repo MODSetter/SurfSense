@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, Brain, FileText, Globe, ImageIcon, MessageSquare, Search, Shield } from "lucide-react";
+import { Bot, Brain, FileText, Globe, ImageIcon, MessageSquare, Shield } from "lucide-react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect } from "react";
@@ -11,7 +11,6 @@ import { LLMRoleManager } from "@/components/settings/llm-role-manager";
 import { ModelConfigManager } from "@/components/settings/model-config-manager";
 import { PromptConfigManager } from "@/components/settings/prompt-config-manager";
 import { RolesManager } from "@/components/settings/roles-manager";
-import { WebSearchSettingsManager } from "@/components/settings/web-search-settings-manager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { trackSettingsViewed } from "@/lib/posthog/events";
 
@@ -21,7 +20,6 @@ const VALID_TABS = [
 	"roles",
 	"image-models",
 	"prompts",
-	"web-search",
 	"public-links",
 	"team-roles",
 ] as const;
@@ -78,19 +76,15 @@ export default function SettingsPage() {
 							<Shield className="mr-2 h-4 w-4" />
 							{t("nav_team_roles")}
 						</TabsTrigger>
-						<TabsTrigger value="prompts">
-							<MessageSquare className="mr-2 h-4 w-4" />
-							{t("nav_system_instructions")}
-						</TabsTrigger>
-						<TabsTrigger value="web-search">
-							<Search className="mr-2 h-4 w-4" />
-							{t("nav_web_search")}
-						</TabsTrigger>
-						<TabsTrigger value="public-links">
-							<Globe className="mr-2 h-4 w-4" />
-							{t("nav_public_links")}
-						</TabsTrigger>
-					</TabsList>
+					<TabsTrigger value="prompts">
+						<MessageSquare className="mr-2 h-4 w-4" />
+						{t("nav_system_instructions")}
+					</TabsTrigger>
+					<TabsTrigger value="public-links">
+						<Globe className="mr-2 h-4 w-4" />
+						{t("nav_public_links")}
+					</TabsTrigger>
+				</TabsList>
 					<TabsContent value="general" className="mt-6">
 						<GeneralSettingsManager searchSpaceId={searchSpaceId} />
 					</TabsContent>
@@ -105,9 +99,6 @@ export default function SettingsPage() {
 					</TabsContent>
 					<TabsContent value="prompts" className="mt-6">
 						<PromptConfigManager searchSpaceId={searchSpaceId} />
-					</TabsContent>
-					<TabsContent value="web-search" className="mt-6">
-						<WebSearchSettingsManager searchSpaceId={searchSpaceId} />
 					</TabsContent>
 					<TabsContent value="public-links" className="mt-6">
 						<PublicChatSnapshotsManager searchSpaceId={searchSpaceId} />

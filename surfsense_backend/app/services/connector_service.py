@@ -16,7 +16,6 @@ from app.db import (
     Document,
     SearchSourceConnector,
     SearchSourceConnectorType,
-    SearchSpace,
     async_session_maker,
 )
 from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
@@ -581,8 +580,8 @@ class ConnectorService:
         """Search using the platform SearXNG instance.
 
         Delegates to ``WebSearchService`` which handles caching, circuit
-        breaking, and retries.  Per-search-space overrides are read from the
-        ``SearchSpace.web_search_config`` JSONB column.
+        breaking, and retries.  SearXNG configuration comes from the
+        docker/searxng/settings.yml file.
         """
         from app.services import web_search_service
 
@@ -594,26 +593,9 @@ class ConnectorService:
                 "sources": [],
             }, []
 
-        # Fetch optional per-space overrides
-        engines: str | None = None
-        language: str | None = None
-        safesearch: int | None = None
-
-        space = await self.session.get(SearchSpace, search_space_id)
-        if space and space.web_search_config:
-            cfg = space.web_search_config
-            engines = cfg.get("engines")
-            language = cfg.get("language")
-            raw_ss = cfg.get("safesearch")
-            if isinstance(raw_ss, int) and 0 <= raw_ss <= 2:
-                safesearch = raw_ss
-
         return await web_search_service.search(
             query=user_query,
             top_k=top_k,
-            engines=engines,
-            language=language,
-            safesearch=safesearch,
         )
 
     async def search_baidu(

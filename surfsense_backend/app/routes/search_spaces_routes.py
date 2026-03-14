@@ -180,8 +180,6 @@ async def read_search_spaces(
                     user_id=space.user_id,
                     citations_enabled=space.citations_enabled,
                     qna_custom_instructions=space.qna_custom_instructions,
-                    web_search_enabled=space.web_search_enabled,
-                    web_search_config=space.web_search_config,
                     member_count=member_count,
                     is_owner=is_owner,
                 )

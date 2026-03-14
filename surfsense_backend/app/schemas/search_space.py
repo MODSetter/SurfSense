@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -15,8 +14,6 @@ class SearchSpaceBase(BaseModel):
 class SearchSpaceCreate(SearchSpaceBase):
     citations_enabled: bool = True
     qna_custom_instructions: str | None = None
-    web_search_enabled: bool = True
-    web_search_config: dict[str, Any] | None = None
 
 
 class SearchSpaceUpdate(BaseModel):
@@ -24,8 +21,6 @@ class SearchSpaceUpdate(BaseModel):
     description: str | None = None
     citations_enabled: bool | None = None
     qna_custom_instructions: str | None = None
-    web_search_enabled: bool | None = None
-    web_search_config: dict[str, Any] | None = None
 
 
 class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
@@ -34,8 +29,6 @@ class SearchSpaceRead(SearchSpaceBase, IDModel, TimestampModel):
     user_id: uuid.UUID
     citations_enabled: bool
     qna_custom_instructions: str | None = None
-    web_search_enabled: bool
-    web_search_config: dict[str, Any] | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
