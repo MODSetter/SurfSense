@@ -103,6 +103,7 @@ Write-Step "Downloading SurfSense files"
 Write-Info "Installation directory: $InstallDir"
 
 New-Item -ItemType Directory -Path "$InstallDir\scripts" -Force | Out-Null
+New-Item -ItemType Directory -Path "$InstallDir\searxng" -Force | Out-Null
 
 $Files = @(
     @{ Src = "docker/docker-compose.yml";                Dest = "docker-compose.yml" }
@@ -110,6 +111,8 @@ $Files = @(
     @{ Src = "docker/postgresql.conf";                   Dest = "postgresql.conf" }
     @{ Src = "docker/scripts/init-electric-user.sh";     Dest = "scripts/init-electric-user.sh" }
     @{ Src = "docker/scripts/migrate-database.ps1";      Dest = "scripts/migrate-database.ps1" }
+    @{ Src = "docker/searxng/settings.yml";              Dest = "searxng/settings.yml" }
+    @{ Src = "docker/searxng/limiter.toml";              Dest = "searxng/limiter.toml" }
 )
 
 foreach ($f in $Files) {
