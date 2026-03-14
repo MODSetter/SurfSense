@@ -36,20 +36,18 @@ engines:
     disabled: false
     weight: 1.0
   - name: qwant
-    disabled: false
-    weight: 0.9
+    disabled: true
   - name: mojeek
-    disabled: false
-    weight: 0.7
+    disabled: true
   - name: wikipedia
     disabled: false
     weight: 0.8
   - name: wikidata
     disabled: false
     weight: 0.6
-  - name: currency_convert
+  - name: currency
     disabled: false
-  - name: duckduckgo definitions
+  - name: ddg definitions
     disabled: false
   - name: stackoverflow
     disabled: false
