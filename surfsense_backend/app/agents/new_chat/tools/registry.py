@@ -187,11 +187,14 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=[],  # firecrawl_api_key is optional
     ),
-    # Web search tool — real-time web search via platform SearXNG
+    # Web search tool — real-time web search via SearXNG + user-configured engines
     ToolDefinition(
         name="web_search",
-        description="Search the web for real-time information using the platform SearXNG instance",
-        factory=lambda deps: create_web_search_tool(),
+        description="Search the web for real-time information using configured search engines",
+        factory=lambda deps: create_web_search_tool(
+            search_space_id=deps.get("search_space_id"),
+            available_connectors=deps.get("available_connectors"),
+        ),
         requires=[],
     ),
     # Surfsense documentation search tool

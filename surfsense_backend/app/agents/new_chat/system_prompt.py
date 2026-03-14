@@ -99,15 +99,8 @@ _TOOL_INSTRUCTIONS["search_knowledge_base"] = """
   - IMPORTANT: When searching for information (meetings, schedules, notes, tasks, etc.), ALWAYS search broadly 
     across ALL sources first by omitting connectors_to_search. The user may store information in various places
     including calendar apps, note-taking apps (Obsidian, Notion), chat apps (Slack, Discord), and more.
-  - IMPORTANT (REAL-TIME / PUBLIC WEB QUERIES): For questions that require current public web data
-    (e.g., live exchange rates, stock prices, breaking news, weather, current events), you MUST call
-    `search_knowledge_base` using live web connectors via `connectors_to_search`.
-    Use whichever of these live connectors are available: ["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"].
-    Only connectors listed in the tool's available connector enums section will actually return results.
-  - For these real-time/public web queries, DO NOT answer from memory and DO NOT say you lack internet
-    access before attempting a live connector search.
-  - If the live connectors return no relevant results, explain that live web sources did not return enough
-    data and ask the user if they want you to retry with a refined query.
+  - This tool searches ONLY local/indexed data (uploaded files, Notion, Slack, browser extension captures, etc.).
+    For real-time web search (current events, news, live data), use the `web_search` tool instead.
   - FALLBACK BEHAVIOR: If the search returns no relevant results, you MAY then answer using your own
     general knowledge, but clearly indicate that no matching information was found in the knowledge base.
   - Only narrow to specific connectors if the user explicitly asks (e.g., "check my Slack" or "in my calendar").
@@ -272,6 +265,24 @@ _TOOL_INSTRUCTIONS["scrape_webpage"] = """
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
 """
 
+_TOOL_INSTRUCTIONS["web_search"] = """
+- web_search: Search the web for real-time information using all configured search engines.
+  - Use this for current events, news, prices, weather, public facts, or any question requiring
+    up-to-date information from the internet.
+  - This tool dispatches to all configured search engines (SearXNG, Tavily, Linkup, Baidu) in
+    parallel and merges the results.
+  - IMPORTANT (REAL-TIME / PUBLIC WEB QUERIES): For questions that require current public web data
+    (e.g., live exchange rates, stock prices, breaking news, weather, current events), you MUST call
+    `web_search` instead of answering from memory.
+  - For these real-time/public web queries, DO NOT answer from memory and DO NOT say you lack internet
+    access before attempting a web search.
+  - If the search returns no relevant results, explain that web sources did not return enough
+    data and ask the user if they want you to retry with a refined query.
+  - Args:
+    - query: The search query - use specific, descriptive terms
+    - top_k: Number of results to retrieve (default: 10, max: 50)
+"""
+
 # Memory tool instructions have private and shared variants.
 # We store them keyed as "save_memory" / "recall_memory" with sub-keys.
 _MEMORY_TOOL_INSTRUCTIONS: dict[str, dict[str, str]] = {
@@ -402,7 +413,7 @@ _TOOL_EXAMPLES["search_knowledge_base"] = """
 - User: "Check my Obsidian notes for meeting notes"
   - Call: `search_knowledge_base(query="meeting notes", connectors_to_search=["OBSIDIAN_CONNECTOR"])`
 - User: "search me current usd to inr rate"
-  - Call: `search_knowledge_base(query="current USD to INR exchange rate", connectors_to_search=["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"])`
+  - Call: `web_search(query="current USD to INR exchange rate")`
   - Then answer using the returned live web results with citations.
 """
 
@@ -472,10 +483,21 @@ _TOOL_EXAMPLES["generate_image"] = """
   - Step 2: `display_image(src="<returned_url>", alt="Bean Dream coffee shop logo", title="Generated Image")`
 """
 
+_TOOL_EXAMPLES["web_search"] = """
+- User: "What's the current USD to INR exchange rate?"
+  - Call: `web_search(query="current USD to INR exchange rate")`
+  - Then answer using the returned web results with citations.
+- User: "What's the latest news about AI?"
+  - Call: `web_search(query="latest AI news today")`
+- User: "What's the weather in New York?"
+  - Call: `web_search(query="weather New York today")`
+"""
+
 # All tool names that have prompt instructions (order matters for prompt readability)
 _ALL_TOOL_NAMES_ORDERED = [
     "search_surfsense_docs",
     "search_knowledge_base",
+    "web_search",
     "generate_podcast",
     "generate_report",
     "link_preview",
@@ -596,11 +618,10 @@ The documents you receive are structured like this:
 </document_content>
 </document>
 
-**Live web search results (URL chunk IDs):**
+**Web search results (URL chunk IDs):**
 <document>
 <document_metadata>
-  <document_id>TAVILY_API::Some Title::https://example.com/article</document_id>
-  <document_type>TAVILY_API</document_type>
+  <document_type>WEB_SEARCH</document_type>
   <title><![CDATA[Some web search result]]></title>
   <url><![CDATA[https://example.com/article]]></url>
 </document_metadata>
