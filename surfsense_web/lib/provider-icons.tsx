@@ -15,6 +15,7 @@ import {
 	GeminiIcon,
 	GroqIcon,
 	HuggingFaceIcon,
+	MiniMaxIcon,
 	MistralIcon,
 	MoonshotIcon,
 	NscaleIcon,
@@ -85,6 +86,8 @@ export function getProviderIcon(
 			return <GroqIcon className={cn(className)} />;
 		case "HUGGINGFACE":
 			return <HuggingFaceIcon className={cn(className)} />;
+		case "MINIMAX":
+			return <MiniMaxIcon className={cn(className)} />;
 		case "MISTRAL":
 			return <MistralIcon className={cn(className)} />;
 		case "MOONSHOT":

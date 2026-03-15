@@ -183,6 +183,23 @@ global_llm_configs:
     use_default_system_instructions: true
     citations_enabled: true
 
+  # Example: MiniMax M2.5 - High-performance with 204K context window
+  - id: -8
+    name: "Global MiniMax M2.5"
+    description: "MiniMax M2.5 with 204K context window and competitive pricing"
+    provider: "MINIMAX"
+    model_name: "MiniMax-M2.5"
+    api_key: "your-minimax-api-key-here"
+    api_base: "https://api.minimax.io/v1"
+    rpm: 60
+    tpm: 100000
+    litellm_params:
+      temperature: 1.0  # MiniMax requires temperature in (0.0, 1.0], cannot be 0
+      max_tokens: 4000
+    system_instructions: ""
+    use_default_system_instructions: true
+    citations_enabled: true
+
 # =============================================================================
 # Image Generation Configuration
 # =============================================================================
