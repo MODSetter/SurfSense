@@ -19,9 +19,11 @@ import {
 	ChevronRightIcon,
 	CopyIcon,
 	DownloadIcon,
+	Plus,
 	RefreshCwIcon,
 	SquareIcon,
 	Unplug,
+	Upload,
 	Wrench,
 	X,
 } from "lucide-react";
@@ -71,9 +73,16 @@ import {
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
+import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
@@ -278,21 +287,14 @@ const ConnectToolsBanner: FC = () => {
 						</Avatar>
 					))}
 				</AvatarGroup>
-				<span
-					role="button"
-					tabIndex={0}
+				<button
+					type="button"
 					onClick={handleDismiss}
-					onKeyDown={(e) => {
-						if (e.key === "Enter" || e.key === " ") {
-							e.preventDefault();
-							handleDismiss(e as unknown as React.MouseEvent);
-						}
-					}}
 					className="shrink-0 ml-0.5 p-0.5 text-muted-foreground/40 hover:text-foreground transition-colors"
 					aria-label="Dismiss"
 				>
 					<X className="size-3.5" />
-				</span>
+				</button>
 			</button>
 		</div>
 	);
@@ -564,6 +566,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [toolsPopoverOpen, setToolsPopoverOpen] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 640px)");
+	const { openDialog: openUploadDialog } = useDocumentUploadDialog();
 	const [toolsScrollPos, setToolsScrollPos] = useState<"top" | "middle" | "bottom">("top");
 	const handleToolsScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
 		const el = e.currentTarget;
@@ -607,79 +610,82 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	return (
 		<div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
 			<div className="flex items-center gap-1">
-				<Popover open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
-					<PopoverTrigger asChild>
-						<TooltipIconButton
-							tooltip="Manage tools"
-							side="bottom"
-							variant="ghost"
-							size="icon"
-							className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
-							aria-label="Manage tools"
-							data-joyride="connector-icon"
+				{!isDesktop ? (
+					<>
+					<Popover open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
+						<DropdownMenu>
+							<PopoverAnchor asChild>
+								<DropdownMenuTrigger asChild>
+									<Button
+										variant="ghost"
+										size="icon"
+										className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+										aria-label="More actions"
+										data-joyride="connector-icon"
+									>
+										<Plus className="size-4" />
+									</Button>
+								</DropdownMenuTrigger>
+							</PopoverAnchor>
+							<DropdownMenuContent side="top" align="start" sideOffset={8}>
+								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
+									<Wrench className="size-4" />
+									Manage Tools
+								</DropdownMenuItem>
+								<DropdownMenuItem onSelect={() => openUploadDialog()}>
+									<Upload className="size-4" />
+									Upload Files
+								</DropdownMenuItem>
+							</DropdownMenuContent>
+						</DropdownMenu>
+						<PopoverContent
+							side="top"
+							align="start"
+							sideOffset={12}
+							className="w-[calc(100vw-2rem)] max-w-56 p-0 select-none"
+							onOpenAutoFocus={(e) => e.preventDefault()}
 						>
-							<Wrench className="size-4" />
-						</TooltipIconButton>
-					</PopoverTrigger>
-					<PopoverContent
-						side="bottom"
-						align="start"
-						sideOffset={12}
-						className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
-						onOpenAutoFocus={(e) => e.preventDefault()}
-					>
-						<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
-							<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
-							<span className="text-[10px] sm:text-xs text-muted-foreground">
-								{enabledCount}/{agentTools?.length ?? 0} enabled
-							</span>
-						</div>
-						<div
-							className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
-							onScroll={handleToolsScroll}
-							style={{
-								maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
-								WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
-							}}
-						>
-							{agentTools?.map((tool) => {
-								const isDisabled = disabledTools.includes(tool.name);
-								const row = (
-									<label className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 cursor-pointer hover:bg-muted-foreground/10 transition-colors">
-										<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
-											{formatToolName(tool.name)}
-										</span>
-										<Switch
-											checked={!isDisabled}
-											onCheckedChange={() => toggleTool(tool.name)}
-											className="shrink-0 scale-[0.6] sm:scale-75"
-										/>
-									</label>
-								);
-								if (!isDesktop) {
-									return <div key={tool.name}>{row}</div>;
-								}
-								return (
-									<Tooltip key={tool.name}>
-										<TooltipTrigger asChild>{row}</TooltipTrigger>
-										<TooltipContent side="right" className="max-w-64 text-xs">
-											{tool.description}
-										</TooltipContent>
-									</Tooltip>
-								);
-							})}
-							{!agentTools?.length && (
-								<div className="px-3 py-4 text-center text-xs text-muted-foreground">
-									Loading tools...
-								</div>
-							)}
-						</div>
-					</PopoverContent>
-				</Popover>
-				{!isDesktop && (
-					<TooltipIconButton
-						tooltip="Manage connectors"
-						side="bottom"
+							<div className="flex items-center justify-between px-2.5 py-2 border-b">
+								<span className="text-xs font-medium">Agent Tools</span>
+								<span className="text-[10px] text-muted-foreground">
+									{enabledCount}/{agentTools?.length ?? 0} enabled
+								</span>
+							</div>
+							<div
+								className="max-h-48 overflow-y-auto py-0.5"
+								onScroll={handleToolsScroll}
+								style={{
+									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
+								{agentTools?.map((tool) => {
+									const isDisabled = disabledTools.includes(tool.name);
+									return (
+										<div
+											key={tool.name}
+											className="flex w-full items-center gap-2 px-2.5 py-1 hover:bg-muted-foreground/10 transition-colors"
+										>
+											<span className="flex-1 min-w-0 text-xs font-medium truncate">
+												{formatToolName(tool.name)}
+											</span>
+											<Switch
+												checked={!isDisabled}
+												onCheckedChange={() => toggleTool(tool.name)}
+												className="shrink-0 scale-[0.6]"
+											/>
+										</div>
+									);
+								})}
+								{!agentTools?.length && (
+									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
+										Loading tools...
+									</div>
+								)}
+							</div>
+						</PopoverContent>
+					</Popover>
+					<Button
 						variant="ghost"
 						size="icon"
 						className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
@@ -687,7 +693,75 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						onClick={() => setConnectorDialogOpen(true)}
 					>
 						<Unplug className="size-4" />
-					</TooltipIconButton>
+					</Button>
+					</>
+				) : (
+					<Popover open={toolsPopoverOpen} onOpenChange={setToolsPopoverOpen}>
+						<PopoverTrigger asChild>
+							<TooltipIconButton
+								tooltip="Manage tools"
+								side="bottom"
+								variant="ghost"
+								size="icon"
+								className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
+								aria-label="Manage tools"
+								data-joyride="connector-icon"
+							>
+								<Wrench className="size-4" />
+							</TooltipIconButton>
+						</PopoverTrigger>
+						<PopoverContent
+							side="bottom"
+							align="start"
+							sideOffset={12}
+							className="w-[calc(100vw-2rem)] max-w-56 sm:max-w-72 sm:w-72 p-0 select-none"
+							onOpenAutoFocus={(e) => e.preventDefault()}
+						>
+							<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
+								<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
+								<span className="text-[10px] sm:text-xs text-muted-foreground">
+									{enabledCount}/{agentTools?.length ?? 0} enabled
+								</span>
+							</div>
+							<div
+								className="max-h-48 sm:max-h-64 overflow-y-auto py-0.5 sm:py-1"
+								onScroll={handleToolsScroll}
+								style={{
+									maskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
+									WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
+								}}
+							>
+								{agentTools?.map((tool) => {
+									const isDisabled = disabledTools.includes(tool.name);
+									const row = (
+										<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+											<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+												{formatToolName(tool.name)}
+											</span>
+											<Switch
+												checked={!isDisabled}
+												onCheckedChange={() => toggleTool(tool.name)}
+												className="shrink-0 scale-[0.6] sm:scale-75"
+											/>
+										</div>
+									);
+									return (
+										<Tooltip key={tool.name}>
+											<TooltipTrigger asChild>{row}</TooltipTrigger>
+											<TooltipContent side="right" className="max-w-64 text-xs">
+												{tool.description}
+											</TooltipContent>
+										</Tooltip>
+									);
+								})}
+								{!agentTools?.length && (
+									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
+										Loading tools...
+									</div>
+								)}
+							</div>
+						</PopoverContent>
+					</Popover>
 				)}
 				{sidebarDocs.length > 0 && (
 					<button
