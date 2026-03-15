@@ -37,13 +37,15 @@ _perf_log = get_perf_logger()
 # =============================================================================
 
 # Maps SearchSourceConnectorType enum values to the searchable document/connector types
-# used by the knowledge_base tool. Some connectors map to different document types.
+# used by the knowledge_base and web_search tools.
+# Live search connectors (TAVILY_API, LINKUP_API, BAIDU_SEARCH_API) are routed to
+# the web_search tool; all others go to search_knowledge_base.
 _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
-    # Direct mappings (connector type == searchable type)
+    # Live search connectors (handled by web_search tool)
     "TAVILY_API": "TAVILY_API",
-    "SEARXNG_API": "SEARXNG_API",
     "LINKUP_API": "LINKUP_API",
     "BAIDU_SEARCH_API": "BAIDU_SEARCH_API",
+    # Local/indexed connectors (handled by search_knowledge_base tool)
     "SLACK_CONNECTOR": "SLACK_CONNECTOR",
     "TEAMS_CONNECTOR": "TEAMS_CONNECTOR",
     "NOTION_CONNECTOR": "NOTION_CONNECTOR",
@@ -233,6 +235,7 @@ async def create_surfsense_deep_agent(
         available_document_types = await connector_service.get_available_document_types(
             search_space_id
         )
+
     except Exception as e:
         logging.warning(f"Failed to discover available connectors/document types: {e}")
     _perf_log.info(

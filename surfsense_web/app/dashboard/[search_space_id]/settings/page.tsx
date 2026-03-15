@@ -76,15 +76,15 @@ export default function SettingsPage() {
 							<Shield className="mr-2 h-4 w-4" />
 							{t("nav_team_roles")}
 						</TabsTrigger>
-						<TabsTrigger value="prompts">
-							<MessageSquare className="mr-2 h-4 w-4" />
-							{t("nav_system_instructions")}
-						</TabsTrigger>
-						<TabsTrigger value="public-links">
-							<Globe className="mr-2 h-4 w-4" />
-							{t("nav_public_links")}
-						</TabsTrigger>
-					</TabsList>
+					<TabsTrigger value="prompts">
+						<MessageSquare className="mr-2 h-4 w-4" />
+						{t("nav_system_instructions")}
+					</TabsTrigger>
+					<TabsTrigger value="public-links">
+						<Globe className="mr-2 h-4 w-4" />
+						{t("nav_public_links")}
+					</TabsTrigger>
+				</TabsList>
 					<TabsContent value="general" className="mt-6">
 						<GeneralSettingsManager searchSpaceId={searchSpaceId} />
 					</TabsContent>

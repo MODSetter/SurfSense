@@ -1,0 +1,58 @@
+use_default_settings: true
+
+server:
+  secret_key: "override-me-via-env"
+  limiter: false
+  image_proxy: false
+  method: "GET"
+  default_http_headers:
+    X-Robots-Tag: "noindex, nofollow"
+
+search:
+  formats:
+    - html
+    - json
+  default_lang: "auto"
+  autocomplete: ""
+  safe_search: 0
+
+ui:
+  static_use_hash: true
+
+outgoing:
+  request_timeout: 12.0
+  pool_connections: 100
+  pool_maxsize: 20
+  enable_http2: true
+
+engines:
+  - name: google
+    disabled: false
+    weight: 1.2
+  - name: duckduckgo
+    disabled: false
+    weight: 1.1
+  - name: brave
+    disabled: false
+    weight: 1.0
+  - name: qwant
+    disabled: true
+  - name: mojeek
+    disabled: true
+  - name: wikipedia
+    disabled: false
+    weight: 0.8
+  - name: wikidata
+    disabled: false
+    weight: 0.6
+  - name: currency
+    disabled: false
+  - name: ddg definitions
+    disabled: false
+  - name: stackoverflow
+    disabled: false
+    weight: 0.7
+  - name: bing
+    disabled: true
+  - name: yahoo
+    disabled: true

@@ -23,11 +23,10 @@ from app.db import shielded_async_session
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
 
-# Connectors that call external live-search APIs (no local DB / embedding needed).
-# These are never filtered by available_document_types.
+# Connectors that call external live-search APIs. These are handled by the
+# ``web_search`` tool and must be excluded from knowledge-base searches.
 _LIVE_SEARCH_CONNECTORS: set[str] = {
     "TAVILY_API",
-    "SEARXNG_API",
     "LINKUP_API",
     "BAIDU_SEARCH_API",
 }
@@ -190,10 +189,6 @@ _ALL_CONNECTORS: list[str] = [
     "GOOGLE_DRIVE_FILE",
     "DISCORD_CONNECTOR",
     "AIRTABLE_CONNECTOR",
-    "TAVILY_API",
-    "SEARXNG_API",
-    "LINKUP_API",
-    "BAIDU_SEARCH_API",
     "LUMA_CONNECTOR",
     "NOTE",
     "BOOKSTACK_CONNECTOR",
@@ -227,10 +222,6 @@ CONNECTOR_DESCRIPTIONS: dict[str, str] = {
     "GOOGLE_DRIVE_FILE": "Google Drive files and documents (personal cloud storage)",
     "DISCORD_CONNECTOR": "Discord server conversations and shared content (personal community)",
     "AIRTABLE_CONNECTOR": "Airtable records, tables, and database content (personal data)",
-    "TAVILY_API": "Tavily web search API results (real-time web search)",
-    "SEARXNG_API": "SearxNG search API results (privacy-focused web search)",
-    "LINKUP_API": "Linkup search API results (web search)",
-    "BAIDU_SEARCH_API": "Baidu search API results (Chinese web search)",
     "LUMA_CONNECTOR": "Luma events and meetings",
     "WEBCRAWLER_CONNECTOR": "Webpages indexed by SurfSense (personally selected websites)",
     "CRAWLED_URL": "Webpages indexed by SurfSense (personally selected websites)",
@@ -268,14 +259,11 @@ def _normalize_connectors(
     valid_set = (
         set(available_connectors) if available_connectors else set(_ALL_CONNECTORS)
     )
+    valid_set -= _LIVE_SEARCH_CONNECTORS
 
     if not connectors_to_search:
-        # Search all available connectors if none specified
-        return (
-            list(available_connectors)
-            if available_connectors
-            else list(_ALL_CONNECTORS)
-        )
+        base = list(available_connectors) if available_connectors else list(_ALL_CONNECTORS)
+        return [c for c in base if c not in _LIVE_SEARCH_CONNECTORS]
 
     normalized: list[str] = []
     for raw in connectors_to_search:
@@ -302,15 +290,10 @@ def _normalize_connectors(
         out.append(c)
 
     # Fallback to all available if nothing matched
-    return (
-        out
-        if out
-        else (
-            list(available_connectors)
-            if available_connectors
-            else list(_ALL_CONNECTORS)
-        )
-    )
+    if not out:
+        base = list(available_connectors) if available_connectors else list(_ALL_CONNECTORS)
+        return [c for c in base if c not in _LIVE_SEARCH_CONNECTORS]
+    return out
 
 
 # =============================================================================
@@ -479,7 +462,6 @@ def format_documents_for_context(
     # a numeric chunk_id (the numeric IDs are meaningless auto-incremented counters).
     live_search_connectors = {
         "TAVILY_API",
-        "SEARXNG_API",
         "LINKUP_API",
         "BAIDU_SEARCH_API",
     }
@@ -623,13 +605,11 @@ async def search_knowledge_base_async(
 
     connectors = _normalize_connectors(connectors_to_search, available_connectors)
 
-    # --- Optimization 1: skip local connectors that have zero indexed documents ---
+    # --- Optimization 1: skip connectors that have zero indexed documents ---
     if available_document_types:
         doc_types_set = set(available_document_types)
         before_count = len(connectors)
-        connectors = [
-            c for c in connectors if c in _LIVE_SEARCH_CONNECTORS or c in doc_types_set
-        ]
+        connectors = [c for c in connectors if c in doc_types_set]
         skipped = before_count - len(connectors)
         if skipped:
             perf.info(
@@ -664,9 +644,7 @@ async def search_knowledge_base_async(
             "[kb_search] degenerate query %r detected - falling back to recency browse",
             query,
         )
-        local_connectors = [c for c in connectors if c not in _LIVE_SEARCH_CONNECTORS]
-        if not local_connectors:
-            local_connectors = [None]  # type: ignore[list-item]
+        browse_connectors = connectors if connectors else [None]  # type: ignore[list-item]
 
         browse_results = await asyncio.gather(
             *[
@@ -677,7 +655,7 @@ async def search_knowledge_base_async(
                     start_date=resolved_start_date,
                     end_date=resolved_end_date,
                 )
-                for c in local_connectors
+                for c in browse_connectors
             ]
         )
         for docs in browse_results:
@@ -702,66 +680,20 @@ async def search_knowledge_base_async(
         )
         return result
 
-    # Specs for live-search connectors (external APIs, no local DB/embedding).
-    live_connector_specs: dict[str, tuple[str, bool, bool, dict[str, Any]]] = {
-        "TAVILY_API": ("search_tavily", False, True, {}),
-        "SEARXNG_API": ("search_searxng", False, True, {}),
-        "LINKUP_API": ("search_linkup", False, False, {"mode": "standard"}),
-        "BAIDU_SEARCH_API": ("search_baidu", False, True, {}),
-    }
-
     # --- Optimization 2: compute the query embedding once, share across all local searches ---
-    precomputed_embedding: list[float] | None = None
-    has_local_connectors = any(c not in _LIVE_SEARCH_CONNECTORS for c in connectors)
-    if has_local_connectors:
-        from app.config import config as app_config
+    from app.config import config as app_config
 
-        t_embed = time.perf_counter()
-        precomputed_embedding = app_config.embedding_model_instance.embed(query)
-        perf.info(
-            "[kb_search] shared embedding computed in %.3fs",
-            time.perf_counter() - t_embed,
-        )
+    t_embed = time.perf_counter()
+    precomputed_embedding = app_config.embedding_model_instance.embed(query)
+    perf.info(
+        "[kb_search] shared embedding computed in %.3fs",
+        time.perf_counter() - t_embed,
+    )
 
     max_parallel_searches = 4
     semaphore = asyncio.Semaphore(max_parallel_searches)
 
     async def _search_one_connector(connector: str) -> list[dict[str, Any]]:
-        is_live = connector in _LIVE_SEARCH_CONNECTORS
-
-        if is_live:
-            spec = live_connector_specs.get(connector)
-            if spec is None:
-                return []
-            method_name, includes_date_range, includes_top_k, extra_kwargs = spec
-            kwargs: dict[str, Any] = {
-                "user_query": query,
-                "search_space_id": search_space_id,
-                **extra_kwargs,
-            }
-            if includes_top_k:
-                kwargs["top_k"] = top_k
-            if includes_date_range:
-                kwargs["start_date"] = resolved_start_date
-                kwargs["end_date"] = resolved_end_date
-
-            try:
-                t_conn = time.perf_counter()
-                async with semaphore, shielded_async_session() as isolated_session:
-                    svc = ConnectorService(isolated_session, search_space_id)
-                    _, chunks = await getattr(svc, method_name)(**kwargs)
-                    perf.info(
-                        "[kb_search] connector=%s results=%d in %.3fs",
-                        connector,
-                        len(chunks),
-                        time.perf_counter() - t_conn,
-                    )
-                    return chunks
-            except Exception as e:
-                perf.warning("[kb_search] connector=%s FAILED: %s", connector, e)
-                return []
-
-        # --- Optimization 3: call _combined_rrf_search directly with shared embedding ---
         try:
             t_conn = time.perf_counter()
             async with semaphore, shielded_async_session() as isolated_session:
@@ -967,7 +899,9 @@ Focus searches on these types for best results."""
     # This is what the LLM sees when deciding whether/how to use the tool
     dynamic_description = f"""Search the user's personal knowledge base for relevant information.
 
-Use this tool to find documents, notes, files, web pages, and other content that may help answer the user's question.
+Use this tool to find documents, notes, files, web pages, and other content the user has indexed.
+This searches ONLY local/indexed data (uploaded files, Notion, Slack, browser extension captures, etc.).
+For real-time web search (current events, news, live data), use the `web_search` tool instead.
 
 IMPORTANT:
 - Always craft specific, descriptive search queries using natural language keywords.
@@ -977,9 +911,6 @@ IMPORTANT:
 - If the user requests a specific source type (e.g. "my notes", "Slack messages"), pass `connectors_to_search=[...]` using the enums below.
 - If `connectors_to_search` is omitted/empty, the system will search broadly.
 - Only connectors that are enabled/configured for this search space are available.{doc_types_info}
-- For real-time/public web queries (e.g., current exchange rates, stock prices, breaking news, weather),
-  explicitly include live web connectors in `connectors_to_search`, prioritizing:
-  ["LINKUP_API", "TAVILY_API", "SEARXNG_API", "BAIDU_SEARCH_API"].
 
 ## Available connector enums for `connectors_to_search`
 
