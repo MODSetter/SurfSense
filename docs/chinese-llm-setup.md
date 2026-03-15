@@ -14,7 +14,6 @@ SurfSense 现已支持以下国产 LLM：
 - ✅ **阿里通义千问 (Alibaba Qwen)** - 阿里云通义千问大模型
 - ✅ **月之暗面 Kimi (Moonshot)** - 月之暗面 Kimi 大模型
 - ✅ **智谱 AI GLM (Zhipu)** - 智谱 AI GLM 系列模型
-- ✅ **MiniMax** - MiniMax 大模型 (M2.5 系列，204K 上下文)
 
 ---
 
@@ -198,52 +197,6 @@ API Base URL: https://open.bigmodel.cn/api/paas/v4
 
 ---
 
-## 5️⃣ MiniMax 配置 | MiniMax Configuration
-
-### 获取 API Key
-
-1. 访问 [MiniMax 开放平台](https://platform.minimaxi.com/)
-2. 注册并登录账号
-3. 进入 **API Keys** 页面
-4. 创建新的 API Key
-5. 复制 API Key
-
-### 在 SurfSense 中配置
-
-| 字段 | 值 | 说明 |
-|------|-----|------|
-| **Configuration Name** | `MiniMax M2.5` | 配置名称（自定义） |
-| **Provider** | `MINIMAX` | 选择 MiniMax |
-| **Model Name** | `MiniMax-M2.5` | 推荐模型<br>其他选项: `MiniMax-M2.5-highspeed` |
-| **API Key** | `eyJ...` | 你的 MiniMax API Key |
-| **API Base URL** | `https://api.minimax.io/v1` | MiniMax API 地址 |
-| **Parameters** | `{"temperature": 1.0}` | MiniMax 要求 temperature 在 (0.0, 1.0] 范围内 |
-
-### 示例配置
-
-```
-Configuration Name: MiniMax M2.5
-Provider: MINIMAX
-Model Name: MiniMax-M2.5
-API Key: eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-API Base URL: https://api.minimax.io/v1
-```
-
-### 可用模型
-
-- **MiniMax-M2.5**: 旗舰模型，204K 上下文窗口（推荐）
-- **MiniMax-M2.5-highspeed**: 高速版本，204K 上下文窗口，更快响应
-
-### 注意事项
-
-- ⚠️ MiniMax API 要求 `temperature` 参数在 `(0.0, 1.0]` 范围内，不能设为 `0`
-- 💡 如果使用默认参数时报错，请在 Parameters 中设置 `{"temperature": 1.0}`
-
-### 定价
-- 请访问 [MiniMax 开放平台定价](https://platform.minimaxi.com/document/Price) 查看最新价格
-
----
-
 ## ⚙️ 高级配置 | Advanced Configuration
 
 ### 自定义参数 | Custom Parameters
@@ -315,13 +268,13 @@ docker compose logs backend | grep -i "error"
 |---------|---------|------|
 | **文档摘要** | Qwen-Plus, GLM-4 | 平衡性能和成本 |
 | **代码分析** | DeepSeek-Coder | 代码专用 |
-| **长文本处理** | Kimi 128K, MiniMax-M2.5 | 超长上下文（204K） |
-| **快速响应** | Qwen-Turbo, GLM-4-Flash, MiniMax-M2.5-highspeed | 速度优先 |
+| **长文本处理** | Kimi 128K | 超长上下文 |
+| **快速响应** | Qwen-Turbo, GLM-4-Flash | 速度优先 |
 
 ### 2. 成本优化
 
-- 🎯 **Long Context LLM**: 使用 Qwen-Plus、GLM-4 或 MiniMax-M2.5（处理文档摘要，支持 204K 上下文）
-- ⚡ **Fast LLM**: 使用 Qwen-Turbo、GLM-4-Flash 或 MiniMax-M2.5-highspeed（快速对话）
+- 🎯 **Long Context LLM**: 使用 Qwen-Plus 或 GLM-4（处理文档摘要）
+- ⚡ **Fast LLM**: 使用 Qwen-Turbo 或 GLM-4-Flash（快速对话）
 - 🧠 **Strategic LLM**: 使用 Qwen-Max 或 DeepSeek-Chat（复杂推理）
 
 ### 3. API Key 安全
@@ -341,7 +294,6 @@ docker compose logs backend | grep -i "error"
 - [阿里云百炼文档](https://help.aliyun.com/zh/model-studio/)
 - [Moonshot AI 文档](https://platform.moonshot.cn/docs)
 - [智谱 AI 文档](https://open.bigmodel.cn/dev/api)
-- [MiniMax 文档](https://platform.minimaxi.com/document/introduction)
 
 ### SurfSense 文档
 
@@ -363,7 +315,6 @@ docker compose logs backend | grep -i "error"
 
 ## 🔄 更新日志 | Changelog
 
-- **2026-03-13**: 添加 MiniMax (M2.5) 配置指南
 - **2025-01-12**: 初始版本，添加 DeepSeek、Qwen、Kimi、GLM 支持
 
 ---
