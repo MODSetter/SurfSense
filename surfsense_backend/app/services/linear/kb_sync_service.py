@@ -1,11 +1,10 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.linear_connector import LinearConnector
-from app.db import Chunk, Document
+from app.db import Document
 from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
@@ -105,10 +104,6 @@ class LinearKBSyncService:
                 )
                 summary_embedding = embed_text(summary_content)
 
-            await self.db_session.execute(
-                delete(Chunk).where(Chunk.document_id == document.id)
-            )
-
             chunks = await create_document_chunks(issue_content)
 
             document.title = f"{issue_identifier}: {issue_title}"
@@ -131,7 +126,7 @@ class LinearKBSyncService:
                 "connector_id": connector_id,
             }
             flag_modified(document, "document_metadata")
-            safe_set_chunks(document, chunks)
+            await safe_set_chunks(self.db_session, document, chunks)
             document.updated_at = get_current_timestamp()
 
             await self.db_session.commit()

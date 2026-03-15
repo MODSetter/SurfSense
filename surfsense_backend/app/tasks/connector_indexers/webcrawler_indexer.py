@@ -410,7 +410,7 @@ async def index_crawled_urls(
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.status = DocumentStatus.ready()  # READY status
                 document.updated_at = get_current_timestamp()
 

@@ -571,7 +571,7 @@ async def index_obsidian_vault(
                 document.content_hash = content_hash
                 document.embedding = embedding
                 document.document_metadata = document_metadata
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 

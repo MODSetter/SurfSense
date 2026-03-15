@@ -439,7 +439,7 @@ async def index_clickup_tasks(
                     "connector_id": connector_id,
                     "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 }
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 

@@ -21,6 +21,7 @@ from .base import (
     check_document_by_unique_identifier,
     check_duplicate_document,
     get_current_timestamp,
+    safe_set_chunks,
 )
 
 
@@ -258,7 +259,7 @@ async def add_received_markdown_file_document(
             existing_document.document_metadata = {
                 "FILE_NAME": file_name,
             }
-            existing_document.chunks = chunks
+            await safe_set_chunks(session, existing_document, chunks)
             existing_document.source_markdown = file_in_markdown
             existing_document.updated_at = get_current_timestamp()
             existing_document.status = DocumentStatus.ready()  # Mark as ready

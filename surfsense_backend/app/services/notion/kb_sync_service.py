@@ -1,10 +1,9 @@
 import logging
 from datetime import datetime
 
-from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import Chunk, Document
+from app.db import Document
 from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
@@ -130,11 +129,6 @@ class NotionKBSyncService:
                 summary_content = f"Notion Page: {document.document_metadata.get('page_title')}\n\n{full_content}"
                 summary_embedding = embed_text(summary_content)
 
-            logger.debug(f"Deleting old chunks for document {document_id}")
-            await self.db_session.execute(
-                delete(Chunk).where(Chunk.document_id == document.id)
-            )
-
             logger.debug("Creating new chunks")
             chunks = await create_document_chunks(full_content)
             logger.debug(f"Created {len(chunks)} chunks")
@@ -147,7 +141,7 @@ class NotionKBSyncService:
                 **document.document_metadata,
                 "indexed_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             }
-            safe_set_chunks(document, chunks)
+            await safe_set_chunks(self.db_session, document, chunks)
             document.updated_at = get_current_timestamp()
 
             logger.debug("Committing changes to database")
