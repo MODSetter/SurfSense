@@ -1,3 +1,4 @@
+import asyncio
 import time
 from datetime import datetime
 
@@ -46,10 +47,10 @@ class ChucksHybridSearchRetriever:
         perf = get_perf_logger()
         t0 = time.perf_counter()
 
-        # Get embedding for the query
+        # Get embedding for the query (run in thread to avoid blocking the event loop)
         embedding_model = config.embedding_model_instance
         t_embed = time.perf_counter()
-        query_embedding = embedding_model.embed(query_text)
+        query_embedding = await asyncio.to_thread(embedding_model.embed, query_text)
         perf.debug(
             "[chunk_search] vector_search embedding in %.3fs",
             time.perf_counter() - t_embed,
@@ -195,7 +196,7 @@ class ChucksHybridSearchRetriever:
         if query_embedding is None:
             embedding_model = config.embedding_model_instance
             t_embed = time.perf_counter()
-            query_embedding = embedding_model.embed(query_text)
+            query_embedding = await asyncio.to_thread(embedding_model.embed, query_text)
             perf.debug(
                 "[chunk_search] hybrid_search embedding in %.3fs",
                 time.perf_counter() - t_embed,
