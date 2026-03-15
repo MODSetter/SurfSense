@@ -1,30 +1,15 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { AlertCircleIcon, FileTextIcon } from "lucide-react";
+import { AlertCircleIcon, FileTextIcon, GlobeIcon } from "lucide-react";
 import { z } from "zod";
-import {
-	Article,
-	ArticleErrorBoundary,
-	ArticleLoading,
-	parseSerializableArticle,
-} from "@/components/tool-ui/article";
+import { Citation } from "@/components/tool-ui/citation";
 
-// ============================================================================
-// Zod Schemas
-// ============================================================================
-
-/**
- * Schema for scrape_webpage tool arguments
- */
 const ScrapeWebpageArgsSchema = z.object({
 	url: z.string(),
 	max_length: z.number().nullish(),
 });
 
-/**
- * Schema for scrape_webpage tool result
- */
 const ScrapeWebpageResultSchema = z.object({
 	id: z.string(),
 	assetId: z.string(),
@@ -42,16 +27,9 @@ const ScrapeWebpageResultSchema = z.object({
 	error: z.string().nullish(),
 });
 
-// ============================================================================
-// Types
-// ============================================================================
-
 type ScrapeWebpageArgs = z.infer<typeof ScrapeWebpageArgsSchema>;
 type ScrapeWebpageResult = z.infer<typeof ScrapeWebpageResultSchema>;
 
-/**
- * Error state component shown when webpage scraping fails
- */
 function ScrapeErrorState({ url, error }: { url: string; error: string }) {
 	return (
 		<div className="my-4 overflow-hidden rounded-xl border border-destructive/20 bg-destructive/5 p-4 max-w-md">
@@ -69,9 +47,6 @@ function ScrapeErrorState({ url, error }: { url: string; error: string }) {
 	);
 }
 
-/**
- * Cancelled state component
- */
 function ScrapeCancelledState({ url }: { url: string }) {
 	return (
 		<div className="my-4 rounded-xl border border-muted p-4 text-muted-foreground max-w-md">
@@ -83,42 +58,50 @@ function ScrapeCancelledState({ url }: { url: string }) {
 	);
 }
 
-/**
- * Parsed Article component with error handling
- */
-function ParsedArticle({ result }: { result: unknown }) {
-	const { description, ...article } = parseSerializableArticle(result);
-
-	return <Article {...article} maxWidth="480px" />;
+function ScrapeLoadingState({ url }: { url: string }) {
+	return (
+		<div className="my-4 max-w-md animate-pulse rounded-xl border bg-card p-4">
+			<div className="flex flex-col gap-2">
+				<div className="flex items-center gap-1.5">
+					<GlobeIcon className="size-3.5 text-muted-foreground" />
+					<div className="h-3 w-24 rounded bg-muted" />
+				</div>
+				<div className="h-4 w-3/4 rounded bg-muted" />
+			</div>
+			<p className="text-xs text-muted-foreground mt-3 truncate">{url}</p>
+		</div>
+	);
 }
 
-/**
- * Scrape Webpage Tool UI Component
- *
- * This component is registered with assistant-ui to render an article card
- * when the scrape_webpage tool is called by the agent.
- *
- * It displays scraped webpage content including:
- * - Title and description
- * - Author and date (if available)
- * - Word count
- * - Link to original source
- */
+function buildFaviconUrl(domain: string): string {
+	return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(domain)}&sz=64`;
+}
+
+function ParsedCitation({ result }: { result: ScrapeWebpageResult }) {
+	return (
+		<Citation
+			id={result.id}
+			href={result.href}
+			title={result.title}
+			snippet={result.description ?? undefined}
+			domain={result.domain ?? undefined}
+			favicon={result.domain ? buildFaviconUrl(result.domain) : undefined}
+			author={result.author ?? undefined}
+			publishedAt={result.date ?? undefined}
+			type="article"
+		/>
+	);
+}
+
 export const ScrapeWebpageToolUI = makeAssistantToolUI<ScrapeWebpageArgs, ScrapeWebpageResult>({
 	toolName: "scrape_webpage",
 	render: function ScrapeWebpageUI({ args, result, status }) {
 		const url = args.url || "Unknown URL";
 
-		// Loading state - tool is still running
 		if (status.type === "running" || status.type === "requires-action") {
-			return (
-				<div className="my-4">
-					<ArticleLoading title={`Scraping ${url}...`} />
-				</div>
-			);
+			return <ScrapeLoadingState url={url} />;
 		}
 
-		// Incomplete/cancelled state
 		if (status.type === "incomplete") {
 			if (status.reason === "cancelled") {
 				return <ScrapeCancelledState url={url} />;
@@ -133,26 +116,17 @@ export const ScrapeWebpageToolUI = makeAssistantToolUI<ScrapeWebpageArgs, Scrape
 			}
 		}
 
-		// No result yet
 		if (!result) {
-			return (
-				<div className="my-4">
-					<ArticleLoading title={`Extracting content from ${url}...`} />
-				</div>
-			);
+			return <ScrapeLoadingState url={url} />;
 		}
 
-		// Error result from the tool
 		if (result.error) {
 			return <ScrapeErrorState url={url} error={result.error} />;
 		}
 
-		// Success - render the article card
 		return (
 			<div className="my-4">
-				<ArticleErrorBoundary>
-					<ParsedArticle result={result} />
-				</ArticleErrorBoundary>
+				<ParsedCitation result={result} />
 			</div>
 		);
 	},
