@@ -58,16 +58,16 @@ export function PublicChatSnapshotRow({
 		<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
 			<CardContent className="p-4 flex flex-col gap-3 h-full">
 				{/* Header: Title + Actions */}
-				<div className="flex items-start justify-between gap-2">
-					<div className="min-w-0 flex-1">
-						<h4
-							className="text-sm font-semibold tracking-tight truncate"
-							title={snapshot.thread_title}
-						>
-							{snapshot.thread_title}
-						</h4>
-					</div>
-					<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+			<div className="relative">
+				<div className="min-w-0 pr-0 sm:group-hover:pr-16">
+					<h4
+						className="text-sm font-semibold tracking-tight truncate"
+						title={snapshot.thread_title}
+					>
+						{snapshot.thread_title}
+					</h4>
+				</div>
+				<div className="flex items-center gap-0.5 shrink-0 sm:hidden sm:group-hover:flex absolute right-0 top-0">
 					<TooltipProvider>
 						<Tooltip open={isDesktop ? undefined : false}>
 							<TooltipTrigger asChild>
