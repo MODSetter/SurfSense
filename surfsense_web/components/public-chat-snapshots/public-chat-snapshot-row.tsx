@@ -59,7 +59,7 @@ export function PublicChatSnapshotRow({
 			<CardContent className="p-4 flex flex-col gap-3 h-full">
 				{/* Header: Title + Actions */}
 			<div className="relative">
-				<div className="min-w-0 pr-0 sm:group-hover:pr-16">
+				<div className="min-w-0 pr-16 sm:pr-0 sm:group-hover:pr-16">
 					<h4
 						className="text-sm font-semibold tracking-tight truncate"
 						title={snapshot.thread_title}
