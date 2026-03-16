@@ -628,17 +628,25 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [router]);
 
 	const handleViewAllSharedChats = useCallback(() => {
-		setIsAllSharedChatsSidebarOpen(true);
-		setIsAllPrivateChatsSidebarOpen(false);
-		setIsInboxSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
+		setIsAllSharedChatsSidebarOpen((prev) => {
+			if (!prev) {
+				setIsAllPrivateChatsSidebarOpen(false);
+				setIsInboxSidebarOpen(false);
+				setIsAnnouncementsSidebarOpen(false);
+			}
+			return !prev;
+		});
 	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
-		setIsAllPrivateChatsSidebarOpen(true);
-		setIsAllSharedChatsSidebarOpen(false);
-		setIsInboxSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
+		setIsAllPrivateChatsSidebarOpen((prev) => {
+			if (!prev) {
+				setIsAllSharedChatsSidebarOpen(false);
+				setIsInboxSidebarOpen(false);
+				setIsAnnouncementsSidebarOpen(false);
+			}
+			return !prev;
+		});
 	}, []);
 
 	// Delete handlers

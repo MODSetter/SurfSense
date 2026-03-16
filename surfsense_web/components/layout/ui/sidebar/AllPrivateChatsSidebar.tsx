@@ -305,9 +305,9 @@ export function AllPrivateChatsSidebar({
 					<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
 						<TabsTrigger
 							value="active"
-							className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+							className="group/tab flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 						>
-							<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+							<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted group-data-[state=active]/tab:bg-muted transition-colors">
 								<MessageCircleMore className="h-4 w-4" />
 								<span>Active</span>
 								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -317,9 +317,9 @@ export function AllPrivateChatsSidebar({
 						</TabsTrigger>
 						<TabsTrigger
 							value="archived"
-							className="flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+							className="group/tab flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
 						>
-							<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted transition-colors">
+							<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted group-data-[state=active]/tab:bg-muted transition-colors">
 								<ArchiveIcon className="h-4 w-4" />
 								<span>Archived</span>
 								<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -334,8 +334,8 @@ export function AllPrivateChatsSidebar({
 			<div className="flex-1 overflow-y-auto overflow-x-hidden p-2">
 				{isLoading ? (
 					<div className="space-y-1">
-						{[75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
-							<div key={`skeleton-${i}`} className="flex items-center gap-2 rounded-md px-2 py-1.5">
+						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
+							<div key={`skeleton-${titleWidth}`} className="flex items-center gap-2 rounded-md px-2 py-1.5">
 								<Skeleton className="h-4 w-4 shrink-0 rounded" />
 								<Skeleton className="h-4 rounded" style={{ width: `${titleWidth}%` }} />
 							</div>

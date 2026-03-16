@@ -187,6 +187,8 @@ export function LayoutShell({
 							onChatArchive={onChatArchive}
 							onViewAllSharedChats={onViewAllSharedChats}
 							onViewAllPrivateChats={onViewAllPrivateChats}
+							isSharedChatsPanelOpen={allSharedChatsPanel?.open}
+							isPrivateChatsPanelOpen={allPrivateChatsPanel?.open}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -305,6 +307,8 @@ export function LayoutShell({
 							onChatArchive={onChatArchive}
 							onViewAllSharedChats={onViewAllSharedChats}
 							onViewAllPrivateChats={onViewAllPrivateChats}
+							isSharedChatsPanelOpen={allSharedChatsPanel?.open}
+							isPrivateChatsPanelOpen={allPrivateChatsPanel?.open}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}

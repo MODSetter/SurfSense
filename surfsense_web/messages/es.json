@@ -655,6 +655,8 @@
 		"no_shared_chats": "No hay chats compartidos",
 		"view_all_shared_chats": "Ver todos los chats compartidos",
 		"view_all_private_chats": "Ver todos los chats privados",
+		"show_all": "Ver todo",
+		"hide": "Ocultar",
 		"no_chats": "Aún no hay chats",
 		"start_new_chat_hint": "Iniciar un nuevo chat",
 		"error_loading_chats": "Error al cargar chats",
