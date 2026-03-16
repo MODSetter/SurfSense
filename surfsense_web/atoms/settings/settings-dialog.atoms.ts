@@ -19,3 +19,5 @@ export const userSettingsDialogAtom = atom<UserSettingsDialogState>({
 	open: false,
 	initialTab: "profile",
 });
+
+export const teamDialogAtom = atom<boolean>(false);

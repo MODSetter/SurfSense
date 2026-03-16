@@ -16,6 +16,7 @@ import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-spac
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
 	searchSpaceSettingsDialogAtom,
+	teamDialogAtom,
 	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
@@ -52,6 +53,7 @@ import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
+import { TeamDialog } from "@/components/settings/team-dialog";
 import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
@@ -398,6 +400,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 
 	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
 	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
+	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
 
 	const handleUserSettings = useCallback(() => {
 		setUserSettingsDialog({ open: true, initialTab: "profile" });
@@ -595,8 +598,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [setSearchSpaceSettingsDialog]);
 
 	const handleManageMembers = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/team`);
-	}, [router, searchSpaceId]);
+		setTeamDialogOpen(true);
+	}, [setTeamDialogOpen]);
 
 	const handleLogout = useCallback(async () => {
 		try {
@@ -947,6 +950,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			{/* Settings Dialogs */}
 			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
 			<UserSettingsDialog />
+			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
 		</>
 	);
 }

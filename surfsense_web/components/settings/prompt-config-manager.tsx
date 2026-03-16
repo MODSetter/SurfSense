@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, Info, RotateCcw, Save } from "lucide-react";
+import { AlertTriangle, Info } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -80,13 +80,6 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			toast.error(error.message || "Failed to save system instructions");
 		} finally {
 			setSaving(false);
-		}
-	};
-
-	const handleReset = () => {
-		if (searchSpace) {
-			setCustomInstructions(searchSpace.qna_custom_instructions || "");
-			setHasChanges(false);
 		}
 	};
 
@@ -184,38 +177,16 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 			</Card>
 
 		{/* Action Buttons */}
-		<div className="flex items-center justify-between pt-3 md:pt-4 gap-2">
-			<Button
-				variant="secondary"
-				onClick={handleReset}
-				disabled={!hasChanges || saving}
-				className="gap-2"
-			>
-				<RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
-				Reset Changes
-			</Button>
+		<div className="flex justify-end pt-3 md:pt-4">
 			<Button
 				variant="outline"
 				onClick={handleSave}
 				disabled={!hasChanges || saving}
 				className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 			>
-				<Save className="h-3.5 w-3.5 md:h-4 md:w-4" />
 				{saving ? "Saving" : "Save Instructions"}
 			</Button>
 		</div>
-
-			{hasChanges && (
-				<Alert
-					variant="default"
-					className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 py-3 md:py-4"
-				>
-					<Info className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-500 shrink-0" />
-					<AlertDescription className="text-blue-800 dark:text-blue-300 text-xs md:text-sm">
-						You have unsaved changes. Click "Save Instructions" to apply them.
-					</AlertDescription>
-				</Alert>
-			)}
 		</div>
 	);
 }

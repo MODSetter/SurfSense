@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAtomValue } from "jotai";
-import { Info, RotateCcw, Save } from "lucide-react";
+import { Info } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -81,14 +81,6 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 		}
 	};
 
-	const handleReset = () => {
-		if (searchSpace) {
-			setName(searchSpace.name || "");
-			setDescription(searchSpace.description || "");
-			setHasChanges(false);
-		}
-	};
-
 	if (loading) {
 		return (
 			<div className="space-y-4 md:space-y-6">
@@ -160,39 +152,17 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 				</CardContent>
 			</Card>
 
-		{/* Action Buttons */}
-		<div className="flex items-center justify-between pt-3 md:pt-4 gap-2">
-			<Button
-				variant="secondary"
-				onClick={handleReset}
-				disabled={!hasChanges || saving}
-				className="gap-2"
-			>
-				<RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
-				{t("general_reset")}
-			</Button>
-			<Button
-				variant="outline"
-				onClick={handleSave}
-				disabled={!hasChanges || saving || !name.trim()}
-				className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-			>
-				<Save className="h-3.5 w-3.5 md:h-4 md:w-4" />
-				{saving ? t("general_saving") : t("general_save")}
-			</Button>
-		</div>
-
-			{hasChanges && (
-				<Alert
-					variant="default"
-					className="bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800 py-3 md:py-4"
+			{/* Action Buttons */}
+			<div className="flex justify-end pt-3 md:pt-4">
+				<Button
+					variant="outline"
+					onClick={handleSave}
+					disabled={!hasChanges || saving || !name.trim()}
+					className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 				>
-					<Info className="h-3 w-3 md:h-4 md:w-4 text-blue-600 dark:text-blue-500 shrink-0" />
-					<AlertDescription className="text-blue-800 dark:text-blue-300 text-xs md:text-sm">
-						{t("general_unsaved_changes")}
-					</AlertDescription>
-				</Alert>
-			)}
+					{saving ? t("general_saving") : t("general_save")}
+				</Button>
+			</div>
 		</div>
 	);
 }
