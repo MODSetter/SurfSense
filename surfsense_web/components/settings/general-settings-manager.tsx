@@ -160,26 +160,27 @@ export function GeneralSettingsManager({ searchSpaceId }: GeneralSettingsManager
 				</CardContent>
 			</Card>
 
-			{/* Action Buttons */}
-			<div className="flex items-center justify-between pt-3 md:pt-4 gap-2">
-				<Button
-					variant="outline"
-					onClick={handleReset}
-					disabled={!hasChanges || saving}
-					className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10"
-				>
-					<RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
-					{t("general_reset")}
-				</Button>
-				<Button
-					onClick={handleSave}
-					disabled={!hasChanges || saving || !name.trim()}
-					className="flex items-center gap-2 text-xs md:text-sm h-9 md:h-10"
-				>
-					<Save className="h-3.5 w-3.5 md:h-4 md:w-4" />
-					{saving ? t("general_saving") : t("general_save")}
-				</Button>
-			</div>
+		{/* Action Buttons */}
+		<div className="flex items-center justify-between pt-3 md:pt-4 gap-2">
+			<Button
+				variant="secondary"
+				onClick={handleReset}
+				disabled={!hasChanges || saving}
+				className="gap-2"
+			>
+				<RotateCcw className="h-3.5 w-3.5 md:h-4 md:w-4" />
+				{t("general_reset")}
+			</Button>
+			<Button
+				variant="outline"
+				onClick={handleSave}
+				disabled={!hasChanges || saving || !name.trim()}
+				className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+			>
+				<Save className="h-3.5 w-3.5 md:h-4 md:w-4" />
+				{saving ? t("general_saving") : t("general_save")}
+			</Button>
+		</div>
 
 			{hasChanges && (
 				<Alert

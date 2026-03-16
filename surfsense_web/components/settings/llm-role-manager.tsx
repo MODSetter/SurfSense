@@ -13,7 +13,6 @@ import {
 	Save,
 	Shuffle,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -228,15 +227,15 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		<div className="space-y-5 md:space-y-6">
 			{/* Header actions */}
 			<div className="flex items-center justify-between">
-				<Button
-					variant="outline"
-					size="sm"
-					onClick={() => refreshConfigs()}
-					disabled={isLoading}
-					className="flex items-center gap-2 text-xs md:text-sm h-8 md:h-9"
-				>
-					<RefreshCw className="h-3 w-3 md:h-4 md:w-4" />
-					Refresh
+			<Button
+				variant="secondary"
+				size="sm"
+				onClick={() => refreshConfigs()}
+				disabled={isLoading}
+				className="gap-2"
+			>
+				<RefreshCw className="h-3.5 w-3.5" />
+				Refresh
 				</Button>
 				{isAssignmentComplete && !isLoading && !hasError && (
 					<Badge
@@ -250,25 +249,18 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 			</div>
 
 			{/* Error Alert */}
-			<AnimatePresence>
-				{hasError && (
-					<motion.div
-						key="error-alert"
-						initial={{ opacity: 0, y: -10 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: -10 }}
-					>
-						<Alert variant="destructive" className="py-3 md:py-4">
-							<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
-							<AlertDescription className="text-xs md:text-sm">
-								{(configsError?.message ?? "Failed to load LLM configurations") ||
-									(preferencesError?.message ?? "Failed to load preferences") ||
-									(globalConfigsError?.message ?? "Failed to load global configurations")}
-							</AlertDescription>
-						</Alert>
-					</motion.div>
-				)}
-			</AnimatePresence>
+			{hasError && (
+				<div>
+					<Alert variant="destructive" className="py-3 md:py-4">
+						<AlertCircle className="h-3 w-3 md:h-4 md:w-4 shrink-0" />
+						<AlertDescription className="text-xs md:text-sm">
+							{(configsError?.message ?? "Failed to load LLM configurations") ||
+								(preferencesError?.message ?? "Failed to load preferences") ||
+								(globalConfigsError?.message ?? "Failed to load global configurations")}
+						</AlertDescription>
+					</Alert>
+				</div>
+			)}
 
 			{/* Loading Skeleton */}
 			{isLoading && (
@@ -322,13 +314,8 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 
 			{/* Role Assignment Cards */}
 			{!isLoading && !hasError && hasAnyConfigs && (
-				<motion.div
-					initial={{ opacity: 0 }}
-					animate={{ opacity: 1 }}
-					transition={{ duration: 0.3 }}
-					className="grid gap-4 grid-cols-1 lg:grid-cols-2"
-				>
-					{Object.entries(ROLE_DESCRIPTIONS).map(([key, role], index) => {
+				<div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
+					{Object.entries(ROLE_DESCRIPTIONS).map(([key, role]) => {
 						const IconComponent = role.icon;
 						const isImageRole = role.configType === "image";
 						const currentAssignment = assignments[role.prefKey as keyof typeof assignments];
@@ -349,12 +336,7 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 							assignedConfig && "is_auto_mode" in assignedConfig && assignedConfig.is_auto_mode;
 
 						return (
-							<motion.div
-								key={key}
-								initial={{ opacity: 0, y: 15 }}
-								animate={{ opacity: 1, y: 0 }}
-								transition={{ delay: index * 0.08, duration: 0.3 }}
-							>
+							<div key={key}>
 								<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
 									<CardContent className="p-4 md:p-5 space-y-4">
 										{/* Role Header */}
@@ -542,47 +524,39 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 										)}
 									</CardContent>
 								</Card>
-							</motion.div>
+							</div>
 						);
 					})}
-				</motion.div>
+				</div>
 			)}
 
 			{/* Save / Reset Bar */}
-			<AnimatePresence>
-				{hasChanges && (
-					<motion.div
-						initial={{ opacity: 0, y: 10 }}
-						animate={{ opacity: 1, y: 0 }}
-						exit={{ opacity: 0, y: 10 }}
-						transition={{ duration: 0.2 }}
-						className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 p-3 md:p-4"
-					>
-						<p className="text-xs md:text-sm text-muted-foreground">You have unsaved changes</p>
-						<div className="flex items-center gap-2">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={handleReset}
-								disabled={isSaving}
-								className="h-8 text-xs gap-1.5"
-							>
-								<RotateCcw className="w-3 h-3" />
-								Reset
-							</Button>
-							<Button
-								size="sm"
-								onClick={handleSave}
-								disabled={isSaving}
-								className="h-8 text-xs gap-1.5"
-							>
-								<Save className="w-3 h-3" />
-								{isSaving ? "Saving…" : "Save Changes"}
-							</Button>
-						</div>
-					</motion.div>
-				)}
-			</AnimatePresence>
+			{hasChanges && (
+				<div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-muted/50 p-3 md:p-4">
+					<p className="text-xs md:text-sm text-muted-foreground">You have unsaved changes</p>
+					<div className="flex items-center gap-2">
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleReset}
+							disabled={isSaving}
+							className="h-8 text-xs gap-1.5"
+						>
+							<RotateCcw className="w-3 h-3" />
+							Reset
+						</Button>
+						<Button
+							size="sm"
+							onClick={handleSave}
+							disabled={isSaving}
+							className="h-8 text-xs gap-1.5"
+						>
+							<Save className="w-3 h-3" />
+							{isSaving ? "Saving…" : "Save Changes"}
+						</Button>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

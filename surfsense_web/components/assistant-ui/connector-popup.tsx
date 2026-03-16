@@ -1,8 +1,7 @@
 "use client";
 
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { type FC, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
@@ -12,6 +11,7 @@ import {
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -50,6 +50,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 	({ showTrigger = true }, ref) => {
 		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 		const searchParams = useSearchParams();
+		const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 		const { data: currentUser } = useAtomValue(currentUserAtom);
 		const { data: preferences = {}, isFetching: preferencesLoading } =
 			useAtomValue(llmPreferencesAtom);
@@ -417,12 +418,20 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 															? "Auto mode is selected but no global LLM configurations are available. Please configure a custom LLM in Settings to process and summarize documents from your connected sources."
 															: "You need to configure a Document Summary LLM before adding connectors. This LLM is used to process and summarize documents from your connected sources."}
 													</p>
-													<Button asChild size="sm" variant="outline">
-														<Link href={`/dashboard/${searchSpaceId}/settings?tab=models`}>
-															<Settings className="mr-2 h-4 w-4" />
-															Go to Settings
-														</Link>
-													</Button>
+													<Button
+													size="sm"
+													variant="outline"
+													onClick={() => {
+														handleOpenChange(false);
+														setSearchSpaceSettingsDialog({
+															open: true,
+															initialTab: "models",
+														});
+													}}
+												>
+													<Settings className="mr-2 h-4 w-4" />
+													Go to Settings
+												</Button>
 												</AlertDescription>
 											</Alert>
 										)}

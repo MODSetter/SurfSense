@@ -14,13 +14,11 @@ import {
 	Mic,
 	MoreHorizontal,
 	Plug,
-	Plus,
 	Settings,
 	Shield,
 	Trash2,
 	Users,
 } from "lucide-react";
-import { motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { myAccessAtom } from "@/atoms/members/members-query.atoms";
@@ -477,12 +475,7 @@ function RolesContent({
 	const editingRole = editingRoleId !== null ? roles.find((r) => r.id === editingRoleId) : null;
 
 	return (
-		<motion.div
-			initial={{ opacity: 0, y: 10 }}
-			animate={{ opacity: 1, y: 0 }}
-			exit={{ opacity: 0, y: -10 }}
-			className="space-y-6"
-		>
+		<div className="space-y-6">
 			{canCreate && (
 				<div className="flex justify-end">
 					<Button
@@ -490,7 +483,6 @@ function RolesContent({
 						onClick={() => setShowCreateRole(true)}
 						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
 					>
-						<Plus className="h-4 w-4" />
 						Create Custom Role
 					</Button>
 				</div>
@@ -516,13 +508,8 @@ function RolesContent({
 			)}
 
 			<div className="space-y-3">
-				{roles.map((role, index) => (
-					<motion.div
-						key={role.id}
-						initial={{ opacity: 0, y: 6 }}
-						animate={{ opacity: 1, y: 0 }}
-						transition={{ delay: index * 0.04 }}
-					>
+				{roles.map((role) => (
+					<div key={role.id}>
 						<RolePermissionsDialog permissions={role.permissions} roleName={role.name}>
 							<button
 								type="button"
@@ -610,10 +597,10 @@ function RolesContent({
 								)}
 							</button>
 						</RolePermissionsDialog>
-					</motion.div>
+					</div>
 				))}
 			</div>
-		</motion.div>
+		</div>
 	);
 }
 
@@ -695,18 +682,11 @@ function PermissionsEditor({
 
 					return (
 						<div key={category} className="rounded-lg border border-border/60 overflow-hidden">
-							<div
-								role="button"
-								tabIndex={0}
-								className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors"
-								onClick={() => toggleCategoryExpanded(category)}
-								onKeyDown={(e) => {
-									if (e.key === "Enter" || e.key === " ") {
-										e.preventDefault();
-										toggleCategoryExpanded(category);
-									}
-								}}
-							>
+						<button
+							type="button"
+							className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors"
+							onClick={() => toggleCategoryExpanded(category)}
+						>
 								<div className="flex items-center gap-2.5">
 									<IconComponent className="h-4 w-4 text-muted-foreground shrink-0" />
 									<span className="font-medium text-sm">{config.label}</span>
@@ -721,9 +701,11 @@ function PermissionsEditor({
 										onClick={(e) => e.stopPropagation()}
 										aria-label={`Select all ${config.label} permissions`}
 									/>
-									<motion.div
-										animate={{ rotate: isExpanded ? 180 : 0 }}
-										transition={{ duration: 0.2 }}
+									<div
+										className={cn(
+											"transition-transform duration-200",
+											isExpanded && "rotate-180"
+										)}
 									>
 										<svg
 											className="h-4 w-4 text-muted-foreground"
@@ -740,18 +722,12 @@ function PermissionsEditor({
 												d="M19 9l-7 7-7-7"
 											/>
 										</svg>
-									</motion.div>
+									</div>
 								</div>
-							</div>
+							</button>
 
 							{isExpanded && (
-								<motion.div
-									initial={{ height: 0, opacity: 0 }}
-									animate={{ height: "auto", opacity: 1 }}
-									exit={{ height: 0, opacity: 0 }}
-									transition={{ duration: 0.2 }}
-									className="border-t border-border/60"
-								>
+								<div className="border-t border-border/60">
 									<div className="p-2 space-y-0.5">
 										{perms.map((perm) => {
 											const action = perm.value.split(":")[1];
@@ -759,21 +735,14 @@ function PermissionsEditor({
 											const isSelected = selectedPermissions.includes(perm.value);
 
 											return (
-												<div
+												<button
 													key={perm.value}
-													role="button"
-													tabIndex={0}
+													type="button"
 													className={cn(
 														"w-full flex items-center justify-between gap-3 px-2.5 py-2 rounded-md cursor-pointer transition-colors",
 														isSelected ? "bg-muted/60 hover:bg-muted/80" : "hover:bg-muted/40"
 													)}
 													onClick={() => onTogglePermission(perm.value)}
-													onKeyDown={(e) => {
-														if (e.key === "Enter" || e.key === " ") {
-															e.preventDefault();
-															onTogglePermission(perm.value);
-														}
-													}}
 												>
 													<div className="flex-1 min-w-0 text-left">
 														<span className="text-sm font-medium">{actionLabel}</span>
@@ -787,11 +756,11 @@ function PermissionsEditor({
 														onClick={(e) => e.stopPropagation()}
 														className="shrink-0"
 													/>
-												</div>
+												</button>
 											);
 										})}
 									</div>
-								</motion.div>
+								</div>
 							)}
 						</div>
 					);
@@ -964,11 +933,11 @@ function CreateRoleDialog({
 						/>
 					</div>
 				</div>
-				<div className="flex items-center justify-end gap-3 px-5 py-3 shrink-0">
-					<Button variant="outline" onClick={handleClose}>
-						Cancel
-					</Button>
-					<Button onClick={handleCreate} disabled={creating || !name.trim()}>
+			<div className="flex items-center justify-end gap-3 px-5 py-3 shrink-0">
+				<Button variant="secondary" onClick={handleClose}>
+					Cancel
+				</Button>
+				<Button onClick={handleCreate} disabled={creating || !name.trim()}>
 						{creating ? (
 							<>
 								<Spinner size="sm" className="mr-2" />
@@ -1122,10 +1091,10 @@ function EditRoleDialog({
 						/>
 					</div>
 				</div>
-				<div className="flex items-center justify-end gap-3 px-5 py-3 border-t shrink-0">
-					<Button variant="outline" onClick={() => onOpenChange(false)}>
-						Cancel
-					</Button>
+			<div className="flex items-center justify-end gap-3 px-5 py-3 border-t shrink-0">
+				<Button variant="secondary" onClick={() => onOpenChange(false)}>
+					Cancel
+				</Button>
 					<Button onClick={handleSave} disabled={saving || !name.trim()}>
 						{saving ? (
 							<>

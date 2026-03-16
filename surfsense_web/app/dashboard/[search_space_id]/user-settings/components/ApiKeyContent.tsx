@@ -1,7 +1,6 @@
 "use client";
 
 import { Check, Copy, Info } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -27,15 +26,7 @@ export function ApiKeyContent() {
 	}, [apiKey]);
 
 	return (
-		<AnimatePresence mode="wait">
-			<motion.div
-				key="api-key-content"
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				exit={{ opacity: 0, y: -20 }}
-				transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-				className="space-y-6"
-			>
+		<div className="space-y-6 min-w-0 overflow-hidden">
 				<Alert className="border-border/60 bg-muted/30 text-muted-foreground">
 					<Info className="h-4 w-4 text-muted-foreground" />
 					<AlertTitle className="text-muted-foreground">{t("api_key_warning_title")}</AlertTitle>
@@ -44,8 +35,8 @@ export function ApiKeyContent() {
 					</AlertDescription>
 				</Alert>
 
-				<div className="rounded-lg border border-border/60 bg-card p-6">
-					<h3 className="mb-4 text-sm font-semibold tracking-tight">{t("your_api_key")}</h3>
+				<div className="rounded-lg border border-border/60 bg-card p-6 min-w-0 overflow-hidden">
+				<h3 className="mb-4 text-sm font-semibold tracking-tight">{t("your_api_key")}</h3>
 					{isLoading ? (
 						<div className="h-12 w-full animate-pulse rounded-md border border-border/60 bg-muted/30" />
 					) : apiKey ? (
@@ -80,8 +71,8 @@ export function ApiKeyContent() {
 					)}
 				</div>
 
-				<div className="rounded-lg border border-border/60 bg-card p-6">
-					<h3 className="mb-2 text-sm font-semibold tracking-tight">{t("usage_title")}</h3>
+				<div className="rounded-lg border border-border/60 bg-card p-6 min-w-0 overflow-hidden">
+				<h3 className="mb-2 text-sm font-semibold tracking-tight">{t("usage_title")}</h3>
 					<p className="mb-4 text-[11px] text-muted-foreground/60">{t("usage_description")}</p>
 					<div className="flex items-center gap-2 rounded-md border border-border/60 bg-muted/30 px-2.5 py-1.5">
 						<div className="min-w-0 flex-1 overflow-x-auto scrollbar-hide">
@@ -110,7 +101,6 @@ export function ApiKeyContent() {
 						</TooltipProvider>
 					</div>
 				</div>
-			</motion.div>
-		</AnimatePresence>
+			</div>
 	);
 }

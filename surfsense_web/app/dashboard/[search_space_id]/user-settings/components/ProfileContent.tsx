@@ -1,7 +1,6 @@
 "use client";
 
 import { useAtomValue } from "jotai";
-import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
@@ -72,14 +71,7 @@ export function ProfileContent() {
 	const hasChanges = displayName !== (user?.display_name || "");
 
 	return (
-		<AnimatePresence mode="wait">
-			<motion.div
-				key="profile-content"
-				initial={{ opacity: 0, y: 20 }}
-				animate={{ opacity: 1, y: 0 }}
-				exit={{ opacity: 0, y: -20 }}
-				transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
-			>
+		<div>
 				{isUserLoading ? (
 					<div className="flex items-center justify-center py-12">
 						<Spinner size="md" className="text-muted-foreground" />
@@ -116,14 +108,18 @@ export function ProfileContent() {
 						</div>
 
 						<div className="flex justify-end">
-							<Button type="submit" disabled={isPending || !hasChanges}>
-								{isPending && <Spinner size="sm" className="mr-2" />}
-								{t("profile_save")}
-							</Button>
-						</div>
+						<Button
+							type="submit"
+							variant="outline"
+							disabled={isPending || !hasChanges}
+							className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+						>
+							{isPending && <Spinner size="sm" className="mr-2" />}
+							{t("profile_save")}
+						</Button>
+					</div>
 					</form>
 				)}
-			</motion.div>
-		</AnimatePresence>
+			</div>
 	);
 }

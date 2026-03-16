@@ -14,6 +14,10 @@ import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import {
+	searchSpaceSettingsDialogAtom,
+	userSettingsDialogAtom,
+} from "@/atoms/settings/settings-dialog.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import {
 	AlertDialog,
@@ -47,6 +51,8 @@ import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-pers
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
+import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { LayoutShell } from "../ui/shell";
@@ -390,15 +396,18 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
+	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
+
 	const handleUserSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/user-settings?tab=profile`);
-	}, [router, searchSpaceId]);
+		setUserSettingsDialog({ open: true, initialTab: "profile" });
+	}, [setUserSettingsDialog]);
 
 	const handleSearchSpaceSettings = useCallback(
-		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/settings?tab=general`);
+		(_space: SearchSpace) => {
+			setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
 		},
-		[router]
+		[setSearchSpaceSettingsDialog]
 	);
 
 	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
@@ -582,8 +591,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/settings?tab=general`);
-	}, [router, searchSpaceId]);
+		setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
+	}, [setSearchSpaceSettingsDialog]);
 
 	const handleManageMembers = useCallback(() => {
 		router.push(`/dashboard/${searchSpaceId}/team`);
@@ -934,6 +943,10 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				open={isCreateSearchSpaceDialogOpen}
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
+
+			{/* Settings Dialogs */}
+			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
+			<UserSettingsDialog />
 		</>
 	);
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
 	Calendar,
 	Check,
@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -34,6 +34,7 @@ import {
 	updateMemberMutationAtom,
 } from "@/atoms/members/members-mutation.atoms";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -384,7 +385,6 @@ export default function TeamManagementPage() {
 										canRemove={canRemove}
 										onUpdateRole={handleUpdateMember}
 										onRemoveMember={handleRemoveMember}
-										searchSpaceId={searchSpaceId}
 										index={index}
 									/>
 								))}
@@ -397,7 +397,6 @@ export default function TeamManagementPage() {
 										canRemove={canRemove}
 										onUpdateRole={handleUpdateMember}
 										onRemoveMember={handleRemoveMember}
-										searchSpaceId={searchSpaceId}
 										index={owners.length + index}
 									/>
 								))}
@@ -485,7 +484,6 @@ function MemberRow({
 	canRemove,
 	onUpdateRole,
 	onRemoveMember,
-	searchSpaceId,
 	index,
 }: {
 	member: Membership;
@@ -494,10 +492,9 @@ function MemberRow({
 	canRemove: boolean;
 	onUpdateRole: (membershipId: number, roleId: number | null) => Promise<Membership>;
 	onRemoveMember: (membershipId: number) => Promise<boolean>;
-	searchSpaceId: number;
 	index: number;
 }) {
-	const router = useRouter();
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 	const initials = getAvatarInitials(member);
 	const avatarColor = getAvatarColor(member.user_id);
 	const displayName = member.user_display_name || member.user_email || "Unknown";
@@ -607,7 +604,12 @@ function MemberRow({
 							)}
 							<DropdownMenuSeparator className="dark:bg-white/5" />
 							<DropdownMenuItem
-								onClick={() => router.push(`/dashboard/${searchSpaceId}/settings?tab=team-roles`)}
+								onClick={() =>
+									setSearchSpaceSettingsDialog({
+										open: true,
+										initialTab: "team-roles",
+									})
+								}
 							>
 								Manage Roles
 							</DropdownMenuItem>

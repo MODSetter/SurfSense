@@ -1,6 +1,6 @@
 "use client";
 
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -13,6 +13,7 @@ import {
 	globalNewLLMConfigsAtom,
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
+import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Logo } from "@/components/Logo";
 import { LLMConfigForm, type LLMConfigFormData } from "@/components/shared/llm-config-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,7 @@ export default function OnboardPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = Number(params.search_space_id);
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 
 	// Queries
 	const {
@@ -259,7 +261,9 @@ export default function OnboardPage() {
 						You can add more configurations and customize settings anytime in{" "}
 						<button
 							type="button"
-							onClick={() => router.push(`/dashboard/${searchSpaceId}/settings?tab=general`)}
+							onClick={() =>
+								setSearchSpaceSettingsDialog({ open: true, initialTab: "general" })
+							}
 							className="text-violet-500 hover:underline"
 						>
 							Settings

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { PublicChatSnapshotDetail } from "@/contracts/types/chat-threads.types";
+import { useMediaQuery } from "@/hooks/use-media-query";
 
 function getInitials(name: string): string {
 	const parts = name.trim().split(/\s+/);
@@ -36,6 +37,7 @@ export function PublicChatSnapshotRow({
 }: PublicChatSnapshotRowProps) {
 	const [copied, setCopied] = useState(false);
 	const copyTimeoutRef = useRef<ReturnType<typeof setTimeout>>(null);
+	const isDesktop = useMediaQuery("(min-width: 768px)");
 
 	const handleCopyClick = useCallback(() => {
 		onCopy(snapshot);
@@ -66,42 +68,42 @@ export function PublicChatSnapshotRow({
 						</h4>
 					</div>
 					<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+					<TooltipProvider>
+						<Tooltip open={isDesktop ? undefined : false}>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									asChild
+									className="h-7 w-7 text-muted-foreground hover:text-foreground"
+								>
+									<a href={snapshot.public_url} target="_blank" rel="noopener noreferrer">
+										<ExternalLink className="h-3 w-3" />
+									</a>
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>Open link</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
+					{canDelete && (
 						<TooltipProvider>
-							<Tooltip>
+							<Tooltip open={isDesktop ? undefined : false}>
 								<TooltipTrigger asChild>
 									<Button
 										variant="ghost"
 										size="icon"
-										asChild
-										className="h-7 w-7 text-muted-foreground hover:text-foreground"
+										onClick={() => onDelete(snapshot)}
+										disabled={isDeleting}
+										className="h-7 w-7 text-muted-foreground hover:text-destructive"
 									>
-										<a href={snapshot.public_url} target="_blank" rel="noopener noreferrer">
-											<ExternalLink className="h-3 w-3" />
-										</a>
+										<Trash2 className="h-3 w-3" />
 									</Button>
 								</TooltipTrigger>
-								<TooltipContent>Open link</TooltipContent>
+								<TooltipContent>Delete</TooltipContent>
 							</Tooltip>
 						</TooltipProvider>
-						{canDelete && (
-							<TooltipProvider>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<Button
-											variant="ghost"
-											size="icon"
-											onClick={() => onDelete(snapshot)}
-											disabled={isDeleting}
-											className="h-7 w-7 text-muted-foreground hover:text-destructive"
-										>
-											<Trash2 className="h-3 w-3" />
-										</Button>
-									</TooltipTrigger>
-									<TooltipContent>Delete</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
-						)}
-					</div>
+					)}
+				</div>
 				</div>
 
 				{/* Message count badge */}
@@ -125,25 +127,25 @@ export function PublicChatSnapshotRow({
 							{snapshot.public_url}
 						</p>
 					</div>
-					<TooltipProvider>
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									onClick={handleCopyClick}
-									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-								>
-									{copied ? (
-										<Check className="h-3 w-3 text-green-500" />
-									) : (
-										<Copy className="h-3 w-3" />
-									)}
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>{copied ? "Copied!" : "Copy link"}</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
+				<TooltipProvider>
+					<Tooltip open={isDesktop ? undefined : false}>
+						<TooltipTrigger asChild>
+							<Button
+								variant="ghost"
+								size="icon"
+								onClick={handleCopyClick}
+								className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+							>
+								{copied ? (
+									<Check className="h-3 w-3 text-green-500" />
+								) : (
+									<Copy className="h-3 w-3" />
+								)}
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>{copied ? "Copied!" : "Copy link"}</TooltipContent>
+					</Tooltip>
+				</TooltipProvider>
 				</div>
 
 				{/* Footer: Date + Creator */}
@@ -152,33 +154,33 @@ export function PublicChatSnapshotRow({
 					{member && (
 						<>
 							<span className="text-muted-foreground/30">·</span>
-							<TooltipProvider>
-								<Tooltip>
-									<TooltipTrigger asChild>
-										<div className="flex items-center gap-1.5 cursor-default">
-											{member.avatarUrl ? (
-												<Image
-													src={member.avatarUrl}
-													alt={member.name}
-													width={18}
-													height={18}
-													className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
-												/>
-											) : (
-												<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
-													<span className="text-[9px] font-semibold text-primary">
-														{getInitials(member.name)}
-													</span>
-												</div>
-											)}
-											<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
-												{member.name}
-											</span>
-										</div>
-									</TooltipTrigger>
-									<TooltipContent side="bottom">{member.email || member.name}</TooltipContent>
-								</Tooltip>
-							</TooltipProvider>
+						<TooltipProvider>
+							<Tooltip open={isDesktop ? undefined : false}>
+								<TooltipTrigger asChild>
+									<div className="flex items-center gap-1.5 cursor-default">
+										{member.avatarUrl ? (
+											<Image
+												src={member.avatarUrl}
+												alt={member.name}
+												width={18}
+												height={18}
+												className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
+											/>
+										) : (
+											<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
+												<span className="text-[9px] font-semibold text-primary">
+													{getInitials(member.name)}
+												</span>
+											</div>
+										)}
+										<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
+											{member.name}
+										</span>
+									</div>
+								</TooltipTrigger>
+								<TooltipContent side="bottom">{member.email || member.name}</TooltipContent>
+							</Tooltip>
+						</TooltipProvider>
 						</>
 					)}
 				</div>
