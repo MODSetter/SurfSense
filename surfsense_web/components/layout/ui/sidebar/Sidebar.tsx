@@ -54,7 +54,6 @@ interface SidebarProps {
 	isLoadingChats?: boolean;
 	disableTooltips?: boolean;
 	sidebarWidth?: number;
-	onResizeMouseDown?: (e: React.MouseEvent) => void;
 	isResizing?: boolean;
 }
 

@@ -15,6 +15,7 @@ import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import {
+	morePagesDialogAtom,
 	searchSpaceSettingsDialogAtom,
 	teamDialogAtom,
 	userSettingsDialogAtom,
@@ -40,7 +41,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
+
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
@@ -52,6 +53,7 @@ import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-pers
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
 import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
 import { TeamDialog } from "@/components/settings/team-dialog";
 import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
@@ -201,6 +203,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
 	const isInitialLoad = useRef(true);
 
+	const setMorePagesOpen = useSetAtom(morePagesDialogAtom);
+
 	// Effect to show toast for new page_limit_exceeded notifications
 	useEffect(() => {
 		if (statusInbox.loading) return;
@@ -224,21 +228,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		for (const notification of newNotifications) {
 			seenPageLimitNotifications.current.add(notification.id);
 
-			const actionUrl = isPageLimitExceededMetadata(notification.metadata)
-				? notification.metadata.action_url
-				: `/dashboard/${searchSpaceId}/more-pages`;
-
 			toast.error(notification.title, {
 				description: notification.message,
 				duration: 8000,
 				icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
 				action: {
 					label: "View Plans",
-					onClick: () => router.push(actionUrl),
+					onClick: () => setMorePagesOpen(true),
 				},
 			});
 		}
-	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, router]);
+	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, setMorePagesOpen]);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -951,6 +951,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
 			<UserSettingsDialog />
 			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
+			<MorePagesDialog />
 		</>
 	);
 }

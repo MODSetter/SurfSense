@@ -362,6 +362,9 @@ export function LayoutShell({
 						<div
 							role="slider"
 							aria-label="Resize sidebar"
+							aria-valuemin={0}
+							aria-valuemax={100}
+							aria-valuenow={50}
 							tabIndex={0}
 							onMouseDown={onResizeMouseDown}
 							className="hidden md:block h-full cursor-col-resize z-30"
