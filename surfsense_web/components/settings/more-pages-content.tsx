@@ -100,7 +100,7 @@ export function MorePagesContent() {
 					{data?.tasks.map((task) => (
 						<Card
 							key={task.task_type}
-							className={cn("transition-colors", task.completed && "bg-muted/50")}
+							className={cn("transition-colors bg-transparent", task.completed && "bg-muted/50")}
 						>
 							<CardContent className="flex items-center gap-3 p-3">
 								<div
@@ -122,13 +122,14 @@ export function MorePagesContent() {
 									</p>
 									<p className="text-xs text-muted-foreground">+{task.pages_reward} pages</p>
 								</div>
-								<Button
-									variant={task.completed ? "ghost" : "outline"}
-									size="sm"
-									disabled={task.completed || completeMutation.isPending}
-									onClick={() => handleTaskClick(task)}
-									asChild={!task.completed}
-								>
+							<Button
+								variant="ghost"
+								size="sm"
+								disabled={task.completed || completeMutation.isPending}
+								onClick={() => handleTaskClick(task)}
+								asChild={!task.completed}
+								className="text-muted-foreground hover:text-foreground"
+							>
 									{task.completed ? (
 										<span>Done</span>
 									) : (
@@ -141,10 +142,7 @@ export function MorePagesContent() {
 											{completeMutation.isPending ? (
 												<Spinner size="xs" />
 											) : (
-												<>
-													Go
-													<ExternalLink className="h-3 w-3" />
-												</>
+												<ExternalLink className="h-3 w-3" />
 											)}
 										</a>
 									)}

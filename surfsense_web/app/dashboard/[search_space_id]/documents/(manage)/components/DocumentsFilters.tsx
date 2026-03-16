@@ -196,6 +196,7 @@ export function DocumentsFilters({
 
 				{/* Upload Button */}
 				<Button
+					data-joyride="upload-button"
 					onClick={openUploadDialog}
 					variant="outline"
 					size="sm"
