@@ -39,12 +39,6 @@ const TOUR_STEPS: TourStep[] = [
 		content: "View mentions and notifications in one place.",
 		placement: "right",
 	},
-	{
-		target: '[data-joyride="documents-sidebar"]',
-		title: "Manage your documents",
-		content: "Access and manage all your uploaded documents.",
-		placement: "right",
-	},
 ];
 
 interface TooltipPosition {
@@ -203,13 +197,12 @@ function TourTooltip({
 		const dotSize = 6;
 		const isUploadStep = stepIndex === 1;
 		const isInboxStep = stepIndex === 2;
-		const isDocumentsStep = stepIndex === 3;
 
 		if (position.pointerPosition === "left") {
 			return {
 				position: "absolute",
 				left: -lineLength - dotSize,
-				top: isDocumentsStep || isInboxStep ? "calc(50% - 8px)" : "50%",
+				top: isInboxStep ? "calc(50% - 8px)" : "50%",
 				transform: "translateY(-50%)",
 				display: "flex",
 				alignItems: "center",
