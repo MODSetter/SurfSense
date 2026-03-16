@@ -272,32 +272,34 @@ const ConnectToolsBanner: FC = () => {
 	};
 
 	return (
-		<div className="md:hidden border-t border-border/50 bg-muted-foreground/[0.04]">
-			<button
-				type="button"
-				className="flex w-full items-center gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-muted-foreground/[0.06] active:bg-muted-foreground/[0.1]"
-				onClick={() => setConnectorDialogOpen(true)}
-			>
-				<Unplug className="size-4 text-muted-foreground/70 shrink-0" />
-				<span className="text-[13px] text-muted-foreground/80 flex-1">Connect your tools</span>
-				<AvatarGroup className="shrink-0">
-					{BANNER_CONNECTORS.map(({ type, label }, i) => (
-						<Avatar key={type} className="size-6" style={{ zIndex: BANNER_CONNECTORS.length - i }}>
-							<AvatarFallback className="bg-muted text-[10px]">
-								{getConnectorIcon(type, "size-3.5")}
-							</AvatarFallback>
-						</Avatar>
-					))}
-				</AvatarGroup>
+		<div className="border-t border-border/50">
+			<div className="flex w-full items-center gap-2.5 px-4 py-2.5">
+				<button
+					type="button"
+					className="flex flex-1 items-center gap-2.5 text-left cursor-pointer"
+					onClick={() => setConnectorDialogOpen(true)}
+				>
+					<Unplug className="size-4 text-muted-foreground shrink-0" />
+					<span className="text-[13px] text-muted-foreground/80 flex-1">Connect your tools</span>
+					<AvatarGroup className="shrink-0">
+						{BANNER_CONNECTORS.map(({ type }, i) => (
+							<Avatar key={type} className="size-6" style={{ zIndex: BANNER_CONNECTORS.length - i }}>
+								<AvatarFallback className="bg-muted text-[10px]">
+									{getConnectorIcon(type, "size-3.5")}
+								</AvatarFallback>
+							</Avatar>
+						))}
+					</AvatarGroup>
+				</button>
 				<button
 					type="button"
 					onClick={handleDismiss}
-					className="shrink-0 ml-0.5 p-0.5 text-muted-foreground/40 hover:text-foreground transition-colors"
+					className="shrink-0 ml-0.5 p-1.5 -mr-1 text-muted-foreground/40 hover:text-foreground transition-colors cursor-pointer"
 					aria-label="Dismiss"
 				>
-					<X className="size-3.5" />
+					<X className="size-3.5 text-muted-foreground" />
 				</button>
-			</button>
+			</div>
 		</div>
 	);
 };
@@ -636,7 +638,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									<Plus className="size-4" />
 								</Button>
 							</DropdownMenuTrigger>
-							<DropdownMenuContent side="top" align="start" sideOffset={8}>
+							<DropdownMenuContent side="bottom" align="start" sideOffset={8}>
 								<DropdownMenuItem onSelect={() => setToolsPopoverOpen(true)}>
 									<Settings2 className="size-4" />
 									Manage Tools
