@@ -233,11 +233,11 @@ export function ModelSelector({
 		<Popover open={open} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<Button
-					variant="outline"
+					variant="ghost"
 					size="sm"
 					role="combobox"
 					aria-expanded={open}
-					className={cn("h-8 gap-2 px-3 text-sm border-border/60 select-none", className)}
+					className={cn("h-8 gap-2 px-3 text-sm bg-main-panel hover:bg-accent/50 dark:hover:bg-white/[0.06] border border-border/40 select-none", className)}
 				>
 					{isLoading ? (
 						<>
@@ -282,10 +282,7 @@ export function ModelSelector({
 						</>
 					)}
 					<ChevronDown
-						className={cn(
-							"h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0 transition-transform duration-200",
-							open && "rotate-180"
-						)}
+						className="h-3.5 w-3.5 text-muted-foreground ml-1 shrink-0"
 					/>
 				</Button>
 			</PopoverTrigger>

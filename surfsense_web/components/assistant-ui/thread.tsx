@@ -19,6 +19,7 @@ import {
 	ChevronRightIcon,
 	CopyIcon,
 	DownloadIcon,
+	Globe,
 	Plus,
 	RefreshCwIcon,
 	Settings2,
@@ -27,13 +28,13 @@ import {
 	Upload,
 	X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
 	agentToolsAtom,
 	disabledToolsAtom,
-	enabledToolCountAtom,
 	hydrateDisabledToolsAtom,
 	toggleToolAtom,
 } from "@/atoms/agent-tools/agent-tools.atoms";
@@ -118,7 +119,7 @@ export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) =>
 const ThreadContent: FC = () => {
 	return (
 		<ThreadPrimitive.Root
-			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
+			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
 				["--thread-max-width" as string]: "44rem",
 			}}
@@ -140,7 +141,7 @@ const ThreadContent: FC = () => {
 				/>
 
 				<ThreadPrimitive.ViewportFooter
-					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4 md:pb-6"
+					className="aui-thread-viewport-footer sticky bottom-0 z-10 mx-auto mt-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-3xl bg-main-panel pb-4 md:pb-6"
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
@@ -161,7 +162,7 @@ const ThreadScrollToBottom: FC = () => {
 			<TooltipIconButton
 				tooltip="Scroll to bottom"
 				variant="outline"
-				className="aui-thread-scroll-to-bottom -top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible dark:bg-background dark:hover:bg-accent"
+				className="aui-thread-scroll-to-bottom -top-12 absolute z-10 self-center rounded-full p-4 disabled:invisible dark:bg-main-panel dark:hover:bg-accent"
 			>
 				<ArrowDownIcon />
 			</TooltipIconButton>
@@ -232,7 +233,7 @@ const ThreadWelcome: FC = () => {
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
-				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-5xl">{greeting}</h1>
+				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-5xl select-none">{greeting}</h1>
 			</div>
 			{/* Composer - top edge fixed, expands downward only */}
 			<div className="w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
@@ -589,7 +590,17 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const disabledTools = useAtomValue(disabledToolsAtom);
 	const toggleTool = useSetAtom(toggleToolAtom);
 	const hydrateDisabled = useSetAtom(hydrateDisabledToolsAtom);
-	const enabledCount = useAtomValue(enabledToolCountAtom);
+
+	const hasWebSearchTool = agentTools?.some((t) => t.name === "web_search") ?? false;
+	const isWebSearchEnabled = hasWebSearchTool && !disabledTools.includes("web_search");
+	const filteredTools = useMemo(
+		() => agentTools?.filter((t) => t.name !== "web_search"),
+		[agentTools]
+	);
+	const filteredEnabledCount = useMemo(() => {
+		if (!filteredTools) return 0;
+		return filteredTools.length - disabledTools.filter((d) => filteredTools.some((t) => t.name === d)).length;
+	}, [filteredTools, disabledTools]);
 
 	useEffect(() => {
 		hydrateDisabled();
@@ -642,11 +653,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<div className="flex items-center justify-between px-4 py-2">
 									<DrawerTitle className="text-sm font-medium">Agent Tools</DrawerTitle>
 									<span className="text-xs text-muted-foreground">
-										{enabledCount}/{agentTools?.length ?? 0} enabled
+										{filteredEnabledCount}/{filteredTools?.length ?? 0} enabled
 									</span>
 								</div>
 								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
-									{agentTools?.map((tool) => {
+									{filteredTools?.map((tool) => {
 										const isDisabled = disabledTools.includes(tool.name);
 										return (
 											<div
@@ -664,7 +675,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 											</div>
 										);
 									})}
-									{!agentTools?.length && (
+									{!filteredTools?.length && (
 										<div className="px-4 py-6 text-center text-sm text-muted-foreground">
 											Loading tools...
 										</div>
@@ -707,7 +718,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
 								<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
 								<span className="text-[10px] sm:text-xs text-muted-foreground">
-									{enabledCount}/{agentTools?.length ?? 0} enabled
+									{filteredEnabledCount}/{filteredTools?.length ?? 0} enabled
 								</span>
 							</div>
 							<div
@@ -718,7 +729,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
 								}}
 							>
-								{agentTools?.map((tool) => {
+								{filteredTools?.map((tool) => {
 									const isDisabled = disabledTools.includes(tool.name);
 									const row = (
 										<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
@@ -741,7 +752,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										</Tooltip>
 									);
 								})}
-								{!agentTools?.length && (
+								{!filteredTools?.length && (
 									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
 										Loading tools...
 									</div>
@@ -749,6 +760,39 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							</div>
 						</PopoverContent>
 					</Popover>
+				)}
+				{hasWebSearchTool && (
+					<button
+						type="button"
+						onClick={() => toggleTool("web_search")}
+						className={cn(
+							"rounded-full transition-all flex items-center gap-1 px-2 py-1 border h-8",
+							isWebSearchEnabled
+								? "bg-sky-500/15 border-sky-500/60 text-sky-500"
+								: "bg-transparent border-transparent text-muted-foreground hover:text-foreground"
+						)}
+					>
+						<motion.div
+							animate={{ rotate: isWebSearchEnabled ? 360 : 0, scale: isWebSearchEnabled ? 1.1 : 1 }}
+							whileHover={{ rotate: isWebSearchEnabled ? 360 : 15, scale: 1.1, transition: { type: "spring", stiffness: 300, damping: 10 } }}
+							transition={{ type: "spring", stiffness: 260, damping: 25 }}
+						>
+							<Globe className="size-4" />
+						</motion.div>
+						<AnimatePresence>
+							{isWebSearchEnabled && (
+								<motion.span
+									initial={{ width: 0, opacity: 0 }}
+									animate={{ width: "auto", opacity: 1 }}
+									exit={{ width: 0, opacity: 0 }}
+									transition={{ duration: 0.2 }}
+									className="text-xs overflow-hidden whitespace-nowrap"
+								>
+									Search
+								</motion.span>
+							)}
+						</AnimatePresence>
+					</button>
 				)}
 				{sidebarDocs.length > 0 && (
 					<button

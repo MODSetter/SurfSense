@@ -1,14 +1,10 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { cn } from "@/lib/utils";
-import { useSidebarContextSafe } from "../../hooks";
 
 export const SLIDEOUT_PANEL_OPENED_EVENT = "slideout-panel-opened";
-
-const SIDEBAR_COLLAPSED_WIDTH = 60;
 
 interface SidebarSlideOutPanelProps {
 	open: boolean;
@@ -19,11 +15,12 @@ interface SidebarSlideOutPanelProps {
 }
 
 /**
- * Reusable slide-out panel that appears from the right edge of the sidebar.
- * Used by InboxSidebar (floating mode), AllSharedChatsSidebar, and AllPrivateChatsSidebar.
+ * Reusable slide-out panel that extends from the sidebar.
  *
- * Must be rendered inside a positioned container (the LayoutShell's relative flex container)
- * and within the SidebarProvider context.
+ * Desktop: absolutely positioned at the sidebar's right edge, overlaying the main
+ * content with a blur backdrop. Does not push/shrink the main content.
+ *
+ * Mobile: full-width absolute overlay (unchanged).
  */
 export function SidebarSlideOutPanel({
 	open,
@@ -33,11 +30,6 @@ export function SidebarSlideOutPanel({
 	children,
 }: SidebarSlideOutPanelProps) {
 	const isMobile = !useMediaQuery("(min-width: 640px)");
-	const sidebarContext = useSidebarContextSafe();
-	const isCollapsed = sidebarContext?.isCollapsed ?? false;
-	const sidebarWidth = isCollapsed
-		? SIDEBAR_COLLAPSED_WIDTH
-		: (sidebarContext?.sidebarWidth ?? 240);
 
 	useEffect(() => {
 		if (open) {
@@ -45,41 +37,30 @@ export function SidebarSlideOutPanel({
 		}
 	}, [open]);
 
-	return (
-		<AnimatePresence>
-			{open && (
-				<>
-					{/* Backdrop overlay with blur — desktop only, covers main content area (right of sidebar) */}
-					{!isMobile && (
-						<motion.div
-							initial={{ opacity: 0 }}
-							animate={{ opacity: 1 }}
-							exit={{ opacity: 0 }}
-							transition={{ duration: 0.15 }}
-							style={{ left: sidebarWidth }}
-							className="absolute inset-y-0 right-0 z-20 bg-black/30 backdrop-blur-sm"
-							onClick={() => onOpenChange(false)}
-							aria-hidden="true"
-						/>
-					)}
+	const handleEscape = useCallback(
+		(e: KeyboardEvent) => {
+			if (e.key === "Escape") onOpenChange(false);
+		},
+		[onOpenChange]
+	);
 
-					{/* Clip container - positioned at sidebar edge with overflow hidden */}
-					<div
-						style={{
-							left: isMobile ? 0 : sidebarWidth,
-							width: isMobile ? "100%" : width,
-						}}
-						className={cn("absolute z-30 overflow-hidden pointer-events-none", "inset-y-0")}
-					>
+	useEffect(() => {
+		if (!open) return;
+		document.addEventListener("keydown", handleEscape);
+		return () => document.removeEventListener("keydown", handleEscape);
+	}, [open, handleEscape]);
+
+	if (isMobile) {
+		return (
+			<AnimatePresence>
+				{open && (
+					<div className="absolute left-0 inset-y-0 z-30 w-full overflow-hidden pointer-events-none">
 						<motion.div
 							initial={{ x: "-100%" }}
 							animate={{ x: 0 }}
 							exit={{ x: "-100%" }}
 							transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-							className={cn(
-								"h-full w-full bg-sidebar text-sidebar-foreground flex flex-col pointer-events-auto select-none",
-								"sm:border-r sm:shadow-xl"
-							)}
+							className="h-full w-full bg-sidebar text-sidebar-foreground flex flex-col pointer-events-auto select-none"
 							role="dialog"
 							aria-modal="true"
 							aria-label={ariaLabel}
@@ -87,6 +68,45 @@ export function SidebarSlideOutPanel({
 							{children}
 						</motion.div>
 					</div>
+				)}
+			</AnimatePresence>
+		);
+	}
+
+	return (
+		<AnimatePresence initial={false}>
+			{open && (
+				<>
+					{/* Blur backdrop covering the main content area (right of sidebar) */}
+					<motion.div
+						initial={{ opacity: 0 }}
+						animate={{ opacity: 1 }}
+						exit={{ opacity: 0 }}
+						transition={{ duration: 0.15 }}
+						className="absolute z-10 bg-black/30 backdrop-blur-sm rounded-xl"
+						style={{ top: -9, bottom: -9, left: "calc(100% + 1px)", width: "200vw" }}
+						onClick={() => onOpenChange(false)}
+						aria-hidden="true"
+					/>
+
+					{/* Panel extending from sidebar's right edge, flush with the wrapper border */}
+					<motion.div
+						initial={{ width: 0 }}
+						animate={{ width }}
+						exit={{ width: 0 }}
+						transition={{ type: "tween", duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+						className="absolute z-20 overflow-hidden"
+						style={{ left: "100%", top: -1, bottom: -1 }}
+					>
+						<div
+							style={{ width }}
+							className="h-full bg-sidebar text-sidebar-foreground flex flex-col select-none border rounded-r-xl shadow-xl"
+							role="dialog"
+							aria-label={ariaLabel}
+						>
+							{children}
+						</div>
+					</motion.div>
 				</>
 			)}
 		</AnimatePresence>

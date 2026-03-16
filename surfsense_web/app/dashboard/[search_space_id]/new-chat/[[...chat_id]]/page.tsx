@@ -1596,7 +1596,7 @@ export default function NewChatPage() {
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
 		return (
-			<div className="flex h-[calc(100dvh-64px)] flex-col bg-background px-4">
+			<div className="flex h-[calc(100dvh-64px)] flex-col bg-main-panel px-4">
 				<div className="mx-auto w-full max-w-[44rem] flex flex-1 flex-col gap-6 py-8">
 					{/* User message */}
 					<div className="flex justify-end">
@@ -1624,7 +1624,7 @@ export default function NewChatPage() {
 				</div>
 
 				{/* Input bar */}
-				<div className="sticky bottom-0 pb-6 bg-background">
+				<div className="sticky bottom-0 pb-6 bg-main-panel">
 					<div className="mx-auto w-full max-w-[44rem]">
 						<Skeleton className="h-24 w-full rounded-2xl" />
 					</div>

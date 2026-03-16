@@ -566,7 +566,7 @@ DISABLED TOOLS (by user):
 The following tools are available in SurfSense but have been disabled by the user for this session: {disabled_list}.
 You do NOT have access to these tools and MUST NOT claim you can use them.
 If the user asks about a capability provided by a disabled tool, let them know the relevant tool
-is currently disabled and they can re-enable it from the tools menu (wrench icon) in the composer toolbar.
+is currently disabled and they can re-enable it.
 """)
 
     parts.append("\n</tools>\n")

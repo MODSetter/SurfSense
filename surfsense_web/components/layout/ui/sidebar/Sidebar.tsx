@@ -86,7 +86,6 @@ export function Sidebar({
 	isLoadingChats = false,
 	disableTooltips = false,
 	sidebarWidth = SIDEBAR_MIN_WIDTH,
-	onResizeMouseDown,
 	isResizing = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
@@ -102,19 +101,6 @@ export function Sidebar({
 			)}
 			style={!isCollapsed ? { width: sidebarWidth } : undefined}
 		>
-			{/* Resize handle on right border */}
-			{!isCollapsed && onResizeMouseDown && (
-				<div
-					role="slider"
-					aria-label="Resize sidebar"
-					aria-valuemin={0}
-					aria-valuemax={100}
-					aria-valuenow={50}
-					tabIndex={0}
-					onMouseDown={onResizeMouseDown}
-					className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-border active:bg-border z-10"
-				/>
-			)}
 			{/* Header - search space name or collapse button when collapsed */}
 			{isCollapsed ? (
 				<div className="flex h-14 shrink-0 items-center justify-center border-b">

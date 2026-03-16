@@ -103,7 +103,7 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 	return (
 		<aside
 			style={{ width: targetWidth }}
-			className="flex h-full shrink-0 flex-col border-l bg-background overflow-hidden transition-[width] duration-200 ease-out"
+			className="flex h-full shrink-0 flex-col rounded-xl border bg-background overflow-hidden transition-[width] duration-200 ease-out"
 		>
 			<div className="relative flex-1 min-h-0 overflow-hidden">
 				{effectiveTab === "sources" && documentsOpen && documentsPanel && (
