@@ -17,15 +17,6 @@ export {
 } from "./article";
 export { Audio } from "./audio";
 export {
-	Citation,
-	type CitationProps,
-	CitationList,
-	type CitationListProps,
-	type SerializableCitation,
-	type CitationType,
-	type CitationVariant,
-} from "./citation";
-export {
 	type DeepAgentThinkingArgs,
 	type DeepAgentThinkingResult,
 	DeepAgentThinkingToolUI,
