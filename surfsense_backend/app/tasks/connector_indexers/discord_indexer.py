@@ -690,7 +690,7 @@ async def index_discord_messages(
                     "indexed_at": datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"),
                     "connector_id": connector_id,
                 }
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 

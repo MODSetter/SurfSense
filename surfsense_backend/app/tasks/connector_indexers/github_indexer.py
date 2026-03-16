@@ -415,7 +415,7 @@ async def index_github_repos(
                 document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = doc_metadata
-                safe_set_chunks(document, chunks_data)
+                await safe_set_chunks(session, document, chunks_data)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 

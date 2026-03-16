@@ -34,6 +34,7 @@ export const liteLLMProviderEnum = z.enum([
 	"COMETAPI",
 	"HUGGINGFACE",
 	"GITHUB_MODELS",
+	"MINIMAX",
 	"CUSTOM",
 ]);
 

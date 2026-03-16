@@ -59,6 +59,7 @@ PROVIDER_MAP = {
     "DATABRICKS": "databricks",
     "COMETAPI": "cometapi",
     "HUGGINGFACE": "huggingface",
+    "MINIMAX": "openai",
     "CUSTOM": "custom",
 }
 

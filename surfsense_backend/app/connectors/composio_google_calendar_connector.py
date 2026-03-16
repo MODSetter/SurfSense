@@ -477,7 +477,7 @@ async def index_composio_google_calendar(
                     "connector_id": connector_id,
                     "source": "composio",
                 }
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 

@@ -432,7 +432,7 @@ async def index_airtable_records(
                         "table_name": item["table_name"],
                         "connector_id": connector_id,
                     }
-                    safe_set_chunks(document, chunks)
+                    await safe_set_chunks(session, document, chunks)
                     document.updated_at = get_current_timestamp()
                     document.status = DocumentStatus.ready()
 

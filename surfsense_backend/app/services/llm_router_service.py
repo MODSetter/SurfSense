@@ -85,6 +85,7 @@ PROVIDER_MAP = {
     "ZHIPU": "openai",
     "GITHUB_MODELS": "github",
     "HUGGINGFACE": "huggingface",
+    "MINIMAX": "openai",
     "CUSTOM": "custom",
 }
 

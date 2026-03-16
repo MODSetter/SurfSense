@@ -386,7 +386,7 @@ async def index_elasticsearch_documents(
                     document.content_hash = item["content_hash"]
                     document.unique_identifier_hash = item["unique_identifier_hash"]
                     document.document_metadata = metadata
-                    safe_set_chunks(document, chunks)
+                    await safe_set_chunks(session, document, chunks)
                     document.updated_at = get_current_timestamp()
                     document.status = DocumentStatus.ready()
 

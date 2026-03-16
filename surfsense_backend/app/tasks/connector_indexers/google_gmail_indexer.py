@@ -451,7 +451,7 @@ async def index_google_gmail_messages(
                     "date": item["date_str"],
                     "connector_id": connector_id,
                 }
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 
