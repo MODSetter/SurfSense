@@ -60,11 +60,11 @@ export function SettingsDialog({
 								type="button"
 								onClick={() => onItemChange(item.value)}
 								className={cn(
-								"flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left focus:outline-none focus-visible:outline-none",
-								activeItem === item.value
-									? "bg-accent text-accent-foreground"
-									: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-							)}
+									"flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors text-left focus:outline-none focus-visible:outline-none",
+									activeItem === item.value
+										? "bg-accent text-accent-foreground"
+										: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+								)}
 							>
 								{item.icon}
 								{item.label}
@@ -94,11 +94,11 @@ export function SettingsDialog({
 									type="button"
 									onClick={() => handleItemChange(item.value)}
 									className={cn(
-									"flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors shrink-0 focus:outline-none focus-visible:outline-none",
-									activeItem === item.value
-										? "bg-accent text-accent-foreground"
-										: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
-								)}
+										"flex items-center gap-2 whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors shrink-0 focus:outline-none focus-visible:outline-none",
+										activeItem === item.value
+											? "bg-accent text-accent-foreground"
+											: "text-muted-foreground hover:bg-accent/50 hover:text-foreground"
+									)}
 								>
 									{item.icon}
 									{item.label}

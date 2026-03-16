@@ -233,7 +233,9 @@ const ThreadWelcome: FC = () => {
 		<div className="aui-thread-welcome-root mx-auto flex w-full max-w-(--thread-max-width) grow flex-col items-center px-4 relative">
 			{/* Greeting positioned above the composer */}
 			<div className="aui-thread-welcome-message absolute bottom-[calc(50%+5rem)] left-0 right-0 flex flex-col items-center text-center">
-				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-5xl select-none">{greeting}</h1>
+				<h1 className="aui-thread-welcome-message-inner text-3xl md:text-5xl select-none">
+					{greeting}
+				</h1>
 			</div>
 			{/* Composer - top edge fixed, expands downward only */}
 			<div className="w-full flex items-start justify-center absolute top-[calc(50%-3.5rem)] left-0 right-0">
@@ -283,7 +285,11 @@ const ConnectToolsBanner: FC = () => {
 					<span className="text-[13px] text-muted-foreground/80 flex-1">Connect your tools</span>
 					<AvatarGroup className="shrink-0">
 						{BANNER_CONNECTORS.map(({ type }, i) => (
-							<Avatar key={type} className="size-6" style={{ zIndex: BANNER_CONNECTORS.length - i }}>
+							<Avatar
+								key={type}
+								className="size-6"
+								style={{ zIndex: BANNER_CONNECTORS.length - i }}
+							>
 								<AvatarFallback className="bg-muted text-[10px]">
 									{getConnectorIcon(type, "size-3.5")}
 								</AvatarFallback>
@@ -601,7 +607,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	);
 	const filteredEnabledCount = useMemo(() => {
 		if (!filteredTools) return 0;
-		return filteredTools.length - disabledTools.filter((d) => filteredTools.some((t) => t.name === d)).length;
+		return (
+			filteredTools.length -
+			disabledTools.filter((d) => filteredTools.some((t) => t.name === d)).length
+		);
 	}, [filteredTools, disabledTools]);
 
 	useEffect(() => {
@@ -775,8 +784,15 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						)}
 					>
 						<motion.div
-							animate={{ rotate: isWebSearchEnabled ? 360 : 0, scale: isWebSearchEnabled ? 1.1 : 1 }}
-							whileHover={{ rotate: isWebSearchEnabled ? 360 : 15, scale: 1.1, transition: { type: "spring", stiffness: 300, damping: 10 } }}
+							animate={{
+								rotate: isWebSearchEnabled ? 360 : 0,
+								scale: isWebSearchEnabled ? 1.1 : 1,
+							}}
+							whileHover={{
+								rotate: isWebSearchEnabled ? 360 : 15,
+								scale: 1.1,
+								transition: { type: "spring", stiffness: 300, damping: 10 },
+							}}
 							transition={{ type: "spring", stiffness: 260, damping: 25 }}
 						>
 							<Globe className="size-4" />

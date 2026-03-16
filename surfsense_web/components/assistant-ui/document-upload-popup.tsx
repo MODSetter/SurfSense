@@ -159,19 +159,19 @@ const DocumentUploadPopupContent: FC<{
 											: "You need to configure a Document Summary LLM before uploading files. This LLM is used to process and summarize your uploaded documents."}
 									</p>
 									<Button
-									size="sm"
-									variant="outline"
-									onClick={() => {
-										onOpenChange(false);
-										setSearchSpaceSettingsDialog({
-											open: true,
-											initialTab: "models",
-										});
-									}}
-								>
-									<Settings className="mr-2 h-4 w-4" />
-									Go to Settings
-								</Button>
+										size="sm"
+										variant="outline"
+										onClick={() => {
+											onOpenChange(false);
+											setSearchSpaceSettingsDialog({
+												open: true,
+												initialTab: "models",
+											});
+										}}
+									>
+										<Settings className="mr-2 h-4 w-4" />
+										Go to Settings
+									</Button>
 								</AlertDescription>
 							</Alert>
 						) : (

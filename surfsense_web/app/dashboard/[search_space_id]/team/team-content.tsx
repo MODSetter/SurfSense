@@ -657,14 +657,14 @@ function CreateInviteDialog({
 	return (
 		<Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
 			<DialogTrigger asChild>
-			<Button
-				variant="outline"
-				size="sm"
-				className="gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
-			>
-				<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
-				Invite members
-			</Button>
+				<Button
+					variant="outline"
+					size="sm"
+					className="gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
+				>
+					<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
+					Invite members
+				</Button>
 			</DialogTrigger>
 			<DialogContent
 				className="w-[92vw] max-w-[92vw] sm:max-w-md p-4 md:p-6 select-none"
@@ -832,13 +832,13 @@ function AllInvitesDialog({
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-			<Button variant="secondary" size="sm" className="gap-1.5 md:gap-2 text-xs md:text-sm">
-				<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
-				Active invites
-				<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200 text-[10px] md:text-xs font-medium">
-					{invites.length}
-				</span>
-			</Button>
+				<Button variant="secondary" size="sm" className="gap-1.5 md:gap-2 text-xs md:text-sm">
+					<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
+					Active invites
+					<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200 text-[10px] md:text-xs font-medium">
+						{invites.length}
+					</span>
+				</Button>
 			</DialogTrigger>
 			<DialogContent className="w-[92vw] max-w-[92vw] sm:max-w-lg p-4 md:p-6 select-none">
 				<DialogHeader>

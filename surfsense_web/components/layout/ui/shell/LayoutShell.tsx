@@ -286,9 +286,7 @@ export function LayoutShell({
 					<div
 						className={cn(
 							"relative hidden md:flex shrink-0 border bg-sidebar z-20 transition-[border-radius,border-color] duration-200",
-							anySlideOutOpen
-								? "rounded-l-xl border-r-0 delay-0"
-								: "rounded-xl delay-150"
+							anySlideOutOpen ? "rounded-l-xl border-r-0 delay-0" : "rounded-xl delay-150"
 						)}
 					>
 						<Sidebar

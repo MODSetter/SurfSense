@@ -8,6 +8,7 @@ latency overhead.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import json
 import logging
@@ -112,10 +113,8 @@ def _cache_get(key: str) -> dict | None:
 
 
 def _cache_set(key: str, value: dict) -> None:
-    try:
+    with contextlib.suppress(redis.RedisError):
         _get_redis().setex(key, _CACHE_TTL_SECONDS, json.dumps(value))
-    except redis.RedisError:
-        pass
 
 
 # ---------------------------------------------------------------------------
@@ -208,7 +207,9 @@ async def search(
         try:
             async with httpx.AsyncClient(timeout=15.0, verify=False) as client:
                 response = await client.get(
-                    searx_endpoint, params=params, headers=headers,
+                    searx_endpoint,
+                    params=params,
+                    headers=headers,
                 )
                 response.raise_for_status()
             data = response.json()
@@ -217,7 +218,10 @@ async def search(
             last_error = exc
             if attempt == 0 and (
                 isinstance(exc, httpx.TimeoutException)
-                or (isinstance(exc, httpx.HTTPStatusError) and exc.response.status_code >= 500)
+                or (
+                    isinstance(exc, httpx.HTTPStatusError)
+                    and exc.response.status_code >= 500
+                )
             ):
                 continue
             break
@@ -246,29 +250,33 @@ async def search(
         source_id = 200_000 + idx
         description = result.get("content") or result.get("snippet") or ""
 
-        sources_list.append({
-            "id": source_id,
-            "title": result.get("title", "Web Search Result"),
-            "description": description,
-            "url": result.get("url", ""),
-        })
-
-        documents.append({
-            "chunk_id": source_id,
-            "content": description or result.get("content", ""),
-            "score": result.get("score", 0.0),
-            "document": {
+        sources_list.append(
+            {
                 "id": source_id,
                 "title": result.get("title", "Web Search Result"),
-                "document_type": "SEARXNG_API",
-                "metadata": {
-                    "url": result.get("url", ""),
-                    "engines": result.get("engines", []),
-                    "category": result.get("category"),
-                    "source": "SEARXNG_API",
+                "description": description,
+                "url": result.get("url", ""),
+            }
+        )
+
+        documents.append(
+            {
+                "chunk_id": source_id,
+                "content": description or result.get("content", ""),
+                "score": result.get("score", 0.0),
+                "document": {
+                    "id": source_id,
+                    "title": result.get("title", "Web Search Result"),
+                    "document_type": "SEARXNG_API",
+                    "metadata": {
+                        "url": result.get("url", ""),
+                        "engines": result.get("engines", []),
+                        "category": result.get("category"),
+                        "source": "SEARXNG_API",
+                    },
                 },
-            },
-        })
+            }
+        )
 
     result_object: dict[str, Any] = {
         "id": 11,

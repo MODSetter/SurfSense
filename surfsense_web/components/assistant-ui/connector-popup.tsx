@@ -419,19 +419,19 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 															: "You need to configure a Document Summary LLM before adding connectors. This LLM is used to process and summarize documents from your connected sources."}
 													</p>
 													<Button
-													size="sm"
-													variant="outline"
-													onClick={() => {
-														handleOpenChange(false);
-														setSearchSpaceSettingsDialog({
-															open: true,
-															initialTab: "models",
-														});
-													}}
-												>
-													<Settings className="mr-2 h-4 w-4" />
-													Go to Settings
-												</Button>
+														size="sm"
+														variant="outline"
+														onClick={() => {
+															handleOpenChange(false);
+															setSearchSpaceSettingsDialog({
+																open: true,
+																initialTab: "models",
+															});
+														}}
+													>
+														<Settings className="mr-2 h-4 w-4" />
+														Go to Settings
+													</Button>
 												</AlertDescription>
 											</Alert>
 										)}

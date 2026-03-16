@@ -227,15 +227,15 @@ export function LLMRoleManager({ searchSpaceId }: LLMRoleManagerProps) {
 		<div className="space-y-5 md:space-y-6">
 			{/* Header actions */}
 			<div className="flex items-center justify-between">
-			<Button
-				variant="secondary"
-				size="sm"
-				onClick={() => refreshConfigs()}
-				disabled={isLoading}
-				className="gap-2"
-			>
-				<RefreshCw className="h-3.5 w-3.5" />
-				Refresh
+				<Button
+					variant="secondary"
+					size="sm"
+					onClick={() => refreshConfigs()}
+					disabled={isLoading}
+					className="gap-2"
+				>
+					<RefreshCw className="h-3.5 w-3.5" />
+					Refresh
 				</Button>
 				{isAssignmentComplete && !isLoading && !hasError && (
 					<Badge

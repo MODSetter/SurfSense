@@ -73,10 +73,10 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 				const Icon = item.icon;
 				const indicator = item.statusIndicator;
 
-			const joyrideAttr =
-				item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
-					? { "data-joyride": "inbox-sidebar" }
-					: {};
+				const joyrideAttr =
+					item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
+						? { "data-joyride": "inbox-sidebar" }
+						: {};
 
 				if (isCollapsed) {
 					return (

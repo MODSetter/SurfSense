@@ -562,17 +562,17 @@ export function LLMConfigForm({
 							compact ? "justify-end" : "justify-center sm:justify-end"
 						)}
 					>
-					{onCancel && (
-						<Button
-							type="button"
-							variant="secondary"
-							onClick={onCancel}
-							disabled={isSubmitting}
-							className="text-xs sm:text-sm h-9 sm:h-10"
-						>
-							Cancel
-						</Button>
-					)}
+						{onCancel && (
+							<Button
+								type="button"
+								variant="secondary"
+								onClick={onCancel}
+								disabled={isSubmitting}
+								className="text-xs sm:text-sm h-9 sm:h-10"
+							>
+								Cancel
+							</Button>
+						)}
 						<Button
 							type="submit"
 							disabled={isSubmitting}

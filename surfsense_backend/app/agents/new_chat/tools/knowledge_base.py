@@ -262,7 +262,11 @@ def _normalize_connectors(
     valid_set -= _LIVE_SEARCH_CONNECTORS
 
     if not connectors_to_search:
-        base = list(available_connectors) if available_connectors else list(_ALL_CONNECTORS)
+        base = (
+            list(available_connectors)
+            if available_connectors
+            else list(_ALL_CONNECTORS)
+        )
         return [c for c in base if c not in _LIVE_SEARCH_CONNECTORS]
 
     normalized: list[str] = []
@@ -291,7 +295,11 @@ def _normalize_connectors(
 
     # Fallback to all available if nothing matched
     if not out:
-        base = list(available_connectors) if available_connectors else list(_ALL_CONNECTORS)
+        base = (
+            list(available_connectors)
+            if available_connectors
+            else list(_ALL_CONNECTORS)
+        )
         return [c for c in base if c not in _LIVE_SEARCH_CONNECTORS]
     return out
 

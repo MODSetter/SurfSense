@@ -682,11 +682,11 @@ function PermissionsEditor({
 
 					return (
 						<div key={category} className="rounded-lg border border-border/60 overflow-hidden">
-						<button
-							type="button"
-							className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors"
-							onClick={() => toggleCategoryExpanded(category)}
-						>
+							<button
+								type="button"
+								className="w-full flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors"
+								onClick={() => toggleCategoryExpanded(category)}
+							>
 								<div className="flex items-center gap-2.5">
 									<IconComponent className="h-4 w-4 text-muted-foreground shrink-0" />
 									<span className="font-medium text-sm">{config.label}</span>
@@ -702,10 +702,7 @@ function PermissionsEditor({
 										aria-label={`Select all ${config.label} permissions`}
 									/>
 									<div
-										className={cn(
-											"transition-transform duration-200",
-											isExpanded && "rotate-180"
-										)}
+										className={cn("transition-transform duration-200", isExpanded && "rotate-180")}
 									>
 										<svg
 											className="h-4 w-4 text-muted-foreground"
@@ -933,11 +930,11 @@ function CreateRoleDialog({
 						/>
 					</div>
 				</div>
-			<div className="flex items-center justify-end gap-3 px-5 py-3 shrink-0">
-				<Button variant="secondary" onClick={handleClose}>
-					Cancel
-				</Button>
-				<Button onClick={handleCreate} disabled={creating || !name.trim()}>
+				<div className="flex items-center justify-end gap-3 px-5 py-3 shrink-0">
+					<Button variant="secondary" onClick={handleClose}>
+						Cancel
+					</Button>
+					<Button onClick={handleCreate} disabled={creating || !name.trim()}>
 						{creating ? (
 							<>
 								<Spinner size="sm" className="mr-2" />
@@ -1091,10 +1088,10 @@ function EditRoleDialog({
 						/>
 					</div>
 				</div>
-			<div className="flex items-center justify-end gap-3 px-5 py-3 border-t shrink-0">
-				<Button variant="secondary" onClick={() => onOpenChange(false)}>
-					Cancel
-				</Button>
+				<div className="flex items-center justify-end gap-3 px-5 py-3 border-t shrink-0">
+					<Button variant="secondary" onClick={() => onOpenChange(false)}>
+						Cancel
+					</Button>
 					<Button onClick={handleSave} disabled={saving || !name.trim()}>
 						{saving ? (
 							<>

@@ -72,20 +72,22 @@ def _format_web_results(
             continue
 
         metadata_json = json.dumps(metadata, ensure_ascii=False)
-        doc_xml = "\n".join([
-            "<document>",
-            "<document_metadata>",
-            f"  <document_type>{source}</document_type>",
-            f"  <title><![CDATA[{title}]]></title>",
-            f"  <url><![CDATA[{url}]]></url>",
-            f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>",
-            "</document_metadata>",
-            "<document_content>",
-            f"  <chunk id='{url}'><![CDATA[{content}]]></chunk>",
-            "</document_content>",
-            "</document>",
-            "",
-        ])
+        doc_xml = "\n".join(
+            [
+                "<document>",
+                "<document_metadata>",
+                f"  <document_type>{source}</document_type>",
+                f"  <title><![CDATA[{title}]]></title>",
+                f"  <url><![CDATA[{url}]]></url>",
+                f"  <metadata_json><![CDATA[{metadata_json}]]></metadata_json>",
+                "</document_metadata>",
+                "<document_content>",
+                f"  <chunk id='{url}'><![CDATA[{content}]]></chunk>",
+                "</document_content>",
+                "</document>",
+                "",
+            ]
+        )
 
         if total_chars + len(doc_xml) > max_chars:
             parts.append("<!-- Output truncated to fit context window -->")
@@ -152,9 +154,7 @@ def create_web_search_tool(
         ]
 
     engine_names = ["SearXNG (platform default)"]
-    engine_names.extend(
-        _CONNECTOR_LABELS.get(c, c) for c in active_live_connectors
-    )
+    engine_names.extend(_CONNECTOR_LABELS.get(c, c) for c in active_live_connectors)
     engines_summary = ", ".join(engine_names)
 
     description = (
@@ -179,10 +179,12 @@ def create_web_search_tool(
         tasks: list[asyncio.Task[list[dict[str, Any]]]] = []
 
         if web_search_service.is_available():
+
             async def _searxng() -> list[dict[str, Any]]:
                 async with semaphore:
                     _result_obj, docs = await web_search_service.search(
-                        query=query, top_k=clamped_top_k,
+                        query=query,
+                        top_k=clamped_top_k,
                     )
                     return docs
 

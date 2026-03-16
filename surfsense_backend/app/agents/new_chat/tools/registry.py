@@ -68,12 +68,12 @@ from .podcast import create_generate_podcast_tool
 from .report import create_generate_report_tool
 from .scrape_webpage import create_scrape_webpage_tool
 from .search_surfsense_docs import create_search_surfsense_docs_tool
-from .web_search import create_web_search_tool
 from .shared_memory import (
     create_recall_shared_memory_tool,
     create_save_shared_memory_tool,
 )
 from .user_memory import create_recall_memory_tool, create_save_memory_tool
+from .web_search import create_web_search_tool
 
 # =============================================================================
 # Tool Definition

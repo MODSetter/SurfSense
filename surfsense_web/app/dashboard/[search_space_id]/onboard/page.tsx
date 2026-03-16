@@ -261,9 +261,7 @@ export default function OnboardPage() {
 						You can add more configurations and customize settings anytime in{" "}
 						<button
 							type="button"
-							onClick={() =>
-								setSearchSpaceSettingsDialog({ open: true, initialTab: "general" })
-							}
+							onClick={() => setSearchSpaceSettingsDialog({ open: true, initialTab: "general" })}
 							className="text-violet-500 hover:underline"
 						>
 							Settings

@@ -85,16 +85,16 @@ export function MorePagesContent() {
 			</div>
 
 			{isLoading ? (
-			<Card>
-				<CardContent className="flex items-center gap-3 p-3">
-					<Skeleton className="h-9 w-9 rounded-full bg-muted" />
-					<div className="flex-1 space-y-2">
-						<Skeleton className="h-4 w-3/4 bg-muted" />
-						<Skeleton className="h-3 w-1/4 bg-muted" />
-					</div>
-					<Skeleton className="h-8 w-16 bg-muted" />
-				</CardContent>
-			</Card>
+				<Card>
+					<CardContent className="flex items-center gap-3 p-3">
+						<Skeleton className="h-9 w-9 rounded-full bg-muted" />
+						<div className="flex-1 space-y-2">
+							<Skeleton className="h-4 w-3/4 bg-muted" />
+							<Skeleton className="h-3 w-1/4 bg-muted" />
+						</div>
+						<Skeleton className="h-8 w-16 bg-muted" />
+					</CardContent>
+				</Card>
 			) : (
 				<div className="space-y-2">
 					{data?.tasks.map((task) => (
@@ -122,14 +122,14 @@ export function MorePagesContent() {
 									</p>
 									<p className="text-xs text-muted-foreground">+{task.pages_reward} pages</p>
 								</div>
-							<Button
-								variant="ghost"
-								size="sm"
-								disabled={task.completed || completeMutation.isPending}
-								onClick={() => handleTaskClick(task)}
-								asChild={!task.completed}
-								className="text-muted-foreground hover:text-foreground"
-							>
+								<Button
+									variant="ghost"
+									size="sm"
+									disabled={task.completed || completeMutation.isPending}
+									onClick={() => handleTaskClick(task)}
+									asChild={!task.completed}
+									className="text-muted-foreground hover:text-foreground"
+								>
 									{task.completed ? (
 										<span>Done</span>
 									) : (
@@ -185,11 +185,7 @@ export function MorePagesContent() {
 							</DialogHeader>
 							<div className="flex flex-col gap-2">
 								<Button asChild>
-									<Link
-										href="https://cal.com/mod-rohan"
-										target="_blank"
-										rel="noopener noreferrer"
-									>
+									<Link href="https://cal.com/mod-rohan" target="_blank" rel="noopener noreferrer">
 										<IconCalendar className="h-4 w-4" />
 										Schedule a Meeting
 									</Link>

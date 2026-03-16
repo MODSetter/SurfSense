@@ -272,25 +272,25 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 		<div className="space-y-4 md:space-y-6">
 			{/* Header */}
 			<div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
-			<Button
-				variant="secondary"
-				size="sm"
-				onClick={() => refreshConfigs()}
-				disabled={isLoading}
-				className="gap-2"
-			>
-				<RefreshCw className={cn("h-3.5 w-3.5", configsLoading && "animate-spin")} />
-				Refresh
-				</Button>
-			{canCreate && (
 				<Button
-					variant="outline"
-					onClick={openNewDialog}
-					className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+					variant="secondary"
+					size="sm"
+					onClick={() => refreshConfigs()}
+					disabled={isLoading}
+					className="gap-2"
 				>
-					Add Image Model
+					<RefreshCw className={cn("h-3.5 w-3.5", configsLoading && "animate-spin")} />
+					Refresh
 				</Button>
-			)}
+				{canCreate && (
+					<Button
+						variant="outline"
+						onClick={openNewDialog}
+						className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+					>
+						Add Image Model
+					</Button>
+				)}
 			</div>
 
 			{/* Errors */}
@@ -420,114 +420,114 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 
 								return (
 									<div key={config.id}>
-											<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
-												<CardContent className="p-4 flex flex-col gap-3 h-full">
-													{/* Header: Name + Actions */}
-													<div className="flex items-start justify-between gap-2">
-														<div className="min-w-0 flex-1">
-															<h4 className="text-sm font-semibold tracking-tight truncate">
-																{config.name}
-															</h4>
-															{config.description && (
-																<p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
-																	{config.description}
-																</p>
-															)}
-														</div>
-														{(canUpdate || canDelete) && (
-															<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
-																{canUpdate && (
-																	<TooltipProvider>
-																		<Tooltip open={isDesktop ? undefined : false}>
-																			<TooltipTrigger asChild>
-																				<Button
-																					variant="ghost"
-																					size="icon"
-																					onClick={() => openEditDialog(config)}
-																					className="h-7 w-7 text-muted-foreground hover:text-foreground"
-																				>
-																					<Edit3 className="h-3 w-3" />
-																				</Button>
-																			</TooltipTrigger>
-																			<TooltipContent>Edit</TooltipContent>
-																		</Tooltip>
-																	</TooltipProvider>
-																)}
-																{canDelete && (
-																	<TooltipProvider>
-																		<Tooltip open={isDesktop ? undefined : false}>
-																			<TooltipTrigger asChild>
-																				<Button
-																					variant="ghost"
-																					size="icon"
-																					onClick={() => setConfigToDelete(config)}
-																					className="h-7 w-7 text-muted-foreground hover:text-destructive"
-																				>
-																					<Trash2 className="h-3 w-3" />
-																				</Button>
-																			</TooltipTrigger>
-																			<TooltipContent>Delete</TooltipContent>
-																		</Tooltip>
-																	</TooltipProvider>
-																)}
-															</div>
+										<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
+											<CardContent className="p-4 flex flex-col gap-3 h-full">
+												{/* Header: Name + Actions */}
+												<div className="flex items-start justify-between gap-2">
+													<div className="min-w-0 flex-1">
+														<h4 className="text-sm font-semibold tracking-tight truncate">
+															{config.name}
+														</h4>
+														{config.description && (
+															<p className="text-[11px] text-muted-foreground/70 truncate mt-0.5">
+																{config.description}
+															</p>
 														)}
 													</div>
-
-													{/* Provider + Model */}
-													<div className="flex items-center gap-2 flex-wrap">
-														{getProviderIcon(config.provider, { className: "size-3.5 shrink-0" })}
-														<code className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md truncate max-w-[160px]">
-															{config.model_name}
-														</code>
-													</div>
-
-													{/* Footer: Date + Creator */}
-													<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
-														<span className="text-[11px] text-muted-foreground/60">
-															{new Date(config.created_at).toLocaleDateString(undefined, {
-																year: "numeric",
-																month: "short",
-																day: "numeric",
-															})}
-														</span>
-														{member && (
-															<>
-																<span className="text-muted-foreground/30">·</span>
+													{(canUpdate || canDelete) && (
+														<div className="flex items-center gap-0.5 shrink-0 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150">
+															{canUpdate && (
 																<TooltipProvider>
 																	<Tooltip open={isDesktop ? undefined : false}>
 																		<TooltipTrigger asChild>
-																			<div className="flex items-center gap-1.5 cursor-default">
-																				{member.avatarUrl ? (
-																					<Image
-																						src={member.avatarUrl}
-																						alt={member.name}
-																						width={18}
-																						height={18}
-																						className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
-																					/>
-																				) : (
-																					<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
-																						<span className="text-[9px] font-semibold text-primary">
-																							{getInitials(member.name)}
-																						</span>
-																					</div>
-																				)}
-																				<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
-																					{member.name}
-																				</span>
-																			</div>
+																			<Button
+																				variant="ghost"
+																				size="icon"
+																				onClick={() => openEditDialog(config)}
+																				className="h-7 w-7 text-muted-foreground hover:text-foreground"
+																			>
+																				<Edit3 className="h-3 w-3" />
+																			</Button>
 																		</TooltipTrigger>
-																		<TooltipContent side="bottom">
-																			{member.email || member.name}
-																		</TooltipContent>
+																		<TooltipContent>Edit</TooltipContent>
 																	</Tooltip>
 																</TooltipProvider>
-															</>
-														)}
-													</div>
-												</CardContent>
-											</Card>
+															)}
+															{canDelete && (
+																<TooltipProvider>
+																	<Tooltip open={isDesktop ? undefined : false}>
+																		<TooltipTrigger asChild>
+																			<Button
+																				variant="ghost"
+																				size="icon"
+																				onClick={() => setConfigToDelete(config)}
+																				className="h-7 w-7 text-muted-foreground hover:text-destructive"
+																			>
+																				<Trash2 className="h-3 w-3" />
+																			</Button>
+																		</TooltipTrigger>
+																		<TooltipContent>Delete</TooltipContent>
+																	</Tooltip>
+																</TooltipProvider>
+															)}
+														</div>
+													)}
+												</div>
+
+												{/* Provider + Model */}
+												<div className="flex items-center gap-2 flex-wrap">
+													{getProviderIcon(config.provider, { className: "size-3.5 shrink-0" })}
+													<code className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-2 py-0.5 rounded-md truncate max-w-[160px]">
+														{config.model_name}
+													</code>
+												</div>
+
+												{/* Footer: Date + Creator */}
+												<div className="flex items-center gap-2 pt-2 border-t border-border/40 mt-auto">
+													<span className="text-[11px] text-muted-foreground/60">
+														{new Date(config.created_at).toLocaleDateString(undefined, {
+															year: "numeric",
+															month: "short",
+															day: "numeric",
+														})}
+													</span>
+													{member && (
+														<>
+															<span className="text-muted-foreground/30">·</span>
+															<TooltipProvider>
+																<Tooltip open={isDesktop ? undefined : false}>
+																	<TooltipTrigger asChild>
+																		<div className="flex items-center gap-1.5 cursor-default">
+																			{member.avatarUrl ? (
+																				<Image
+																					src={member.avatarUrl}
+																					alt={member.name}
+																					width={18}
+																					height={18}
+																					className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
+																				/>
+																			) : (
+																				<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
+																					<span className="text-[9px] font-semibold text-primary">
+																						{getInitials(member.name)}
+																					</span>
+																				</div>
+																			)}
+																			<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
+																				{member.name}
+																			</span>
+																		</div>
+																	</TooltipTrigger>
+																	<TooltipContent side="bottom">
+																		{member.email || member.name}
+																	</TooltipContent>
+																</Tooltip>
+															</TooltipProvider>
+														</>
+													)}
+												</div>
+											</CardContent>
+										</Card>
 									</div>
 								);
 							})}
@@ -705,20 +705,20 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 							</div>
 						)}
 
-					{/* Actions */}
-					<div className="flex justify-end gap-3 pt-4 border-t">
-						<Button
-							variant="secondary"
-							onClick={() => {
-								setIsDialogOpen(false);
-								setEditingConfig(null);
-								resetForm();
-							}}
-						>
-							Cancel
-						</Button>
-						<Button
-							onClick={handleFormSubmit}
+						{/* Actions */}
+						<div className="flex justify-end gap-3 pt-4 border-t">
+							<Button
+								variant="secondary"
+								onClick={() => {
+									setIsDialogOpen(false);
+									setEditingConfig(null);
+									resetForm();
+								}}
+							>
+								Cancel
+							</Button>
+							<Button
+								onClick={handleFormSubmit}
 								disabled={
 									isSubmitting ||
 									!formData.name ||

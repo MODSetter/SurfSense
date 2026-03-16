@@ -72,42 +72,42 @@ export function ProfileContent() {
 
 	return (
 		<div>
-				{isUserLoading ? (
-					<div className="flex items-center justify-center py-12">
-						<Spinner size="md" className="text-muted-foreground" />
-					</div>
-				) : (
-					<form onSubmit={handleSubmit} className="space-y-6">
-						<div className="rounded-lg border bg-card p-6">
-							<div className="flex flex-col gap-6">
-								<div className="space-y-2">
-									<Label>{t("profile_avatar")}</Label>
-									<AvatarDisplay
-										url={user?.avatar_url || undefined}
-										fallback={getInitials(user?.email || "")}
-									/>
-								</div>
+			{isUserLoading ? (
+				<div className="flex items-center justify-center py-12">
+					<Spinner size="md" className="text-muted-foreground" />
+				</div>
+			) : (
+				<form onSubmit={handleSubmit} className="space-y-6">
+					<div className="rounded-lg border bg-card p-6">
+						<div className="flex flex-col gap-6">
+							<div className="space-y-2">
+								<Label>{t("profile_avatar")}</Label>
+								<AvatarDisplay
+									url={user?.avatar_url || undefined}
+									fallback={getInitials(user?.email || "")}
+								/>
+							</div>
 
-								<div className="space-y-2">
-									<Label htmlFor="display-name">{t("profile_display_name")}</Label>
-									<Input
-										id="display-name"
-										type="text"
-										placeholder={user?.email?.split("@")[0]}
-										value={displayName}
-										onChange={(e) => setDisplayName(e.target.value)}
-									/>
-									<p className="text-xs text-muted-foreground">{t("profile_display_name_hint")}</p>
-								</div>
+							<div className="space-y-2">
+								<Label htmlFor="display-name">{t("profile_display_name")}</Label>
+								<Input
+									id="display-name"
+									type="text"
+									placeholder={user?.email?.split("@")[0]}
+									value={displayName}
+									onChange={(e) => setDisplayName(e.target.value)}
+								/>
+								<p className="text-xs text-muted-foreground">{t("profile_display_name_hint")}</p>
+							</div>
 
-								<div className="space-y-2">
-									<Label>{t("profile_email")}</Label>
-									<Input type="email" value={user?.email || ""} disabled />
-								</div>
+							<div className="space-y-2">
+								<Label>{t("profile_email")}</Label>
+								<Input type="email" value={user?.email || ""} disabled />
 							</div>
 						</div>
+					</div>
 
-						<div className="flex justify-end">
+					<div className="flex justify-end">
 						<Button
 							type="submit"
 							variant="outline"
@@ -118,8 +118,8 @@ export function ProfileContent() {
 							{t("profile_save")}
 						</Button>
 					</div>
-					</form>
-				)}
-			</div>
+				</form>
+			)}
+		</div>
 	);
 }

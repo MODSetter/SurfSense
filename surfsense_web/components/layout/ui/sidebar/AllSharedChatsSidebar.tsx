@@ -335,7 +335,10 @@ export function AllSharedChatsSidebar({
 				{isLoading ? (
 					<div className="space-y-1">
 						{[75, 90, 55, 80, 65, 85].map((titleWidth) => (
-							<div key={`skeleton-${titleWidth}`} className="flex items-center gap-2 rounded-md px-2 py-1.5">
+							<div
+								key={`skeleton-${titleWidth}`}
+								className="flex items-center gap-2 rounded-md px-2 py-1.5"
+							>
 								<Skeleton className="h-4 w-4 shrink-0 rounded" />
 								<Skeleton className="h-4 rounded" style={{ width: `${titleWidth}%` }} />
 							</div>

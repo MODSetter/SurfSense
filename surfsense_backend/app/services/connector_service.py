@@ -2,7 +2,6 @@ import asyncio
 import time
 from datetime import datetime
 from typing import Any
-from urllib.parse import urljoin
 
 import httpx
 from linkup import LinkupClient

@@ -58,52 +58,52 @@ export function PublicChatSnapshotRow({
 		<Card className="group relative overflow-hidden transition-all duration-200 border-border/60 hover:shadow-md h-full">
 			<CardContent className="p-4 flex flex-col gap-3 h-full">
 				{/* Header: Title + Actions */}
-			<div className="relative">
-				<div className="min-w-0 pr-16 sm:pr-0 sm:group-hover:pr-16">
-					<h4
-						className="text-sm font-semibold tracking-tight truncate"
-						title={snapshot.thread_title}
-					>
-						{snapshot.thread_title}
-					</h4>
-				</div>
-				<div className="flex items-center gap-0.5 shrink-0 sm:hidden sm:group-hover:flex absolute right-0 top-0">
-					<TooltipProvider>
-						<Tooltip open={isDesktop ? undefined : false}>
-							<TooltipTrigger asChild>
-								<Button
-									variant="ghost"
-									size="icon"
-									asChild
-									className="h-7 w-7 text-muted-foreground hover:text-foreground"
-								>
-									<a href={snapshot.public_url} target="_blank" rel="noopener noreferrer">
-										<ExternalLink className="h-3 w-3" />
-									</a>
-								</Button>
-							</TooltipTrigger>
-							<TooltipContent>Open link</TooltipContent>
-						</Tooltip>
-					</TooltipProvider>
-					{canDelete && (
+				<div className="relative">
+					<div className="min-w-0 pr-16 sm:pr-0 sm:group-hover:pr-16">
+						<h4
+							className="text-sm font-semibold tracking-tight truncate"
+							title={snapshot.thread_title}
+						>
+							{snapshot.thread_title}
+						</h4>
+					</div>
+					<div className="flex items-center gap-0.5 shrink-0 sm:hidden sm:group-hover:flex absolute right-0 top-0">
 						<TooltipProvider>
 							<Tooltip open={isDesktop ? undefined : false}>
 								<TooltipTrigger asChild>
 									<Button
 										variant="ghost"
 										size="icon"
-										onClick={() => onDelete(snapshot)}
-										disabled={isDeleting}
-										className="h-7 w-7 text-muted-foreground hover:text-destructive"
+										asChild
+										className="h-7 w-7 text-muted-foreground hover:text-foreground"
 									>
-										<Trash2 className="h-3 w-3" />
+										<a href={snapshot.public_url} target="_blank" rel="noopener noreferrer">
+											<ExternalLink className="h-3 w-3" />
+										</a>
 									</Button>
 								</TooltipTrigger>
-								<TooltipContent>Delete</TooltipContent>
+								<TooltipContent>Open link</TooltipContent>
 							</Tooltip>
 						</TooltipProvider>
-					)}
-				</div>
+						{canDelete && (
+							<TooltipProvider>
+								<Tooltip open={isDesktop ? undefined : false}>
+									<TooltipTrigger asChild>
+										<Button
+											variant="ghost"
+											size="icon"
+											onClick={() => onDelete(snapshot)}
+											disabled={isDeleting}
+											className="h-7 w-7 text-muted-foreground hover:text-destructive"
+										>
+											<Trash2 className="h-3 w-3" />
+										</Button>
+									</TooltipTrigger>
+									<TooltipContent>Delete</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
+						)}
+					</div>
 				</div>
 
 				{/* Message count badge */}
@@ -127,25 +127,25 @@ export function PublicChatSnapshotRow({
 							{snapshot.public_url}
 						</p>
 					</div>
-				<TooltipProvider>
-					<Tooltip open={isDesktop ? undefined : false}>
-						<TooltipTrigger asChild>
-							<Button
-								variant="ghost"
-								size="icon"
-								onClick={handleCopyClick}
-								className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
-							>
-								{copied ? (
-									<Check className="h-3 w-3 text-green-500" />
-								) : (
-									<Copy className="h-3 w-3" />
-								)}
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>{copied ? "Copied!" : "Copy link"}</TooltipContent>
-					</Tooltip>
-				</TooltipProvider>
+					<TooltipProvider>
+						<Tooltip open={isDesktop ? undefined : false}>
+							<TooltipTrigger asChild>
+								<Button
+									variant="ghost"
+									size="icon"
+									onClick={handleCopyClick}
+									className="h-6 w-6 shrink-0 text-muted-foreground hover:text-foreground"
+								>
+									{copied ? (
+										<Check className="h-3 w-3 text-green-500" />
+									) : (
+										<Copy className="h-3 w-3" />
+									)}
+								</Button>
+							</TooltipTrigger>
+							<TooltipContent>{copied ? "Copied!" : "Copy link"}</TooltipContent>
+						</Tooltip>
+					</TooltipProvider>
 				</div>
 
 				{/* Footer: Date + Creator */}
@@ -154,33 +154,33 @@ export function PublicChatSnapshotRow({
 					{member && (
 						<>
 							<span className="text-muted-foreground/30">·</span>
-						<TooltipProvider>
-							<Tooltip open={isDesktop ? undefined : false}>
-								<TooltipTrigger asChild>
-									<div className="flex items-center gap-1.5 cursor-default">
-										{member.avatarUrl ? (
-											<Image
-												src={member.avatarUrl}
-												alt={member.name}
-												width={18}
-												height={18}
-												className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
-											/>
-										) : (
-											<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
-												<span className="text-[9px] font-semibold text-primary">
-													{getInitials(member.name)}
-												</span>
-											</div>
-										)}
-										<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
-											{member.name}
-										</span>
-									</div>
-								</TooltipTrigger>
-								<TooltipContent side="bottom">{member.email || member.name}</TooltipContent>
-							</Tooltip>
-						</TooltipProvider>
+							<TooltipProvider>
+								<Tooltip open={isDesktop ? undefined : false}>
+									<TooltipTrigger asChild>
+										<div className="flex items-center gap-1.5 cursor-default">
+											{member.avatarUrl ? (
+												<Image
+													src={member.avatarUrl}
+													alt={member.name}
+													width={18}
+													height={18}
+													className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
+												/>
+											) : (
+												<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
+													<span className="text-[9px] font-semibold text-primary">
+														{getInitials(member.name)}
+													</span>
+												</div>
+											)}
+											<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
+												{member.name}
+											</span>
+										</div>
+									</TooltipTrigger>
+									<TooltipContent side="bottom">{member.email || member.name}</TooltipContent>
+								</Tooltip>
+							</TooltipProvider>
 						</>
 					)}
 				</div>

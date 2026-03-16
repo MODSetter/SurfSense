@@ -176,17 +176,17 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 				</CardContent>
 			</Card>
 
-		{/* Action Buttons */}
-		<div className="flex justify-end pt-3 md:pt-4">
-			<Button
-				variant="outline"
-				onClick={handleSave}
-				disabled={!hasChanges || saving}
-				className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
-			>
-				{saving ? "Saving" : "Save Instructions"}
-			</Button>
-		</div>
+			{/* Action Buttons */}
+			<div className="flex justify-end pt-3 md:pt-4">
+				<Button
+					variant="outline"
+					onClick={handleSave}
+					disabled={!hasChanges || saving}
+					className="gap-2 bg-white text-black hover:bg-neutral-100 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+				>
+					{saving ? "Saving" : "Save Instructions"}
+				</Button>
+			</div>
 		</div>
 	);
 }
