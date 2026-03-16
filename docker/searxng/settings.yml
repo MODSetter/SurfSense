@@ -4,7 +4,12 @@ use_default_settings:
       - ahmia
       - torch
       - qwant
+      - qwant news
+      - qwant images
+      - qwant videos
       - mojeek
+      - mojeek images
+      - mojeek news
 
 server:
   secret_key: "override-me-via-env"
@@ -40,7 +45,7 @@ outgoing:
   pool_connections: 100
   pool_maxsize: 20
   enable_http2: true
-  extra_proxy_timeout: 10.0
+  extra_proxy_timeout: 10
   retries: 1
   # Uncomment and set your residential proxy URL to route search engine requests through it.
   # Format: http://<username>:<base64_password>@<hostname>:<port>/
