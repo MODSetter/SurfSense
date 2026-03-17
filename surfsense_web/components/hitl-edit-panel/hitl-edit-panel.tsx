@@ -17,12 +17,14 @@ export function HitlEditPanelContent({
 	content: initialContent,
 	onSave,
 	onClose,
+	showCloseButton = true,
 }: {
 	title: string;
 	content: string;
 	toolName: string;
 	onSave: (title: string, content: string) => void;
 	onClose?: () => void;
+	showCloseButton?: boolean;
 }) {
 	const [editedTitle, setEditedTitle] = useState(initialTitle);
 	const markdownRef = useRef(initialContent);
@@ -49,7 +51,7 @@ export function HitlEditPanelContent({
 					className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-foreground outline-none placeholder:text-muted-foreground"
 					aria-label="Page title"
 				/>
-				{onClose && (
+				{onClose && showCloseButton && (
 					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
 						<XIcon className="size-4" />
 						<span className="sr-only">Close panel</span>
@@ -124,6 +126,7 @@ function MobileHitlEditDrawer() {
 						toolName={panelState.toolName}
 						onSave={panelState.onSave}
 						onClose={closePanel}
+						showCloseButton={false}
 					/>
 				</div>
 			</DrawerContent>
