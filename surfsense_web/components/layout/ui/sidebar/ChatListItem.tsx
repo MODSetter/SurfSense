@@ -73,7 +73,7 @@ export function ChatListItem({
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}
 			<div
 				className={cn(
-					"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md",
+					"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md transition-opacity",
 					isActive
 						? "bg-gradient-to-l from-accent from-60% to-transparent"
 						: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",
