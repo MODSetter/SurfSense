@@ -1,10 +1,9 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { AlertTriangleIcon, CheckIcon, InfoIcon, Loader2Icon, Pen, XIcon } from "lucide-react";
-import { useState } from "react";
+import { CornerDownLeftIcon, InfoIcon, Pen } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -12,7 +11,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { Spinner } from "@/components/ui/spinner";
+import { useSetAtom } from "jotai";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface LinearLabel {
 	id: string;
@@ -166,8 +168,9 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
-	const [isEditing, setIsEditing] = useState(false);
+	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const [editedArgs, setEditedArgs] = useState(initialEditState);
+	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
@@ -193,7 +196,7 @@ function ApprovalCard({
 		return ids.map((id) => team?.labels.find((l) => l.id === id)).filter(Boolean) as LinearLabel[];
 	}
 
-	function buildFinalArgs() {
+	const buildFinalArgs = useCallback(() => {
 		const labelsWereProposed = Array.isArray(actionArgs.new_label_ids);
 		return {
 			issue_id: issue?.id,
@@ -207,7 +210,7 @@ function ApprovalCard({
 			new_label_ids:
 				labelsWereProposed || editedArgs.labelIds.length > 0 ? editedArgs.labelIds : null,
 		};
-	}
+	}, [actionArgs.new_label_ids, issue?.id, issue?.document_id, context?.workspace?.id, editedArgs]);
 
 	const proposedStateName = resolveStateName(
 		actionArgs.new_state_id ? String(actionArgs.new_state_id) : null
@@ -230,423 +233,381 @@ function ApprovalCard({
 		proposedPriorityLabel ||
 		proposedLabelObjects.length > 0;
 
+	const handleApprove = useCallback(() => {
+		if (decided || isPanelOpen) return;
+		if (!allowedDecisions.includes("approve")) return;
+		setDecided("approve");
+		onDecision({
+			type: "approve",
+			edited_action: {
+				name: interruptData.action_requests[0].name,
+				args: buildFinalArgs(),
+			},
+		});
+	}, [decided, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs]);
+
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+				handleApprove();
+			}
+		};
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [handleApprove]);
+
 	return (
-		<div
-			className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
-				decided
-					? "border border-border bg-card shadow-sm"
-					: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
-			}`}
-		>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
-			<div
-				className={`flex items-center gap-3 border-b ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
-				} px-4 py-3`}
-			>
-				<div
-					className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-						decided ? "bg-muted" : "bg-muted animate-pulse"
-					}`}
-				>
-					<AlertTriangleIcon
-						className={`size-4 ${decided ? "text-muted-foreground" : "text-foreground"}`}
-					/>
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-foreground">Update Linear Issue</p>
-					<p className="truncate text-xs text-muted-foreground">
-						{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
+			<div className="flex items-start justify-between px-5 pt-5 pb-4">
+				<div>
+					<p className="text-sm font-semibold text-foreground">
+						{decided === "reject"
+							? "Linear Issue Update Rejected"
+							: decided === "approve" || decided === "edit"
+								? "Linear Issue Update Approved"
+								: "Update Linear Issue"}
+					</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						{decided === "reject"
+							? "Issue update was cancelled"
+							: decided === "edit"
+								? "Issue update is in progress with your changes"
+								: decided === "approve"
+									? "Issue update is in progress"
+									: "Requires your approval to proceed"}
 					</p>
 				</div>
+				{!decided && canEdit && (
+					<Button
+						size="sm"
+						variant="ghost"
+						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
+						onClick={() => {
+							setIsPanelOpen(true);
+							openHitlEditPanel({
+								title: editedArgs.title,
+								content: editedArgs.description,
+								toolName: "Linear Issue",
+								onSave: (newTitle, newDescription) => {
+									setIsPanelOpen(false);
+									setEditedArgs((prev) => ({
+										...prev,
+										title: newTitle,
+										description: newDescription,
+									}));
+									setDecided("edit");
+									onDecision({
+										type: "edit",
+										edited_action: {
+											name: interruptData.action_requests[0].name,
+											args: {
+												...buildFinalArgs(),
+												new_title: newTitle || null,
+												new_description: newDescription || null,
+											},
+										},
+									});
+								},
+							});
+						}}
+					>
+						<Pen className="size-3.5" />
+						Edit
+					</Button>
+				)}
 			</div>
 
 			{/* Context section — workspace + current issue (read-only) */}
 			{!decided && (
-				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
-					{context?.error ? (
-						<p className="text-sm text-destructive">{context.error}</p>
-					) : (
-						<>
-							{context?.workspace && (
-								<div className="space-y-1">
-									<div className="text-xs font-medium text-muted-foreground">Linear Account</div>
-									<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-										{context.workspace.organization_name}
-									</div>
-								</div>
-							)}
-
-							{issue && (
-								<div className="space-y-1">
-									<div className="text-xs font-medium text-muted-foreground">Current Issue</div>
-									<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm space-y-1.5">
-										<div className="font-medium">
-											{issue.identifier}: {issue.title}
-										</div>
-										<div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
-											{issue.current_state && (
-												<span
-													className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-													style={{
-														backgroundColor: `${issue.current_state.color}22`,
-														color: issue.current_state.color,
-													}}
-												>
-													{issue.current_state.name}
-												</span>
-											)}
-											{issue.current_assignee && <span>{issue.current_assignee.name}</span>}
-											{priorities.find((p) => p.priority === issue.priority) && (
-												<span>{priorities.find((p) => p.priority === issue.priority)?.label}</span>
-											)}
-										</div>
-										{issue.current_labels && issue.current_labels.length > 0 && (
-											<div className="flex flex-wrap gap-1">
-												{issue.current_labels.map((label) => (
-													<span
-														key={label.id}
-														className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-														style={{
-															backgroundColor: `${label.color}22`,
-															color: label.color,
-														}}
-													>
-														{label.name}
-													</span>
-												))}
-											</div>
-										)}
-										{issue.url && (
-											<a
-												href={issue.url}
-												target="_blank"
-												rel="noopener noreferrer"
-												className="text-xs text-primary hover:underline"
-											>
-												Open in Linear ↗
-											</a>
-										)}
-									</div>
-								</div>
-							)}
-						</>
-					)}
-				</div>
-			)}
-
-			{/* Display mode — proposed changes */}
-			{!isEditing && (
-				<div className="space-y-2 px-4 py-3 bg-card">
-					{hasProposedChanges ? (
-						<>
-							{actionArgs.new_title && (
-								<div>
-									<p className="text-xs font-medium text-muted-foreground">New Title</p>
-									<p className="text-sm text-foreground">{String(actionArgs.new_title)}</p>
-								</div>
-							)}
-							{actionArgs.new_description && (
-								<div>
-									<p className="text-xs font-medium text-muted-foreground">New Description</p>
-									<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">
-										{String(actionArgs.new_description)}
-									</p>
-								</div>
-							)}
-							{proposedStateName && (
-								<div>
-									<p className="text-xs font-medium text-muted-foreground">New State</p>
-									<p className="text-sm text-foreground">{proposedStateName}</p>
-								</div>
-							)}
-							{proposedAssigneeName && (
-								<div>
-									<p className="text-xs font-medium text-muted-foreground">New Assignee</p>
-									<p className="text-sm text-foreground">{proposedAssigneeName}</p>
-								</div>
-							)}
-							{proposedPriorityLabel && (
-								<div>
-									<p className="text-xs font-medium text-muted-foreground">New Priority</p>
-									<p className="text-sm text-foreground">{proposedPriorityLabel}</p>
-								</div>
-							)}
-							{proposedLabelObjects.length > 0 && (
-								<div>
-									<p className="text-xs font-medium text-muted-foreground">New Labels</p>
-									<div className="flex flex-wrap gap-1 mt-1">
-										{proposedLabelObjects.map((label) => (
-											<span
-												key={label.id}
-												className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
-												style={{
-													backgroundColor: `${label.color}33`,
-													color: label.color,
-												}}
-											>
-												{label.name}
-											</span>
-										))}
-									</div>
-								</div>
-							)}
-						</>
-					) : (
-						<p className="text-sm text-muted-foreground italic">No changes proposed</p>
-					)}
-				</div>
-			)}
-
-			{/* Edit mode */}
-			{isEditing && !decided && (
-				<div className="space-y-3 px-4 py-3 bg-card">
-					<div>
-						<label
-							htmlFor="linear-update-title"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							New Title
-						</label>
-						<Input
-							id="linear-update-title"
-							value={editedArgs.title}
-							onChange={(e) => setEditedArgs({ ...editedArgs, title: e.target.value })}
-							placeholder="Issue title"
-						/>
-					</div>
-
-					<div>
-						<label
-							htmlFor="linear-update-description"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							Description
-						</label>
-						<Textarea
-							id="linear-update-description"
-							value={editedArgs.description}
-							onChange={(e) => setEditedArgs({ ...editedArgs, description: e.target.value })}
-							placeholder="Issue description"
-							rows={5}
-							className="resize-none"
-						/>
-					</div>
-
-					{team && (
-						<>
-							<div className="space-y-1.5">
-								<div className="text-xs font-medium text-muted-foreground">State</div>
-								<Select
-									value={editedArgs.stateId}
-									onValueChange={(v) => setEditedArgs({ ...editedArgs, stateId: v })}
-								>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select state" />
-									</SelectTrigger>
-									<SelectContent>
-										{team.states.map((s) => (
-											<SelectItem key={s.id} value={s.id}>
-												{s.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-1.5">
-								<div className="text-xs font-medium text-muted-foreground">Assignee</div>
-								<Select
-									value={editedArgs.assigneeId}
-									onValueChange={(v) => setEditedArgs({ ...editedArgs, assigneeId: v })}
-								>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select assignee" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="__none__">Unassigned</SelectItem>
-										{team.members
-											.filter((m) => m.active)
-											.map((m) => (
-												<SelectItem key={m.id} value={m.id}>
-													{m.name} ({m.email})
-												</SelectItem>
-											))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							<div className="space-y-1.5">
-								<div className="text-xs font-medium text-muted-foreground">Priority</div>
-								<Select
-									value={editedArgs.priority}
-									onValueChange={(v) => setEditedArgs({ ...editedArgs, priority: v })}
-								>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Select priority" />
-									</SelectTrigger>
-									<SelectContent>
-										{priorities.map((p) => (
-											<SelectItem key={p.priority} value={String(p.priority)}>
-												{p.label}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-							</div>
-
-							{team.labels.length > 0 && (
-								<div className="space-y-1.5">
-									<div className="text-xs font-medium text-muted-foreground">Labels</div>
-									<div className="flex flex-wrap gap-1.5">
-										{team.labels.map((label) => {
-											const isSelected = editedArgs.labelIds.includes(label.id);
-											return (
-												<button
-													key={label.id}
-													type="button"
-													onClick={() =>
-														setEditedArgs({
-															...editedArgs,
-															labelIds: isSelected
-																? editedArgs.labelIds.filter((id) => id !== label.id)
-																: [...editedArgs.labelIds, label.id],
-														})
-													}
-													className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity ${
-														isSelected
-															? "opacity-100 ring-2 ring-foreground/30"
-															: "opacity-50 hover:opacity-80"
-													}`}
-													style={{
-														backgroundColor: `${label.color}33`,
-														color: label.color,
-													}}
-												>
-													<span
-														className="size-1.5 rounded-full"
-														style={{ backgroundColor: label.color }}
-													/>
-													{label.name}
-												</button>
-											);
-										})}
-									</div>
-								</div>
-							)}
-						</>
-					)}
-				</div>
-			)}
-
-			{/* Action buttons */}
-			<div
-				className={`flex items-center gap-2 border-t ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
-				} px-4 py-3`}
-			>
-				{decided ? (
-					<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-						{decided === "approve" || decided === "edit" ? (
-							<>
-								<CheckIcon className="size-3.5 text-green-500" />
-								{decided === "edit" ? "Approved with Changes" : "Approved"}
-							</>
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 space-y-4">
+						{context?.error ? (
+							<p className="text-sm text-destructive">{context.error}</p>
 						) : (
 							<>
-								<XIcon className="size-3.5 text-destructive" />
-								Rejected
+								{context?.workspace && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">Linear Account</p>
+										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
+											{context.workspace.organization_name}
+										</div>
+									</div>
+								)}
+
+								{issue && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">Current Issue</p>
+										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm space-y-1.5">
+											<div className="font-medium">
+												{issue.identifier}: {issue.title}
+											</div>
+											<div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+												{issue.current_state && (
+													<span
+														className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+														style={{
+															backgroundColor: `${issue.current_state.color}22`,
+															color: issue.current_state.color,
+														}}
+													>
+														{issue.current_state.name}
+													</span>
+												)}
+												{issue.current_assignee && <span>{issue.current_assignee.name}</span>}
+												{priorities.find((p) => p.priority === issue.priority) && (
+													<span>{priorities.find((p) => p.priority === issue.priority)?.label}</span>
+												)}
+											</div>
+											{issue.current_labels && issue.current_labels.length > 0 && (
+												<div className="flex flex-wrap gap-1">
+													{issue.current_labels.map((label) => (
+														<span
+															key={label.id}
+															className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+															style={{
+																backgroundColor: `${label.color}22`,
+																color: label.color,
+															}}
+														>
+															{label.name}
+														</span>
+													))}
+												</div>
+											)}
+											{issue.url && (
+												<a
+													href={issue.url}
+													target="_blank"
+													rel="noopener noreferrer"
+													className="text-xs text-primary hover:underline"
+												>
+													Open in Linear ↗
+												</a>
+											)}
+										</div>
+									</div>
+								)}
+
+								{/* Editable context selects for state, assignee, priority, labels */}
+								{team && (
+									<>
+										<div className="space-y-2">
+											<p className="text-xs font-medium text-muted-foreground">State</p>
+											<Select
+												value={editedArgs.stateId}
+												onValueChange={(v) => setEditedArgs({ ...editedArgs, stateId: v })}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Select state" />
+												</SelectTrigger>
+												<SelectContent>
+													{team.states.map((s) => (
+														<SelectItem key={s.id} value={s.id}>
+															{s.name}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+
+										<div className="space-y-2">
+											<p className="text-xs font-medium text-muted-foreground">Assignee</p>
+											<Select
+												value={editedArgs.assigneeId}
+												onValueChange={(v) => setEditedArgs({ ...editedArgs, assigneeId: v })}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Select assignee" />
+												</SelectTrigger>
+												<SelectContent>
+													<SelectItem value="__none__">Unassigned</SelectItem>
+													{team.members
+														.filter((m) => m.active)
+														.map((m) => (
+															<SelectItem key={m.id} value={m.id}>
+																{m.name} ({m.email})
+															</SelectItem>
+														))}
+												</SelectContent>
+											</Select>
+										</div>
+
+										<div className="space-y-2">
+											<p className="text-xs font-medium text-muted-foreground">Priority</p>
+											<Select
+												value={editedArgs.priority}
+												onValueChange={(v) => setEditedArgs({ ...editedArgs, priority: v })}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Select priority" />
+												</SelectTrigger>
+												<SelectContent>
+													{priorities.map((p) => (
+														<SelectItem key={p.priority} value={String(p.priority)}>
+															{p.label}
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
+
+										{team.labels.length > 0 && (
+											<div className="space-y-2">
+												<p className="text-xs font-medium text-muted-foreground">Labels</p>
+												<div className="flex flex-wrap gap-1.5">
+													{team.labels.map((label) => {
+														const isSelected = editedArgs.labelIds.includes(label.id);
+														return (
+															<button
+																key={label.id}
+																type="button"
+																onClick={() =>
+																	setEditedArgs({
+																		...editedArgs,
+																		labelIds: isSelected
+																			? editedArgs.labelIds.filter((id) => id !== label.id)
+																			: [...editedArgs.labelIds, label.id],
+																	})
+																}
+																className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity ${
+																	isSelected
+																		? "opacity-100 ring-2 ring-foreground/30"
+																		: "opacity-50 hover:opacity-80"
+																}`}
+																style={{
+																	backgroundColor: `${label.color}33`,
+																	color: label.color,
+																}}
+															>
+																<span
+																	className="size-1.5 rounded-full"
+																	style={{ backgroundColor: label.color }}
+																/>
+																{label.name}
+															</button>
+														);
+													})}
+												</div>
+											</div>
+										)}
+									</>
+								)}
 							</>
 						)}
-					</p>
-				) : isEditing ? (
+					</div>
+				</>
+			)}
+
+			{/* Content preview — proposed changes */}
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 pt-3">
+				{hasProposedChanges ? (
 					<>
-						<Button
-							size="sm"
-							onClick={() => {
-								setDecided("edit");
-								setIsEditing(false);
-								onDecision({
-									type: "edit",
-									edited_action: {
-										name: interruptData.action_requests[0].name,
-										args: buildFinalArgs(),
-									},
-								});
-							}}
-						>
-							<CheckIcon />
-							Approve with Changes
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => {
-								setIsEditing(false);
-								setEditedArgs(initialEditState); // Reset to original args
-							}}
-						>
-							Cancel
-						</Button>
+						{actionArgs.new_title && (
+							<p className="text-sm font-medium text-foreground">{String(actionArgs.new_title)}</p>
+						)}
+						{actionArgs.new_description && (
+							<div
+								className="max-h-[7rem] overflow-hidden text-sm"
+								style={{
+									maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+									WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+								}}
+							>
+								<PlateEditor
+									markdown={String(actionArgs.new_description)}
+									readOnly
+									preset="readonly"
+									editorVariant="none"
+									className="h-auto [&_[data-slate-editor]]:!min-h-0 [&_[data-slate-editor]>*:first-child]:!mt-0"
+								/>
+							</div>
+						)}
+						{proposedStateName && (
+							<div className="mt-2">
+								<span className="text-xs text-muted-foreground">State → </span>
+								<span className="text-xs font-medium">{proposedStateName}</span>
+							</div>
+						)}
+						{proposedAssigneeName && (
+							<div className="mt-1">
+								<span className="text-xs text-muted-foreground">Assignee → </span>
+								<span className="text-xs font-medium">{proposedAssigneeName}</span>
+							</div>
+						)}
+						{proposedPriorityLabel && (
+							<div className="mt-1">
+								<span className="text-xs text-muted-foreground">Priority → </span>
+								<span className="text-xs font-medium">{proposedPriorityLabel}</span>
+							</div>
+						)}
+						{proposedLabelObjects.length > 0 && (
+							<div className="flex flex-wrap gap-1 mt-2">
+								{proposedLabelObjects.map((label) => (
+									<span
+										key={label.id}
+										className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+										style={{
+											backgroundColor: `${label.color}33`,
+											color: label.color,
+										}}
+									>
+										{label.name}
+									</span>
+								))}
+							</div>
+						)}
 					</>
 				) : (
-					<>
+					<p className="text-sm text-muted-foreground italic pb-3">No changes proposed</p>
+				)}
+			</div>
+
+			{/* Action buttons - only shown when pending */}
+			{!decided && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 flex items-center gap-2">
 						{allowedDecisions.includes("approve") && (
 							<Button
 								size="sm"
-								onClick={() => {
-									setDecided("approve");
-									onDecision({
-										type: "approve",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: buildFinalArgs(),
-										},
-									});
-								}}
+								className="rounded-lg gap-1.5"
+								onClick={handleApprove}
 							>
-								<CheckIcon />
 								Approve
-							</Button>
-						)}
-						{canEdit && (
-							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-								<Pen />
-								Edit
+								<CornerDownLeftIcon className="size-3 opacity-60" />
 							</Button>
 						)}
 						{allowedDecisions.includes("reject") && (
 							<Button
 								size="sm"
-								variant="outline"
+								variant="ghost"
+								className="rounded-lg text-muted-foreground"
 								onClick={() => {
 									setDecided("reject");
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
-								<XIcon />
 								Reject
 							</Button>
 						)}
-					</>
-				)}
-			</div>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-destructive/50 bg-card">
-			<div className="flex items-center gap-3 border-b border-destructive/50 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
-					<XIcon className="size-4 text-destructive" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-destructive">Failed to update Linear issue</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Failed to update Linear issue</p>
 			</div>
-			<div className="px-4 py-3">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
@@ -655,14 +616,10 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-amber-500/50 bg-card">
-			<div className="flex items-start gap-3 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-500/10">
-					<InfoIcon className="size-4 text-amber-500" />
-				</div>
-				<div className="min-w-0 flex-1 pt-2">
-					<p className="text-sm text-muted-foreground">{result.message}</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="flex items-start gap-3 px-5 py-4">
+				<InfoIcon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
 	);
@@ -670,18 +627,14 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
-			<div className="flex items-center gap-3 border-b border-border px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
-					<CheckIcon className="size-4 text-green-500" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-[.8rem] text-muted-foreground">
-						{result.message || "Linear issue updated successfully"}
-					</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground">
+					{result.message || "Linear issue updated successfully"}
+				</p>
 			</div>
-			<div className="space-y-2 px-4 py-3 text-xs">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4 space-y-2 text-xs">
 				<div>
 					<span className="font-medium text-muted-foreground">Identifier: </span>
 					<span>{result.identifier}</span>
@@ -719,8 +672,8 @@ export const UpdateLinearIssueToolUI = makeAssistantToolUI<
 	render: function UpdateLinearIssueUI({ result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 flex max-w-md items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-					<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+				<div className="my-4 flex max-w-lg items-center gap-3 rounded-2xl border bg-muted/30 px-5 py-4">
+					<Spinner size="sm" className="text-muted-foreground" />
 					<p className="text-sm text-muted-foreground">Preparing Linear issue update...</p>
 				</div>
 			);

@@ -1,10 +1,9 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { AlertTriangleIcon, CheckIcon, Loader2Icon, Pen, XIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CornerDownLeftIcon, Pen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -12,7 +11,10 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { Spinner } from "@/components/ui/spinner";
+import { useSetAtom } from "jotai";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface LinearLabel {
 	id: string;
@@ -125,9 +127,9 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
-	const [isEditing, setIsEditing] = useState(false);
-	const [editedTitle, setEditedTitle] = useState(args.title ?? "");
-	const [editedDescription, setEditedDescription] = useState(args.description ?? "");
+	const [isPanelOpen, setIsPanelOpen] = useState(false);
+	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+
 	const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
 	const [selectedTeamId, setSelectedTeamId] = useState("");
 	const [selectedStateId, setSelectedStateId] = useState("__none__");
@@ -147,17 +149,17 @@ function ApprovalCard({
 		[selectedWorkspace, selectedTeamId]
 	);
 
-	const isTitleValid = editedTitle.trim().length > 0;
+	const isTitleValid = (args.title ?? "").trim().length > 0;
 	const canApprove = !!selectedWorkspaceId && !!selectedTeamId && isTitleValid;
 
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
-	function buildFinalArgs() {
+	const buildFinalArgs = useCallback((overrides?: { title?: string; description?: string }) => {
 		return {
-			title: editedTitle,
-			description: editedDescription || null,
+			title: overrides?.title ?? args.title,
+			description: overrides?.description ?? args.description ?? null,
 			connector_id: selectedWorkspaceId ? Number(selectedWorkspaceId) : null,
 			team_id: selectedTeamId || null,
 			state_id: selectedStateId === "__none__" ? null : selectedStateId,
@@ -165,372 +167,322 @@ function ApprovalCard({
 			priority: Number(selectedPriority),
 			label_ids: selectedLabelIds,
 		};
-	}
+	}, [args.title, args.description, selectedWorkspaceId, selectedTeamId, selectedStateId, selectedAssigneeId, selectedPriority, selectedLabelIds]);
+
+	const handleApprove = useCallback(() => {
+		if (decided || isPanelOpen || !canApprove) return;
+		if (!allowedDecisions.includes("approve")) return;
+		setDecided("approve");
+		onDecision({
+			type: "approve",
+			edited_action: {
+				name: interruptData.action_requests[0].name,
+				args: buildFinalArgs(),
+			},
+		});
+	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, buildFinalArgs]);
+
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+				handleApprove();
+			}
+		};
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [handleApprove]);
 
 	return (
-		<div
-			className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
-				decided
-					? "border border-border bg-card shadow-sm"
-					: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
-			}`}
-		>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
-			<div
-				className={`flex items-center gap-3 border-b ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
-				} px-4 py-3`}
-			>
-				<div
-					className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-						decided ? "bg-muted" : "bg-muted animate-pulse"
-					}`}
-				>
-					<AlertTriangleIcon
-						className={`size-4 ${decided ? "text-muted-foreground" : "text-foreground"}`}
-					/>
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-foreground">Create Linear Issue</p>
-					<p className="truncate text-xs text-muted-foreground">
-						{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
+			<div className="flex items-start justify-between px-5 pt-5 pb-4">
+				<div>
+					<p className="text-sm font-semibold text-foreground">
+						{decided === "reject"
+							? "Linear Issue Rejected"
+							: decided === "approve" || decided === "edit"
+								? "Linear Issue Approved"
+								: "Create Linear Issue"}
+					</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						{decided === "reject"
+							? "Issue creation was cancelled"
+							: decided === "edit"
+								? "Issue creation is in progress with your changes"
+								: decided === "approve"
+									? "Issue creation is in progress"
+									: "Requires your approval to proceed"}
 					</p>
 				</div>
+				{!decided && canEdit && (
+					<Button
+						size="sm"
+						variant="ghost"
+						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
+						onClick={() => {
+							setIsPanelOpen(true);
+							openHitlEditPanel({
+								title: args.title ?? "",
+								content: args.description ?? "",
+								toolName: "Linear Issue",
+								onSave: (newTitle, newDescription) => {
+									setIsPanelOpen(false);
+									setDecided("edit");
+									onDecision({
+										type: "edit",
+										edited_action: {
+											name: interruptData.action_requests[0].name,
+											args: buildFinalArgs({ title: newTitle, description: newDescription }),
+										},
+									});
+								},
+							});
+						}}
+					>
+						<Pen className="size-3.5" />
+						Edit
+					</Button>
+				)}
 			</div>
 
 			{/* Context section */}
 			{!decided && (
-				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
-					{interruptData.context?.error ? (
-						<p className="text-sm text-destructive">{interruptData.context.error}</p>
-					) : (
-						<>
-							{workspaces.length > 0 && (
-								<div className="space-y-1.5">
-									<div className="text-xs font-medium text-muted-foreground">
-										Linear Account <span className="text-destructive">*</span>
-									</div>
-									<Select
-										value={selectedWorkspaceId}
-										onValueChange={(v) => {
-											setSelectedWorkspaceId(v);
-											setSelectedTeamId("");
-											setSelectedStateId("__none__");
-											setSelectedAssigneeId("__none__");
-											setSelectedPriority("0");
-											setSelectedLabelIds([]);
-										}}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select an account" />
-										</SelectTrigger>
-										<SelectContent>
-											{workspaces.map((w) => (
-												<SelectItem key={w.id} value={String(w.id)}>
-													{w.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							)}
-
-							{selectedWorkspace && (
-								<>
-									<div className="space-y-1.5">
-										<div className="text-xs font-medium text-muted-foreground">
-											Team <span className="text-destructive">*</span>
-										</div>
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 space-y-4">
+						{interruptData.context?.error ? (
+							<p className="text-sm text-destructive">{interruptData.context.error}</p>
+						) : (
+							<>
+								{workspaces.length > 0 && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">
+											Linear Account <span className="text-destructive">*</span>
+										</p>
 										<Select
-											value={selectedTeamId}
+											value={selectedWorkspaceId}
 											onValueChange={(v) => {
-												setSelectedTeamId(v);
-												const newTeam = selectedWorkspace.teams.find((t) => t.id === v);
-												setSelectedStateId(newTeam?.states?.[0]?.id ?? "__none__");
+												setSelectedWorkspaceId(v);
+												setSelectedTeamId("");
+												setSelectedStateId("__none__");
 												setSelectedAssigneeId("__none__");
+												setSelectedPriority("0");
 												setSelectedLabelIds([]);
 											}}
 										>
 											<SelectTrigger className="w-full">
-												<SelectValue placeholder="Select a team" />
+												<SelectValue placeholder="Select an account" />
 											</SelectTrigger>
 											<SelectContent>
-												{selectedWorkspace.teams.map((t) => (
-													<SelectItem key={t.id} value={t.id}>
-														{t.name} ({t.key})
+												{workspaces.map((w) => (
+													<SelectItem key={w.id} value={String(w.id)}>
+														{w.name}
 													</SelectItem>
 												))}
 											</SelectContent>
 										</Select>
 									</div>
+								)}
 
-									{selectedTeam && (
-										<>
-											<div className="space-y-1.5">
-												<div className="text-xs font-medium text-muted-foreground">State</div>
-												<Select value={selectedStateId} onValueChange={setSelectedStateId}>
-													<SelectTrigger className="w-full">
-														<SelectValue placeholder="Default" />
-													</SelectTrigger>
-													<SelectContent>
-														{selectedTeam.states.map((s) => (
-															<SelectItem key={s.id} value={s.id}>
-																{s.name}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
+								{selectedWorkspace && (
+									<>
+										<div className="space-y-2">
+											<p className="text-xs font-medium text-muted-foreground">
+												Team <span className="text-destructive">*</span>
+											</p>
+											<Select
+												value={selectedTeamId}
+												onValueChange={(v) => {
+													setSelectedTeamId(v);
+													const newTeam = selectedWorkspace.teams.find((t) => t.id === v);
+													setSelectedStateId(newTeam?.states?.[0]?.id ?? "__none__");
+													setSelectedAssigneeId("__none__");
+													setSelectedLabelIds([]);
+												}}
+											>
+												<SelectTrigger className="w-full">
+													<SelectValue placeholder="Select a team" />
+												</SelectTrigger>
+												<SelectContent>
+													{selectedWorkspace.teams.map((t) => (
+														<SelectItem key={t.id} value={t.id}>
+															{t.name} ({t.key})
+														</SelectItem>
+													))}
+												</SelectContent>
+											</Select>
+										</div>
 
-											<div className="space-y-1.5">
-												<div className="text-xs font-medium text-muted-foreground">Assignee</div>
-												<Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
-													<SelectTrigger className="w-full">
-														<SelectValue placeholder="Unassigned" />
-													</SelectTrigger>
-													<SelectContent>
-														<SelectItem value="__none__">Unassigned</SelectItem>
-														{selectedTeam.members
-															.filter((m) => m.active)
-															.map((m) => (
-																<SelectItem key={m.id} value={m.id}>
-																	{m.name} ({m.email})
+										{selectedTeam && (
+											<>
+												<div className="space-y-2">
+													<p className="text-xs font-medium text-muted-foreground">State</p>
+													<Select value={selectedStateId} onValueChange={setSelectedStateId}>
+														<SelectTrigger className="w-full">
+															<SelectValue placeholder="Default" />
+														</SelectTrigger>
+														<SelectContent>
+															{selectedTeam.states.map((s) => (
+																<SelectItem key={s.id} value={s.id}>
+																	{s.name}
 																</SelectItem>
 															))}
-													</SelectContent>
-												</Select>
-											</div>
-
-											<div className="space-y-1.5">
-												<div className="text-xs font-medium text-muted-foreground">Priority</div>
-												<Select value={selectedPriority} onValueChange={setSelectedPriority}>
-													<SelectTrigger className="w-full">
-														<SelectValue placeholder="No priority" />
-													</SelectTrigger>
-													<SelectContent>
-														{selectedWorkspace.priorities.map((p) => (
-															<SelectItem key={p.priority} value={String(p.priority)}>
-																{p.label}
-															</SelectItem>
-														))}
-													</SelectContent>
-												</Select>
-											</div>
-
-											{selectedTeam.labels.length > 0 && (
-												<div className="space-y-1.5">
-													<div className="text-xs font-medium text-muted-foreground">Labels</div>
-													<div className="flex flex-wrap gap-1.5">
-														{selectedTeam.labels.map((label) => {
-															const isSelected = selectedLabelIds.includes(label.id);
-															return (
-																<button
-																	key={label.id}
-																	type="button"
-																	onClick={() =>
-																		setSelectedLabelIds((prev) =>
-																			isSelected
-																				? prev.filter((id) => id !== label.id)
-																				: [...prev, label.id]
-																		)
-																	}
-																	className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity ${
-																		isSelected
-																			? "opacity-100 ring-2 ring-foreground/30"
-																			: "opacity-50 hover:opacity-80"
-																	}`}
-																	style={{
-																		backgroundColor: `${label.color}33`,
-																		color: label.color,
-																	}}
-																>
-																	<span
-																		className="size-1.5 rounded-full"
-																		style={{ backgroundColor: label.color }}
-																	/>
-																	{label.name}
-																</button>
-															);
-														})}
-													</div>
+														</SelectContent>
+													</Select>
 												</div>
-											)}
-										</>
-									)}
-								</>
-							)}
-						</>
-					)}
-				</div>
-			)}
 
-			{/* Display mode */}
-			{!isEditing && (
-				<div className="space-y-2 px-4 py-3 bg-card">
-					<div>
-						<p className="text-xs font-medium text-muted-foreground">Title</p>
-						<p className="text-sm text-foreground">{args.title}</p>
-					</div>
-					{args.description && (
-						<div>
-							<p className="text-xs font-medium text-muted-foreground">Description</p>
-							<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">
-								{args.description}
-							</p>
-						</div>
-					)}
-				</div>
-			)}
+												<div className="space-y-2">
+													<p className="text-xs font-medium text-muted-foreground">Assignee</p>
+													<Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
+														<SelectTrigger className="w-full">
+															<SelectValue placeholder="Unassigned" />
+														</SelectTrigger>
+														<SelectContent>
+															<SelectItem value="__none__">Unassigned</SelectItem>
+															{selectedTeam.members
+																.filter((m) => m.active)
+																.map((m) => (
+																	<SelectItem key={m.id} value={m.id}>
+																		{m.name} ({m.email})
+																	</SelectItem>
+																))}
+														</SelectContent>
+													</Select>
+												</div>
 
-			{/* Edit mode */}
-			{isEditing && !decided && (
-				<div className="space-y-3 px-4 py-3 bg-card">
-					<div>
-						<label
-							htmlFor="linear-title"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							Title <span className="text-destructive">*</span>
-						</label>
-						<Input
-							id="linear-title"
-							value={editedTitle}
-							onChange={(e) => setEditedTitle(e.target.value)}
-							placeholder="Enter issue title"
-							className={!isTitleValid ? "border-destructive" : ""}
-						/>
-						{!isTitleValid && <p className="text-xs text-destructive mt-1">Title is required</p>}
-					</div>
-					<div>
-						<label
-							htmlFor="linear-description"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							Description
-						</label>
-						<Textarea
-							id="linear-description"
-							value={editedDescription}
-							onChange={(e) => setEditedDescription(e.target.value)}
-							placeholder="Enter issue description (markdown supported)"
-							rows={5}
-							className="resize-none"
-						/>
-					</div>
-				</div>
-			)}
+												<div className="space-y-2">
+													<p className="text-xs font-medium text-muted-foreground">Priority</p>
+													<Select value={selectedPriority} onValueChange={setSelectedPriority}>
+														<SelectTrigger className="w-full">
+															<SelectValue placeholder="No priority" />
+														</SelectTrigger>
+														<SelectContent>
+															{selectedWorkspace.priorities.map((p) => (
+																<SelectItem key={p.priority} value={String(p.priority)}>
+																	{p.label}
+																</SelectItem>
+															))}
+														</SelectContent>
+													</Select>
+												</div>
 
-			{/* Action buttons */}
-			<div
-				className={`flex items-center gap-2 border-t ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
-				} px-4 py-3`}
-			>
-				{decided ? (
-					<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-						{decided === "approve" || decided === "edit" ? (
-							<>
-								<CheckIcon className="size-3.5 text-green-500" />
-								{decided === "edit" ? "Approved with Changes" : "Approved"}
-							</>
-						) : (
-							<>
-								<XIcon className="size-3.5 text-destructive" />
-								Rejected
+												{selectedTeam.labels.length > 0 && (
+													<div className="space-y-2">
+														<p className="text-xs font-medium text-muted-foreground">Labels</p>
+														<div className="flex flex-wrap gap-1.5">
+															{selectedTeam.labels.map((label) => {
+																const isSelected = selectedLabelIds.includes(label.id);
+																return (
+																	<button
+																		key={label.id}
+																		type="button"
+																		onClick={() =>
+																			setSelectedLabelIds((prev) =>
+																				isSelected
+																					? prev.filter((id) => id !== label.id)
+																					: [...prev, label.id]
+																			)
+																		}
+																		className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity ${
+																			isSelected
+																				? "opacity-100 ring-2 ring-foreground/30"
+																				: "opacity-50 hover:opacity-80"
+																		}`}
+																		style={{
+																			backgroundColor: `${label.color}33`,
+																			color: label.color,
+																		}}
+																	>
+																		<span
+																			className="size-1.5 rounded-full"
+																			style={{ backgroundColor: label.color }}
+																		/>
+																		{label.name}
+																	</button>
+																);
+															})}
+														</div>
+													</div>
+												)}
+											</>
+										)}
+									</>
+								)}
 							</>
 						)}
-					</p>
-				) : isEditing ? (
-					<>
-						<Button
-							size="sm"
-							onClick={() => {
-								setDecided("edit");
-								setIsEditing(false);
-								onDecision({
-									type: "edit",
-									edited_action: {
-										name: interruptData.action_requests[0].name,
-										args: buildFinalArgs(),
-									},
-								});
-							}}
-							disabled={!canApprove}
-						>
-							<CheckIcon />
-							Approve with Changes
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => {
-								setIsEditing(false);
-								setEditedTitle(args.title ?? "");
-								setEditedDescription(args.description ?? "");
-							}}
-						>
-							Cancel
-						</Button>
-					</>
-				) : (
-					<>
+					</div>
+				</>
+			)}
+
+			{/* Content preview */}
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 pt-3">
+				{args.title != null && (
+					<p className="text-sm font-medium text-foreground">{args.title}</p>
+				)}
+				{args.description != null && (
+					<div
+						className="max-h-[7rem] overflow-hidden text-sm"
+						style={{
+							maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+							WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+						}}
+					>
+						<PlateEditor
+							markdown={args.description}
+							readOnly
+							preset="readonly"
+							editorVariant="none"
+							className="h-auto [&_[data-slate-editor]]:!min-h-0 [&_[data-slate-editor]>*:first-child]:!mt-0"
+						/>
+					</div>
+				)}
+			</div>
+
+			{/* Action buttons - only shown when pending */}
+			{!decided && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 flex items-center gap-2">
 						{allowedDecisions.includes("approve") && (
 							<Button
 								size="sm"
-								onClick={() => {
-									setDecided("approve");
-									onDecision({
-										type: "approve",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: buildFinalArgs(),
-										},
-									});
-								}}
+								className="rounded-lg gap-1.5"
+								onClick={handleApprove}
 								disabled={!canApprove}
 							>
-								<CheckIcon />
 								Approve
-							</Button>
-						)}
-						{canEdit && (
-							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-								<Pen />
-								Edit
+								<CornerDownLeftIcon className="size-3 opacity-60" />
 							</Button>
 						)}
 						{allowedDecisions.includes("reject") && (
 							<Button
 								size="sm"
-								variant="outline"
+								variant="ghost"
+								className="rounded-lg text-muted-foreground"
 								onClick={() => {
 									setDecided("reject");
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
-								<XIcon />
 								Reject
 							</Button>
 						)}
-					</>
-				)}
-			</div>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-destructive/50 bg-card">
-			<div className="flex items-center gap-3 border-b border-destructive/50 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
-					<XIcon className="size-4 text-destructive" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-destructive">Failed to create Linear issue</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Failed to create Linear issue</p>
 			</div>
-			<div className="px-4 py-3">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
@@ -539,18 +491,14 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
-			<div className="flex items-center gap-3 border-b border-border px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
-					<CheckIcon className="size-4 text-green-500" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-[.8rem] text-muted-foreground">
-						{result.message || "Linear issue created successfully"}
-					</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground">
+					{result.message || "Linear issue created successfully"}
+				</p>
 			</div>
-			<div className="space-y-2 px-4 py-3 text-xs">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4 space-y-2 text-xs">
 				<div>
 					<span className="font-medium text-muted-foreground">Identifier: </span>
 					<span>{result.identifier}</span>
@@ -580,8 +528,8 @@ export const CreateLinearIssueToolUI = makeAssistantToolUI<
 	render: function CreateLinearIssueUI({ args, result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 flex max-w-md items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
-					<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+				<div className="my-4 flex max-w-lg items-center gap-3 rounded-2xl border bg-muted/30 px-5 py-4">
+					<Spinner size="sm" className="text-muted-foreground" />
 					<p className="text-sm text-muted-foreground">Preparing Linear issue...</p>
 				</div>
 			);
