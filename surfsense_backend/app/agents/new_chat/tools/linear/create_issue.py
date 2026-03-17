@@ -38,11 +38,13 @@ def create_create_linear_issue_tool(
         """Create a new issue in Linear.
 
         Use this tool when the user explicitly asks to create, add, or file
-        a new issue / ticket / task in Linear.
+        a new issue / ticket / task in Linear. The user MUST describe the issue
+        before you call this tool. If the request is vague, ask what the issue
+        should be about. Never call this tool without a clear topic from the user.
 
         Args:
-            title: Short, descriptive issue title.
-            description: Optional markdown body for the issue.
+            title: Short, descriptive issue title. Infer from the user's request.
+            description: Optional markdown body for the issue. Generate from context.
 
         Returns:
             Dictionary with:
@@ -57,9 +59,9 @@ def create_create_linear_issue_tool(
             and move on. Do NOT retry, troubleshoot, or suggest alternatives.
 
         Examples:
-            - "Create a Linear issue titled 'Fix login bug'"
-            - "Add a ticket for the payment timeout problem"
-            - "File an issue about the broken search feature"
+            - "Create a Linear issue for the login bug"
+            - "File a ticket about the payment timeout problem"
+            - "Add an issue for the broken search feature"
         """
         logger.info(f"create_linear_issue called: title='{title}'")
 

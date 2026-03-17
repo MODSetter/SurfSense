@@ -33,17 +33,21 @@ def create_create_notion_page_tool(
     @tool
     async def create_notion_page(
         title: str,
-        content: str,
+        content: str | None = None,
     ) -> dict[str, Any]:
         """Create a new page in Notion with the given title and content.
 
         Use this tool when the user asks you to create, save, or publish
         something to Notion. The page will be created in the user's
-        configured Notion workspace.
+        configured Notion workspace. The user MUST specify a topic before you
+        call this tool. If the request does not contain a topic (e.g. "create a
+        notion page"), ask what the page should be about. Never call this tool
+        without a clear topic from the user.
 
         Args:
             title: The title of the Notion page.
-            content: The markdown content for the page body (supports headings, lists, paragraphs).
+            content: Optional markdown content for the page body (supports headings, lists, paragraphs).
+                     Generate this yourself based on the user's topic.
 
         Returns:
             Dictionary with:
@@ -58,8 +62,8 @@ def create_create_notion_page_tool(
             and move on. Do NOT troubleshoot or suggest alternatives.
 
         Examples:
-            - "Create a Notion page titled 'Meeting Notes' with content 'Discussed project timeline'"
-            - "Save this to Notion with title 'Research Summary'"
+            - "Create a Notion page about our Q2 roadmap"
+            - "Save a summary of today's discussion to Notion"
         """
         logger.info(f"create_notion_page called: title='{title}'")
 

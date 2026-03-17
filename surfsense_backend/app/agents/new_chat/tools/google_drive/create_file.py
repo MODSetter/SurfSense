@@ -32,13 +32,15 @@ def create_create_google_drive_file_tool(
         """Create a new Google Doc or Google Sheet in Google Drive.
 
         Use this tool when the user explicitly asks to create a new document
-        or spreadsheet in Google Drive.
+        or spreadsheet in Google Drive. The user MUST specify a topic before
+        you call this tool. If the request is vague, ask what the file should
+        contain. Never call this tool without a clear topic from the user.
 
         Args:
-            name: The file name (without extension).
+            name: The file name (without extension). Infer from the user's request.
             file_type: Either "google_doc" or "google_sheet".
-            content: Optional initial content. For google_doc, provide markdown text.
-                     For google_sheet, provide CSV-formatted text.
+            content: Optional initial content. Generate from the user's topic.
+                     For google_doc, provide markdown text. For google_sheet, provide CSV-formatted text.
 
         Returns:
             Dictionary with:
@@ -55,8 +57,8 @@ def create_create_google_drive_file_tool(
               Inform the user they need to re-authenticate and do NOT retry the action.
 
         Examples:
-            - "Create a Google Doc called 'Meeting Notes'"
-            - "Create a spreadsheet named 'Budget 2026' with some sample data"
+            - "Create a Google Doc with today's meeting notes"
+            - "Create a spreadsheet for the 2026 budget"
         """
         logger.info(
             f"create_google_drive_file called: name='{name}', type='{file_type}'"
