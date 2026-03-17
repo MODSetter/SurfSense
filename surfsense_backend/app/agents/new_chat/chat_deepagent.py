@@ -292,6 +292,18 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(linear_tools)
 
+    # Disable Google Drive action tools if no Google Drive connector is configured
+    has_google_drive_connector = (
+        available_connectors is not None
+        and "GOOGLE_DRIVE_FILE" in available_connectors
+    )
+    if not has_google_drive_connector:
+        google_drive_tools = [
+            "create_google_drive_file",
+            "delete_google_drive_file",
+        ]
+        modified_disabled_tools.extend(google_drive_tools)
+
     # Build tools using the async registry (includes MCP tools)
     _t0 = time.perf_counter()
     tools = await build_tools_async(

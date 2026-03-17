@@ -245,7 +245,8 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["user_id", "search_space_id", "db_session", "thread_visibility"],
     ),
     # =========================================================================
-    # LINEAR TOOLS - create, update, delete issues (WIP - hidden from UI)
+    # LINEAR TOOLS - create, update, delete issues
+    # Auto-disabled when no Linear connector is configured (see chat_deepagent.py)
     # =========================================================================
     ToolDefinition(
         name="create_linear_issue",
@@ -256,8 +257,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="update_linear_issue",
@@ -268,8 +267,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="delete_linear_issue",
@@ -280,11 +277,10 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     # =========================================================================
-    # NOTION TOOLS - create, update, delete pages (WIP - hidden from UI)
+    # NOTION TOOLS - create, update, delete pages
+    # Auto-disabled when no Notion connector is configured (see chat_deepagent.py)
     # =========================================================================
     ToolDefinition(
         name="create_notion_page",
@@ -295,8 +291,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="update_notion_page",
@@ -307,8 +301,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="delete_notion_page",
@@ -319,11 +311,10 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     # =========================================================================
-    # GOOGLE DRIVE TOOLS - create files, delete files (WIP - hidden from UI)
+    # GOOGLE DRIVE TOOLS - create files, delete files
+    # Auto-disabled when no Google Drive connector is configured (see chat_deepagent.py)
     # =========================================================================
     ToolDefinition(
         name="create_google_drive_file",
@@ -334,8 +325,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
     ToolDefinition(
         name="delete_google_drive_file",
@@ -346,8 +335,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
             user_id=deps["user_id"],
         ),
         requires=["db_session", "search_space_id", "user_id"],
-        enabled_by_default=False,
-        hidden=True,
     ),
 ]
 
