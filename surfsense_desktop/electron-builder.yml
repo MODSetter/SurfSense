@@ -13,17 +13,10 @@ files:
   - "!scripts"
   - "!release"
 extraResources:
-  - from: ../surfsense_web/.next/standalone/
+  - from: ../surfsense_web/.next/standalone/surfsense_web/
     to: standalone/
     filter:
       - "**/*"
-      - "!node_modules"
-  - from: ../surfsense_web/.next/standalone/node_modules/
-    to: standalone/node_modules/
-    filter: ["**/*"]
-  - from: ../surfsense_web/.next/standalone/.next/
-    to: standalone/.next/
-    filter: ["**/*"]
   - from: ../surfsense_web/.next/static/
     to: standalone/.next/static/
     filter: ["**/*"]
