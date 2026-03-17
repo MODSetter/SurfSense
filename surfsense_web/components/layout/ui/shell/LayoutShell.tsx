@@ -369,7 +369,7 @@ export function LayoutShell({
 							aria-valuenow={50}
 							tabIndex={0}
 							onMouseDown={onResizeMouseDown}
-							className="hidden md:block h-full cursor-col-resize z-30"
+							className="hidden md:block h-full cursor-col-resize z-30 focus:outline-none"
 							style={{ width: 8, marginLeft: -8, marginRight: -8 }}
 						/>
 					)}

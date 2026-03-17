@@ -168,7 +168,7 @@ export function Sidebar({
 								<button
 									type="button"
 									onClick={onViewAllSharedChats}
-									className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0"
+									className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
 								>
 									{!disableTooltips && isSharedChatsPanelOpen ? t("hide") : t("show_all")}
 								</button>
@@ -224,7 +224,7 @@ export function Sidebar({
 								<button
 									type="button"
 									onClick={onViewAllPrivateChats}
-									className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0"
+									className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
 								>
 									{!disableTooltips && isPrivateChatsPanelOpen ? t("hide") : t("show_all")}
 								</button>
