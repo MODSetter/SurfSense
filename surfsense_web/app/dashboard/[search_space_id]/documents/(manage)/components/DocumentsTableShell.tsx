@@ -480,7 +480,7 @@ export function DocumentsTableShell({
 					<button
 						type="button"
 						onClick={() => setBulkDeleteConfirmOpen(true)}
-						className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive text-destructive-foreground shadow-md text-xs font-medium"
+						className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground shadow-md text-xs font-medium"
 					>
 						<Trash2 size={12} />
 						Delete ({deletableSelectedIds.length} selected)
