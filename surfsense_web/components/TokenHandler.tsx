@@ -60,6 +60,15 @@ const TokenHandler = ({
 					setRefreshToken(refreshToken);
 				}
 
+				// Desktop app: redirect tokens to the Electron deep link handler
+				const loginSource = sessionStorage.getItem("surfsense_login_source");
+				if (loginSource === "desktop") {
+					sessionStorage.removeItem("surfsense_login_source");
+					const deepLink = `surfsense://auth/callback?token=${token}${refreshToken ? `&refresh_token=${refreshToken}` : ""}`;
+					window.location.href = deepLink;
+					return;
+				}
+
 				// Check if there's a saved redirect path from before the auth flow
 				const savedRedirectPath = getAndClearRedirectPath();
 
