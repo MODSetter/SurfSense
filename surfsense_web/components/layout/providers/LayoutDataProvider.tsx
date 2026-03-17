@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
+import { Spinner } from "@/components/ui/spinner";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -14,6 +15,12 @@ import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import { rightPanelCollapsedAtom } from "@/atoms/layout/right-panel.atom";
 import { deleteSearchSpaceMutationAtom } from "@/atoms/search-spaces/search-space-mutation.atoms";
 import { searchSpacesAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import {
+	morePagesDialogAtom,
+	searchSpaceSettingsDialogAtom,
+	teamDialogAtom,
+	userSettingsDialogAtom,
+} from "@/atoms/settings/settings-dialog.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import {
 	AlertDialog,
@@ -35,7 +42,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { isPageLimitExceededMetadata } from "@/contracts/types/inbox.types";
+
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
@@ -47,6 +54,10 @@ import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-pers
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
+import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
+import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
+import { TeamDialog } from "@/components/settings/team-dialog";
+import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { LayoutShell } from "../ui/shell";
@@ -193,6 +204,8 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	const seenPageLimitNotifications = useRef<Set<number>>(new Set());
 	const isInitialLoad = useRef(true);
 
+	const setMorePagesOpen = useSetAtom(morePagesDialogAtom);
+
 	// Effect to show toast for new page_limit_exceeded notifications
 	useEffect(() => {
 		if (statusInbox.loading) return;
@@ -216,21 +229,17 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		for (const notification of newNotifications) {
 			seenPageLimitNotifications.current.add(notification.id);
 
-			const actionUrl = isPageLimitExceededMetadata(notification.metadata)
-				? notification.metadata.action_url
-				: `/dashboard/${searchSpaceId}/more-pages`;
-
 			toast.error(notification.title, {
 				description: notification.message,
 				duration: 8000,
 				icon: <AlertTriangle className="h-5 w-5 text-amber-500" />,
 				action: {
 					label: "View Plans",
-					onClick: () => router.push(actionUrl),
+					onClick: () => setMorePagesOpen(true),
 				},
 			});
 		}
-	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, router]);
+	}, [statusInbox.inboxItems, statusInbox.loading, searchSpaceId, setMorePagesOpen]);
 
 	// Delete dialogs state
 	const [showDeleteChatDialog, setShowDeleteChatDialog] = useState(false);
@@ -390,15 +399,19 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		setIsCreateSearchSpaceDialogOpen(true);
 	}, []);
 
+	const setUserSettingsDialog = useSetAtom(userSettingsDialogAtom);
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
+	const setTeamDialogOpen = useSetAtom(teamDialogAtom);
+
 	const handleUserSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/user-settings?tab=profile`);
-	}, [router, searchSpaceId]);
+		setUserSettingsDialog({ open: true, initialTab: "profile" });
+	}, [setUserSettingsDialog]);
 
 	const handleSearchSpaceSettings = useCallback(
-		(space: SearchSpace) => {
-			router.push(`/dashboard/${space.id}/settings?tab=general`);
+		(_space: SearchSpace) => {
+			setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
 		},
-		[router]
+		[setSearchSpaceSettingsDialog]
 	);
 
 	const handleSearchSpaceDeleteClick = useCallback((space: SearchSpace) => {
@@ -582,12 +595,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	);
 
 	const handleSettings = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/settings?tab=general`);
-	}, [router, searchSpaceId]);
+		setSearchSpaceSettingsDialog({ open: true, initialTab: "general" });
+	}, [setSearchSpaceSettingsDialog]);
 
 	const handleManageMembers = useCallback(() => {
-		router.push(`/dashboard/${searchSpaceId}/team`);
-	}, [router, searchSpaceId]);
+		setTeamDialogOpen(true);
+	}, [setTeamDialogOpen]);
 
 	const handleLogout = useCallback(async () => {
 		try {
@@ -616,17 +629,25 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	}, [router]);
 
 	const handleViewAllSharedChats = useCallback(() => {
-		setIsAllSharedChatsSidebarOpen(true);
-		setIsAllPrivateChatsSidebarOpen(false);
-		setIsInboxSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
+		setIsAllSharedChatsSidebarOpen((prev) => {
+			if (!prev) {
+				setIsAllPrivateChatsSidebarOpen(false);
+				setIsInboxSidebarOpen(false);
+				setIsAnnouncementsSidebarOpen(false);
+			}
+			return !prev;
+		});
 	}, []);
 
 	const handleViewAllPrivateChats = useCallback(() => {
-		setIsAllPrivateChatsSidebarOpen(true);
-		setIsAllSharedChatsSidebarOpen(false);
-		setIsInboxSidebarOpen(false);
-		setIsAnnouncementsSidebarOpen(false);
+		setIsAllPrivateChatsSidebarOpen((prev) => {
+			if (!prev) {
+				setIsAllSharedChatsSidebarOpen(false);
+				setIsInboxSidebarOpen(false);
+				setIsAnnouncementsSidebarOpen(false);
+			}
+			return !prev;
+		});
 	}, []);
 
 	// Delete handlers
@@ -803,7 +824,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 						>
 							{isDeletingChat ? (
 								<>
-									<span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+									<Spinner size="sm" />
 									{t("deleting")}
 								</>
 							) : (
@@ -934,6 +955,12 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 				open={isCreateSearchSpaceDialogOpen}
 				onOpenChange={setIsCreateSearchSpaceDialogOpen}
 			/>
+
+			{/* Settings Dialogs */}
+			<SearchSpaceSettingsDialog searchSpaceId={Number(searchSpaceId)} />
+			<UserSettingsDialog />
+			<TeamDialog searchSpaceId={Number(searchSpaceId)} />
+			<MorePagesDialog />
 		</>
 	);
 }

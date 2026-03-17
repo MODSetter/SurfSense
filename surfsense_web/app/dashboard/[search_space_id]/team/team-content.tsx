@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useAtomValue } from "jotai";
+import { useAtomValue, useSetAtom } from "jotai";
 import {
 	Calendar,
 	Check,
@@ -20,9 +20,7 @@ import {
 	UserPlus,
 	Users,
 } from "lucide-react";
-import { motion } from "motion/react";
-import Image from "next/image";
-import { useParams, useRouter } from "next/navigation";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
@@ -34,6 +32,7 @@ import {
 	updateMemberMutationAtom,
 } from "@/atoms/members/members-mutation.atoms";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
+import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -101,27 +100,6 @@ import { trackSearchSpaceInviteSent, trackSearchSpaceUsersViewed } from "@/lib/p
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
-const AVATAR_COLORS = [
-	"bg-amber-600",
-	"bg-blue-600",
-	"bg-emerald-600",
-	"bg-violet-600",
-	"bg-rose-600",
-	"bg-cyan-600",
-	"bg-orange-600",
-	"bg-teal-600",
-	"bg-pink-600",
-	"bg-indigo-600",
-];
-
-function getAvatarColor(identifier: string): string {
-	let hash = 0;
-	for (let i = 0; i < identifier.length; i++) {
-		hash = identifier.charCodeAt(i) + ((hash << 5) - hash);
-	}
-	return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
-
 function getAvatarInitials(member: Membership): string {
 	if (member.user_display_name) {
 		const parts = member.user_display_name.trim().split(/\s+/);
@@ -140,10 +118,11 @@ function getAvatarInitials(member: Membership): string {
 const PAGE_SIZE = 5;
 const SKELETON_KEYS = Array.from({ length: PAGE_SIZE }, (_, i) => `skeleton-${i}`);
 
-export default function TeamManagementPage() {
-	const params = useParams();
-	const searchSpaceId = Number(params.search_space_id);
+interface TeamContentProps {
+	searchSpaceId: number;
+}
 
+export function TeamContent({ searchSpaceId }: TeamContentProps) {
 	const { data: access = null, isLoading: accessLoading } = useAtomValue(myAccessAtom);
 
 	const hasPermission = useCallback(
@@ -261,222 +240,188 @@ export default function TeamManagementPage() {
 
 	if (accessLoading || membersLoading) {
 		return (
-			<motion.div
-				initial={{ opacity: 0 }}
-				animate={{ opacity: 1 }}
-				transition={{ duration: 0.3 }}
-				className="bg-background select-none"
-			>
-				<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
-					<div className="space-y-6">
-						<div className="flex items-center justify-between">
-							<Skeleton className="h-9 w-36 rounded-md" />
-							<Skeleton className="h-4 w-20" />
-						</div>
-						<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
-							<Table className="table-fixed w-full">
-								<TableHeader>
-									<TableRow className="hover:bg-transparent border-b border-border/40">
-										<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
-											<Skeleton className="h-3 w-16" />
-										</TableHead>
-										<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
-											<Skeleton className="h-3 w-24" />
-										</TableHead>
-										<TableHead className="w-[30%] px-4 md:px-6">
-											<div className="flex justify-end">
-												<Skeleton className="h-3 w-12" />
-											</div>
-										</TableHead>
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{SKELETON_KEYS.map((id) => (
-										<TableRow key={id} className="border-b border-border/40 hover:bg-transparent">
-											<TableCell className="w-[45%] py-2.5 px-4 md:px-6 border-r border-border/40">
-												<div className="flex items-center gap-3">
-													<Skeleton className="h-10 w-10 rounded-full shrink-0" />
-													<div className="flex-1 min-w-0 space-y-1.5">
-														<Skeleton className="h-4 w-[60%]" />
-														<Skeleton className="h-3 w-[40%]" />
-													</div>
-												</div>
-											</TableCell>
-											<TableCell className="hidden md:table-cell w-[25%] py-2.5 border-r border-border/40">
-												<Skeleton className="h-4 w-24" />
-											</TableCell>
-											<TableCell className="w-[30%] py-2.5 px-4 md:px-6">
-												<div className="flex justify-end">
-													<Skeleton className="h-4 w-16" />
-												</div>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-					</div>
+			<div className="space-y-6">
+				<div className="flex items-center justify-between">
+					<Skeleton className="h-9 w-36 rounded-md" />
+					<Skeleton className="h-4 w-20" />
 				</div>
-			</motion.div>
+				<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
+					<Table className="table-fixed w-full">
+						<TableHeader>
+							<TableRow className="hover:bg-transparent border-b border-border/40">
+								<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
+									<Skeleton className="h-3 w-16" />
+								</TableHead>
+								<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
+									<Skeleton className="h-3 w-24" />
+								</TableHead>
+								<TableHead className="w-[30%] px-4 md:px-6">
+									<div className="flex justify-end">
+										<Skeleton className="h-3 w-12" />
+									</div>
+								</TableHead>
+							</TableRow>
+						</TableHeader>
+						<TableBody>
+							{SKELETON_KEYS.map((id) => (
+								<TableRow key={id} className="border-b border-border/40 hover:bg-transparent">
+									<TableCell className="w-[45%] py-2.5 px-4 md:px-6 border-r border-border/40">
+										<div className="flex items-center gap-3">
+											<Skeleton className="h-10 w-10 rounded-full shrink-0" />
+											<div className="flex-1 min-w-0 space-y-1.5">
+												<Skeleton className="h-4 w-[60%]" />
+												<Skeleton className="h-3 w-[40%]" />
+											</div>
+										</div>
+									</TableCell>
+									<TableCell className="hidden md:table-cell w-[25%] py-2.5 border-r border-border/40">
+										<Skeleton className="h-4 w-24" />
+									</TableCell>
+									<TableCell className="w-[30%] py-2.5 px-4 md:px-6">
+										<div className="flex justify-end">
+											<Skeleton className="h-4 w-16" />
+										</div>
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
+				</div>
+			</div>
 		);
 	}
 
 	return (
-		<motion.div
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1 }}
-			transition={{ duration: 0.3 }}
-			className="bg-background select-none"
-		>
-			<div className="container max-w-5xl mx-auto p-4 md:p-6 lg:p-8 pt-20 md:pt-24 lg:pt-28">
-				<div className="space-y-6">
-					{/* Header row: Invite button on left, member count on right */}
-					<div className="flex items-center justify-between">
-						<div className="flex items-center gap-2">
-							{canInvite && (
-								<CreateInviteDialog
-									roles={roles}
-									onCreateInvite={handleCreateInvite}
-									searchSpaceId={searchSpaceId}
-								/>
-							)}
-							{canInvite && activeInvites.length > 0 && (
-								<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
-							)}
-						</div>
-						<p className="hidden md:block text-sm text-muted-foreground">
-							{members.length} {members.length === 1 ? "member" : "members"}
-						</p>
-					</div>
-
-					{/* Members & Invites Table */}
-					<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
-						<Table className="table-fixed w-full">
-							<TableHeader>
-								<TableRow className="hover:bg-transparent border-b border-border/40">
-									<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
-										<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-											<User size={14} className="opacity-60 text-muted-foreground" />
-											Name
-										</span>
-									</TableHead>
-									<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
-										<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
-											<Clock size={14} className="opacity-60 text-muted-foreground" />
-											Last logged in
-										</span>
-									</TableHead>
-									<TableHead className="w-[30%] px-4 md:px-6">
-										<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70 justify-end">
-											<ShieldUser size={14} className="opacity-60 text-muted-foreground" />
-											Role
-										</span>
-									</TableHead>
-								</TableRow>
-							</TableHeader>
-							<TableBody>
-								{owners.map((member, index) => (
-									<MemberRow
-										key={`member-${member.id}`}
-										member={member}
-										roles={roles}
-										canManageRoles={canManageRoles}
-										canRemove={canRemove}
-										onUpdateRole={handleUpdateMember}
-										onRemoveMember={handleRemoveMember}
-										searchSpaceId={searchSpaceId}
-										index={index}
-									/>
-								))}
-								{paginatedMembers.map((member, index) => (
-									<MemberRow
-										key={`member-${member.id}`}
-										member={member}
-										roles={roles}
-										canManageRoles={canManageRoles}
-										canRemove={canRemove}
-										onUpdateRole={handleUpdateMember}
-										onRemoveMember={handleRemoveMember}
-										searchSpaceId={searchSpaceId}
-										index={owners.length + index}
-									/>
-								))}
-								{members.length === 0 && (
-									<TableRow>
-										<TableCell colSpan={3} className="text-center py-12">
-											<div className="flex flex-col items-center gap-2">
-												<Users className="h-8 w-8 text-muted-foreground/50" />
-												<p className="text-muted-foreground">No members yet</p>
-											</div>
-										</TableCell>
-									</TableRow>
-								)}
-							</TableBody>
-						</Table>
-					</div>
-
-					{/* Pagination */}
-					{totalItems > PAGE_SIZE && (
-						<motion.div
-							className="flex items-center justify-end gap-3 py-3 px-2"
-							initial={{ opacity: 0, y: 10 }}
-							animate={{ opacity: 1, y: 0 }}
-							transition={{ type: "spring", stiffness: 300, damping: 30, delay: 0.3 }}
-						>
-							<span className="text-sm text-muted-foreground tabular-nums">
-								{displayStart}-{displayEnd} of {totalItems}
-							</span>
-							<div className="flex items-center gap-1">
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 disabled:opacity-40"
-									onClick={() => setPageIndex(0)}
-									disabled={!canPrev}
-									aria-label="Go to first page"
-								>
-									<ChevronFirst size={18} strokeWidth={2} />
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 disabled:opacity-40"
-									onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
-									disabled={!canPrev}
-									aria-label="Go to previous page"
-								>
-									<ChevronLeft size={18} strokeWidth={2} />
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 disabled:opacity-40"
-									onClick={() => setPageIndex((i) => (canNext ? i + 1 : i))}
-									disabled={!canNext}
-									aria-label="Go to next page"
-								>
-									<ChevronRight size={18} strokeWidth={2} />
-								</Button>
-								<Button
-									variant="ghost"
-									size="icon"
-									className="h-8 w-8 disabled:opacity-40"
-									onClick={() => setPageIndex(lastPage)}
-									disabled={!canNext}
-									aria-label="Go to last page"
-								>
-									<ChevronLast size={18} strokeWidth={2} />
-								</Button>
-							</div>
-						</motion.div>
-					)}
-				</div>
+		<div className="space-y-4 md:space-y-6">
+			<div className="flex items-center gap-2 flex-wrap">
+				{canInvite && (
+					<CreateInviteDialog
+						roles={roles}
+						onCreateInvite={handleCreateInvite}
+						searchSpaceId={searchSpaceId}
+					/>
+				)}
+				{canInvite && activeInvites.length > 0 && (
+					<AllInvitesDialog invites={activeInvites} onRevokeInvite={handleRevokeInvite} />
+				)}
+				<p className="text-xs md:text-sm text-muted-foreground whitespace-nowrap">
+					{members.length} {members.length === 1 ? "member" : "members"}
+				</p>
 			</div>
-		</motion.div>
+
+			<div className="rounded-lg border border-border/40 bg-background overflow-hidden">
+				<Table className="table-fixed w-full">
+					<TableHeader>
+						<TableRow className="hover:bg-transparent border-b border-border/40">
+							<TableHead className="w-[45%] px-4 md:px-6 border-r border-border/40">
+								<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+									<User size={14} className="opacity-60 text-muted-foreground" />
+									Name
+								</span>
+							</TableHead>
+							<TableHead className="hidden md:table-cell w-[25%] border-r border-border/40">
+								<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70">
+									<Clock size={14} className="opacity-60 text-muted-foreground" />
+									Last logged in
+								</span>
+							</TableHead>
+							<TableHead className="w-[30%] px-4 md:px-6">
+								<span className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground/70 justify-end">
+									<ShieldUser size={14} className="opacity-60 text-muted-foreground" />
+									Role
+								</span>
+							</TableHead>
+						</TableRow>
+					</TableHeader>
+					<TableBody>
+						{owners.map((member) => (
+							<MemberRow
+								key={`member-${member.id}`}
+								member={member}
+								roles={roles}
+								canManageRoles={canManageRoles}
+								canRemove={canRemove}
+								onUpdateRole={handleUpdateMember}
+								onRemoveMember={handleRemoveMember}
+							/>
+						))}
+						{paginatedMembers.map((member) => (
+							<MemberRow
+								key={`member-${member.id}`}
+								member={member}
+								roles={roles}
+								canManageRoles={canManageRoles}
+								canRemove={canRemove}
+								onUpdateRole={handleUpdateMember}
+								onRemoveMember={handleRemoveMember}
+							/>
+						))}
+						{members.length === 0 && (
+							<TableRow>
+								<TableCell colSpan={3} className="text-center py-12">
+									<div className="flex flex-col items-center gap-2">
+										<Users className="h-8 w-8 text-muted-foreground/50" />
+										<p className="text-muted-foreground">No members yet</p>
+									</div>
+								</TableCell>
+							</TableRow>
+						)}
+					</TableBody>
+				</Table>
+			</div>
+
+			{totalItems > PAGE_SIZE && (
+				<div className="flex items-center justify-end gap-3 py-3 px-2">
+					<span className="text-sm text-muted-foreground tabular-nums">
+						{displayStart}-{displayEnd} of {totalItems}
+					</span>
+					<div className="flex items-center gap-1">
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 disabled:opacity-40"
+							onClick={() => setPageIndex(0)}
+							disabled={!canPrev}
+							aria-label="Go to first page"
+						>
+							<ChevronFirst size={18} strokeWidth={2} />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 disabled:opacity-40"
+							onClick={() => setPageIndex((i) => Math.max(0, i - 1))}
+							disabled={!canPrev}
+							aria-label="Go to previous page"
+						>
+							<ChevronLeft size={18} strokeWidth={2} />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 disabled:opacity-40"
+							onClick={() => setPageIndex((i) => (canNext ? i + 1 : i))}
+							disabled={!canNext}
+							aria-label="Go to next page"
+						>
+							<ChevronRight size={18} strokeWidth={2} />
+						</Button>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="h-8 w-8 disabled:opacity-40"
+							onClick={() => setPageIndex(lastPage)}
+							disabled={!canNext}
+							aria-label="Go to last page"
+						>
+							<ChevronLast size={18} strokeWidth={2} />
+						</Button>
+					</div>
+				</div>
+			)}
+		</div>
 	);
 }
-
-// ============ Member Row ============
 
 function MemberRow({
 	member,
@@ -485,8 +430,6 @@ function MemberRow({
 	canRemove,
 	onUpdateRole,
 	onRemoveMember,
-	searchSpaceId,
-	index,
 }: {
 	member: Membership;
 	roles: Role[];
@@ -494,44 +437,23 @@ function MemberRow({
 	canRemove: boolean;
 	onUpdateRole: (membershipId: number, roleId: number | null) => Promise<Membership>;
 	onRemoveMember: (membershipId: number) => Promise<boolean>;
-	searchSpaceId: number;
-	index: number;
 }) {
-	const router = useRouter();
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 	const initials = getAvatarInitials(member);
-	const avatarColor = getAvatarColor(member.user_id);
 	const displayName = member.user_display_name || member.user_email || "Unknown";
 	const roleName = member.is_owner ? "Owner" : member.role?.name || "No role";
 	const showActions = !member.is_owner && (canManageRoles || canRemove);
 
 	return (
-		<motion.tr
-			initial={{ opacity: 0 }}
-			animate={{ opacity: 1, transition: { duration: 0.2, delay: index * 0.02 } }}
-			className="border-b border-border/40 transition-colors hover:bg-muted/30"
-		>
+		<TableRow className="border-b border-border/40 transition-colors hover:bg-muted/30">
 			<TableCell className="w-[45%] py-2.5 px-4 md:px-6 max-w-0 border-r border-border/40">
 				<div className="flex items-center gap-3">
-					<div className="shrink-0">
-						{member.user_avatar_url ? (
-							<Image
-								src={member.user_avatar_url}
-								alt={displayName}
-								width={40}
-								height={40}
-								className="h-10 w-10 rounded-full object-cover"
-							/>
-						) : (
-							<div
-								className={cn(
-									"h-10 w-10 rounded-full flex items-center justify-center text-white font-medium text-sm",
-									avatarColor
-								)}
-							>
-								{initials}
-							</div>
+					<Avatar className="size-10 shrink-0">
+						{member.user_avatar_url && (
+							<AvatarImage src={member.user_avatar_url} alt={displayName} />
 						)}
-					</div>
+						<AvatarFallback className="text-sm">{initials}</AvatarFallback>
+					</Avatar>
 					<div className="min-w-0">
 						<p className="font-medium text-sm truncate select-text">{displayName}</p>
 						{member.user_display_name && member.user_email && (
@@ -607,7 +529,12 @@ function MemberRow({
 							)}
 							<DropdownMenuSeparator className="dark:bg-white/5" />
 							<DropdownMenuItem
-								onClick={() => router.push(`/dashboard/${searchSpaceId}/settings?tab=team-roles`)}
+								onClick={() =>
+									setSearchSpaceSettingsDialog({
+										open: true,
+										initialTab: "team-roles",
+									})
+								}
 							>
 								Manage Roles
 							</DropdownMenuItem>
@@ -617,11 +544,9 @@ function MemberRow({
 					<span className="text-sm text-foreground">{roleName}</span>
 				)}
 			</TableCell>
-		</motion.tr>
+		</TableRow>
 	);
 }
-
-// ============ Create Invite Dialog ============
 
 function CreateInviteDialog({
 	roles,
@@ -698,9 +623,10 @@ function CreateInviteDialog({
 			<DialogTrigger asChild>
 				<Button
 					variant="outline"
-					className="gap-2 bg-black text-white dark:bg-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
+					size="sm"
+					className="gap-1.5 md:gap-2 text-xs md:text-sm bg-black text-white dark:bg-white dark:text-black hover:bg-black/90 dark:hover:bg-white/90"
 				>
-					<UserPlus className="h-4 w-4" />
+					<UserPlus className="h-3.5 w-3.5 md:h-4 md:w-4" />
 					Invite members
 				</Button>
 			</DialogTrigger>
@@ -850,8 +776,6 @@ function CreateInviteDialog({
 	);
 }
 
-// ============ All Invites Dialog ============
-
 function AllInvitesDialog({
 	invites,
 	onRevokeInvite,
@@ -872,10 +796,10 @@ function AllInvitesDialog({
 	return (
 		<Dialog>
 			<DialogTrigger asChild>
-				<Button variant="secondary" className="gap-2">
-					<Link2 className="h-4 w-4 rotate-315" />
+				<Button variant="secondary" size="sm" className="gap-1.5 md:gap-2 text-xs md:text-sm">
+					<Link2 className="h-3.5 w-3.5 md:h-4 md:w-4 rotate-315" />
 					Active invites
-					<span className="inline-flex items-center justify-center h-5 min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200 text-xs font-medium">
+					<span className="inline-flex items-center justify-center h-4 md:h-5 min-w-4 md:min-w-5 px-1 rounded-full bg-neutral-700 text-neutral-200 text-[10px] md:text-xs font-medium">
 						{invites.length}
 					</span>
 				</Button>

@@ -224,6 +224,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
 			changeFrequency: "daily",
 			priority: 0.8,
 		},
+		{
+			url: "https://www.surfsense.com/docs/how-to/web-search",
+			lastModified,
+			changeFrequency: "daily",
+			priority: 0.8,
+		},
 		// Developer documentation
 		{
 			url: "https://www.surfsense.com/docs/testing",

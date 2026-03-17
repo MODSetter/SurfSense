@@ -565,7 +565,7 @@ export function LLMConfigForm({
 						{onCancel && (
 							<Button
 								type="button"
-								variant="outline"
+								variant="secondary"
 								onClick={onCancel}
 								disabled={isSubmitting}
 								className="text-xs sm:text-sm h-9 sm:h-10"

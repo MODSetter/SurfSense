@@ -102,6 +102,7 @@ wait_for_pg() {
 step "Downloading SurfSense files"
 info "Installation directory: ${INSTALL_DIR}"
 mkdir -p "${INSTALL_DIR}/scripts"
+mkdir -p "${INSTALL_DIR}/searxng"
 
 FILES=(
     "docker/docker-compose.yml:docker-compose.yml"
@@ -109,6 +110,8 @@ FILES=(
     "docker/postgresql.conf:postgresql.conf"
     "docker/scripts/init-electric-user.sh:scripts/init-electric-user.sh"
     "docker/scripts/migrate-database.sh:scripts/migrate-database.sh"
+    "docker/searxng/settings.yml:searxng/settings.yml"
+    "docker/searxng/limiter.toml:searxng/limiter.toml"
 )
 
 for entry in "${FILES[@]}"; do

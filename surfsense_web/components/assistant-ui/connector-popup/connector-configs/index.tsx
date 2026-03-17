@@ -19,7 +19,6 @@ import { LinkupApiConfig } from "./components/linkup-api-config";
 import { LumaConfig } from "./components/luma-config";
 import { MCPConfig } from "./components/mcp-config";
 import { ObsidianConfig } from "./components/obsidian-config";
-import { SearxngConfig } from "./components/searxng-config";
 import { SlackConfig } from "./components/slack-config";
 import { TavilyApiConfig } from "./components/tavily-api-config";
 import { TeamsConfig } from "./components/teams-config";
@@ -45,8 +44,6 @@ export function getConnectorConfigComponent(
 			return GoogleDriveConfig;
 		case "TAVILY_API":
 			return TavilyApiConfig;
-		case "SEARXNG_API":
-			return SearxngConfig;
 		case "LINKUP_API":
 			return LinkupApiConfig;
 		case "BAIDU_SEARCH_API":

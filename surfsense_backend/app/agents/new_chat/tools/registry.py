@@ -73,6 +73,7 @@ from .shared_memory import (
     create_save_shared_memory_tool,
 )
 from .user_memory import create_recall_memory_tool, create_save_memory_tool
+from .web_search import create_web_search_tool
 
 # =============================================================================
 # Tool Definition
@@ -186,7 +187,16 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=[],  # firecrawl_api_key is optional
     ),
-    # Note: write_todos is now provided by TodoListMiddleware from deepagents
+    # Web search tool — real-time web search via SearXNG + user-configured engines
+    ToolDefinition(
+        name="web_search",
+        description="Search the web for real-time information using configured search engines",
+        factory=lambda deps: create_web_search_tool(
+            search_space_id=deps.get("search_space_id"),
+            available_connectors=deps.get("available_connectors"),
+        ),
+        requires=[],
+    ),
     # Surfsense documentation search tool
     ToolDefinition(
         name="search_surfsense_docs",

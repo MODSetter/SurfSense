@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderOpen, PenSquare } from "lucide-react";
+import { PenSquare } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -42,6 +42,8 @@ interface SidebarProps {
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllSharedChats?: () => void;
 	onViewAllPrivateChats?: () => void;
+	isSharedChatsPanelOpen?: boolean;
+	isPrivateChatsPanelOpen?: boolean;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -54,7 +56,6 @@ interface SidebarProps {
 	isLoadingChats?: boolean;
 	disableTooltips?: boolean;
 	sidebarWidth?: number;
-	onResizeMouseDown?: (e: React.MouseEvent) => void;
 	isResizing?: boolean;
 }
 
@@ -74,6 +75,8 @@ export function Sidebar({
 	onChatArchive,
 	onViewAllSharedChats,
 	onViewAllPrivateChats,
+	isSharedChatsPanelOpen = false,
+	isPrivateChatsPanelOpen = false,
 	user,
 	onSettings,
 	onManageMembers,
@@ -86,7 +89,6 @@ export function Sidebar({
 	isLoadingChats = false,
 	disableTooltips = false,
 	sidebarWidth = SIDEBAR_MIN_WIDTH,
-	onResizeMouseDown,
 	isResizing = false,
 }: SidebarProps) {
 	const t = useTranslations("sidebar");
@@ -102,19 +104,6 @@ export function Sidebar({
 			)}
 			style={!isCollapsed ? { width: sidebarWidth } : undefined}
 		>
-			{/* Resize handle on right border */}
-			{!isCollapsed && onResizeMouseDown && (
-				<div
-					role="slider"
-					aria-label="Resize sidebar"
-					aria-valuemin={0}
-					aria-valuemax={100}
-					aria-valuenow={50}
-					tabIndex={0}
-					onMouseDown={onResizeMouseDown}
-					className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-border active:bg-border z-10"
-				/>
-			)}
 			{/* Header - search space name or collapse button when collapsed */}
 			{isCollapsed ? (
 				<div className="flex h-14 shrink-0 items-center justify-center border-b">
@@ -173,34 +162,16 @@ export function Sidebar({
 						defaultOpen={true}
 						fillHeight={false}
 						className="shrink-0 max-h-[50%] flex flex-col"
+						alwaysShowAction={!disableTooltips && isSharedChatsPanelOpen}
 						action={
 							onViewAllSharedChats ? (
-								disableTooltips ? (
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-										onClick={onViewAllSharedChats}
-									>
-										<FolderOpen className="h-4 w-4" />
-									</Button>
-								) : (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-												onClick={onViewAllSharedChats}
-											>
-												<FolderOpen className="h-4 w-4" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent side="top">
-											{t("view_all_shared_chats") || "View all shared chats"}
-										</TooltipContent>
-									</Tooltip>
-								)
+								<button
+									type="button"
+									onClick={onViewAllSharedChats}
+									className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+								>
+									{!disableTooltips && isSharedChatsPanelOpen ? t("hide") : t("show_all")}
+								</button>
 							) : undefined
 						}
 					>
@@ -247,34 +218,16 @@ export function Sidebar({
 						title={t("chats")}
 						defaultOpen={true}
 						fillHeight={true}
+						alwaysShowAction={!disableTooltips && isPrivateChatsPanelOpen}
 						action={
 							onViewAllPrivateChats ? (
-								disableTooltips ? (
-									<Button
-										variant="ghost"
-										size="icon"
-										className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-										onClick={onViewAllPrivateChats}
-									>
-										<FolderOpen className="h-4 w-4" />
-									</Button>
-								) : (
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Button
-												variant="ghost"
-												size="icon"
-												className="h-8 w-8 shrink-0 hover:bg-transparent hover:text-current focus-visible:ring-0"
-												onClick={onViewAllPrivateChats}
-											>
-												<FolderOpen className="h-4 w-4" />
-											</Button>
-										</TooltipTrigger>
-										<TooltipContent side="top">
-											{t("view_all_private_chats") || "View all private chats"}
-										</TooltipContent>
-									</Tooltip>
-								)
+								<button
+									type="button"
+									onClick={onViewAllPrivateChats}
+									className="text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors whitespace-nowrap cursor-pointer bg-transparent border-none p-0 focus:outline-none"
+								>
+									{!disableTooltips && isPrivateChatsPanelOpen ? t("hide") : t("show_all")}
+								</button>
 							) : undefined
 						}
 					>

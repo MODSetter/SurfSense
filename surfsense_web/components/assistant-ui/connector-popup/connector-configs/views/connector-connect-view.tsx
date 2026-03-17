@@ -11,7 +11,6 @@ import { getConnectFormComponent } from "../../connect-forms";
 
 const FORM_ID_MAP: Record<string, string> = {
 	TAVILY_API: "tavily-connect-form",
-	SEARXNG_API: "searxng-connect-form",
 	LINKUP_API: "linkup-api-connect-form",
 	BAIDU_SEARCH_API: "baidu-search-api-connect-form",
 	ELASTICSEARCH_CONNECTOR: "elasticsearch-connect-form",

@@ -51,9 +51,7 @@ async def safe_set_chunks(
     from app.db import Chunk
 
     if document.id is not None:
-        await session.execute(
-            delete(Chunk).where(Chunk.document_id == document.id)
-        )
+        await session.execute(delete(Chunk).where(Chunk.document_id == document.id))
         for chunk in chunks:
             chunk.document_id = document.id
 
