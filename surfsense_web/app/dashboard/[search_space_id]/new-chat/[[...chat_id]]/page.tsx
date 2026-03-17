@@ -30,9 +30,11 @@ import {
 	// extractWriteTodosFromContent,
 } from "@/atoms/chat/plan-state.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
+import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
@@ -195,6 +197,7 @@ export default function NewChatPage() {
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
+	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -286,6 +289,7 @@ export default function NewChatPage() {
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry();
 		closeReportPanel();
+		closeEditorPanel();
 
 		try {
 			if (urlChatId > 0) {
@@ -351,6 +355,7 @@ export default function NewChatPage() {
 		setMentionedDocuments,
 		setSidebarDocuments,
 		closeReportPanel,
+		closeEditorPanel,
 	]);
 
 	// Initialize on mount
@@ -1677,6 +1682,7 @@ export default function NewChatPage() {
 					<Thread messageThinkingSteps={messageThinkingSteps} />
 				</div>
 				<MobileReportPanel />
+				<MobileEditorPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);

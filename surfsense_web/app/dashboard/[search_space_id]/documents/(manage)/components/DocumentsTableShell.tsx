@@ -14,9 +14,10 @@ import {
 	SearchX,
 	Trash2,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useSetAtom } from "jotai";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { toast } from "sonner";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
@@ -37,7 +38,6 @@ import {
 	ContextMenu,
 	ContextMenuContent,
 	ContextMenuItem,
-	ContextMenuSeparator,
 	ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -223,16 +223,14 @@ function RowContextMenu({
 	onPreview,
 	onDelete,
 	searchSpaceId,
-	onEditNavigate,
 }: {
 	doc: Document;
 	children: React.ReactNode;
 	onPreview: (doc: Document) => void;
 	onDelete: (doc: Document) => void;
 	searchSpaceId: string;
-	onEditNavigate?: () => void;
 }) {
-	const router = useRouter();
+	const openEditor = useSetAtom(openEditorPanelAtom);
 
 	const isEditable = EDITABLE_DOCUMENT_TYPES.includes(
 		doc.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
@@ -257,8 +255,11 @@ function RowContextMenu({
 					<ContextMenuItem
 						onClick={() => {
 							if (!isEditDisabled) {
-								onEditNavigate?.();
-								router.push(`/dashboard/${searchSpaceId}/editor/${doc.id}`);
+								openEditor({
+									documentId: doc.id,
+									searchSpaceId: Number(searchSpaceId),
+									title: doc.title,
+								});
 							}
 						}}
 						disabled={isEditDisabled}
@@ -268,16 +269,13 @@ function RowContextMenu({
 					</ContextMenuItem>
 				)}
 				{shouldShowDelete && (
-					<>
-						<ContextMenuSeparator />
-						<ContextMenuItem
-							onClick={() => !isDeleteDisabled && onDelete(doc)}
-							disabled={isDeleteDisabled}
-						>
-							<Trash2 className="h-4 w-4" />
-							Delete
-						</ContextMenuItem>
-					</>
+					<ContextMenuItem
+						onClick={() => !isDeleteDisabled && onDelete(doc)}
+						disabled={isDeleteDisabled}
+					>
+						<Trash2 className="h-4 w-4" />
+						Delete
+					</ContextMenuItem>
 				)}
 			</ContextMenuContent>
 		</ContextMenu>
@@ -327,7 +325,6 @@ export function DocumentsTableShell({
 	onLoadMore,
 	mentionedDocIds,
 	onToggleChatMention,
-	onEditNavigate,
 	isSearchMode = false,
 }: {
 	documents: Document[];
@@ -346,8 +343,6 @@ export function DocumentsTableShell({
 	mentionedDocIds?: Set<number>;
 	/** Toggle a document's mention in the chat (add if not mentioned, remove if mentioned) */
 	onToggleChatMention?: (doc: Document, mentioned: boolean) => void;
-	/** Called when user navigates to the editor via Edit — use to close containing sidebar/panel */
-	onEditNavigate?: () => void;
 	/** Whether results are filtered by a search query or type filters */
 	isSearchMode?: boolean;
 }) {
@@ -374,7 +369,7 @@ export function DocumentsTableShell({
 	const [mobileActionDoc, setMobileActionDoc] = useState<Document | null>(null);
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
-	const router = useRouter();
+	const openEditor = useSetAtom(openEditorPanelAtom);
 
 	const desktopSentinelRef = useRef<HTMLDivElement>(null);
 	const mobileSentinelRef = useRef<HTMLDivElement>(null);
@@ -701,7 +696,6 @@ export function DocumentsTableShell({
 											onPreview={handleViewDocument}
 											onDelete={setDeleteDoc}
 											searchSpaceId={searchSpaceId}
-											onEditNavigate={onEditNavigate}
 										>
 											<tr
 												className={`border-b border-border/50 transition-colors ${
@@ -1010,8 +1004,11 @@ export function DocumentsTableShell({
 									}
 									onClick={() => {
 										if (mobileActionDoc) {
-											onEditNavigate?.();
-											router.push(`/dashboard/${searchSpaceId}/editor/${mobileActionDoc.id}`);
+											openEditor({
+												documentId: mobileActionDoc.id,
+												searchSpaceId: Number(searchSpaceId),
+												title: mobileActionDoc.title,
+											});
 											setMobileActionDoc(null);
 										}
 									}}
