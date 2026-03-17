@@ -10,7 +10,7 @@ import path from 'path';
  */
 function resolveStandaloneSymlinks() {
   const standaloneModules = path.join(
-    '..', 'surfsense_web', '.next', 'standalone', '.next', 'node_modules'
+    '..', 'surfsense_web', '.next', 'standalone', 'surfsense_web', 'node_modules'
   );
   if (!fs.existsSync(standaloneModules)) return;
 
