@@ -61,7 +61,7 @@ export function ChatListItem({
 				onClick={handleClick}
 				{...(isMobile ? longPressHandlers : {})}
 				className={cn(
-					"flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm text-left transition-colors",
+					"flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-sm text-left",
 					"group-hover/item:bg-accent group-hover/item:text-accent-foreground",
 					"focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
 					isActive && "bg-accent text-accent-foreground"
@@ -73,7 +73,7 @@ export function ChatListItem({
 			{/* Actions dropdown - trigger hidden on mobile, long-press opens it instead */}
 			<div
 				className={cn(
-					"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md transition-opacity",
+					"pointer-events-none absolute right-0 top-0 bottom-0 flex items-center pr-1 pl-6 rounded-r-md",
 					isActive
 						? "bg-gradient-to-l from-accent from-60% to-transparent"
 						: "bg-gradient-to-l from-sidebar from-60% to-transparent group-hover/item:from-accent",

@@ -817,7 +817,7 @@ export function DocumentsTableShell({
 					{hasDeletableSelection && (
 						<div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border/50 sticky top-0 z-10">
 							<span className="text-xs text-muted-foreground">
-								{deletableSelectedIds.length} deletable selected
+								{deletableSelectedIds.length} selected
 							</span>
 							<Button
 								variant="destructive"

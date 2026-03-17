@@ -103,7 +103,7 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 	return (
 		<aside
 			style={{ width: targetWidth }}
-			className="flex h-full shrink-0 flex-col rounded-xl border bg-background overflow-hidden transition-[width] duration-200 ease-out"
+			className="flex h-full shrink-0 flex-col rounded-xl border bg-sidebar text-sidebar-foreground overflow-hidden transition-[width] duration-200 ease-out"
 		>
 			<div className="relative flex-1 min-h-0 overflow-hidden">
 				{effectiveTab === "sources" && documentsOpen && documentsPanel && (
@@ -117,9 +117,9 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 					</div>
 				)}
 				{effectiveTab === "report" && reportOpen && (
-					<div className="h-full">
+					<div className="h-full flex flex-col">
 						<ReportPanelContent
-							reportId={reportState.reportId!}
+							reportId={reportState.reportId as number}
 							title={reportState.title || "Report"}
 							onClose={closeReport}
 							shareToken={reportState.shareToken}
