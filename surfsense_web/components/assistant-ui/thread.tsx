@@ -88,6 +88,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
+import { getToolIcon } from "@/contracts/enums/toolIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
@@ -670,11 +671,13 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
 									{filteredTools?.map((tool) => {
 										const isDisabled = disabledTools.includes(tool.name);
+										const ToolIcon = getToolIcon(tool.name);
 										return (
 											<div
 												key={tool.name}
 												className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
 											>
+												<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
 												<span className="flex-1 min-w-0 text-sm font-medium truncate">
 													{formatToolName(tool.name)}
 												</span>
@@ -742,8 +745,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							>
 								{filteredTools?.map((tool) => {
 									const isDisabled = disabledTools.includes(tool.name);
+									const ToolIcon = getToolIcon(tool.name);
 									const row = (
 										<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+											<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
 											<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
 												{formatToolName(tool.name)}
 											</span>
