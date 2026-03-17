@@ -713,6 +713,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<TooltipIconButton
 								tooltip="Manage tools"
 								side="bottom"
+								disableTooltip={toolsPopoverOpen}
 								variant="ghost"
 								size="icon"
 								className="size-[34px] rounded-full p-1 font-semibold text-xs hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30"
