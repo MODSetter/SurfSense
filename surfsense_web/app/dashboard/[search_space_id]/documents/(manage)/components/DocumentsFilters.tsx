@@ -76,10 +76,10 @@ export function DocumentsFilters({
 							)}
 						</Button>
 					</PopoverTrigger>
-					<PopoverContent className="w-64 !p-0 overflow-hidden" align="end">
+					<PopoverContent className="w-56 md:w-52 !p-0 overflow-hidden" align="end">
 						<div>
 							{/* Search input */}
-							<div className="p-2 border-b border-border dark:border-neutral-700">
+							<div className="p-2">
 								<div className="relative">
 									<Search className="absolute left-0.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
 									<Input

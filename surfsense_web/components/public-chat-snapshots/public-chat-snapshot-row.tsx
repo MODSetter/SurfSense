@@ -1,8 +1,8 @@
 "use client";
 
 import { Check, Copy, ExternalLink, MessageSquare, Trash2 } from "lucide-react";
-import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -158,21 +158,14 @@ export function PublicChatSnapshotRow({
 								<Tooltip open={isDesktop ? undefined : false}>
 									<TooltipTrigger asChild>
 										<div className="flex items-center gap-1.5 cursor-default">
-											{member.avatarUrl ? (
-												<Image
-													src={member.avatarUrl}
-													alt={member.name}
-													width={18}
-													height={18}
-													className="h-4.5 w-4.5 rounded-full object-cover shrink-0"
-												/>
-											) : (
-												<div className="flex h-4.5 w-4.5 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 shrink-0">
-													<span className="text-[9px] font-semibold text-primary">
-														{getInitials(member.name)}
-													</span>
-												</div>
-											)}
+											<Avatar className="size-4.5 shrink-0">
+												{member.avatarUrl && (
+													<AvatarImage src={member.avatarUrl} alt={member.name} />
+												)}
+												<AvatarFallback className="text-[9px]">
+													{getInitials(member.name)}
+												</AvatarFallback>
+											</Avatar>
 											<span className="text-[11px] text-muted-foreground/60 truncate max-w-[120px]">
 												{member.name}
 											</span>
