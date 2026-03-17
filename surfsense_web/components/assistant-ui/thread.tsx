@@ -614,6 +614,32 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		);
 	}, [filteredTools, disabledTools]);
 
+	const groupedTools = useMemo(() => {
+		if (!filteredTools) return [];
+		const toolsByName = new Map(filteredTools.map((t) => [t.name, t]));
+		const result: { label: string; tools: typeof filteredTools }[] = [];
+		const placed = new Set<string>();
+
+		for (const group of TOOL_GROUPS) {
+			const matched = group.tools.flatMap((name) => {
+				const tool = toolsByName.get(name);
+				if (!tool) return [];
+				placed.add(name);
+				return [tool];
+			});
+			if (matched.length > 0) {
+				result.push({ label: group.label, tools: matched });
+			}
+		}
+
+		const ungrouped = filteredTools.filter((t) => !placed.has(t.name));
+		if (ungrouped.length > 0) {
+			result.push({ label: "Other", tools: ungrouped });
+		}
+
+		return result;
+	}, [filteredTools]);
+
 	useEffect(() => {
 		hydrateDisabled();
 	}, [hydrateDisabled]);
@@ -668,33 +694,40 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										{filteredEnabledCount}/{filteredTools?.length ?? 0} enabled
 									</span>
 								</div>
-								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
-									{filteredTools?.map((tool) => {
-										const isDisabled = disabledTools.includes(tool.name);
-										const ToolIcon = getToolIcon(tool.name);
-										return (
-											<div
-												key={tool.name}
-												className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
-											>
-												<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
-												<span className="flex-1 min-w-0 text-sm font-medium truncate">
-													{formatToolName(tool.name)}
-												</span>
-												<Switch
-													checked={!isDisabled}
-													onCheckedChange={() => toggleTool(tool.name)}
-													className="shrink-0"
-												/>
-											</div>
-										);
-									})}
-									{!filteredTools?.length && (
-										<div className="px-4 py-6 text-center text-sm text-muted-foreground">
-											Loading tools...
+							<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
+								{groupedTools.map((group) => (
+									<div key={group.label}>
+										<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+											{group.label}
 										</div>
-									)}
-								</div>
+										{group.tools.map((tool) => {
+											const isDisabled = disabledTools.includes(tool.name);
+											const ToolIcon = getToolIcon(tool.name);
+											return (
+												<div
+													key={tool.name}
+													className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
+												>
+													<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
+													<span className="flex-1 min-w-0 text-sm font-medium truncate">
+														{formatToolName(tool.name)}
+													</span>
+													<Switch
+														checked={!isDisabled}
+														onCheckedChange={() => toggleTool(tool.name)}
+														className="shrink-0"
+													/>
+												</div>
+											);
+										})}
+									</div>
+								))}
+								{!filteredTools?.length && (
+									<div className="px-4 py-6 text-center text-sm text-muted-foreground">
+										Loading tools...
+									</div>
+								)}
+							</div>
 							</DrawerContent>
 						</Drawer>
 						<Button
@@ -744,36 +777,43 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
 								}}
 							>
-								{filteredTools?.map((tool) => {
-									const isDisabled = disabledTools.includes(tool.name);
-									const ToolIcon = getToolIcon(tool.name);
-									const row = (
-										<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
-											<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
-											<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
-												{formatToolName(tool.name)}
-											</span>
-											<Switch
-												checked={!isDisabled}
-												onCheckedChange={() => toggleTool(tool.name)}
-												className="shrink-0 scale-[0.6] sm:scale-75"
-											/>
-										</div>
-									);
-									return (
-										<Tooltip key={tool.name}>
-											<TooltipTrigger asChild>{row}</TooltipTrigger>
-											<TooltipContent side="right" className="max-w-64 text-xs">
-												{tool.description}
-											</TooltipContent>
-										</Tooltip>
-									);
-								})}
-								{!filteredTools?.length && (
-									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
-										Loading tools...
-									</div>
-								)}
+							{groupedTools.map((group) => (
+								<div key={group.label}>
+								<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+									{group.label}
+								</div>
+									{group.tools.map((tool) => {
+										const isDisabled = disabledTools.includes(tool.name);
+										const ToolIcon = getToolIcon(tool.name);
+										const row = (
+											<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+												<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+												<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+													{formatToolName(tool.name)}
+												</span>
+												<Switch
+													checked={!isDisabled}
+													onCheckedChange={() => toggleTool(tool.name)}
+													className="shrink-0 scale-[0.6] sm:scale-75"
+												/>
+											</div>
+										);
+										return (
+											<Tooltip key={tool.name}>
+												<TooltipTrigger asChild>{row}</TooltipTrigger>
+												<TooltipContent side="right" className="max-w-64 text-xs">
+													{tool.description}
+												</TooltipContent>
+											</Tooltip>
+										);
+									})}
+								</div>
+							))}
+							{!filteredTools?.length && (
+								<div className="px-3 py-4 text-center text-xs text-muted-foreground">
+									Loading tools...
+								</div>
+							)}
 							</div>
 						</PopoverContent>
 					</Popover>
@@ -783,7 +823,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 						type="button"
 						onClick={() => toggleTool("web_search")}
 						className={cn(
-							"rounded-full transition-all flex items-center gap-1 px-2 py-1 border h-8",
+							"rounded-full transition-all flex items-center gap-1 px-2 py-1 border h-8 select-none",
 							isWebSearchEnabled
 								? "bg-sky-500/15 border-sky-500/60 text-sky-500"
 								: "bg-transparent border-transparent text-muted-foreground hover:text-foreground"
@@ -890,6 +930,22 @@ function formatToolName(name: string): string {
 		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 		.join(" ");
 }
+
+const TOOL_GROUPS: { label: string; tools: string[] }[] = [
+	{
+		label: "Research",
+		tools: ["search_knowledge_base", "search_surfsense_docs", "scrape_webpage", "link_preview"],
+	},
+	{
+		label: "Generate",
+		tools: ["generate_podcast", "generate_report", "generate_image", "display_image"],
+	},
+	{
+		label: "Memory",
+		tools: ["save_memory", "recall_memory"],
+	},
+];
+
 
 const MessageError: FC = () => {
 	return (
