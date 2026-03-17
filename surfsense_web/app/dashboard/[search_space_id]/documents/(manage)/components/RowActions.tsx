@@ -1,9 +1,10 @@
 "use client";
 
+import { useSetAtom } from "jotai";
 import { MoreHorizontal, PenLine, Trash2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -40,7 +41,7 @@ export function RowActions({
 }) {
 	const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 	const [isDeleting, setIsDeleting] = useState(false);
-	const router = useRouter();
+	const openEditorPanel = useSetAtom(openEditorPanelAtom);
 
 	const isEditable = EDITABLE_DOCUMENT_TYPES.includes(
 		document.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
@@ -87,7 +88,11 @@ export function RowActions({
 	};
 
 	const handleEdit = () => {
-		router.push(`/dashboard/${searchSpaceId}/editor/${document.id}`);
+		openEditorPanel({
+			documentId: document.id,
+			searchSpaceId: Number(searchSpaceId),
+			title: document.title,
+		});
 	};
 
 	return (
