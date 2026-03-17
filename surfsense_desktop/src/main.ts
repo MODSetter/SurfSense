@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import path from 'path';
 import { spawn, ChildProcess } from 'child_process';
+import { resolveEnv } from './resolve-env';
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
@@ -24,6 +25,7 @@ function startNextServer(): Promise<void> {
     }
 
     const standalonePath = getStandalonePath();
+    resolveEnv(standalonePath);
     const serverScript = path.join(standalonePath, 'server.js');
 
     serverProcess = spawn(process.execPath, [serverScript], {
