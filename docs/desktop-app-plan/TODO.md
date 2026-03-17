@@ -34,6 +34,7 @@ surfsense_desktop/
 - `next.config.ts` — keeps `output: "standalone"`
 - All 13 connector OAuth flows — happen in system browser, Electric SQL syncs results
 
+
 ---
 
 ## Phase 1: Electron Shell Setup

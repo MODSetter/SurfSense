@@ -6,8 +6,10 @@ import { resolveEnv } from './resolve-env';
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ChildProcess | null = null;
+let deepLinkUrl: string | null = null;
 
 const SERVER_PORT = 3000;
+const PROTOCOL = 'surfsense';
 
 function getStandalonePath(): string {
   if (isDev) {
@@ -120,10 +122,67 @@ ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
 
+// Deep link handling
+function handleDeepLink(url: string) {
+  if (!url.startsWith(`${PROTOCOL}://`)) return;
+
+  deepLinkUrl = url;
+
+  if (!mainWindow) return;
+
+  // Rewrite surfsense:// deep link to localhost so TokenHandler.tsx processes it
+  const parsed = new URL(url);
+  if (parsed.hostname === 'auth' && parsed.pathname === '/callback') {
+    const params = parsed.searchParams.toString();
+    mainWindow.loadURL(`http://localhost:${SERVER_PORT}/auth/callback?${params}`);
+  }
+
+  mainWindow.show();
+  mainWindow.focus();
+}
+
+// Single instance lock — second instance passes deep link to first
+const gotTheLock = app.requestSingleInstanceLock();
+if (!gotTheLock) {
+  app.quit();
+} else {
+  app.on('second-instance', (_event, argv) => {
+    // Windows/Linux: deep link URL is in argv
+    const url = argv.find((arg) => arg.startsWith(`${PROTOCOL}://`));
+    if (url) handleDeepLink(url);
+
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+
+// macOS: deep link arrives via open-url event
+app.on('open-url', (event, url) => {
+  event.preventDefault();
+  handleDeepLink(url);
+});
+
+// Register surfsense:// protocol
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
+  }
+} else {
+  app.setAsDefaultProtocolClient(PROTOCOL);
+}
+
 // App lifecycle
 app.whenReady().then(async () => {
   await startNextServer();
   createWindow();
+
+  // If a deep link was received before the window was ready, handle it now
+  if (deepLinkUrl) {
+    handleDeepLink(deepLinkUrl);
+    deepLinkUrl = null;
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
