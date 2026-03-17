@@ -1,10 +1,9 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { AlertTriangleIcon, CheckIcon, Loader2Icon, Pen, XIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { CornerDownLeftIcon, Loader2Icon, Pen } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -12,7 +11,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { useSetAtom } from "jotai";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface InterruptResult {
 	__interrupt__: true;
@@ -99,8 +100,8 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
-	const [isEditing, setIsEditing] = useState(false);
-	const [editedArgs, setEditedArgs] = useState<Record<string, unknown>>(args);
+	const [isPanelOpen, setIsPanelOpen] = useState(false);
+	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
 	const accounts = interruptData.context?.accounts ?? [];
 	const parentPages = interruptData.context?.parent_pages ?? {};
@@ -122,293 +123,244 @@ function ApprovalCard({
 	}, [selectedAccountId, parentPages]);
 
 	const isTitleValid = useMemo(() => {
-		const currentTitle = isEditing ? editedArgs.title : args.title;
-		return currentTitle && typeof currentTitle === "string" && currentTitle.trim().length > 0;
-	}, [isEditing, editedArgs.title, args.title]);
+		return args.title && typeof args.title === "string" && (args.title as string).trim().length > 0;
+	}, [args.title]);
 
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
+	const handleApprove = useCallback(() => {
+		if (decided || isPanelOpen || !selectedAccountId || !isTitleValid) return;
+		if (!allowedDecisions.includes("approve")) return;
+		setDecided("approve");
+		onDecision({
+			type: "approve",
+			edited_action: {
+				name: interruptData.action_requests[0].name,
+				args: {
+					...args,
+					connector_id: selectedAccountId ? Number(selectedAccountId) : null,
+					parent_page_id:
+						selectedParentPageId === "__none__" ? null : selectedParentPageId,
+				},
+			},
+		});
+	}, [decided, isPanelOpen, selectedAccountId, isTitleValid, allowedDecisions, onDecision, interruptData, args, selectedParentPageId]);
+
+	useEffect(() => {
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+				handleApprove();
+			}
+		};
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [handleApprove]);
+
 	return (
 		<div
-			className={`my-4 max-w-full overflow-hidden rounded-xl transition-all duration-300 ${
-				decided
-					? "border border-border bg-card shadow-sm"
-					: "border-2 border-foreground/20 bg-muted/30 dark:bg-muted/10 shadow-lg animate-pulse-subtle"
-			}`}
+			className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300"
 		>
-			<div
-				className={`flex items-center gap-3 border-b ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/40 dark:bg-muted/20"
-				} px-4 py-3`}
-			>
-				<div
-					className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${
-						decided ? "bg-muted" : "bg-muted animate-pulse"
-					}`}
-				>
-					<AlertTriangleIcon
-						className={`size-4 ${decided ? "text-muted-foreground" : "text-foreground"}`}
-					/>
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className={`text-sm font-medium ${decided ? "text-foreground" : "text-foreground"}`}>
-						Create Notion Page
+			{/* Header */}
+			<div className="flex items-start justify-between px-5 pt-5 pb-4">
+				<div>
+					<p className="text-sm font-semibold text-foreground">
+						{decided === "reject"
+							? "Notion Page Rejected"
+							: decided === "approve" || decided === "edit"
+								? "Notion Page Approved"
+								: "Create Notion Page"}
 					</p>
-					<p
-						className={`truncate text-xs ${
-							decided ? "text-muted-foreground" : "text-muted-foreground"
-						}`}
-					>
-						{isEditing ? "You can edit the arguments below" : "Requires your approval to proceed"}
+					<p className="text-xs text-muted-foreground mt-0.5">
+						{decided === "reject"
+							? "Page creation was cancelled"
+							: decided === "edit"
+								? "Page creation is in progress with your changes"
+								: decided === "approve"
+									? "Page creation is in progress"
+									: "Requires your approval to proceed"}
 					</p>
 				</div>
-			</div>
-
-			{/* Context section - account and parent page selection */}
-			{!decided && interruptData.context && (
-				<div className="border-b border-border px-4 py-3 bg-muted/30 space-y-3">
-					{interruptData.context.error ? (
-						<p className="text-sm text-destructive">{interruptData.context.error}</p>
-					) : (
-						<>
-							{accounts.length > 0 && (
-								<div className="space-y-2">
-									<div className="text-xs font-medium text-muted-foreground">
-										Notion Account <span className="text-destructive">*</span>
-									</div>
-									<Select
-										value={selectedAccountId}
-										onValueChange={(value) => {
-											setSelectedAccountId(value);
-											setSelectedParentPageId("__none__");
-										}}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select an account" />
-										</SelectTrigger>
-										<SelectContent>
-											{accounts.map((account) => (
-												<SelectItem key={account.id} value={String(account.id)}>
-													{account.workspace_name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							)}
-
-							{selectedAccountId && (
-								<div className="space-y-2">
-									<div className="text-xs font-medium text-muted-foreground">
-										Parent Page (optional)
-									</div>
-									<Select value={selectedParentPageId} onValueChange={setSelectedParentPageId}>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="None" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="__none__">None</SelectItem>
-											{availableParentPages.map((page) => (
-												<SelectItem key={page.page_id} value={page.page_id}>
-													📄 {page.title}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									{availableParentPages.length === 0 && selectedAccountId && (
-										<p className="text-xs text-muted-foreground">
-											No pages available. Page will be created at workspace root.
-										</p>
-									)}
-								</div>
-							)}
-						</>
-					)}
-				</div>
-			)}
-
-			{/* Display mode - show args as read-only */}
-			{!isEditing && (
-				<div className="space-y-2 px-4 py-3 bg-card">
-					{args.title != null && (
-						<div>
-							<p className="text-xs font-medium text-muted-foreground">Title</p>
-							<p className="text-sm text-foreground">{String(args.title)}</p>
-						</div>
-					)}
-					{args.content != null && (
-						<div>
-							<p className="text-xs font-medium text-muted-foreground">Content</p>
-							<p className="line-clamp-4 text-sm whitespace-pre-wrap text-foreground">
-								{String(args.content)}
-							</p>
-						</div>
-					)}
-				</div>
-			)}
-
-			{/* Edit mode - show editable form fields */}
-			{isEditing && !decided && (
-				<div className="space-y-3 px-4 py-3 bg-card">
-					<div>
-						<label
-							htmlFor="notion-title"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							Title <span className="text-destructive">*</span>
-						</label>
-						<Input
-							id="notion-title"
-							value={String(editedArgs.title ?? "")}
-							onChange={(e) => setEditedArgs({ ...editedArgs, title: e.target.value })}
-							placeholder="Enter page title"
-							className={!isTitleValid ? "border-destructive" : ""}
-						/>
-						{!isTitleValid && (
-							<p className="text-xs text-destructive mt-1">Title is required and cannot be empty</p>
-						)}
-					</div>
-					<div>
-						<label
-							htmlFor="notion-content"
-							className="text-xs font-medium text-muted-foreground mb-1.5 block"
-						>
-							Content
-						</label>
-						<Textarea
-							id="notion-content"
-							value={String(editedArgs.content ?? "")}
-							onChange={(e) => setEditedArgs({ ...editedArgs, content: e.target.value })}
-							placeholder="Enter page content"
-							rows={6}
-							className="resize-none"
-						/>
-					</div>
-				</div>
-			)}
-
-			{/* Action buttons */}
-			<div
-				className={`flex items-center gap-2 border-t ${
-					decided ? "border-border bg-card" : "border-foreground/15 bg-muted/20 dark:bg-muted/10"
-				} px-4 py-3`}
-			>
-				{decided ? (
-					<p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-						{decided === "approve" || decided === "edit" ? (
-							<>
-								<CheckIcon className="size-3.5 text-green-500" />
-								{decided === "edit" ? "Approved with Changes" : "Approved"}
-							</>
-						) : (
-							<>
-								<XIcon className="size-3.5 text-destructive" />
-								Rejected
-							</>
-						)}
-					</p>
-				) : isEditing ? (
-					<>
-						<Button
-							size="sm"
-							onClick={() => {
-								setDecided("edit");
-								setIsEditing(false);
-								onDecision({
-									type: "edit",
-									edited_action: {
-										name: interruptData.action_requests[0].name,
-										args: {
-											...editedArgs,
-											connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-											parent_page_id:
-												selectedParentPageId === "__none__" ? null : selectedParentPageId,
-										},
-									},
-								});
-							}}
-							disabled={!selectedAccountId || !isTitleValid}
-						>
-							<CheckIcon />
-							Approve with Changes
-						</Button>
-						<Button
-							size="sm"
-							variant="outline"
-							onClick={() => {
-								setIsEditing(false);
-								setEditedArgs(args); // Reset to original args
-							}}
-						>
-							Cancel
-						</Button>
-					</>
-				) : (
-					<>
-						{allowedDecisions.includes("approve") && (
-							<Button
-								size="sm"
-								onClick={() => {
-									setDecided("approve");
+				{!decided && canEdit && (
+					<Button
+						size="sm"
+						variant="ghost"
+						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
+						onClick={() => {
+							setIsPanelOpen(true);
+							openHitlEditPanel({
+								title: String(args.title ?? ""),
+								content: String(args.content ?? ""),
+								toolName: "Notion Page",
+								onSave: (newTitle, newContent) => {
+									setIsPanelOpen(false);
+									setDecided("edit");
 									onDecision({
-										type: "approve",
+										type: "edit",
 										edited_action: {
 											name: interruptData.action_requests[0].name,
 											args: {
 												...args,
+												title: newTitle,
+												content: newContent,
 												connector_id: selectedAccountId ? Number(selectedAccountId) : null,
 												parent_page_id:
 													selectedParentPageId === "__none__" ? null : selectedParentPageId,
 											},
 										},
 									});
-								}}
+								},
+							});
+						}}
+					>
+						<Pen className="size-3.5" />
+						Edit
+					</Button>
+				)}
+			</div>
+
+			{/* Context section */}
+			{!decided && interruptData.context && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 space-y-4">
+						{interruptData.context.error ? (
+							<p className="text-sm text-destructive">{interruptData.context.error}</p>
+						) : (
+							<>
+								{accounts.length > 0 && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">
+											Notion Account <span className="text-destructive">*</span>
+										</p>
+										<Select
+											value={selectedAccountId}
+											onValueChange={(value) => {
+												setSelectedAccountId(value);
+												setSelectedParentPageId("__none__");
+											}}
+										>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select an account" />
+											</SelectTrigger>
+											<SelectContent>
+												{accounts.map((account) => (
+													<SelectItem key={account.id} value={String(account.id)}>
+														{account.workspace_name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								)}
+
+								{selectedAccountId && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">
+											Parent Page (optional)
+										</p>
+										<Select value={selectedParentPageId} onValueChange={setSelectedParentPageId}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="None" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="__none__">None</SelectItem>
+												{availableParentPages.map((page) => (
+													<SelectItem key={page.page_id} value={page.page_id}>
+														📄 {page.title}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{availableParentPages.length === 0 && selectedAccountId && (
+											<p className="text-xs text-muted-foreground">
+												No pages available. Page will be created at workspace root.
+											</p>
+										)}
+									</div>
+								)}
+							</>
+						)}
+					</div>
+				</>
+			)}
+
+			{/* Content preview */}
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 pt-4 space-y-3">
+				{args.title != null && (
+					<div>
+						<p className="text-xs font-medium text-muted-foreground">Title</p>
+						<p className="mt-0.5 text-sm text-foreground">{String(args.title)}</p>
+					</div>
+				)}
+				{args.content != null && (
+					<div>
+						<p className="text-xs font-medium text-muted-foreground">Content</p>
+						<div
+							className="mt-0.5 max-h-[7rem] overflow-hidden text-sm"
+							style={{
+								maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+								WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+							}}
+						>
+							<PlateEditor
+								markdown={String(args.content)}
+								readOnly
+								preset="readonly"
+								editorVariant="none"
+								className="h-auto [&_[data-slate-editor]]:!min-h-0"
+							/>
+						</div>
+					</div>
+				)}
+			</div>
+
+			{/* Action buttons - only shown when pending */}
+			{!decided && (
+				<>
+					<div className="mx-5 h-px bg-border/50" />
+					<div className="px-5 py-4 flex items-center gap-2">
+						{allowedDecisions.includes("approve") && (
+							<Button
+								size="sm"
+								className="rounded-lg gap-1.5"
+								onClick={handleApprove}
 								disabled={!selectedAccountId || !isTitleValid}
 							>
-								<CheckIcon />
 								Approve
-							</Button>
-						)}
-						{canEdit && (
-							<Button size="sm" variant="outline" onClick={() => setIsEditing(true)}>
-								<Pen />
-								Edit
+								<CornerDownLeftIcon className="size-3 opacity-60" />
 							</Button>
 						)}
 						{allowedDecisions.includes("reject") && (
 							<Button
 								size="sm"
-								variant="outline"
+								variant="ghost"
+								className="rounded-lg text-muted-foreground"
 								onClick={() => {
 									setDecided("reject");
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
-								<XIcon />
 								Reject
 							</Button>
 						)}
-					</>
-				)}
-			</div>
+					</div>
+				</>
+			)}
 		</div>
 	);
 }
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-destructive/50 bg-card">
-			<div className="flex items-center gap-3 border-b border-destructive/50 px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
-					<XIcon className="size-4 text-destructive" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-sm font-medium text-destructive">Failed to create Notion page</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">Failed to create Notion page</p>
 			</div>
-			<div className="px-4 py-3">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
@@ -417,19 +369,14 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-md overflow-hidden rounded-xl border border-border bg-card">
-			<div className="flex items-center gap-3 border-b border-border px-4 py-3">
-				<div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-green-500/10">
-					<CheckIcon className="size-4 text-green-500" />
-				</div>
-				<div className="min-w-0 flex-1">
-					<p className="text-[.8rem] text-muted-foreground">
-						{result.message || "Notion page created successfully"}
-					</p>
-				</div>
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground">
+					{result.message || "Notion page created successfully"}
+				</p>
 			</div>
-
-			<div className="space-y-2 px-4 py-3 text-xs">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4 space-y-2 text-xs">
 				<div>
 					<span className="font-medium text-muted-foreground">Title: </span>
 					<span>{result.title}</span>
@@ -459,7 +406,7 @@ export const CreateNotionPageToolUI = makeAssistantToolUI<
 	render: function CreateNotionPageUI({ args, result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 flex max-w-md items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+				<div className="my-4 flex max-w-lg items-center gap-3 rounded-2xl border bg-muted/30 px-5 py-4">
 					<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
 					<p className="text-sm text-muted-foreground">Preparing Notion page...</p>
 				</div>

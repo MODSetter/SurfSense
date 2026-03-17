@@ -35,6 +35,7 @@ import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
 import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
+import { MobileHitlEditPanel } from "@/components/hitl-edit-panel/hitl-edit-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
@@ -1683,6 +1684,7 @@ export default function NewChatPage() {
 				</div>
 				<MobileReportPanel />
 				<MobileEditorPanel />
+				<MobileHitlEditPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);
