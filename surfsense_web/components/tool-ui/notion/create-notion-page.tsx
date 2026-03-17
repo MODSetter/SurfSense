@@ -1,7 +1,7 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { CornerDownLeftIcon, Loader2Icon, Pen } from "lucide-react";
+import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { PlateEditor } from "@/components/editor/plate-editor";
+import { Spinner } from "@/components/ui/spinner";
 import { useSetAtom } from "jotai";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
@@ -288,31 +289,25 @@ function ApprovalCard({
 
 			{/* Content preview */}
 			<div className="mx-5 h-px bg-border/50" />
-			<div className="px-5 pt-4 space-y-3">
+			<div className="px-5 pt-3">
 				{args.title != null && (
-					<div>
-						<p className="text-xs font-medium text-muted-foreground">Title</p>
-						<p className="mt-0.5 text-sm text-foreground">{String(args.title)}</p>
-					</div>
+					<p className="text-sm font-medium text-foreground">{String(args.title)}</p>
 				)}
 				{args.content != null && (
-					<div>
-						<p className="text-xs font-medium text-muted-foreground">Content</p>
-						<div
-							className="mt-0.5 max-h-[7rem] overflow-hidden text-sm"
-							style={{
-								maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
-								WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
-							}}
-						>
-							<PlateEditor
-								markdown={String(args.content)}
-								readOnly
-								preset="readonly"
-								editorVariant="none"
-								className="h-auto [&_[data-slate-editor]]:!min-h-0"
-							/>
-						</div>
+					<div
+						className="max-h-[7rem] overflow-hidden text-sm"
+						style={{
+							maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+							WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+						}}
+					>
+						<PlateEditor
+							markdown={String(args.content)}
+							readOnly
+							preset="readonly"
+							editorVariant="none"
+							className="h-auto [&_[data-slate-editor]]:!min-h-0 [&_[data-slate-editor]>*:first-child]:!mt-0"
+						/>
 					</div>
 				)}
 			</div>
@@ -407,7 +402,7 @@ export const CreateNotionPageToolUI = makeAssistantToolUI<
 		if (status.type === "running") {
 			return (
 				<div className="my-4 flex max-w-lg items-center gap-3 rounded-2xl border bg-muted/30 px-5 py-4">
-					<Loader2Icon className="size-4 animate-spin text-muted-foreground" />
+					<Spinner size="sm" className="text-muted-foreground" />
 					<p className="text-sm text-muted-foreground">Preparing Notion page...</p>
 				</div>
 			);
