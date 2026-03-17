@@ -788,6 +788,7 @@ export function DocumentsTableShell({
 									<Skeleton className="h-4" style={{ width: `${widthPercent}%` }} />
 								</div>
 								<Skeleton className="h-4 w-4 rounded shrink-0" />
+								<Skeleton className="h-5 w-5 rounded-full shrink-0" />
 							</div>
 						</div>
 					))}
@@ -885,6 +886,22 @@ export function DocumentsTableShell({
 										<span className="flex items-center justify-center shrink-0">
 											{getDocumentTypeIcon(doc.document_type, "h-4 w-4")}
 										</span>
+										{(() => {
+											const member = doc.created_by_id ? memberMap.get(doc.created_by_id) : null;
+											const displayName =
+												member?.name || doc.created_by_name || doc.created_by_email || "Unknown";
+											const avatarUrl = member?.avatarUrl;
+											return (
+												<span className="flex items-center justify-center shrink-0">
+													<Avatar className="size-5">
+														{avatarUrl && <AvatarImage src={avatarUrl} alt={displayName} />}
+														<AvatarFallback className="text-[9px]">
+															{getInitials(displayName)}
+														</AvatarFallback>
+													</Avatar>
+												</span>
+											);
+										})()}
 									</div>
 								</div>
 							</MobileCardWrapper>
@@ -990,7 +1007,7 @@ export function DocumentsTableShell({
 					</DrawerHeader>
 					<div className="px-4 pb-6 flex flex-col gap-2">
 						<Button
-							variant="outline"
+							variant="secondary"
 							className="justify-start gap-2"
 							onClick={() => {
 								if (mobileActionDoc) handleViewDocument(mobileActionDoc);
@@ -1005,7 +1022,7 @@ export function DocumentsTableShell({
 								mobileActionDoc.document_type as (typeof EDITABLE_DOCUMENT_TYPES)[number]
 							) && (
 								<Button
-									variant="outline"
+									variant="secondary"
 									className="justify-start gap-2"
 									disabled={
 										mobileActionDoc.status?.state === "pending" ||
