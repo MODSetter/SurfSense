@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, session } from 'electron';
 import path from 'path';
 import { spawn, ChildProcess } from 'child_process';
 import { resolveEnv } from './resolve-env';
@@ -10,6 +10,12 @@ let deepLinkUrl: string | null = null;
 
 const SERVER_PORT = 3000;
 const PROTOCOL = 'surfsense';
+// TODO: Hardcoded URL is fragile — production domain may change and
+// self-hosted users have their own. Two options:
+//   1. Load from .env file using dotenv — users edit the file to change it.
+//   2. Backend endpoint (GET /api/v1/config/frontend-url) that returns
+//      the backend's NEXT_FRONTEND_URL — automatic, no file to manage.
+const HOSTED_FRONTEND_URL = 'https://surfsense.net';
 
 function getStandalonePath(): string {
   if (isDev) {
@@ -102,6 +108,14 @@ function createWindow() {
     }
     shell.openExternal(url);
     return { action: 'deny' };
+  });
+
+  // Intercept backend OAuth redirects targeting the hosted web frontend
+  // and rewrite them to localhost so the user stays in the desktop app.
+  const filter = { urls: [`${HOSTED_FRONTEND_URL}/*`] };
+  session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
+    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${SERVER_PORT}`);
+    callback({ redirectURL: rewritten });
   });
 
   if (isDev) {

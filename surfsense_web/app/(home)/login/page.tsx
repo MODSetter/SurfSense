@@ -35,15 +35,6 @@ function LoginContent() {
 			localStorage.setItem("surfsense_redirect_path", decodeURIComponent(returnUrl));
 		}
 
-		// Desktop app: persist login source so TokenHandler can redirect to
-		// the surfsense:// deep link after the OAuth round-trip completes.
-		const source = searchParams.get("source");
-		if (source === "desktop") {
-			sessionStorage.setItem("surfsense_login_source", "desktop");
-		} else {
-			sessionStorage.removeItem("surfsense_login_source");
-		}
-
 		// Show registration success message
 		if (registered === "true") {
 			toast.success(t("register_success"), {
