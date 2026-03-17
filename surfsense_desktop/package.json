@@ -1,0 +1,25 @@
+{
+  "name": "surfsense_desktop",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.24.0",
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.27.4",
+    "typescript": "^5.9.3",
+    "wait-on": "^9.0.4"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.3"
+  }
+}
