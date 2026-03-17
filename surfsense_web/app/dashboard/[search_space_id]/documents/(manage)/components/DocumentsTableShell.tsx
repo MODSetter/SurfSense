@@ -700,7 +700,7 @@ export function DocumentsTableShell({
 															<Tooltip>
 																<TooltipTrigger asChild>
 																	<span
-																		className={`flex items-center justify-center transition-[visibility] ${isMenuOpen ? "invisible" : "group-hover:invisible"}`}
+																		className={`flex items-center justify-center ${isMenuOpen ? "invisible" : "group-hover:invisible"}`}
 																	>
 																		<Avatar className="size-5 shrink-0">
 																			{avatarUrl && (
@@ -717,7 +717,7 @@ export function DocumentsTableShell({
 														);
 													})()}
 													<div
-														className={`absolute inset-0 flex items-center justify-center transition-[visibility] ${isMenuOpen ? "visible" : "invisible group-hover:visible"}`}
+														className={`absolute inset-0 flex items-center justify-center ${isMenuOpen ? "visible" : "invisible group-hover:visible"}`}
 													>
 														<DropdownMenu
 															onOpenChange={(open) => setOpenMenuDocId(open ? doc.id : null)}
