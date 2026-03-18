@@ -1068,7 +1068,7 @@ async def index_connector_content(
             == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
         ):
             from app.tasks.celery_tasks.connector_tasks import (
-                index_composio_connector_task,
+                index_google_drive_files_task,
             )
 
             # For Composio Google Drive, if drive_items is provided, update connector config
@@ -1102,34 +1102,72 @@ async def index_connector_content(
             else:
                 logger.info(
                     f"Triggering Composio Google Drive indexing for connector {connector_id} into search space {search_space_id} "
-                    f"using existing config (from {indexing_from} to {indexing_to})"
+                    f"using existing config"
                 )
 
-            index_composio_connector_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            # Extract config and build items_dict for index_google_drive_files_task
+            config = connector.config or {}
+            selected_folders = config.get("selected_folders", [])
+            selected_files = config.get("selected_files", [])
+            if not selected_folders and not selected_files:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Composio Google Drive indexing requires folders or files to be configured. "
+                    "Please select folders/files to index.",
+                )
+            indexing_options = config.get(
+                "indexing_options",
+                {
+                    "max_files_per_folder": 100,
+                    "incremental_sync": True,
+                    "include_subfolders": True,
+                },
+            )
+            items_dict = {
+                "folders": selected_folders,
+                "files": selected_files,
+                "indexing_options": indexing_options,
+            }
+            index_google_drive_files_task.delay(
+                connector_id, search_space_id, str(user.id), items_dict
             )
             response_message = (
                 "Composio Google Drive indexing started in the background."
             )
 
-        elif connector.connector_type in [
-            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
-            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
-        ]:
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+        ):
             from app.tasks.celery_tasks.connector_tasks import (
-                index_composio_connector_task,
+                index_google_gmail_messages_task,
             )
 
-            # For Composio Gmail and Calendar, use the same date calculation logic as normal connectors
-            # This ensures consistent behavior and uses last_indexed_at to reduce API calls
-            # (includes special case: if indexed today, go back 1 day to avoid missing data)
             logger.info(
-                f"Triggering Composio connector indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                f"Triggering Composio Gmail indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            index_composio_connector_task.delay(
+            index_google_gmail_messages_task.delay(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
-            response_message = "Composio connector indexing started in the background."
+            response_message = "Composio Gmail indexing started in the background."
+
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+        ):
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_google_calendar_events_task,
+            )
+
+            logger.info(
+                f"Triggering Composio Google Calendar indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            index_google_calendar_events_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = (
+                "Composio Google Calendar indexing started in the background."
+            )
 
         else:
             raise HTTPException(

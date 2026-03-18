@@ -31,6 +31,15 @@ from app.tasks.connector_indexers.base import (
     update_connector_last_indexed,
 )
 from app.utils.document_converters import generate_unique_identifier_hash
+from app.utils.google_credentials import (
+    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
+    build_composio_credentials,
+)
+
+ACCEPTED_DRIVE_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+}
 
 # Type hint for heartbeat callback
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]
@@ -89,14 +98,17 @@ async def index_google_drive_files(
     )
 
     try:
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
-        )
+        # Accept both native and Composio Drive connectors
+        connector = None
+        for ct in ACCEPTED_DRIVE_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
 
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
             await task_logger.log_task_failure(
-                log_entry, error_msg, {"error_type": "ConnectorNotFound"}
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
             return 0, error_msg
 
@@ -106,27 +118,43 @@ async def index_google_drive_files(
             {"stage": "client_initialization"},
         )
 
-        # Check if credentials are encrypted (only when explicitly marked)
-        token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted:
-            # Credentials are explicitly marked as encrypted, will be decrypted during client initialization
-            if not config.SECRET_KEY:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
-                    {"error_type": "MissingSecretKey"},
-                )
-                return (
-                    0,
-                    "SECRET_KEY not configured but credentials are marked as encrypted",
-                )
-            logger.info(
-                f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
+        # Build credentials based on connector type
+        pre_built_credentials = None
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get(
+                "composio_connected_account_id"
             )
-        # If _token_encrypted is False or not set, treat credentials as plaintext
+            if not connected_account_id:
+                error_msg = f"Composio connected_account_id not found for connector {connector_id}"
+                await task_logger.log_task_failure(
+                    log_entry, error_msg, "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
+                )
+                return 0, error_msg
+            pre_built_credentials = build_composio_credentials(connected_account_id)
+        else:
+            token_encrypted = connector.config.get("_token_encrypted", False)
+            if token_encrypted:
+                if not config.SECRET_KEY:
+                    await task_logger.log_task_failure(
+                        log_entry,
+                        f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
+                        "Missing SECRET_KEY for token decryption",
+                        {"error_type": "MissingSecretKey"},
+                    )
+                    return (
+                        0,
+                        "SECRET_KEY not configured but credentials are marked as encrypted",
+                    )
+                logger.info(
+                    f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
+                )
 
-        drive_client = GoogleDriveClient(session, connector_id)
+        connector_enable_summary = getattr(connector, "enable_summary", True)
+
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
         if not folder_id:
             error_msg = "folder_id is required for Google Drive indexing"
@@ -164,6 +192,7 @@ async def index_google_drive_files(
                 max_files=max_files,
                 include_subfolders=include_subfolders,
                 on_heartbeat_callback=on_heartbeat_callback,
+                enable_summary=connector_enable_summary,
             )
         else:
             logger.info(f"Using full scan for connector {connector_id}")
@@ -181,6 +210,7 @@ async def index_google_drive_files(
                 max_files=max_files,
                 include_subfolders=include_subfolders,
                 on_heartbeat_callback=on_heartbeat_callback,
+                enable_summary=connector_enable_summary,
             )
 
         documents_indexed, documents_skipped = result
@@ -278,14 +308,17 @@ async def index_google_drive_single_file(
     )
 
     try:
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
-        )
+        # Accept both native and Composio Drive connectors
+        connector = None
+        for ct in ACCEPTED_DRIVE_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
 
         if not connector:
             error_msg = f"Google Drive connector with ID {connector_id} not found"
             await task_logger.log_task_failure(
-                log_entry, error_msg, {"error_type": "ConnectorNotFound"}
+                log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
             return 0, error_msg
 
@@ -295,27 +328,42 @@ async def index_google_drive_single_file(
             {"stage": "client_initialization"},
         )
 
-        # Check if credentials are encrypted (only when explicitly marked)
-        token_encrypted = connector.config.get("_token_encrypted", False)
-        if token_encrypted:
-            # Credentials are explicitly marked as encrypted, will be decrypted during client initialization
-            if not config.SECRET_KEY:
-                await task_logger.log_task_failure(
-                    log_entry,
-                    f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
-                    "Missing SECRET_KEY for token decryption",
-                    {"error_type": "MissingSecretKey"},
-                )
-                return (
-                    0,
-                    "SECRET_KEY not configured but credentials are marked as encrypted",
-                )
-            logger.info(
-                f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
+        pre_built_credentials = None
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get(
+                "composio_connected_account_id"
             )
-        # If _token_encrypted is False or not set, treat credentials as plaintext
+            if not connected_account_id:
+                error_msg = f"Composio connected_account_id not found for connector {connector_id}"
+                await task_logger.log_task_failure(
+                    log_entry, error_msg, "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
+                )
+                return 0, error_msg
+            pre_built_credentials = build_composio_credentials(connected_account_id)
+        else:
+            token_encrypted = connector.config.get("_token_encrypted", False)
+            if token_encrypted:
+                if not config.SECRET_KEY:
+                    await task_logger.log_task_failure(
+                        log_entry,
+                        f"SECRET_KEY not configured but credentials are marked as encrypted for connector {connector_id}",
+                        "Missing SECRET_KEY for token decryption",
+                        {"error_type": "MissingSecretKey"},
+                    )
+                    return (
+                        0,
+                        "SECRET_KEY not configured but credentials are marked as encrypted",
+                    )
+                logger.info(
+                    f"Google Drive credentials are encrypted for connector {connector_id}, will decrypt during client initialization"
+                )
 
-        drive_client = GoogleDriveClient(session, connector_id)
+        connector_enable_summary = getattr(connector, "enable_summary", True)
+
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=pre_built_credentials
+        )
 
         # Fetch the file metadata
         file, error = await get_file_by_id(drive_client, file_id)
@@ -362,6 +410,7 @@ async def index_google_drive_single_file(
             task_logger=task_logger,
             log_entry=log_entry,
             pending_document=pending_doc,
+            enable_summary=connector_enable_summary,
         )
 
         await session.commit()
@@ -433,6 +482,7 @@ async def _index_full_scan(
     max_files: int,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
+    enable_summary: bool = True,
 ) -> tuple[int, int]:
     """Perform full scan indexing of a folder.
 
@@ -562,6 +612,7 @@ async def _index_full_scan(
             task_logger=task_logger,
             log_entry=log_entry,
             pending_document=pending_doc,
+            enable_summary=enable_summary,
         )
 
         documents_indexed += indexed
@@ -592,6 +643,7 @@ async def _index_with_delta_sync(
     max_files: int,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
+    enable_summary: bool = True,
 ) -> tuple[int, int]:
     """Perform delta sync indexing using change tracking.
 
@@ -703,6 +755,7 @@ async def _index_with_delta_sync(
             task_logger=task_logger,
             log_entry=log_entry,
             pending_document=pending_doc,
+            enable_summary=enable_summary,
         )
 
         documents_indexed += indexed
@@ -957,6 +1010,7 @@ async def _process_single_file(
     task_logger: TaskLoggingService,
     log_entry: any,
     pending_document: Document | None = None,
+    enable_summary: bool = True,
 ) -> tuple[int, int, int]:
     """
     Process a single file by downloading and using Surfsense's file processor.
@@ -1020,6 +1074,7 @@ async def _process_single_file(
             task_logger=task_logger,
             log_entry=log_entry,
             connector_id=connector_id,
+            enable_summary=enable_summary,
         )
 
         if error:

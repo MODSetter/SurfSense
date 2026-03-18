@@ -15,16 +15,24 @@ from .file_types import GOOGLE_DOC, GOOGLE_SHEET
 class GoogleDriveClient:
     """Client for Google Drive API operations."""
 
-    def __init__(self, session: AsyncSession, connector_id: int):
+    def __init__(
+        self,
+        session: AsyncSession,
+        connector_id: int,
+        credentials: "Credentials | None" = None,
+    ):
         """
         Initialize Google Drive client.
 
         Args:
             session: Database session
             connector_id: ID of the Drive connector
+            credentials: Pre-built credentials (e.g. from Composio). If None,
+                         credentials are loaded from the DB connector config.
         """
         self.session = session
         self.connector_id = connector_id
+        self._credentials = credentials
         self.service = None
 
     async def get_service(self):
@@ -41,7 +49,12 @@ class GoogleDriveClient:
             return self.service
 
         try:
-            credentials = await get_valid_credentials(self.session, self.connector_id)
+            if self._credentials:
+                credentials = self._credentials
+            else:
+                credentials = await get_valid_credentials(
+                    self.session, self.connector_id
+                )
             self.service = build("drive", "v3", credentials=credentials)
             return self.service
         except Exception as e:

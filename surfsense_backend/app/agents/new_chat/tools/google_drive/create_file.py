@@ -157,14 +157,18 @@ def create_create_google_drive_file_tool(
 
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
+            _DRIVE_TYPES = [
+                SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+            ]
+
             if final_connector_id is not None:
                 result = await db_session.execute(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.id == final_connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type
-                        == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                        SearchSourceConnector.connector_type.in_(_DRIVE_TYPES),
                     )
                 )
                 connector = result.scalars().first()
@@ -179,8 +183,7 @@ def create_create_google_drive_file_tool(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type
-                        == SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                        SearchSourceConnector.connector_type.in_(_DRIVE_TYPES),
                     )
                 )
                 connector = result.scalars().first()
@@ -194,8 +197,19 @@ def create_create_google_drive_file_tool(
             logger.info(
                 f"Creating Google Drive file: name='{final_name}', type='{final_file_type}', connector={actual_connector_id}"
             )
+
+            pre_built_creds = None
+            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+                from app.utils.google_credentials import build_composio_credentials
+
+                cca_id = connector.config.get("composio_connected_account_id")
+                if cca_id:
+                    pre_built_creds = build_composio_credentials(cca_id)
+
             client = GoogleDriveClient(
-                session=db_session, connector_id=actual_connector_id
+                session=db_session,
+                connector_id=actual_connector_id,
+                credentials=pre_built_creds,
             )
             try:
                 created = await client.create_file(

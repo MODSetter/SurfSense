@@ -16,6 +16,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.google_calendar_connector import GoogleCalendarConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
+from app.utils.google_credentials import (
+    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
+    build_composio_credentials,
+)
+
+ACCEPTED_CALENDAR_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+}
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
@@ -87,10 +96,12 @@ async def index_google_calendar_events(
     )
 
     try:
-        # Get the connector from the database
-        connector = await get_connector_by_id(
-            session, connector_id, SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR
-        )
+        # Accept both native and Composio Calendar connectors
+        connector = None
+        for ct in ACCEPTED_CALENDAR_CONNECTOR_TYPES:
+            connector = await get_connector_by_id(session, connector_id, ct)
+            if connector:
+                break
 
         if not connector:
             await task_logger.log_task_failure(
@@ -101,69 +112,80 @@ async def index_google_calendar_events(
             )
             return 0, f"Connector with ID {connector_id} not found"
 
-        # Get the Google Calendar credentials from the connector config
-        config_data = connector.config
-
-        # Decrypt sensitive credentials if encrypted (for backward compatibility)
-        from app.config import config
-        from app.utils.oauth_security import TokenEncryption
-
-        token_encrypted = config_data.get("_token_encrypted", False)
-        if token_encrypted and config.SECRET_KEY:
-            try:
-                token_encryption = TokenEncryption(config.SECRET_KEY)
-
-                # Decrypt sensitive fields
-                if config_data.get("token"):
-                    config_data["token"] = token_encryption.decrypt_token(
-                        config_data["token"]
-                    )
-                if config_data.get("refresh_token"):
-                    config_data["refresh_token"] = token_encryption.decrypt_token(
-                        config_data["refresh_token"]
-                    )
-                if config_data.get("client_secret"):
-                    config_data["client_secret"] = token_encryption.decrypt_token(
-                        config_data["client_secret"]
-                    )
-
-                logger.info(
-                    f"Decrypted Google Calendar credentials for connector {connector_id}"
-                )
-            except Exception as e:
+        # Build credentials based on connector type
+        if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
+            connected_account_id = connector.config.get(
+                "composio_connected_account_id"
+            )
+            if not connected_account_id:
                 await task_logger.log_task_failure(
                     log_entry,
-                    f"Failed to decrypt Google Calendar credentials for connector {connector_id}: {e!s}",
-                    "Credential decryption failed",
-                    {"error_type": "CredentialDecryptionError"},
+                    f"Composio connected_account_id not found for connector {connector_id}",
+                    "Missing Composio account",
+                    {"error_type": "MissingComposioAccount"},
                 )
-                return 0, f"Failed to decrypt Google Calendar credentials: {e!s}"
+                return 0, "Composio connected_account_id not found"
+            credentials = build_composio_credentials(connected_account_id)
+        else:
+            config_data = connector.config
 
-        exp = config_data.get("expiry", "").replace("Z", "")
-        credentials = Credentials(
-            token=config_data.get("token"),
-            refresh_token=config_data.get("refresh_token"),
-            token_uri=config_data.get("token_uri"),
-            client_id=config_data.get("client_id"),
-            client_secret=config_data.get("client_secret"),
-            scopes=config_data.get("scopes"),
-            expiry=datetime.fromisoformat(exp) if exp else None,
-        )
+            from app.config import config
+            from app.utils.oauth_security import TokenEncryption
 
-        if (
-            not credentials.client_id
-            or not credentials.client_secret
-            or not credentials.refresh_token
-        ):
-            await task_logger.log_task_failure(
-                log_entry,
-                f"Google Calendar credentials not found in connector config for connector {connector_id}",
-                "Missing Google Calendar credentials",
-                {"error_type": "MissingCredentials"},
+            token_encrypted = config_data.get("_token_encrypted", False)
+            if token_encrypted and config.SECRET_KEY:
+                try:
+                    token_encryption = TokenEncryption(config.SECRET_KEY)
+                    if config_data.get("token"):
+                        config_data["token"] = token_encryption.decrypt_token(
+                            config_data["token"]
+                        )
+                    if config_data.get("refresh_token"):
+                        config_data["refresh_token"] = token_encryption.decrypt_token(
+                            config_data["refresh_token"]
+                        )
+                    if config_data.get("client_secret"):
+                        config_data["client_secret"] = token_encryption.decrypt_token(
+                            config_data["client_secret"]
+                        )
+                    logger.info(
+                        f"Decrypted Google Calendar credentials for connector {connector_id}"
+                    )
+                except Exception as e:
+                    await task_logger.log_task_failure(
+                        log_entry,
+                        f"Failed to decrypt Google Calendar credentials for connector {connector_id}: {e!s}",
+                        "Credential decryption failed",
+                        {"error_type": "CredentialDecryptionError"},
+                    )
+                    return 0, f"Failed to decrypt Google Calendar credentials: {e!s}"
+
+            exp = config_data.get("expiry", "")
+            if exp:
+                exp = exp.replace("Z", "")
+            credentials = Credentials(
+                token=config_data.get("token"),
+                refresh_token=config_data.get("refresh_token"),
+                token_uri=config_data.get("token_uri"),
+                client_id=config_data.get("client_id"),
+                client_secret=config_data.get("client_secret"),
+                scopes=config_data.get("scopes", []),
+                expiry=datetime.fromisoformat(exp) if exp else None,
             )
-            return 0, "Google Calendar credentials not found in connector config"
 
-        # Initialize Google Calendar client
+            if (
+                not credentials.client_id
+                or not credentials.client_secret
+                or not credentials.refresh_token
+            ):
+                await task_logger.log_task_failure(
+                    log_entry,
+                    f"Google Calendar credentials not found in connector config for connector {connector_id}",
+                    "Missing Google Calendar credentials",
+                    {"error_type": "MissingCredentials"},
+                )
+                return 0, "Google Calendar credentials not found in connector config"
+
         await task_logger.log_task_progress(
             log_entry,
             f"Initializing Google Calendar client for connector {connector_id}",

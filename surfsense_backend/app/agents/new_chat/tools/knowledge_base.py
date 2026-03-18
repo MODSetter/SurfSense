@@ -60,7 +60,7 @@ def _is_degenerate_query(query: str) -> bool:
 
 async def _browse_recent_documents(
     search_space_id: int,
-    document_type: str | None,
+    document_type: str | list[str] | None,
     top_k: int,
     start_date: datetime | None,
     end_date: datetime | None,
@@ -83,14 +83,22 @@ async def _browse_recent_documents(
     base_conditions = [Document.search_space_id == search_space_id]
 
     if document_type is not None:
-        if isinstance(document_type, str):
-            try:
-                doc_type_enum = DocumentType[document_type]
-                base_conditions.append(Document.document_type == doc_type_enum)
-            except KeyError:
-                return []
+        type_list = document_type if isinstance(document_type, list) else [document_type]
+        doc_type_enums = []
+        for dt in type_list:
+            if isinstance(dt, str):
+                try:
+                    doc_type_enums.append(DocumentType[dt])
+                except KeyError:
+                    pass
+            else:
+                doc_type_enums.append(dt)
+        if not doc_type_enums:
+            return []
+        if len(doc_type_enums) == 1:
+            base_conditions.append(Document.document_type == doc_type_enums[0])
         else:
-            base_conditions.append(Document.document_type == document_type)
+            base_conditions.append(Document.document_type.in_(doc_type_enums))
 
     if start_date is not None:
         base_conditions.append(Document.updated_at >= start_date)
@@ -195,10 +203,6 @@ _ALL_CONNECTORS: list[str] = [
     "CRAWLED_URL",
     "CIRCLEBACK",
     "OBSIDIAN_CONNECTOR",
-    # Composio connectors
-    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-    "COMPOSIO_GMAIL_CONNECTOR",
-    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
 ]
 
 # Human-readable descriptions for each connector type
@@ -228,10 +232,6 @@ CONNECTOR_DESCRIPTIONS: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BookStack pages (personal documentation)",
     "CIRCLEBACK": "Circleback meeting notes, transcripts, and action items",
     "OBSIDIAN_CONNECTOR": "Obsidian vault notes and markdown files (personal notes)",
-    # Composio connectors
-    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "Google Drive files via Composio (personal cloud storage)",
-    "COMPOSIO_GMAIL_CONNECTOR": "Gmail emails via Composio (personal emails)",
-    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "Google Calendar events via Composio (personal calendar)",
 }
 
 
@@ -654,6 +654,20 @@ async def search_knowledge_base_async(
         )
         browse_connectors = connectors if connectors else [None]  # type: ignore[list-item]
 
+        # Expand native Google types to include legacy Composio equivalents
+        # so old documents remain searchable until re-indexed.
+        _LEGACY_ALIASES: dict[str, str] = {
+            "GOOGLE_DRIVE_FILE": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+            "GOOGLE_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
+            "GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+        }
+        expanded_browse = []
+        for c in browse_connectors:
+            if c is not None and c in _LEGACY_ALIASES:
+                expanded_browse.append([c, _LEGACY_ALIASES[c]])
+            else:
+                expanded_browse.append(c)
+
         browse_results = await asyncio.gather(
             *[
                 _browse_recent_documents(
@@ -663,7 +677,7 @@ async def search_knowledge_base_async(
                     start_date=resolved_start_date,
                     end_date=resolved_end_date,
                 )
-                for c in browse_connectors
+                for c in expanded_browse
             ]
         )
         for docs in browse_results:

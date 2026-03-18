@@ -36,32 +36,14 @@ TOOLKIT_TO_CONNECTOR_TYPE = {
 }
 
 # Mapping of toolkit IDs to document types
-TOOLKIT_TO_DOCUMENT_TYPE = {
-    "googledrive": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-    "gmail": "COMPOSIO_GMAIL_CONNECTOR",
-    "googlecalendar": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-}
+# Google Drive, Gmail, Calendar use unified native indexers - not in this registry
+TOOLKIT_TO_DOCUMENT_TYPE: dict[str, str] = {}
 
 # Mapping of toolkit IDs to their indexer functions
 # Format: toolkit_id -> (module_path, function_name, supports_date_filter)
 # supports_date_filter: True if the indexer accepts start_date/end_date params
-TOOLKIT_TO_INDEXER = {
-    "googledrive": (
-        "app.connectors.composio_google_drive_connector",
-        "index_composio_google_drive",
-        False,  # Google Drive doesn't use date filtering
-    ),
-    "gmail": (
-        "app.connectors.composio_gmail_connector",
-        "index_composio_gmail",
-        True,  # Gmail uses date filtering
-    ),
-    "googlecalendar": (
-        "app.connectors.composio_google_calendar_connector",
-        "index_composio_google_calendar",
-        True,  # Calendar uses date filtering
-    ),
-}
+# Google Drive, Gmail, Calendar use unified native indexers - not in this registry
+TOOLKIT_TO_INDEXER: dict[str, tuple[str, str, bool]] = {}
 
 
 class ComposioService:

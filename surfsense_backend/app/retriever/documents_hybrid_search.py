@@ -149,7 +149,7 @@ class DocumentHybridSearchRetriever:
         query_text: str,
         top_k: int,
         search_space_id: int,
-        document_type: str | None = None,
+        document_type: str | list[str] | None = None,
         start_date: datetime | None = None,
         end_date: datetime | None = None,
         query_embedding: list | None = None,
@@ -197,18 +197,24 @@ class DocumentHybridSearchRetriever:
             func.coalesce(Document.status["state"].astext, "ready") != "deleting",
         ]
 
-        # Add document type filter if provided
+        # Add document type filter if provided (single string or list of strings)
         if document_type is not None:
-            # Convert string to enum value if needed
-            if isinstance(document_type, str):
-                try:
-                    doc_type_enum = DocumentType[document_type]
-                    base_conditions.append(Document.document_type == doc_type_enum)
-                except KeyError:
-                    # If the document type doesn't exist in the enum, return empty results
-                    return []
+            type_list = document_type if isinstance(document_type, list) else [document_type]
+            doc_type_enums = []
+            for dt in type_list:
+                if isinstance(dt, str):
+                    try:
+                        doc_type_enums.append(DocumentType[dt])
+                    except KeyError:
+                        pass
+                else:
+                    doc_type_enums.append(dt)
+            if not doc_type_enums:
+                return []
+            if len(doc_type_enums) == 1:
+                base_conditions.append(Document.document_type == doc_type_enums[0])
             else:
-                base_conditions.append(Document.document_type == document_type)
+                base_conditions.append(Document.document_type.in_(doc_type_enums))
 
         # Add time-based filtering if provided
         if start_date is not None:
