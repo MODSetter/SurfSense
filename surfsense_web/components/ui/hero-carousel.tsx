@@ -152,12 +152,37 @@ function usePrefetchVideos() {
 	}, []);
 }
 
+const AUTOPLAY_MS = 6000;
+
 function HeroCarousel() {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [isGifExpanded, setIsGifExpanded] = useState(false);
+	const [isHovered, setIsHovered] = useState(false);
+	const [isTabVisible, setIsTabVisible] = useState(true);
 	const directionRef = useRef<"forward" | "backward">("forward");
 
 	usePrefetchVideos();
+
+	const shouldAutoPlay = !isGifExpanded && !isHovered && isTabVisible;
+
+	useEffect(() => {
+		if (!shouldAutoPlay) return;
+
+		const id = setTimeout(() => {
+			directionRef.current = "forward";
+			setActiveIndex((prev) =>
+				prev >= carouselItems.length - 1 ? 0 : prev + 1
+			);
+		}, AUTOPLAY_MS);
+
+		return () => clearTimeout(id);
+	}, [activeIndex, shouldAutoPlay]);
+
+	useEffect(() => {
+		const handler = () => setIsTabVisible(!document.hidden);
+		document.addEventListener("visibilitychange", handler);
+		return () => document.removeEventListener("visibilitychange", handler);
+	}, []);
 
 	const goTo = useCallback(
 		(newIndex: number) => {
@@ -179,7 +204,11 @@ function HeroCarousel() {
 	const isForward = directionRef.current === "forward";
 
 	return (
-		<div className="w-full py-4 sm:py-8">
+		<div
+			className="w-full py-4 sm:py-8"
+			onMouseEnter={() => setIsHovered(true)}
+			onMouseLeave={() => setIsHovered(false)}
+		>
 			<div className="relative mx-auto w-full max-w-[900px]">
 				<AnimatePresence mode="wait" initial={false}>
 					<motion.div
@@ -215,13 +244,25 @@ function HeroCarousel() {
 							key={`dot_${i}`}
 							type="button"
 							onClick={() => !isGifExpanded && goTo(i)}
-							className={`h-2 rounded-full transition-all duration-300 ${
+							className={`relative h-2 overflow-hidden rounded-full transition-all duration-300 ${
 								i === activeIndex
-									? "w-6 bg-neutral-900 dark:bg-white"
+									? shouldAutoPlay
+										? "w-6 bg-neutral-300 dark:bg-neutral-600"
+										: "w-6 bg-neutral-900 dark:bg-white"
 									: "w-2 bg-neutral-300 hover:bg-neutral-400 dark:bg-neutral-600 dark:hover:bg-neutral-500"
 							}`}
 							aria-label={`Go to slide ${i + 1}`}
-						/>
+						>
+							{i === activeIndex && shouldAutoPlay && (
+								<motion.span
+									key={`progress_${activeIndex}`}
+									className="absolute inset-0 origin-left rounded-full bg-neutral-900 dark:bg-white"
+									initial={{ scaleX: 0 }}
+									animate={{ scaleX: 1 }}
+									transition={{ duration: AUTOPLAY_MS / 1000, ease: "linear" }}
+								/>
+							)}
+						</button>
 					))}
 				</div>
 
