@@ -27,6 +27,7 @@
     "wait-on": "^9.0.4"
   },
   "dependencies": {
-    "electron-updater": "^6.8.3"
+    "electron-updater": "^6.8.3",
+    "get-port-please": "^3.2.0"
   }
 }

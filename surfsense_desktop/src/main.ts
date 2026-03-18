@@ -1,10 +1,11 @@
 import { app, BrowserWindow, shell, ipcMain, session } from 'electron';
 import path from 'path';
+import { getPort } from 'get-port-please';
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let deepLinkUrl: string | null = null;
-let serverPort: number = 3000;
+let serverPort: number = 3000; // overwritten at startup with a free port
 
 const PROTOCOL = 'surfsense';
 // Injected at compile time from .env.desktop via esbuild define
@@ -32,6 +33,9 @@ async function waitForServer(url: string, maxRetries = 60): Promise<boolean> {
 
 async function startNextServer(): Promise<void> {
   if (isDev) return;
+
+  serverPort = await getPort({ port: 3000, portRange: [30_011, 50_000] });
+  console.log(`Selected port ${serverPort}`);
 
   const standalonePath = getStandalonePath();
   const serverScript = path.join(standalonePath, 'server.js');
