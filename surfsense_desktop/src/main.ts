@@ -1,6 +1,36 @@
-import { app, BrowserWindow, shell, ipcMain, session } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, session, dialog, clipboard } from 'electron';
 import path from 'path';
 import { getPort } from 'get-port-please';
+
+function showErrorDialog(title: string, error: unknown): void {
+  const err = error instanceof Error ? error : new Error(String(error));
+  console.error(`${title}:`, err);
+
+  if (app.isReady()) {
+    const detail = err.stack || err.message;
+    const buttonIndex = dialog.showMessageBoxSync({
+      type: 'error',
+      buttons: ['OK', process.platform === 'darwin' ? 'Copy Error' : 'Copy error'],
+      defaultId: 0,
+      noLink: true,
+      message: title,
+      detail,
+    });
+    if (buttonIndex === 1) {
+      clipboard.writeText(`${title}\n${detail}`);
+    }
+  } else {
+    dialog.showErrorBox(title, err.stack || err.message);
+  }
+}
+
+process.on('uncaughtException', (error) => {
+  showErrorDialog('Unhandled Error', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  showErrorDialog('Unhandled Promise Rejection', reason);
+});
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
