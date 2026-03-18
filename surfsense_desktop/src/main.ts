@@ -38,7 +38,7 @@ let deepLinkUrl: string | null = null;
 let serverPort: number = 3000; // overwritten at startup with a free port
 
 const PROTOCOL = 'surfsense';
-// Injected at compile time from .env.desktop via esbuild define
+// Injected at compile time from .env via esbuild define
 const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
 
 function getStandalonePath(): string {
@@ -145,7 +145,14 @@ function createWindow() {
 
 // IPC handlers
 ipcMain.on('open-external', (_event, url: string) => {
-  shell.openExternal(url);
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      shell.openExternal(url);
+    }
+  } catch {
+    // invalid URL — ignore
+  }
 });
 
 ipcMain.handle('get-app-version', () => {
