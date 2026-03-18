@@ -262,6 +262,16 @@ def create_delete_notion_page_tool(
                 raise
 
             logger.error(f"Error deleting Notion page: {e}", exc_info=True)
+            error_str = str(e).lower()
+            if isinstance(e, NotionAPIError) and (
+                "401" in error_str or "unauthorized" in error_str
+            ):
+                return {
+                    "status": "auth_error",
+                    "message": str(e),
+                    "connector_id": connector_id_from_context if "connector_id_from_context" in dir() else None,
+                    "connector_type": "notion",
+                }
             if isinstance(e, ValueError | NotionAPIError):
                 message = str(e)
             else:

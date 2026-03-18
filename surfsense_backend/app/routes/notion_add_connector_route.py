@@ -124,6 +124,70 @@ async def connect_notion(space_id: int, user: User = Depends(current_active_user
         ) from e
 
 
+@router.get("/auth/notion/connector/reauth")
+async def reauth_notion(
+    space_id: int,
+    connector_id: int,
+    return_url: str | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Initiate Notion re-authentication for an existing connector."""
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.NOTION_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Notion connector not found or access denied",
+            )
+
+        if not config.NOTION_CLIENT_ID:
+            raise HTTPException(status_code=500, detail="Notion OAuth not configured.")
+        if not config.SECRET_KEY:
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
+
+        state_manager = get_state_manager()
+        extra: dict = {"connector_id": connector_id}
+        if return_url and return_url.startswith("/"):
+            extra["return_url"] = return_url
+        state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
+
+        from urllib.parse import urlencode
+
+        auth_params = {
+            "client_id": config.NOTION_CLIENT_ID,
+            "response_type": "code",
+            "owner": "user",
+            "redirect_uri": config.NOTION_REDIRECT_URI,
+            "state": state_encoded,
+        }
+        auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
+
+        logger.info(
+            f"Initiating Notion re-auth for user {user.id}, connector {connector_id}"
+        )
+        return {"auth_url": auth_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to initiate Notion re-auth: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate Notion re-auth: {e!s}"
+        ) from e
+
+
 @router.get("/auth/notion/connector/callback")
 async def notion_callback(
     request: Request,
@@ -265,6 +329,44 @@ async def notion_callback(
             # Mark that token is encrypted for backward compatibility
             "_token_encrypted": True,
         }
+
+        reauth_connector_id = data.get("connector_id")
+        reauth_return_url = data.get("return_url")
+
+        if reauth_connector_id:
+            from sqlalchemy.orm.attributes import flag_modified
+
+            result = await session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == reauth_connector_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.NOTION_CONNECTOR,
+                )
+            )
+            db_connector = result.scalars().first()
+            if not db_connector:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Connector not found or access denied during re-auth",
+                )
+
+            db_connector.config = connector_config
+            flag_modified(db_connector, "config")
+            await session.commit()
+            await session.refresh(db_connector)
+
+            logger.info(
+                f"Re-authenticated Notion connector {db_connector.id} for user {user_id}"
+            )
+            if reauth_return_url and reauth_return_url.startswith("/"):
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
+                )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=notion-connector&connectorId={db_connector.id}"
+            )
 
         # Extract unique identifier from connector credentials
         connector_identifier = extract_identifier_from_credentials(

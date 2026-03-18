@@ -1,15 +1,19 @@
+import logging
 from dataclasses import dataclass
 
 from sqlalchemy import and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
+from app.connectors.notion_history import NotionHistoryConnector
 from app.db import (
     Document,
     DocumentType,
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -83,8 +87,15 @@ class NotionToolMetadataService:
             search_space_id, accounts
         )
 
+        accounts_with_status = []
+        for acc in accounts:
+            acc_dict = acc.to_dict()
+            auth_expired = await self._check_account_health(acc.id)
+            acc_dict["auth_expired"] = auth_expired
+            accounts_with_status.append(acc_dict)
+
         return {
-            "accounts": [acc.to_dict() for acc in accounts],
+            "accounts": accounts_with_status,
             "parent_pages": parent_pages,
         }
 
@@ -109,8 +120,8 @@ class NotionToolMetadataService:
 
         if not document:
             return {
-                "error": f"Page '{page_title}' not found in your indexed Notion pages. "
-                "This could mean: (1) the page doesn't exist, (2) it hasn't been indexed yet, "
+                "error": f"Page '{page_title}' not found in your synced Notion pages. "
+                "This could mean: (1) the page doesn't exist, (2) it hasn't been synced yet, "
                 "or (3) the page title is different. Please check the exact page title in Notion."
             }
 
@@ -166,6 +177,26 @@ class NotionToolMetadataService:
         )
         connectors = result.scalars().all()
         return [NotionAccount.from_connector(conn) for conn in connectors]
+
+    async def _check_account_health(self, connector_id: int) -> bool:
+        """Check if a Notion connector's token is still valid.
+
+        Uses a lightweight ``users.me()`` call to verify the token.
+
+        Returns True if the token is expired/invalid, False if healthy.
+        """
+        try:
+            connector = NotionHistoryConnector(
+                session=self._db_session, connector_id=connector_id
+            )
+            client = await connector._get_client()
+            await client.users.me()
+            return False
+        except Exception as e:
+            logger.warning(
+                "Notion connector %s health check failed: %s", connector_id, e
+            )
+            return True
 
     async def _get_parent_pages_by_account(
         self, search_space_id: int, accounts: list[NotionAccount]

@@ -58,6 +58,7 @@ interface LinearWorkspace {
 	organization_name: string;
 	teams: LinearTeam[];
 	priorities: LinearPriority[];
+	auth_expired?: boolean;
 }
 
 interface InterruptResult {
@@ -91,7 +92,14 @@ interface ErrorResult {
 	message: string;
 }
 
-type CreateLinearIssueResult = InterruptResult | SuccessResult | ErrorResult;
+interface AuthErrorResult {
+	status: "auth_error";
+	message: string;
+	connector_id?: number;
+	connector_type: string;
+}
+
+type CreateLinearIssueResult = InterruptResult | SuccessResult | ErrorResult | AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -108,6 +116,15 @@ function isErrorResult(result: unknown): result is ErrorResult {
 		result !== null &&
 		"status" in result &&
 		(result as ErrorResult).status === "error"
+	);
+}
+
+function isAuthErrorResult(result: unknown): result is AuthErrorResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as AuthErrorResult).status === "auth_error"
 	);
 }
 
@@ -138,10 +155,12 @@ function ApprovalCard({
 	const [selectedLabelIds, setSelectedLabelIds] = useState<string[]>([]);
 
 	const workspaces = interruptData.context?.workspaces ?? [];
+	const validWorkspaces = useMemo(() => workspaces.filter((w) => !w.auth_expired), [workspaces]);
+	const expiredWorkspaces = useMemo(() => workspaces.filter((w) => w.auth_expired), [workspaces]);
 
 	const selectedWorkspace = useMemo(
-		() => workspaces.find((w) => String(w.id) === selectedWorkspaceId) ?? null,
-		[workspaces, selectedWorkspaceId]
+		() => validWorkspaces.find((w) => String(w.id) === selectedWorkspaceId) ?? null,
+		[validWorkspaces, selectedWorkspaceId]
 	);
 
 	const selectedTeam = useMemo(
@@ -195,7 +214,7 @@ function ApprovalCard({
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
-			<div className="flex items-start justify-between px-5 pt-5 pb-4">
+			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
 						{decided === "reject"
@@ -249,40 +268,48 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 space-y-4">
+					<div className="px-5 py-4 space-y-4 select-none">
 						{interruptData.context?.error ? (
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
 							<>
-								{workspaces.length > 0 && (
-									<div className="space-y-2">
-										<p className="text-xs font-medium text-muted-foreground">
-											Linear Account <span className="text-destructive">*</span>
-										</p>
-										<Select
-											value={selectedWorkspaceId}
-											onValueChange={(v) => {
-												setSelectedWorkspaceId(v);
-												setSelectedTeamId("");
-												setSelectedStateId("__none__");
-												setSelectedAssigneeId("__none__");
-												setSelectedPriority("0");
-												setSelectedLabelIds([]);
-											}}
-										>
-											<SelectTrigger className="w-full">
-												<SelectValue placeholder="Select an account" />
-											</SelectTrigger>
-											<SelectContent>
-												{workspaces.map((w) => (
-													<SelectItem key={w.id} value={String(w.id)}>
-														{w.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-								)}
+							{workspaces.length > 0 && (
+								<div className="space-y-2">
+									<p className="text-xs font-medium text-muted-foreground">
+										Linear Account <span className="text-destructive">*</span>
+									</p>
+									<Select
+										value={selectedWorkspaceId}
+										onValueChange={(v) => {
+											setSelectedWorkspaceId(v);
+											setSelectedTeamId("");
+											setSelectedStateId("__none__");
+											setSelectedAssigneeId("__none__");
+											setSelectedPriority("0");
+											setSelectedLabelIds([]);
+										}}
+									>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="Select an account" />
+										</SelectTrigger>
+										<SelectContent>
+											{validWorkspaces.map((w) => (
+												<SelectItem key={w.id} value={String(w.id)}>
+													{w.name}
+												</SelectItem>
+											))}
+											{expiredWorkspaces.map((w) => (
+												<div
+													key={w.id}
+													className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
+												>
+													{w.name} (needs re-authentication)
+												</div>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
 
 								{selectedWorkspace && (
 									<>
@@ -443,7 +470,7 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 flex items-center gap-2">
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
 						{allowedDecisions.includes("approve") && (
 							<Button
 								size="sm"
@@ -471,6 +498,22 @@ function ApprovalCard({
 					</div>
 				</>
 			)}
+		</div>
+	);
+}
+
+function AuthErrorCard({ result }: { result: AuthErrorResult }) {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">
+					Linear authentication expired
+				</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
 		</div>
 	);
 }
@@ -560,6 +603,7 @@ export const CreateLinearIssueToolUI = makeAssistantToolUI<
 			return null;
 		}
 
+		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 
 		return <SuccessCard result={result as SuccessResult} />;

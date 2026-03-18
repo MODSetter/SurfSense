@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass
 
 from sqlalchemy import and_, func, or_
@@ -11,6 +12,8 @@ from app.db import (
     SearchSourceConnector,
     SearchSourceConnectorType,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -109,7 +112,23 @@ class LinearToolMetadataService:
                 priorities = await self._fetch_priority_values(linear_client)
                 teams = await self._fetch_teams_context(linear_client)
             except Exception as e:
-                return {"error": f"Failed to fetch Linear context: {e!s}"}
+                logger.warning(
+                    "Linear connector %s (%s) auth failed, flagging as expired: %s",
+                    connector.id,
+                    workspace.name,
+                    e,
+                )
+                workspaces.append(
+                    {
+                        "id": workspace.id,
+                        "name": workspace.name,
+                        "organization_name": workspace.organization_name,
+                        "teams": [],
+                        "priorities": [],
+                        "auth_expired": True,
+                    }
+                )
+                continue
             workspaces.append(
                 {
                     "id": workspace.id,
@@ -117,6 +136,7 @@ class LinearToolMetadataService:
                     "organization_name": workspace.organization_name,
                     "teams": teams,
                     "priorities": priorities,
+                    "auth_expired": False,
                 }
             )
 
@@ -137,8 +157,8 @@ class LinearToolMetadataService:
         document = await self._resolve_issue(search_space_id, user_id, issue_ref)
         if not document:
             return {
-                "error": f"Issue '{issue_ref}' not found in your indexed Linear issues. "
-                "This could mean: (1) the issue doesn't exist, (2) it hasn't been indexed yet, "
+                "error": f"Issue '{issue_ref}' not found in your synced Linear issues. "
+                "This could mean: (1) the issue doesn't exist, (2) it hasn't been synced yet, "
                 "or (3) the title or identifier is different."
             }
 
@@ -157,6 +177,13 @@ class LinearToolMetadataService:
             priorities = await self._fetch_priority_values(linear_client)
             issue_api = await self._fetch_issue_context(linear_client, issue.id)
         except Exception as e:
+            error_str = str(e).lower()
+            if "401" in error_str or "authentication" in error_str or "re-authenticate" in error_str:
+                return {
+                    "error": f"Failed to fetch Linear issue context: {e!s}",
+                    "auth_expired": True,
+                    "connector_id": connector.id,
+                }
             return {"error": f"Failed to fetch Linear issue context: {e!s}"}
 
         if not issue_api:
@@ -210,8 +237,8 @@ class LinearToolMetadataService:
         document = await self._resolve_issue(search_space_id, user_id, issue_ref)
         if not document:
             return {
-                "error": f"Issue '{issue_ref}' not found in your indexed Linear issues. "
-                "This could mean: (1) the issue doesn't exist, (2) it hasn't been indexed yet, "
+                "error": f"Issue '{issue_ref}' not found in your synced Linear issues. "
+                "This could mean: (1) the issue doesn't exist, (2) it hasn't been synced yet, "
                 "or (3) the title or identifier is different."
             }
 

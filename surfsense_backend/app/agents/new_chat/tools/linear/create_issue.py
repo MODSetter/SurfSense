@@ -84,6 +84,15 @@ def create_create_linear_issue_tool(
                 logger.error(f"Failed to fetch creation context: {context['error']}")
                 return {"status": "error", "message": context["error"]}
 
+            workspaces = context.get("workspaces", [])
+            if workspaces and all(w.get("auth_expired") for w in workspaces):
+                logger.warning("All Linear accounts have expired authentication")
+                return {
+                    "status": "auth_error",
+                    "message": "All connected Linear accounts need re-authentication. Please re-authenticate in your connector settings.",
+                    "connector_type": "linear",
+                }
+
             logger.info(f"Requesting approval for creating Linear issue: '{title}'")
             approval = interrupt(
                 {

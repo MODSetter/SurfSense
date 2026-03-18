@@ -89,6 +89,15 @@ def create_create_notion_page_tool(
                     "message": context["error"],
                 }
 
+            accounts = context.get("accounts", [])
+            if accounts and all(a.get("auth_expired") for a in accounts):
+                logger.warning("All Notion accounts have expired authentication")
+                return {
+                    "status": "auth_error",
+                    "message": "All connected Notion accounts need re-authentication. Please re-authenticate in your connector settings.",
+                    "connector_type": "notion",
+                }
+
             logger.info(f"Requesting approval for creating Notion page: '{title}'")
             approval = interrupt(
                 {

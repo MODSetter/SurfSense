@@ -1,7 +1,7 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import { CornerDownLeftIcon, InfoIcon, Pen } from "lucide-react";
+import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -99,7 +99,14 @@ interface NotFoundResult {
 	message: string;
 }
 
-type UpdateLinearIssueResult = InterruptResult | SuccessResult | ErrorResult | NotFoundResult;
+interface AuthErrorResult {
+	status: "auth_error";
+	message: string;
+	connector_id?: number;
+	connector_type: string;
+}
+
+type UpdateLinearIssueResult = InterruptResult | SuccessResult | ErrorResult | NotFoundResult | AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -125,6 +132,15 @@ function isNotFoundResult(result: unknown): result is NotFoundResult {
 		result !== null &&
 		"status" in result &&
 		(result as NotFoundResult).status === "not_found"
+	);
+}
+
+function isAuthErrorResult(result: unknown): result is AuthErrorResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as AuthErrorResult).status === "auth_error"
 	);
 }
 
@@ -259,7 +275,7 @@ function ApprovalCard({
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
-			<div className="flex items-start justify-between px-5 pt-5 pb-4">
+			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
 						{decided === "reject"
@@ -322,7 +338,7 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 space-y-4">
+					<div className="px-5 py-4 space-y-4 select-none">
 						{context?.error ? (
 							<p className="text-sm text-destructive">{context.error}</p>
 						) : (
@@ -569,7 +585,7 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 flex items-center gap-2">
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
 						{allowedDecisions.includes("approve") && (
 							<Button
 								size="sm"
@@ -600,6 +616,22 @@ function ApprovalCard({
 	);
 }
 
+function AuthErrorCard({ result }: { result: AuthErrorResult }) {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">
+					Linear authentication expired
+				</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
+		</div>
+	);
+}
+
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
@@ -617,8 +649,13 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
-			<div className="flex items-start gap-3 px-5 py-4">
-				<InfoIcon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+					Issue not found
+				</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
 			</div>
 		</div>
@@ -704,6 +741,7 @@ export const UpdateLinearIssueToolUI = makeAssistantToolUI<
 		}
 
 		if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
+		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 
 		return <SuccessCard result={result as SuccessResult} />;

@@ -179,7 +179,7 @@ function ApprovalCard({
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
-			<div className="flex items-start justify-between px-5 pt-5 pb-4">
+			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
 						{decided === "reject"
@@ -240,7 +240,7 @@ function ApprovalCard({
 			{!decided && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 space-y-4">
+					<div className="px-5 py-4 space-y-4 select-none">
 						{interruptData.context.error ? (
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
@@ -333,7 +333,7 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 flex items-center gap-2">
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
 						{allowedDecisions.includes("approve") && (
 							<Button
 								size="sm"

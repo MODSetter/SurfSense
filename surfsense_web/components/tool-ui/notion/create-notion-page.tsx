@@ -37,6 +37,7 @@ interface InterruptResult {
 			workspace_id: string | null;
 			workspace_name: string;
 			workspace_icon: string;
+			auth_expired?: boolean;
 		}>;
 		parent_pages?: Record<
 			number,
@@ -65,7 +66,14 @@ interface ErrorResult {
 	message: string;
 }
 
-type CreateNotionPageResult = InterruptResult | SuccessResult | ErrorResult;
+interface AuthErrorResult {
+	status: "auth_error";
+	message: string;
+	connector_id?: number;
+	connector_type: string;
+}
+
+type CreateNotionPageResult = InterruptResult | SuccessResult | ErrorResult | AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -73,6 +81,15 @@ function isInterruptResult(result: unknown): result is InterruptResult {
 		result !== null &&
 		"__interrupt__" in result &&
 		(result as InterruptResult).__interrupt__ === true
+	);
+}
+
+function isAuthErrorResult(result: unknown): result is AuthErrorResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as AuthErrorResult).status === "auth_error"
 	);
 }
 
@@ -105,13 +122,15 @@ function ApprovalCard({
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
 	const accounts = interruptData.context?.accounts ?? [];
+	const validAccounts = accounts.filter(a => !a.auth_expired);
+	const expiredAccounts = accounts.filter(a => a.auth_expired);
 	const parentPages = interruptData.context?.parent_pages ?? {};
 
 	const defaultAccountId = useMemo(() => {
 		if (args.connector_id) return String(args.connector_id);
-		if (accounts.length === 1) return String(accounts[0].id);
+		if (validAccounts.length === 1) return String(validAccounts[0].id);
 		return "";
-	}, [args.connector_id, accounts]);
+	}, [args.connector_id, validAccounts]);
 
 	const [selectedAccountId, setSelectedAccountId] = useState<string>(defaultAccountId);
 	const [selectedParentPageId, setSelectedParentPageId] = useState<string>(
@@ -164,7 +183,7 @@ function ApprovalCard({
 			className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300"
 		>
 			{/* Header */}
-			<div className="flex items-start justify-between px-5 pt-5 pb-4">
+			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
 						{decided === "reject"
@@ -225,36 +244,44 @@ function ApprovalCard({
 			{!decided && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 space-y-4">
+					<div className="px-5 py-4 space-y-4 select-none">
 						{interruptData.context.error ? (
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
 							<>
-								{accounts.length > 0 && (
-									<div className="space-y-2">
-										<p className="text-xs font-medium text-muted-foreground">
-											Notion Account <span className="text-destructive">*</span>
-										</p>
-										<Select
-											value={selectedAccountId}
-											onValueChange={(value) => {
-												setSelectedAccountId(value);
-												setSelectedParentPageId("__none__");
-											}}
-										>
-											<SelectTrigger className="w-full">
-												<SelectValue placeholder="Select an account" />
-											</SelectTrigger>
-											<SelectContent>
-												{accounts.map((account) => (
-													<SelectItem key={account.id} value={String(account.id)}>
-														{account.workspace_name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-								)}
+							{accounts.length > 0 && (
+								<div className="space-y-2">
+									<p className="text-xs font-medium text-muted-foreground">
+										Notion Account <span className="text-destructive">*</span>
+									</p>
+									<Select
+										value={selectedAccountId}
+										onValueChange={(value) => {
+											setSelectedAccountId(value);
+											setSelectedParentPageId("__none__");
+										}}
+									>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="Select an account" />
+										</SelectTrigger>
+										<SelectContent>
+											{validAccounts.map((account) => (
+												<SelectItem key={account.id} value={String(account.id)}>
+													{account.workspace_name}
+												</SelectItem>
+											))}
+											{expiredAccounts.map((a) => (
+												<div
+													key={a.id}
+													className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
+												>
+													{a.workspace_name} (needs re-authentication)
+												</div>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
 
 								{selectedAccountId && (
 									<div className="space-y-2">
@@ -316,7 +343,7 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 flex items-center gap-2">
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
 						{allowedDecisions.includes("approve") && (
 							<Button
 								size="sm"
@@ -344,6 +371,22 @@ function ApprovalCard({
 					</div>
 				</>
 			)}
+		</div>
+	);
+}
+
+function AuthErrorCard({ result }: { result: AuthErrorResult }) {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">
+					Notion authentication expired
+				</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
 		</div>
 	);
 }
@@ -425,6 +468,10 @@ export const CreateNotionPageToolUI = makeAssistantToolUI<
 					}}
 				/>
 			);
+		}
+
+		if (isAuthErrorResult(result)) {
+			return <AuthErrorCard result={result} />;
 		}
 
 		if (

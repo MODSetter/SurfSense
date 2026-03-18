@@ -186,7 +186,7 @@ function ApprovalCard({
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
-			<div className="flex items-start justify-between px-5 pt-5 pb-4">
+			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
 						{decided === "reject"
@@ -209,7 +209,7 @@ function ApprovalCard({
 			{!decided && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 space-y-4">
+					<div className="px-5 py-4 space-y-4 select-none">
 						{interruptData.context.error ? (
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
@@ -254,7 +254,7 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 space-y-3">
+					<div className="px-5 py-4 space-y-3 select-none">
 						<p className="text-xs text-muted-foreground">
 							The file will be moved to Google Drive trash. You can restore it from trash within 30 days.
 						</p>
@@ -280,27 +280,27 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 flex items-center gap-2">
-						<Button
-							size="sm"
-							className="rounded-lg gap-1.5"
-							onClick={handleApprove}
-						>
-							Approve
-							<CornerDownLeftIcon className="size-3 opacity-60" />
-						</Button>
-						<Button
-							size="sm"
-							variant="ghost"
-							className="rounded-lg text-muted-foreground"
-							onClick={() => {
-								setDecided("reject");
-								onDecision({ type: "reject", message: "User rejected the action." });
-							}}
-						>
-							Reject
-						</Button>
-					</div>
+				<div className="px-5 py-4 flex items-center gap-2 select-none">
+					<Button
+						size="sm"
+						className="rounded-lg gap-1.5"
+						onClick={handleApprove}
+					>
+						Approve
+						<CornerDownLeftIcon className="size-3 opacity-60" />
+					</Button>
+					<Button
+						size="sm"
+						variant="ghost"
+						className="rounded-lg text-muted-foreground"
+						onClick={() => {
+							setDecided("reject");
+							onDecision({ type: "reject", message: "User rejected the action." });
+						}}
+					>
+						Reject
+					</Button>
+				</div>
 				</>
 			)}
 		</div>
