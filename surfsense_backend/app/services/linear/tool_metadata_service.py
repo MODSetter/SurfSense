@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from sqlalchemy import and_, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.connectors.linear_connector import LinearConnector
 from app.db import (
@@ -118,6 +119,17 @@ class LinearToolMetadataService:
                     workspace.name,
                     e,
                 )
+                try:
+                    connector.config = {**connector.config, "auth_expired": True}
+                    flag_modified(connector, "config")
+                    await self._db_session.commit()
+                    await self._db_session.refresh(connector)
+                except Exception:
+                    logger.warning(
+                        "Failed to persist auth_expired for connector %s",
+                        connector.id,
+                        exc_info=True,
+                    )
                 workspaces.append(
                     {
                         "id": workspace.id,

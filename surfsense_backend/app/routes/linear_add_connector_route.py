@@ -15,6 +15,9 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select
+from sqlalchemy.orm.attributes import flag_modified
+
 from app.config import config
 from app.connectors.linear_connector import fetch_linear_organization_name
 from app.db import (
@@ -335,8 +338,6 @@ async def linear_callback(
         reauth_return_url = data.get("return_url")
 
         if reauth_connector_id:
-            from sqlalchemy.orm.attributes import flag_modified
-
             result = await session.execute(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == reauth_connector_id,
@@ -446,6 +447,22 @@ async def linear_callback(
         ) from e
 
 
+async def _mark_connector_auth_expired(
+    session: AsyncSession, connector: SearchSourceConnector
+) -> None:
+    """Persist auth_expired flag in the connector config so the frontend can show a re-auth prompt."""
+    try:
+        connector.config = {**connector.config, "auth_expired": True}
+        flag_modified(connector, "config")
+        await session.commit()
+        await session.refresh(connector)
+    except Exception:
+        logger.warning(
+            f"Failed to persist auth_expired flag for connector {connector.id}",
+            exc_info=True,
+        )
+
+
 async def refresh_linear_token(
     session: AsyncSession, connector: SearchSourceConnector
 ) -> SearchSourceConnector:
@@ -479,6 +496,7 @@ async def refresh_linear_token(
                 ) from e
 
         if not refresh_token:
+            await _mark_connector_auth_expired(session, connector)
             raise HTTPException(
                 status_code=400,
                 detail="No refresh token available. Please re-authenticate.",
@@ -521,6 +539,7 @@ async def refresh_linear_token(
                 or "expired" in error_lower
                 or "revoked" in error_lower
             ):
+                await _mark_connector_auth_expired(session, connector)
                 raise HTTPException(
                     status_code=401,
                     detail="Linear authentication failed. Please re-authenticate.",
@@ -557,10 +576,14 @@ async def refresh_linear_token(
         credentials.expires_at = expires_at
         credentials.scope = token_json.get("scope")
 
-        # Update connector config with encrypted tokens
+        # Update connector config with encrypted tokens, preserving non-credential fields
         credentials_dict = credentials.to_dict()
         credentials_dict["_token_encrypted"] = True
+        if connector.config.get("organization_name"):
+            credentials_dict["organization_name"] = connector.config["organization_name"]
+        credentials_dict.pop("auth_expired", None)
         connector.config = credentials_dict
+        flag_modified(connector, "config")
         await session.commit()
         await session.refresh(connector)
 

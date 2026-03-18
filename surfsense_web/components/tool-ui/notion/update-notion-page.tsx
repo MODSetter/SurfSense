@@ -1,12 +1,12 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Spinner } from "@/components/ui/spinner";
-import { useSetAtom } from "jotai";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface InterruptResult {

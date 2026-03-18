@@ -1236,6 +1236,48 @@ async def run_slack_indexing(
     )
 
 
+_AUTH_ERROR_PATTERNS = (
+    "failed to refresh linear oauth",
+    "failed to refresh your notion connection",
+    "failed to refresh notion token",
+    "authentication failed",
+    "auth_expired",
+    "token has been expired or revoked",
+    "invalid_grant",
+)
+
+
+def _is_auth_error(error_message: str) -> bool:
+    """Check if an error message indicates an OAuth token expiry failure."""
+    if not error_message:
+        return False
+    lower = error_message.lower()
+    return any(pattern in lower for pattern in _AUTH_ERROR_PATTERNS)
+
+
+async def _persist_auth_expired(session: AsyncSession, connector_id: int) -> None:
+    """Flag a connector as auth_expired so the frontend shows a re-auth prompt."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.id == connector_id
+            )
+        )
+        connector = result.scalar_one_or_none()
+        if connector and not connector.config.get("auth_expired"):
+            connector.config = {**connector.config, "auth_expired": True}
+            flag_modified(connector, "config")
+            await session.commit()
+            logger.info(f"Marked connector {connector_id} as auth_expired")
+    except Exception:
+        logger.warning(
+            f"Failed to persist auth_expired for connector {connector_id}",
+            exc_info=True,
+        )
+
+
 async def _run_indexing_with_notifications(
     session: AsyncSession,
     connector_id: int,
@@ -1520,6 +1562,8 @@ async def _run_indexing_with_notifications(
                 else:
                     # Actual failure
                     logger.error(f"Indexing failed: {error_or_warning}")
+                    if _is_auth_error(str(error_or_warning)):
+                        await _persist_auth_expired(session, connector_id)
                     if notification:
                         # Refresh notification to ensure it's not stale after indexing function commits
                         await session.refresh(notification)
@@ -1583,6 +1627,9 @@ async def _run_indexing_with_notifications(
         raise
     except Exception as e:
         logger.error(f"Error in indexing task: {e!s}", exc_info=True)
+
+        if _is_auth_error(str(e)):
+            await _persist_auth_expired(session, connector_id)
 
         # Update notification on exception
         if notification:

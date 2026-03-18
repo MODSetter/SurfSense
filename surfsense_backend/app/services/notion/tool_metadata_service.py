@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from sqlalchemy import and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.connectors.notion_history import NotionHistoryConnector
 from app.db import (
@@ -92,6 +93,25 @@ class NotionToolMetadataService:
             acc_dict = acc.to_dict()
             auth_expired = await self._check_account_health(acc.id)
             acc_dict["auth_expired"] = auth_expired
+            if auth_expired:
+                try:
+                    result = await self._db_session.execute(
+                        select(SearchSourceConnector).where(
+                            SearchSourceConnector.id == acc.id
+                        )
+                    )
+                    db_connector = result.scalar_one_or_none()
+                    if db_connector and not db_connector.config.get("auth_expired"):
+                        db_connector.config = {**db_connector.config, "auth_expired": True}
+                        flag_modified(db_connector, "config")
+                        await self._db_session.commit()
+                        await self._db_session.refresh(db_connector)
+                except Exception:
+                    logger.warning(
+                        "Failed to persist auth_expired for connector %s",
+                        acc.id,
+                        exc_info=True,
+                    )
             accounts_with_status.append(acc_dict)
 
         return {
