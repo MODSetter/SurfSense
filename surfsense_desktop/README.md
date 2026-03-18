@@ -23,17 +23,7 @@ Two `.env` files control the build:
 
 **`surfsense_web/.env`** — Next.js environment variables baked into the frontend at build time:
 
-```
-NEXT_PUBLIC_FASTAPI_BACKEND_URL=https://your-deployed-backend.com
-NEXT_PUBLIC_ELECTRIC_URL=https://your-deployed-electric.com
-NEXT_PUBLIC_ELECTRIC_AUTH_MODE=secure
-```
-
 **`surfsense_desktop/.env`** — Electron-specific configuration:
-
-```
-HOSTED_FRONTEND_URL=https://surfsense.net
-```
 
 Set these before building.
 
@@ -43,7 +33,7 @@ Set these before building.
 
 ```bash
 cd ../surfsense_web
-pnpm next build
+pnpm build
 ```
 
 **Step 2** — Compile Electron and prepare the standalone output:
