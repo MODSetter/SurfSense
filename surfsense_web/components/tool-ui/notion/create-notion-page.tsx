@@ -275,7 +275,7 @@ function ApprovalCard({
 													key={a.id}
 													className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
 												>
-													{a.workspace_name} (needs re-authentication)
+													{a.workspace_name} (expired, retry after re-auth)
 												</div>
 											))}
 										</SelectContent>
