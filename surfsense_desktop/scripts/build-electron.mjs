@@ -1,6 +1,9 @@
 import { build } from 'esbuild';
 import fs from 'fs';
 import path from 'path';
+import dotenv from 'dotenv';
+
+const desktopEnv = dotenv.config().parsed || {};
 
 const STANDALONE_ROOT = path.join(
   '..', 'surfsense_web', '.next', 'standalone', 'surfsense_web'
@@ -104,6 +107,11 @@ async function buildElectron() {
     external: ['electron'],
     sourcemap: true,
     minify: false,
+    define: {
+      'process.env.HOSTED_FRONTEND_URL': JSON.stringify(
+        desktopEnv.HOSTED_FRONTEND_URL || 'https://surfsense.net'
+      ),
+    },
   };
 
   await build({

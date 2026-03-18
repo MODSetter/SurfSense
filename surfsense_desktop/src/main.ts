@@ -1,6 +1,5 @@
 import { app, BrowserWindow, shell, ipcMain, session } from 'electron';
 import path from 'path';
-import { resolveEnv } from './resolve-env';
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
@@ -8,12 +7,8 @@ let deepLinkUrl: string | null = null;
 let serverPort: number = 3000;
 
 const PROTOCOL = 'surfsense';
-// TODO: Hardcoded URL is fragile — production domain may change and
-// self-hosted users have their own. Two options:
-//   1. Load from .env file using dotenv — users edit the file to change it.
-//   2. Backend endpoint (GET /api/v1/config/frontend-url) that returns
-//      the backend's NEXT_FRONTEND_URL — automatic, no file to manage.
-const HOSTED_FRONTEND_URL = 'https://surfsense.net';
+// Injected at compile time from .env.desktop via esbuild define
+const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
 
 function getStandalonePath(): string {
   if (isDev) {
@@ -39,8 +34,6 @@ async function startNextServer(): Promise<void> {
   if (isDev) return;
 
   const standalonePath = getStandalonePath();
-  resolveEnv(standalonePath);
-
   const serverScript = path.join(standalonePath, 'server.js');
 
   // The standalone server.js reads PORT / HOSTNAME from process.env and
