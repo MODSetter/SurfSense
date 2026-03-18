@@ -1,14 +1,12 @@
 import { app, BrowserWindow, shell, ipcMain, session } from 'electron';
 import path from 'path';
-import { spawn, ChildProcess } from 'child_process';
 import { resolveEnv } from './resolve-env';
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
-let serverProcess: ChildProcess | null = null;
 let deepLinkUrl: string | null = null;
+let serverPort: number = 3000;
 
-const SERVER_PORT = 3000;
 const PROTOCOL = 'surfsense';
 // TODO: Hardcoded URL is fragile — production domain may change and
 // self-hosted users have their own. Two options:
@@ -19,63 +17,48 @@ const HOSTED_FRONTEND_URL = 'https://surfsense.net';
 
 function getStandalonePath(): string {
   if (isDev) {
-    return path.join(__dirname, '..', '..', 'surfsense_web', '.next', 'standalone');
+    return path.join(__dirname, '..', '..', 'surfsense_web', '.next', 'standalone', 'surfsense_web');
   }
   return path.join(process.resourcesPath, 'standalone');
 }
 
-function startNextServer(): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // In dev mode, Next.js dev server is already running externally
-    if (isDev) {
-      resolve();
-      return;
+async function waitForServer(url: string, maxRetries = 60): Promise<boolean> {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const res = await fetch(url);
+      if (res.ok || res.status === 404 || res.status === 500) return true;
+    } catch {
+      // not ready yet
     }
-
-    const standalonePath = getStandalonePath();
-    resolveEnv(standalonePath);
-    const serverScript = path.join(standalonePath, 'server.js');
-
-    serverProcess = spawn(process.execPath, [serverScript], {
-      cwd: standalonePath,
-      env: {
-        ...process.env,
-        PORT: String(SERVER_PORT),
-        HOSTNAME: 'localhost',
-        NODE_ENV: 'production',
-      },
-      stdio: 'pipe',
-    });
-
-    serverProcess.stdout?.on('data', (data: Buffer) => {
-      const output = data.toString();
-      console.log(`[next] ${output}`);
-      if (output.includes('Ready') || output.includes('started server')) {
-        resolve();
-      }
-    });
-
-    serverProcess.stderr?.on('data', (data: Buffer) => {
-      console.error(`[next] ${data.toString()}`);
-    });
-
-    serverProcess.on('error', reject);
-    serverProcess.on('exit', (code) => {
-      if (code !== 0 && code !== null) {
-        reject(new Error(`Next.js server exited with code ${code}`));
-      }
-    });
-
-    // Fallback: resolve after 5s even if we don't see the "Ready" message
-    setTimeout(() => resolve(), 5000);
-  });
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return false;
 }
 
-function killServer() {
-  if (serverProcess && !serverProcess.killed) {
-    serverProcess.kill();
-    serverProcess = null;
+async function startNextServer(): Promise<void> {
+  if (isDev) return;
+
+  const standalonePath = getStandalonePath();
+  resolveEnv(standalonePath);
+
+  const serverScript = path.join(standalonePath, 'server.js');
+
+  // The standalone server.js reads PORT / HOSTNAME from process.env and
+  // uses process.chdir(__dirname). Running it via require() in the same
+  // process is the proven approach (avoids spawning a second Electron
+  // instance whose ASAR-patched fs breaks Next.js static file serving).
+  process.env.PORT = String(serverPort);
+  process.env.HOSTNAME = 'localhost';
+  process.env.NODE_ENV = 'production';
+  process.chdir(standalonePath);
+
+  require(serverScript);
+
+  const ready = await waitForServer(`http://localhost:${serverPort}`);
+  if (!ready) {
+    throw new Error('Next.js server failed to start within 30 s');
   }
+  console.log(`Next.js server ready on port ${serverPort}`);
 }
 
 function createWindow() {
@@ -99,7 +82,7 @@ function createWindow() {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${SERVER_PORT}/login`);
+  mainWindow.loadURL(`http://localhost:${serverPort}/login`);
 
   // External links open in system browser, not in the Electron window
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -114,7 +97,7 @@ function createWindow() {
   // and rewrite them to localhost so the user stays in the desktop app.
   const filter = { urls: [`${HOSTED_FRONTEND_URL}/*`] };
   session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
-    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${SERVER_PORT}`);
+    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${serverPort}`);
     callback({ redirectURL: rewritten });
   });
 
@@ -148,7 +131,7 @@ function handleDeepLink(url: string) {
   const parsed = new URL(url);
   if (parsed.hostname === 'auth' && parsed.pathname === '/callback') {
     const params = parsed.searchParams.toString();
-    mainWindow.loadURL(`http://localhost:${SERVER_PORT}/auth/callback?${params}`);
+    mainWindow.loadURL(`http://localhost:${serverPort}/auth/callback?${params}`);
   }
 
   mainWindow.show();
@@ -212,5 +195,5 @@ app.on('window-all-closed', () => {
 });
 
 app.on('will-quit', () => {
-  killServer();
+  // Server runs in-process — no child process to kill
 });

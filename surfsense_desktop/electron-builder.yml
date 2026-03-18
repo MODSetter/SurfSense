@@ -17,6 +17,10 @@ extraResources:
     to: standalone/
     filter:
       - "**/*"
+      - "!**/node_modules"
+  - from: ../surfsense_web/.next/standalone/surfsense_web/node_modules/
+    to: standalone/node_modules/
+    filter: ["**/*"]
   - from: ../surfsense_web/.next/static/
     to: standalone/.next/static/
     filter: ["**/*"]
@@ -51,11 +55,13 @@ linux:
   icon: assets/icon.png
   category: Utility
   artifactName: "${productName}-${version}-${arch}.${ext}"
+  mimeTypes:
+    - x-scheme-handler/surfsense
   desktop:
-    Name: SurfSense
-    Comment: AI-powered research assistant
-    Categories: Utility;Office;
-    MimeType: x-scheme-handler/surfsense;
+    entry:
+      Name: SurfSense
+      Comment: AI-powered research assistant
+      Categories: Utility;Office;
   target:
     - deb
     - AppImage
