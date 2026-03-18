@@ -170,7 +170,7 @@ async def confluence_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=confluence_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=confluence_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -310,7 +310,7 @@ async def confluence_callback(
                 f"Duplicate Confluence connector detected for user {user_id} with instance {connector_identifier}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=confluence-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=confluence-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -341,7 +341,7 @@ async def confluence_callback(
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=confluence-connector&connectorId={new_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=confluence-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:

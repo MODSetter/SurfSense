@@ -257,7 +257,7 @@ async def drive_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=google_drive_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=google_drive_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -360,7 +360,7 @@ async def drive_callback(
                     url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
                 )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-drive-connector&connectorId={db_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=google-drive-connector&connectorId={db_connector.id}"
             )
 
         is_duplicate = await check_duplicate_connector(
@@ -375,7 +375,7 @@ async def drive_callback(
                 f"Duplicate Google Drive connector detected for user {user_id} with email {user_email}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=google-drive-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=google-drive-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -425,7 +425,7 @@ async def drive_callback(
         )
 
         return RedirectResponse(
-            url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-drive-connector&connectorId={db_connector.id}"
+            url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=google-drive-connector&connectorId={db_connector.id}"
         )
 
     except HTTPException:

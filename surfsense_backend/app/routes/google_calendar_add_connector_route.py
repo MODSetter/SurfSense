@@ -137,7 +137,7 @@ async def calendar_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=google_calendar_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=google_calendar_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -210,7 +210,7 @@ async def calendar_callback(
                 f"Duplicate Google Calendar connector detected for user {user_id} with email {user_email}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=google-calendar-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=google-calendar-connector"
             )
 
         try:
@@ -236,7 +236,7 @@ async def calendar_callback(
             # Redirect to the frontend with success params for indexing config
             # Using query params to auto-open the popup with config view on new-chat page
             return RedirectResponse(
-                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-calendar-connector&connectorId={db_connector.id}"
+                f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=google-calendar-connector&connectorId={db_connector.id}"
             )
         except ValidationError as e:
             await session.rollback()

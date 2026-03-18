@@ -12,19 +12,16 @@ export type { IndexingConfigState } from "./constants/connector-constants";
 // Constants and types
 export { CRAWLERS, OAUTH_CONNECTORS, OTHER_CONNECTORS } from "./constants/connector-constants";
 export type {
-	ConnectorPopupQueryParams,
 	DateRange,
 	FrequencyMinutes,
 	OAuthAuthResponse,
 } from "./constants/connector-popup.schemas";
 // Schemas and validation
 export {
-	connectorPopupQueryParamsSchema,
 	dateRangeSchema,
 	frequencyMinutesSchema,
 	indexingConfigStateSchema,
 	oauthAuthResponseSchema,
-	parseConnectorPopupQueryParams,
 	parseOAuthAuthResponse,
 	validateIndexingConfigState,
 } from "./constants/connector-popup.schemas";

@@ -2,8 +2,7 @@
 
 import { useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
-import { useSearchParams } from "next/navigation";
-import { type FC, forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import {
@@ -49,7 +48,6 @@ interface ConnectorIndicatorProps {
 export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, ConnectorIndicatorProps>(
 	({ showTrigger = true }, ref) => {
 		const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
-		const searchParams = useSearchParams();
 		const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 		const { data: currentUser } = useAtomValue(currentUserAtom);
 		const { data: preferences = {}, isFetching: preferencesLoading } =
@@ -85,9 +83,6 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			[statusInboxItems]
 		);
 
-		// Check if YouTube view is active
-		const isYouTubeView = searchParams.get("view") === "youtube";
-
 		// Use the custom hook for dialog state management
 		const {
 			isOpen,
@@ -112,6 +107,8 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			allConnectors,
 			viewingAccountsType,
 			viewingMCPList,
+			isYouTubeView,
+			isFromOAuth,
 			setSearchQuery,
 			setStartDate,
 			setEndDate,
@@ -357,36 +354,37 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onNameChange={setConnectorName}
 						/>
 					) : indexingConfig ? (
-						<IndexingConfigurationView
-							config={indexingConfig}
-							connector={
-								indexingConnector
-									? {
-											...indexingConnector,
-											config: indexingConnectorConfig || indexingConnector.config,
-										}
-									: undefined
+					<IndexingConfigurationView
+						config={indexingConfig}
+						connector={
+							indexingConnector
+								? {
+										...indexingConnector,
+										config: indexingConnectorConfig || indexingConnector.config,
+									}
+								: undefined
+						}
+						startDate={startDate}
+						endDate={endDate}
+						periodicEnabled={periodicEnabled}
+						frequencyMinutes={frequencyMinutes}
+						enableSummary={enableSummary}
+						isStartingIndexing={isStartingIndexing}
+						isFromOAuth={isFromOAuth}
+						onStartDateChange={setStartDate}
+						onEndDateChange={setEndDate}
+						onPeriodicEnabledChange={setPeriodicEnabled}
+						onFrequencyChange={setFrequencyMinutes}
+						onEnableSummaryChange={setEnableSummary}
+						onConfigChange={setIndexingConnectorConfig}
+						onStartIndexing={() => {
+							if (indexingConfig.connectorId) {
+								startIndexing(indexingConfig.connectorId);
 							}
-							startDate={startDate}
-							endDate={endDate}
-							periodicEnabled={periodicEnabled}
-							frequencyMinutes={frequencyMinutes}
-							enableSummary={enableSummary}
-							isStartingIndexing={isStartingIndexing}
-							onStartDateChange={setStartDate}
-							onEndDateChange={setEndDate}
-							onPeriodicEnabledChange={setPeriodicEnabled}
-							onFrequencyChange={setFrequencyMinutes}
-							onEnableSummaryChange={setEnableSummary}
-							onConfigChange={setIndexingConnectorConfig}
-							onStartIndexing={() => {
-								if (indexingConfig.connectorId) {
-									startIndexing(indexingConfig.connectorId);
-								}
-								handleStartIndexing(() => refreshConnectors());
-							}}
-							onSkip={handleSkipIndexing}
-						/>
+							handleStartIndexing(() => refreshConnectors());
+						}}
+						onSkip={handleSkipIndexing}
+					/>
 					) : (
 						<Tabs
 							value={activeTab}

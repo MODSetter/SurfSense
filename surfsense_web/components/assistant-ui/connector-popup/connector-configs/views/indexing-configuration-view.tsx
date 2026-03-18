@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowLeft, Check, Info } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -24,6 +23,7 @@ interface IndexingConfigurationViewProps {
 	frequencyMinutes: string;
 	enableSummary: boolean;
 	isStartingIndexing: boolean;
+	isFromOAuth?: boolean;
 	onStartDateChange: (date: Date | undefined) => void;
 	onEndDateChange: (date: Date | undefined) => void;
 	onPeriodicEnabledChange: (enabled: boolean) => void;
@@ -43,6 +43,7 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	frequencyMinutes,
 	enableSummary,
 	isStartingIndexing,
+	isFromOAuth = false,
 	onStartDateChange,
 	onEndDateChange,
 	onPeriodicEnabledChange,
@@ -52,9 +53,6 @@ export const IndexingConfigurationView: FC<IndexingConfigurationViewProps> = ({
 	onStartIndexing,
 	onSkip,
 }) => {
-	const searchParams = useSearchParams();
-	const isFromOAuth = searchParams.get("view") === "configure";
-
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
 		() => (connector ? getConnectorConfigComponent(connector.connector_type) : null),
