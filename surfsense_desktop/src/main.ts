@@ -128,6 +128,12 @@ function createWindow() {
     callback({ redirectURL: rewritten });
   });
 
+  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    console.error(`Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);
+    if (errorCode === -3) return; // ERR_ABORTED — normal during redirects
+    showErrorDialog('Page failed to load', new Error(`${errorDescription} (${errorCode})\n${validatedURL}`));
+  });
+
   if (isDev) {
     mainWindow.webContents.openDevTools();
   }
@@ -199,7 +205,13 @@ if (process.defaultApp) {
 
 // App lifecycle
 app.whenReady().then(async () => {
-  await startNextServer();
+  try {
+    await startNextServer();
+  } catch (error) {
+    showErrorDialog('Failed to start SurfSense', error);
+    setTimeout(() => app.quit(), 0);
+    return;
+  }
   createWindow();
 
   // If a deep link was received before the window was ready, handle it now
