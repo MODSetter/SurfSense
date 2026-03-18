@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, session, dialog, clipboard } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, session, dialog, clipboard, Menu } from 'electron';
 import path from 'path';
 import { getPort } from 'get-port-please';
 
@@ -203,8 +203,21 @@ if (process.defaultApp) {
   app.setAsDefaultProtocolClient(PROTOCOL);
 }
 
+function setupMenu() {
+  const isMac = process.platform === 'darwin';
+  const template: Electron.MenuItemConstructorOptions[] = [
+    ...(isMac ? [{ role: 'appMenu' as const }] : []),
+    { role: 'fileMenu' as const },
+    { role: 'editMenu' as const },
+    { role: 'viewMenu' as const },
+    { role: 'windowMenu' as const },
+  ];
+  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
+}
+
 // App lifecycle
 app.whenReady().then(async () => {
+  setupMenu();
   try {
     await startNextServer();
   } catch (error) {
