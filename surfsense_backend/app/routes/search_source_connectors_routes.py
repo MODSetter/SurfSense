@@ -81,6 +81,7 @@ from app.utils.periodic_scheduler import (
     delete_periodic_schedule,
     update_periodic_schedule,
 )
+from app.utils.connector_naming import ensure_unique_connector_name
 from app.utils.rbac import check_permission
 
 # Set up logging
@@ -188,6 +189,12 @@ async def create_search_source_connector(
 
         # Prepare connector data
         connector_data = connector.model_dump()
+
+        # MCP connectors support multiple instances — ensure unique name
+        if connector.connector_type == SearchSourceConnectorType.MCP_CONNECTOR:
+            connector_data["name"] = await ensure_unique_connector_name(
+                session, connector_data["name"], search_space_id, user.id
+            )
 
         # Automatically set next_scheduled_at if periodic indexing is enabled
         if (
@@ -2715,9 +2722,14 @@ async def create_mcp_connector(
             "You don't have permission to create connectors in this search space",
         )
 
+        # Ensure unique name across MCP connectors in this search space
+        unique_name = await ensure_unique_connector_name(
+            session, connector_data.name, search_space_id, user.id
+        )
+
         # Create the connector with single server config
         db_connector = SearchSourceConnector(
-            name=connector_data.name,
+            name=unique_name,
             connector_type=SearchSourceConnectorType.MCP_CONNECTOR,
             is_indexable=False,  # MCP connectors are not indexable
             config={"server_config": connector_data.server_config.model_dump()},

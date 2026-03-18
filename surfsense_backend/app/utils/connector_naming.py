@@ -159,6 +159,44 @@ async def check_duplicate_connector(
     return (result.scalar() or 0) > 0
 
 
+async def ensure_unique_connector_name(
+    session: AsyncSession,
+    name: str,
+    search_space_id: int,
+    user_id: UUID,
+) -> str:
+    """
+    Ensure a connector name is unique within a user's search space.
+
+    If the name already exists, appends a counter suffix: (2), (3), etc.
+    Uses the same suffix format as generate_unique_connector_name.
+
+    Args:
+        session: Database session
+        name: Desired connector name
+        search_space_id: The search space ID
+        user_id: The user ID
+
+    Returns:
+        Unique name, either the original or with a counter suffix
+    """
+    result = await session.execute(
+        select(SearchSourceConnector.name).where(
+            SearchSourceConnector.search_space_id == search_space_id,
+            SearchSourceConnector.user_id == user_id,
+        )
+    )
+    existing_names = {row[0] for row in result.all()}
+
+    if name not in existing_names:
+        return name
+
+    counter = 2
+    while f"{name} ({counter})" in existing_names:
+        counter += 1
+    return f"{name} ({counter})"
+
+
 async def generate_unique_connector_name(
     session: AsyncSession,
     connector_type: SearchSourceConnectorType,
