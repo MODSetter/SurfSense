@@ -40,7 +40,19 @@ import {
 	validateIndexingConfigState,
 } from "../constants/connector-popup.schemas";
 
-const OAUTH_RESULT_KEY = "connector_oauth_result";
+const OAUTH_RESULT_COOKIE = "connector_oauth_result";
+
+function readOAuthResultCookie(): string | null {
+	const match = document.cookie
+		.split("; ")
+		.find((row) => row.startsWith(`${OAUTH_RESULT_COOKIE}=`));
+	return match ? decodeURIComponent(match.split("=").slice(1).join("=")) : null;
+}
+
+function clearOAuthResultCookie(): void {
+	// biome-ignore lint: only standard way to expire a cookie
+	document.cookie = `${OAUTH_RESULT_COOKIE}=; path=/; max-age=0`;
+}
 
 export const useConnectorDialog = () => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
@@ -188,11 +200,11 @@ export const useConnectorDialog = () => {
 	// Track whether the current indexing config came from an OAuth redirect
 	const [isFromOAuth, setIsFromOAuth] = useState(false);
 
-	// Consume OAuth result from sessionStorage (set by /connectors/callback page)
+	// Consume OAuth result from cookie (set by /connectors/callback route handler)
 	useEffect(() => {
-		const raw = sessionStorage.getItem(OAUTH_RESULT_KEY);
+		const raw = readOAuthResultCookie();
 		if (!raw || !searchSpaceId) return;
-		sessionStorage.removeItem(OAUTH_RESULT_KEY);
+		clearOAuthResultCookie();
 
 		let result: {
 			success: string | null;
@@ -1188,6 +1200,9 @@ export const useConnectorDialog = () => {
 				setConnectorName(null);
 				setConnectorConfig(null);
 			} else {
+				setEditingConnector(null);
+				setConnectorName(null);
+				setConnectorConfig(null);
 				setIsOpen(false);
 			}
 
