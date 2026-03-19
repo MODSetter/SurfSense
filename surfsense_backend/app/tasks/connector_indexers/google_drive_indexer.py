@@ -194,6 +194,31 @@ async def index_google_drive_files(
                 on_heartbeat_callback=on_heartbeat_callback,
                 enable_summary=connector_enable_summary,
             )
+            documents_indexed, documents_skipped = result
+
+            # Reconciliation: full scan re-indexes documents that were manually
+            # deleted from SurfSense but still exist in Google Drive.
+            # Already-indexed files are skipped via md5/modifiedTime checks,
+            # so the overhead is just one API listing call + fast DB lookups.
+            logger.info("Running reconciliation scan after delta sync")
+            reconcile_result = await _index_full_scan(
+                drive_client=drive_client,
+                session=session,
+                connector=connector,
+                connector_id=connector_id,
+                search_space_id=search_space_id,
+                user_id=user_id,
+                folder_id=target_folder_id,
+                folder_name=target_folder_name,
+                task_logger=task_logger,
+                log_entry=log_entry,
+                max_files=max_files,
+                include_subfolders=include_subfolders,
+                on_heartbeat_callback=on_heartbeat_callback,
+                enable_summary=connector_enable_summary,
+            )
+            documents_indexed += reconcile_result[0]
+            documents_skipped += reconcile_result[1]
         else:
             logger.info(f"Using full scan for connector {connector_id}")
             result = await _index_full_scan(
@@ -212,8 +237,7 @@ async def index_google_drive_files(
                 on_heartbeat_callback=on_heartbeat_callback,
                 enable_summary=connector_enable_summary,
             )
-
-        documents_indexed, documents_skipped = result
+            documents_indexed, documents_skipped = result
 
         if documents_indexed > 0 or can_use_delta_sync:
             new_token, token_error = await get_start_page_token(drive_client)

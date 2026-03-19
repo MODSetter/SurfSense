@@ -2433,6 +2433,7 @@ async def run_google_drive_indexing(
         else:
             # Update notification to storing stage
             if notification:
+                await session.refresh(notification)
                 await NotificationService.connector_indexing.notify_indexing_progress(
                     session=session,
                     notification=notification,
