@@ -68,7 +68,7 @@ async def index_google_gmail_messages(
     update_last_indexed: bool = True,
     max_messages: int = 1000,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, str]:
+) -> tuple[int, int, str | None]:
     """
     Index Gmail messages for a specific connector.
 
@@ -84,7 +84,7 @@ async def index_google_gmail_messages(
         on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
-        Tuple of (number_of_indexed_messages, status_message)
+        Tuple of (number_of_indexed_messages, number_of_skipped_messages, status_message)
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
@@ -115,7 +115,7 @@ async def index_google_gmail_messages(
             await task_logger.log_task_failure(
                 log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         # Build credentials based on connector type
         if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
@@ -129,7 +129,7 @@ async def index_google_gmail_messages(
                     "Missing Composio account",
                     {"error_type": "MissingComposioAccount"},
                 )
-                return 0, "Composio connected_account_id not found"
+                return 0, 0, "Composio connected_account_id not found"
             credentials = build_composio_credentials(connected_account_id)
         else:
             config_data = connector.config
@@ -163,7 +163,7 @@ async def index_google_gmail_messages(
                         "Credential decryption failed",
                         {"error_type": "CredentialDecryptionError"},
                     )
-                    return 0, f"Failed to decrypt Google Gmail credentials: {e!s}"
+                    return 0, 0, f"Failed to decrypt Google Gmail credentials: {e!s}"
 
             exp = config_data.get("expiry", "")
             if exp:
@@ -189,7 +189,7 @@ async def index_google_gmail_messages(
                     "Missing Google gmail credentials",
                     {"error_type": "MissingCredentials"},
                 )
-                return 0, "Google gmail credentials not found in connector config"
+                return 0, 0, "Google gmail credentials not found in connector config"
 
         await task_logger.log_task_progress(
             log_entry,
@@ -234,14 +234,14 @@ async def index_google_gmail_messages(
             await task_logger.log_task_failure(
                 log_entry, error_message, error, {"error_type": error_type}
             )
-            return 0, error_message
+            return 0, 0, error_message
 
         if not messages:
             success_msg = "No Google gmail messages found in the specified date range"
             await task_logger.log_task_success(
                 log_entry, success_msg, {"messages_count": 0}
             )
-            return 0, success_msg
+            return 0, 0, success_msg
 
         logger.info(f"Found {len(messages)} Google gmail messages to index")
 
@@ -550,10 +550,7 @@ async def index_google_gmail_messages(
             f"{documents_skipped} skipped, {documents_failed} failed "
             f"({duplicate_content_count} duplicate content)"
         )
-        return (
-            total_processed,
-            warning_message,
-        )  # Return warning_message (None on success)
+        return total_processed, documents_skipped, warning_message
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -564,7 +561,7 @@ async def index_google_gmail_messages(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -574,4 +571,4 @@ async def index_google_gmail_messages(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google gmail emails: {e!s}", exc_info=True)
-        return 0, f"Failed to index Google gmail emails: {e!s}"
+        return 0, 0, f"Failed to index Google gmail emails: {e!s}"

@@ -106,7 +106,7 @@ async def test_composio_calendar_without_account_id_returns_error(
 
     maker = make_session_factory(async_engine)
     async with maker() as session:
-        count, error = await index_google_calendar_events(
+        count, _skipped, error = await index_google_calendar_events(
             session=session, connector_id=data["connector_id"],
             search_space_id=data["search_space_id"], user_id=data["user_id"],
         )

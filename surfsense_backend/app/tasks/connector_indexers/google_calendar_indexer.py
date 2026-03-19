@@ -62,7 +62,7 @@ async def index_google_calendar_events(
     end_date: str | None = None,
     update_last_indexed: bool = True,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, str | None]:
+) -> tuple[int, int, str | None]:
     """
     Index Google Calendar events.
 
@@ -78,7 +78,7 @@ async def index_google_calendar_events(
         on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
-        Tuple containing (number of documents indexed, error message or None)
+        Tuple containing (number of documents indexed, number of documents skipped, error message or None)
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
@@ -110,7 +110,7 @@ async def index_google_calendar_events(
                 "Connector not found",
                 {"error_type": "ConnectorNotFound"},
             )
-            return 0, f"Connector with ID {connector_id} not found"
+            return 0, 0, f"Connector with ID {connector_id} not found"
 
         # Build credentials based on connector type
         if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
@@ -124,7 +124,7 @@ async def index_google_calendar_events(
                     "Missing Composio account",
                     {"error_type": "MissingComposioAccount"},
                 )
-                return 0, "Composio connected_account_id not found"
+                return 0, 0, "Composio connected_account_id not found"
             credentials = build_composio_credentials(connected_account_id)
         else:
             config_data = connector.config
@@ -158,7 +158,7 @@ async def index_google_calendar_events(
                         "Credential decryption failed",
                         {"error_type": "CredentialDecryptionError"},
                     )
-                    return 0, f"Failed to decrypt Google Calendar credentials: {e!s}"
+                    return 0, 0, f"Failed to decrypt Google Calendar credentials: {e!s}"
 
             exp = config_data.get("expiry", "")
             if exp:
@@ -184,7 +184,7 @@ async def index_google_calendar_events(
                     "Missing Google Calendar credentials",
                     {"error_type": "MissingCredentials"},
                 )
-                return 0, "Google Calendar credentials not found in connector config"
+                return 0, 0, "Google Calendar credentials not found in connector config"
 
         await task_logger.log_task_progress(
             log_entry,
@@ -303,7 +303,7 @@ async def index_google_calendar_events(
                         f"No Google Calendar events found in date range {start_date_str} to {end_date_str}",
                         {"events_found": 0},
                     )
-                    return 0, None
+                    return 0, 0, None
                 else:
                     logger.error(f"Failed to get Google Calendar events: {error}")
                     # Check if this is an authentication error that requires re-authentication
@@ -323,13 +323,13 @@ async def index_google_calendar_events(
                         error,
                         {"error_type": error_type},
                     )
-                    return 0, error_message
+                    return 0, 0, error_message
 
             logger.info(f"Retrieved {len(events)} events from Google Calendar API")
 
         except Exception as e:
             logger.error(f"Error fetching Google Calendar events: {e!s}", exc_info=True)
-            return 0, f"Error fetching Google Calendar events: {e!s}"
+            return 0, 0, f"Error fetching Google Calendar events: {e!s}"
 
         documents_indexed = 0
         documents_skipped = 0
@@ -631,7 +631,7 @@ async def index_google_calendar_events(
             f"{documents_skipped} skipped, {documents_failed} failed "
             f"({duplicate_content_count} duplicate content)"
         )
-        return total_processed, warning_message
+        return total_processed, documents_skipped, warning_message
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -642,7 +642,7 @@ async def index_google_calendar_events(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -652,4 +652,4 @@ async def index_google_calendar_events(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google Calendar events: {e!s}", exc_info=True)
-        return 0, f"Failed to index Google Calendar events: {e!s}"
+        return 0, 0, f"Failed to index Google Calendar events: {e!s}"
