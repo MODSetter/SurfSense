@@ -3,6 +3,7 @@
 import { useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Cable, Settings } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { documentTypeCountsAtom } from "@/atoms/documents/document-query.atoms";
 import { statusInboxItemsAtom } from "@/atoms/inbox/status-inbox.atom";
 import {
@@ -215,11 +216,8 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 		return (
 			<Dialog
 				open={isOpen}
-				onOpenChange={(open) => {
-					if (!open && pickerOpen) return;
-					handleOpenChange(open);
-				}}
-				modal={!pickerOpen}
+				modal={false}
+				onOpenChange={handleOpenChange}
 			>
 				{showTrigger && (
 					<TooltipIconButton
@@ -256,8 +254,26 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 					</TooltipIconButton>
 				)}
 
+				{isOpen &&
+					createPortal(
+						<div
+							className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+							aria-hidden="true"
+							onClick={() => {
+								if (!pickerOpen) handleOpenChange(false);
+							}}
+						/>,
+						document.body
+					)}
+
 				<DialogContent
 					onFocusOutside={(e) => e.preventDefault()}
+					onInteractOutside={(e) => {
+						if (pickerOpen) e.preventDefault();
+					}}
+					onPointerDownOutside={(e) => {
+						if (pickerOpen) e.preventDefault();
+					}}
 					className="max-w-3xl w-[95vw] sm:w-full h-[75vh] sm:h-[85vh] flex flex-col p-0 gap-0 overflow-hidden border border-border ring-0 dark:ring-0 bg-muted dark:bg-muted text-foreground focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 [&>button]:right-4 sm:[&>button]:right-12 [&>button]:top-6 sm:[&>button]:top-10 [&>button]:opacity-80 hover:[&>button]:opacity-100 [&>button_svg]:size-5 select-none"
 				>
 					<DialogTitle className="sr-only">Manage Connectors</DialogTitle>
@@ -336,20 +352,26 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							}}
 							onDisconnect={() => handleDisconnectConnector(() => refreshConnectors())}
 							onBack={handleBackFromEdit}
-							onQuickIndex={
-								editingConnector.connector_type !== "GOOGLE_DRIVE_CONNECTOR"
-									? () => {
-											startIndexing(editingConnector.id);
-											handleQuickIndexConnector(
-												editingConnector.id,
-												editingConnector.connector_type,
-												stopIndexing,
-												startDate,
-												endDate
-											);
-										}
-									: undefined
-							}
+							onQuickIndex={(() => {
+								const cfg = connectorConfig || editingConnector.config;
+								const isDrive = editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+									editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
+								const hasDriveItems = isDrive
+									? ((cfg?.selected_folders as unknown[]) ?? []).length > 0 ||
+									  ((cfg?.selected_files as unknown[]) ?? []).length > 0
+									: true;
+								if (!hasDriveItems) return undefined;
+								return () => {
+									startIndexing(editingConnector.id);
+									handleQuickIndexConnector(
+										editingConnector.id,
+										editingConnector.connector_type,
+										stopIndexing,
+										startDate,
+										endDate
+									);
+								};
+							})()}
 							onConfigChange={setConnectorConfig}
 							onNameChange={setConnectorName}
 						/>

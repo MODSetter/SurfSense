@@ -956,23 +956,46 @@ async def index_connector_content(
                 index_google_drive_files_task,
             )
 
-            if not drive_items or not drive_items.has_items():
-                raise HTTPException(
-                    status_code=400,
-                    detail="Google Drive indexing requires drive_items body parameter with folders or files",
+            if drive_items and drive_items.has_items():
+                logger.info(
+                    f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
+                )
+                items_dict = drive_items.model_dump()
+            else:
+                # Quick Index / periodic sync: fall back to stored config
+                config = connector.config or {}
+                selected_folders = config.get("selected_folders", [])
+                selected_files = config.get("selected_files", [])
+                if not selected_folders and not selected_files:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Google Drive indexing requires folders or files to be configured. "
+                        "Please select folders/files to index.",
+                    )
+                indexing_options = config.get(
+                    "indexing_options",
+                    {
+                        "max_files_per_folder": 100,
+                        "incremental_sync": True,
+                        "include_subfolders": True,
+                    },
+                )
+                items_dict = {
+                    "folders": selected_folders,
+                    "files": selected_files,
+                    "indexing_options": indexing_options,
+                }
+                logger.info(
+                    f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id} "
+                    f"using existing config"
                 )
 
-            logger.info(
-                f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
-                f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
-            )
-
-            # Pass structured data to Celery task
             index_google_drive_files_task.delay(
                 connector_id,
                 search_space_id,
                 str(user.id),
-                drive_items.model_dump(),  # Convert to dict for JSON serialization
+                items_dict,
             )
             response_message = "Google Drive indexing started in the background."
 
@@ -3233,6 +3256,12 @@ async def get_drive_picker_token(
         raise
     except Exception as e:
         logger.error(f"Failed to get Drive picker token: {e!s}", exc_info=True)
+        if _is_auth_error(str(e)):
+            await _persist_auth_expired(session, connector_id)
+            raise HTTPException(
+                status_code=400,
+                detail="Google Drive authentication expired. Please re-authenticate.",
+            ) from e
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve access token. Check server logs for details.",

@@ -169,10 +169,9 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							</p>
 						</div>
 					</div>
-					{/* Quick Index Button - only show for indexable connectors, but not for Google Drive (requires folder selection) */}
+					{/* Quick Index Button - shown for indexable connectors that have been configured */}
 					{connector.is_indexable &&
-						onQuickIndex &&
-						connector.connector_type !== "GOOGLE_DRIVE_CONNECTOR" && (
+						onQuickIndex && (
 							<Button
 								variant="secondary"
 								size="sm"

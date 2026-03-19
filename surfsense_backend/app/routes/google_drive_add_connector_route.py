@@ -525,6 +525,21 @@ async def list_google_drive_folders(
         raise
     except Exception as e:
         logger.error(f"Error listing Drive contents: {e!s}", exc_info=True)
+        error_lower = str(e).lower()
+        if "invalid_grant" in error_lower or "token has been expired or revoked" in error_lower or "authentication failed" in error_lower:
+            from sqlalchemy.orm.attributes import flag_modified
+
+            try:
+                if connector and not connector.config.get("auth_expired"):
+                    connector.config = {**connector.config, "auth_expired": True}
+                    flag_modified(connector, "config")
+                    await session.commit()
+                    logger.info(f"Marked connector {connector_id} as auth_expired")
+            except Exception:
+                logger.warning(f"Failed to persist auth_expired for connector {connector_id}", exc_info=True)
+            raise HTTPException(
+                status_code=400, detail="Google Drive authentication expired. Please re-authenticate."
+            ) from e
         raise HTTPException(
             status_code=500, detail=f"Failed to list Drive contents: {e!s}"
         ) from e

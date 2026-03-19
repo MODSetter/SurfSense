@@ -10,8 +10,10 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from google_auth_oauthlib.flow import Flow
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import config
 from app.connectors.google_gmail_connector import fetch_google_user_email
@@ -129,6 +131,66 @@ async def connect_gmail(space_id: int, user: User = Depends(current_active_user)
         ) from e
 
 
+@router.get("/auth/google/gmail/connector/reauth")
+async def reauth_gmail(
+    space_id: int,
+    connector_id: int,
+    return_url: str | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Initiate Gmail re-authentication for an existing connector."""
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Gmail connector not found or access denied",
+            )
+
+        if not config.SECRET_KEY:
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
+
+        flow = get_google_flow()
+
+        state_manager = get_state_manager()
+        extra: dict = {"connector_id": connector_id}
+        if return_url and return_url.startswith("/"):
+            extra["return_url"] = return_url
+        state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
+
+        auth_url, _ = flow.authorization_url(
+            access_type="offline",
+            prompt="consent",
+            include_granted_scopes="true",
+            state=state_encoded,
+        )
+
+        logger.info(
+            f"Initiating Gmail re-auth for user {user.id}, connector {connector_id}"
+        )
+        return {"auth_url": auth_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to initiate Gmail re-auth: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate Gmail re-auth: {e!s}"
+        ) from e
+
+
 @router.get("/auth/google/gmail/connector/callback")
 async def gmail_callback(
     request: Request,
@@ -227,6 +289,42 @@ async def gmail_callback(
 
         # Mark that credentials are encrypted for backward compatibility
         creds_dict["_token_encrypted"] = True
+
+        reauth_connector_id = data.get("connector_id")
+        reauth_return_url = data.get("return_url")
+
+        if reauth_connector_id:
+            result = await session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == reauth_connector_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+                )
+            )
+            db_connector = result.scalars().first()
+            if not db_connector:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Connector not found or access denied during re-auth",
+                )
+
+            db_connector.config = {**creds_dict}
+            flag_modified(db_connector, "config")
+            await session.commit()
+            await session.refresh(db_connector)
+
+            logger.info(
+                f"Re-authenticated Gmail connector {db_connector.id} for user {user_id}"
+            )
+            if reauth_return_url and reauth_return_url.startswith("/"):
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
+                )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=google-gmail-connector&connectorId={db_connector.id}"
+            )
 
         # Check for duplicate connector (same account already connected)
         is_duplicate = await check_duplicate_connector(
