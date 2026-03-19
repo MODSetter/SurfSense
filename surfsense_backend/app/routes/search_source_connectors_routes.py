@@ -2338,6 +2338,7 @@ async def run_google_drive_indexing(
         items = GoogleDriveIndexRequest(**items_dict)
         indexing_options = items.indexing_options
         total_indexed = 0
+        total_skipped = 0
         errors = []
 
         # Get connector info for notification
@@ -2375,7 +2376,7 @@ async def run_google_drive_indexing(
         # Index each folder with indexing options
         for folder in items.folders:
             try:
-                indexed_count, error_message = await index_google_drive_files(
+                indexed_count, skipped_count, error_message = await index_google_drive_files(
                     session,
                     connector_id,
                     search_space_id,
@@ -2387,6 +2388,7 @@ async def run_google_drive_indexing(
                     max_files=indexing_options.max_files_per_folder,
                     include_subfolders=indexing_options.include_subfolders,
                 )
+                total_skipped += skipped_count
                 if error_message:
                     errors.append(f"Folder '{folder.name}': {error_message}")
                 else:
@@ -2457,6 +2459,7 @@ async def run_google_drive_indexing(
                 notification=notification,
                 indexed_count=total_indexed,
                 error_message=error_message,
+                skipped_count=total_skipped,
             )
 
     except Exception as e:

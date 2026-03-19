@@ -62,7 +62,7 @@ async def index_google_drive_files(
     max_files: int = 500,
     include_subfolders: bool = False,
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
-) -> tuple[int, str | None]:
+) -> tuple[int, int, str | None]:
     """
     Index Google Drive files for a specific connector.
 
@@ -80,7 +80,7 @@ async def index_google_drive_files(
         on_heartbeat_callback: Optional callback to update notification during long-running indexing.
 
     Returns:
-        Tuple of (number_of_indexed_files, error_message)
+        Tuple of (number_of_indexed_files, number_of_skipped_files, error_message)
     """
     task_logger = TaskLoggingService(session, search_space_id)
 
@@ -110,7 +110,7 @@ async def index_google_drive_files(
             await task_logger.log_task_failure(
                 log_entry, error_msg, None, {"error_type": "ConnectorNotFound"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         await task_logger.log_task_progress(
             log_entry,
@@ -130,7 +130,7 @@ async def index_google_drive_files(
                     log_entry, error_msg, "Missing Composio account",
                     {"error_type": "MissingComposioAccount"},
                 )
-                return 0, error_msg
+                return 0, 0, error_msg
             pre_built_credentials = build_composio_credentials(connected_account_id)
         else:
             token_encrypted = connector.config.get("_token_encrypted", False)
@@ -143,6 +143,7 @@ async def index_google_drive_files(
                         {"error_type": "MissingSecretKey"},
                     )
                     return (
+                        0,
                         0,
                         "SECRET_KEY not configured but credentials are marked as encrypted",
                     )
@@ -161,7 +162,7 @@ async def index_google_drive_files(
             await task_logger.log_task_failure(
                 log_entry, error_msg, {"error_type": "MissingParameter"}
             )
-            return 0, error_msg
+            return 0, 0, error_msg
 
         target_folder_id = folder_id
         target_folder_name = folder_name or "Selected Folder"
@@ -271,7 +272,7 @@ async def index_google_drive_files(
         logger.info(
             f"Google Drive indexing completed: {documents_indexed} files indexed, {documents_skipped} skipped"
         )
-        return documents_indexed, None
+        return documents_indexed, documents_skipped, None
 
     except SQLAlchemyError as db_error:
         await session.rollback()
@@ -282,7 +283,7 @@ async def index_google_drive_files(
             {"error_type": "SQLAlchemyError"},
         )
         logger.error(f"Database error: {db_error!s}", exc_info=True)
-        return 0, f"Database error: {db_error!s}"
+        return 0, 0, f"Database error: {db_error!s}"
     except Exception as e:
         await session.rollback()
         await task_logger.log_task_failure(
@@ -292,7 +293,7 @@ async def index_google_drive_files(
             {"error_type": type(e).__name__},
         )
         logger.error(f"Failed to index Google Drive files: {e!s}", exc_info=True)
-        return 0, f"Failed to index Google Drive files: {e!s}"
+        return 0, 0, f"Failed to index Google Drive files: {e!s}"
 
 
 async def index_google_drive_single_file(
