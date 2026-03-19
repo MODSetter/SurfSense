@@ -982,7 +982,7 @@ export function DocumentsTableShell({
 							disabled={isDeleting}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isDeleting ? "Deleting" : "Delete"}
+							{isDeleting ? <Spinner size="sm" /> : "Delete"}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -1100,7 +1100,7 @@ export function DocumentsTableShell({
 							disabled={isBulkDeleting}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							{isBulkDeleting ? "Deleting..." : "Delete"}
+							{isBulkDeleting ? <Spinner size="sm" /> : "Delete"}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

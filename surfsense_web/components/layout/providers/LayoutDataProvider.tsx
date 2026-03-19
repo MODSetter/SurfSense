@@ -823,10 +823,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
 							{isDeletingChat ? (
-								<>
-									<Spinner size="sm" />
-									{t("deleting")}
-								</>
+								<Spinner size="sm" />
 							) : (
 								tCommon("delete")
 							)}
