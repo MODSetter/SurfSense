@@ -260,6 +260,39 @@ class ComposioService:
             "redirect_url": result.redirect_url,
         }
 
+    def wait_for_connection(
+        self,
+        connected_account_id: str,
+        timeout: float = 30.0,
+    ) -> str:
+        """
+        Poll Composio until the connected account reaches ACTIVE status.
+
+        Must be called after refresh() / initiate() to ensure Composio has
+        finished exchanging the authorization code for valid tokens.
+
+        Returns:
+            The final account status string (should be "ACTIVE").
+
+        Raises:
+            TimeoutError: If the account does not become ACTIVE within *timeout*.
+        """
+        try:
+            account = self.client.connected_accounts.wait_for_connection(
+                id=connected_account_id,
+                timeout=timeout,
+            )
+            status = getattr(account, "status", "UNKNOWN")
+            logger.info(
+                f"Composio account {connected_account_id} is now {status}"
+            )
+            return status
+        except Exception as e:
+            logger.error(
+                f"Timeout/error waiting for Composio account {connected_account_id}: {e!s}"
+            )
+            raise
+
     def get_access_token(self, connected_account_id: str) -> str:
         """Retrieve the raw OAuth access token for a Composio connected account."""
         account = self.client.connected_accounts.get(nanoid=connected_account_id)
@@ -271,6 +304,12 @@ class ComposioService:
         access_token = getattr(token, "access_token", None)
         if not access_token:
             raise ValueError(f"No access_token in state.val for {connected_account_id}")
+        if len(access_token) < 20:
+            raise ValueError(
+                f"Composio returned a masked access_token ({len(access_token)} chars) "
+                f"for account {connected_account_id}. Disable 'Mask Connected Account "
+                f"Secrets' in Composio dashboard: Settings → Project Settings."
+            )
         return access_token
 
     async def execute_tool(

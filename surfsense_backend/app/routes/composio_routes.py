@@ -263,6 +263,15 @@ async def composio_callback(
             logger.info(
                 f"Successfully got connected_account_id: {final_connected_account_id}"
             )
+            # Wait for Composio to finish exchanging the auth code for tokens.
+            try:
+                service.wait_for_connection(final_connected_account_id, timeout=30.0)
+            except Exception:
+                logger.warning(
+                    f"wait_for_connection timed out for {final_connected_account_id}, "
+                    "proceeding anyway",
+                    exc_info=True,
+                )
 
         # Build entity_id for Composio API calls (same format as used in initiate)
         entity_id = f"surfsense_{user_id}"
@@ -578,12 +587,25 @@ async def composio_reauth_callback(
                 detail="Connector not found or access denied during re-auth callback",
             )
 
+        # Wait for Composio to finish processing new tokens before proceeding.
+        # Without this, get_access_token() may return stale credentials.
+        connected_account_id = connector.config.get("composio_connected_account_id")
+        if connected_account_id:
+            try:
+                service = ComposioService()
+                service.wait_for_connection(connected_account_id, timeout=30.0)
+            except Exception:
+                logger.warning(
+                    f"wait_for_connection timed out for connector {reauth_connector_id}, "
+                    "proceeding anyway — tokens may not be ready yet",
+                    exc_info=True,
+                )
+
         # Clear auth_expired flag
-        if connector.config.get("auth_expired"):
-            connector.config = {**connector.config, "auth_expired": False}
-            flag_modified(connector, "config")
-            await session.commit()
-            await session.refresh(connector)
+        connector.config = {**connector.config, "auth_expired": False}
+        flag_modified(connector, "config")
+        await session.commit()
+        await session.refresh(connector)
 
         logger.info(f"Composio re-auth completed for connector {reauth_connector_id}")
 
