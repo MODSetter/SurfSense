@@ -11,6 +11,7 @@ from sqlalchemy.future import select
 from tavily import TavilyClient
 
 from app.db import (
+    NATIVE_TO_LEGACY_DOCTYPE,
     Chunk,
     Document,
     SearchSourceConnector,
@@ -215,15 +216,6 @@ class ConnectorService:
 
         return result_object, files_docs
 
-    # Composio connectors that were unified into native Google pipelines.
-    # Old documents may still carry the legacy type until re-indexed; searching
-    # for a native type should transparently include its legacy equivalent.
-    _LEGACY_TYPE_ALIASES: dict[str, str] = {
-        "GOOGLE_DRIVE_FILE": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-        "GOOGLE_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
-        "GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-    }
-
     async def _combined_rrf_search(
         self,
         query_text: str,
@@ -266,10 +258,10 @@ class ConnectorService:
 
         # Expand native Google types to include legacy Composio equivalents
         # so old documents remain searchable until re-indexed.
-        if isinstance(document_type, str) and document_type in self._LEGACY_TYPE_ALIASES:
+        if isinstance(document_type, str) and document_type in NATIVE_TO_LEGACY_DOCTYPE:
             resolved_type: str | list[str] = [
                 document_type,
-                self._LEGACY_TYPE_ALIASES[document_type],
+                NATIVE_TO_LEGACY_DOCTYPE[document_type],
             ]
         else:
             resolved_type = document_type

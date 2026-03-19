@@ -643,6 +643,16 @@ export function DocumentsTableShell({
 															return <StatusIndicator status={doc.status} />;
 														}
 														if (state === "failed") {
+															if (isMentioned) {
+																return (
+																	<Checkbox
+																		checked={isMentioned}
+																		onCheckedChange={() => handleRowToggle()}
+																		aria-label="Remove from chat"
+																		className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+																	/>
+																);
+															}
 															return (
 																<>
 																	<span className="group-hover:hidden">
@@ -652,7 +662,7 @@ export function DocumentsTableShell({
 																		<Checkbox
 																			checked={isMentioned}
 																			onCheckedChange={() => handleRowToggle()}
-																			aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
+																			aria-label="Add to chat"
 																			className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
 																		/>
 																	</span>

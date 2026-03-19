@@ -65,7 +65,8 @@ _CONNECTOR_TYPE_TO_SEARCHABLE: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BOOKSTACK_CONNECTOR",
     "CIRCLEBACK_CONNECTOR": "CIRCLEBACK",  # Connector type differs from document type
     "OBSIDIAN_CONNECTOR": "OBSIDIAN_CONNECTOR",
-    # Composio connectors (unified to native document types)
+    # Composio connectors (unified to native document types).
+    # Reverse of NATIVE_TO_LEGACY_DOCTYPE in app.db.
     "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "GOOGLE_DRIVE_FILE",
     "COMPOSIO_GMAIL_CONNECTOR": "GOOGLE_GMAIL_CONNECTOR",
     "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "GOOGLE_CALENDAR_CONNECTOR",

@@ -19,7 +19,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import shielded_async_session
+from app.db import NATIVE_TO_LEGACY_DOCTYPE, shielded_async_session
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
 
@@ -42,7 +42,6 @@ _DEGENERATE_QUERY_RE = re.compile(
 # Max chunks per document when doing a recency-based browse instead of
 # a real search.  We want breadth (many docs) over depth (many chunks).
 _BROWSE_MAX_CHUNKS_PER_DOC = 5
-
 
 def _is_degenerate_query(query: str) -> bool:
     """Return True when the query carries no meaningful search signal.
@@ -614,14 +613,6 @@ async def search_knowledge_base_async(
     connectors = _normalize_connectors(connectors_to_search, available_connectors)
 
     # --- Optimization 1: skip connectors that have zero indexed documents ---
-    # Native Google types must also match their legacy Composio equivalents
-    # (old documents may still carry the Composio type until re-indexed).
-    _NATIVE_TO_LEGACY: dict[str, str] = {
-        "GOOGLE_DRIVE_FILE": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-        "GOOGLE_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
-        "GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-    }
-
     if available_document_types:
         doc_types_set = set(available_document_types)
         before_count = len(connectors)
@@ -629,7 +620,7 @@ async def search_knowledge_base_async(
             c
             for c in connectors
             if c in doc_types_set
-            or _NATIVE_TO_LEGACY.get(c, "") in doc_types_set
+            or NATIVE_TO_LEGACY_DOCTYPE.get(c, "") in doc_types_set
         ]
         skipped = before_count - len(connectors)
         if skipped:
@@ -667,17 +658,10 @@ async def search_knowledge_base_async(
         )
         browse_connectors = connectors if connectors else [None]  # type: ignore[list-item]
 
-        # Expand native Google types to include legacy Composio equivalents
-        # so old documents remain searchable until re-indexed.
-        _LEGACY_ALIASES: dict[str, str] = {
-            "GOOGLE_DRIVE_FILE": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-            "GOOGLE_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
-            "GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
-        }
         expanded_browse = []
         for c in browse_connectors:
-            if c is not None and c in _LEGACY_ALIASES:
-                expanded_browse.append([c, _LEGACY_ALIASES[c]])
+            if c is not None and c in NATIVE_TO_LEGACY_DOCTYPE:
+                expanded_browse.append([c, NATIVE_TO_LEGACY_DOCTYPE[c]])
             else:
                 expanded_browse.append(c)
 

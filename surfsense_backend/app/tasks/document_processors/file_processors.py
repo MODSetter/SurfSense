@@ -170,7 +170,34 @@ async def handle_existing_document_update(
         logging.info(f"Document for file {filename} unchanged. Skipping.")
         return True, existing_document
     else:
-        # Content has changed - need to re-process
+        # Content has changed — guard against content_hash collision before
+        # expensive ETL processing.  A collision means the exact same content
+        # already lives in a *different* document (e.g. a manual upload of the
+        # same file).  Proceeding would trigger a unique-constraint violation
+        # on ix_documents_content_hash.
+        collision_doc = await check_duplicate_document(session, content_hash)
+        if collision_doc and collision_doc.id != existing_document.id:
+            logging.warning(
+                "Content-hash collision for %s: identical content exists in "
+                "document #%s (%s). Skipping re-processing.",
+                filename,
+                collision_doc.id,
+                collision_doc.document_type,
+            )
+            if DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PENDING
+            ) or DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PROCESSING
+            ):
+                # Pending/processing doc has no real content yet — remove it
+                # so the UI doesn't show a contentless entry.
+                await session.delete(existing_document)
+                await session.commit()
+                return True, None
+
+            # Document already has valid content — keep it as-is.
+            return True, existing_document
+
         logging.info(f"Content changed for file {filename}. Updating document.")
         return False, None
 
@@ -537,6 +564,12 @@ async def add_received_file_document_using_unstructured(
         return document
     except SQLAlchemyError as db_error:
         await session.rollback()
+        if "ix_documents_content_hash" in str(db_error):
+            logging.warning(
+                "content_hash collision during commit for %s (Unstructured). Skipping.",
+                file_name,
+            )
+            return None
         raise db_error
     except Exception as e:
         await session.rollback()
@@ -673,6 +706,12 @@ async def add_received_file_document_using_llamacloud(
         return document
     except SQLAlchemyError as db_error:
         await session.rollback()
+        if "ix_documents_content_hash" in str(db_error):
+            logging.warning(
+                "content_hash collision during commit for %s (LlamaCloud). Skipping.",
+                file_name,
+            )
+            return None
         raise db_error
     except Exception as e:
         await session.rollback()
@@ -828,6 +867,12 @@ async def add_received_file_document_using_docling(
         return document
     except SQLAlchemyError as db_error:
         await session.rollback()
+        if "ix_documents_content_hash" in str(db_error):
+            logging.warning(
+                "content_hash collision during commit for %s (Docling). Skipping.",
+                file_name,
+            )
+            return None
         raise db_error
     except Exception as e:
         await session.rollback()
