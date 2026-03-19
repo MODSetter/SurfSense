@@ -859,10 +859,22 @@ async def _create_pending_document_for_file(
         DocumentType.GOOGLE_DRIVE_FILE, file_id, search_space_id
     )
 
-    # Check if document exists
+    # Check if document exists (primary hash first, then legacy Composio hash)
     existing_document = await check_document_by_unique_identifier(
         session, unique_identifier_hash
     )
+    if not existing_document:
+        legacy_hash = generate_unique_identifier_hash(
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR, file_id, search_space_id
+        )
+        existing_document = await check_document_by_unique_identifier(
+            session, legacy_hash
+        )
+        if existing_document:
+            existing_document.unique_identifier_hash = unique_identifier_hash
+            if existing_document.document_type == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+                existing_document.document_type = DocumentType.GOOGLE_DRIVE_FILE
+            logger.info(f"Migrated legacy Composio document to native type: {file_id}")
 
     if existing_document:
         # Check if this is a rename-only update (content unchanged)
@@ -958,12 +970,24 @@ async def _check_rename_only_update(
     )
     existing_document = await check_document_by_unique_identifier(session, primary_hash)
 
-    # If not found by primary hash, try searching by metadata (for legacy documents)
+    # Fallback: legacy Composio hash
+    if not existing_document:
+        legacy_hash = generate_unique_identifier_hash(
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR, file_id, search_space_id
+        )
+        existing_document = await check_document_by_unique_identifier(
+            session, legacy_hash
+        )
+
+    # Fallback: metadata search (covers old filename-based hashes)
     if not existing_document:
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
-                Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
+                Document.document_type.in_([
+                    DocumentType.GOOGLE_DRIVE_FILE,
+                    DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                ]),
                 cast(Document.document_metadata["google_drive_file_id"], String)
                 == file_id,
             )
@@ -971,6 +995,14 @@ async def _check_rename_only_update(
         existing_document = result.scalar_one_or_none()
         if existing_document:
             logger.debug(f"Found legacy document by metadata for file_id: {file_id}")
+
+    # Migrate legacy Composio document to native type
+    if existing_document:
+        if existing_document.unique_identifier_hash != primary_hash:
+            existing_document.unique_identifier_hash = primary_hash
+        if existing_document.document_type == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+            existing_document.document_type = DocumentType.GOOGLE_DRIVE_FILE
+            logger.info(f"Migrated legacy Composio Drive document: {file_id}")
 
     if not existing_document:
         # New file, needs full processing
@@ -1186,12 +1218,24 @@ async def _remove_document(session: AsyncSession, file_id: str, search_space_id:
         session, unique_identifier_hash
     )
 
-    # If not found, search by metadata (for legacy documents with filename-based hash)
+    # Fallback: legacy Composio hash
+    if not existing_document:
+        legacy_hash = generate_unique_identifier_hash(
+            DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR, file_id, search_space_id
+        )
+        existing_document = await check_document_by_unique_identifier(
+            session, legacy_hash
+        )
+
+    # Fallback: metadata search (covers old filename-based hashes, both native and Composio)
     if not existing_document:
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
-                Document.document_type == DocumentType.GOOGLE_DRIVE_FILE,
+                Document.document_type.in_([
+                    DocumentType.GOOGLE_DRIVE_FILE,
+                    DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                ]),
                 cast(Document.document_metadata["google_drive_file_id"], String)
                 == file_id,
             )

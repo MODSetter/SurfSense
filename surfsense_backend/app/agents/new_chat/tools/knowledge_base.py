@@ -614,10 +614,23 @@ async def search_knowledge_base_async(
     connectors = _normalize_connectors(connectors_to_search, available_connectors)
 
     # --- Optimization 1: skip connectors that have zero indexed documents ---
+    # Native Google types must also match their legacy Composio equivalents
+    # (old documents may still carry the Composio type until re-indexed).
+    _NATIVE_TO_LEGACY: dict[str, str] = {
+        "GOOGLE_DRIVE_FILE": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+        "GOOGLE_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
+        "GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+    }
+
     if available_document_types:
         doc_types_set = set(available_document_types)
         before_count = len(connectors)
-        connectors = [c for c in connectors if c in doc_types_set]
+        connectors = [
+            c
+            for c in connectors
+            if c in doc_types_set
+            or _NATIVE_TO_LEGACY.get(c, "") in doc_types_set
+        ]
         skipped = before_count - len(connectors)
         if skipped:
             perf.info(
@@ -792,6 +805,10 @@ async def search_knowledge_base_async(
             seen_content_hashes.add(content_hash)
 
         deduplicated.append(doc)
+
+    # Sort by RRF score so the most relevant documents from ANY connector
+    # appear first, preventing budget truncation from hiding top results.
+    deduplicated.sort(key=lambda d: d.get("score", 0), reverse=True)
 
     output_budget = _compute_tool_output_budget(max_input_tokens)
     result = format_documents_for_context(deduplicated, max_chars=output_budget)

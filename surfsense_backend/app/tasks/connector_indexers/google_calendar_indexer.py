@@ -385,6 +385,22 @@ async def index_google_calendar_events(
                     session, unique_identifier_hash
                 )
 
+                # Fallback: legacy Composio hash
+                if not existing_document:
+                    legacy_hash = generate_unique_identifier_hash(
+                        DocumentType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+                        event_id,
+                        search_space_id,
+                    )
+                    existing_document = await check_document_by_unique_identifier(
+                        session, legacy_hash
+                    )
+                    if existing_document:
+                        existing_document.unique_identifier_hash = unique_identifier_hash
+                        if existing_document.document_type == DocumentType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR:
+                            existing_document.document_type = DocumentType.GOOGLE_CALENDAR_CONNECTOR
+                        logger.info(f"Migrated legacy Composio Calendar document: {event_id}")
+
                 if existing_document:
                     # Document exists - check if content has changed
                     if existing_document.content_hash == content_hash:
