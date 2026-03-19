@@ -1,5 +1,5 @@
 """
-Validation utilities for SurfSense backend.
+Validation utilities for NeoNote backend.
 
 This module contains validation functions that were previously scattered across
 different modules. It leverages the pyvalidators library where applicable

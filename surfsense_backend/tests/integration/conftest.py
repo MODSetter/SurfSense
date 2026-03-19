@@ -70,7 +70,7 @@ async def db_session(async_engine) -> AsyncSession:
 async def db_user(db_session: AsyncSession) -> User:
     user = User(
         id=uuid.uuid4(),
-        email="test@surfsense.net",
+        email="test@neonote.net",
         hashed_password="hashed",
         is_active=True,
         is_superuser=False,

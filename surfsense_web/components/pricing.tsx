@@ -34,7 +34,7 @@ interface PricingProps {
 export function Pricing({
 	plans,
 	title = "Simple, Transparent Pricing",
-	description = "Choose the plan that works for you\nAll plans include access to our SurfSense AI workspace and community support.",
+	description = "Choose the plan that works for you\nAll plans include access to our NeoNote AI workspace and community support.",
 }: PricingProps) {
 	const [isMonthly, setIsMonthly] = useState(false);
 	const isDesktop = useMediaQuery("(min-width: 768px)");

@@ -1,8 +1,8 @@
 {
-	"name": "surfsense_web",
+	"name": "neonote",
 	"version": "0.0.13",
 	"private": true,
-	"description": "SurfSense Frontend",
+	"description": "NeoNote Frontend",
 	"scripts": {
 		"dev": "next dev --turbopack",
 		"dev:turbo": "next dev --turbopack",

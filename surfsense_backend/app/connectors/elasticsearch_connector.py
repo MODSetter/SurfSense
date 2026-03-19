@@ -1,5 +1,5 @@
 """
-Elasticsearch connector for SurfSense
+Elasticsearch connector for NeoNote
 """
 
 import logging

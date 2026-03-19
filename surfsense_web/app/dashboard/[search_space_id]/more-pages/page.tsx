@@ -207,9 +207,9 @@ export default function MorePagesPage() {
 										</Link>
 									</Button>
 									<Button variant="outline" asChild>
-										<Link href="mailto:rohan@surfsense.com">
+										<Link href="mailto:rohan@neonote.com">
 											<IconMailFilled className="h-4 w-4" />
-											rohan@surfsense.com
+											rohan@neonote.com
 										</Link>
 									</Button>
 								</div>

@@ -44,11 +44,11 @@ export function ContactFormGridWithDetails() {
 					</div>
 
 					<Link
-						href="mailto:rohan@surfsense.com"
+						href="mailto:rohan@neonote.com"
 						className="flex items-center gap-2 text-base text-neutral-600 transition duration-200 hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-200"
 					>
 						<IconMailFilled className="h-5 w-5" />
-						rohan@surfsense.com
+						rohan@neonote.com
 					</Link>
 				</div>
 

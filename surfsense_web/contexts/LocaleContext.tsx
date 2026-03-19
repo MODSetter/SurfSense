@@ -26,7 +26,7 @@ interface LocaleContextType {
 
 const LocaleContext = createContext<LocaleContextType | undefined>(undefined);
 
-const LOCALE_STORAGE_KEY = "surfsense-locale";
+const LOCALE_STORAGE_KEY = "neonote-locale";
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
 	// Always start with 'en' to avoid hydration mismatch

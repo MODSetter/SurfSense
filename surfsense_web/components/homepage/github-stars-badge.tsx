@@ -239,8 +239,8 @@ type NavbarGitHubStarsProps = {
 
 function NavbarGitHubStars({
 	username = "MODSetter",
-	repo = "SurfSense",
-	href = "https://github.com/MODSetter/SurfSense",
+	repo = "NeoNote",
+	href = "https://github.com/MODSetter/NeoNote",
 	className,
 }: NavbarGitHubStarsProps) {
 	const [stars, setStars] = React.useState(0);

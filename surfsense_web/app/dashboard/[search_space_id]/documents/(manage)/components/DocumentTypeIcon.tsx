@@ -33,7 +33,7 @@ export function getDocumentTypeLabel(type: string): string {
 		BOOKSTACK_CONNECTOR: "BookStack",
 		CIRCLEBACK: "Circleback",
 		OBSIDIAN_CONNECTOR: "Obsidian",
-		SURFSENSE_DOCS: "SurfSense Docs",
+		SURFSENSE_DOCS: "NeoNote Docs",
 		NOTE: "Note",
 		COMPOSIO_GOOGLE_DRIVE_CONNECTOR: "Composio Google Drive",
 		COMPOSIO_GMAIL_CONNECTOR: "Composio Gmail",

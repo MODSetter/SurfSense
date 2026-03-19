@@ -1,4 +1,4 @@
-"""Google Drive indexer using Surfsense file processors.
+"""Google Drive indexer using Neonote file processors.
 
 Implements 2-phase document status updates for real-time UI feedback:
 - Phase 1: Create all documents with 'pending' status (visible in UI immediately)
@@ -959,7 +959,7 @@ async def _process_single_file(
     pending_document: Document | None = None,
 ) -> tuple[int, int, int]:
     """
-    Process a single file by downloading and using Surfsense's file processor.
+    Process a single file by downloading and using Neonote's file processor.
 
     Implements Phase 2 of the 2-phase document status update pattern.
     Updates document status: pending → processing → ready/failed

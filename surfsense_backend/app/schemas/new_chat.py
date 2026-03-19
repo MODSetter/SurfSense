@@ -170,7 +170,7 @@ class NewChatRequest(BaseModel):
         None  # Optional document IDs mentioned with @ in the chat
     )
     mentioned_surfsense_doc_ids: list[int] | None = (
-        None  # Optional SurfSense documentation IDs mentioned with @ in the chat
+        None  # Optional NeoNote documentation IDs mentioned with @ in the chat
     )
     disabled_tools: list[str] | None = (
         None  # Optional list of tool names the user has disabled from the UI

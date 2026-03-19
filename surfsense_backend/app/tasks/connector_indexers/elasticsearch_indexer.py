@@ -1,5 +1,5 @@
 """
-Elasticsearch indexer for SurfSense
+Elasticsearch indexer for NeoNote
 
 Implements 2-phase document status updates for real-time UI feedback:
 - Phase 1: Collect all documents and create pending documents (visible in UI immediately)
@@ -52,7 +52,7 @@ async def index_elasticsearch_documents(
     on_heartbeat_callback: HeartbeatCallbackType | None = None,
 ) -> tuple[int, str | None]:
     """
-    Index documents from Elasticsearch into SurfSense
+    Index documents from Elasticsearch into NeoNote
 
     Args:
         session: Database session

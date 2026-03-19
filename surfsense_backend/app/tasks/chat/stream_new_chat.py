@@ -1,5 +1,5 @@
 """
-Streaming task for the new SurfSense deep agent chat.
+Streaming task for the new NeoNote deep agent chat.
 
 This module streams responses from the deep agent using the Vercel AI SDK
 Data Stream Protocol (SSE format).
@@ -47,7 +47,7 @@ from app.db import (
     NewChatThread,
     Report,
     SearchSourceConnectorType,
-    SurfsenseDocsDocument,
+    NeonoteDocsDocument,
     async_session_maker,
     shielded_async_session,
 )
@@ -135,16 +135,16 @@ def format_mentioned_documents_as_context(documents: list[Document]) -> str:
 
 
 def format_mentioned_surfsense_docs_as_context(
-    documents: list[SurfsenseDocsDocument],
+    documents: list[NeonoteDocsDocument],
 ) -> str:
-    """Format mentioned SurfSense documentation as context for the agent."""
+    """Format mentioned NeoNote documentation as context for the agent."""
     if not documents:
         return ""
 
     context_parts = ["<mentioned_surfsense_docs>"]
     context_parts.append(
-        "The user has explicitly mentioned the following SurfSense documentation pages. "
-        "These are official documentation about how to use SurfSense and should be used to answer questions about the application. "
+        "The user has explicitly mentioned the following NeoNote documentation pages. "
+        "These are official documentation about how to use NeoNote and should be used to answer questions about the application. "
         "Use [citation:CHUNK_ID] format for citations (e.g., [citation:doc-123])."
     )
 
@@ -388,9 +388,9 @@ async def _stream_agent_events(
                 )
             elif tool_name == "generate_podcast":
                 podcast_title = (
-                    tool_input.get("podcast_title", "SurfSense Podcast")
+                    tool_input.get("podcast_title", "NeoNote Podcast")
                     if isinstance(tool_input, dict)
-                    else "SurfSense Podcast"
+                    else "NeoNote Podcast"
                 )
                 content_len = len(
                     tool_input.get("source_content", "")
@@ -1025,7 +1025,7 @@ async def stream_new_chat(
     disabled_tools: list[str] | None = None,
 ) -> AsyncGenerator[str, None]:
     """
-    Stream chat responses from the new SurfSense deep agent.
+    Stream chat responses from the new NeoNote deep agent.
 
     This uses the Vercel AI SDK Data Stream Protocol (SSE format) for streaming.
     The chat_id is used as LangGraph's thread_id for memory/checkpointing.
@@ -1041,7 +1041,7 @@ async def stream_new_chat(
         llm_config_id: The LLM configuration ID (default: -1 for first global config)
         needs_history_bootstrap: If True, load message history from DB (for cloned chats)
         mentioned_document_ids: Optional list of document IDs mentioned with @ in the chat
-        mentioned_surfsense_doc_ids: Optional list of SurfSense doc IDs mentioned with @ in the chat
+        mentioned_surfsense_doc_ids: Optional list of NeoNote doc IDs mentioned with @ in the chat
         checkpoint_id: Optional checkpoint ID to rewind/fork from (for edit/reload operations)
 
     Yields:
@@ -1191,14 +1191,14 @@ async def stream_new_chat(
             )
             mentioned_documents = list(result.scalars().all())
 
-        # Fetch mentioned SurfSense docs if any
-        mentioned_surfsense_docs: list[SurfsenseDocsDocument] = []
+        # Fetch mentioned NeoNote docs if any
+        mentioned_surfsense_docs: list[NeonoteDocsDocument] = []
         if mentioned_surfsense_doc_ids:
             result = await session.execute(
-                select(SurfsenseDocsDocument)
-                .options(selectinload(SurfsenseDocsDocument.chunks))
+                select(NeonoteDocsDocument)
+                .options(selectinload(NeonoteDocsDocument.chunks))
                 .filter(
-                    SurfsenseDocsDocument.id.in_(mentioned_surfsense_doc_ids),
+                    NeonoteDocsDocument.id.in_(mentioned_surfsense_doc_ids),
                 )
             )
             mentioned_surfsense_docs = list(result.scalars().all())
@@ -1217,7 +1217,7 @@ async def stream_new_chat(
         )
         recent_reports = list(recent_reports_result.scalars().all())
 
-        # Format the user query with context (mentioned documents + SurfSense docs)
+        # Format the user query with context (mentioned documents + NeoNote docs)
         final_query = user_query
         context_parts = []
 

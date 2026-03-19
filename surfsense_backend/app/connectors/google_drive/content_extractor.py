@@ -28,7 +28,7 @@ async def download_and_process_file(
     connector_id: int | None = None,
 ) -> tuple[Any, str | None, dict[str, Any] | None]:
     """
-    Download Google Drive file and process using Surfsense file processors.
+    Download Google Drive file and process using Neonote file processors.
 
     Args:
         client: GoogleDriveClient instance
@@ -116,7 +116,7 @@ async def download_and_process_file(
                 "."
             )[-1]
 
-        logger.info(f"Processing {file_name} with Surfsense's file processor")
+        logger.info(f"Processing {file_name} with Neonote's file processor")
         await process_file_in_background(
             file_path=temp_file_path,
             filename=file_name,

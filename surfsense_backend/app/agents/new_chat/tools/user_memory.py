@@ -1,5 +1,5 @@
 """
-User memory tools for the SurfSense agent.
+User memory tools for the NeoNote agent.
 
 This module provides tools for storing and retrieving user memories,
 enabling personalized AI responses similar to Claude's memory feature.

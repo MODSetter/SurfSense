@@ -1,12 +1,12 @@
 ---
 title: Manual Installation
-description: Setting up SurfSense manually for customized deployments (Preferred)
+description: Setting up NeoNote manually for customized deployments (Preferred)
 icon: Wrench
 ---
 
 # Manual Installation (Preferred)
 
-This guide provides step-by-step instructions for setting up SurfSense without Docker. This approach gives you more control over the installation process and allows for customization of the environment.
+This guide provides step-by-step instructions for setting up NeoNote without Docker. This approach gives you more control over the installation process and allows for customization of the environment.
 
 ## Prerequisites
 
@@ -35,7 +35,7 @@ Complete all the [setup steps](/docs), including:
 
 ## Backend Setup
 
-The backend is the core of SurfSense. Follow these steps to set it up:
+The backend is the core of NeoNote. Follow these steps to set it up:
 
 ### 1. Environment Configuration
 
@@ -139,7 +139,7 @@ Edit the `.env` file and set the following variables:
 | LANGSMITH_TRACING | Enable LangSmith tracing (e.g., `true`) |
 | LANGSMITH_ENDPOINT | LangSmith API endpoint (e.g., `https://api.smith.langchain.com`) |
 | LANGSMITH_API_KEY | Your LangSmith API key |
-| LANGSMITH_PROJECT | LangSmith project name (e.g., `surfsense`) |
+| LANGSMITH_PROJECT | LangSmith project name (e.g., `neonote`) |
 
 **(Optional) Uvicorn Server Configuration**
 | ENV VARIABLE | DESCRIPTION | DEFAULT VALUE |
@@ -451,7 +451,7 @@ The frontend should now be running at `http://localhost:3000`.
 
 ## Browser Extension Setup (Optional)
 
-The SurfSense browser extension allows you to save any webpage, including those protected behind authentication.
+The NeoNote browser extension allows you to save any webpage, including those protected behind authentication.
 
 ### 1. Environment Configuration
 
@@ -480,7 +480,7 @@ Edit the `.env` file:
 
 | ENV VARIABLE              | DESCRIPTION                                           |
 | ------------------------- | ----------------------------------------------------- |
-| PLASMO_PUBLIC_BACKEND_URL | SurfSense Backend URL (e.g., `http://127.0.0.1:8000`) |
+| PLASMO_PUBLIC_BACKEND_URL | NeoNote Backend URL (e.g., `http://127.0.0.1:8000`) |
 
 ### 2. Build the Extension
 
@@ -502,7 +502,7 @@ pnpm build --target=edge
 
 ### 3. Load the Extension
 
-Load the extension in your browser's developer mode and configure it with your SurfSense API key.
+Load the extension in your browser's developer mode and configure it with your NeoNote API key.
 
 ## Verification
 
@@ -526,7 +526,7 @@ To verify your installation:
 
 ## Next Steps
 
-Now that you have SurfSense running locally, you can explore its features:
+Now that you have NeoNote running locally, you can explore its features:
 
 - Create search spaces for organizing your content
 - Upload documents or use the browser extension to save webpages

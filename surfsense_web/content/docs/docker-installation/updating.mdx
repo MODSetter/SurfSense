@@ -1,6 +1,6 @@
 ---
 title: Updating
-description: How to update your SurfSense Docker deployment
+description: How to update your NeoNote Docker deployment
 ---
 
 ## Watchtower Daemon (recommended)
@@ -23,7 +23,7 @@ docker run -d --name watchtower \
 ```bash
 docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
   nickfedor/watchtower --run-once \
-  --label-filter "com.docker.compose.project=surfsense"
+  --label-filter "com.docker.compose.project=neonote"
 ```
 
 <Callout type="warn">
@@ -33,7 +33,7 @@ Use `nickfedor/watchtower`. The original `containrrr/watchtower` is no longer ma
 ## Manual Update
 
 ```bash
-cd surfsense   # or SurfSense/docker if you cloned manually
+cd neonote   # or NeoNote/docker if you cloned manually
 docker compose pull && docker compose up -d
 ```
 
@@ -44,7 +44,7 @@ Database migrations are applied automatically on every startup.
 ## Migrating from the All-in-One Container
 
 <Callout type="warn">
-If you were previously using `docker-compose.quickstart.yml` (the legacy all-in-one `surfsense` container), your data lives in a `surfsense-data` volume and requires a **one-time migration** before switching to the current setup. PostgreSQL has been upgraded from version 14 to 17, so a simple volume swap will not work.
+If you were previously using `docker-compose.quickstart.yml` (the legacy all-in-one `neonote` container), your data lives in a `surfsense-data` volume and requires a **one-time migration** before switching to the current setup. PostgreSQL has been upgraded from version 14 to 17, so a simple volume swap will not work.
 
 See the full step-by-step guide: [Migrate from the All-in-One Container](/docs/docker-installation/migrate-from-allinone).
 </Callout>

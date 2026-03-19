@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug or unexpected behavior in SurfSense
+about: Report a bug or unexpected behavior in NeoNote
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -11,7 +11,7 @@ assignees: ''
 
 ## Deployment Type
 <!-- Please select where you encountered this issue -->
-- [ ] SurfSense Cloud (hosted version)
+- [ ] NeoNote Cloud (hosted version)
 - [ ] Self-hosted version
 
 ## Steps to Reproduce
@@ -34,7 +34,7 @@ assignees: ''
 <!-- Please complete the following information -->
 - **Browser:** [e.g., Chrome 120, Firefox 121, Safari 17]
 - **Operating System:** [e.g., Windows 11, macOS 14, Ubuntu 22.04]
-- **SurfSense Version:** [e.g., v1.0.0 or commit hash if self-hosted]
+- **NeoNote Version:** [e.g., v1.0.0 or commit hash if self-hosted]
 
 ### Additional Environment Details (for Self-hosted only)
 <!-- If you selected self-hosted, please provide: -->

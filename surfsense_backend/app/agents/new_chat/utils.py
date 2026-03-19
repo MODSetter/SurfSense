@@ -1,5 +1,5 @@
 """
-Utility functions for SurfSense agents.
+Utility functions for NeoNote agents.
 
 This module provides shared utility functions used across the new_chat agent modules.
 """

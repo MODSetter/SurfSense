@@ -1,4 +1,4 @@
-# SurfSense Cross Browser Extension
+# NeoNote Cross Browser Extension
 
 Use this guide to build for your browser https://docs.plasmo.com/framework/workflows/build
 

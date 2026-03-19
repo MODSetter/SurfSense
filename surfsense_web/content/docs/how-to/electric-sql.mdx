@@ -1,9 +1,9 @@
 ---
 title: Electric SQL
-description: Setting up Electric SQL for real-time data synchronization in SurfSense
+description: Setting up Electric SQL for real-time data synchronization in NeoNote
 ---
 
-[Electric SQL](https://electric-sql.com/) enables real-time data synchronization in SurfSense, providing instant updates for inbox items, document indexing status, and connector sync progress without manual refresh. The frontend uses [PGlite](https://pglite.dev/) (a lightweight PostgreSQL in the browser) to maintain a local database that syncs with the backend via Electric SQL.
+[Electric SQL](https://electric-sql.com/) enables real-time data synchronization in NeoNote, providing instant updates for inbox items, document indexing status, and connector sync progress without manual refresh. The frontend uses [PGlite](https://pglite.dev/) (a lightweight PostgreSQL in the browser) to maintain a local database that syncs with the backend via Electric SQL.
 
 ## What does Electric SQL do?
 
@@ -32,7 +32,7 @@ This section is intended for local development environments. Follow the steps be
 
 ### Step 1: Configure Environment Variables
 
-Ensure your environment files are configured. If you haven't set up SurfSense yet, follow the [Manual Installation Guide](/docs/manual-installation) first.
+Ensure your environment files are configured. If you haven't set up NeoNote yet, follow the [Manual Installation Guide](/docs/manual-installation) first.
 
 For Electric SQL, verify these variables are set:
 
@@ -115,8 +115,8 @@ Connect to your local database as a superuser and run:
 
 ```sql
 CREATE USER electric WITH REPLICATION PASSWORD 'electric_password';
-GRANT CONNECT ON DATABASE surfsense TO electric;
-GRANT CREATE ON DATABASE surfsense TO electric;
+GRANT CONNECT ON DATABASE neonote TO electric;
+GRANT CREATE ON DATABASE neonote TO electric;
 GRANT USAGE ON SCHEMA public TO electric;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO electric;
 GRANT SELECT ON ALL SEQUENCES IN SCHEMA public TO electric;
@@ -222,5 +222,5 @@ You should receive:
 If data appears stale or corrupted in the browser:
 
 1. Open browser DevTools → Application → IndexedDB
-2. Delete databases starting with `surfsense-`
+2. Delete databases starting with `neonote-`
 3. Refresh the page - PGlite will recreate the local database and resync

@@ -23,7 +23,7 @@ export const InlineCitation: FC<InlineCitationProps> = ({ chunkId, isDocsChunk =
 			onOpenChange={setIsOpen}
 			chunkId={chunkId}
 			sourceType={isDocsChunk ? "SURFSENSE_DOCS" : ""}
-			title={isDocsChunk ? "Surfsense Documentation" : "Source"}
+			title={isDocsChunk ? "Neonote Documentation" : "Source"}
 			description=""
 			url=""
 			isDocsChunk={isDocsChunk}

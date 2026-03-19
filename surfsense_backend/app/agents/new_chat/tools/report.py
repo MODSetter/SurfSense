@@ -1,5 +1,5 @@
 """
-Report generation tool for the SurfSense agent.
+Report generation tool for the NeoNote agent.
 
 This module provides a factory function for creating the generate_report tool
 that generates a structured Markdown report inline (no Celery). The LLM is
@@ -62,7 +62,7 @@ NEVER use backtick code spans or Unicode symbols for math."""
 # ─── Standard Report Footer ─────────────────────────────────────────────────
 # Appended to every generated report after content generation.
 
-_REPORT_FOOTER = "Powered by SurfSense AI."
+_REPORT_FOOTER = "Powered by NeoNote AI."
 
 # ─── Prompt: Single-Shot Report Generation ───────────────────────────────────
 

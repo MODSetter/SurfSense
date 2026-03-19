@@ -1,15 +1,15 @@
 """
-Context schema definitions for SurfSense agents.
+Context schema definitions for NeoNote agents.
 
-This module defines the custom state schema used by the SurfSense deep agent.
+This module defines the custom state schema used by the NeoNote deep agent.
 """
 
 from typing import TypedDict
 
 
-class SurfSenseContextSchema(TypedDict):
+class NeoNoteContextSchema(TypedDict):
     """
-    Custom state schema for the SurfSense deep agent.
+    Custom state schema for the NeoNote deep agent.
 
     This extends the default agent state with custom fields.
     The default state already includes:

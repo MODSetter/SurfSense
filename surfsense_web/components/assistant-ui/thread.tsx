@@ -85,7 +85,7 @@ import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
 const CYCLING_PLACEHOLDERS = [
-	"Ask SurfSense anything or @mention docs.",
+	"Ask NeoNote anything or @mention docs.",
 	"Generate a podcast from my vacation ideas in Notion.",
 	"Sum up last week's meeting notes from Drive in a bulleted list.",
 	"Give me a brief overview of the most urgent tickets in Jira and Linear.",
@@ -240,7 +240,7 @@ const BANNER_CONNECTORS = [
 	{ type: "SLACK_CONNECTOR", label: "Slack" },
 ] as const;
 
-const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
+const BANNER_DISMISSED_KEY = "neonote-connect-tools-banner-dismissed";
 
 const ConnectToolsBanner: FC = () => {
 	const { data: connectors } = useAtomValue(connectorsAtom);

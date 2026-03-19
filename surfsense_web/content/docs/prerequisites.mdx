@@ -1,15 +1,15 @@
 ---
 title: Prerequisites
-description: Required setup's before setting up SurfSense
+description: Required setup's before setting up NeoNote
 icon: ClipboardCheck
 ---
 
 
 ## Auth Setup 
 
-SurfSense supports both Google OAuth and local email/password authentication. Google OAuth is optional - if you prefer local authentication, you can skip this section.
+NeoNote supports both Google OAuth and local email/password authentication. Google OAuth is optional - if you prefer local authentication, you can skip this section.
 
-**Note**: Google OAuth setup is **required** in your `.env` files if you want to use the Gmail and Google Calendar connectors in SurfSense.
+**Note**: Google OAuth setup is **required** in your `.env` files if you want to use the Gmail and Google Calendar connectors in NeoNote.
 
 To set up Google OAuth:
 
@@ -28,7 +28,7 @@ To set up Google OAuth:
 
 ## File Upload's
 
-SurfSense supports three ETL (Extract, Transform, Load) services for converting files to LLM-friendly formats:
+NeoNote supports three ETL (Extract, Transform, Load) services for converting files to LLM-friendly formats:
 
 ### Option 1: Unstructured 
 
@@ -62,25 +62,25 @@ Files are processed locally using [Docling](https://github.com/DS4SD/docling) - 
 
 ## LLM Observability (Optional)
 
-This is not required for SurfSense to work. But it is always a good idea to monitor LLM interactions. So we do not have those WTH moments.
+This is not required for NeoNote to work. But it is always a good idea to monitor LLM interactions. So we do not have those WTH moments.
 
 1. Get a LangSmith API key from [smith.langchain.com](https://smith.langchain.com/)
-2. This helps in observing SurfSense Researcher Agent.
+2. This helps in observing NeoNote Researcher Agent.
 ![LangSmith](/docs/langsmith.png)
 
 ---
 
 ## Crawler 
 
-SurfSense have 2 options for saving webpages:
-- [SurfSense Extension](https://github.com/MODSetter/SurfSense/tree/main/surfsense_browser_extension) (Overall better experience & ability to save private webpages, recommended)
+NeoNote have 2 options for saving webpages:
+- [NeoNote Extension](https://github.com/MODSetter/SurfSense/tree/main/surfsense_browser_extension) (Overall better experience & ability to save private webpages, recommended)
 - Crawler (If you want to save public webpages)
 
-**NOTE:** SurfSense currently uses [Firecrawl.py](https://www.firecrawl.dev/) for web crawling. If you plan on using the crawler, you will need to create a Firecrawl account and get an API key.
+**NOTE:** NeoNote currently uses [Firecrawl.py](https://www.firecrawl.dev/) for web crawling. If you plan on using the crawler, you will need to create a Firecrawl account and get an API key.
 
 
 ---
 
 ## Next Steps
 
-Once you have all prerequisites in place, proceed to the [installation guide](/docs/installation) to set up SurfSense.
+Once you have all prerequisites in place, proceed to the [installation guide](/docs/installation) to set up NeoNote.

@@ -81,9 +81,9 @@ export const SlackConfig: FC<SlackConfigProps> = ({ connector }) => {
 				<div className="text-xs sm:text-sm">
 					<p className="font-medium text-xs sm:text-sm">Add Bot to Channels</p>
 					<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-						Before indexing, add the SurfSense bot to each channel you want to index. The bot can
+						Before indexing, add the NeoNote bot to each channel you want to index. The bot can
 						only access messages from channels it's been added to. Type{" "}
-						<code className="bg-muted px-1 py-0.5 rounded text-[9px]">/invite @SurfSense</code> in
+						<code className="bg-muted px-1 py-0.5 rounded text-[9px]">/invite @NeoNote</code> in
 						any channel to add it.
 					</p>
 				</div>

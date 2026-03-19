@@ -10,7 +10,7 @@ export const agentToolsAtom = atomWithQuery((_get) => ({
 	queryFn: async () => agentToolsApiService.getTools(),
 }));
 
-const STORAGE_PREFIX = "surfsense-disabled-tools-";
+const STORAGE_PREFIX = "neonote-disabled-tools-";
 
 function loadDisabledTools(searchSpaceId: string): string[] {
 	if (typeof window === "undefined") return [];

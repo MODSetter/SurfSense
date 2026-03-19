@@ -21,7 +21,7 @@ logging.basicConfig(
 load_dotenv()
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run the SurfSense application")
+    parser = argparse.ArgumentParser(description="Run the NeoNote application")
     parser.add_argument("--reload", action="store_true", help="Enable hot reloading")
     args = parser.parse_args()
 

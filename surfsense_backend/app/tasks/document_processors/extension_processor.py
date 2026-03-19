@@ -1,5 +1,5 @@
 """
-Extension document processor for SurfSense browser extension.
+Extension document processor for NeoNote browser extension.
 """
 
 import logging
@@ -31,7 +31,7 @@ async def add_extension_received_document(
     user_id: str,
 ) -> Document | None:
     """
-    Process and store document content received from the SurfSense Extension.
+    Process and store document content received from the NeoNote Extension.
 
     Args:
         session: Database session

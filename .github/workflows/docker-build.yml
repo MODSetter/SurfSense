@@ -105,11 +105,11 @@ jobs:
             suffix: arm64
             os: ubuntu-24.04-arm
           - image: backend
-            name: surfsense-backend
+            name: neonote-backend
             context: ./surfsense_backend
             file: ./surfsense_backend/Dockerfile
           - image: web
-            name: surfsense-web
+            name: neonote-web
             context: ./surfsense_web
             file: ./surfsense_web/Dockerfile
     env:
@@ -193,9 +193,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: surfsense-backend
+          - name: neonote-backend
             image: backend
-          - name: surfsense-web
+          - name: neonote-web
             image: web
     env:
       REGISTRY_IMAGE: ghcr.io/${{ github.repository_owner }}/${{ matrix.name }}

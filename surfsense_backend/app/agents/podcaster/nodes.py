@@ -103,7 +103,7 @@ async def create_merged_podcast_audio(
     # configuration = Configuration.from_runnable_config(config)
 
     starting_transcript = PodcastTranscriptEntry(
-        speaker_id=1, dialog="Welcome to Surfsense Podcast."
+        speaker_id=1, dialog="Welcome to Neonote Podcast."
     )
 
     transcript = state.podcast_transcript

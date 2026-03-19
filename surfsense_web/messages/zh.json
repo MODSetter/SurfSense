@@ -1,6 +1,6 @@
 {
 	"common": {
-		"app_name": "SurfSense",
+		"app_name": "NeoNote",
 		"welcome": "欢迎",
 		"save": "保存",
 		"cancel": "取消",
@@ -57,7 +57,7 @@
 		"welcome_back": "欢迎回来",
 		"create_account": "创建您的账户",
 		"login_subtitle": "输入您的凭据以访问您的账户",
-		"register_subtitle": "注册以开始使用 SurfSense",
+		"register_subtitle": "注册以开始使用 NeoNote",
 		"or_continue_with": "或继续使用",
 		"by_continuing": "继续即表示您同意我们的",
 		"terms_of_service": "服务条款",
@@ -70,7 +70,7 @@
 		"login_success": "登录成功",
 		"register_success": "账户创建成功",
 		"continue_with_google": "使用 Google 继续",
-		"cloud_dev_notice": "SurfSense 云版本正在开发中。查看",
+		"cloud_dev_notice": "NeoNote 云版本正在开发中。查看",
 		"docs": "文档",
 		"cloud_dev_self_hosted": "以获取有关自托管版本的更多信息。",
 		"passwords_no_match": "密码不匹配",
@@ -97,7 +97,7 @@
 		"create_new_search_space": "创建新的搜索空间",
 		"delete_title": "删除搜索空间",
 		"delete_confirm": "您确定要删除「{name}」吗？此操作无法撤销，将永久删除所有数据。",
-		"welcome_title": "欢迎使用 SurfSense",
+		"welcome_title": "欢迎使用 NeoNote",
 		"welcome_description": "创建您的第一个搜索空间，开始组织知识、连接数据源并与AI对话。",
 		"create_first_button": "创建第一个搜索空间"
 	},
@@ -143,8 +143,8 @@
 		"delete_note_confirm": "您确定要删除",
 		"action_cannot_undone": "此操作无法撤销。",
 		"deleting": "删除中...",
-		"surfsense_dashboard": "SurfSense 仪表盘",
-		"welcome_message": "欢迎来到您的 SurfSense 仪表盘。",
+		"surfsense_dashboard": "NeoNote 仪表盘",
+		"welcome_message": "欢迎来到您的 NeoNote 仪表盘。",
 		"your_search_spaces": "您的搜索空间",
 		"shared": "共享",
 		"create_search_space": "创建搜索空间",
@@ -198,7 +198,7 @@
 		"team": "团队"
 	},
 	"pricing": {
-		"title": "SurfSense 定价",
+		"title": "NeoNote 定价",
 		"subtitle": "选择适合您的方案",
 		"community_name": "社区版",
 		"enterprise_name": "企业版",
@@ -544,7 +544,7 @@
 		"deleting": "删除中..."
 	},
 	"onboard": {
-		"welcome_title": "欢迎来到 SurfSense",
+		"welcome_title": "欢迎来到 NeoNote",
 		"welcome_subtitle": "让我们配置您的 LLM 以开始使用",
 		"step_of": "第 {current} 步，共 {total} 步",
 		"percent_complete": "已完成 {percent}%",
@@ -557,7 +557,7 @@
 		"setup_complete": "设置完成",
 		"configure_first_provider": "配置您的第一个模型提供商",
 		"assign_specific_roles": "为您的 LLM 配置分配特定角色",
-		"all_set": "您已准备好开始使用 SurfSense！",
+		"all_set": "您已准备好开始使用 NeoNote！",
 		"loading_config": "正在加载您的配置...",
 		"previous": "上一步",
 		"next": "下一步",
@@ -799,6 +799,6 @@
 	"public_chat": {
 		"not_found_title": "此对话已被删除。",
 		"click_here": "点击这里",
-		"sign_in_prompt": "登录 SurfSense 开始您自己的对话。"
+		"sign_in_prompt": "登录 NeoNote 开始您自己的对话。"
 	}
 }

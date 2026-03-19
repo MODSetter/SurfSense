@@ -9,7 +9,7 @@ import httpx
 
 FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 
-TEST_EMAIL = "testuser@surfsense.com"
+TEST_EMAIL = "testuser@neonote.com"
 TEST_PASSWORD = "testpassword123"
 
 

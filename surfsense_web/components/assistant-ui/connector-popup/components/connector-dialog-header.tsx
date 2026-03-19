@@ -33,7 +33,7 @@ export const ConnectorDialogHeader: FC<ConnectorDialogHeaderProps> = ({
 					Manage Connectors
 				</DialogTitle>
 				<DialogDescription className="text-xs sm:text-base text-muted-foreground/80 mt-1 sm:mt-1.5">
-					Connect Surfsense to your favorite tools and services.
+					Connect Neonote to your favorite tools and services.
 				</DialogDescription>
 			</DialogHeader>
 

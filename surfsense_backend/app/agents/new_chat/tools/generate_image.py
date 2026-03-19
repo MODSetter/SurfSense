@@ -1,5 +1,5 @@
 """
-Image generation tool for the SurfSense agent.
+Image generation tool for the NeoNote agent.
 
 This module provides a tool that generates images using litellm.aimage_generation()
 and returns the result via the existing display_image tool format so the frontend

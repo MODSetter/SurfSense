@@ -71,7 +71,7 @@ schedule_params = parse_schedule_interval(SCHEDULE_CHECKER_INTERVAL)
 
 # Create Celery app
 celery_app = Celery(
-    "surfsense",
+    "neonote",
     broker=CELERY_BROKER_URL,
     backend=CELERY_RESULT_BACKEND,
     include=[

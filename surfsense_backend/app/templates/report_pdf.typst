@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// SurfSense – Professional PDF Report Template (Pandoc → Typst)
+// NeoNote – Professional PDF Report Template (Pandoc → Typst)
 //
 // This file is a *pandoc template* (uses $$variable$$ syntax) that emits Typst
 // source code.  Pandoc substitutes the variables at conversion time; Typst

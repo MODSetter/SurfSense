@@ -50,8 +50,8 @@ const THEMES = [
 ];
 
 const LEARN_MORE_LINKS = [
-	{ key: "documentation" as const, href: "https://surfsense.com/docs" },
-	{ key: "github" as const, href: "https://github.com/MODSetter/SurfSense" },
+	{ key: "documentation" as const, href: "https://neonote.com/docs" },
+	{ key: "github" as const, href: "https://github.com/MODSetter/NeoNote" },
 ];
 
 interface SidebarUserProfileProps {

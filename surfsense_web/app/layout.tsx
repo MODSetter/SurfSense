@@ -35,9 +35,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-	title: "SurfSense - Open Source NotebookLM Alternative for Teams",
-	description:
-		"Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. SurfSense is an open source alternative to NotebookLM, built for enterprise AI search and knowledge management.",
+	title: "NeoNote",
+	description: "AI Research Hub for Teams",
 	keywords: [
 		"enterprise ai",
 		"enterprise search",
@@ -79,38 +78,36 @@ export const metadata: Metadata = {
 		"enterprise search engine open source",
 		"open source notebooklm alternative",
 		"notebooklm alternative for teams",
-		"SurfSense",
+		"NeoNote",
 	],
 	openGraph: {
-		title: "SurfSense - Open Source NotebookLM Alternative for Teams",
-		description:
-			"Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. Open source enterprise AI search and knowledge management.",
-		url: "https://surfsense.com",
-		siteName: "SurfSense",
+		title: "NeoNote",
+		description: "AI Research Hub for Teams",
+		url: "https://neonote.com",
+		siteName: "NeoNote",
 		type: "website",
 		images: [
 			{
-				url: "https://surfsense.com/og-image.png",
+				url: "https://neonote.com/og-image.png",
 				width: 1200,
 				height: 630,
-				alt: "SurfSense - Open Source NotebookLM Alternative for Teams",
+				alt: "NeoNote",
 			},
 		],
 		locale: "en_US",
 	},
 	twitter: {
 		card: "summary_large_image",
-		title: "SurfSense - Open Source NotebookLM Alternative for Teams",
-		description:
-			"Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. Open source enterprise AI search and knowledge management.",
-		creator: "https://surfsense.com",
-		site: "https://surfsense.com",
+		title: "NeoNote",
+		description: "AI Research Hub for Teams",
+		creator: "https://neonote.com",
+		site: "https://neonote.com",
 		images: [
 			{
-				url: "https://surfsense.com/og-image-twitter.png",
+				url: "https://neonote.com/og-image-twitter.png",
 				width: 1200,
 				height: 630,
-				alt: "SurfSense - Open Source NotebookLM Alternative for Teams",
+				alt: "NeoNote",
 			},
 		],
 	},

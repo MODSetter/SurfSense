@@ -1,5 +1,5 @@
 """
-Display image tool for the SurfSense agent.
+Display image tool for the NeoNote agent.
 
 This module provides a tool for displaying images in the chat UI
 with metadata like title, description, and source attribution.

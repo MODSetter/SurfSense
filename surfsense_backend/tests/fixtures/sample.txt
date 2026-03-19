@@ -1,7 +1,7 @@
-SurfSense Document Upload Test
+NeoNote Document Upload Test
 
 This is a sample text document used for end-to-end testing of the manual document
-upload pipeline in SurfSense. The document contains multiple paragraphs to ensure
+upload pipeline in NeoNote. The document contains multiple paragraphs to ensure
 that the chunking system has enough content to work with.
 
 Artificial Intelligence and Machine Learning

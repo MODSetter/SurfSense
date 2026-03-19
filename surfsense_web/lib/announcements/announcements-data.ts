@@ -51,7 +51,7 @@ export const announcements: Announcement[] = [
 	// 	id: "2026-02-08-scheduled-maintenance",
 	// 	title: "Scheduled Maintenance — Feb 15",
 	// 	description:
-	// 		"SurfSense will undergo scheduled maintenance on February 15, 2026 from 2:00 AM to 4:00 AM UTC. During this window, the service may be temporarily unavailable. We apologize for any inconvenience.",
+	// 		"NeoNote will undergo scheduled maintenance on February 15, 2026 from 2:00 AM to 4:00 AM UTC. During this window, the service may be temporarily unavailable. We apologize for any inconvenience.",
 	// 	category: "maintenance",
 	// 	date: "2026-02-08T00:00:00Z",
 	// 	startTime: "2026-02-08T00:00:00Z",

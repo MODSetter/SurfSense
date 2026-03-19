@@ -1,17 +1,17 @@
 ---
 title: Discord
-description: Connect your Discord servers to SurfSense
+description: Connect your Discord servers to NeoNote
 ---
 
 # Discord OAuth Integration Setup Guide
 
-This guide walks you through setting up a Discord OAuth integration for SurfSense.
+This guide walks you through setting up a Discord OAuth integration for NeoNote.
 
 ## Step 1: Create a New Discord Application
 
 1. Navigate to [discord.com/developers/applications](https://discord.com/developers/applications)
 2. Click **"New Application"**
-3. Enter the application name: `SurfSense`
+3. Enter the application name: `NeoNote`
 4. Click **"Create"**
 
 ## Step 2: Configure General Information
@@ -21,7 +21,7 @@ On the **General Information** page, fill in the details:
 | Field | Value |
 |-------|-------|
 | **App Icon** | Upload an icon (1024x1024px, PNG/GIF/JPG/WEBP, max 10MB) |
-| **Name** | `SurfSense` |
+| **Name** | `NeoNote` |
 | **Description** | Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. |
 | **Tags** | Add up to 5 tags (optional) |
 
@@ -39,7 +39,7 @@ You'll also see your **Application ID** and **Public Key** on this page.
    ```
 
 <Callout type="warn">
-   Keep **Public Client** disabled (off) since SurfSense uses a server to make requests.
+   Keep **Public Client** disabled (off) since NeoNote uses a server to make requests.
 </Callout>
 
 ![OAuth2 Configuration](/docs/connectors/discord/discord-oauth2.png)
@@ -62,7 +62,7 @@ You'll also see your **Application ID** and **Public Key** on this page.
 
 ---
 
-## Running SurfSense with Discord Connector
+## Running NeoNote with Discord Connector
 
 Add the Discord credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 

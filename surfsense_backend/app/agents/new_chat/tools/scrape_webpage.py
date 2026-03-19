@@ -1,5 +1,5 @@
 """
-Web scraping tool for the SurfSense agent.
+Web scraping tool for the NeoNote agent.
 
 This module provides a tool for scraping and extracting content from webpages
 using the existing WebCrawlerConnector. For YouTube URLs, it fetches the

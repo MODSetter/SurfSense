@@ -63,7 +63,7 @@ const demoPlans = [
 
 function PricingBasic() {
 	return (
-		<Pricing plans={demoPlans} title="SurfSense Pricing" description="Choose what works for you" />
+		<Pricing plans={demoPlans} title="NeoNote Pricing" description="Choose what works for you" />
 	);
 }
 

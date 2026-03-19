@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="readme_banner" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+<a href="https://www.neonote.com/"><img width="1584" height="396" alt="readme_banner" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -6,8 +6,8 @@
 <a href="https://discord.gg/ejRNvftDp9">
 <img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
 </a>
-<a href="https://www.reddit.com/r/SurfSense/">
-<img src="https://img.shields.io/reddit/subreddit-subscribers/SurfSense?style=social" alt="Reddit">
+<a href="https://www.reddit.com/r/NeoNote/">
+<img src="https://img.shields.io/reddit/subreddit-subscribers/NeoNote?style=social" alt="Reddit">
 </a>
 </div>
 
@@ -17,13 +17,13 @@
 
 </div>
 <div align="center">
-<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FNeoNote | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense
+# NeoNote
 将任何 LLM 连接到您的内部知识源，并与团队成员实时聊天。NotebookLM、Perplexity 和 Glean 的开源替代方案。
 
-SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch、Obsidian 等，未来还会支持更多。
+NeoNote 是一个高度可定制的 AI 研究助手，可以连接外部数据源，如搜索引擎（SearxNG、Tavily、LinkUp）、Google Drive、Slack、Microsoft Teams、Linear、Jira、ClickUp、Confluence、BookStack、Gmail、Notion、YouTube、GitHub、Discord、Airtable、Google Calendar、Luma、Circleback、Elasticsearch、Obsidian 等，未来还会支持更多。
 
 
 
@@ -36,11 +36,11 @@ https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 
-## 如何使用 SurfSense
+## 如何使用 NeoNote
 
 ### Cloud
 
-1. 访问 [surfsense.com](https://www.surfsense.com) 并登录。
+1. 访问 [neonote.com](https://www.neonote.com) 并登录。
 
 <p align="center"><img src="https://github.com/user-attachments/assets/b4df25fe-db5a-43c2-9462-b75cf7f1b707" alt="登录" /></p>
 
@@ -79,25 +79,25 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 ### 自托管
 
-在您自己的基础设施上运行 SurfSense，实现完全的数据控制和隐私保护。
+在您自己的基础设施上运行 NeoNote，实现完全的数据控制和隐私保护。
 
 **前置条件：** 需要安装并运行 [Docker Desktop](https://www.docker.com/products/docker-desktop/)。
 
 #### Linux/MacOS 用户：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/NeoNote/main/docker/scripts/install.sh | bash
 ```
 
 #### Windows 用户：
 
 ```powershell
-irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/MODSetter/NeoNote/main/docker/scripts/install.ps1 | iex
 ```
 
 安装脚本会自动配置 [Watchtower](https://github.com/nicholas-fedor/watchtower) 以实现每日自动更新。如需跳过，请添加 `--no-watchtower` 参数。
 
-如需 Docker Compose、手动安装及其他部署方式，请查看[文档](https://www.surfsense.com/docs/)。
+如需 Docker Compose、手动安装及其他部署方式，请查看[文档](https://www.neonote.com/docs/)。
 
 ### 如何实时协作（Beta）
 
@@ -150,18 +150,18 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 ## 功能请求与未来规划
 
 
-**SurfSense 正在积极开发中。** 虽然它还未达到生产就绪状态，但您可以帮助我们加快进度。
+**NeoNote 正在积极开发中。** 虽然它还未达到生产就绪状态，但您可以帮助我们加快进度。
 
-加入 [SurfSense Discord](https://discord.gg/ejRNvftDp9) 一起塑造 SurfSense 的未来！
+加入 [NeoNote Discord](https://discord.gg/ejRNvftDp9) 一起塑造 NeoNote 的未来！
 
 ## 路线图
 
 随时了解我们的开发进度和即将推出的功能！  
 查看我们的公开路线图并贡献您的想法或反馈：
 
-**路线图讨论：** [SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
+**路线图讨论：** [NeoNote 2026 Roadmap](https://github.com/MODSetter/NeoNote/discussions/565)
 
-**看板：** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
+**看板：** [NeoNote Project Board](https://github.com/users/MODSetter/projects/3)
 
 
 ## 贡献
@@ -170,17 +170,17 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 
 感谢所有 Surfers:
 
-<a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />
+<a href="https://github.com/MODSetter/NeoNote/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MODSetter/NeoNote" />
 </a>
 
 ## Star 历史
 
-<a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
+<a href="https://www.star-history.com/#MODSetter/NeoNote&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/NeoNote&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/NeoNote&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/NeoNote&type=Date" />
  </picture>
 </a>
 
