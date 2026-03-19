@@ -2427,6 +2427,9 @@ async def run_google_drive_indexing(
             logger.error(
                 f"Google Drive indexing completed with errors for connector {connector_id}: {error_message}"
             )
+            if _is_auth_error(error_message):
+                await _persist_auth_expired(session, connector_id)
+                error_message = "Google Drive authentication expired. Please re-authenticate."
         else:
             # Update notification to storing stage
             if notification:

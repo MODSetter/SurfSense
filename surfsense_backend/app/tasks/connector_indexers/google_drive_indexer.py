@@ -517,6 +517,7 @@ async def _index_full_scan(
 
     # Queue of folders to process: (folder_id, folder_name)
     folders_to_process = [(folder_id, folder_name)]
+    first_listing_error: str | None = None
 
     logger.info("Phase 1: Collecting files and creating pending documents")
 
@@ -536,6 +537,8 @@ async def _index_full_scan(
 
             if error:
                 logger.error(f"Error listing files in {current_folder_name}: {error}")
+                if first_listing_error is None:
+                    first_listing_error = error
                 break
 
             if not files:
@@ -580,6 +583,15 @@ async def _index_full_scan(
             page_token = next_token
             if not page_token:
                 break
+
+    if not files_to_process and first_listing_error:
+        error_lower = first_listing_error.lower()
+        if "401" in first_listing_error or "invalid credentials" in error_lower or "authError" in first_listing_error:
+            raise Exception(
+                f"Google Drive authentication failed. Please re-authenticate. "
+                f"(Error: {first_listing_error})"
+            )
+        raise Exception(f"Failed to list Google Drive files: {first_listing_error}")
 
     # Commit all pending documents - they all appear in UI now
     if new_documents_created:
@@ -666,7 +678,13 @@ async def _index_with_delta_sync(
 
     if error:
         logger.error(f"Error fetching changes: {error}")
-        return 0, 0
+        error_lower = error.lower()
+        if "401" in error or "invalid credentials" in error_lower or "authError" in error:
+            raise Exception(
+                f"Google Drive authentication failed. Please re-authenticate. "
+                f"(Error: {error})"
+            )
+        raise Exception(f"Failed to fetch Google Drive changes: {error}")
 
     if not changes:
         logger.info("No changes detected since last sync")
