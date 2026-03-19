@@ -1,12 +1,12 @@
 """
-Tools module for SurfSense deep agent.
+Tools module for NeoNote deep agent.
 
-This module contains all the tools available to the SurfSense agent.
+This module contains all the tools available to the NeoNote agent.
 To add a new tool, see the documentation in registry.py.
 
 Available tools:
 - search_knowledge_base: Search the user's personal knowledge base
-- search_surfsense_docs: Search Surfsense documentation for usage help
+- search_surfsense_docs: Search Neonote documentation for usage help
 - generate_podcast: Generate audio podcasts from content
 - generate_image: Generate images from text descriptions using AI models
 - link_preview: Fetch rich previews for URLs

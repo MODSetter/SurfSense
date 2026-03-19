@@ -1,14 +1,14 @@
 # 国产 LLM 配置指南 | Chinese LLM Setup Guide
 
-本指南将帮助你在 SurfSense 中配置和使用国产大语言模型。
+本指南将帮助你在 NeoNote 中配置和使用国产大语言模型。
 
-This guide helps you configure and use Chinese LLM providers in SurfSense.
+This guide helps you configure and use Chinese LLM providers in NeoNote.
 
 ---
 
 ## 📋 支持的提供商 | Supported Providers
 
-SurfSense 现已支持以下国产 LLM：
+NeoNote 现已支持以下国产 LLM：
 
 - ✅ **DeepSeek** - 国产高性能 AI 模型
 - ✅ **阿里通义千问 (Alibaba Qwen)** - 阿里云通义千问大模型
@@ -21,7 +21,7 @@ SurfSense 现已支持以下国产 LLM：
 
 ### 通用配置步骤 | General Configuration Steps
 
-1. 登录 SurfSense Dashboard
+1. 登录 NeoNote Dashboard
 2. 进入 **Settings** → **API Keys** (或 **LLM Configurations**)
 3. 点击 **Add New Configuration**
 4. 从 **Provider** 下拉菜单中选择你的国产 LLM 提供商
@@ -40,7 +40,7 @@ SurfSense 现已支持以下国产 LLM：
 4. 点击 **Create New API Key**
 5. 复制生成的 API Key (格式: `sk-xxx`)
 
-### 在 SurfSense 中配置
+### 在 NeoNote 中配置
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
@@ -81,7 +81,7 @@ API Base URL: https://api.deepseek.com
 4. 进入 **API-KEY 管理**
 5. 创建并复制 API Key
 
-### 在 SurfSense 中配置
+### 在 NeoNote 中配置
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
@@ -123,7 +123,7 @@ API Base URL: https://dashscope.aliyuncs.com/compatible-mode/v1
 4. 创建新的 API Key
 5. 复制 API Key
 
-### 在 SurfSense 中配置
+### 在 NeoNote 中配置
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
@@ -165,7 +165,7 @@ API Base URL: https://api.moonshot.cn/v1
 4. 创建新的 API Key
 5. 复制 API Key
 
-### 在 SurfSense 中配置
+### 在 NeoNote 中配置
 
 | 字段 | 值 | 说明 |
 |------|-----|------|
@@ -295,7 +295,7 @@ docker compose logs backend | grep -i "error"
 - [Moonshot AI 文档](https://platform.moonshot.cn/docs)
 - [智谱 AI 文档](https://open.bigmodel.cn/dev/api)
 
-### SurfSense 文档
+### NeoNote 文档
 
 - [安装指南](../README.md)
 - [贡献指南](../CONTRIBUTING.md)
@@ -307,7 +307,7 @@ docker compose logs backend | grep -i "error"
 
 如果遇到问题，可以通过以下方式获取帮助：
 
-- 💬 [GitHub Issues](https://github.com/MODSetter/SurfSense/issues)
+- 💬 [GitHub Issues](https://github.com/MODSetter/NeoNote/issues)
 - 💬 [Discord Community](https://discord.gg/ejRNvftDp9)
 - 📧 Email: [项目维护者邮箱]
 

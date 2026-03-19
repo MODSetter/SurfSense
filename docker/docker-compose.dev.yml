@@ -1,5 +1,5 @@
 # =============================================================================
-# SurfSense — Development Docker Compose
+# NeoNote - Development Docker Compose
 # =============================================================================
 # Usage (from repo root):
 #   docker compose -f docker/docker-compose.dev.yml up --build
@@ -8,7 +8,7 @@
 # For production with prebuilt images, use docker/docker-compose.yml instead.
 # =============================================================================
 
-name: surfsense-dev
+name: neonote-dev
 
 services:
   db:
@@ -37,8 +37,8 @@ services:
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     environment:
-      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@surfsense.com}
-      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-surfsense}
+      - PGADMIN_DEFAULT_EMAIL=${PGADMIN_DEFAULT_EMAIL:-admin@neonote.com}
+      - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_DEFAULT_PASSWORD:-neonote}
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
@@ -81,11 +81,6 @@ services:
       - ELECTRIC_DB_PASSWORD=${ELECTRIC_DB_PASSWORD:-electric_password}
       - AUTH_TYPE=${AUTH_TYPE:-LOCAL}
       - NEXT_FRONTEND_URL=${NEXT_FRONTEND_URL:-http://localhost:3000}
-      # Daytona Sandbox – uncomment and set credentials to enable cloud code execution
-      # - DAYTONA_SANDBOX_ENABLED=TRUE
-      # - DAYTONA_API_KEY=${DAYTONA_API_KEY:-}
-      # - DAYTONA_API_URL=${DAYTONA_API_URL:-https://app.daytona.io/api}
-      # - DAYTONA_TARGET=${DAYTONA_TARGET:-us}
       - SERVICE_ROLE=api
     depends_on:
       db:
@@ -143,21 +138,6 @@ services:
       celery_worker:
         condition: service_started
 
-  # flower:
-  #   build: ../surfsense_backend
-  #   ports:
-  #     - "${FLOWER_PORT:-5555}:5555"
-  #   env_file:
-  #     - ../surfsense_backend/.env
-  #   environment:
-  #     - CELERY_BROKER_URL=${REDIS_URL:-redis://redis:6379/0}
-  #     - CELERY_RESULT_BACKEND=${REDIS_URL:-redis://redis:6379/0}
-  #     - PYTHONPATH=/app
-  #   command: celery -A app.celery_app flower --port=5555
-  #   depends_on:
-  #     - redis
-  #     - celery_worker
-
   electric:
     image: electricsql/electric:1.4.10
     ports:
@@ -198,10 +178,10 @@ services:
 
 volumes:
   postgres_data:
-    name: surfsense-dev-postgres
+    name: neonote-dev-postgres
   pgadmin_data:
-    name: surfsense-dev-pgadmin
+    name: neonote-dev-pgadmin
   redis_data:
-    name: surfsense-dev-redis
+    name: neonote-dev-redis
   shared_temp:
-    name: surfsense-dev-shared-temp
+    name: neonote-dev-shared-temp

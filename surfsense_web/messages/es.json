@@ -1,6 +1,6 @@
 {
 	"common": {
-		"app_name": "SurfSense",
+		"app_name": "NeoNote",
 		"welcome": "Bienvenido",
 		"save": "Guardar",
 		"cancel": "Cancelar",
@@ -57,7 +57,7 @@
 		"welcome_back": "Bienvenido de nuevo",
 		"create_account": "Crea tu cuenta",
 		"login_subtitle": "Ingresa tus credenciales para acceder a tu cuenta",
-		"register_subtitle": "Regístrate para comenzar con SurfSense",
+		"register_subtitle": "Regístrate para comenzar con NeoNote",
 		"or_continue_with": "O continuar con",
 		"by_continuing": "Al continuar, aceptas nuestros",
 		"terms_of_service": "Términos de servicio",
@@ -70,7 +70,7 @@
 		"login_success": "Sesión iniciada correctamente",
 		"register_success": "Cuenta creada correctamente",
 		"continue_with_google": "Continuar con Google",
-		"cloud_dev_notice": "SurfSense Cloud está actualmente en desarrollo. Consulta",
+		"cloud_dev_notice": "NeoNote Cloud está actualmente en desarrollo. Consulta",
 		"docs": "Documentación",
 		"cloud_dev_self_hosted": "para más información sobre la versión autoalojada.",
 		"passwords_no_match": "Las contraseñas no coinciden",
@@ -101,7 +101,7 @@
 		"leave_title": "Salir del espacio de búsqueda",
 		"leave_confirm": "¿Estás seguro de que deseas salir de \"{name}\"? Perderás acceso a todos los documentos y chats en este espacio de búsqueda.",
 		"leaving": "Saliendo...",
-		"welcome_title": "Bienvenido a SurfSense",
+		"welcome_title": "Bienvenido a NeoNote",
 		"welcome_description": "Crea tu primer espacio de búsqueda para comenzar a organizar tu conocimiento, conectar fuentes y chatear con IA.",
 		"create_first_button": "Crea tu primer espacio de búsqueda"
 	},
@@ -158,8 +158,8 @@
 		"delete_note_confirm": "¿Estás seguro de que deseas eliminar",
 		"action_cannot_undone": "Esta acción no se puede deshacer.",
 		"deleting": "Eliminando",
-		"surfsense_dashboard": "Panel de SurfSense",
-		"welcome_message": "Bienvenido a tu panel de SurfSense.",
+		"surfsense_dashboard": "Panel de NeoNote",
+		"welcome_message": "Bienvenido a tu panel de NeoNote.",
 		"your_search_spaces": "Tus espacios de búsqueda",
 		"shared": "Compartido",
 		"create_search_space": "Crear espacio de búsqueda",
@@ -213,7 +213,7 @@
 		"team": "Equipo"
 	},
 	"pricing": {
-		"title": "Precios de SurfSense",
+		"title": "Precios de NeoNote",
 		"subtitle": "Elige lo que funcione para ti",
 		"community_name": "COMUNIDAD",
 		"enterprise_name": "EMPRESA",
@@ -560,7 +560,7 @@
 		"deleting": "Eliminando"
 	},
 	"onboard": {
-		"welcome_title": "Bienvenido a SurfSense",
+		"welcome_title": "Bienvenido a NeoNote",
 		"welcome_subtitle": "Vamos a configurar tus configuraciones de LLM para comenzar",
 		"step_of": "Paso {current} de {total}",
 		"percent_complete": "{percent}% completado",
@@ -573,7 +573,7 @@
 		"setup_complete": "Configuración completa",
 		"configure_first_provider": "Configura tu primer proveedor de modelos",
 		"assign_specific_roles": "Asigna roles específicos a tus configuraciones de LLM",
-		"all_set": "¡Todo listo para comenzar a usar SurfSense!",
+		"all_set": "¡Todo listo para comenzar a usar NeoNote!",
 		"loading_config": "Cargando tu configuración...",
 		"previous": "Anterior",
 		"next": "Siguiente",
@@ -815,6 +815,6 @@
 	"public_chat": {
 		"not_found_title": "Este chat ha sido eliminado.",
 		"click_here": "Haz clic aquí",
-		"sign_in_prompt": "para iniciar sesión en SurfSense y comenzar el tuyo."
+		"sign_in_prompt": "para iniciar sesión en NeoNote y comenzar el tuyo."
 	}
 }

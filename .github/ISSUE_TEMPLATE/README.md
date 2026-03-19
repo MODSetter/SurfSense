@@ -1,6 +1,6 @@
 # Issue Templates Guide
 
-Thank you for contributing to SurfSense! To help us address your issue efficiently, please follow these guidelines:
+Thank you for contributing to NeoNote! To help us address your issue efficiently, please follow these guidelines:
 
 ## 📝 Choosing the Right Template
 
@@ -14,7 +14,7 @@ When creating an issue, please add appropriate labels:
 
 ### Deployment Type (Required)
 Always specify where you encountered the issue:
-- `cloud` - For issues on SurfSense Cloud (hosted version)
+- `cloud` - For issues on NeoNote Cloud (hosted version)
 - `self-hosted` - For issues on self-hosted installations
 
 ### Priority (Optional but Recommended)
@@ -62,9 +62,9 @@ If you're using a self-hosted version, please include:
 
 ## 📞 Need Help?
 
-- **Questions?** Use [GitHub Discussions](https://github.com/SurfSense/SurfSense/discussions)
+- **Questions?** Use [GitHub Discussions](https://github.com/NeoNote/NeoNote/discussions)
 - **Security Issues?** Please report privately to the maintainers
 - **General Chat?** Join our community channels
 
-Thank you for helping make SurfSense better! 🎉
+Thank you for helping make NeoNote better! 🎉
 

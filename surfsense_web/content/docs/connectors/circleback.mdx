@@ -1,17 +1,17 @@
 ---
 title: Circleback
-description: Connect your Circleback meetings to SurfSense
+description: Connect your Circleback meetings to NeoNote
 ---
 
 # Circleback Integration Setup Guide
 
-This guide walks you through connecting your Circleback meetings to SurfSense for meeting search and AI-powered insights.
+This guide walks you through connecting your Circleback meetings to NeoNote for meeting search and AI-powered insights.
 
 ## How it works
 
-The Circleback connector uses a **webhook-based integration**. Unlike other connectors that pull data from APIs, Circleback automatically pushes meeting data to SurfSense when meetings are processed.
+The Circleback connector uses a **webhook-based integration**. Unlike other connectors that pull data from APIs, Circleback automatically pushes meeting data to NeoNote when meetings are processed.
 
-- Meetings are sent to SurfSense immediately after Circleback processes them
+- Meetings are sent to NeoNote immediately after Circleback processes them
 - No API keys or credentials required
 - No periodic indexing needed - data arrives in real-time
 - Each meeting is stored with its notes, transcript, action items, and insights
@@ -30,14 +30,14 @@ The Circleback connector uses a **webhook-based integration**. Unlike other conn
 | Metadata | Date, duration, tags, meeting URL, and Circleback link |
 
 <Callout type="info">
-    Meeting recordings are not stored in SurfSense, but a link to the recording (valid for 24 hours from Circleback) is included in the indexed document.
+    Meeting recordings are not stored in NeoNote, but a link to the recording (valid for 24 hours from Circleback) is included in the indexed document.
 </Callout>
 
 ---
 
 ## Setup Guide
 
-### Step 1: Create the Connector in SurfSense
+### Step 1: Create the Connector in NeoNote
 
 1. Navigate to **Connectors** → **Add Connector** → **Circleback**
 2. Enter a connector name (e.g., `My Circleback Meetings`)
@@ -57,7 +57,7 @@ After creating the connector:
 
 The webhook URL looks like:
 ```
-https://your-surfsense-url/api/v1/webhooks/circleback/{search_space_id}
+https://your-neonote-url/api/v1/webhooks/circleback/{search_space_id}
 ```
 
 ### Step 3: Configure Circleback Automation
@@ -70,7 +70,7 @@ https://your-surfsense-url/api/v1/webhooks/circleback/{search_space_id}
    - Meeting tags
    - Meeting participants
 5. Select **Send webhook request** as the action
-6. Enter your SurfSense webhook URL
+6. Enter your NeoNote webhook URL
 7. Select the meeting outcomes to include (notes, action items, transcript, insights)
 8. Optionally test with your most recent meeting
 9. Name and save the automation
@@ -78,7 +78,7 @@ https://your-surfsense-url/api/v1/webhooks/circleback/{search_space_id}
 For detailed instructions, see [Circleback's official webhook documentation](https://circleback.ai/docs/webhook-integration).
 
 <Callout type="warn">
-    Make sure your SurfSense backend is accessible from the internet for Circleback to send webhooks. If self-hosting, you may need to configure a reverse proxy or use a tunneling service.
+    Make sure your NeoNote backend is accessible from the internet for Circleback to send webhooks. If self-hosting, you may need to configure a reverse proxy or use a tunneling service.
 </Callout>
 
 ---
@@ -90,18 +90,18 @@ For detailed instructions, see [Circleback's official webhook documentation](htt
 | **Connector Name** | A friendly name to identify this connector | Yes |
 
 <Callout type="info">
-    Unlike other connectors, Circleback doesn't support periodic indexing since it's webhook-based. Meetings are automatically pushed to SurfSense when processed by Circleback.
+    Unlike other connectors, Circleback doesn't support periodic indexing since it's webhook-based. Meetings are automatically pushed to NeoNote when processed by Circleback.
 </Callout>
 
 ---
 
 ## Verifying the Integration
 
-Once configured, new meetings will automatically appear in SurfSense after Circleback processes them. To verify:
+Once configured, new meetings will automatically appear in NeoNote after Circleback processes them. To verify:
 
 1. Attend or process a meeting with Circleback
 2. Wait for Circleback to complete processing (usually a few minutes after the meeting ends)
-3. Check your SurfSense search space for the new meeting document
+3. Check your NeoNote search space for the new meeting document
 
 Each meeting document includes:
 - A direct link to view the meeting on Circleback
@@ -115,8 +115,8 @@ Each meeting document includes:
 
 **Meetings not appearing**
 - Verify the webhook URL is correctly configured in Circleback
-- Check that your SurfSense backend is accessible from the internet
-- Look for errors in your SurfSense backend logs
+- Check that your NeoNote backend is accessible from the internet
+- Look for errors in your NeoNote backend logs
 
 **Webhook URL not showing**
 - Refresh the connector configuration page

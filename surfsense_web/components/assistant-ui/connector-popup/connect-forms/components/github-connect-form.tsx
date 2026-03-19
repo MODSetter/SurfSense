@@ -111,7 +111,7 @@ export const GithubConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitting
 				<AlertDescription className="text-[10px] sm:text-xs">
 					A GitHub PAT is only required for private repositories. Public repos work without a token.{" "}
 					<a
-						href="https://github.com/settings/tokens/new?description=surfsense&scopes=repo"
+						href="https://github.com/settings/tokens/new?description=neonote&scopes=repo"
 						target="_blank"
 						rel="noopener noreferrer"
 						className="font-medium underline underline-offset-4 inline-flex items-center gap-1.5"

@@ -1,12 +1,12 @@
 ---
 title: Docker Compose Development
-description: Building SurfSense from source using docker-compose.dev.yml
+description: Building NeoNote from source using docker-compose.dev.yml
 ---
 
-If you're contributing to SurfSense and want to build from source, use `docker-compose.dev.yml` instead:
+If you're contributing to NeoNote and want to build from source, use `docker-compose.dev.yml` instead:
 
 ```bash
-cd SurfSense/docker
+cd NeoNote/docker
 docker compose -f docker-compose.dev.yml up --build
 ```
 
@@ -19,8 +19,8 @@ The following `.env` variables are **only used by the dev compose file** (they h
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PGADMIN_PORT` | pgAdmin web UI port | `5050` |
-| `PGADMIN_DEFAULT_EMAIL` | pgAdmin login email | `admin@surfsense.com` |
-| `PGADMIN_DEFAULT_PASSWORD` | pgAdmin login password | `surfsense` |
+| `PGADMIN_DEFAULT_EMAIL` | pgAdmin login email | `admin@neonote.com` |
+| `PGADMIN_DEFAULT_PASSWORD` | pgAdmin login password | `neonote` |
 | `REDIS_PORT` | Exposed Redis port (internal-only in prod) | `6379` |
 | `NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE` | Frontend build arg for auth type | `LOCAL` |
 | `NEXT_PUBLIC_ETL_SERVICE` | Frontend build arg for ETL service | `DOCLING` |

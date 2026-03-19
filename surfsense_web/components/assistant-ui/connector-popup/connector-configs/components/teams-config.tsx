@@ -18,7 +18,7 @@ export const TeamsConfig: FC<TeamsConfigProps> = () => {
 				<div className="text-xs sm:text-sm">
 					<p className="font-medium text-xs sm:text-sm">Microsoft Teams Access</p>
 					<p className="text-muted-foreground mt-1 text-[10px] sm:text-sm">
-						SurfSense will index messages from Teams channels that you have access to. The app can
+						NeoNote will index messages from Teams channels that you have access to. The app can
 						only read messages from teams and channels where you are a member. Make sure you're a
 						member of the teams you want to index before connecting.
 					</p>

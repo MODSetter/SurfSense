@@ -1,0 +1,16 @@
+{
+  "name": "NeoNote",
+  "short_name": "NeoNote",
+  "description": "AI Research Hub for Teams",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1f17",
+  "theme_color": "#1a3a2a",
+  "icons": [
+    {
+      "src": "/icon-128.svg",
+      "sizes": "128x128",
+      "type": "image/svg+xml"
+    }
+  ]
+}

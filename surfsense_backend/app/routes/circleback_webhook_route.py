@@ -339,6 +339,6 @@ async def get_circleback_webhook_info(
         "search_space_id": search_space_id,
         "method": "POST",
         "content_type": "application/json",
-        "description": "Use this URL in your Circleback automation to send meeting data to SurfSense",
+        "description": "Use this URL in your Circleback automation to send meeting data to NeoNote",
         "note": "Configure this URL in Circleback Settings → Automations → Create automation → Send webhook request",
     }

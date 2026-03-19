@@ -677,7 +677,7 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 							<p className="text-[10px] sm:text-xs text-muted-foreground">
 								The Elasticsearch connector allows you to search and retrieve documents from your
 								Elasticsearch cluster. Configure connection details, select specific indices, and
-								set search parameters to make your existing data searchable within SurfSense.
+								set search parameters to make your existing data searchable within NeoNote.
 							</p>
 						</div>
 
@@ -827,7 +827,7 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 											<li>
 												<strong>Connection Timeout:</strong> Check your network connectivity and
 												firewall settings. Ensure the Elasticsearch cluster is accessible from
-												SurfSense servers.
+												NeoNote servers.
 											</li>
 										</ul>
 									</div>

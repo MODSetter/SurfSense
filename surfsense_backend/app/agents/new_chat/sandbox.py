@@ -1,5 +1,5 @@
 """
-Daytona sandbox provider for SurfSense deep agent.
+Daytona sandbox provider for NeoNote deep agent.
 
 Manages the lifecycle of sandboxed code execution environments.
 Each conversation thread gets its own isolated sandbox instance

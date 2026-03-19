@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-Seed Surfsense documentation into the database.
+Seed Neonote documentation into the database.
 
 CLI wrapper for the seed_surfsense_docs function.
 Can be run manually for debugging or re-indexing.
@@ -20,9 +20,9 @@ from app.tasks.surfsense_docs_indexer import seed_surfsense_docs
 
 
 def main():
-    """CLI entry point for seeding Surfsense docs."""
+    """CLI entry point for seeding Neonote docs."""
     print("=" * 50)
-    print("  Surfsense Documentation Seeding")
+    print("  Neonote Documentation Seeding")
     print("=" * 50)
 
     created, updated, skipped, deleted = asyncio.run(seed_surfsense_docs())

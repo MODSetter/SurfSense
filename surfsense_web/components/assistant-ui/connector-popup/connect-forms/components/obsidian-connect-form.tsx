@@ -107,7 +107,7 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitti
 				<AlertTitle className="text-xs sm:text-sm">Self-Hosted Only</AlertTitle>
 				<AlertDescription className="text-[10px] sm:text-xs">
 					This connector requires direct file system access and only works with self-hosted
-					SurfSense installations.
+					NeoNote installations.
 				</AlertDescription>
 			</Alert>
 
@@ -156,7 +156,7 @@ export const ObsidianConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSubmitti
 									</FormControl>
 									<FormDescription className="text-[10px] sm:text-xs">
 										The absolute path to your Obsidian vault on the server. This must be accessible
-										from the SurfSense backend.
+										from the NeoNote backend.
 									</FormDescription>
 									<FormMessage />
 								</FormItem>

@@ -1,4 +1,4 @@
-# SurfSense Test Document
+# NeoNote Test Document
 
 ## Overview
 
@@ -16,7 +16,7 @@ document upload pipeline. It includes various markdown formatting elements.
 
 ### Backend Stack
 
-The SurfSense backend is built with:
+The NeoNote backend is built with:
 
 1. **FastAPI** for the REST API
 2. **PostgreSQL** with pgvector for vector storage

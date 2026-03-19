@@ -1,15 +1,15 @@
 ---
 title: Elasticsearch
-description: Connect your Elasticsearch cluster to SurfSense
+description: Connect your Elasticsearch cluster to NeoNote
 ---
 
 # Elasticsearch Integration Setup Guide
 
-This guide walks you through connecting your Elasticsearch cluster to SurfSense.
+This guide walks you through connecting your Elasticsearch cluster to NeoNote.
 
 ## How it works
 
-The Elasticsearch connector allows you to search and retrieve documents from your Elasticsearch cluster. Configure connection details, select specific indices, and set search parameters to make your existing data searchable within SurfSense.
+The Elasticsearch connector allows you to search and retrieve documents from your Elasticsearch cluster. Configure connection details, select specific indices, and set search parameters to make your existing data searchable within NeoNote.
 
 - For follow-up indexing runs, the connector retrieves documents that have been updated since the last indexing attempt.
 - Indexing should be configured to run periodically, so updates should appear in your search results within minutes.
@@ -55,7 +55,7 @@ Enable periodic sync to automatically re-index documents when content changes. A
 
 ---
 
-## Connecting to SurfSense
+## Connecting to NeoNote
 
 1. Navigate to the Connector Dashboard and select the **Elasticsearch** Connector.
 2. Fill in the required fields:
@@ -102,7 +102,7 @@ Set a limit on the number of documents retrieved per search (1-10,000). This hel
 
 - **Invalid URL:** Ensure your endpoint URL includes the protocol (https://) and port number if required.
 - **SSL/TLS Errors:** Verify that your cluster uses HTTPS and the certificate is valid. Self-signed certificates may require additional configuration.
-- **Connection Timeout:** Check your network connectivity and firewall settings. Ensure the Elasticsearch cluster is accessible from SurfSense servers.
+- **Connection Timeout:** Check your network connectivity and firewall settings. Ensure the Elasticsearch cluster is accessible from NeoNote servers.
 
 ### Authentication Issues
 

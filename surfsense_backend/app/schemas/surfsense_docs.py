@@ -1,5 +1,5 @@
 """
-Schemas for Surfsense documentation.
+Schemas for Neonote documentation.
 """
 
 from datetime import datetime
@@ -7,8 +7,8 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict
 
 
-class SurfsenseDocsChunkRead(BaseModel):
-    """Schema for a Surfsense docs chunk."""
+class NeonoteDocsChunkRead(BaseModel):
+    """Schema for a Neonote docs chunk."""
 
     id: int
     content: str
@@ -16,8 +16,8 @@ class SurfsenseDocsChunkRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SurfsenseDocsDocumentRead(BaseModel):
-    """Schema for a Surfsense docs document (without chunks)."""
+class NeonoteDocsDocumentRead(BaseModel):
+    """Schema for a Neonote docs document (without chunks)."""
 
     id: int
     title: str
@@ -29,13 +29,13 @@ class SurfsenseDocsDocumentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class SurfsenseDocsDocumentWithChunksRead(BaseModel):
-    """Schema for a Surfsense docs document with its chunks."""
+class NeonoteDocsDocumentWithChunksRead(BaseModel):
+    """Schema for a Neonote docs document with its chunks."""
 
     id: int
     title: str
     source: str
     content: str
-    chunks: list[SurfsenseDocsChunkRead]
+    chunks: list[NeonoteDocsChunkRead]
 
     model_config = ConfigDict(from_attributes=True)

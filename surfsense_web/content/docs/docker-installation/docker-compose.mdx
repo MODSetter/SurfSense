@@ -1,19 +1,19 @@
 ---
 title: Docker Compose
-description: Manual Docker Compose setup for SurfSense
+description: Manual Docker Compose setup for NeoNote
 ---
 
 ## Setup
 
 ```bash
-git clone https://github.com/MODSetter/SurfSense.git
-cd SurfSense/docker
+git clone https://github.com/MODSetter/NeoNote.git
+cd NeoNote/docker
 cp .env.example .env
 # Edit .env, at minimum set SECRET_KEY
 docker compose up -d
 ```
 
-After starting, access SurfSense at:
+After starting, access NeoNote at:
 
 - **Frontend**: [http://localhost:3929](http://localhost:3929)
 - **Backend API**: [http://localhost:8929](http://localhost:8929)
@@ -24,7 +24,7 @@ After starting, access SurfSense at:
 
 ## Configuration
 
-All configuration lives in a single `docker/.env` file (or `surfsense/.env` if you used the install script). Copy `.env.example` to `.env` and edit the values you need.
+All configuration lives in a single `docker/.env` file (or `neonote/.env` if you used the install script). Copy `.env.example` to `.env` and edit the values you need.
 
 ### Required
 
@@ -54,7 +54,7 @@ All configuration lives in a single `docker/.env` file (or `surfsense/.env` if y
 
 ### Custom Domain / Reverse Proxy
 
-Only set these if serving SurfSense on a real domain via a reverse proxy (Caddy, Nginx, Cloudflare Tunnel, etc.). Leave commented out for standard localhost deployments.
+Only set these if serving NeoNote on a real domain via a reverse proxy (Caddy, Nginx, Cloudflare Tunnel, etc.). Leave commented out for standard localhost deployments.
 
 | Variable | Description |
 |----------|-------------|
@@ -69,9 +69,9 @@ Defaults work out of the box. Change for security in production.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `DB_USER` | PostgreSQL username | `surfsense` |
-| `DB_PASSWORD` | PostgreSQL password | `surfsense` |
-| `DB_NAME` | PostgreSQL database name | `surfsense` |
+| `DB_USER` | PostgreSQL username | `neonote` |
+| `DB_PASSWORD` | PostgreSQL password | `neonote` |
+| `DB_NAME` | PostgreSQL database name | `neonote` |
 | `DB_HOST` | PostgreSQL host | `db` |
 | `DB_PORT` | PostgreSQL port | `5432` |
 | `DB_SSLMODE` | SSL mode: `disable`, `require`, `verify-ca`, `verify-full` | `disable` |

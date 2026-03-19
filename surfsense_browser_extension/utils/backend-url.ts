@@ -1,7 +1,7 @@
 import { Storage } from "@plasmohq/storage";
 
 export const BACKEND_URL_STORAGE_KEY = "backend_base_url";
-export const FALLBACK_BACKEND_BASE_URL = "https://www.surfsense.com";
+export const FALLBACK_BACKEND_BASE_URL = "https://www.neonote.com";
 
 const storage = new Storage({ area: "local" });
 

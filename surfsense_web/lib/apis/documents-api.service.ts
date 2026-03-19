@@ -10,7 +10,7 @@ import {
 	type GetDocumentsRequest,
 	type GetDocumentsStatusRequest,
 	type GetDocumentTypeCountsRequest,
-	type GetSurfsenseDocsRequest,
+	type GetNeonoteDocsRequest,
 	getDocumentByChunkRequest,
 	getDocumentByChunkResponse,
 	getDocumentRequest,
@@ -21,9 +21,9 @@ import {
 	getDocumentsStatusResponse,
 	getDocumentTypeCountsRequest,
 	getDocumentTypeCountsResponse,
-	getSurfsenseDocsByChunkResponse,
-	getSurfsenseDocsRequest,
-	getSurfsenseDocsResponse,
+	getNeonoteDocsByChunkResponse,
+	getNeonoteDocsRequest,
+	getNeonoteDocsResponse,
 	type SearchDocumentsRequest,
 	type SearchDocumentTitlesRequest,
 	searchDocumentsRequest,
@@ -316,23 +316,23 @@ class DocumentsApiService {
 	};
 
 	/**
-	 * Get Surfsense documentation by chunk ID
+	 * Get Neonote documentation by chunk ID
 	 * Used for resolving [citation:doc-XXX] citations
 	 */
-	getSurfsenseDocByChunk = async (chunkId: number) => {
+	getNeonoteDocByChunk = async (chunkId: number) => {
 		return baseApiService.get(
-			`/api/v1/surfsense-docs/by-chunk/${chunkId}`,
-			getSurfsenseDocsByChunkResponse
+			`/api/v1/neonote-docs/by-chunk/${chunkId}`,
+			getNeonoteDocsByChunkResponse
 		);
 	};
 
 	/**
-	 * List all Surfsense documentation documents
+	 * List all Neonote documentation documents
 	 * @param request - The request with query params
 	 * @param signal - Optional AbortSignal for request cancellation
 	 */
-	getSurfsenseDocs = async (request: GetSurfsenseDocsRequest, signal?: AbortSignal) => {
-		const parsedRequest = getSurfsenseDocsRequest.safeParse(request);
+	getNeonoteDocs = async (request: GetNeonoteDocsRequest, signal?: AbortSignal) => {
+		const parsedRequest = getNeonoteDocsRequest.safeParse(request);
 
 		if (!parsedRequest.success) {
 			console.error("Invalid request:", parsedRequest.error);
@@ -352,9 +352,9 @@ class DocumentsApiService {
 			? new URLSearchParams(transformedQueryParams).toString()
 			: "";
 
-		const url = `/api/v1/surfsense-docs?${queryParams}`;
+		const url = `/api/v1/neonote-docs?${queryParams}`;
 
-		return baseApiService.get(url, getSurfsenseDocsResponse, { signal });
+		return baseApiService.get(url, getNeonoteDocsResponse, { signal });
 	};
 
 	/**

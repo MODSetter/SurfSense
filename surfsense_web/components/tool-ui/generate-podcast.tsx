@@ -396,7 +396,7 @@ function PodcastStatusPoller({ podcastId, title }: { podcastId: number; title: s
 				description={
 					podcastStatus.transcript_entries
 						? `${podcastStatus.transcript_entries} dialogue entries`
-						: "SurfSense AI-generated podcast"
+						: "NeoNote AI-generated podcast"
 				}
 			/>
 		);
@@ -420,7 +420,7 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 >({
 	toolName: "generate_podcast",
 	render: function GeneratePodcastUI({ args, result, status }) {
-		const title = args.podcast_title || "SurfSense Podcast";
+		const title = args.podcast_title || "NeoNote Podcast";
 
 		// Loading state - tool is still running (agent processing)
 		if (status.type === "running" || status.type === "requires-action") {
@@ -496,7 +496,7 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 					description={
 						result.transcript_entries
 							? `${result.transcript_entries} dialogue entries`
-							: "SurfSense AI-generated podcast"
+							: "NeoNote AI-generated podcast"
 					}
 				/>
 			);

@@ -374,7 +374,7 @@ class ConnectorIndexingNotificationHandler(BaseNotificationHandler):
                 service_name = service_name.split(" - ")[0]
 
         # User-friendly messages for different retry reasons
-        # These make it clear the delay is due to the external service, not SurfSense
+        # These make it clear the delay is due to the external service, not NeoNote
         retry_messages = {
             "rate_limit": f"{service_name} rate limit reached",
             "server_error": f"{service_name} is slow to respond",

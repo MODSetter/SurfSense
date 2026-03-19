@@ -71,7 +71,7 @@ export function ConnectionSettingsButton({ onSaved }: ConnectionSettingsButtonPr
 					<DialogHeader>
 						<DialogTitle>Connection Settings</DialogTitle>
 						<DialogDescription className="text-gray-400">
-							Leave blank to use the default SurfSense backend URL.
+							Leave blank to use the default NeoNote backend URL.
 						</DialogDescription>
 					</DialogHeader>
 

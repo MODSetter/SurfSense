@@ -1,11 +1,11 @@
 ---
 title: Gmail
-description: Connect your Gmail to SurfSense
+description: Connect your Gmail to NeoNote
 ---
 
 # Gmail OAuth Integration Setup Guide
 
-This guide walks you through setting up a Google OAuth 2.0 integration for SurfSense to connect your Gmail account.
+This guide walks you through setting up a Google OAuth 2.0 integration for NeoNote to connect your Gmail account.
 
 ## Step 1: Access the Google Cloud Console
 
@@ -26,7 +26,7 @@ This guide walks you through setting up a Google OAuth 2.0 integration for SurfS
 1. Go to **APIs & Services** > **OAuth consent screen**
 2. Select **External** user type (or Internal if using Google Workspace)
 3. Fill in the required information:
-   - **App name**: `SurfSense`
+   - **App name**: `NeoNote`
    - **User support email**: Your email address
    - **Developer contact information**: Your email address
 4. Click **Save and Continue**
@@ -46,7 +46,7 @@ This guide walks you through setting up a Google OAuth 2.0 integration for SurfS
 1. Go to **APIs & Services** > **Credentials**
 2. Click **Create Credentials** > **OAuth client ID**
 3. Select **Web application** as the application type
-4. Enter **Name**: `SurfSense`
+4. Enter **Name**: `NeoNote`
 5. Under **Authorized redirect URIs**, add:
    ```
    http://localhost:8000/api/v1/auth/google/gmail/connector/callback
@@ -68,7 +68,7 @@ This guide walks you through setting up a Google OAuth 2.0 integration for SurfS
 
 ---
 
-## Running SurfSense with Gmail Connector
+## Running NeoNote with Gmail Connector
 
 Add the Google OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 

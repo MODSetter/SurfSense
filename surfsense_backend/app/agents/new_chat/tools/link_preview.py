@@ -1,5 +1,5 @@
 """
-Link preview tool for the SurfSense agent.
+Link preview tool for the NeoNote agent.
 
 This module provides a tool for fetching URL metadata (title, description,
 Open Graph image, etc.) to display rich link previews in the chat UI.

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Docling Document Processing Service for SurfSense
+Docling Document Processing Service for NeoNote
 SSL-safe implementation with pre-downloaded models
 """
 

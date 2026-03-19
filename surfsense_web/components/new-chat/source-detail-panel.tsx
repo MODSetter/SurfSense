@@ -15,13 +15,13 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import type {
 	GetDocumentByChunkResponse,
-	GetSurfsenseDocsByChunkResponse,
+	GetNeonoteDocsByChunkResponse,
 } from "@/contracts/types/document.types";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import { cn } from "@/lib/utils";
 
-type DocumentData = GetDocumentByChunkResponse | GetSurfsenseDocsByChunkResponse;
+type DocumentData = GetDocumentByChunkResponse | GetNeonoteDocsByChunkResponse;
 
 interface SourceDetailPanelProps {
 	open: boolean;
@@ -138,7 +138,7 @@ export function SourceDetailPanel({
 			: cacheKeys.documents.byChunk(chunkId.toString()),
 		queryFn: async () => {
 			if (isDocsChunk) {
-				return documentsApiService.getSurfsenseDocByChunk(chunkId);
+				return documentsApiService.getNeonoteDocByChunk(chunkId);
 			}
 			return documentsApiService.getDocumentByChunk({ chunk_id: chunkId });
 		},

@@ -13,7 +13,7 @@ set -e
 # each service deployment.
 # ─────────────────────────────────────────────────────────────
 SERVICE_ROLE="${SERVICE_ROLE:-all}"
-echo "Starting SurfSense with SERVICE_ROLE=${SERVICE_ROLE}"
+echo "Starting NeoNote with SERVICE_ROLE=${SERVICE_ROLE}"
 
 # ── Autoscale defaults (override via env) ────────────────────
 #   CELERY_MAX_WORKERS  – max concurrent worker processes

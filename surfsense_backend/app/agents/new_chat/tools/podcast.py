@@ -1,5 +1,5 @@
 """
-Podcast generation tool for the SurfSense agent.
+Podcast generation tool for the NeoNote agent.
 
 This module provides a factory function for creating the generate_podcast tool
 that submits a Celery task for background podcast generation. The frontend
@@ -82,7 +82,7 @@ def create_generate_podcast_tool(
     @tool
     async def generate_podcast(
         source_content: str,
-        podcast_title: str = "SurfSense Podcast",
+        podcast_title: str = "NeoNote Podcast",
         user_prompt: str | None = None,
     ) -> dict[str, Any]:
         """
@@ -98,7 +98,7 @@ def create_generate_podcast_tool(
 
         Args:
             source_content: The text content to convert into a podcast.
-            podcast_title: Title for the podcast (default: "SurfSense Podcast")
+            podcast_title: Title for the podcast (default: "NeoNote Podcast")
             user_prompt: Optional instructions for podcast style, tone, or format.
 
         Returns:

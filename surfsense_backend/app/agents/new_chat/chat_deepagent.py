@@ -1,7 +1,7 @@
 """
-SurfSense deep agent implementation.
+NeoNote deep agent implementation.
 
-This module provides the factory function for creating SurfSense deep agents
+This module provides the factory function for creating NeoNote deep agents
 with configurable tools via the tools registry and configurable prompts
 via NewLLMConfig.
 """
@@ -19,7 +19,7 @@ from langchain_core.tools import BaseTool
 from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.new_chat.context import NeoNoteContextSchema
 from app.agents.new_chat.llm_config import AgentConfig
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
@@ -138,7 +138,7 @@ async def create_surfsense_deep_agent(
     sandbox_backend: SandboxBackendProtocol | None = None,
 ):
     """
-    Create a SurfSense deep agent with configurable tools and prompts.
+    Create a NeoNote deep agent with configurable tools and prompts.
 
     The agent comes with built-in tools that can be configured:
     - search_knowledge_base: Search the user's personal knowledge base
@@ -340,7 +340,7 @@ async def create_surfsense_deep_agent(
         model=llm,
         tools=tools,
         system_prompt=system_prompt,
-        context_schema=SurfSenseContextSchema,
+        context_schema=NeoNoteContextSchema,
         checkpointer=checkpointer,
         **deep_agent_kwargs,
     )

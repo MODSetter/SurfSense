@@ -113,7 +113,7 @@ global_llm_configs:
     # Custom system instructions for Chinese responses
     system_instructions: |
       <system_instruction>
-      You are SurfSense, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
+      You are NeoNote, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
       
       Today's date (UTC): {resolved_today}
       

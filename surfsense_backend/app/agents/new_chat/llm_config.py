@@ -1,5 +1,5 @@
 """
-LLM configuration utilities for SurfSense agents.
+LLM configuration utilities for NeoNote agents.
 
 This module provides functions for loading LLM configurations from:
 1. Auto mode (ID 0) - Uses LiteLLM Router for load balancing
@@ -82,7 +82,7 @@ def _attach_model_profile(llm: ChatLiteLLM, model_string: str) -> None:
 @dataclass
 class AgentConfig:
     """
-    Complete configuration for the SurfSense agent.
+    Complete configuration for the NeoNote agent.
 
     This combines LLM settings with prompt configuration from NewLLMConfig.
     Supports Auto mode (ID 0) which uses LiteLLM Router for load balancing.

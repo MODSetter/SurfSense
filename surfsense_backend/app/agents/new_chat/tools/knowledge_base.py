@@ -1,5 +1,5 @@
 """
-Knowledge base search tool for the SurfSense agent.
+Knowledge base search tool for the NeoNote agent.
 
 This module provides:
 - Connector constants and normalization
@@ -209,9 +209,9 @@ _ALL_CONNECTORS: list[str] = [
 # Human-readable descriptions for each connector type
 # Used for generating dynamic docstrings and informing the LLM
 CONNECTOR_DESCRIPTIONS: dict[str, str] = {
-    "EXTENSION": "Web content saved via SurfSense browser extension (personal browsing history)",
+    "EXTENSION": "Web content saved via NeoNote browser extension (personal browsing history)",
     "FILE": "User-uploaded documents (PDFs, Word, etc.) (personal files)",
-    "NOTE": "SurfSense Notes (notes created inside SurfSense)",
+    "NOTE": "NeoNote Notes (notes created inside NeoNote)",
     "SLACK_CONNECTOR": "Slack conversations and shared content (personal workspace communications)",
     "TEAMS_CONNECTOR": "Microsoft Teams messages and conversations (personal Teams communications)",
     "NOTION_CONNECTOR": "Notion workspace pages and databases (personal knowledge management)",
@@ -232,8 +232,8 @@ CONNECTOR_DESCRIPTIONS: dict[str, str] = {
     "LINKUP_API": "Linkup search API results (web search)",
     "BAIDU_SEARCH_API": "Baidu search API results (Chinese web search)",
     "LUMA_CONNECTOR": "Luma events and meetings",
-    "WEBCRAWLER_CONNECTOR": "Webpages indexed by SurfSense (personally selected websites)",
-    "CRAWLED_URL": "Webpages indexed by SurfSense (personally selected websites)",
+    "WEBCRAWLER_CONNECTOR": "Webpages indexed by NeoNote (personally selected websites)",
+    "CRAWLED_URL": "Webpages indexed by NeoNote (personally selected websites)",
     "BOOKSTACK_CONNECTOR": "BookStack pages (personal documentation)",
     "CIRCLEBACK": "Circleback meeting notes, transcripts, and action items",
     "OBSIDIAN_CONNECTOR": "Obsidian vault notes and markdown files (personal notes)",

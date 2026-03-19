@@ -275,28 +275,28 @@ class IncentiveTaskType(StrEnum):
 INCENTIVE_TASKS_CONFIG = {
     IncentiveTaskType.GITHUB_STAR: {
         "title": "Star our GitHub repository",
-        "description": "Show your support by starring SurfSense on GitHub",
+        "description": "Show your support by starring NeoNote on GitHub",
         "pages_reward": 30,
-        "action_url": "https://github.com/MODSetter/SurfSense",
+        "action_url": "https://github.com/MODSetter/NeoNote",
     },
     IncentiveTaskType.REDDIT_FOLLOW: {
         "title": "Join our Subreddit",
-        "description": "Join the SurfSense community on Reddit",
+        "description": "Join the NeoNote community on Reddit",
         "pages_reward": 30,
-        "action_url": "https://www.reddit.com/r/SurfSense/",
+        "action_url": "https://www.reddit.com/r/NeoNote/",
     },
     IncentiveTaskType.DISCORD_JOIN: {
         "title": "Join our Discord",
-        "description": "Join the SurfSense community on Discord",
+        "description": "Join the NeoNote community on Discord",
         "pages_reward": 40,
         "action_url": "https://discord.gg/ejRNvftDp9",
     },
     # Future tasks can be configured here:
     # IncentiveTaskType.GITHUB_ISSUE: {
     #     "title": "Create an issue",
-    #     "description": "Help improve SurfSense by reporting bugs or suggesting features",
+    #     "description": "Help improve NeoNote by reporting bugs or suggesting features",
     #     "pages_reward": 50,
-    #     "action_url": "https://github.com/MODSetter/SurfSense/issues/new/choose",
+    #     "action_url": "https://github.com/MODSetter/NeoNote/issues/new/choose",
     # },
 }
 
@@ -968,9 +968,9 @@ class Chunk(BaseModel, TimestampMixin):
     document = relationship("Document", back_populates="chunks")
 
 
-class SurfsenseDocsDocument(BaseModel, TimestampMixin):
+class NeonoteDocsDocument(BaseModel, TimestampMixin):
     """
-    Surfsense documentation storage.
+    Neonote documentation storage.
     Indexed at migration time from MDX files.
     """
 
@@ -986,14 +986,14 @@ class SurfsenseDocsDocument(BaseModel, TimestampMixin):
     updated_at = Column(TIMESTAMP(timezone=True), nullable=True, index=True)
 
     chunks = relationship(
-        "SurfsenseDocsChunk",
+        "NeonoteDocsChunk",
         back_populates="document",
         cascade="all, delete-orphan",
     )
 
 
-class SurfsenseDocsChunk(BaseModel, TimestampMixin):
-    """Chunk storage for Surfsense documentation."""
+class NeonoteDocsChunk(BaseModel, TimestampMixin):
+    """Chunk storage for Neonote documentation."""
 
     __tablename__ = "surfsense_docs_chunks"
 
@@ -1005,7 +1005,7 @@ class SurfsenseDocsChunk(BaseModel, TimestampMixin):
         ForeignKey("surfsense_docs_documents.id", ondelete="CASCADE"),
         nullable=False,
     )
-    document = relationship("SurfsenseDocsDocument", back_populates="chunks")
+    document = relationship("NeonoteDocsDocument", back_populates="chunks")
 
 
 class Podcast(BaseModel, TimestampMixin):

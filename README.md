@@ -1,4 +1,4 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="readme_banner" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
+<a href="https://www.NeoNote.com/"><img width="1584" height="396" alt="readme_banner" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
 
 
 
@@ -6,8 +6,8 @@
 <a href="https://discord.gg/ejRNvftDp9">
 <img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
 </a>
-<a href="https://www.reddit.com/r/SurfSense/">
-<img src="https://img.shields.io/reddit/subreddit-subscribers/SurfSense?style=social" alt="Reddit">
+<a href="https://www.reddit.com/r/NeoNote/">
+<img src="https://img.shields.io/reddit/subreddit-subscribers/NeoNote?style=social" alt="Reddit">
 </a>
 </div>
 
@@ -17,13 +17,13 @@
 
 </div>
 <div align="center">
-<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
+<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FNeoNote | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
 </div>
 
-# SurfSense
+# NeoNote
 Connect any LLM to your internal knowledge sources and chat with it in real time alongside your team. OSS alternative to NotebookLM, Perplexity, and Glean.
 
-SurfSense is a highly customizable AI research agent, connected to external sources such as Search Engines (SearxNG, Tavily, LinkUp), Google Drive, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian and more to come.
+NeoNote is a highly customizable AI research agent, connected to external sources such as Search Engines (SearxNG, Tavily, LinkUp), Google Drive, Slack, Microsoft Teams, Linear, Jira, ClickUp, Confluence, BookStack, Gmail, Notion, YouTube, GitHub, Discord, Airtable, Google Calendar, Luma, Circleback, Elasticsearch, Obsidian and more to come.
 
 
 
@@ -36,11 +36,11 @@ https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 
-## How to Use SurfSense
+## How to Use NeoNote
 
 ### Cloud
 
-1. Go to [surfsense.com](https://www.surfsense.com) and login.
+1. Go to [NeoNote.com](https://www.NeoNote.com) and login.
 
 <p align="center"><img src="https://github.com/user-attachments/assets/b4df25fe-db5a-43c2-9462-b75cf7f1b707" alt="Login" /></p>
 
@@ -79,25 +79,25 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 ### Self Hosted
 
-Run SurfSense on your own infrastructure for full data control and privacy.
+Run NeoNote on your own infrastructure for full data control and privacy.
 
 **Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be installed and running.
 
 #### For Linux/MacOS users:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/MODSetter/NeoNote/main/docker/scripts/install.sh | bash
 ```
 
 #### For Windows users:
 
 ```bash
-irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/MODSetter/NeoNote/main/docker/scripts/install.ps1 | iex
 ```
 
 The install script sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) automatically for daily auto-updates. To skip it, add the `--no-watchtower` flag.
 
-For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
+For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.NeoNote.com/docs/).
 
 ### How to Realtime Collaborate (Beta)
 
@@ -150,18 +150,18 @@ Search Engines (Tavily, LinkUp) · SearxNG · Google Drive · Slack · Microsoft
 ## FEATURE REQUESTS AND FUTURE
 
 
-**SurfSense is actively being developed.** While it's not yet production-ready, you can help us speed up the process.
+**NeoNote is actively being developed.** While it's not yet production-ready, you can help us speed up the process.
 
-Join the [SurfSense Discord](https://discord.gg/ejRNvftDp9) and help shape the future of SurfSense!
+Join the [NeoNote Discord](https://discord.gg/ejRNvftDp9) and help shape the future of NeoNote!
 
 ## Roadmap
 
 Stay up to date with our development progress and upcoming features!  
 Check out our public roadmap and contribute your ideas or feedback:
 
-**Roadmap Discussion:** [SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
+**Roadmap Discussion:** [NeoNote 2026 Roadmap](https://github.com/MODSetter/NeoNote/discussions/565)
 
-**Kanban Board:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
+**Kanban Board:** [NeoNote Project Board](https://github.com/users/MODSetter/projects/3)
 
 
 ## Contribute
@@ -170,17 +170,17 @@ All contributions welcome, from stars and bug reports to backend improvements. S
 
 Thanks to all our Surfers:
 
-<a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />
+<a href="https://github.com/MODSetter/NeoNote/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=MODSetter/NeoNote" />
 </a>
 
 ## Star History
 
-<a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
+<a href="https://www.star-history.com/#MODSetter/NeoNote&Date">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/NeoNote&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/NeoNote&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/NeoNote&type=Date" />
  </picture>
 </a>
 

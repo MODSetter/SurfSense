@@ -35,7 +35,7 @@ export function CTAHomepage() {
 			</div>
 			{/* <div className="border-t md:border-t-0 md:border-l border-dashed p-8 md:p-14">
         <p className="text-base text-neutral-700 dark:text-neutral-200">
-          &quot;SurfSense has revolutionized how our team shares and discovers knowledge. 
+          &quot;NeoNote has revolutionized how our team shares and discovers knowledge. 
           Everyone can contribute and find what they need instantly. True collaboration at scale.&quot;
         </p>
         <div className="flex flex-col text-sm items-start mt-4 gap-1">

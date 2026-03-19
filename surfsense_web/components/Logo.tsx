@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -11,19 +10,22 @@ export const Logo = ({
 	className?: string;
 	disableLink?: boolean;
 }) => {
-	const image = (
-		<Image
-			src="/icon-128.svg"
-			className={cn("dark:invert", className)}
-			alt="logo"
-			width={128}
-			height={128}
-		/>
+	// TODO: Replace this placeholder with the actual NeoNote logo
+	const placeholder = (
+		<div
+			className={cn(
+				"flex items-center justify-center rounded-md font-bold text-white",
+				className
+			)}
+			style={{ backgroundColor: "#1a3a2a", width: "32px", height: "32px", minWidth: "32px", minHeight: "32px" }}
+		>
+			NN
+		</div>
 	);
 
 	if (disableLink) {
-		return image;
+		return placeholder;
 	}
 
-	return <Link href="/">{image}</Link>;
+	return <Link href="/">{placeholder}</Link>;
 };

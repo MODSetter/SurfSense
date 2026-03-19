@@ -153,7 +153,7 @@ export const CirclebackConfig: FC<CirclebackConfigProps> = ({ connector, onNameC
 							</Button>
 						</div>
 						<p className="text-[10px] sm:text-xs text-muted-foreground">
-							Use this URL in your Circleback automation settings to send meeting data to SurfSense.
+							Use this URL in your Circleback automation settings to send meeting data to NeoNote.
 						</p>
 					</div>
 				) : (

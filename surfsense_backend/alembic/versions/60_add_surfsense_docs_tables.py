@@ -1,4 +1,4 @@
-"""Add Surfsense docs tables for global documentation storage
+"""Add Neonote docs tables for global documentation storage
 
 Revision ID: 60
 Revises: 59
@@ -143,7 +143,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Remove surfsense docs tables."""
+    """Remove neonote docs tables."""
     # Drop full-text search indexes
     op.execute("DROP INDEX IF EXISTS surfsense_docs_chunks_search_index")
     op.execute("DROP INDEX IF EXISTS surfsense_docs_documents_search_index")

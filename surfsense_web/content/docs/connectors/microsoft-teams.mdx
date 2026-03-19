@@ -1,11 +1,11 @@
 ---
 title: Microsoft Teams
-description: Connect your Microsoft Teams to SurfSense
+description: Connect your Microsoft Teams to NeoNote
 ---
 
 # Microsoft Teams OAuth Integration Setup Guide
 
-This guide walks you through setting up a Microsoft Teams OAuth integration for SurfSense using Azure App Registration.
+This guide walks you through setting up a Microsoft Teams OAuth integration for NeoNote using Azure App Registration.
 
 ## Step 1: Access Azure App Registrations
 
@@ -27,7 +27,7 @@ Fill in the application details:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `SurfSense` |
+| **Name** | `NeoNote` |
 | **Supported account types** | Select **"Accounts in any organizational directory (Any Microsoft Entra ID tenant - Multitenant) and personal Microsoft accounts"** |
 | **Redirect URI** | Platform: `Web`, URI: `http://localhost:8000/api/v1/auth/teams/connector/callback` |
 
@@ -49,7 +49,7 @@ After registration, you'll be taken to the app's **Overview** page. Here you'll 
 1. In the left sidebar under **Manage**, click **"Certificates & secrets"**
 2. Select the **"Client secrets"** tab
 3. Click **"+ New client secret"**
-4. Enter a description (e.g., `SurfSense`) and select an expiration period
+4. Enter a description (e.g., `NeoNote`) and select an expiration period
 5. Click **"Add"**
 
 ![Certificates & Secrets - Empty](/docs/connectors/microsoft-teams/azure-certificates-empty.png)
@@ -88,7 +88,7 @@ After registration, you'll be taken to the app's **Overview** page. Here you'll 
 
 ---
 
-## Running SurfSense with Microsoft Teams Connector
+## Running NeoNote with Microsoft Teams Connector
 
 Add the Microsoft Teams credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 

@@ -302,7 +302,7 @@ async def _process_file_content(
     """
     Process file content and return markdown text.
 
-    For binary files (PDFs, images, etc.), uses Surfsense's ETL service.
+    For binary files (PDFs, images, etc.), uses Neonote's ETL service.
     For text files, decodes as UTF-8.
 
     Args:

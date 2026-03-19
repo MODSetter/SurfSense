@@ -1,14 +1,14 @@
 ---
 title: Obsidian
-description: Connect your Obsidian vault to SurfSense
+description: Connect your Obsidian vault to NeoNote
 ---
 
 # Obsidian Integration Setup Guide
 
-This guide walks you through connecting your Obsidian vault to SurfSense for note search and AI-powered insights.
+This guide walks you through connecting your Obsidian vault to NeoNote for note search and AI-powered insights.
 
 <Callout type="warn">
-    This connector requires direct file system access and only works with self-hosted SurfSense installations.
+    This connector requires direct file system access and only works with self-hosted NeoNote installations.
 </Callout>
 
 ## How it works
@@ -59,11 +59,11 @@ For Docker deployments, you need to mount your Obsidian vault as a volume.
 
 ### Step 1: Update docker-compose.yml
 
-Add your vault as a volume mount to the SurfSense backend service:
+Add your vault as a volume mount to the NeoNote backend service:
 
 ```yaml
 services:
-  surfsense:
+  neonote:
     # ... other config
     volumes:
       - /path/to/your/obsidian/vault:/app/obsidian_vaults/my-vault:ro
@@ -127,7 +127,7 @@ Default exclusions: `.obsidian,.trash`
 **Vault not found / Permission denied**
 - Verify the path exists and is accessible
 - For Docker: ensure the volume is mounted correctly in `docker-compose.yml`
-- Check file permissions: SurfSense needs read access to the vault directory
+- Check file permissions: NeoNote needs read access to the vault directory
 
 **No notes indexed**
 - Ensure your vault contains `.md` files

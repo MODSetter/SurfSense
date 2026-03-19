@@ -47,7 +47,7 @@ export function FooterNew() {
 		},
 		{
 			title: "LinkedIn",
-			href: "https://www.linkedin.com/company/surfsense/",
+			href: "https://www.linkedin.com/company/neonote/",
 			icon: IconBrandLinkedin,
 		},
 		{
@@ -96,11 +96,11 @@ export function FooterNew() {
 				<div>
 					<div className="mr-0 md:mr-4  md:flex mb-4">
 						<Logo className="h-6 w-6 rounded-md mr-2" />
-						<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
+						<span className="dark:text-white/90 text-gray-800 text-lg font-bold">NeoNote</span>
 					</div>
 
 					<div className="mt-2 ml-2">
-						&copy; SurfSense {new Date().getFullYear()}. All rights reserved.
+						&copy; NeoNote {new Date().getFullYear()}. All rights reserved.
 					</div>
 				</div>
 				<div className="grid grid-cols-2 lg:grid-cols-4 gap-10 items-start mt-10 sm:mt-0 md:mt-0">
@@ -177,7 +177,7 @@ export function FooterNew() {
 				</div>
 			</div>
 			<p className="text-center mt-20 text-5xl md:text-9xl lg:text-[12rem] xl:text-[13rem] font-bold bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 dark:from-neutral-950 to-neutral-200 dark:to-neutral-800 inset-x-0">
-				SurfSense
+				NeoNote
 			</p>
 		</div>
 	);

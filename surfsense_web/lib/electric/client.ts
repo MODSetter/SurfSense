@@ -2,7 +2,7 @@
  * Electric SQL client setup for ElectricSQL 1.x with PGlite
  *
  * USER-SPECIFIC DATABASE ARCHITECTURE:
- * - Each user gets their own IndexedDB database: idb://surfsense-{userId}-v{version}
+ * - Each user gets their own IndexedDB database: idb://neonote-{userId}-v{version}
  * - On login: cleanup databases from other users, then initialize current user's DB
  * - On logout: best-effort cleanup (not relied upon)
  *
@@ -74,8 +74,8 @@ const pendingSyncs = new Map<string, Promise<SyncHandle>>();
 // v7: fixed connector-popup using invalid category for useInbox
 const SYNC_VERSION = 7;
 
-// Database name prefix for identifying SurfSense databases
-const DB_PREFIX = "surfsense-";
+// Database name prefix for identifying NeoNote databases
+const DB_PREFIX = "neonote-";
 
 // Get Electric URL from environment
 function getElectricUrl(): string {
@@ -102,7 +102,7 @@ async function cleanupOtherUserDatabases(currentUserId: string): Promise<void> {
 	}
 
 	// The exact database identifier we want to keep (current user + current version)
-	// Format: "surfsense-{userId}-v{version}"
+	// Format: "neonote-{userId}-v{version}"
 	const currentDbIdentifier = `${DB_PREFIX}${currentUserId}-v${SYNC_VERSION}`;
 
 	try {
@@ -114,8 +114,8 @@ async function cleanupOtherUserDatabases(currentUserId: string): Promise<void> {
 				const dbName = dbInfo.name;
 				if (!dbName) continue;
 
-				// Check if this is a SurfSense database
-				if (dbName.includes("surfsense")) {
+				// Check if this is a NeoNote database
+				if (dbName.includes("neonote")) {
 					// Check if this is the current database
 					// PGlite stores with "/pglite/" prefix, so we check if the name ENDS WITH our identifier
 					if (dbName.endsWith(currentDbIdentifier)) {

@@ -217,7 +217,7 @@ export default function OnboardPage() {
 						<div className="space-y-2">
 							<h1 className="text-3xl font-bold tracking-tight">Configure Your AI</h1>
 							<p className="text-muted-foreground text-lg">
-								Add your LLM provider to get started with SurfSense
+						Add your LLM provider to get started with NeoNote
 							</p>
 						</div>
 					</div>
@@ -239,7 +239,7 @@ export default function OnboardPage() {
 									isSubmitting={isSubmitting}
 									mode="create"
 									showAdvanced={true}
-									submitLabel="Start Using SurfSense"
+						submitLabel="Start Using NeoNote"
 									initialData={{
 										citations_enabled: true,
 										use_default_system_instructions: true,

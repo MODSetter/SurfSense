@@ -1,8 +1,8 @@
 {
 	"name": "surfsense_browser_extension",
-	"displayName": "Surfsense Browser Extension",
+	"displayName": "Neonote Browser Extension",
 	"version": "0.0.13",
-	"description": "Extension to collect Browsing History for SurfSense.",
+	"description": "Extension to collect Browsing History for NeoNote.",
 	"author": "https://github.com/MODSetter",
 	"engines": {
 		"node": ">=18.0.0 <23.0.0",
@@ -59,8 +59,8 @@
 		"host_permissions": [
 			"<all_urls>"
 		],
-		"name": "SurfSense",
-		"description": "Extension to collect Browsing History for SurfSense.",
+		"name": "NeoNote",
+		"description": "Extension to collect Browsing History for NeoNote.",
 		"version": "0.0.3"
 	},
 	"permissions": [

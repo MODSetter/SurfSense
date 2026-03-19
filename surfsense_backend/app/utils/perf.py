@@ -1,5 +1,5 @@
 """
-Centralized performance monitoring for SurfSense backend.
+Centralized performance monitoring for NeoNote backend.
 
 Provides:
 - A shared [PERF] logger used across all modules
@@ -24,7 +24,7 @@ def get_perf_logger() -> logging.Logger:
     """Return the singleton [PERF] logger, creating it once on first call."""
     global _perf_log
     if _perf_log is None:
-        _perf_log = logging.getLogger("surfsense.perf")
+        _perf_log = logging.getLogger("neonote.perf")
         _perf_log.setLevel(logging.DEBUG)
         if not _perf_log.handlers:
             h = logging.StreamHandler()

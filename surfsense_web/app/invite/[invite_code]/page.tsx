@@ -378,8 +378,8 @@ export default function InviteAcceptPage() {
 						href="/"
 						className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
 					>
-						<Image src="/icon-128.svg" alt="SurfSense" width={24} height={24} className="rounded" />
-						<span className="text-sm font-medium">SurfSense</span>
+					<Image src="/icon-128.svg" alt="NeoNote" width={24} height={24} className="rounded" />
+					<span className="text-sm font-medium">NeoNote</span>
 					</Link>
 				</motion.div>
 			</motion.div>

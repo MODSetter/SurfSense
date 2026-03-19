@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature or enhancement for SurfSense
+about: Suggest a new feature or enhancement for NeoNote
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''
@@ -11,7 +11,7 @@ assignees: ''
 
 ## Target Deployment
 <!-- Please select which deployment(s) this feature should apply to -->
-- [ ] SurfSense Cloud (hosted version)
+- [ ] NeoNote Cloud (hosted version)
 - [ ] Self-hosted version
 - [ ] Both
 
@@ -26,7 +26,7 @@ assignees: ''
 <!-- Describe any alternative solutions or features you've considered -->
 
 ## Benefits
-<!-- Explain how this feature would benefit SurfSense users -->
+<!-- Explain how this feature would benefit NeoNote users -->
 - 
 - 
 

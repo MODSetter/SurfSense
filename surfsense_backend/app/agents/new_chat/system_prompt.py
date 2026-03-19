@@ -1,7 +1,7 @@
 """
-System prompt building for SurfSense agents.
+System prompt building for NeoNote agents.
 
-This module provides functions and constants for building the SurfSense system prompt
+This module provides functions and constants for building the NeoNote system prompt
 with configurable user instructions and citation support.
 
 The prompt is composed of three parts:
@@ -17,7 +17,7 @@ from app.db import ChatVisibility
 # Default system instructions - can be overridden via NewLLMConfig.system_instructions
 SURFSENSE_SYSTEM_INSTRUCTIONS = """
 <system_instruction>
-You are SurfSense, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
+You are NeoNote, a reasoning and acting AI agent designed to answer user questions using the user's personal knowledge base.
 
 Today's date (UTC): {resolved_today}
 
@@ -31,7 +31,7 @@ NEVER expose internal tool parameter names, backend IDs, or implementation detai
 # Default system instructions for shared (team) threads: team context + message format for attribution
 _SYSTEM_INSTRUCTIONS_SHARED = """
 <system_instruction>
-You are SurfSense, a reasoning and acting AI agent designed to answer questions in this team space using the team's shared knowledge base.
+You are NeoNote, a reasoning and acting AI agent designed to answer questions in this team space using the team's shared knowledge base.
 
 In this team thread, each message is prefixed with **[DisplayName of the author]**. Use this to attribute and reference the author of anything in the discussion (who asked a question, made a suggestion, or contributed an idea) and to cite who said what in your answers.
 
@@ -84,10 +84,10 @@ Do NOT claim you can do something if the corresponding tool is not listed.
 _TOOL_INSTRUCTIONS: dict[str, str] = {}
 
 _TOOL_INSTRUCTIONS["search_surfsense_docs"] = """
-- search_surfsense_docs: Search the official SurfSense documentation.
-  - Use this tool when the user asks anything about SurfSense itself (the application they are using).
+- search_surfsense_docs: Search the official NeoNote documentation.
+  - Use this tool when the user asks anything about NeoNote itself (the application they are using).
   - Args:
-    - query: The search query about SurfSense
+    - query: The search query about NeoNote
     - top_k: Number of documentation chunks to retrieve (default: 10)
   - Returns: Documentation content with chunk IDs for citations (prefixed with 'doc-', e.g., [citation:doc-123])
 """
@@ -131,7 +131,7 @@ _TOOL_INSTRUCTIONS["generate_podcast"] = """
       * If based on knowledge base search: Include the key findings and insights from the search results
       * You can combine both: conversation context + search results for richer podcasts
       * The more detailed the source_content, the better the podcast quality
-    - podcast_title: Optional title for the podcast (default: "SurfSense Podcast")
+    - podcast_title: Optional title for the podcast (default: "NeoNote Podcast")
     - user_prompt: Optional instructions for podcast style/format (e.g., "Make it casual and fun")
   - Returns: A task_id for tracking. The podcast will be generated in the background.
   - IMPORTANT: Only one podcast can be generated at a time. If a podcast is already being generated, the tool will return status "already_generating".
@@ -406,13 +406,13 @@ _TOOL_EXAMPLES["search_knowledge_base"] = """
 """
 
 _TOOL_EXAMPLES["search_surfsense_docs"] = """
-- User: "How do I install SurfSense?"
+- User: "How do I install NeoNote?"
   - Call: `search_surfsense_docs(query="installation setup")`
-- User: "What connectors does SurfSense support?"
+- User: "What connectors does NeoNote support?"
   - Call: `search_surfsense_docs(query="available connectors integrations")`
 - User: "How do I set up the Notion connector?"
   - Call: `search_surfsense_docs(query="Notion connector setup configuration")`
-- User: "How do I use Docker to run SurfSense?"
+- User: "How do I use Docker to run NeoNote?"
   - Call: `search_surfsense_docs(query="Docker installation setup")`
 """
 
@@ -540,7 +540,7 @@ def _get_tools_instructions(
         )
         parts.append(f"""
 DISABLED TOOLS (by user):
-The following tools are available in SurfSense but have been disabled by the user for this session: {disabled_list}.
+The following tools are available in NeoNote but have been disabled by the user for this session: {disabled_list}.
 You do NOT have access to these tools and MUST NOT claim you can use them.
 If the user asks about a capability provided by a disabled tool, let them know the relevant tool
 is currently disabled and they can re-enable it from the tools menu (wrench icon) in the composer toolbar.
@@ -630,12 +630,12 @@ Do NOT cite document_id. Always use the chunk id.
 <citation_examples>
 CORRECT citation formats:
 - [citation:5] (numeric chunk ID from knowledge base)
-- [citation:doc-123] (for Surfsense documentation chunks)
+- [citation:doc-123] (for Neonote documentation chunks)
 - [citation:https://example.com/article] (URL chunk ID from web search results)
 - [citation:chunk_id1], [citation:chunk_id2], [citation:chunk_id3] (multiple citations)
 
 INCORRECT citation formats (DO NOT use):
-- Using parentheses and markdown links: ([citation:5](https://github.com/MODSetter/SurfSense))
+- Using parentheses and markdown links: ([citation:5](https://github.com/MODSetter/NeoNote))
 - Using parentheses around brackets: ([citation:5])
 - Using hyperlinked text: [link to source 5](https://example.com)
 - Using footnote style: ... library¹
@@ -765,7 +765,7 @@ def build_surfsense_system_prompt(
     disabled_tool_names: set[str] | None = None,
 ) -> str:
     """
-    Build the SurfSense system prompt with default settings.
+    Build the NeoNote system prompt with default settings.
 
     This is a convenience function that builds the prompt with:
     - Default system instructions
@@ -810,7 +810,7 @@ def build_configurable_system_prompt(
     disabled_tool_names: set[str] | None = None,
 ) -> str:
     """
-    Build a configurable SurfSense system prompt based on NewLLMConfig settings.
+    Build a configurable NeoNote system prompt based on NewLLMConfig settings.
 
     The prompt is composed of up to four parts:
     1. System Instructions - either custom or default SURFSENSE_SYSTEM_INSTRUCTIONS

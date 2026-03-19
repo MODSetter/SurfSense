@@ -1,7 +1,7 @@
 """
-Surfsense documentation search tool.
+Neonote documentation search tool.
 
-This tool allows the agent to search the pre-indexed Surfsense documentation
+This tool allows the agent to search the pre-indexed Neonote documentation
 to help users with questions about how to use the application.
 
 The documentation is indexed at deployment time from MDX files and stored
@@ -15,7 +15,7 @@ from langchain_core.tools import tool
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import SurfsenseDocsChunk, SurfsenseDocsDocument
+from app.db import NeonoteDocsChunk, NeonoteDocsDocument
 from app.utils.document_converters import embed_text
 
 
@@ -26,7 +26,7 @@ def format_surfsense_docs_results(results: list[tuple]) -> str:
     Uses the same XML structure as format_documents_for_context from knowledge_base.py
     but with 'doc-' prefix on chunk IDs. This allows:
     - LLM to use consistent [citation:doc-XXX] format
-    - Frontend to detect 'doc-' prefix and route to surfsense docs endpoint
+    - Frontend to detect 'doc-' prefix and route to neonote docs endpoint
 
     Args:
         results: List of (chunk, document) tuples from the database query
@@ -35,7 +35,7 @@ def format_surfsense_docs_results(results: list[tuple]) -> str:
         Formatted XML string with documentation content and citation-ready chunks
     """
     if not results:
-        return "No relevant Surfsense documentation found for your query."
+        return "No relevant Neonote documentation found for your query."
 
     # Group chunks by document
     grouped: dict[int, dict] = {}
@@ -90,10 +90,10 @@ async def search_surfsense_docs_async(
     top_k: int = 10,
 ) -> str:
     """
-    Search Surfsense documentation using vector similarity.
+    Search Neonote documentation using vector similarity.
 
     Args:
-        query: The search query about Surfsense usage
+        query: The search query about Neonote usage
         db_session: Database session for executing queries
         top_k: Number of results to return
 
@@ -105,12 +105,12 @@ async def search_surfsense_docs_async(
 
     # Vector similarity search on chunks, joining with documents
     stmt = (
-        select(SurfsenseDocsChunk, SurfsenseDocsDocument)
+        select(NeonoteDocsChunk, NeonoteDocsDocument)
         .join(
-            SurfsenseDocsDocument,
-            SurfsenseDocsChunk.document_id == SurfsenseDocsDocument.id,
+            NeonoteDocsDocument,
+            NeonoteDocsChunk.document_id == NeonoteDocsDocument.id,
         )
-        .order_by(SurfsenseDocsChunk.embedding.op("<=>")(query_embedding))
+        .order_by(NeonoteDocsChunk.embedding.op("<=>")(query_embedding))
         .limit(top_k)
     )
 
@@ -128,16 +128,16 @@ def create_search_surfsense_docs_tool(db_session: AsyncSession):
         db_session: Database session for executing queries
 
     Returns:
-        A configured tool function for searching Surfsense documentation
+        A configured tool function for searching Neonote documentation
     """
 
     @tool
     async def search_surfsense_docs(query: str, top_k: int = 10) -> str:
         """
-        Search Surfsense documentation for help with using the application.
+        Search Neonote documentation for help with using the application.
 
         Use this tool when the user asks questions about:
-        - How to use Surfsense features
+        - How to use Neonote features
         - Installation and setup instructions
         - Configuration options and settings
         - Troubleshooting common issues
@@ -145,11 +145,11 @@ def create_search_surfsense_docs_tool(db_session: AsyncSession):
         - Browser extension usage
         - API documentation
 
-        This searches the official Surfsense documentation that was indexed
+        This searches the official Neonote documentation that was indexed
         at deployment time. It does NOT search the user's personal knowledge base.
 
         Args:
-            query: The search query about Surfsense usage or features
+            query: The search query about Neonote usage or features
             top_k: Number of documentation chunks to retrieve (default: 10)
 
         Returns:

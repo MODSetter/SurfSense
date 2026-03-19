@@ -40,7 +40,7 @@ export default async function ChangelogPage() {
 								Changelog
 							</h1>
 							<p className="text-muted-foreground mt-2">
-								Stay up to date with the latest updates and improvements to SurfSense.
+								Stay up to date with the latest updates and improvements to NeoNote.
 							</p>
 						</div>
 					</div>

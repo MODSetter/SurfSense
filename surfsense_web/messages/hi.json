@@ -1,6 +1,6 @@
 {
 	"common": {
-		"app_name": "SurfSense",
+		"app_name": "NeoNote",
 		"welcome": "स्वागत है",
 		"save": "सहेजें",
 		"cancel": "रद्द करें",
@@ -57,7 +57,7 @@
 		"welcome_back": "वापसी पर स्वागत है",
 		"create_account": "अपना खाता बनाएं",
 		"login_subtitle": "अपने खाते तक पहुंचने के लिए अपनी जानकारी दर्ज करें",
-		"register_subtitle": "SurfSense के साथ शुरू करने के लिए साइन अप करें",
+		"register_subtitle": "NeoNote के साथ शुरू करने के लिए साइन अप करें",
 		"or_continue_with": "या इसके साथ जारी रखें",
 		"by_continuing": "जारी रखकर, आप हमारी सहमति देते हैं",
 		"terms_of_service": "सेवा की शर्तें",
@@ -70,7 +70,7 @@
 		"login_success": "सफलतापूर्वक लॉगिन हुआ",
 		"register_success": "खाता सफलतापूर्वक बनाया गया",
 		"continue_with_google": "Google के साथ जारी रखें",
-		"cloud_dev_notice": "SurfSense Cloud वर्तमान में विकास में है। देखें",
+		"cloud_dev_notice": "NeoNote Cloud वर्तमान में विकास में है। देखें",
 		"docs": "दस्तावेज़",
 		"cloud_dev_self_hosted": "सेल्फ-होस्टेड संस्करण के बारे में अधिक जानकारी के लिए।",
 		"passwords_no_match": "पासवर्ड मेल नहीं खाते",
@@ -101,7 +101,7 @@
 		"leave_title": "सर्च स्पेस छोड़ें",
 		"leave_confirm": "क्या आप वाकई \"{name}\" छोड़ना चाहते हैं? आप इस सर्च स्पेस के सभी दस्तावेज़ों और चैट तक पहुंच खो देंगे।",
 		"leaving": "छोड़ा जा रहा है...",
-		"welcome_title": "SurfSense में आपका स्वागत है",
+		"welcome_title": "NeoNote में आपका स्वागत है",
 		"welcome_description": "अपना ज्ञान व्यवस्थित करने, स्रोत जोड़ने और AI के साथ चैट करने के लिए अपना पहला सर्च स्पेस बनाएं।",
 		"create_first_button": "अपना पहला सर्च स्पेस बनाएं"
 	},
@@ -158,8 +158,8 @@
 		"delete_note_confirm": "क्या आप वाकई हटाना चाहते हैं",
 		"action_cannot_undone": "यह क्रिया पूर्ववत नहीं की जा सकती।",
 		"deleting": "हटाया जा रहा है",
-		"surfsense_dashboard": "SurfSense डैशबोर्ड",
-		"welcome_message": "आपके SurfSense डैशबोर्ड में आपका स्वागत है।",
+		"surfsense_dashboard": "NeoNote डैशबोर्ड",
+		"welcome_message": "आपके NeoNote डैशबोर्ड में आपका स्वागत है।",
 		"your_search_spaces": "आपके सर्च स्पेस",
 		"shared": "साझा",
 		"create_search_space": "सर्च स्पेस बनाएं",
@@ -213,7 +213,7 @@
 		"team": "टीम"
 	},
 	"pricing": {
-		"title": "SurfSense मूल्य निर्धारण",
+		"title": "NeoNote मूल्य निर्धारण",
 		"subtitle": "अपने लिए सही योजना चुनें",
 		"community_name": "समुदाय",
 		"enterprise_name": "एंटरप्राइज़",
@@ -560,7 +560,7 @@
 		"deleting": "हटाया जा रहा है"
 	},
 	"onboard": {
-		"welcome_title": "SurfSense में आपका स्वागत है",
+		"welcome_title": "NeoNote में आपका स्वागत है",
 		"welcome_subtitle": "शुरू करने के लिए अपनी LLM कॉन्फ़िगरेशन सेट करें",
 		"step_of": "चरण {current} / {total}",
 		"percent_complete": "{percent}% पूर्ण",
@@ -573,7 +573,7 @@
 		"setup_complete": "सेटअप पूरा हुआ",
 		"configure_first_provider": "अपना पहला मॉडल प्रदाता कॉन्फ़िगर करें",
 		"assign_specific_roles": "अपनी LLM कॉन्फ़िगरेशन को विशिष्ट भूमिकाएं असाइन करें",
-		"all_set": "SurfSense का उपयोग शुरू करने के लिए आप तैयार हैं!",
+		"all_set": "NeoNote का उपयोग शुरू करने के लिए आप तैयार हैं!",
 		"loading_config": "आपकी कॉन्फ़िगरेशन लोड हो रही है...",
 		"previous": "पिछला",
 		"next": "अगला",
@@ -815,6 +815,6 @@
 	"public_chat": {
 		"not_found_title": "यह चैट हटा दिया गया है।",
 		"click_here": "यहां क्लिक करें",
-		"sign_in_prompt": "SurfSense में लॉगिन करने और अपना शुरू करने के लिए।"
+		"sign_in_prompt": "NeoNote में लॉगिन करने और अपना शुरू करने के लिए।"
 	}
 }

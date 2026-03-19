@@ -376,9 +376,9 @@ export default function NewChatPage() {
 		});
 
 		queryClient.prefetchQuery({
-			queryKey: ["surfsense-docs-mention", "", false],
+			queryKey: ["neonote-docs-mention", "", false],
 			queryFn: () =>
-				documentsApiService.getSurfsenseDocs({
+				documentsApiService.getNeonoteDocs({
 					queryParams: { page: 0, page_size: 20 },
 				}),
 			staleTime: 3 * 60 * 1000,
@@ -622,10 +622,10 @@ export default function NewChatPage() {
 
 				// Get mentioned document IDs for context (separate fields for backend)
 				const hasDocumentIds = mentionedDocumentIds.document_ids.length > 0;
-				const hasSurfsenseDocIds = mentionedDocumentIds.surfsense_doc_ids.length > 0;
+				const hasNeonoteDocIds = mentionedDocumentIds.surfsense_doc_ids.length > 0;
 
 				// Clear mentioned documents after capturing them
-				if (hasDocumentIds || hasSurfsenseDocIds) {
+				if (hasDocumentIds || hasNeonoteDocIds) {
 					setMentionedDocuments([]);
 					setSidebarDocuments([]);
 				}
@@ -642,7 +642,7 @@ export default function NewChatPage() {
 						search_space_id: searchSpaceId,
 						messages: messageHistory,
 						mentioned_document_ids: hasDocumentIds ? mentionedDocumentIds.document_ids : undefined,
-						mentioned_surfsense_doc_ids: hasSurfsenseDocIds
+						mentioned_surfsense_doc_ids: hasNeonoteDocIds
 							? mentionedDocumentIds.surfsense_doc_ids
 							: undefined,
 						disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,

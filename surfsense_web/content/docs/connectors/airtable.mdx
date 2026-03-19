@@ -1,11 +1,11 @@
 ---
 title: Airtable
-description: Connect your Airtable bases to SurfSense
+description: Connect your Airtable bases to NeoNote
 ---
 
 # Airtable OAuth Integration Setup Guide
 
-This guide walks you through setting up an Airtable OAuth integration for SurfSense.
+This guide walks you through setting up an Airtable OAuth integration for NeoNote.
 
 ## Step 1: Access Airtable OAuth Integrations
 
@@ -21,7 +21,7 @@ Fill in the basic integration details:
 
 | Field | Value |
 |-------|-------|
-| **Name** | `SurfSense` |
+| **Name** | `NeoNote` |
 | **OAuth redirect URL** | `http://localhost:8000/api/v1/auth/airtable/connector/callback` |
 
 Click **"Register integration"**
@@ -63,7 +63,7 @@ Scroll down to configure the support information and authorization preview:
 | **Privacy policy URL** | Your privacy policy URL |
 | **Terms of service URL** | Your terms of service URL |
 
-The preview shows what users will see when authorizing SurfSense:
+The preview shows what users will see when authorizing NeoNote:
 - The data in your records
 - Comments in your records
 - The structure of your base, like table names or field types
@@ -86,7 +86,7 @@ After saving, you'll find your OAuth credentials on the integration page:
 
 ---
 
-## Running SurfSense with Airtable Connector
+## Running NeoNote with Airtable Connector
 
 Add the Airtable credentials to your `.env` file (created during [Docker installation](/docs/docker-installation/docker-compose)):
 
