@@ -134,7 +134,38 @@ class GoogleGmailConnector:
                         raise RuntimeError(
                             "GMAIL connector not found; cannot persist refreshed token."
                         )
-                    connector.config = json.loads(self._credentials.to_json())
+
+                    from app.config import config
+                    from app.utils.oauth_security import TokenEncryption
+
+                    creds_dict = json.loads(self._credentials.to_json())
+                    token_encrypted = connector.config.get(
+                        "_token_encrypted", False
+                    )
+
+                    if token_encrypted and config.SECRET_KEY:
+                        token_encryption = TokenEncryption(config.SECRET_KEY)
+                        if creds_dict.get("token"):
+                            creds_dict["token"] = (
+                                token_encryption.encrypt_token(
+                                    creds_dict["token"]
+                                )
+                            )
+                        if creds_dict.get("refresh_token"):
+                            creds_dict["refresh_token"] = (
+                                token_encryption.encrypt_token(
+                                    creds_dict["refresh_token"]
+                                )
+                            )
+                        if creds_dict.get("client_secret"):
+                            creds_dict["client_secret"] = (
+                                token_encryption.encrypt_token(
+                                    creds_dict["client_secret"]
+                                )
+                            )
+                        creds_dict["_token_encrypted"] = True
+
+                    connector.config = creds_dict
                     flag_modified(connector, "config")
                     await self._session.commit()
             except Exception as e:
