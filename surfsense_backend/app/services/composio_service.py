@@ -229,6 +229,37 @@ class ComposioService:
             )
             return False
 
+    def refresh_connected_account(
+        self,
+        connected_account_id: str,
+        redirect_url: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Refresh an expired Composio connected account.
+
+        For OAuth flows this returns a redirect_url the user must visit to
+        re-authorise.  The same connected_account_id stays valid afterwards.
+
+        Args:
+            connected_account_id: The Composio connected account nanoid.
+            redirect_url: Where Composio should redirect after re-auth.
+
+        Returns:
+            Dict with id, status, and redirect_url (None when no redirect needed).
+        """
+        kwargs: dict[str, Any] = {}
+        if redirect_url is not None:
+            kwargs["body_redirect_url"] = redirect_url
+        result = self.client.connected_accounts.refresh(
+            nanoid=connected_account_id,
+            **kwargs,
+        )
+        return {
+            "id": result.id,
+            "status": result.status,
+            "redirect_url": result.redirect_url,
+        }
+
     def get_access_token(self, connected_account_id: str) -> str:
         """Retrieve the raw OAuth access token for a Composio connected account."""
         account = self.client.connected_accounts.get(nanoid=connected_account_id)

@@ -22,6 +22,9 @@ const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
 	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
 	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
 	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
 };
 
 interface ConnectorAccountsListViewProps {
@@ -85,6 +88,9 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 				const data = await response.json();
 				if (data.auth_url) {
 					window.location.href = data.auth_url;
+				} else if (data.success) {
+					toast.success(data.message ?? "Authentication refreshed successfully.");
+					window.location.reload();
 				}
 			} catch {
 				toast.error("Failed to initiate re-authentication.");
