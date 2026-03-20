@@ -314,7 +314,7 @@ const Composer: FC = () => {
 	const composerRuntime = useComposerRuntime();
 	const hasAutoFocusedRef = useRef(false);
 
-	// Clipboard content from Electron tray (pre-filled into composer)
+	// Clipboard content   
 	const [clipboardText, setClipboardText] = useState<string | undefined>();
 	useEffect(() => {
 		const api = (window as { electronAPI?: { getClipboardContent?: () => Promise<string> } }).electronAPI;

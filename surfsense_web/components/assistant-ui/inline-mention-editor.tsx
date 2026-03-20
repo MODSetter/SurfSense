@@ -117,7 +117,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			}
 		}, [initialDocuments]);
 
-		// Seed editor with initialText on mount (e.g. clipboard content from Electron tray)
+		// Seed editor with initialText on mount
 		const initialTextAppliedRef = useRef(false);
 		useEffect(() => {
 			if (!initialText || initialTextAppliedRef.current || !editorRef.current) return;
