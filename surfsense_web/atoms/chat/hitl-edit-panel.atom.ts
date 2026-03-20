@@ -15,6 +15,7 @@ interface HitlEditPanelState {
 	toolName: string;
 	extraFields?: ExtraField[];
 	onSave: ((title: string, content: string, extraFieldValues?: Record<string, string>) => void) | null;
+	onClose: (() => void) | null;
 }
 
 const initialState: HitlEditPanelState = {
@@ -24,6 +25,7 @@ const initialState: HitlEditPanelState = {
 	toolName: "",
 	extraFields: undefined,
 	onSave: null,
+	onClose: null,
 };
 
 export const hitlEditPanelAtom = atom<HitlEditPanelState>(initialState);
@@ -41,6 +43,7 @@ export const openHitlEditPanelAtom = atom(
 			toolName: string;
 			extraFields?: ExtraField[];
 			onSave: (title: string, content: string, extraFieldValues?: Record<string, string>) => void;
+			onClose?: () => void;
 		}
 	) => {
 		if (!get(hitlEditPanelAtom).isOpen) {
@@ -53,6 +56,7 @@ export const openHitlEditPanelAtom = atom(
 			toolName: payload.toolName,
 			extraFields: payload.extraFields,
 			onSave: payload.onSave,
+			onClose: payload.onClose ?? null,
 		});
 		set(rightPanelTabAtom, "hitl-edit");
 		set(rightPanelCollapsedAtom, false);
@@ -60,6 +64,8 @@ export const openHitlEditPanelAtom = atom(
 );
 
 export const closeHitlEditPanelAtom = atom(null, (get, set) => {
+	const current = get(hitlEditPanelAtom);
+	current.onClose?.();
 	set(hitlEditPanelAtom, initialState);
 	set(rightPanelTabAtom, "sources");
 	const prev = get(preHitlCollapsedAtom);

@@ -228,6 +228,7 @@ function ApprovalCard({
 									setIsPanelOpen(false);
 									setPendingEdits({ title: newTitle, content: newContent });
 								},
+								onClose: () => setIsPanelOpen(false),
 							});
 						}}
 					>
@@ -346,7 +347,7 @@ function ApprovalCard({
 								size="sm"
 								className="rounded-lg gap-1.5"
 								onClick={handleApprove}
-								disabled={!selectedAccountId || !isTitleValid}
+								disabled={!selectedAccountId || !isTitleValid || isPanelOpen}
 							>
 								Approve
 								<CornerDownLeftIcon className="size-3 opacity-60" />
@@ -357,6 +358,7 @@ function ApprovalCard({
 								size="sm"
 								variant="ghost"
 								className="rounded-lg text-muted-foreground"
+								disabled={isPanelOpen}
 								onClick={() => {
 									setDecided("reject");
 									onDecision({ type: "reject", message: "User rejected the action." });
