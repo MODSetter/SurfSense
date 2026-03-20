@@ -160,13 +160,14 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 				)}
 				{effectiveTab === "hitl-edit" && hitlEditOpen && hitlEditState.onSave && (
 					<div className="h-full flex flex-col">
-						<HitlEditPanelContent
-							title={hitlEditState.title}
-							content={hitlEditState.content}
-							toolName={hitlEditState.toolName}
-							onSave={hitlEditState.onSave}
-							onClose={closeHitlEdit}
-						/>
+					<HitlEditPanelContent
+						title={hitlEditState.title}
+						content={hitlEditState.content}
+						toolName={hitlEditState.toolName}
+						extraFields={hitlEditState.extraFields}
+						onSave={hitlEditState.onSave}
+						onClose={closeHitlEdit}
+					/>
 					</div>
 				)}
 			</div>

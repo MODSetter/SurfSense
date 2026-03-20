@@ -5,7 +5,7 @@ export interface ExtraField {
 	label: string;
 	key: string;
 	value: string;
-	type: "text" | "email" | "datetime-local" | "textarea";
+	type: "text" | "email" | "emails" | "datetime-local" | "textarea";
 }
 
 interface HitlEditPanelState {

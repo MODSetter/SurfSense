@@ -225,9 +225,9 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							const extraFields: ExtraField[] = [
-								{ key: "to", label: "To", type: "email", value: pendingEdits?.to ?? args.to ?? "" },
-								{ key: "cc", label: "CC", type: "email", value: pendingEdits?.cc ?? args.cc ?? "" },
-								{ key: "bcc", label: "BCC", type: "email", value: pendingEdits?.bcc ?? args.bcc ?? "" },
+								{ key: "to", label: "To", type: "emails", value: pendingEdits?.to ?? args.to ?? "" },
+								{ key: "cc", label: "CC", type: "emails", value: pendingEdits?.cc ?? args.cc ?? "" },
+								{ key: "bcc", label: "BCC", type: "emails", value: pendingEdits?.bcc ?? args.bcc ?? "" },
 							];
 							openHitlEditPanel({
 								title: pendingEdits?.subject ?? (args.subject ?? ""),
