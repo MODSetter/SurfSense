@@ -3,6 +3,7 @@ name: Desktop Release
 on:
   push:
     tags:
+      - 'v*'
       - 'beta-v*'
 
 permissions:
@@ -29,7 +30,11 @@ jobs:
       - name: Extract version from tag
         id: version
         shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/beta-v}" >> "$GITHUB_OUTPUT"
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          VERSION=${TAG#beta-}
+          VERSION=${VERSION#v}
+          echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
