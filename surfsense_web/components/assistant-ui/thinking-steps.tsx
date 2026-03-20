@@ -127,11 +127,7 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 													effectiveStatus === "pending" && "text-muted-foreground/60"
 												)}
 											>
-												{effectiveStatus === "in_progress" ? (
-													<TextShimmerLoader text={step.title} size="sm" />
-												) : (
-													step.title
-												)}
+											{step.title}
 											</div>
 
 											{/* Step items (sub-content) */}
