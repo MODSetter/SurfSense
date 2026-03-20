@@ -1,10 +1,11 @@
-import { app, BrowserWindow, shell, ipcMain } from 'electron';
+import { app, BrowserWindow } from 'electron';
 import { registerGlobalErrorHandlers, showErrorDialog } from './modules/errors';
 import { startNextServer } from './modules/server';
 import { createMainWindow } from './modules/window';
 import { setupDeepLinks, handlePendingDeepLink } from './modules/deep-links';
 import { setupAutoUpdater } from './modules/auto-updater';
 import { setupMenu } from './modules/menu';
+import { registerIpcHandlers } from './ipc/handlers';
 
 registerGlobalErrorHandlers();
 
@@ -12,21 +13,7 @@ if (!setupDeepLinks()) {
   app.quit();
 }
 
-// IPC handlers
-ipcMain.on('open-external', (_event, url: string) => {
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
-      shell.openExternal(url);
-    }
-  } catch {
-    // invalid URL — ignore
-  }
-});
-
-ipcMain.handle('get-app-version', () => {
-  return app.getVersion();
-});
+registerIpcHandlers();
 
 // App lifecycle
 app.whenReady().then(async () => {
