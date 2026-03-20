@@ -30,10 +30,9 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 		[isThreadRunning]
 	);
 
-	// Calculate summary info
-	const completedSteps = steps.filter((s) => getEffectiveStatus(s) === "completed").length;
 	const inProgressStep = steps.find((s) => getEffectiveStatus(s) === "in_progress");
-	const allCompleted = completedSteps === steps.length && steps.length > 0 && !isThreadRunning;
+	const allCompleted =
+		steps.length > 0 && !isThreadRunning && steps.every((s) => getEffectiveStatus(s) === "completed");
 	const isProcessing = isThreadRunning && !allCompleted;
 
 	// Auto-collapse when all tasks are completed
@@ -45,18 +44,17 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 
 	if (steps.length === 0) return null;
 
-	// Generate header text
 	const getHeaderText = () => {
 		if (allCompleted) {
-			return `Reviewed ${completedSteps} ${completedSteps === 1 ? "step" : "steps"}`;
+			return "Reviewed";
 		}
 		if (inProgressStep) {
 			return inProgressStep.title;
 		}
 		if (isProcessing) {
-			return `Processing ${completedSteps}/${steps.length} steps`;
+			return "Processing";
 		}
-		return `Reviewed ${completedSteps} ${completedSteps === 1 ? "step" : "steps"}`;
+		return "Reviewed";
 	};
 
 	return (
