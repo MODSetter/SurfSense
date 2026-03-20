@@ -396,6 +396,8 @@ class GoogleCalendarToolMetadataService:
                     ),
                 )
             )
+            .order_by(Document.updated_at.desc().nullslast())
+            .limit(1)
         )
         row = result.first()
         if row:

@@ -54,6 +54,11 @@ def create_delete_notion_page_tool(
             - message: Success or error message
             - deleted_from_kb: Whether the page was also removed from knowledge base (if success)
 
+            ONLY call this tool ONCE per user request. The system automatically picks the
+            most relevant match when multiple pages share the same title. The user will
+            see the exact page details in the approval card and can reject if it is not
+            the right one. Do NOT call this tool multiple times for the same page title.
+
         Examples:
             - "Delete the 'Meeting Notes' Notion page"
             - "Remove the 'Old Project Plan' Notion page"

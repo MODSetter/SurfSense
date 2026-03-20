@@ -135,6 +135,8 @@ class NotionToolMetadataService:
                     SearchSourceConnector.user_id == user_id,
                 )
             )
+            .order_by(Document.updated_at.desc().nullslast())
+            .limit(1)
         )
         document = result.scalars().first()
 

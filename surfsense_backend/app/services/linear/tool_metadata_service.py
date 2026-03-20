@@ -358,6 +358,7 @@ class LinearToolMetadataService:
                     ),
                 )
             )
+            .order_by(Document.updated_at.desc().nullslast())
             .limit(1)
         )
         return result.scalars().first()
