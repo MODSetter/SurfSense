@@ -104,6 +104,9 @@ async def index_bookstack_pages(
         bookstack_token_id = connector.config.get("BOOKSTACK_TOKEN_ID")
         bookstack_token_secret = connector.config.get("BOOKSTACK_TOKEN_SECRET")
 
+        # Optional: shelf IDs to exclude from indexing
+        excluded_shelf_ids = connector.config.get("BOOKSTACK_EXCLUDED_SHELF_IDS", [])
+
         if (
             not bookstack_base_url
             or not bookstack_token_id
@@ -148,7 +151,9 @@ async def index_bookstack_pages(
         # Get pages within date range
         try:
             pages, error = bookstack_client.get_pages_by_date_range(
-                start_date=start_date_str, end_date=end_date_str
+                start_date=start_date_str,
+                end_date=end_date_str,
+                excluded_shelf_ids=excluded_shelf_ids,
             )
 
             if error:
