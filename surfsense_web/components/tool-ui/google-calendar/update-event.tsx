@@ -328,7 +328,7 @@ function ApprovalCard({
 								{ key: "start_datetime", label: "Start", type: "datetime-local", value: proposedStart },
 								{ key: "end_datetime", label: "End", type: "datetime-local", value: proposedEnd },
 								{ key: "location", label: "Location", type: "text", value: proposedLocation },
-								{ key: "attendees", label: "Attendees (comma-separated emails)", type: "text", value: proposedAttendeesStr },
+								{ key: "attendees", label: "Attendees", type: "emails", value: proposedAttendeesStr },
 							];
 							openHitlEditPanel({
 								title: proposedSummary,

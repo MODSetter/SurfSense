@@ -2,7 +2,6 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
-	CalendarPlusIcon,
 	ClockIcon,
 	MapPinIcon,
 	UsersIcon,
@@ -250,7 +249,6 @@ function ApprovalCard({
 			{/* Header */}
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div className="flex items-center gap-2">
-					<CalendarPlusIcon className="size-4 text-muted-foreground shrink-0" />
 					<div>
 						<p className="text-sm font-semibold text-foreground">
 							{decided === "reject"
@@ -287,7 +285,7 @@ function ApprovalCard({
 								{ key: "start_datetime", label: "Start", type: "datetime-local", value: pendingEdits?.start_datetime ?? args.start_datetime ?? "" },
 								{ key: "end_datetime", label: "End", type: "datetime-local", value: pendingEdits?.end_datetime ?? args.end_datetime ?? "" },
 								{ key: "location", label: "Location", type: "text", value: pendingEdits?.location ?? args.location ?? "" },
-								{ key: "attendees", label: "Attendees (comma-separated emails)", type: "text", value: pendingEdits?.attendees ?? attendeesList.join(", ") },
+								{ key: "attendees", label: "Attendees", type: "emails", value: pendingEdits?.attendees ?? attendeesList.join(", ") },
 							];
 							openHitlEditPanel({
 								title: pendingEdits?.summary ?? (args.summary ?? ""),
