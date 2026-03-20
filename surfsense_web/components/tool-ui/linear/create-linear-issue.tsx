@@ -149,6 +149,7 @@ function ApprovalCard({
 	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+	const [pendingEdits, setPendingEdits] = useState<{ title: string; description: string } | null>(null);
 
 	const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
 	const [selectedTeamId, setSelectedTeamId] = useState("");
@@ -171,7 +172,7 @@ function ApprovalCard({
 		[selectedWorkspace, selectedTeamId]
 	);
 
-	const isTitleValid = (args.title ?? "").trim().length > 0;
+	const isTitleValid = (pendingEdits?.title ?? args.title ?? "").trim().length > 0;
 	const canApprove = !!selectedWorkspaceId && !!selectedTeamId && isTitleValid;
 
 	const reviewConfig = interruptData.review_configs[0];
@@ -180,8 +181,8 @@ function ApprovalCard({
 
 	const buildFinalArgs = useCallback((overrides?: { title?: string; description?: string }) => {
 		return {
-			title: overrides?.title ?? args.title,
-			description: overrides?.description ?? args.description ?? null,
+			title: overrides?.title ?? pendingEdits?.title ?? args.title,
+			description: overrides?.description ?? pendingEdits?.description ?? args.description ?? null,
 			connector_id: selectedWorkspaceId ? Number(selectedWorkspaceId) : null,
 			team_id: selectedTeamId || null,
 			state_id: selectedStateId === "__none__" ? null : selectedStateId,
@@ -189,20 +190,21 @@ function ApprovalCard({
 			priority: Number(selectedPriority),
 			label_ids: selectedLabelIds,
 		};
-	}, [args.title, args.description, selectedWorkspaceId, selectedTeamId, selectedStateId, selectedAssigneeId, selectedPriority, selectedLabelIds]);
+	}, [args.title, args.description, selectedWorkspaceId, selectedTeamId, selectedStateId, selectedAssigneeId, selectedPriority, selectedLabelIds, pendingEdits]);
 
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen || !canApprove) return;
 		if (!allowedDecisions.includes("approve")) return;
-		setDecided("approve");
+		const isEdited = pendingEdits !== null;
+		setDecided(isEdited ? "edit" : "approve");
 		onDecision({
-			type: "approve",
+			type: isEdited ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
 				args: buildFinalArgs(),
 			},
 		});
-	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, buildFinalArgs]);
+	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, buildFinalArgs, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -250,19 +252,12 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							openHitlEditPanel({
-								title: args.title ?? "",
-								content: args.description ?? "",
+								title: pendingEdits?.title ?? (args.title ?? ""),
+								content: pendingEdits?.description ?? (args.description ?? ""),
 								toolName: "Linear Issue",
 								onSave: (newTitle, newDescription) => {
 									setIsPanelOpen(false);
-									setDecided("edit");
-									onDecision({
-										type: "edit",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: buildFinalArgs({ title: newTitle, description: newDescription }),
-										},
-									});
+									setPendingEdits({ title: newTitle, description: newDescription });
 								},
 							});
 						}}
@@ -461,10 +456,10 @@ function ApprovalCard({
 			{/* Content preview */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-				{args.title != null && (
-					<p className="text-sm font-medium text-foreground">{args.title}</p>
+				{(pendingEdits?.title ?? args.title) != null && (
+					<p className="text-sm font-medium text-foreground">{pendingEdits?.title ?? args.title}</p>
 				)}
-				{args.description != null && (
+				{(pendingEdits?.description ?? args.description) != null && (
 					<div
 						className="max-h-[7rem] overflow-hidden text-sm"
 						style={{
@@ -473,7 +468,7 @@ function ApprovalCard({
 						}}
 					>
 						<PlateEditor
-							markdown={args.description}
+							markdown={pendingEdits?.description ?? args.description ?? ""}
 							readOnly
 							preset="readonly"
 							editorVariant="none"

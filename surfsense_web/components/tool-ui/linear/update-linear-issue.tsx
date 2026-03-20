@@ -189,6 +189,7 @@ function ApprovalCard({
 	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const [editedArgs, setEditedArgs] = useState(initialEditState);
+	const [hasPanelEdits, setHasPanelEdits] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
 	const reviewConfig = interruptData.review_configs[0];
@@ -255,15 +256,16 @@ function ApprovalCard({
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen) return;
 		if (!allowedDecisions.includes("approve")) return;
-		setDecided("approve");
+		const isEdited = hasPanelEdits;
+		setDecided(isEdited ? "edit" : "approve");
 		onDecision({
-			type: "approve",
+			type: isEdited ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
 				args: buildFinalArgs(),
 			},
 		});
-	}, [decided, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs]);
+	}, [decided, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs, hasPanelEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -321,18 +323,7 @@ function ApprovalCard({
 										title: newTitle,
 										description: newDescription,
 									}));
-									setDecided("edit");
-									onDecision({
-										type: "edit",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: {
-												...buildFinalArgs(),
-												new_title: newTitle || null,
-												new_description: newDescription || null,
-											},
-										},
-									});
+									setHasPanelEdits(true);
 								},
 							});
 						}}
@@ -536,12 +527,12 @@ function ApprovalCard({
 			{/* Content preview — proposed changes */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-				{hasProposedChanges ? (
+				{(hasProposedChanges || hasPanelEdits) ? (
 					<>
-						{actionArgs.new_title && (
-							<p className="text-sm font-medium text-foreground">{String(actionArgs.new_title)}</p>
+						{(hasPanelEdits ? editedArgs.title : actionArgs.new_title) && (
+							<p className="text-sm font-medium text-foreground">{String(hasPanelEdits ? editedArgs.title : actionArgs.new_title)}</p>
 						)}
-						{actionArgs.new_description && (
+						{(hasPanelEdits ? editedArgs.description : actionArgs.new_description) && (
 							<div
 								className="max-h-[7rem] overflow-hidden text-sm"
 								style={{
@@ -550,7 +541,7 @@ function ApprovalCard({
 								}}
 							>
 								<PlateEditor
-									markdown={String(actionArgs.new_description)}
+									markdown={String(hasPanelEdits ? editedArgs.description : actionArgs.new_description)}
 									readOnly
 									preset="readonly"
 									editorVariant="none"

@@ -123,6 +123,7 @@ function ApprovalCard({
 	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+	const [pendingEdits, setPendingEdits] = useState<{ content: string } | null>(null);
 
 	const account = interruptData.context?.account;
 	const currentTitle = interruptData.context?.current_title;
@@ -134,19 +135,20 @@ function ApprovalCard({
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen) return;
 		if (!allowedDecisions.includes("approve")) return;
-		setDecided("approve");
+		const isEdited = pendingEdits !== null;
+		setDecided(isEdited ? "edit" : "approve");
 		onDecision({
-			type: "approve",
+			type: isEdited ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
 				args: {
 					page_id: args.page_id,
-					content: args.content,
+					content: pendingEdits?.content ?? args.content,
 					connector_id: account?.id,
 				},
 			},
 		});
-	}, [decided, isPanelOpen, allowedDecisions, onDecision, interruptData, args, account?.id]);
+	}, [decided, isPanelOpen, allowedDecisions, onDecision, interruptData, args, account?.id, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -195,22 +197,11 @@ function ApprovalCard({
 							setIsPanelOpen(true);
 							openHitlEditPanel({
 								title: currentTitle ?? "",
-								content: String(args.content ?? ""),
+								content: pendingEdits?.content ?? String(args.content ?? ""),
 								toolName: "Notion Page",
 								onSave: (_, newContent) => {
 									setIsPanelOpen(false);
-									setDecided("edit");
-									onDecision({
-										type: "edit",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: {
-												page_id: args.page_id,
-												content: newContent,
-												connector_id: account?.id,
-											},
-										},
-									});
+									setPendingEdits({ content: newContent });
 								},
 							});
 						}}
@@ -256,7 +247,7 @@ function ApprovalCard({
 			{/* Content preview */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-				{args.content != null ? (
+				{(pendingEdits?.content ?? args.content) != null ? (
 					<div
 						className="max-h-[7rem] overflow-hidden text-sm"
 						style={{
@@ -265,7 +256,7 @@ function ApprovalCard({
 						}}
 					>
 						<PlateEditor
-							markdown={String(args.content)}
+							markdown={String(pendingEdits?.content ?? args.content)}
 							readOnly
 							preset="readonly"
 							editorVariant="none"

@@ -171,6 +171,10 @@ function ApprovalCard({
 	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+	const [pendingEdits, setPendingEdits] = useState<{
+		summary: string; description: string; start_datetime: string;
+		end_datetime: string; location: string; attendees: string;
+	} | null>(null);
 
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
@@ -216,6 +220,22 @@ function ApprovalCard({
 		String(actionArgs.new_description ?? "") !== (event?.description ?? "");
 
 	const buildFinalArgs = useCallback(() => {
+		if (pendingEdits) {
+			const attendeesArr = pendingEdits.attendees
+				? pendingEdits.attendees.split(",").map((e) => e.trim()).filter(Boolean)
+				: null;
+			return {
+				event_id: event?.event_id,
+				document_id: event?.document_id,
+				connector_id: account?.id,
+				new_summary: pendingEdits.summary || null,
+				new_description: pendingEdits.description || null,
+				new_start_datetime: pendingEdits.start_datetime || null,
+				new_end_datetime: pendingEdits.end_datetime || null,
+				new_location: pendingEdits.location || null,
+				new_attendees: attendeesArr,
+			};
+		}
 		return {
 			event_id: event?.event_id,
 			document_id: event?.document_id,
@@ -227,20 +247,21 @@ function ApprovalCard({
 			new_location: actionArgs.new_location ?? null,
 			new_attendees: proposedAttendees ?? null,
 		};
-	}, [event, account, actionArgs, proposedAttendees]);
+	}, [event, account, actionArgs, proposedAttendees, pendingEdits]);
 
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen) return;
 		if (!allowedDecisions.includes("approve")) return;
-		setDecided("approve");
+		const isEdited = pendingEdits !== null;
+		setDecided(isEdited ? "edit" : "approve");
 		onDecision({
-			type: "approve",
+			type: isEdited ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
 				args: buildFinalArgs(),
 			},
 		});
-	}, [decided, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs]);
+	}, [decided, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -290,24 +311,18 @@ function ApprovalCard({
 						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
 						onClick={() => {
 							setIsPanelOpen(true);
-							const proposedSummary = actionArgs.new_summary
-								? String(actionArgs.new_summary)
-								: (event?.summary ?? "");
-							const proposedDescription = actionArgs.new_description
-								? String(actionArgs.new_description)
-								: (event?.description ?? "");
-							const proposedStart = actionArgs.new_start_datetime
-								? String(actionArgs.new_start_datetime)
-								: (event?.start ?? "");
-							const proposedEnd = actionArgs.new_end_datetime
-								? String(actionArgs.new_end_datetime)
-								: (event?.end ?? "");
-							const proposedLocation = actionArgs.new_location !== undefined
-								? String(actionArgs.new_location ?? "")
-								: (event?.location ?? "");
-							const proposedAttendeesStr = proposedAttendees
-								? proposedAttendees.join(", ")
-								: currentAttendees.join(", ");
+							const proposedSummary = pendingEdits?.summary
+								?? (actionArgs.new_summary ? String(actionArgs.new_summary) : (event?.summary ?? ""));
+							const proposedDescription = pendingEdits?.description
+								?? (actionArgs.new_description ? String(actionArgs.new_description) : (event?.description ?? ""));
+							const proposedStart = pendingEdits?.start_datetime
+								?? (actionArgs.new_start_datetime ? String(actionArgs.new_start_datetime) : (event?.start ?? ""));
+							const proposedEnd = pendingEdits?.end_datetime
+								?? (actionArgs.new_end_datetime ? String(actionArgs.new_end_datetime) : (event?.end ?? ""));
+							const proposedLocation = pendingEdits?.location
+								?? (actionArgs.new_location !== undefined ? String(actionArgs.new_location ?? "") : (event?.location ?? ""));
+							const proposedAttendeesStr = pendingEdits?.attendees
+								?? (proposedAttendees ? proposedAttendees.join(", ") : currentAttendees.join(", "));
 
 							const extraFields: ExtraField[] = [
 								{ key: "start_datetime", label: "Start", type: "datetime-local", value: proposedStart },
@@ -322,34 +337,14 @@ function ApprovalCard({
 								extraFields,
 								onSave: (newTitle, newContent, extraFieldValues) => {
 									setIsPanelOpen(false);
-									setDecided("edit");
-
-									const editedArgs: Record<string, unknown> = {
-										event_id: event?.event_id,
-										document_id: event?.document_id,
-										connector_id: account?.id,
-										new_summary: newTitle || null,
-										new_description: newContent || null,
-									};
-
-									if (extraFieldValues) {
-										editedArgs.new_start_datetime = extraFieldValues.start_datetime || null;
-										editedArgs.new_end_datetime = extraFieldValues.end_datetime || null;
-										editedArgs.new_location = extraFieldValues.location || null;
-										if (extraFieldValues.attendees !== undefined) {
-											editedArgs.new_attendees = extraFieldValues.attendees
-												.split(",")
-												.map((e) => e.trim())
-												.filter(Boolean);
-										}
-									}
-
-									onDecision({
-										type: "edit",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: editedArgs,
-										},
+									const extras = extraFieldValues ?? {};
+									setPendingEdits({
+										summary: newTitle,
+										description: newContent,
+										start_datetime: extras.start_datetime ?? proposedStart,
+										end_datetime: extras.end_datetime ?? proposedEnd,
+										location: extras.location ?? proposedLocation,
+										attendees: extras.attendees ?? proposedAttendeesStr,
 									});
 								},
 							});

@@ -132,6 +132,9 @@ function ApprovalCard({
 	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+	const [pendingEdits, setPendingEdits] = useState<{
+		subject: string; body: string; to: string; cc: string; bcc: string;
+	} | null>(null);
 
 	const accounts = interruptData.context?.accounts ?? [];
 	const validAccounts = accounts.filter((a) => !a.auth_expired);
@@ -153,18 +156,26 @@ function ApprovalCard({
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen || !canApprove) return;
 		if (!allowedDecisions.includes("approve")) return;
-		setDecided("approve");
+		const isEdited = pendingEdits !== null;
+		setDecided(isEdited ? "edit" : "approve");
 		onDecision({
-			type: "approve",
+			type: isEdited ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
 				args: {
 					...args,
+					...(pendingEdits && {
+						subject: pendingEdits.subject,
+						body: pendingEdits.body,
+						to: pendingEdits.to,
+						cc: pendingEdits.cc,
+						bcc: pendingEdits.bcc,
+					}),
 					connector_id: selectedAccountId ? Number(selectedAccountId) : null,
 				},
 			},
 		});
-	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedAccountId]);
+	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedAccountId, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -214,33 +225,24 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							const extraFields: ExtraField[] = [
-								{ key: "to", label: "To", type: "email", value: args.to || "" },
-								{ key: "cc", label: "CC", type: "email", value: args.cc || "" },
-								{ key: "bcc", label: "BCC", type: "email", value: args.bcc || "" },
+								{ key: "to", label: "To", type: "email", value: pendingEdits?.to ?? args.to ?? "" },
+								{ key: "cc", label: "CC", type: "email", value: pendingEdits?.cc ?? args.cc ?? "" },
+								{ key: "bcc", label: "BCC", type: "email", value: pendingEdits?.bcc ?? args.bcc ?? "" },
 							];
 							openHitlEditPanel({
-								title: args.subject ?? "",
-								content: args.body ?? "",
+								title: pendingEdits?.subject ?? (args.subject ?? ""),
+								content: pendingEdits?.body ?? (args.body ?? ""),
 								toolName: "Gmail Draft",
 								extraFields,
 								onSave: (newTitle, newContent, extraFieldValues) => {
 									setIsPanelOpen(false);
-									setDecided("edit");
 									const extras = extraFieldValues ?? {};
-									onDecision({
-										type: "edit",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: {
-												...args,
-												subject: newTitle,
-												body: newContent,
-												to: extras.to ?? args.to,
-												cc: extras.cc ?? args.cc,
-												bcc: extras.bcc ?? args.bcc,
-												connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-											},
-										},
+									setPendingEdits({
+										subject: newTitle,
+										body: newContent,
+										to: extras.to ?? pendingEdits?.to ?? args.to ?? "",
+										cc: extras.cc ?? pendingEdits?.cc ?? args.cc ?? "",
+										bcc: extras.bcc ?? pendingEdits?.bcc ?? args.bcc ?? "",
 									});
 								},
 							});
@@ -297,31 +299,31 @@ function ApprovalCard({
 			{/* Email headers + body preview */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3 pb-2 space-y-1.5 select-none">
-				{args.to && (
+				{(pendingEdits?.to ?? args.to) && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<UserIcon className="size-3 shrink-0" />
-						<span>To: {args.to}</span>
+						<span>To: {pendingEdits?.to ?? args.to}</span>
 					</div>
 				)}
-				{args.cc && args.cc.trim() !== "" && (
+				{(pendingEdits?.cc ?? args.cc) && (pendingEdits?.cc ?? args.cc)?.trim() !== "" && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<UsersIcon className="size-3 shrink-0" />
-						<span>CC: {args.cc}</span>
+						<span>CC: {pendingEdits?.cc ?? args.cc}</span>
 					</div>
 				)}
-				{args.bcc && args.bcc.trim() !== "" && (
+				{(pendingEdits?.bcc ?? args.bcc) && (pendingEdits?.bcc ?? args.bcc)?.trim() !== "" && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<UsersIcon className="size-3 shrink-0" />
-						<span>BCC: {args.bcc}</span>
+						<span>BCC: {pendingEdits?.bcc ?? args.bcc}</span>
 					</div>
 				)}
 			</div>
 
 			<div className="px-5 pt-1">
-				{args.subject != null && (
-					<p className="text-sm font-medium text-foreground">{args.subject}</p>
+				{(pendingEdits?.subject ?? args.subject) != null && (
+					<p className="text-sm font-medium text-foreground">{pendingEdits?.subject ?? args.subject}</p>
 				)}
-				{args.body != null && (
+				{(pendingEdits?.body ?? args.body) != null && (
 					<div
 						className="mt-2 max-h-[7rem] overflow-hidden text-sm"
 						style={{
@@ -330,7 +332,7 @@ function ApprovalCard({
 						}}
 					>
 						<PlateEditor
-							markdown={String(args.body)}
+							markdown={String(pendingEdits?.body ?? args.body)}
 							readOnly
 							preset="readonly"
 							editorVariant="none"

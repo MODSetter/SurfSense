@@ -137,6 +137,7 @@ function ApprovalCard({
 	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+	const [pendingEdits, setPendingEdits] = useState<{ name: string; content: string } | null>(null);
 
 	const accounts = interruptData.context?.accounts ?? [];
 	const validAccounts = accounts.filter(a => !a.auth_expired);
@@ -164,10 +165,10 @@ function ApprovalCard({
 
 	const fileTypeLabel = FILE_TYPE_LABELS[selectedFileType] ?? FILE_TYPE_LABELS[args.file_type] ?? "Google Drive File";
 
-	const isNameValid = useMemo(
-		() => args.name && typeof args.name === "string" && args.name.trim().length > 0,
-		[args.name]
-	);
+	const isNameValid = useMemo(() => {
+		const name = pendingEdits?.name ?? args.name;
+		return name && typeof name === "string" && name.trim().length > 0;
+	}, [pendingEdits?.name, args.name]);
 
 	const canApprove = !!selectedAccountId && isNameValid;
 
@@ -178,20 +179,22 @@ function ApprovalCard({
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen || !canApprove) return;
 		if (!allowedDecisions.includes("approve")) return;
-		setDecided("approve");
+		const isEdited = pendingEdits !== null;
+		setDecided(isEdited ? "edit" : "approve");
 		onDecision({
-			type: "approve",
+			type: isEdited ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
 				args: {
 					...args,
+					...(pendingEdits && { name: pendingEdits.name, content: pendingEdits.content }),
 					file_type: selectedFileType,
 					connector_id: selectedAccountId ? Number(selectedAccountId) : null,
 					parent_folder_id: parentFolderId === "__root__" ? null : parentFolderId,
 				},
 			},
 		});
-	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedFileType, selectedAccountId, parentFolderId]);
+	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedFileType, selectedAccountId, parentFolderId, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -239,27 +242,13 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							openHitlEditPanel({
-								title: args.name ?? "",
-								content: args.content ?? "",
+								title: pendingEdits?.name ?? (args.name ?? ""),
+								content: pendingEdits?.content ?? (args.content ?? ""),
 								toolName: fileTypeLabel,
-							onSave: (newName, newContent) => {
-								setIsPanelOpen(false);
-								setDecided("edit");
-								onDecision({
-									type: "edit",
-									edited_action: {
-										name: interruptData.action_requests[0].name,
-										args: {
-											...args,
-											name: newName,
-											content: newContent,
-											file_type: selectedFileType,
-											connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-											parent_folder_id: parentFolderId === "__root__" ? null : parentFolderId,
-										},
-									},
-								});
-							},
+								onSave: (newName, newContent) => {
+									setIsPanelOpen(false);
+									setPendingEdits({ name: newName, content: newContent });
+								},
 							});
 						}}
 					>
@@ -355,10 +344,10 @@ function ApprovalCard({
 			{/* Content preview */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-			{args.name != null && (
-				<p className="text-sm font-medium text-foreground">{args.name}</p>
+			{(pendingEdits?.name ?? args.name) != null && (
+				<p className="text-sm font-medium text-foreground">{String(pendingEdits?.name ?? args.name)}</p>
 			)}
-				{args.content != null && (
+				{(pendingEdits?.content ?? args.content) != null && (
 					<div
 						className="mt-2 max-h-[7rem] overflow-hidden text-sm"
 						style={{
@@ -367,7 +356,7 @@ function ApprovalCard({
 						}}
 					>
 						<PlateEditor
-							markdown={String(args.content)}
+							markdown={String(pendingEdits?.content ?? args.content)}
 							readOnly
 							preset="readonly"
 							editorVariant="none"

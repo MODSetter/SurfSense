@@ -160,6 +160,10 @@ function ApprovalCard({
 	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+	const [pendingEdits, setPendingEdits] = useState<{
+		summary: string; description: string; start_datetime: string;
+		end_datetime: string; location: string; attendees: string;
+	} | null>(null);
 
 	const accounts = interruptData.context?.accounts ?? [];
 	const validAccounts = accounts.filter((a) => !a.auth_expired);
@@ -189,24 +193,42 @@ function ApprovalCard({
 	const canApprove =
 		!!selectedAccountId &&
 		!!selectedCalendarId &&
-		!!args.summary?.trim();
+		!!(pendingEdits?.summary ?? args.summary)?.trim();
 
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen || !canApprove) return;
 		if (!allowedDecisions.includes("approve")) return;
-		setDecided("approve");
+		const isEdited = pendingEdits !== null;
+		setDecided(isEdited ? "edit" : "approve");
+
+		const finalArgs: Record<string, unknown> = {
+			...args,
+			connector_id: selectedAccountId ? Number(selectedAccountId) : null,
+			calendar_id: selectedCalendarId || null,
+		};
+
+		if (pendingEdits) {
+			finalArgs.summary = pendingEdits.summary;
+			finalArgs.description = pendingEdits.description;
+			if (pendingEdits.start_datetime) finalArgs.start_datetime = pendingEdits.start_datetime;
+			if (pendingEdits.end_datetime) finalArgs.end_datetime = pendingEdits.end_datetime;
+			if (pendingEdits.location !== undefined) finalArgs.location = pendingEdits.location;
+			if (pendingEdits.attendees !== undefined) {
+				finalArgs.attendees = pendingEdits.attendees
+					.split(",")
+					.map((e) => e.trim())
+					.filter(Boolean);
+			}
+		}
+
 		onDecision({
-			type: "approve",
+			type: isEdited ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
-				args: {
-					...args,
-					connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-					calendar_id: selectedCalendarId || null,
-				},
+				args: finalArgs,
 			},
 		});
-	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedAccountId, selectedCalendarId]);
+	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedAccountId, selectedCalendarId, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -219,6 +241,9 @@ function ApprovalCard({
 	}, [handleApprove]);
 
 	const attendeesList = (args.attendees as string[]) ?? [];
+	const displayAttendees = pendingEdits?.attendees
+		? pendingEdits.attendees.split(",").map((e) => e.trim()).filter(Boolean)
+		: attendeesList;
 
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
@@ -259,46 +284,26 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							const extraFields: ExtraField[] = [
-								{ key: "start_datetime", label: "Start", type: "datetime-local", value: args.start_datetime || "" },
-								{ key: "end_datetime", label: "End", type: "datetime-local", value: args.end_datetime || "" },
-								{ key: "location", label: "Location", type: "text", value: args.location || "" },
-								{ key: "attendees", label: "Attendees (comma-separated emails)", type: "text", value: attendeesList.join(", ") },
+								{ key: "start_datetime", label: "Start", type: "datetime-local", value: pendingEdits?.start_datetime ?? args.start_datetime ?? "" },
+								{ key: "end_datetime", label: "End", type: "datetime-local", value: pendingEdits?.end_datetime ?? args.end_datetime ?? "" },
+								{ key: "location", label: "Location", type: "text", value: pendingEdits?.location ?? args.location ?? "" },
+								{ key: "attendees", label: "Attendees (comma-separated emails)", type: "text", value: pendingEdits?.attendees ?? attendeesList.join(", ") },
 							];
 							openHitlEditPanel({
-								title: args.summary ?? "",
-								content: args.description ?? "",
+								title: pendingEdits?.summary ?? (args.summary ?? ""),
+								content: pendingEdits?.description ?? (args.description ?? ""),
 								toolName: "Calendar Event",
 								extraFields,
 								onSave: (newTitle, newContent, extraFieldValues) => {
 									setIsPanelOpen(false);
-									setDecided("edit");
-
-									const editedArgs: Record<string, unknown> = {
-										...args,
+									const extras = extraFieldValues ?? {};
+									setPendingEdits({
 										summary: newTitle,
 										description: newContent,
-										connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-										calendar_id: selectedCalendarId || null,
-									};
-
-									if (extraFieldValues) {
-										if (extraFieldValues.start_datetime) editedArgs.start_datetime = extraFieldValues.start_datetime;
-										if (extraFieldValues.end_datetime) editedArgs.end_datetime = extraFieldValues.end_datetime;
-										if (extraFieldValues.location !== undefined) editedArgs.location = extraFieldValues.location;
-										if (extraFieldValues.attendees !== undefined) {
-											editedArgs.attendees = extraFieldValues.attendees
-												.split(",")
-												.map((e) => e.trim())
-												.filter(Boolean);
-										}
-									}
-
-									onDecision({
-										type: "edit",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: editedArgs,
-										},
+										start_datetime: extras.start_datetime ?? pendingEdits?.start_datetime ?? args.start_datetime ?? "",
+										end_datetime: extras.end_datetime ?? pendingEdits?.end_datetime ?? args.end_datetime ?? "",
+										location: extras.location ?? pendingEdits?.location ?? args.location ?? "",
+										attendees: extras.attendees ?? pendingEdits?.attendees ?? attendeesList.join(", "),
 									});
 								},
 							});
@@ -385,36 +390,36 @@ function ApprovalCard({
 			{/* Content preview */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3 pb-3 space-y-2">
-				{args.summary && (
-					<p className="text-sm font-medium text-foreground">{args.summary}</p>
+				{(pendingEdits?.summary ?? args.summary) && (
+					<p className="text-sm font-medium text-foreground">{pendingEdits?.summary ?? args.summary}</p>
 				)}
 
-				{(args.start_datetime || args.end_datetime) && (
+				{((pendingEdits?.start_datetime ?? args.start_datetime) || (pendingEdits?.end_datetime ?? args.end_datetime)) && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<ClockIcon className="size-3.5 shrink-0" />
 						<span>
-							{args.start_datetime ? formatDateTime(args.start_datetime) : ""}
-							{args.start_datetime && args.end_datetime ? " — " : ""}
-							{args.end_datetime ? formatDateTime(args.end_datetime) : ""}
+							{(pendingEdits?.start_datetime ?? args.start_datetime) ? formatDateTime(pendingEdits?.start_datetime ?? args.start_datetime) : ""}
+							{(pendingEdits?.start_datetime ?? args.start_datetime) && (pendingEdits?.end_datetime ?? args.end_datetime) ? " — " : ""}
+							{(pendingEdits?.end_datetime ?? args.end_datetime) ? formatDateTime(pendingEdits?.end_datetime ?? args.end_datetime) : ""}
 						</span>
 					</div>
 				)}
 
-				{args.location && (
+				{(pendingEdits?.location ?? args.location) && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<MapPinIcon className="size-3.5 shrink-0" />
-						<span>{args.location}</span>
+						<span>{pendingEdits?.location ?? args.location}</span>
 					</div>
 				)}
 
-				{attendeesList.length > 0 && (
+				{displayAttendees.length > 0 && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<UsersIcon className="size-3.5 shrink-0" />
-						<span>{attendeesList.join(", ")}</span>
+						<span>{displayAttendees.join(", ")}</span>
 					</div>
 				)}
 
-				{args.description && (
+				{(pendingEdits?.description ?? args.description) && (
 					<div
 						className="mt-2 max-h-[7rem] overflow-hidden text-sm"
 						style={{
@@ -423,7 +428,7 @@ function ApprovalCard({
 						}}
 					>
 						<PlateEditor
-							markdown={String(args.description)}
+							markdown={String(pendingEdits?.description ?? args.description)}
 							readOnly
 							preset="readonly"
 							editorVariant="none"

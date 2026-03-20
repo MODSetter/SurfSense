@@ -121,6 +121,7 @@ function ApprovalCard({
 	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
+	const [pendingEdits, setPendingEdits] = useState<{ title: string; content: string } | null>(null);
 
 	const accounts = interruptData.context?.accounts ?? [];
 	const validAccounts = accounts.filter(a => !a.auth_expired);
@@ -144,8 +145,9 @@ function ApprovalCard({
 	}, [selectedAccountId, parentPages]);
 
 	const isTitleValid = useMemo(() => {
-		return args.title && typeof args.title === "string" && (args.title as string).trim().length > 0;
-	}, [args.title]);
+		const title = pendingEdits?.title ?? args.title;
+		return title && typeof title === "string" && title.trim().length > 0;
+	}, [pendingEdits?.title, args.title]);
 
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
@@ -154,20 +156,22 @@ function ApprovalCard({
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen || !selectedAccountId || !isTitleValid) return;
 		if (!allowedDecisions.includes("approve")) return;
-		setDecided("approve");
+		const isEdited = pendingEdits !== null;
+		setDecided(isEdited ? "edit" : "approve");
 		onDecision({
-			type: "approve",
+			type: isEdited ? "edit" : "approve",
 			edited_action: {
 				name: interruptData.action_requests[0].name,
 				args: {
 					...args,
+					...(pendingEdits && { title: pendingEdits.title, content: pendingEdits.content }),
 					connector_id: selectedAccountId ? Number(selectedAccountId) : null,
 					parent_page_id:
 						selectedParentPageId === "__none__" ? null : selectedParentPageId,
 				},
 			},
 		});
-	}, [decided, isPanelOpen, selectedAccountId, isTitleValid, allowedDecisions, onDecision, interruptData, args, selectedParentPageId]);
+	}, [decided, isPanelOpen, selectedAccountId, isTitleValid, allowedDecisions, onDecision, interruptData, args, selectedParentPageId, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -217,26 +221,12 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							openHitlEditPanel({
-								title: String(args.title ?? ""),
-								content: String(args.content ?? ""),
+								title: pendingEdits?.title ?? String(args.title ?? ""),
+								content: pendingEdits?.content ?? String(args.content ?? ""),
 								toolName: "Notion Page",
 								onSave: (newTitle, newContent) => {
 									setIsPanelOpen(false);
-									setDecided("edit");
-									onDecision({
-										type: "edit",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: {
-												...args,
-												title: newTitle,
-												content: newContent,
-												connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-												parent_page_id:
-													selectedParentPageId === "__none__" ? null : selectedParentPageId,
-											},
-										},
-									});
+									setPendingEdits({ title: newTitle, content: newContent });
 								},
 							});
 						}}
@@ -324,10 +314,10 @@ function ApprovalCard({
 			{/* Content preview */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-				{args.title != null && (
-					<p className="text-sm font-medium text-foreground">{String(args.title)}</p>
+				{(pendingEdits?.title ?? args.title) != null && (
+					<p className="text-sm font-medium text-foreground">{String(pendingEdits?.title ?? args.title)}</p>
 				)}
-				{args.content != null && (
+				{(pendingEdits?.content ?? args.content) != null && (
 					<div
 						className="max-h-[7rem] overflow-hidden text-sm"
 						style={{
@@ -336,7 +326,7 @@ function ApprovalCard({
 						}}
 					>
 						<PlateEditor
-							markdown={String(args.content)}
+							markdown={String(pendingEdits?.content ?? args.content)}
 							readOnly
 							preset="readonly"
 							editorVariant="none"
