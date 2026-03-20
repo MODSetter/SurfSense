@@ -7,14 +7,19 @@ import {
 	closeHitlEditPanelAtom,
 	hitlEditPanelAtom,
 } from "@/atoms/chat/hitl-edit-panel.atom";
+import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 export function HitlEditPanelContent({
 	title: initialTitle,
 	content: initialContent,
+	extraFields,
 	onSave,
 	onClose,
 	showCloseButton = true,
@@ -22,24 +27,38 @@ export function HitlEditPanelContent({
 	title: string;
 	content: string;
 	toolName: string;
-	onSave: (title: string, content: string) => void;
+	extraFields?: ExtraField[];
+	onSave: (title: string, content: string, extraFieldValues?: Record<string, string>) => void;
 	onClose?: () => void;
 	showCloseButton?: boolean;
 }) {
 	const [editedTitle, setEditedTitle] = useState(initialTitle);
 	const markdownRef = useRef(initialContent);
 	const [isSaving, setIsSaving] = useState(false);
+	const [extraFieldValues, setExtraFieldValues] = useState<Record<string, string>>(() => {
+		if (!extraFields) return {};
+		const initial: Record<string, string> = {};
+		for (const field of extraFields) {
+			initial[field.key] = field.value;
+		}
+		return initial;
+	});
 
 	const handleMarkdownChange = useCallback((md: string) => {
 		markdownRef.current = md;
 	}, []);
 
+	const handleExtraFieldChange = useCallback((key: string, value: string) => {
+		setExtraFieldValues((prev) => ({ ...prev, [key]: value }));
+	}, []);
+
 	const handleSave = useCallback(() => {
 		if (!editedTitle.trim()) return;
 		setIsSaving(true);
-		onSave(editedTitle, markdownRef.current);
+		const extras = extraFields && extraFields.length > 0 ? extraFieldValues : undefined;
+		onSave(editedTitle, markdownRef.current, extras);
 		onClose?.();
-	}, [editedTitle, onSave, onClose]);
+	}, [editedTitle, onSave, onClose, extraFields, extraFieldValues]);
 
 	return (
 		<>
@@ -58,6 +77,34 @@ export function HitlEditPanelContent({
 					</Button>
 				)}
 			</div>
+
+			{extraFields && extraFields.length > 0 && (
+				<div className="flex flex-col gap-3 px-4 py-3 border-b">
+					{extraFields.map((field) => (
+						<div key={field.key} className="flex flex-col gap-1.5">
+							<Label htmlFor={`extra-field-${field.key}`} className="text-xs font-medium text-muted-foreground">
+								{field.label}
+							</Label>
+							{field.type === "textarea" ? (
+								<Textarea
+									id={`extra-field-${field.key}`}
+									value={extraFieldValues[field.key] ?? ""}
+									onChange={(e) => handleExtraFieldChange(field.key, e.target.value)}
+									className="text-sm min-h-[60px]"
+								/>
+							) : (
+								<Input
+									id={`extra-field-${field.key}`}
+									type={field.type}
+									value={extraFieldValues[field.key] ?? ""}
+									onChange={(e) => handleExtraFieldChange(field.key, e.target.value)}
+									className="text-sm"
+								/>
+							)}
+						</div>
+					))}
+				</div>
+			)}
 
 			<div className="flex-1 overflow-hidden">
 				<PlateEditor
@@ -90,6 +137,7 @@ function DesktopHitlEditPanel() {
 				title={panelState.title}
 				content={panelState.content}
 				toolName={panelState.toolName}
+				extraFields={panelState.extraFields}
 				onSave={panelState.onSave}
 				onClose={closePanel}
 			/>
@@ -124,6 +172,7 @@ function MobileHitlEditDrawer() {
 						title={panelState.title}
 						content={panelState.content}
 						toolName={panelState.toolName}
+						extraFields={panelState.extraFields}
 						onSave={panelState.onSave}
 						onClose={closePanel}
 						showCloseButton={false}

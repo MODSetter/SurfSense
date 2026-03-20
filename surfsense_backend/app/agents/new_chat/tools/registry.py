@@ -47,6 +47,16 @@ from app.db import ChatVisibility
 
 from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
+from .gmail import (
+    create_create_gmail_draft_tool,
+    create_send_gmail_email_tool,
+    create_trash_gmail_email_tool,
+)
+from .google_calendar import (
+    create_create_calendar_event_tool,
+    create_delete_calendar_event_tool,
+    create_update_calendar_event_tool,
+)
 from .google_drive import (
     create_create_google_drive_file_tool,
     create_delete_google_drive_file_tool,
@@ -330,6 +340,74 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="delete_google_drive_file",
         description="Move an indexed Google Drive file to trash",
         factory=lambda deps: create_delete_google_drive_file_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # GOOGLE CALENDAR TOOLS - create, update, delete events
+    # Auto-disabled when no Google Calendar connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="create_calendar_event",
+        description="Create a new event on Google Calendar",
+        factory=lambda deps: create_create_calendar_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_calendar_event",
+        description="Update an existing indexed Google Calendar event",
+        factory=lambda deps: create_update_calendar_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_calendar_event",
+        description="Delete an existing indexed Google Calendar event",
+        factory=lambda deps: create_delete_calendar_event_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # GMAIL TOOLS - create drafts, send emails, trash emails
+    # Auto-disabled when no Gmail connector is configured
+    # =========================================================================
+    ToolDefinition(
+        name="create_gmail_draft",
+        description="Create a draft email in Gmail",
+        factory=lambda deps: create_create_gmail_draft_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="send_gmail_email",
+        description="Send an email via Gmail",
+        factory=lambda deps: create_send_gmail_email_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="trash_gmail_email",
+        description="Move an indexed email to trash in Gmail",
+        factory=lambda deps: create_trash_gmail_email_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],
             user_id=deps["user_id"],

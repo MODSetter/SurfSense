@@ -1,12 +1,20 @@
 import { atom } from "jotai";
 import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
 
+export interface ExtraField {
+	label: string;
+	key: string;
+	value: string;
+	type: "text" | "email" | "datetime-local" | "textarea";
+}
+
 interface HitlEditPanelState {
 	isOpen: boolean;
 	title: string;
 	content: string;
 	toolName: string;
-	onSave: ((title: string, content: string) => void) | null;
+	extraFields?: ExtraField[];
+	onSave: ((title: string, content: string, extraFieldValues?: Record<string, string>) => void) | null;
 }
 
 const initialState: HitlEditPanelState = {
@@ -14,6 +22,7 @@ const initialState: HitlEditPanelState = {
 	title: "",
 	content: "",
 	toolName: "",
+	extraFields: undefined,
 	onSave: null,
 };
 
@@ -30,7 +39,8 @@ export const openHitlEditPanelAtom = atom(
 			title: string;
 			content: string;
 			toolName: string;
-			onSave: (title: string, content: string) => void;
+			extraFields?: ExtraField[];
+			onSave: (title: string, content: string, extraFieldValues?: Record<string, string>) => void;
 		}
 	) => {
 		if (!get(hitlEditPanelAtom).isOpen) {
@@ -41,6 +51,7 @@ export const openHitlEditPanelAtom = atom(
 			title: payload.title,
 			content: payload.content,
 			toolName: payload.toolName,
+			extraFields: payload.extraFields,
 			onSave: payload.onSave,
 		});
 		set(rightPanelTabAtom, "hitl-edit");

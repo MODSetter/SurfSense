@@ -42,6 +42,16 @@ import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import {
+	CreateCalendarEventToolUI,
+	UpdateCalendarEventToolUI,
+	DeleteCalendarEventToolUI,
+} from "@/components/tool-ui/google-calendar";
+import {
+	CreateGmailDraftToolUI,
+	SendGmailEmailToolUI,
+	TrashGmailEmailToolUI,
+} from "@/components/tool-ui/gmail";
+import {
 	CreateGoogleDriveFileToolUI,
 	DeleteGoogleDriveFileToolUI,
 } from "@/components/tool-ui/google-drive";
@@ -160,6 +170,12 @@ const TOOLS_WITH_UI = new Set([
 	"delete_linear_issue",
 	"create_google_drive_file",
 	"delete_google_drive_file",
+	"create_calendar_event",
+	"update_calendar_event",
+	"delete_calendar_event",
+	"create_gmail_draft",
+	"send_gmail_email",
+	"trash_gmail_email",
 	"execute",
 	// "write_todos", // Disabled for now
 ]);
@@ -1676,6 +1692,12 @@ export default function NewChatPage() {
 			<DeleteLinearIssueToolUI />
 			<CreateGoogleDriveFileToolUI />
 			<DeleteGoogleDriveFileToolUI />
+			<CreateCalendarEventToolUI />
+			<UpdateCalendarEventToolUI />
+			<DeleteCalendarEventToolUI />
+			<CreateGmailDraftToolUI />
+			<SendGmailEmailToolUI />
+			<TrashGmailEmailToolUI />
 			<SandboxExecuteToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">

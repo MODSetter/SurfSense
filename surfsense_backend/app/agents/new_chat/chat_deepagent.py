@@ -305,6 +305,32 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(google_drive_tools)
 
+    # Disable Google Calendar action tools if no Google Calendar connector is configured
+    has_google_calendar_connector = (
+        available_connectors is not None
+        and "GOOGLE_CALENDAR_CONNECTOR" in available_connectors
+    )
+    if not has_google_calendar_connector:
+        calendar_tools = [
+            "create_calendar_event",
+            "update_calendar_event",
+            "delete_calendar_event",
+        ]
+        modified_disabled_tools.extend(calendar_tools)
+
+    # Disable Gmail action tools if no Gmail connector is configured
+    has_gmail_connector = (
+        available_connectors is not None
+        and "GOOGLE_GMAIL_CONNECTOR" in available_connectors
+    )
+    if not has_gmail_connector:
+        gmail_tools = [
+            "create_gmail_draft",
+            "send_gmail_email",
+            "trash_gmail_email",
+        ]
+        modified_disabled_tools.extend(gmail_tools)
+
     # Build tools using the async registry (includes MCP tools)
     _t0 = time.perf_counter()
     tools = await build_tools_async(
