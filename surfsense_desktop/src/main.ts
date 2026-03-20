@@ -1,17 +1,15 @@
-import { app, BrowserWindow, shell, ipcMain, dialog, Menu } from 'electron';
-import { autoUpdater } from 'electron-updater';
+import { app, BrowserWindow, shell, ipcMain, Menu } from 'electron';
 import { registerGlobalErrorHandlers, showErrorDialog } from './modules/errors';
 import { startNextServer } from './modules/server';
 import { createMainWindow } from './modules/window';
 import { setupDeepLinks, handlePendingDeepLink } from './modules/deep-links';
+import { setupAutoUpdater } from './modules/auto-updater';
 
 registerGlobalErrorHandlers();
 
 if (!setupDeepLinks()) {
   app.quit();
 }
-
-const isDev = !app.isPackaged;
 
 // IPC handlers
 ipcMain.on('open-external', (_event, url: string) => {
@@ -28,37 +26,6 @@ ipcMain.on('open-external', (_event, url: string) => {
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
-
-function setupAutoUpdater() {
-  if (isDev) return;
-
-  autoUpdater.autoDownload = true;
-
-  autoUpdater.on('update-available', (info) => {
-    console.log(`Update available: ${info.version}`);
-  });
-
-  autoUpdater.on('update-downloaded', (info) => {
-    console.log(`Update downloaded: ${info.version}`);
-    dialog.showMessageBox({
-      type: 'info',
-      buttons: ['Restart', 'Later'],
-      defaultId: 0,
-      title: 'Update Ready',
-      message: `Version ${info.version} has been downloaded. Restart to apply the update.`,
-    }).then(({ response }) => {
-      if (response === 0) {
-        autoUpdater.quitAndInstall();
-      }
-    });
-  });
-
-  autoUpdater.on('error', (err) => {
-    console.error('Auto-updater error:', err);
-  });
-
-  autoUpdater.checkForUpdates();
-}
 
 function setupMenu() {
   const isMac = process.platform === 'darwin';
