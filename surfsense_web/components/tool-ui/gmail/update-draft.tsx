@@ -5,7 +5,6 @@ import {
 	CornerDownLeftIcon,
 	MailIcon,
 	Pen,
-	TriangleAlertIcon,
 	UserIcon,
 	UsersIcon,
 } from "lucide-react";
@@ -529,7 +528,6 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border border-amber-500/50 bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<div className="flex items-center gap-2">
-					<TriangleAlertIcon className="size-4 text-amber-500 shrink-0" />
 					<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
 						Draft not found
 					</p>

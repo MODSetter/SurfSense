@@ -4,7 +4,6 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
 	CornerDownLeftIcon,
 	InfoIcon,
-	TriangleAlertIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -362,7 +361,6 @@ function WarningCard({ result }: { result: WarningResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="flex items-start gap-3 border-b px-5 py-4">
-				<TriangleAlertIcon className="size-4 mt-0.5 shrink-0 text-amber-500" />
 				<p className="text-sm font-medium text-amber-600 dark:text-amber-500">Partial success</p>
 			</div>
 			<div className="px-5 py-4 space-y-2">

@@ -2,14 +2,12 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
-	CalendarIcon,
 	ClockIcon,
 	MapPinIcon,
 	UsersIcon,
 	ArrowRightIcon,
 	CornerDownLeftIcon,
 	Pen,
-	TriangleAlertIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useSetAtom } from "jotai";
@@ -278,7 +276,6 @@ function ApprovalCard({
 			{/* Header */}
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div className="flex items-center gap-2">
-					<CalendarIcon className="size-4 text-muted-foreground shrink-0" />
 					<div>
 						<p className="text-sm font-semibold text-foreground">
 							{decided === "reject"
@@ -541,7 +538,6 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border border-amber-500/50 bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<div className="flex items-center gap-2">
-					<TriangleAlertIcon className="size-4 text-amber-500 shrink-0" />
 					<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
 						Event not found
 					</p>
