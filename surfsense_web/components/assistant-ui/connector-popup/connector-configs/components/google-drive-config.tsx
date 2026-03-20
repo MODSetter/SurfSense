@@ -1,22 +1,16 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { useAtomValue } from "jotai";
 import {
-
 	File,
 	FileSpreadsheet,
 	FileText,
 	FolderClosed,
 	Image,
 	Presentation,
-	RefreshCw,
 	X,
 } from "lucide-react";
 import type { FC } from "react";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
-import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -28,7 +22,6 @@ import {
 } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
-import { authenticatedFetch } from "@/lib/auth-utils";
 import { type PickerResult, useGooglePicker } from "@/hooks/use-google-picker";
 import type { ConnectorConfigProps } from "../index";
 
@@ -89,10 +82,7 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	return <File className={`${className} text-gray-500`} />;
 }
 
-const DRIVE_REAUTH_ENDPOINT = "/api/v1/auth/google/drive/connector/reauth";
-
 export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
-	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const existingFolders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
 	const existingFiles = (connector.config?.selected_files as SelectedItem[] | undefined) || [];
 	const existingIndexingOptions =
@@ -101,33 +91,6 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 	const [selectedFolders, setSelectedFolders] = useState<SelectedItem[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedItem[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
-	const [reauthing, setReauthing] = useState(false);
-
-	const handleReauth = useCallback(async () => {
-		if (!searchSpaceId) return;
-		setReauthing(true);
-		try {
-			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const url = new URL(`${backendUrl}${DRIVE_REAUTH_ENDPOINT}`);
-			url.searchParams.set("connector_id", String(connector.id));
-			url.searchParams.set("space_id", String(searchSpaceId));
-			url.searchParams.set("return_url", window.location.pathname);
-			const response = await authenticatedFetch(url.toString());
-			if (!response.ok) {
-				const data = await response.json().catch(() => ({}));
-				toast.error(data.detail ?? "Failed to initiate re-authentication.");
-				return;
-			}
-			const data = await response.json();
-			if (data.auth_url) {
-				window.location.href = data.auth_url;
-			}
-		} catch {
-			toast.error("Failed to initiate re-authentication.");
-		} finally {
-			setReauthing(false);
-		}
-	}, [searchSpaceId, connector.id]);
 
 	useEffect(() => {
 		const folders = (connector.config?.selected_folders as SelectedItem[] | undefined) || [];
@@ -268,40 +231,26 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					</div>
 				)}
 
-			<Button
-				type="button"
-				variant="outline"
-				onClick={openPicker}
-				disabled={pickerLoading || isAuthExpired}
-				className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-			>
-				{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
-				{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}
-			</Button>
+		<Button
+			type="button"
+			variant="outline"
+			onClick={openPicker}
+			disabled={pickerLoading || isAuthExpired}
+			className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+		>
+			{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
+			{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}
+		</Button>
 
-			{(pickerError || isAuthExpired) && (
-				<div className="flex flex-col gap-2">
-					{pickerError && !isAuthExpired && (
-						<p className="text-xs text-destructive">{pickerError}</p>
-					)}
-					{isAuthExpired && (
-						<div className="flex items-center gap-2">
-							<p className="text-xs text-amber-600 dark:text-amber-500">
-								Your Google Drive authentication has expired.
-							</p>
-							<Button
-								size="sm"
-								className="h-7 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
-								onClick={handleReauth}
-								disabled={reauthing}
-							>
-								<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
-								Re-authenticate
-							</Button>
-						</div>
-					)}
-				</div>
-			)}
+		{pickerError && !isAuthExpired && (
+			<p className="text-xs text-destructive">{pickerError}</p>
+		)}
+
+		{isAuthExpired && (
+			<p className="text-xs text-amber-600 dark:text-amber-500">
+				Your Google Drive authentication has expired. Please re-authenticate using the button below.
+			</p>
+		)}
 			</div>
 
 			{/* Indexing Options */}

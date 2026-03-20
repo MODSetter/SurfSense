@@ -1,17 +1,33 @@
 "use client";
 
+import { useAtomValue } from "jotai";
 import { ArrowLeft, Info, RefreshCw, Trash2 } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
+import { authenticatedFetch } from "@/lib/auth-utils";
 import { cn } from "@/lib/utils";
 import { DateRangeSelector } from "../../components/date-range-selector";
 import { PeriodicSyncConfig } from "../../components/periodic-sync-config";
 import { SummaryConfig } from "../../components/summary-config";
 import { getConnectorDisplayName } from "../../tabs/all-connectors-tab";
 import { getConnectorConfigComponent } from "../index";
+
+const REAUTH_ENDPOINTS: Partial<Record<string, string>> = {
+	[EnumConnectorName.LINEAR_CONNECTOR]: "/api/v1/auth/linear/connector/reauth",
+	[EnumConnectorName.NOTION_CONNECTOR]: "/api/v1/auth/notion/connector/reauth",
+	[EnumConnectorName.GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/google/drive/connector/reauth",
+	[EnumConnectorName.GOOGLE_GMAIL_CONNECTOR]: "/api/v1/auth/google/gmail/connector/reauth",
+	[EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/google/calendar/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_DRIVE_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GMAIL_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+	[EnumConnectorName.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR]: "/api/v1/auth/composio/connector/reauth",
+};
 
 interface ConnectorEditViewProps {
 	connector: SearchSourceConnector;
@@ -60,6 +76,41 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 	onConfigChange,
 	onNameChange,
 }) => {
+	const searchSpaceIdAtom = useAtomValue(activeSearchSpaceIdAtom);
+	const isAuthExpired = connector.config?.auth_expired === true;
+	const reauthEndpoint = REAUTH_ENDPOINTS[connector.connector_type];
+	const [reauthing, setReauthing] = useState(false);
+
+	const handleReauth = useCallback(async () => {
+		const spaceId = searchSpaceId ?? searchSpaceIdAtom;
+		if (!spaceId || !reauthEndpoint) return;
+		setReauthing(true);
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const url = new URL(`${backendUrl}${reauthEndpoint}`);
+			url.searchParams.set("connector_id", String(connector.id));
+			url.searchParams.set("space_id", String(spaceId));
+			url.searchParams.set("return_url", window.location.pathname);
+			const response = await authenticatedFetch(url.toString());
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				toast.error(data.detail ?? "Failed to initiate re-authentication.");
+				return;
+			}
+			const data = await response.json();
+			if (data.auth_url) {
+				window.location.href = data.auth_url;
+			} else if (data.success) {
+				toast.success(data.message ?? "Authentication refreshed successfully.");
+				window.location.reload();
+			}
+		} catch {
+			toast.error("Failed to initiate re-authentication.");
+		} finally {
+			setReauthing(false);
+		}
+	}, [searchSpaceId, searchSpaceIdAtom, reauthEndpoint, connector.id]);
+
 	// Get connector-specific config component
 	const ConnectorConfigComponent = useMemo(
 		() => getConnectorConfigComponent(connector.connector_type),
@@ -169,29 +220,30 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							</p>
 						</div>
 					</div>
-					{/* Quick Index Button - shown for indexable connectors that have been configured */}
-					{connector.is_indexable &&
-						onQuickIndex && (
-							<Button
-								variant="secondary"
-								size="sm"
-								onClick={handleQuickIndex}
-								disabled={isQuickIndexing || isIndexing || isSaving || isDisconnecting}
-								className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
-							>
-								{isQuickIndexing || isIndexing ? (
-									<>
-										<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-										Syncing
-									</>
-								) : (
-									<>
-										<RefreshCw className="mr-2 h-4 w-4" />
-										Quick Index
-									</>
-								)}
-							</Button>
-						)}
+				{/* Quick Index Button - hidden when auth is expired */}
+				{connector.is_indexable &&
+					onQuickIndex &&
+					!isAuthExpired && (
+						<Button
+							variant="secondary"
+							size="sm"
+							onClick={handleQuickIndex}
+							disabled={isQuickIndexing || isIndexing || isSaving || isDisconnecting}
+							className="text-xs sm:text-sm bg-slate-400/10 dark:bg-white/10 hover:bg-slate-400/20 dark:hover:bg-white/20 border-slate-400/20 dark:border-white/20 w-full sm:w-auto"
+						>
+							{isQuickIndexing || isIndexing ? (
+								<>
+									<RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+									Syncing
+								</>
+							) : (
+								<>
+									<RefreshCw className="mr-2 h-4 w-4" />
+									Quick Index
+								</>
+							)}
+						</Button>
+					)}
 				</div>
 			</div>
 
@@ -349,6 +401,16 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						Disconnect
 					</Button>
 				)}
+			{isAuthExpired && reauthEndpoint ? (
+				<Button
+					onClick={handleReauth}
+					disabled={reauthing || isDisconnecting}
+					className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white"
+				>
+					<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
+					Re-authenticate
+				</Button>
+			) : (
 				<Button
 					onClick={onSave}
 					disabled={isSaving || isDisconnecting}
@@ -363,6 +425,7 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						"Save Changes"
 					)}
 				</Button>
+			)}
 			</div>
 		</div>
 	);
