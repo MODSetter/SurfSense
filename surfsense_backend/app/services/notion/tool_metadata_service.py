@@ -167,17 +167,20 @@ class NotionToolMetadataService:
         if not page_id:
             return {"error": "Page ID not found in document metadata"}
 
+        current_title = document.title
+        document_id = document.id
+        indexed_at = document.document_metadata.get("indexed_at")
+
         acc_dict = account.to_dict()
         auth_expired = await self._check_account_health(connector.id)
         acc_dict["auth_expired"] = auth_expired
         if auth_expired:
             try:
-                db_connector = connector
-                if not db_connector.config.get("auth_expired"):
-                    db_connector.config = {**db_connector.config, "auth_expired": True}
-                    flag_modified(db_connector, "config")
+                if not connector.config.get("auth_expired"):
+                    connector.config = {**connector.config, "auth_expired": True}
+                    flag_modified(connector, "config")
                     await self._db_session.commit()
-                    await self._db_session.refresh(db_connector)
+                    await self._db_session.refresh(connector)
             except Exception:
                 logger.warning(
                     "Failed to persist auth_expired for connector %s",
@@ -188,9 +191,9 @@ class NotionToolMetadataService:
         return {
             "account": acc_dict,
             "page_id": page_id,
-            "current_title": document.title,
-            "document_id": document.id,
-            "indexed_at": document.document_metadata.get("indexed_at"),
+            "current_title": current_title,
+            "document_id": document_id,
+            "indexed_at": indexed_at,
         }
 
     async def get_delete_context(
