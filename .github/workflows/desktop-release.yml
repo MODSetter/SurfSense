@@ -24,3 +24,15 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
+
+      - name: Install web dependencies
+        run: pnpm install
+        working-directory: surfsense_web
+
+      - name: Build Next.js standalone
+        run: pnpm build
+        working-directory: surfsense_web
+
+      - name: Install desktop dependencies
+        run: pnpm install
+        working-directory: surfsense_desktop
