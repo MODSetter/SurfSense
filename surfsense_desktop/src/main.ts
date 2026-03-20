@@ -1,66 +1,17 @@
 import { app, BrowserWindow, shell, ipcMain, session, dialog, Menu } from 'electron';
 import path from 'path';
-import { getPort } from 'get-port-please';
 import { autoUpdater } from 'electron-updater';
 import { registerGlobalErrorHandlers, showErrorDialog } from './modules/errors';
+import { startNextServer, getServerPort } from './modules/server';
 
 registerGlobalErrorHandlers();
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
 let deepLinkUrl: string | null = null;
-let serverPort: number = 3000; // overwritten at startup with a free port
 
 const PROTOCOL = 'surfsense';
-// Injected at compile time from .env via esbuild define
 const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
-
-function getStandalonePath(): string {
-  if (isDev) {
-    return path.join(__dirname, '..', '..', 'surfsense_web', '.next', 'standalone', 'surfsense_web');
-  }
-  return path.join(process.resourcesPath, 'standalone');
-}
-
-async function waitForServer(url: string, maxRetries = 60): Promise<boolean> {
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      const res = await fetch(url);
-      if (res.ok || res.status === 404 || res.status === 500) return true;
-    } catch {
-      // not ready yet
-    }
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  return false;
-}
-
-async function startNextServer(): Promise<void> {
-  if (isDev) return;
-
-  serverPort = await getPort({ port: 3000, portRange: [30_011, 50_000] });
-  console.log(`Selected port ${serverPort}`);
-
-  const standalonePath = getStandalonePath();
-  const serverScript = path.join(standalonePath, 'server.js');
-
-  // The standalone server.js reads PORT / HOSTNAME from process.env and
-  // uses process.chdir(__dirname). Running it via require() in the same
-  // process is the proven approach (avoids spawning a second Electron
-  // instance whose ASAR-patched fs breaks Next.js static file serving).
-  process.env.PORT = String(serverPort);
-  process.env.HOSTNAME = 'localhost';
-  process.env.NODE_ENV = 'production';
-  process.chdir(standalonePath);
-
-  require(serverScript);
-
-  const ready = await waitForServer(`http://localhost:${serverPort}`);
-  if (!ready) {
-    throw new Error('Next.js server failed to start within 30 s');
-  }
-  console.log(`Next.js server ready on port ${serverPort}`);
-}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -83,7 +34,7 @@ function createWindow() {
     mainWindow?.show();
   });
 
-  mainWindow.loadURL(`http://localhost:${serverPort}/login`);
+  mainWindow.loadURL(`http://localhost:${getServerPort()}/login`);
 
   // External links open in system browser, not in the Electron window
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -98,7 +49,7 @@ function createWindow() {
   // and rewrite them to localhost so the user stays in the desktop app.
   const filter = { urls: [`${HOSTED_FRONTEND_URL}/*`] };
   session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
-    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${serverPort}`);
+    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${getServerPort()}`);
     callback({ redirectURL: rewritten });
   });
 
@@ -145,7 +96,7 @@ function handleDeepLink(url: string) {
   const parsed = new URL(url);
   if (parsed.hostname === 'auth' && parsed.pathname === '/callback') {
     const params = parsed.searchParams.toString();
-    mainWindow.loadURL(`http://localhost:${serverPort}/auth/callback?${params}`);
+    mainWindow.loadURL(`http://localhost:${getServerPort()}/auth/callback?${params}`);
   }
 
   mainWindow.show();
