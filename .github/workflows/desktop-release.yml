@@ -36,3 +36,7 @@ jobs:
       - name: Install desktop dependencies
         run: pnpm install
         working-directory: surfsense_desktop
+
+      - name: Build Electron
+        run: pnpm build
+        working-directory: surfsense_desktop
