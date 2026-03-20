@@ -12,7 +12,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { PlateEditor } from "@/components/editor/plate-editor";
-import { Spinner } from "@/components/ui/spinner";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useSetAtom } from "jotai";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
@@ -571,9 +571,8 @@ export const CreateLinearIssueToolUI = makeAssistantToolUI<
 	render: function CreateLinearIssueUI({ args, result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 flex max-w-lg items-center gap-3 rounded-2xl border bg-muted/30 px-5 py-4">
-					<Spinner size="sm" className="text-muted-foreground" />
-					<p className="text-sm text-muted-foreground">Preparing Linear issue...</p>
+				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4">
+					<TextShimmerLoader text="Preparing Linear issue..." size="sm" />
 				</div>
 			);
 		}

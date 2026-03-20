@@ -345,6 +345,7 @@ async def drive_callback(
             db_connector.config = {
                 **creds_dict,
                 "start_page_token": existing_start_page_token,
+                "auth_expired": False,
             }
             from sqlalchemy.orm.attributes import flag_modified
 

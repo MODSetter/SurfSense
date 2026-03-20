@@ -5,7 +5,6 @@ import {
 	AlertTriangleIcon,
 	CornerDownLeftIcon,
 	InfoIcon,
-	Loader2Icon,
 	RefreshCwIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
@@ -13,7 +12,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface GoogleDriveAccount {
@@ -368,11 +367,7 @@ function InsufficientPermissionsCard({ result }: { result: InsufficientPermissio
 			<div className="px-5 py-4 space-y-3">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
 				<Button size="sm" className="rounded-lg" onClick={handleReauth} disabled={loading}>
-					{loading ? (
-						<Loader2Icon className="size-4 animate-spin" />
-					) : (
-						<RefreshCwIcon className="size-4" />
-					)}
+					<RefreshCwIcon className={`size-4 ${loading ? "animate-spin" : ""}`} />
 					Re-authenticate Google Drive
 				</Button>
 			</div>
@@ -466,9 +461,8 @@ export const DeleteGoogleDriveFileToolUI = makeAssistantToolUI<
 	render: function DeleteGoogleDriveFileUI({ result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 flex max-w-lg items-center gap-3 rounded-2xl border bg-muted/30 px-5 py-4">
-					<Spinner size="sm" className="text-muted-foreground" />
-					<p className="text-sm text-muted-foreground">Looking up file in Google Drive...</p>
+				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4">
+					<TextShimmerLoader text="Looking up file in Google Drive..." size="sm" />
 				</div>
 			);
 		}

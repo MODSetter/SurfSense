@@ -4,7 +4,7 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { CornerDownLeftIcon, TriangleAlertIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 
 interface InterruptResult {
 	__interrupt__: true;
@@ -367,9 +367,8 @@ export const DeleteLinearIssueToolUI = makeAssistantToolUI<
 	render: function DeleteLinearIssueUI({ result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 flex max-w-lg items-center gap-3 rounded-2xl border bg-muted/30 px-5 py-4">
-					<Spinner size="sm" className="text-muted-foreground" />
-					<p className="text-sm text-muted-foreground">Preparing Linear issue deletion...</p>
+				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4">
+					<TextShimmerLoader text="Preparing Linear issue deletion..." size="sm" />
 				</div>
 			);
 		}
