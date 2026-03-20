@@ -207,6 +207,8 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
+	if (decided && decided !== "reject") return null;
+
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
