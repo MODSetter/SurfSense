@@ -3,7 +3,7 @@ name: Desktop Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'beta-v*'
 
 permissions:
   contents: write
