@@ -45,6 +45,11 @@ jobs:
       - name: Build Next.js standalone
         run: pnpm build
         working-directory: surfsense_web
+        env:
+          NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_URL }}
+          NEXT_PUBLIC_ELECTRIC_URL: ${{ vars.NEXT_PUBLIC_ELECTRIC_URL }}
+          NEXT_PUBLIC_DEPLOYMENT_MODE: ${{ vars.NEXT_PUBLIC_DEPLOYMENT_MODE }}
+          NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${{ vars.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE }}
 
       - name: Install desktop dependencies
         run: pnpm install
