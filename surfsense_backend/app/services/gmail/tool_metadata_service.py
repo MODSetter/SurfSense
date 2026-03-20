@@ -29,7 +29,10 @@ class GmailAccount:
 
     @classmethod
     def from_connector(cls, connector: SearchSourceConnector) -> "GmailAccount":
-        return cls(id=connector.id, name=connector.name, email="")
+        email = ""
+        if connector.name and " - " in connector.name:
+            email = connector.name.split(" - ", 1)[1]
+        return cls(id=connector.id, name=connector.name, email=email)
 
     def to_dict(self) -> dict:
         return {"id": self.id, "name": self.name, "email": self.email}

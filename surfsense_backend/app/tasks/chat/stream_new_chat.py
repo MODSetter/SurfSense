@@ -873,6 +873,12 @@ async def _stream_agent_events(
                 "delete_linear_issue",
                 "create_google_drive_file",
                 "delete_google_drive_file",
+                "create_gmail_draft",
+                "send_gmail_email",
+                "trash_gmail_email",
+                "create_google_calendar_event",
+                "update_google_calendar_event",
+                "delete_google_calendar_event",
             ):
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,
