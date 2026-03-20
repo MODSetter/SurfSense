@@ -321,29 +321,31 @@ function ApprovalCard({
 									</Select>
 								</div>
 
-							<div className="space-y-2">
-								<p className="text-xs font-medium text-muted-foreground">
-									Parent Folder
-								</p>
-								<Select value={parentFolderId} onValueChange={setParentFolderId}>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Drive Root" />
-									</SelectTrigger>
-									<SelectContent>
-										<SelectItem value="__root__">Drive Root</SelectItem>
-										{availableParentFolders.map((folder) => (
-											<SelectItem key={folder.folder_id} value={folder.folder_id}>
-												{folder.name}
-											</SelectItem>
-										))}
-									</SelectContent>
-								</Select>
-								{selectedAccountId && availableParentFolders.length === 0 && (
-									<p className="text-xs text-muted-foreground">
-										No folders found. File will be created at Drive root.
+							{selectedAccountId && (
+								<div className="space-y-2">
+									<p className="text-xs font-medium text-muted-foreground">
+										Parent Folder
 									</p>
-								)}
-							</div>
+									<Select value={parentFolderId} onValueChange={setParentFolderId}>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="Drive Root" />
+										</SelectTrigger>
+										<SelectContent>
+											<SelectItem value="__root__">Drive Root</SelectItem>
+											{availableParentFolders.map((folder) => (
+												<SelectItem key={folder.folder_id} value={folder.folder_id}>
+													{folder.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									{availableParentFolders.length === 0 && (
+										<p className="text-xs text-muted-foreground">
+											No folders found. File will be created at Drive root.
+										</p>
+									)}
+								</div>
+							)}
 							</>
 						)}
 					</div>

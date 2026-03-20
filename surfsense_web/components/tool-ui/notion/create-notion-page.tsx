@@ -298,7 +298,7 @@ function ApprovalCard({
 												<SelectItem value="__none__">None</SelectItem>
 												{availableParentPages.map((page) => (
 													<SelectItem key={page.page_id} value={page.page_id}>
-														📄 {page.title}
+														{page.title}
 													</SelectItem>
 												))}
 											</SelectContent>

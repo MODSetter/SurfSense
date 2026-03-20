@@ -4,6 +4,7 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -12,6 +13,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
@@ -363,15 +365,15 @@ function ApprovalCard({
 											</div>
 											<div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
 												{issue.current_state && (
-													<span
-														className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+													<Badge
+														className="rounded-full border-0"
 														style={{
 															backgroundColor: `${issue.current_state.color}22`,
 															color: issue.current_state.color,
 														}}
 													>
 														{issue.current_state.name}
-													</span>
+													</Badge>
 												)}
 												{issue.current_assignee && <span>{issue.current_assignee.name}</span>}
 												{priorities.find((p) => p.priority === issue.priority) && (
@@ -381,16 +383,16 @@ function ApprovalCard({
 											{issue.current_labels && issue.current_labels.length > 0 && (
 												<div className="flex flex-wrap gap-1">
 													{issue.current_labels.map((label) => (
-														<span
+														<Badge
 															key={label.id}
-															className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+															className="rounded-full border-0 gap-1"
 															style={{
 																backgroundColor: `${label.color}22`,
 																color: label.color,
 															}}
 														>
 															{label.name}
-														</span>
+														</Badge>
 													))}
 												</div>
 											)}
@@ -474,40 +476,48 @@ function ApprovalCard({
 										{team.labels.length > 0 && (
 											<div className="space-y-2">
 												<p className="text-xs font-medium text-muted-foreground">Labels</p>
-												<div className="flex flex-wrap gap-1.5">
+												<ToggleGroup
+													type="multiple"
+													value={editedArgs.labelIds}
+													onValueChange={(value) =>
+														setEditedArgs({ ...editedArgs, labelIds: value })
+													}
+													className="flex flex-wrap gap-1.5"
+												>
 													{team.labels.map((label) => {
 														const isSelected = editedArgs.labelIds.includes(label.id);
 														return (
-															<button
+															<ToggleGroupItem
 																key={label.id}
-																type="button"
-																onClick={() =>
-																	setEditedArgs({
-																		...editedArgs,
-																		labelIds: isSelected
-																			? editedArgs.labelIds.filter((id) => id !== label.id)
-																			: [...editedArgs.labelIds, label.id],
-																	})
-																}
-																className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity ${
-																	isSelected
-																		? "opacity-100 ring-2 ring-foreground/30"
-																		: "opacity-50 hover:opacity-80"
-																}`}
-																style={{
-																	backgroundColor: `${label.color}33`,
-																	color: label.color,
-																}}
+																value={label.id}
+																className="h-auto rounded-full border-0 px-0 py-0 shadow-none hover:bg-transparent data-[state=on]:bg-transparent"
 															>
-																<span
-																	className="size-1.5 rounded-full"
-																	style={{ backgroundColor: label.color }}
-																/>
-																{label.name}
-															</button>
+																<Badge
+																	className={`cursor-pointer rounded-full gap-1 border transition-all ${
+																		isSelected
+																			? "font-semibold opacity-100 shadow-sm"
+																			: "border-transparent opacity-55 hover:opacity-90"
+																	}`}
+																	style={{
+																		backgroundColor: isSelected
+																			? `${label.color}70`
+																			: `${label.color}28`,
+																		color: label.color,
+																		borderColor: isSelected
+																			? `${label.color}cc`
+																			: "transparent",
+																	}}
+																>
+																	<span
+																		className="size-1.5 rounded-full"
+																		style={{ backgroundColor: label.color }}
+																	/>
+																	{label.name}
+																</Badge>
+															</ToggleGroupItem>
 														);
 													})}
-												</div>
+												</ToggleGroup>
 											</div>
 										)}
 									</>
@@ -564,16 +574,16 @@ function ApprovalCard({
 						{proposedLabelObjects.length > 0 && (
 							<div className="flex flex-wrap gap-1 mt-2">
 								{proposedLabelObjects.map((label) => (
-									<span
+									<Badge
 										key={label.id}
-										className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium"
+										className="rounded-full border-0 gap-1"
 										style={{
 											backgroundColor: `${label.color}33`,
 											color: label.color,
 										}}
 									>
 										{label.name}
-									</span>
+									</Badge>
 								))}
 							</div>
 						)}

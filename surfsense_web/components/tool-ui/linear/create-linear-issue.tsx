@@ -3,6 +3,7 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -11,6 +12,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useSetAtom } from "jotai";
@@ -398,39 +400,46 @@ function ApprovalCard({
 												{selectedTeam.labels.length > 0 && (
 													<div className="space-y-2">
 														<p className="text-xs font-medium text-muted-foreground">Labels</p>
-														<div className="flex flex-wrap gap-1.5">
+														<ToggleGroup
+															type="multiple"
+															value={selectedLabelIds}
+															onValueChange={setSelectedLabelIds}
+															className="flex flex-wrap gap-1.5"
+														>
 															{selectedTeam.labels.map((label) => {
 																const isSelected = selectedLabelIds.includes(label.id);
 																return (
-																	<button
+																	<ToggleGroupItem
 																		key={label.id}
-																		type="button"
-																		onClick={() =>
-																			setSelectedLabelIds((prev) =>
-																				isSelected
-																					? prev.filter((id) => id !== label.id)
-																					: [...prev, label.id]
-																			)
-																		}
-																		className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium transition-opacity ${
-																			isSelected
-																				? "opacity-100 ring-2 ring-foreground/30"
-																				: "opacity-50 hover:opacity-80"
-																		}`}
-																		style={{
-																			backgroundColor: `${label.color}33`,
-																			color: label.color,
-																		}}
+																		value={label.id}
+																		className="h-auto rounded-full border-0 px-0 py-0 shadow-none hover:bg-transparent data-[state=on]:bg-transparent"
 																	>
-																		<span
-																			className="size-1.5 rounded-full"
-																			style={{ backgroundColor: label.color }}
-																		/>
-																		{label.name}
-																	</button>
+																		<Badge
+																			className={`cursor-pointer rounded-full gap-1 border transition-all ${
+																				isSelected
+																					? "font-semibold opacity-100 shadow-sm"
+																					: "border-transparent opacity-55 hover:opacity-90"
+																			}`}
+																			style={{
+																				backgroundColor: isSelected
+																					? `${label.color}70`
+																					: `${label.color}28`,
+																				color: label.color,
+																				borderColor: isSelected
+																					? `${label.color}cc`
+																					: "transparent",
+																			}}
+																		>
+																			<span
+																				className="size-1.5 rounded-full"
+																				style={{ backgroundColor: label.color }}
+																			/>
+																			{label.name}
+																		</Badge>
+																	</ToggleGroupItem>
 																);
 															})}
-														</div>
+														</ToggleGroup>
 													</div>
 												)}
 											</>
