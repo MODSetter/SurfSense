@@ -20,6 +20,9 @@ from langgraph.types import Checkpointer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.new_chat.context import SurfSenseContextSchema
+from app.agents.new_chat.middleware.dedup_tool_calls import (
+    DedupHITLToolCallsMiddleware,
+)
 from app.agents.new_chat.llm_config import AgentConfig
 from app.agents.new_chat.system_prompt import (
     build_configurable_system_prompt,
@@ -384,6 +387,7 @@ async def create_surfsense_deep_agent(
         system_prompt=system_prompt,
         context_schema=SurfSenseContextSchema,
         checkpointer=checkpointer,
+        middleware=[DedupHITLToolCallsMiddleware()],
         **deep_agent_kwargs,
     )
     _perf_log.info(

@@ -5,7 +5,6 @@ import {
 	CalendarIcon,
 	CornerDownLeftIcon,
 	MailIcon,
-	Trash2Icon,
 	UserIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -185,7 +184,6 @@ function ApprovalCard({
 			{/* Header */}
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div className="flex items-center gap-2">
-					<Trash2Icon className="size-4 text-muted-foreground shrink-0" />
 					<div>
 						<p className="text-sm font-semibold text-foreground">
 							{decided === "reject"

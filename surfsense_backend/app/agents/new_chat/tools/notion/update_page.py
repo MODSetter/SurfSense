@@ -63,11 +63,6 @@ def create_update_notion_page_tool(
               Example: "I couldn't find the page '[page_title]' in your indexed Notion pages. [message details]"
               Do NOT treat this as an error. Do NOT invent information. Simply relay the message and
               ask the user to verify the page title or check if it's been indexed.
-            - ONLY call this tool ONCE per user request. The system automatically picks the
-              most relevant match when multiple pages share the same title. The user will
-              see the exact page details in the approval card and can reject if it is not
-              the right one. Do NOT call this tool multiple times for the same page title.
-
         Examples:
             - "Add today's meeting notes to the 'Meeting Notes' Notion page"
             - "Update the 'Project Plan' page with a status update on phase 1"

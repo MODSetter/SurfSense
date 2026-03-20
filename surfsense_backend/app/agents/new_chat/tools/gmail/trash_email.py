@@ -22,9 +22,9 @@ def create_trash_gmail_email_tool(
         email_subject_or_id: str,
         delete_from_kb: bool = False,
     ) -> dict[str, Any]:
-        """Move an email to trash in Gmail.
+        """Move an email or draft to trash in Gmail.
 
-        Use when the user asks to delete, remove, or trash an email.
+        Use when the user asks to delete, remove, or trash an email or draft.
 
         Args:
             email_subject_or_id: The exact subject line or message ID of the
@@ -47,12 +47,6 @@ def create_trash_gmail_email_tool(
               to verify the email subject or check if it has been indexed.
             - If status is "insufficient_permissions", the connector lacks the required OAuth scope.
               Inform the user they need to re-authenticate and do NOT retry this tool.
-            - ONLY call this tool ONCE per user request. The system automatically picks the
-              most relevant match when multiple emails share the same subject. The user will
-              see the exact email details (sender, date) in the approval card and can reject
-              if it is not the right one. Do NOT call this tool multiple times for the same
-              email subject.
-
         Examples:
             - "Delete the email about 'Meeting Cancelled'"
             - "Trash the email from Bob about the project"

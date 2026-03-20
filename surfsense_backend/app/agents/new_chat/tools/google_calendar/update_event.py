@@ -54,12 +54,6 @@ def create_update_calendar_event_tool(
               acknowledgment and do NOT retry or suggest alternatives.
             - If status is "not_found", relay the exact message to the user and ask them
               to verify the event name or check if it has been indexed.
-            - ONLY call this tool ONCE per user request. The system automatically picks the
-              most relevant match when multiple events share the same name. The user will
-              see the exact event details (date, time, location) in the approval card and
-              can reject if it is not the right one. Do NOT call this tool multiple times
-              for the same event name.
-
         Examples:
             - "Reschedule the team standup to 3pm"
             - "Change the location of my dentist appointment"

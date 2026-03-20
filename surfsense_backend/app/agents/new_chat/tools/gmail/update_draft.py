@@ -39,7 +39,8 @@ def create_update_gmail_draft_tool(
         context. The user will review and can freely edit the content in the approval
         card before confirming.
 
-        IMPORTANT: This tool is ONLY for Gmail drafts, NOT for Notion pages,
+        IMPORTANT: This tool is ONLY for modifying Gmail draft content, NOT for
+        deleting/trashing drafts (use trash_gmail_email instead), Notion pages,
         calendar events, or any other content type.
 
         Args:
@@ -63,10 +64,6 @@ def create_update_gmail_draft_tool(
               Respond with a brief acknowledgment and do NOT retry or suggest alternatives.
             - If status is "not_found", relay the exact message to the user and ask them
               to verify the draft subject or check if it has been indexed.
-            - ONLY call this tool ONCE per user request. The system automatically picks the
-              most relevant match when multiple drafts share the same subject. The user will
-              see the exact draft details in the approval card and can reject if it is not
-              the right one. Do NOT call this tool multiple times for the same draft subject.
             - If status is "insufficient_permissions", the connector lacks the required OAuth scope.
               Inform the user they need to re-authenticate and do NOT retry the action.
 

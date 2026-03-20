@@ -64,11 +64,6 @@ def create_delete_linear_issue_tool(
             - If status is "not_found", inform the user conversationally using the exact message
               provided. Do NOT treat this as an error. Simply relay the message and ask the user
               to verify the issue title or identifier, or check if it has been indexed.
-            - ONLY call this tool ONCE per user request. The system automatically picks the
-              most relevant match when multiple issues share the same title. The user will
-              see the exact issue details in the approval card and can reject if it is not
-              the right one. Do NOT call this tool multiple times for the same issue reference.
-
         Examples:
             - "Delete the 'Fix login bug' Linear issue"
             - "Archive ENG-42"

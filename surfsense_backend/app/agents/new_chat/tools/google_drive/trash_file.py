@@ -47,11 +47,6 @@ def create_delete_google_drive_file_tool(
               to verify the file name or check if it has been indexed.
             - If status is "insufficient_permissions", the connector lacks the required OAuth scope.
               Inform the user they need to re-authenticate and do NOT retry this tool.
-            - ONLY call this tool ONCE per user request. The system automatically picks the
-              most relevant match when multiple files share the same name. The user will
-              see the exact file details in the approval card and can reject if it is not
-              the right one. Do NOT call this tool multiple times for the same file name.
-
         Examples:
             - "Delete the 'Meeting Notes' file from Google Drive"
             - "Trash the 'Old Budget' spreadsheet"
