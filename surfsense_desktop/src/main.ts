@@ -1,9 +1,10 @@
-import { app, BrowserWindow, shell, ipcMain, Menu } from 'electron';
+import { app, BrowserWindow, shell, ipcMain } from 'electron';
 import { registerGlobalErrorHandlers, showErrorDialog } from './modules/errors';
 import { startNextServer } from './modules/server';
 import { createMainWindow } from './modules/window';
 import { setupDeepLinks, handlePendingDeepLink } from './modules/deep-links';
 import { setupAutoUpdater } from './modules/auto-updater';
+import { setupMenu } from './modules/menu';
 
 registerGlobalErrorHandlers();
 
@@ -26,18 +27,6 @@ ipcMain.on('open-external', (_event, url: string) => {
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
-
-function setupMenu() {
-  const isMac = process.platform === 'darwin';
-  const template: Electron.MenuItemConstructorOptions[] = [
-    ...(isMac ? [{ role: 'appMenu' as const }] : []),
-    { role: 'fileMenu' as const },
-    { role: 'editMenu' as const },
-    { role: 'viewMenu' as const },
-    { role: 'windowMenu' as const },
-  ];
-  Menu.setApplicationMenu(Menu.buildFromTemplate(template));
-}
 
 // App lifecycle
 app.whenReady().then(async () => {
