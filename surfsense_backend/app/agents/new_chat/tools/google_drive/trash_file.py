@@ -76,6 +76,18 @@ def create_delete_google_drive_file_tool(
                 logger.error(f"Failed to fetch trash context: {error_msg}")
                 return {"status": "error", "message": error_msg}
 
+            account = context.get("account", {})
+            if account.get("auth_expired"):
+                logger.warning(
+                    "Google Drive account %s has expired authentication",
+                    account.get("id"),
+                )
+                return {
+                    "status": "auth_error",
+                    "message": "The Google Drive account for this file needs re-authentication. Please re-authenticate in your connector settings.",
+                    "connector_type": "google_drive",
+                }
+
             file = context["file"]
             file_id = file["file_id"]
             document_id = file.get("document_id")

@@ -19,6 +19,7 @@ import { authenticatedFetch } from "@/lib/auth-utils";
 interface GoogleDriveAccount {
 	id: number;
 	name: string;
+	auth_expired?: boolean;
 }
 
 interface GoogleDriveFile {
@@ -76,13 +77,20 @@ interface InsufficientPermissionsResult {
 	message: string;
 }
 
+interface AuthErrorResult {
+	status: "auth_error";
+	message: string;
+	connector_type?: string;
+}
+
 type DeleteGoogleDriveFileResult =
 	| InterruptResult
 	| SuccessResult
 	| WarningResult
 	| ErrorResult
 	| NotFoundResult
-	| InsufficientPermissionsResult;
+	| InsufficientPermissionsResult
+	| AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -128,6 +136,15 @@ function isInsufficientPermissionsResult(result: unknown): result is Insufficien
 		result !== null &&
 		"status" in result &&
 		(result as InsufficientPermissionsResult).status === "insufficient_permissions"
+	);
+}
+
+function isAuthErrorResult(result: unknown): result is AuthErrorResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as AuthErrorResult).status === "auth_error"
 	);
 }
 
@@ -363,6 +380,22 @@ function InsufficientPermissionsCard({ result }: { result: InsufficientPermissio
 	);
 }
 
+function AuthErrorCard({ result }: { result: AuthErrorResult }) {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">
+					Google Drive authentication expired
+				</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
+		</div>
+	);
+}
+
 function WarningCard({ result }: { result: WarningResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
@@ -463,6 +496,8 @@ export const DeleteGoogleDriveFileToolUI = makeAssistantToolUI<
 		) {
 			return null;
 		}
+
+		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
 
 		if (isInsufficientPermissionsResult(result))
 			return <InsufficientPermissionsCard result={result} />;

@@ -507,7 +507,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">
-					Linear authentication expired
+					All Linear accounts expired
 				</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />

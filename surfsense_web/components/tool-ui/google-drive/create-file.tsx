@@ -30,6 +30,7 @@ import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 interface GoogleDriveAccount {
 	id: number;
 	name: string;
+	auth_expired?: boolean;
 }
 
 interface InterruptResult {
@@ -69,11 +70,18 @@ interface InsufficientPermissionsResult {
 	message: string;
 }
 
+interface AuthErrorResult {
+	status: "auth_error";
+	message: string;
+	connector_type?: string;
+}
+
 type CreateGoogleDriveFileResult =
 	| InterruptResult
 	| SuccessResult
 	| ErrorResult
-	| InsufficientPermissionsResult;
+	| InsufficientPermissionsResult
+	| AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -102,6 +110,15 @@ function isInsufficientPermissionsResult(result: unknown): result is Insufficien
 	);
 }
 
+function isAuthErrorResult(result: unknown): result is AuthErrorResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as AuthErrorResult).status === "auth_error"
+	);
+}
+
 const FILE_TYPE_LABELS: Record<string, string> = {
 	google_doc: "Google Doc",
 	google_sheet: "Google Sheet",
@@ -127,11 +144,13 @@ function ApprovalCard({
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
 	const accounts = interruptData.context?.accounts ?? [];
+	const validAccounts = accounts.filter(a => !a.auth_expired);
+	const expiredAccounts = accounts.filter(a => a.auth_expired);
 
 	const defaultAccountId = useMemo(() => {
-		if (accounts.length === 1) return String(accounts[0].id);
+		if (validAccounts.length === 1) return String(validAccounts[0].id);
 		return "";
-	}, [accounts]);
+	}, [validAccounts]);
 
 	const [selectedAccountId, setSelectedAccountId] = useState<string>(defaultAccountId);
 	const [selectedFileType, setSelectedFileType] = useState<string>(args.file_type ?? "google_doc");
@@ -245,25 +264,33 @@ function ApprovalCard({
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
 							<>
-								{accounts.length > 0 && (
-									<div className="space-y-2">
-										<p className="text-xs font-medium text-muted-foreground">
-											Google Drive Account <span className="text-destructive">*</span>
-										</p>
-										<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
-											<SelectTrigger className="w-full">
-												<SelectValue placeholder="Select an account" />
-											</SelectTrigger>
-											<SelectContent>
-												{accounts.map((account) => (
-													<SelectItem key={account.id} value={String(account.id)}>
-														{account.name}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-									</div>
-								)}
+							{accounts.length > 0 && (
+								<div className="space-y-2">
+									<p className="text-xs font-medium text-muted-foreground">
+										Google Drive Account <span className="text-destructive">*</span>
+									</p>
+									<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+										<SelectTrigger className="w-full">
+											<SelectValue placeholder="Select an account" />
+										</SelectTrigger>
+										<SelectContent>
+											{validAccounts.map((account) => (
+												<SelectItem key={account.id} value={String(account.id)}>
+													{account.name}
+												</SelectItem>
+											))}
+											{expiredAccounts.map((a) => (
+												<div
+													key={a.id}
+													className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
+												>
+													{a.name} (expired, retry after re-auth)
+												</div>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
 
 								<div className="space-y-2">
 									<p className="text-xs font-medium text-muted-foreground">
@@ -435,6 +462,22 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 	);
 }
 
+function AuthErrorCard({ result }: { result: AuthErrorResult }) {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">
+					Google Drive authentication expired
+				</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
+		</div>
+	);
+}
+
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
@@ -505,6 +548,8 @@ export const CreateGoogleDriveFileToolUI = makeAssistantToolUI<
 		) {
 			return null;
 		}
+
+		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
 
 		if (isInsufficientPermissionsResult(result))
 			return <InsufficientPermissionsCard result={result} />;

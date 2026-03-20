@@ -87,6 +87,15 @@ def create_create_google_drive_file_tool(
                 logger.error(f"Failed to fetch creation context: {context['error']}")
                 return {"status": "error", "message": context["error"]}
 
+            accounts = context.get("accounts", [])
+            if accounts and all(a.get("auth_expired") for a in accounts):
+                logger.warning("All Google Drive accounts have expired authentication")
+                return {
+                    "status": "auth_error",
+                    "message": "All connected Google Drive accounts need re-authentication. Please re-authenticate in your connector settings.",
+                    "connector_type": "google_drive",
+                }
+
             logger.info(
                 f"Requesting approval for creating Google Drive file: name='{name}', type='{file_type}'"
             )
