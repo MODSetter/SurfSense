@@ -130,6 +130,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
@@ -176,8 +177,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -192,15 +191,21 @@ function ApprovalCard({
 									? "Email Sending Approved"
 									: "Send Email"}
 						</p>
-						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Email sending was cancelled"
-								: decided === "edit"
-									? "Email is being sent with your changes"
-									: decided === "approve"
-										? "Email is being sent"
-										: "This will send the email immediately"}
-						</p>
+						{decided === "approve" || decided === "edit" ? (
+							wasAlreadyDecided ? (
+								<p className="text-xs text-muted-foreground mt-0.5">
+									{decided === "edit" ? "Email sent with your changes" : "Email sent"}
+								</p>
+							) : (
+								<TextShimmerLoader text={decided === "edit" ? "Sending email with your changes" : "Sending email"} size="sm" />
+							)
+						) : (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "reject"
+									? "Email sending was cancelled"
+									: "Requires your approval to proceed"}
+							</p>
+						)}
 					</div>
 				</div>
 				{!decided && canEdit && (
@@ -439,15 +444,7 @@ export const SendGmailEmailToolUI = makeAssistantToolUI<
 	SendGmailEmailResult
 >({
 	toolName: "send_gmail_email",
-	render: function SendGmailEmailUI({ args, result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Sending email..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function SendGmailEmailUI({ args, result, status: _status }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

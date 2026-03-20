@@ -163,6 +163,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
 	const account = interruptData.context?.account;
@@ -195,8 +196,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -209,13 +208,19 @@ function ApprovalCard({
 								? "Google Drive File Deletion Approved"
 								: "Delete Google Drive File"}
 					</p>
-					<p className="text-xs text-muted-foreground mt-0.5">
-						{decided === "reject"
-							? "File deletion was cancelled"
-							: decided === "approve"
-								? "File deletion is in progress"
+					{decided === "approve" ? (
+						wasAlreadyDecided ? (
+							<p className="text-xs text-muted-foreground mt-0.5">File trashed</p>
+						) : (
+							<TextShimmerLoader text="Trashing file" size="sm" />
+						)
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{decided === "reject"
+								? "File deletion was cancelled"
 								: "Requires your approval to proceed"}
-					</p>
+						</p>
+					)}
 				</div>
 			</div>
 
@@ -420,15 +425,7 @@ export const DeleteGoogleDriveFileToolUI = makeAssistantToolUI<
 	DeleteGoogleDriveFileResult
 >({
 	toolName: "delete_google_drive_file",
-	render: function DeleteGoogleDriveFileUI({ result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Looking up file in Google Drive..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function DeleteGoogleDriveFileUI({ result, status: _status }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

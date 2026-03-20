@@ -149,6 +149,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
 	const account = interruptData.context?.account;
@@ -180,8 +181,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -196,13 +195,19 @@ function ApprovalCard({
 									? "Email Trash Approved"
 									: "Trash Email"}
 						</p>
-						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Email trash was cancelled"
-								: decided === "approve"
-									? "Email is being trashed"
+						{decided === "approve" ? (
+							wasAlreadyDecided ? (
+								<p className="text-xs text-muted-foreground mt-0.5">Email trashed</p>
+							) : (
+								<TextShimmerLoader text="Trashing email" size="sm" />
+							)
+						) : (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "reject"
+									? "Email trash was cancelled"
 									: "Requires your approval to proceed"}
-						</p>
+							</p>
+						)}
 					</div>
 				</div>
 			</div>
@@ -396,15 +401,7 @@ export const TrashGmailEmailToolUI = makeAssistantToolUI<
 	TrashGmailEmailResult
 >({
 	toolName: "trash_gmail_email",
-	render: function TrashGmailEmailUI({ result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Trashing email..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function TrashGmailEmailUI({ result, status: _status }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

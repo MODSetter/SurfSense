@@ -120,6 +120,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
@@ -157,8 +158,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -171,15 +170,21 @@ function ApprovalCard({
 								? "Notion Page Update Approved"
 								: "Update Notion Page"}
 					</p>
-					<p className="text-xs text-muted-foreground mt-0.5">
-						{decided === "reject"
-							? "Page update was cancelled"
-							: decided === "edit"
-								? "Page update is in progress with your changes"
-								: decided === "approve"
-									? "Page update is in progress"
-									: "Requires your approval to proceed"}
-					</p>
+					{decided === "approve" || decided === "edit" ? (
+						wasAlreadyDecided ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "edit" ? "Page updated with your changes" : "Page updated"}
+							</p>
+						) : (
+							<TextShimmerLoader text={decided === "edit" ? "Updating page with your changes" : "Updating page"} size="sm" />
+						)
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{decided === "reject"
+								? "Page update was cancelled"
+								: "Requires your approval to proceed"}
+						</p>
+					)}
 				</div>
 				{!decided && canEdit && (
 					<Button
@@ -238,7 +243,7 @@ function ApprovalCard({
 									<div className="space-y-2">
 										<p className="text-xs font-medium text-muted-foreground">Current Page</p>
 										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-											📄 {currentTitle}
+											{currentTitle}
 										</div>
 									</div>
 								)}
@@ -389,15 +394,7 @@ export const UpdateNotionPageToolUI = makeAssistantToolUI<
 	UpdateNotionPageResult
 >({
 	toolName: "update_notion_page",
-	render: function UpdateNotionPageUI({ args, result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Updating Notion page..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function UpdateNotionPageUI({ args, result }) {
 		if (!result) {
 			return null;
 		}

@@ -157,6 +157,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
@@ -217,8 +218,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	const attendeesList = (args.attendees as string[]) ?? [];
 
 	return (
@@ -235,15 +234,21 @@ function ApprovalCard({
 									? "Calendar Event Approved"
 									: "Create Calendar Event"}
 						</p>
-						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Event creation was cancelled"
-								: decided === "edit"
-									? "Event creation is in progress with your changes"
-									: decided === "approve"
-										? "Event creation is in progress"
-										: "Requires your approval to proceed"}
-						</p>
+						{decided === "approve" || decided === "edit" ? (
+							wasAlreadyDecided ? (
+								<p className="text-xs text-muted-foreground mt-0.5">
+									{decided === "edit" ? "Event created with your changes" : "Event created"}
+								</p>
+							) : (
+								<TextShimmerLoader text={decided === "edit" ? "Creating event with your changes" : "Creating event"} size="sm" />
+							)
+						) : (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "reject"
+									? "Event creation was cancelled"
+									: "Requires your approval to proceed"}
+							</p>
+						)}
 					</div>
 				</div>
 				{!decided && canEdit && (
@@ -549,15 +554,7 @@ export const CreateCalendarEventToolUI = makeAssistantToolUI<
 	CreateCalendarEventResult
 >({
 	toolName: "create_calendar_event",
-	render: function CreateCalendarEventUI({ args, result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Preparing calendar event..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function CreateCalendarEventUI({ args, result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

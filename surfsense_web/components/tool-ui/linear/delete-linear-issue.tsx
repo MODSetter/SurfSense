@@ -135,6 +135,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [deleteFromKb, setDeleteFromKb] = useState(
 		typeof actionArgs.delete_from_kb === "boolean" ? actionArgs.delete_from_kb : false
 	);
@@ -165,8 +166,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -179,13 +178,19 @@ function ApprovalCard({
 								? "Linear Issue Deletion Approved"
 								: "Delete Linear Issue"}
 					</p>
-					<p className="text-xs text-muted-foreground mt-0.5">
-						{decided === "reject"
-							? "Issue deletion was cancelled"
-							: decided === "approve"
-								? "Issue deletion is in progress"
+					{decided === "approve" ? (
+						wasAlreadyDecided ? (
+							<p className="text-xs text-muted-foreground mt-0.5">Issue deleted</p>
+						) : (
+							<TextShimmerLoader text="Deleting issue" size="sm" />
+						)
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{decided === "reject"
+								? "Issue deletion was cancelled"
 								: "Requires your approval to proceed"}
-					</p>
+						</p>
+					)}
 				</div>
 			</div>
 
@@ -367,15 +372,7 @@ export const DeleteLinearIssueToolUI = makeAssistantToolUI<
 	DeleteLinearIssueResult
 >({
 	toolName: "delete_linear_issue",
-	render: function DeleteLinearIssueUI({ result, status }) {
-		if (status.type === "running") {
-			return (
-			<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-				<TextShimmerLoader text="Preparing Linear issue deletion..." size="sm" />
-			</div>
-			);
-		}
-
+	render: function DeleteLinearIssueUI({ result, status: _status }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

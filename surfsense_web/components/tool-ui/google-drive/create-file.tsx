@@ -134,6 +134,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
@@ -202,8 +203,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -216,15 +215,21 @@ function ApprovalCard({
 								? `${fileTypeLabel} Approved`
 								: `Create ${fileTypeLabel}`}
 					</p>
-					<p className="text-xs text-muted-foreground mt-0.5">
-						{decided === "reject"
-							? "File creation was cancelled"
-							: decided === "edit"
-								? "File creation is in progress with your changes"
-								: decided === "approve"
-									? "File creation is in progress"
-									: "Requires your approval to proceed"}
-					</p>
+					{decided === "approve" || decided === "edit" ? (
+						wasAlreadyDecided ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "edit" ? "File created with your changes" : "File created"}
+							</p>
+						) : (
+							<TextShimmerLoader text={decided === "edit" ? "Creating file with your changes" : "Creating file"} size="sm" />
+						)
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{decided === "reject"
+								? "File creation was cancelled"
+								: "Requires your approval to proceed"}
+						</p>
+					)}
 				</div>
 				{!decided && canEdit && (
 					<Button
@@ -490,15 +495,7 @@ export const CreateGoogleDriveFileToolUI = makeAssistantToolUI<
 	CreateGoogleDriveFileResult
 >({
 	toolName: "create_google_drive_file",
-	render: function CreateGoogleDriveFileUI({ args, result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Preparing Google Drive file..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function CreateGoogleDriveFileUI({ args, result, status: _status }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

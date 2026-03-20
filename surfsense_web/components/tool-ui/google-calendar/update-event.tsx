@@ -168,6 +168,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
@@ -251,8 +252,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -267,15 +266,21 @@ function ApprovalCard({
 									? "Calendar Event Update Approved"
 									: "Update Calendar Event"}
 						</p>
-						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Event update was cancelled"
-								: decided === "edit"
-									? "Event update is in progress with your changes"
-									: decided === "approve"
-										? "Event update is in progress"
-										: "Requires your approval to proceed"}
-						</p>
+						{decided === "approve" || decided === "edit" ? (
+							wasAlreadyDecided ? (
+								<p className="text-xs text-muted-foreground mt-0.5">
+									{decided === "edit" ? "Event updated with your changes" : "Event updated"}
+								</p>
+							) : (
+								<TextShimmerLoader text={decided === "edit" ? "Updating event with your changes" : "Updating event"} size="sm" />
+							)
+						) : (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "reject"
+									? "Event update was cancelled"
+									: "Requires your approval to proceed"}
+							</p>
+						)}
 					</div>
 				</div>
 				{!decided && canEdit && (
@@ -592,15 +597,7 @@ export const UpdateCalendarEventToolUI = makeAssistantToolUI<
 	UpdateCalendarEventResult
 >({
 	toolName: "update_calendar_event",
-	render: function UpdateCalendarEventUI({ result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Looking up calendar event..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function UpdateCalendarEventUI({ result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

@@ -129,6 +129,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
@@ -175,8 +176,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -190,15 +189,21 @@ function ApprovalCard({
 									? "Gmail Draft Approved"
 									: "Create Gmail Draft"}
 						</p>
-						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Draft creation was cancelled"
-								: decided === "edit"
-									? "Draft creation is in progress with your changes"
-									: decided === "approve"
-										? "Draft creation is in progress"
-										: "Requires your approval to proceed"}
-						</p>
+						{decided === "approve" || decided === "edit" ? (
+							wasAlreadyDecided ? (
+								<p className="text-xs text-muted-foreground mt-0.5">
+									{decided === "edit" ? "Draft created with your changes" : "Draft created"}
+								</p>
+							) : (
+								<TextShimmerLoader text={decided === "edit" ? "Creating draft with your changes" : "Creating draft"} size="sm" />
+							)
+						) : (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "reject"
+									? "Draft creation was cancelled"
+									: "Requires your approval to proceed"}
+							</p>
+						)}
 					</div>
 				</div>
 				{!decided && canEdit && (
@@ -436,15 +441,7 @@ export const CreateGmailDraftToolUI = makeAssistantToolUI<
 	CreateGmailDraftResult
 >({
 	toolName: "create_gmail_draft",
-	render: function CreateGmailDraftUI({ args, result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Creating Gmail draft..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function CreateGmailDraftUI({ args, result, status: _status }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

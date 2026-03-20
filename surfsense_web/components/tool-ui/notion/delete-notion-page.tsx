@@ -139,6 +139,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
 	const account = interruptData.context?.account;
@@ -170,8 +171,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -184,13 +183,19 @@ function ApprovalCard({
 								? "Notion Page Deletion Approved"
 								: "Delete Notion Page"}
 					</p>
-					<p className="text-xs text-muted-foreground mt-0.5">
-						{decided === "reject"
-							? "Page deletion was cancelled"
-							: decided === "approve"
-								? "Page deletion is in progress"
+					{decided === "approve" ? (
+						wasAlreadyDecided ? (
+							<p className="text-xs text-muted-foreground mt-0.5">Page deleted</p>
+						) : (
+							<TextShimmerLoader text="Deleting page" size="sm" />
+						)
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{decided === "reject"
+								? "Page deletion was cancelled"
 								: "Requires your approval to proceed"}
-					</p>
+						</p>
+					)}
 				</div>
 			</div>
 
@@ -216,7 +221,7 @@ function ApprovalCard({
 									<div className="space-y-2">
 										<p className="text-xs font-medium text-muted-foreground">Page to Delete</p>
 										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-											📄 {currentTitle}
+											{currentTitle}
 										</div>
 									</div>
 								)}
@@ -383,15 +388,7 @@ export const DeleteNotionPageToolUI = makeAssistantToolUI<
 	DeleteNotionPageResult
 >({
 	toolName: "delete_notion_page",
-	render: function DeleteNotionPageUI({ result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Deleting Notion page..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function DeleteNotionPageUI({ result }) {
 		if (!result) {
 			return null;
 		}

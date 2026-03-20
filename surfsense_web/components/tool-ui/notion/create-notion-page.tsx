@@ -118,6 +118,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 
@@ -178,8 +179,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div
 			className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300"
@@ -194,15 +193,21 @@ function ApprovalCard({
 								? "Notion Page Approved"
 								: "Create Notion Page"}
 					</p>
-					<p className="text-xs text-muted-foreground mt-0.5">
-						{decided === "reject"
-							? "Page creation was cancelled"
-							: decided === "edit"
-								? "Page creation is in progress with your changes"
-								: decided === "approve"
-									? "Page creation is in progress"
-									: "Requires your approval to proceed"}
-					</p>
+					{decided === "approve" || decided === "edit" ? (
+						wasAlreadyDecided ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "edit" ? "Page created with your changes" : "Page created"}
+							</p>
+						) : (
+							<TextShimmerLoader text={decided === "edit" ? "Creating page with your changes" : "Creating page"} size="sm" />
+						)
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{decided === "reject"
+								? "Page creation was cancelled"
+								: "Requires your approval to proceed"}
+						</p>
+					)}
 				</div>
 				{!decided && canEdit && (
 					<Button
@@ -443,15 +448,7 @@ export const CreateNotionPageToolUI = makeAssistantToolUI<
 	CreateNotionPageResult
 >({
 	toolName: "create_notion_page",
-	render: function CreateNotionPageUI({ args, result, status }) {
-		if (status.type === "running") {
-			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-					<TextShimmerLoader text="Preparing Notion page..." size="sm" />
-				</div>
-			);
-		}
-
+	render: function CreateNotionPageUI({ args, result }) {
 		if (!result) {
 			return null;
 		}

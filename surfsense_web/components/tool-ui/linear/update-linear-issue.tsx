@@ -186,6 +186,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
+	const wasAlreadyDecided = interruptData.__decided__ != null;
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const [editedArgs, setEditedArgs] = useState(initialEditState);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
@@ -274,8 +275,6 @@ function ApprovalCard({
 		return () => window.removeEventListener("keydown", handler);
 	}, [handleApprove]);
 
-	if (decided && decided !== "reject") return null;
-
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 transition-all duration-300">
 			{/* Header */}
@@ -288,15 +287,21 @@ function ApprovalCard({
 								? "Linear Issue Update Approved"
 								: "Update Linear Issue"}
 					</p>
-					<p className="text-xs text-muted-foreground mt-0.5">
-						{decided === "reject"
-							? "Issue update was cancelled"
-							: decided === "edit"
-								? "Issue update is in progress with your changes"
-								: decided === "approve"
-									? "Issue update is in progress"
-									: "Requires your approval to proceed"}
-					</p>
+					{decided === "approve" || decided === "edit" ? (
+						wasAlreadyDecided ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{decided === "edit" ? "Issue updated with your changes" : "Issue updated"}
+							</p>
+						) : (
+							<TextShimmerLoader text={decided === "edit" ? "Updating issue with your changes" : "Updating issue"} size="sm" />
+						)
+					) : (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{decided === "reject"
+								? "Issue update was cancelled"
+								: "Requires your approval to proceed"}
+						</p>
+					)}
 				</div>
 				{!decided && canEdit && (
 					<Button
@@ -718,15 +723,7 @@ export const UpdateLinearIssueToolUI = makeAssistantToolUI<
 	UpdateLinearIssueResult
 >({
 	toolName: "update_linear_issue",
-	render: function UpdateLinearIssueUI({ result, status }) {
-		if (status.type === "running") {
-			return (
-			<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
-				<TextShimmerLoader text="Preparing Linear issue update..." size="sm" />
-			</div>
-			);
-		}
-
+	render: function UpdateLinearIssueUI({ result, status: _status }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
