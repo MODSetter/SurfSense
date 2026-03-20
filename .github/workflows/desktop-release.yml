@@ -33,6 +33,9 @@ jobs:
         with:
           node-version: 20
           cache: 'pnpm'
+          cache-dependency-path: |
+            surfsense_web/pnpm-lock.yaml
+            surfsense_desktop/pnpm-lock.yaml
 
       - name: Install web dependencies
         run: pnpm install
