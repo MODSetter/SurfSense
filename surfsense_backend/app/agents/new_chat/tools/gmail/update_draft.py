@@ -32,6 +32,12 @@ def create_update_gmail_draft_tool(
 
         Use when the user asks to modify, edit, or add content to an existing
         email draft. This replaces the draft content with the new version.
+        The user will be able to review and edit the content before it is applied.
+
+        If the user simply wants to "edit" a draft without specifying exact changes,
+        generate the body yourself using your best understanding of the conversation
+        context. The user will review and can freely edit the content in the approval
+        card before confirming.
 
         IMPORTANT: This tool is ONLY for Gmail drafts, NOT for Notion pages,
         calendar events, or any other content type.
@@ -39,7 +45,8 @@ def create_update_gmail_draft_tool(
         Args:
             draft_subject_or_id: The exact subject line of the draft to update
                 (as it appears in Gmail drafts).
-            body: The full updated body content for the draft.
+            body: The full updated body content for the draft. Generate this
+                  yourself based on the user's request and conversation context.
             to: Optional new recipient email address (keeps original if omitted).
             subject: Optional new subject line (keeps original if omitted).
             cc: Optional CC recipient(s), comma-separated.
@@ -62,6 +69,7 @@ def create_update_gmail_draft_tool(
         Examples:
             - "Update the Kurseong Plan draft with the new itinerary details"
             - "Edit my draft about the project proposal and change the recipient"
+            - "Let me edit the meeting notes draft" (call with current body content so user can edit in the approval card)
         """
         logger.info(
             f"update_gmail_draft called: draft_subject_or_id='{draft_subject_or_id}'"

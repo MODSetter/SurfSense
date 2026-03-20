@@ -5,7 +5,7 @@ from datetime import datetime
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from sqlalchemy import and_, func, or_
+from sqlalchemy import String, and_, cast, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
@@ -389,7 +389,7 @@ class GoogleCalendarToolMetadataService:
                     SearchSourceConnector.user_id == user_id,
                     or_(
                         func.lower(
-                            Document.document_metadata["event_summary"].astext
+                            cast(Document.document_metadata["event_summary"], String)
                         )
                         == func.lower(event_ref),
                         func.lower(Document.title) == func.lower(event_ref),

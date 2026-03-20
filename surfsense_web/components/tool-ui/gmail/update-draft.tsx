@@ -49,6 +49,7 @@ interface InterruptResult {
 		account?: GmailAccount;
 		email?: GmailMessage;
 		draft_id?: string;
+		existing_body?: string;
 		error?: string;
 	};
 }
@@ -176,6 +177,7 @@ function ApprovalCard({
 	const account = interruptData.context?.account;
 	const email = interruptData.context?.email;
 	const draftId = interruptData.context?.draft_id;
+	const existingBody = interruptData.context?.existing_body;
 
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? [
@@ -193,6 +195,7 @@ function ApprovalCard({
 	const currentTo = pendingEdits?.to ?? args.to ?? "";
 	const currentCc = pendingEdits?.cc ?? args.cc ?? "";
 	const currentBcc = pendingEdits?.bcc ?? args.bcc ?? "";
+	const editableBody = currentBody || existingBody || "";
 
 	const handleApprove = useCallback(() => {
 		if (decided || isPanelOpen) return;
@@ -208,7 +211,7 @@ function ApprovalCard({
 					draft_id: draftId,
 					to: currentTo,
 					subject: currentSubject,
-					body: currentBody,
+					body: editableBody,
 					cc: currentCc,
 					bcc: currentBcc,
 					connector_id: email?.connector_id ?? account?.id,
@@ -226,7 +229,7 @@ function ApprovalCard({
 		draftId,
 		pendingEdits,
 		currentSubject,
-		currentBody,
+		editableBody,
 		currentTo,
 		currentCc,
 		currentBcc,
@@ -308,10 +311,10 @@ function ApprovalCard({
 									value: currentBcc,
 								},
 							];
-							openHitlEditPanel({
-								title: currentSubject,
-								content: currentBody,
-								toolName: "Gmail Draft",
+						openHitlEditPanel({
+							title: currentSubject,
+							content: editableBody,
+							toolName: "Gmail Draft",
 								extraFields,
 								onSave: (
 									newTitle,
@@ -410,8 +413,8 @@ function ApprovalCard({
 						{currentSubject}
 					</p>
 				)}
-				{currentBody != null && (
-					<div
+			{editableBody ? (
+				<div
 						className="mt-2 max-h-[7rem] overflow-hidden text-sm"
 						style={{
 							maskImage:
@@ -421,14 +424,14 @@ function ApprovalCard({
 						}}
 					>
 						<PlateEditor
-							markdown={String(currentBody)}
+							markdown={String(editableBody)}
 							readOnly
 							preset="readonly"
 							editorVariant="none"
 							className="h-auto [&_[data-slate-editor]]:!min-h-0 [&_[data-slate-editor]>*:first-child]:!mt-0"
 						/>
 					</div>
-				)}
+				) : null}
 			</div>
 
 			{/* Action buttons */}

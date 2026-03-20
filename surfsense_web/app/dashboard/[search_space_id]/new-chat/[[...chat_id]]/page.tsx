@@ -175,6 +175,7 @@ const TOOLS_WITH_UI = new Set([
 	"update_calendar_event",
 	"delete_calendar_event",
 	"create_gmail_draft",
+	"update_gmail_draft",
 	"send_gmail_email",
 	"trash_gmail_email",
 	"execute",

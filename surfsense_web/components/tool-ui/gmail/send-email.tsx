@@ -5,7 +5,6 @@ import {
 	CornerDownLeftIcon,
 	MailIcon,
 	Pen,
-	SendIcon,
 	UserIcon,
 	UsersIcon,
 } from "lucide-react";
@@ -193,7 +192,6 @@ function ApprovalCard({
 			{/* Header */}
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div className="flex items-center gap-2">
-					<SendIcon className="size-4 text-muted-foreground shrink-0" />
 					<div>
 						<p className="text-sm font-semibold text-foreground">
 							{decided === "reject"

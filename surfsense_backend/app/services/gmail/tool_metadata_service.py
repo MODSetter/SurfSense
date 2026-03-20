@@ -2,10 +2,11 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-from sqlalchemy import and_, func, or_
+from sqlalchemy import String, and_, cast, func, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
@@ -264,7 +265,7 @@ class GmailToolMetadataService:
         if auth_expired:
             await self._persist_auth_expired(connector.id)
 
-        result = {
+        result: dict = {
             "account": acc_dict,
             "email": message.to_dict(),
         }
@@ -273,7 +274,110 @@ class GmailToolMetadataService:
         if meta.get("draft_id"):
             result["draft_id"] = meta["draft_id"]
 
+        if not auth_expired:
+            existing_body = await self._fetch_draft_body(
+                connector, message.message_id, meta.get("draft_id")
+            )
+            if existing_body is not None:
+                result["existing_body"] = existing_body
+
         return result
+
+    async def _fetch_draft_body(
+        self,
+        connector: SearchSourceConnector,
+        message_id: str,
+        draft_id: str | None,
+    ) -> str | None:
+        """Fetch the plain-text body of a Gmail draft via the API.
+
+        Tries ``drafts.get`` first (if *draft_id* is available), then falls
+        back to scanning ``drafts.list`` to resolve the draft by *message_id*.
+        Returns ``None`` on any failure so callers can degrade gracefully.
+        """
+        try:
+            creds = await self._build_credentials(connector)
+            service = build("gmail", "v1", credentials=creds)
+
+            if not draft_id:
+                draft_id = await self._find_draft_id(service, message_id)
+            if not draft_id:
+                return None
+
+            draft = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: service.users()
+                .drafts()
+                .get(userId="me", id=draft_id, format="full")
+                .execute(),
+            )
+
+            payload = draft.get("message", {}).get("payload", {})
+            return self._extract_body_from_payload(payload)
+        except Exception:
+            logger.warning(
+                "Failed to fetch draft body for message_id=%s",
+                message_id,
+                exc_info=True,
+            )
+            return None
+
+    async def _find_draft_id(self, service: Any, message_id: str) -> str | None:
+        """Resolve a draft ID from its message ID by scanning drafts.list."""
+        try:
+            page_token = None
+            while True:
+                kwargs: dict[str, Any] = {"userId": "me", "maxResults": 100}
+                if page_token:
+                    kwargs["pageToken"] = page_token
+                response = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: service.users().drafts().list(**kwargs).execute(),
+                )
+                for draft in response.get("drafts", []):
+                    if draft.get("message", {}).get("id") == message_id:
+                        return draft["id"]
+                page_token = response.get("nextPageToken")
+                if not page_token:
+                    break
+            return None
+        except Exception:
+            logger.warning(
+                "Failed to look up draft by message_id=%s", message_id, exc_info=True
+            )
+            return None
+
+    @staticmethod
+    def _extract_body_from_payload(payload: dict) -> str | None:
+        """Extract the plain-text (or html→text) body from a Gmail payload."""
+        import base64
+
+        def _get_parts(p: dict) -> list[dict]:
+            if "parts" in p:
+                parts: list[dict] = []
+                for sub in p["parts"]:
+                    parts.extend(_get_parts(sub))
+                return parts
+            return [p]
+
+        parts = _get_parts(payload)
+        text_content = ""
+        for part in parts:
+            mime_type = part.get("mimeType", "")
+            data = part.get("body", {}).get("data", "")
+            if mime_type == "text/plain" and data:
+                text_content += base64.urlsafe_b64decode(data + "===").decode(
+                    "utf-8", errors="ignore"
+                )
+            elif mime_type == "text/html" and data and not text_content:
+                from markdownify import markdownify as md
+
+                raw_html = base64.urlsafe_b64decode(data + "===").decode(
+                    "utf-8", errors="ignore"
+                )
+                text_content = md(raw_html).strip()
+
+        return text_content.strip() if text_content.strip() else None
 
     async def get_trash_context(
         self, search_space_id: int, user_id: str, email_ref: str
@@ -325,7 +429,7 @@ class GmailToolMetadataService:
                     SearchSourceConnector.user_id == user_id,
                     or_(
                         func.lower(
-                            Document.document_metadata["subject"].astext
+                            cast(Document.document_metadata["subject"], String)
                         )
                         == func.lower(email_ref),
                         func.lower(Document.title) == func.lower(email_ref),
