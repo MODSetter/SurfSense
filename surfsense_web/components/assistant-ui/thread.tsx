@@ -317,7 +317,7 @@ const Composer: FC = () => {
 	// Clipboard content   
 	const [clipboardText, setClipboardText] = useState<string | undefined>();
 	useEffect(() => {
-		const api = (window as { electronAPI?: { getClipboardContent?: () => Promise<string> } }).electronAPI;
+		const api = window.electronAPI;
 		if (!api?.getClipboardContent) return;
 		api.getClipboardContent().then((text) => {
 			if (text) setClipboardText(text);
