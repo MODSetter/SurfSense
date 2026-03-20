@@ -380,7 +380,7 @@ function InsufficientPermissionsCard({ result }: { result: InsufficientPermissio
 
 function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">
 					Google Drive authentication expired
@@ -396,7 +396,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 
 function WarningCard({ result }: { result: WarningResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="flex items-start gap-3 border-b px-5 py-4">
 				<TriangleAlertIcon className="size-4 mt-0.5 shrink-0 text-amber-500" />
 				<p className="text-sm font-medium text-amber-600 dark:text-amber-500">Partial success</p>
@@ -411,7 +411,7 @@ function WarningCard({ result }: { result: WarningResult }) {
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">Failed to delete file</p>
 			</div>
@@ -425,7 +425,7 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="flex items-start gap-3 px-5 py-4">
 				<InfoIcon className="size-4 mt-0.5 shrink-0 text-muted-foreground" />
 				<p className="text-sm text-muted-foreground">{result.message}</p>
@@ -436,7 +436,7 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-foreground">
 					{result.message || "File moved to trash successfully"}
@@ -464,7 +464,7 @@ export const DeleteGoogleDriveFileToolUI = makeAssistantToolUI<
 	render: function DeleteGoogleDriveFileUI({ result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4">
+				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
 					<TextShimmerLoader text="Looking up file in Google Drive..." size="sm" />
 				</div>
 			);

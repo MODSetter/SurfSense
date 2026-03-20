@@ -515,7 +515,7 @@ function ApprovalCard({
 
 function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">
 					All Linear accounts expired
@@ -531,7 +531,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">Failed to create Linear issue</p>
 			</div>
@@ -545,7 +545,7 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-foreground">
 					{result.message || "Linear issue created successfully"}
@@ -582,9 +582,9 @@ export const CreateLinearIssueToolUI = makeAssistantToolUI<
 	render: function CreateLinearIssueUI({ args, result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4">
-					<TextShimmerLoader text="Preparing Linear issue..." size="sm" />
-				</div>
+			<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
+				<TextShimmerLoader text="Preparing Linear issue..." size="sm" />
+			</div>
 			);
 		}
 

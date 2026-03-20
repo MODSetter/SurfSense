@@ -467,7 +467,7 @@ function InsufficientPermissionsCard({ result }: { result: InsufficientPermissio
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">Failed to create Google Drive file</p>
 			</div>
@@ -481,7 +481,7 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">
 					Google Drive authentication expired
@@ -497,7 +497,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-foreground">
 					{result.message || "Google Drive file created successfully"}
@@ -534,7 +534,7 @@ export const CreateGoogleDriveFileToolUI = makeAssistantToolUI<
 	render: function CreateGoogleDriveFileUI({ args, result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4">
+				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
 					<TextShimmerLoader text="Preparing Google Drive file..." size="sm" />
 				</div>
 			);

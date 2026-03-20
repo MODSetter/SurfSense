@@ -379,7 +379,7 @@ function ApprovalCard({
 
 function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">
 					Notion authentication expired
@@ -395,7 +395,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">Failed to create Notion page</p>
 			</div>
@@ -409,7 +409,7 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-foreground">
 					{result.message || "Notion page created successfully"}
@@ -446,7 +446,7 @@ export const CreateNotionPageToolUI = makeAssistantToolUI<
 	render: function CreateNotionPageUI({ args, result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4">
+				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
 					<TextShimmerLoader text="Preparing Notion page..." size="sm" />
 				</div>
 			);

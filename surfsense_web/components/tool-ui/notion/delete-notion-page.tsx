@@ -282,7 +282,7 @@ function ApprovalCard({
 
 function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">
 					All Notion accounts expired
@@ -298,7 +298,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 
 function ErrorCard({ result }: { result: ErrorResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-destructive">Failed to delete Notion page</p>
 			</div>
@@ -312,7 +312,7 @@ function ErrorCard({ result }: { result: ErrorResult }) {
 
 function InfoCard({ result }: { result: InfoResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
 					Page not found
@@ -328,7 +328,7 @@ function InfoCard({ result }: { result: InfoResult }) {
 
 function WarningCard({ result }: { result: WarningResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="flex items-start gap-3 border-b px-5 py-4">
 				<TriangleAlertIcon className="size-4 mt-0.5 shrink-0 text-amber-500" />
 				<p className="text-sm font-medium text-amber-600 dark:text-amber-500">Partial success</p>
@@ -348,7 +348,7 @@ function WarningCard({ result }: { result: WarningResult }) {
 
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-foreground">
 					{result.message || "Notion page deleted successfully"}
@@ -386,7 +386,7 @@ export const DeleteNotionPageToolUI = makeAssistantToolUI<
 	render: function DeleteNotionPageUI({ result, status }) {
 		if (status.type === "running") {
 			return (
-				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4">
+				<div className="my-4 max-w-lg rounded-2xl border bg-muted/30 px-5 py-4 select-none">
 					<TextShimmerLoader text="Deleting Notion page..." size="sm" />
 				</div>
 			);
