@@ -4,6 +4,7 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { CornerDownLeftIcon, TriangleAlertIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 
 interface InterruptResult {
@@ -228,20 +229,20 @@ function ApprovalCard({
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 select-none">
-						<label className="flex items-start gap-2 cursor-pointer">
-							<input
-								type="checkbox"
-								checked={deleteFromKb}
-								onChange={(e) => setDeleteFromKb(e.target.checked)}
-								className="mt-0.5"
-							/>
-							<div className="flex-1">
-								<span className="text-sm text-foreground">Also remove from knowledge base</span>
-								<p className="text-xs text-muted-foreground mt-1">
-									This will permanently delete the issue from your knowledge base (cannot be undone)
-								</p>
-							</div>
+					<div className="flex items-center gap-2.5">
+						<Checkbox
+							id="linear-delete-from-kb"
+							checked={deleteFromKb}
+							onCheckedChange={(v) => setDeleteFromKb(v === true)}
+							className="shrink-0"
+						/>
+						<label htmlFor="linear-delete-from-kb" className="flex-1 cursor-pointer">
+							<span className="text-sm text-foreground">Also remove from knowledge base</span>
+							<p className="text-xs text-muted-foreground mt-0.5">
+								This will permanently delete the issue from your knowledge base (cannot be undone)
+							</p>
 						</label>
+					</div>
 					</div>
 				</>
 			)}

@@ -12,6 +12,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { authenticatedFetch } from "@/lib/auth-utils";
 
@@ -274,20 +275,20 @@ function ApprovalCard({
 						<p className="text-xs text-muted-foreground">
 							The file will be moved to Google Drive trash. You can restore it from trash within 30 days.
 						</p>
-						<label className="flex items-start gap-2 cursor-pointer">
-							<input
-								type="checkbox"
-								checked={deleteFromKb}
-								onChange={(e) => setDeleteFromKb(e.target.checked)}
-								className="mt-0.5"
-							/>
-							<div className="flex-1">
-								<span className="text-sm text-foreground">Also remove from knowledge base</span>
-								<p className="text-xs text-muted-foreground mt-1">
-									This will permanently delete the file from your knowledge base (cannot be undone)
-								</p>
-							</div>
+					<div className="flex items-center gap-2.5">
+						<Checkbox
+							id="delete-from-kb"
+							checked={deleteFromKb}
+							onCheckedChange={(v) => setDeleteFromKb(v === true)}
+							className="shrink-0"
+						/>
+						<label htmlFor="delete-from-kb" className="flex-1 cursor-pointer">
+							<span className="text-sm text-foreground">Also remove from knowledge base</span>
+							<p className="text-xs text-muted-foreground mt-0.5">
+								This will permanently delete the file from your knowledge base (cannot be undone)
+							</p>
 						</label>
+					</div>
 					</div>
 				</>
 			)}
