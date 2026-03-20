@@ -226,12 +226,36 @@ def create_create_linear_issue_tool(
             logger.info(
                 f"Linear issue created: {result.get('identifier')} - {result.get('title')}"
             )
+
+            kb_message_suffix = ""
+            try:
+                from app.services.linear import LinearKBSyncService
+
+                kb_service = LinearKBSyncService(db_session)
+                kb_result = await kb_service.sync_after_create(
+                    issue_id=result.get("id"),
+                    issue_identifier=result.get("identifier", ""),
+                    issue_title=result.get("title", final_title),
+                    issue_url=result.get("url"),
+                    description=final_description,
+                    connector_id=actual_connector_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                )
+                if kb_result["status"] == "success":
+                    kb_message_suffix = " Your knowledge base has also been updated."
+                else:
+                    kb_message_suffix = " This issue will be added to your knowledge base in the next scheduled sync."
+            except Exception as kb_err:
+                logger.warning(f"KB sync after create failed: {kb_err}")
+                kb_message_suffix = " This issue will be added to your knowledge base in the next scheduled sync."
+
             return {
                 "status": "success",
                 "issue_id": result.get("id"),
                 "identifier": result.get("identifier"),
                 "url": result.get("url"),
-                "message": result.get("message"),
+                "message": (result.get("message", "") + kb_message_suffix),
             }
 
         except Exception as e:

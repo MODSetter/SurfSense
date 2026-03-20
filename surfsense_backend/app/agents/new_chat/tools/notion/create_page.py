@@ -228,6 +228,32 @@ def create_create_notion_page_tool(
             logger.info(
                 f"create_page result: {result.get('status')} - {result.get('message', '')}"
             )
+
+            if result.get("status") == "success":
+                kb_message_suffix = ""
+                try:
+                    from app.services.notion import NotionKBSyncService
+
+                    kb_service = NotionKBSyncService(db_session)
+                    kb_result = await kb_service.sync_after_create(
+                        page_id=result.get("page_id"),
+                        page_title=result.get("title", final_title),
+                        page_url=result.get("url"),
+                        content=final_content,
+                        connector_id=actual_connector_id,
+                        search_space_id=search_space_id,
+                        user_id=user_id,
+                    )
+                    if kb_result["status"] == "success":
+                        kb_message_suffix = " Your knowledge base has also been updated."
+                    else:
+                        kb_message_suffix = " This page will be added to your knowledge base in the next scheduled sync."
+                except Exception as kb_err:
+                    logger.warning(f"KB sync after create failed: {kb_err}")
+                    kb_message_suffix = " This page will be added to your knowledge base in the next scheduled sync."
+
+                result["message"] = result.get("message", "") + kb_message_suffix
+
             return result
 
         except Exception as e:
