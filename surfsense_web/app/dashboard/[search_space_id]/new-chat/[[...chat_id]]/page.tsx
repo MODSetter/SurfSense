@@ -50,6 +50,7 @@ import {
 	CreateGmailDraftToolUI,
 	SendGmailEmailToolUI,
 	TrashGmailEmailToolUI,
+	UpdateGmailDraftToolUI,
 } from "@/components/tool-ui/gmail";
 import {
 	CreateGoogleDriveFileToolUI,
@@ -1696,6 +1697,7 @@ export default function NewChatPage() {
 			<UpdateCalendarEventToolUI />
 			<DeleteCalendarEventToolUI />
 			<CreateGmailDraftToolUI />
+			<UpdateGmailDraftToolUI />
 			<SendGmailEmailToolUI />
 			<TrashGmailEmailToolUI />
 			<SandboxExecuteToolUI />

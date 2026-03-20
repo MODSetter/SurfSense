@@ -237,6 +237,44 @@ class GmailToolMetadataService:
 
         return {"accounts": accounts_with_status}
 
+    async def get_update_context(
+        self, search_space_id: int, user_id: str, email_ref: str
+    ) -> dict:
+        document, connector = await self._resolve_email(
+            search_space_id, user_id, email_ref
+        )
+
+        if not document or not connector:
+            return {
+                "error": (
+                    f"Draft '{email_ref}' not found in your indexed Gmail messages. "
+                    "This could mean: (1) the draft doesn't exist, "
+                    "(2) it hasn't been indexed yet, "
+                    "or (3) the subject is different. "
+                    "Please check the exact draft subject in Gmail."
+                )
+            }
+
+        account = GmailAccount.from_connector(connector)
+        message = GmailMessage.from_document(document)
+
+        acc_dict = account.to_dict()
+        auth_expired = await self._check_account_health(connector.id)
+        acc_dict["auth_expired"] = auth_expired
+        if auth_expired:
+            await self._persist_auth_expired(connector.id)
+
+        result = {
+            "account": acc_dict,
+            "email": message.to_dict(),
+        }
+
+        meta = document.document_metadata or {}
+        if meta.get("draft_id"):
+            result["draft_id"] = meta["draft_id"]
+
+        return result
+
     async def get_trash_context(
         self, search_space_id: int, user_id: str, email_ref: str
     ) -> dict:

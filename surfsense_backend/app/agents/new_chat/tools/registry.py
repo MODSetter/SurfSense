@@ -51,6 +51,7 @@ from .gmail import (
     create_create_gmail_draft_tool,
     create_send_gmail_email_tool,
     create_trash_gmail_email_tool,
+    create_update_gmail_draft_tool,
 )
 from .google_calendar import (
     create_create_calendar_event_tool,
@@ -381,7 +382,7 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         requires=["db_session", "search_space_id", "user_id"],
     ),
     # =========================================================================
-    # GMAIL TOOLS - create drafts, send emails, trash emails
+    # GMAIL TOOLS - create drafts, update drafts, send emails, trash emails
     # Auto-disabled when no Gmail connector is configured
     # =========================================================================
     ToolDefinition(
@@ -408,6 +409,16 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="trash_gmail_email",
         description="Move an indexed email to trash in Gmail",
         factory=lambda deps: create_trash_gmail_email_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_gmail_draft",
+        description="Update an existing Gmail draft",
+        factory=lambda deps: create_update_gmail_draft_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],
             user_id=deps["user_id"],

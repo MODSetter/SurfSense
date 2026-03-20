@@ -309,6 +309,7 @@ def create_create_gmail_draft_tool(
                     connector_id=actual_connector_id,
                     search_space_id=search_space_id,
                     user_id=user_id,
+                    draft_id=created.get("id"),
                 )
                 if kb_result["status"] == "success":
                     kb_message_suffix = " Your knowledge base has also been updated."

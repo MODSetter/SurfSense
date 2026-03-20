@@ -31,6 +31,7 @@ class GmailKBSyncService:
         connector_id: int,
         search_space_id: int,
         user_id: str,
+        draft_id: str | None = None,
     ) -> dict:
         from app.tasks.connector_indexers.base import (
             check_document_by_unique_identifier,
@@ -103,18 +104,22 @@ class GmailKBSyncService:
             chunks = await create_document_chunks(indexable_content)
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+            doc_metadata = {
+                "message_id": message_id,
+                "thread_id": thread_id,
+                "subject": subject,
+                "sender": sender,
+                "date": date_str,
+                "connector_id": connector_id,
+                "indexed_at": now_str,
+            }
+            if draft_id:
+                doc_metadata["draft_id"] = draft_id
+
             document = Document(
                 title=subject,
                 document_type=DocumentType.GOOGLE_GMAIL_CONNECTOR,
-                document_metadata={
-                    "message_id": message_id,
-                    "thread_id": thread_id,
-                    "subject": subject,
-                    "sender": sender,
-                    "date": date_str,
-                    "connector_id": connector_id,
-                    "indexed_at": now_str,
-                },
+                document_metadata=doc_metadata,
                 content=summary_content,
                 content_hash=content_hash,
                 unique_identifier_hash=unique_hash,
