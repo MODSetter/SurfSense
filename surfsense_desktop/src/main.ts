@@ -1,72 +1,16 @@
-import { app, BrowserWindow, shell, ipcMain, session, dialog, Menu } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog, Menu } from 'electron';
 import path from 'path';
 import { autoUpdater } from 'electron-updater';
 import { registerGlobalErrorHandlers, showErrorDialog } from './modules/errors';
 import { startNextServer, getServerPort } from './modules/server';
+import { createMainWindow, getMainWindow } from './modules/window';
 
 registerGlobalErrorHandlers();
 
 const isDev = !app.isPackaged;
-let mainWindow: BrowserWindow | null = null;
 let deepLinkUrl: string | null = null;
 
 const PROTOCOL = 'surfsense';
-const HOSTED_FRONTEND_URL = process.env.HOSTED_FRONTEND_URL as string;
-
-function createWindow() {
-  mainWindow = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    minWidth: 800,
-    minHeight: 600,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: true,
-      webviewTag: false,
-    },
-    show: false,
-    titleBarStyle: 'hiddenInset',
-  });
-
-  mainWindow.once('ready-to-show', () => {
-    mainWindow?.show();
-  });
-
-  mainWindow.loadURL(`http://localhost:${getServerPort()}/login`);
-
-  // External links open in system browser, not in the Electron window
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://localhost')) {
-      return { action: 'allow' };
-    }
-    shell.openExternal(url);
-    return { action: 'deny' };
-  });
-
-  // Intercept backend OAuth redirects targeting the hosted web frontend
-  // and rewrite them to localhost so the user stays in the desktop app.
-  const filter = { urls: [`${HOSTED_FRONTEND_URL}/*`] };
-  session.defaultSession.webRequest.onBeforeRequest(filter, (details, callback) => {
-    const rewritten = details.url.replace(HOSTED_FRONTEND_URL, `http://localhost:${getServerPort()}`);
-    callback({ redirectURL: rewritten });
-  });
-
-  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-    console.error(`Failed to load ${validatedURL}: ${errorDescription} (${errorCode})`);
-    if (errorCode === -3) return; // ERR_ABORTED — normal during redirects
-    showErrorDialog('Page failed to load', new Error(`${errorDescription} (${errorCode})\n${validatedURL}`));
-  });
-
-  if (isDev) {
-    mainWindow.webContents.openDevTools();
-  }
-
-  mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
-}
 
 // IPC handlers
 ipcMain.on('open-external', (_event, url: string) => {
@@ -90,17 +34,17 @@ function handleDeepLink(url: string) {
 
   deepLinkUrl = url;
 
-  if (!mainWindow) return;
+  const win = getMainWindow();
+  if (!win) return;
 
-  // Rewrite surfsense:// deep link to localhost so TokenHandler.tsx processes it
   const parsed = new URL(url);
   if (parsed.hostname === 'auth' && parsed.pathname === '/callback') {
     const params = parsed.searchParams.toString();
-    mainWindow.loadURL(`http://localhost:${getServerPort()}/auth/callback?${params}`);
+    win.loadURL(`http://localhost:${getServerPort()}/auth/callback?${params}`);
   }
 
-  mainWindow.show();
-  mainWindow.focus();
+  win.show();
+  win.focus();
 }
 
 // Single instance lock — second instance passes deep link to first
@@ -113,9 +57,10 @@ if (!gotTheLock) {
     const url = argv.find((arg) => arg.startsWith(`${PROTOCOL}://`));
     if (url) handleDeepLink(url);
 
-    if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore();
-      mainWindow.focus();
+    const win = getMainWindow();
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
     }
   });
 }
@@ -188,7 +133,7 @@ app.whenReady().then(async () => {
     setTimeout(() => app.quit(), 0);
     return;
   }
-  createWindow();
+  createMainWindow();
   setupAutoUpdater();
 
   // If a deep link was received before the window was ready, handle it now
@@ -199,7 +144,7 @@ app.whenReady().then(async () => {
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      createMainWindow();
     }
   });
 });
