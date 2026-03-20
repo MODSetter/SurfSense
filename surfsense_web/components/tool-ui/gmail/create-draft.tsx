@@ -275,7 +275,7 @@ function ApprovalCard({
 											<SelectContent>
 												{validAccounts.map((account) => (
 													<SelectItem key={account.id} value={String(account.id)}>
-														{account.email}
+														{account.name}
 													</SelectItem>
 												))}
 												{expiredAccounts.map((a) => (
@@ -283,7 +283,7 @@ function ApprovalCard({
 														key={a.id}
 														className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
 													>
-														{a.email} (expired, retry after re-auth)
+														{a.name} (expired, retry after re-auth)
 													</div>
 												))}
 											</SelectContent>

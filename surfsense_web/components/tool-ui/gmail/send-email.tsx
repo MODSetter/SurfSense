@@ -264,8 +264,7 @@ function ApprovalCard({
 						{interruptData.context.error ? (
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
-							<>
-								{accounts.length > 0 && (
+							accounts.length > 0 && (
 									<div className="space-y-2">
 										<p className="text-xs font-medium text-muted-foreground">
 											Gmail Account <span className="text-destructive">*</span>
@@ -277,7 +276,7 @@ function ApprovalCard({
 											<SelectContent>
 												{validAccounts.map((account) => (
 													<SelectItem key={account.id} value={String(account.id)}>
-														{account.email}
+														{account.name}
 													</SelectItem>
 												))}
 												{expiredAccounts.map((a) => (
@@ -285,14 +284,13 @@ function ApprovalCard({
 														key={a.id}
 														className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
 													>
-														{a.email} (expired, retry after re-auth)
+														{a.name} (expired, retry after re-auth)
 													</div>
 												))}
 											</SelectContent>
 										</Select>
 									</div>
-								)}
-							</>
+								)
 						)}
 					</div>
 				</>
@@ -307,13 +305,13 @@ function ApprovalCard({
 						<span>To: {pendingEdits?.to ?? args.to}</span>
 					</div>
 				)}
-				{(pendingEdits?.cc ?? args.cc) && (pendingEdits?.cc ?? args.cc)!.trim() !== "" && (
+				{(pendingEdits?.cc ?? args.cc) && (pendingEdits?.cc ?? args.cc)?.trim() !== "" && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<UsersIcon className="size-3 shrink-0" />
 						<span>CC: {pendingEdits?.cc ?? args.cc}</span>
 					</div>
 				)}
-				{(pendingEdits?.bcc ?? args.bcc) && (pendingEdits?.bcc ?? args.bcc)!.trim() !== "" && (
+				{(pendingEdits?.bcc ?? args.bcc) && (pendingEdits?.bcc ?? args.bcc)?.trim() !== "" && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<UsersIcon className="size-3 shrink-0" />
 						<span>BCC: {pendingEdits?.bcc ?? args.bcc}</span>

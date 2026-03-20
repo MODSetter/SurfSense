@@ -225,7 +225,7 @@ function ApprovalCard({
 									<div className="space-y-2">
 										<p className="text-xs font-medium text-muted-foreground">Gmail Account</p>
 										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
-											{account.email}
+											{account.name}
 										</div>
 									</div>
 								)}
