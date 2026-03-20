@@ -5,12 +5,21 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        include:
+          - os: macos-latest
+            platform: --mac
+          - os: ubuntu-latest
+            platform: --linux
+          - os: windows-latest
+            platform: --win
 
     steps:
       - name: Checkout
@@ -40,3 +49,9 @@ jobs:
       - name: Build Electron
         run: pnpm build
         working-directory: surfsense_desktop
+
+      - name: Package & Publish
+        run: pnpm exec electron-builder ${{ matrix.platform }} --config electron-builder.yml --publish always
+        working-directory: surfsense_desktop
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
