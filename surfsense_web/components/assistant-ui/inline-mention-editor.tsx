@@ -47,6 +47,7 @@ interface InlineMentionEditorProps {
 	disabled?: boolean;
 	className?: string;
 	initialDocuments?: MentionedDocument[];
+	initialText?: string;
 }
 
 // Unique data attribute to identify chip elements
@@ -96,6 +97,7 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 			disabled = false,
 			className,
 			initialDocuments = [],
+			initialText,
 		},
 		ref
 	) => {
@@ -114,6 +116,16 @@ export const InlineMentionEditor = forwardRef<InlineMentionEditorRef, InlineMent
 				);
 			}
 		}, [initialDocuments]);
+
+		// Seed editor with initialText on mount (e.g. clipboard content from Electron tray)
+		const initialTextAppliedRef = useRef(false);
+		useEffect(() => {
+			if (!initialText || initialTextAppliedRef.current || !editorRef.current) return;
+			initialTextAppliedRef.current = true;
+			editorRef.current.textContent = initialText;
+			setIsEmpty(false);
+			onChange?.(initialText, Array.from(mentionedDocs.values()));
+		}, [initialText]); // eslint-disable-line react-hooks/exhaustive-deps
 
 		// Focus at the end of the editor
 		const focusAtEnd = useCallback(() => {
