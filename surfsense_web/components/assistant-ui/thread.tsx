@@ -314,6 +314,16 @@ const Composer: FC = () => {
 	const composerRuntime = useComposerRuntime();
 	const hasAutoFocusedRef = useRef(false);
 
+	// Clipboard content from Electron tray (pre-filled into composer)
+	const [clipboardText, setClipboardText] = useState<string | undefined>();
+	useEffect(() => {
+		const api = (window as { electronAPI?: { getClipboardContent?: () => Promise<string> } }).electronAPI;
+		if (!api?.getClipboardContent) return;
+		api.getClipboardContent().then((text) => {
+			if (text) setClipboardText(text);
+		});
+	}, []);
+
 	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
 	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
 
@@ -520,6 +530,7 @@ const Composer: FC = () => {
 						onDocumentRemove={handleDocumentRemove}
 						onSubmit={handleSubmit}
 						onKeyDown={handleKeyDown}
+						initialText={clipboardText}
 						className="min-h-[24px]"
 					/>
 				</div>
