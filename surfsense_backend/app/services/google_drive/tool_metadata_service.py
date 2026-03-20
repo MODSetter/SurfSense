@@ -74,6 +74,7 @@ class GoogleDriveToolMetadataService:
             return {
                 "accounts": [],
                 "supported_types": [],
+                "parent_folders": {},
                 "error": "No Google Drive account connected",
             }
 
@@ -86,9 +87,12 @@ class GoogleDriveToolMetadataService:
                 await self._persist_auth_expired(acc.id)
             accounts_with_status.append(acc_dict)
 
+        parent_folders = await self._get_parent_folders_by_account(accounts_with_status)
+
         return {
             "accounts": accounts_with_status,
             "supported_types": ["google_doc", "google_sheet"],
+            "parent_folders": parent_folders,
         }
 
     async def get_trash_context(
@@ -236,3 +240,74 @@ class GoogleDriveToolMetadataService:
                 connector_id,
                 exc_info=True,
             )
+
+    async def _get_parent_folders_by_account(
+        self, accounts_with_status: list[dict]
+    ) -> dict[int, list[dict]]:
+        """Fetch root-level folders for each healthy account.
+
+        Skips accounts where ``auth_expired`` is True so we don't waste an API
+        call that will fail anyway.
+        """
+        parent_folders: dict[int, list[dict]] = {}
+
+        for acc in accounts_with_status:
+            connector_id = acc["id"]
+            if acc.get("auth_expired"):
+                parent_folders[connector_id] = []
+                continue
+
+            try:
+                result = await self._db_session.execute(
+                    select(SearchSourceConnector).where(
+                        SearchSourceConnector.id == connector_id
+                    )
+                )
+                connector = result.scalar_one_or_none()
+                if not connector:
+                    parent_folders[connector_id] = []
+                    continue
+
+                pre_built_creds = None
+                if (
+                    connector.connector_type
+                    == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+                ):
+                    cca_id = connector.config.get("composio_connected_account_id")
+                    if cca_id:
+                        pre_built_creds = build_composio_credentials(cca_id)
+
+                client = GoogleDriveClient(
+                    session=self._db_session,
+                    connector_id=connector_id,
+                    credentials=pre_built_creds,
+                )
+
+                folders, _, error = await client.list_files(
+                    query="mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents",
+                    fields="files(id, name)",
+                    page_size=50,
+                )
+
+                if error:
+                    logger.warning(
+                        "Failed to list folders for connector %s: %s",
+                        connector_id,
+                        error,
+                    )
+                    parent_folders[connector_id] = []
+                else:
+                    parent_folders[connector_id] = [
+                        {"folder_id": f["id"], "name": f["name"]}
+                        for f in folders
+                        if f.get("id") and f.get("name")
+                    ]
+            except Exception:
+                logger.warning(
+                    "Error fetching folders for connector %s",
+                    connector_id,
+                    exc_info=True,
+                )
+                parent_folders[connector_id] = []
+
+        return parent_folders

@@ -242,12 +242,36 @@ def create_create_google_drive_file_tool(
             logger.info(
                 f"Google Drive file created: id={created.get('id')}, name={created.get('name')}"
             )
+
+            kb_message_suffix = ""
+            try:
+                from app.services.google_drive import GoogleDriveKBSyncService
+
+                kb_service = GoogleDriveKBSyncService(db_session)
+                kb_result = await kb_service.sync_after_create(
+                    file_id=created.get("id"),
+                    file_name=created.get("name", final_name),
+                    mime_type=mime_type,
+                    web_view_link=created.get("webViewLink"),
+                    content=final_content,
+                    connector_id=actual_connector_id,
+                    search_space_id=search_space_id,
+                    user_id=user_id,
+                )
+                if kb_result["status"] == "success":
+                    kb_message_suffix = " Your knowledge base has also been updated."
+                else:
+                    kb_message_suffix = " This file will be added to your knowledge base in the next scheduled sync."
+            except Exception as kb_err:
+                logger.warning(f"KB sync after create failed: {kb_err}")
+                kb_message_suffix = " This file will be added to your knowledge base in the next scheduled sync."
+
             return {
                 "status": "success",
                 "file_id": created.get("id"),
                 "name": created.get("name"),
                 "web_view_link": created.get("webViewLink"),
-                "message": f"Successfully created '{created.get('name')}' in Google Drive.",
+                "message": f"Successfully created '{created.get('name')}' in Google Drive.{kb_message_suffix}",
             }
 
         except Exception as e:

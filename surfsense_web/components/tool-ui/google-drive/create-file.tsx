@@ -12,7 +12,6 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -46,6 +45,7 @@ interface InterruptResult {
 	context?: {
 		accounts?: GoogleDriveAccount[];
 		supported_types?: string[];
+		parent_folders?: Record<number, Array<{ folder_id: string; name: string }>>;
 		error?: string;
 	};
 }
@@ -153,7 +153,20 @@ function ApprovalCard({
 
 	const [selectedAccountId, setSelectedAccountId] = useState<string>(defaultAccountId);
 	const [selectedFileType, setSelectedFileType] = useState<string>(args.file_type ?? "google_doc");
-	const [parentFolderId, setParentFolderId] = useState<string>("");
+	const [parentFolderId, setParentFolderId] = useState<string>("__root__");
+
+	const parentFolders = interruptData.context?.parent_folders ?? {};
+	const availableParentFolders = useMemo(() => {
+		if (!selectedAccountId) return [];
+		return parentFolders[Number(selectedAccountId)] ?? [];
+	}, [selectedAccountId, parentFolders]);
+
+	const handleAccountChange = useCallback((value: string) => {
+		setSelectedAccountId(value);
+		setParentFolderId("__root__");
+	}, []);
+
+	const fileTypeLabel = FILE_TYPE_LABELS[selectedFileType] ?? FILE_TYPE_LABELS[args.file_type] ?? "Google Drive File";
 
 	const isNameValid = useMemo(
 		() => args.name && typeof args.name === "string" && args.name.trim().length > 0,
@@ -178,7 +191,7 @@ function ApprovalCard({
 					...args,
 					file_type: selectedFileType,
 					connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-					parent_folder_id: parentFolderId.trim() || null,
+					parent_folder_id: parentFolderId === "__root__" ? null : parentFolderId,
 				},
 			},
 		});
@@ -201,10 +214,10 @@ function ApprovalCard({
 				<div>
 					<p className="text-sm font-semibold text-foreground">
 						{decided === "reject"
-							? "Google Drive File Rejected"
+							? `${fileTypeLabel} Rejected`
 							: decided === "approve" || decided === "edit"
-								? "Google Drive File Approved"
-								: "Create Google Drive File"}
+								? `${fileTypeLabel} Approved`
+								: `Create ${fileTypeLabel}`}
 					</p>
 					<p className="text-xs text-muted-foreground mt-0.5">
 						{decided === "reject"
@@ -226,25 +239,25 @@ function ApprovalCard({
 							openHitlEditPanel({
 								title: args.name ?? "",
 								content: args.content ?? "",
-								toolName: "Google Drive File",
-								onSave: (newName, newContent) => {
-									setIsPanelOpen(false);
-									setDecided("edit");
-									onDecision({
-										type: "edit",
-										edited_action: {
-											name: interruptData.action_requests[0].name,
-											args: {
-												...args,
-												name: newName,
-												content: newContent,
-												file_type: selectedFileType,
-												connector_id: selectedAccountId ? Number(selectedAccountId) : null,
-												parent_folder_id: parentFolderId.trim() || null,
-											},
+								toolName: fileTypeLabel,
+							onSave: (newName, newContent) => {
+								setIsPanelOpen(false);
+								setDecided("edit");
+								onDecision({
+									type: "edit",
+									edited_action: {
+										name: interruptData.action_requests[0].name,
+										args: {
+											...args,
+											name: newName,
+											content: newContent,
+											file_type: selectedFileType,
+											connector_id: selectedAccountId ? Number(selectedAccountId) : null,
+											parent_folder_id: parentFolderId === "__root__" ? null : parentFolderId,
 										},
-									});
-								},
+									},
+								});
+							},
 							});
 						}}
 					>
@@ -268,7 +281,7 @@ function ApprovalCard({
 									<p className="text-xs font-medium text-muted-foreground">
 										Google Drive Account <span className="text-destructive">*</span>
 									</p>
-									<Select value={selectedAccountId} onValueChange={setSelectedAccountId}>
+									<Select value={selectedAccountId} onValueChange={handleAccountChange}>
 										<SelectTrigger className="w-full">
 											<SelectValue placeholder="Select an account" />
 										</SelectTrigger>
@@ -306,19 +319,29 @@ function ApprovalCard({
 									</Select>
 								</div>
 
-								<div className="space-y-2">
-									<p className="text-xs font-medium text-muted-foreground">
-										Parent Folder ID (optional)
-									</p>
-									<Input
-										value={parentFolderId}
-										onChange={(e) => setParentFolderId(e.target.value)}
-										placeholder="Leave blank to create at Drive root"
-									/>
+							<div className="space-y-2">
+								<p className="text-xs font-medium text-muted-foreground">
+									Parent Folder
+								</p>
+								<Select value={parentFolderId} onValueChange={setParentFolderId}>
+									<SelectTrigger className="w-full">
+										<SelectValue placeholder="Drive Root" />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="__root__">Drive Root</SelectItem>
+										{availableParentFolders.map((folder) => (
+											<SelectItem key={folder.folder_id} value={folder.folder_id}>
+												{folder.name}
+											</SelectItem>
+										))}
+									</SelectContent>
+								</Select>
+								{selectedAccountId && availableParentFolders.length === 0 && (
 									<p className="text-xs text-muted-foreground">
-										Paste a Google Drive folder ID to place the file in a specific folder.
+										No folders found. File will be created at Drive root.
 									</p>
-								</div>
+								)}
+							</div>
 							</>
 						)}
 					</div>
@@ -328,14 +351,9 @@ function ApprovalCard({
 			{/* Content preview */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-				{args.name != null && (
-					<p className="text-sm font-medium text-foreground">{args.name}</p>
-				)}
-				{args.file_type && (
-					<p className="text-xs text-muted-foreground mt-0.5">
-						{FILE_TYPE_LABELS[args.file_type] ?? args.file_type}
-					</p>
-				)}
+			{args.name != null && (
+				<p className="text-sm font-medium text-foreground">{args.name}</p>
+			)}
 				{args.content != null && (
 					<div
 						className="mt-2 max-h-[7rem] overflow-hidden text-sm"

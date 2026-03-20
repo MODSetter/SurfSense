@@ -250,11 +250,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											onClick={() => handleReauth(connector.id)}
 											disabled={reauthingId === connector.id}
 										>
-											{reauthingId === connector.id ? (
-												<Spinner size="xs" />
-											) : (
-												<RefreshCw className="size-3.5" />
-											)}
+											<RefreshCw className={cn("size-3.5", reauthingId === connector.id && "animate-spin")} />
 											Re-authenticate
 										</Button>
 									) : (
