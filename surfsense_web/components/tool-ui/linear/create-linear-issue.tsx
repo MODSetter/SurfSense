@@ -272,13 +272,13 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 space-y-4 select-none">
+					<div className="px-5 py-3 space-y-3 select-none">
 						{interruptData.context?.error ? (
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
 							<>
 							{workspaces.length > 0 && (
-								<div className="space-y-2">
+								<div className="space-y-1.5">
 									<p className="text-xs font-medium text-muted-foreground">
 										Linear Account <span className="text-destructive">*</span>
 									</p>
@@ -317,7 +317,7 @@ function ApprovalCard({
 
 								{selectedWorkspace && (
 									<>
-										<div className="space-y-2">
+										<div className="space-y-1.5">
 											<p className="text-xs font-medium text-muted-foreground">
 												Team <span className="text-destructive">*</span>
 											</p>
@@ -346,7 +346,7 @@ function ApprovalCard({
 
 										{selectedTeam && (
 											<>
-												<div className="space-y-2">
+												<div className="space-y-1.5">
 													<p className="text-xs font-medium text-muted-foreground">State</p>
 													<Select value={selectedStateId} onValueChange={setSelectedStateId}>
 														<SelectTrigger className="w-full">
@@ -362,43 +362,44 @@ function ApprovalCard({
 													</Select>
 												</div>
 
-												<div className="space-y-2">
-													<p className="text-xs font-medium text-muted-foreground">Assignee</p>
-													<Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
-														<SelectTrigger className="w-full">
-															<SelectValue placeholder="Unassigned" />
-														</SelectTrigger>
-														<SelectContent>
-															<SelectItem value="__none__">Unassigned</SelectItem>
-															{selectedTeam.members
-																.filter((m) => m.active)
-																.map((m) => (
-																	<SelectItem key={m.id} value={m.id}>
-																		{m.name} ({m.email})
+												<div className="grid grid-cols-2 gap-3">
+													<div className="space-y-1.5">
+														<p className="text-xs font-medium text-muted-foreground">Assignee</p>
+														<Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
+															<SelectTrigger className="w-full">
+																<SelectValue placeholder="Unassigned" />
+															</SelectTrigger>
+															<SelectContent>
+																<SelectItem value="__none__">Unassigned</SelectItem>
+																{selectedTeam.members
+																	.filter((m) => m.active)
+																	.map((m) => (
+																		<SelectItem key={m.id} value={m.id}>
+																			{m.name} ({m.email})
+																		</SelectItem>
+																	))}
+															</SelectContent>
+														</Select>
+													</div>
+													<div className="space-y-1.5">
+														<p className="text-xs font-medium text-muted-foreground">Priority</p>
+														<Select value={selectedPriority} onValueChange={setSelectedPriority}>
+															<SelectTrigger className="w-full">
+																<SelectValue placeholder="No priority" />
+															</SelectTrigger>
+															<SelectContent>
+																{selectedWorkspace.priorities.map((p) => (
+																	<SelectItem key={p.priority} value={String(p.priority)}>
+																		{p.label}
 																	</SelectItem>
 																))}
-														</SelectContent>
-													</Select>
-												</div>
-
-												<div className="space-y-2">
-													<p className="text-xs font-medium text-muted-foreground">Priority</p>
-													<Select value={selectedPriority} onValueChange={setSelectedPriority}>
-														<SelectTrigger className="w-full">
-															<SelectValue placeholder="No priority" />
-														</SelectTrigger>
-														<SelectContent>
-															{selectedWorkspace.priorities.map((p) => (
-																<SelectItem key={p.priority} value={String(p.priority)}>
-																	{p.label}
-																</SelectItem>
-															))}
-														</SelectContent>
-													</Select>
+															</SelectContent>
+														</Select>
+													</div>
 												</div>
 
 												{selectedTeam.labels.length > 0 && (
-													<div className="space-y-2">
+													<div className="space-y-1.5">
 														<p className="text-xs font-medium text-muted-foreground">Labels</p>
 														<ToggleGroup
 															type="multiple"
@@ -481,7 +482,7 @@ function ApprovalCard({
 			{!decided && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-					<div className="px-5 py-4 flex items-center gap-2 select-none">
+					<div className="px-5 py-3 flex items-center gap-2 select-none">
 						{allowedDecisions.includes("approve") && (
 							<Button
 								size="sm"
