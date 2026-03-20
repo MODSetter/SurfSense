@@ -686,6 +686,25 @@ async def list_composio_drive_folders(
         items, error = await list_folder_contents(drive_client, parent_id=parent_id)
 
         if error:
+            error_lower = error.lower()
+            if (
+                "401" in error
+                or "invalid_grant" in error_lower
+                or "token has been expired or revoked" in error_lower
+                or "invalid credentials" in error_lower
+                or "authentication failed" in error_lower
+            ):
+                try:
+                    if connector and not connector.config.get("auth_expired"):
+                        connector.config = {**connector.config, "auth_expired": True}
+                        flag_modified(connector, "config")
+                        await session.commit()
+                        logger.info(f"Marked Composio connector {connector_id} as auth_expired")
+                except Exception:
+                    logger.warning(f"Failed to persist auth_expired for connector {connector_id}", exc_info=True)
+                raise HTTPException(
+                    status_code=400, detail="Google Drive authentication expired. Please re-authenticate."
+                )
             raise HTTPException(
                 status_code=500, detail=f"Failed to list folder contents: {error}"
             )
