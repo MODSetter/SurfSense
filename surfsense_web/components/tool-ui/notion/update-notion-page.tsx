@@ -120,7 +120,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
 		interruptData.__decided__ ?? null
 	);
-	const wasAlreadyDecided = interruptData.__decided__ != null;
+	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{ content: string } | null>(null);

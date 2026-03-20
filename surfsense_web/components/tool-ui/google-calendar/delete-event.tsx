@@ -177,7 +177,7 @@ function ApprovalCard({
 	const [decided, setDecided] = useState<"approve" | "reject" | null>(
 		interruptData.__decided__ ?? null
 	);
-	const wasAlreadyDecided = interruptData.__decided__ != null;
+	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
 	const context = interruptData.context;
