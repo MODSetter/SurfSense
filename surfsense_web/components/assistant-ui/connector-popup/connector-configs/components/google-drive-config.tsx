@@ -1,5 +1,6 @@
 "use client";
 
+import { cn } from "@/lib/utils";
 import { useAtomValue } from "jotai";
 import {
 
@@ -294,11 +295,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 								onClick={handleReauth}
 								disabled={reauthing}
 							>
-								{reauthing ? (
-									<Spinner size="xs" />
-								) : (
-									<RefreshCw className="size-3.5" />
-								)}
+								<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
 								Re-authenticate
 							</Button>
 						</div>

@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "@/lib/utils";
+import { useAtomValue } from "jotai";
 import {
 	ChevronDown,
 	ChevronRight,
@@ -9,11 +11,15 @@ import {
 	FolderClosed,
 	Image,
 	Presentation,
+	RefreshCw,
 	X,
 } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { ComposioDriveFolderTree } from "@/components/connectors/composio-drive-folder-tree";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
 	Select,
@@ -23,13 +29,8 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-
-interface ComposioDriveConfigProps {
-	connector: SearchSourceConnector;
-	onConfigChange?: (config: Record<string, unknown>) => void;
-	onNameChange?: (name: string) => void;
-}
+import { authenticatedFetch } from "@/lib/auth-utils";
+import type { ConnectorConfigProps } from "../index";
 
 interface SelectedFolder {
 	id: string;
@@ -88,10 +89,13 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	return <File className={`${className} text-gray-500`} />;
 }
 
-export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
+const COMPOSIO_REAUTH_ENDPOINT = "/api/v1/auth/composio/connector/reauth";
+
+export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({
 	connector,
 	onConfigChange,
 }) => {
+	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const isIndexable = connector.config?.is_indexable as boolean;
 
 	const existingFolders =
@@ -103,6 +107,43 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 	const [selectedFolders, setSelectedFolders] = useState<SelectedFolder[]>(existingFolders);
 	const [selectedFiles, setSelectedFiles] = useState<SelectedFolder[]>(existingFiles);
 	const [indexingOptions, setIndexingOptions] = useState<IndexingOptions>(existingIndexingOptions);
+	const [reauthing, setReauthing] = useState(false);
+	const [authError, setAuthError] = useState(false);
+
+	const isAuthExpired = connector.config?.auth_expired === true || authError;
+
+	const handleReauth = useCallback(async () => {
+		if (!searchSpaceId) return;
+		setReauthing(true);
+		try {
+			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
+			const url = new URL(`${backendUrl}${COMPOSIO_REAUTH_ENDPOINT}`);
+			url.searchParams.set("connector_id", String(connector.id));
+			url.searchParams.set("space_id", String(searchSpaceId));
+			url.searchParams.set("return_url", window.location.pathname);
+			const response = await authenticatedFetch(url.toString());
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				toast.error(data.detail ?? "Failed to initiate re-authentication.");
+				return;
+			}
+			const data = await response.json();
+			if (data.auth_url) {
+				window.location.href = data.auth_url;
+			} else if (data.success) {
+				toast.success("Authentication refreshed successfully.");
+				setAuthError(false);
+			}
+		} catch {
+			toast.error("Failed to initiate re-authentication.");
+		} finally {
+			setReauthing(false);
+		}
+	}, [searchSpaceId, connector.id]);
+
+	const handleAuthError = useCallback(() => {
+		setAuthError(true);
+	}, []);
 
 	const [isEditMode] = useState(() => existingFolders.length > 0 || existingFiles.length > 0);
 	const [isFolderTreeOpen, setIsFolderTreeOpen] = useState(!isEditMode);
@@ -235,39 +276,58 @@ export const ComposioDriveConfig: FC<ComposioDriveConfigProps> = ({
 					</div>
 				)}
 
-				{isEditMode ? (
-					<div className="space-y-2">
-						<button
-							type="button"
-							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
-							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
-						>
-							{isFolderTreeOpen ? (
-								<ChevronDown className="size-4" />
-							) : (
-								<ChevronRight className="size-4" />
-							)}
-							Change Selection
-						</button>
-						{isFolderTreeOpen && (
-							<ComposioDriveFolderTree
-								connectorId={connector.id}
-								selectedFolders={selectedFolders}
-								onSelectFolders={handleSelectFolders}
-								selectedFiles={selectedFiles}
-								onSelectFiles={handleSelectFiles}
-							/>
+			{isAuthExpired && (
+				<div className="flex items-center gap-2">
+					<p className="text-xs text-amber-600 dark:text-amber-500">
+						Your Google Drive authentication has expired.
+					</p>
+					<Button
+						size="sm"
+						className="h-7 text-[11px] px-3 rounded-lg font-medium bg-amber-600 hover:bg-amber-700 text-white border-0 shadow-xs shrink-0"
+						onClick={handleReauth}
+						disabled={reauthing}
+					>
+						<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
+						Re-authenticate
+					</Button>
+				</div>
+			)}
+
+			{isEditMode ? (
+				<div className="space-y-2">
+					<button
+						type="button"
+						onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
+						className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+					>
+						Change Selection
+						{isFolderTreeOpen ? (
+							<ChevronDown className="size-4" />
+						) : (
+							<ChevronRight className="size-4" />
 						)}
-					</div>
-				) : (
-					<ComposioDriveFolderTree
-						connectorId={connector.id}
-						selectedFolders={selectedFolders}
-						onSelectFolders={handleSelectFolders}
-						selectedFiles={selectedFiles}
-						onSelectFiles={handleSelectFiles}
-					/>
-				)}
+					</button>
+					{isFolderTreeOpen && (
+						<ComposioDriveFolderTree
+							connectorId={connector.id}
+							selectedFolders={selectedFolders}
+							onSelectFolders={handleSelectFolders}
+							selectedFiles={selectedFiles}
+							onSelectFiles={handleSelectFiles}
+							onAuthError={handleAuthError}
+						/>
+					)}
+				</div>
+			) : (
+				<ComposioDriveFolderTree
+					connectorId={connector.id}
+					selectedFolders={selectedFolders}
+					onSelectFolders={handleSelectFolders}
+					selectedFiles={selectedFiles}
+					onSelectFiles={handleSelectFiles}
+					onAuthError={handleAuthError}
+				/>
+			)}
 			</div>
 
 			{/* Indexing Options */}

@@ -636,31 +636,23 @@ async def list_composio_drive_folders(
     user: User = Depends(current_active_user),
 ):
     """
-    List folders AND files in user's Google Drive via Composio with hierarchical support.
+    List folders AND files in user's Google Drive via Composio.
 
-    This is called at index time from the manage connector page to display
-    the complete file system (folders and files). Only folders are selectable.
-
-    Args:
-        connector_id: ID of the Composio Google Drive connector
-        parent_id: Optional parent folder ID to list contents (None for root)
-
-    Returns:
-        JSON with list of items: {
-            "items": [
-                {"id": str, "name": str, "mimeType": str, "isFolder": bool, ...},
-                ...
-            ]
-        }
+    Uses the same GoogleDriveClient / list_folder_contents path as the native
+    connector, with Composio-sourced credentials.  This means auth errors
+    propagate identically (Google returns 401 → exception → auth_expired flag).
     """
+    from app.connectors.google_drive import GoogleDriveClient, list_folder_contents
+    from app.utils.google_credentials import build_composio_credentials
+
     if not ComposioService.is_enabled():
         raise HTTPException(
             status_code=503,
             detail="Composio integration is not enabled.",
         )
 
+    connector = None
     try:
-        # Get connector and verify ownership
         result = await session.execute(
             select(SearchSourceConnector).filter(
                 SearchSourceConnector.id == connector_id,
@@ -677,7 +669,6 @@ async def list_composio_drive_folders(
                 detail="Composio Google Drive connector not found or access denied",
             )
 
-        # Get Composio connected account ID from config
         composio_connected_account_id = connector.config.get(
             "composio_connected_account_id"
         )
@@ -687,63 +678,20 @@ async def list_composio_drive_folders(
                 detail="Composio connected account not found. Please reconnect the connector.",
             )
 
-        # Initialize Composio service and fetch files
-        service = ComposioService()
-        entity_id = f"surfsense_{user.id}"
-
-        # Fetch files/folders from Composio Google Drive
-        files, _next_token, error = await service.get_drive_files(
-            connected_account_id=composio_connected_account_id,
-            entity_id=entity_id,
-            folder_id=parent_id,
-            page_size=100,
+        credentials = build_composio_credentials(composio_connected_account_id)
+        drive_client = GoogleDriveClient(
+            session, connector_id, credentials=credentials
         )
 
+        items, error = await list_folder_contents(drive_client, parent_id=parent_id)
+
         if error:
-            logger.error(f"Failed to list Composio Drive files: {error}")
             raise HTTPException(
                 status_code=500, detail=f"Failed to list folder contents: {error}"
             )
 
-        # Transform files to match the expected format with isFolder field
-        items = []
-        for file_info in files:
-            file_id = file_info.get("id", "") or file_info.get("fileId", "")
-            file_name = (
-                file_info.get("name", "") or file_info.get("fileName", "") or "Untitled"
-            )
-            mime_type = file_info.get("mimeType", "") or file_info.get("mime_type", "")
-
-            if not file_id:
-                continue
-
-            is_folder = mime_type == "application/vnd.google-apps.folder"
-
-            items.append(
-                {
-                    "id": file_id,
-                    "name": file_name,
-                    "mimeType": mime_type,
-                    "isFolder": is_folder,
-                    "parents": file_info.get("parents", []),
-                    "size": file_info.get("size"),
-                    "iconLink": file_info.get("iconLink"),
-                }
-            )
-
-        # Sort: folders first, then files, both alphabetically
-        folders = sorted(
-            [item for item in items if item["isFolder"]],
-            key=lambda x: x["name"].lower(),
-        )
-        files_list = sorted(
-            [item for item in items if not item["isFolder"]],
-            key=lambda x: x["name"].lower(),
-        )
-        items = folders + files_list
-
-        folder_count = len(folders)
-        file_count = len(files_list)
+        folder_count = sum(1 for item in items if item.get("isFolder", False))
+        file_count = len(items) - folder_count
 
         logger.info(
             f"Listed {len(items)} total items ({folder_count} folders, {file_count} files) for Composio connector {connector_id}"
@@ -757,7 +705,13 @@ async def list_composio_drive_folders(
     except Exception as e:
         logger.error(f"Error listing Composio Drive contents: {e!s}", exc_info=True)
         error_lower = str(e).lower()
-        if "401" in str(e) or "invalid credentials" in error_lower or "autherror" in error_lower or "authentication failed" in error_lower:
+        if (
+            "invalid_grant" in error_lower
+            or "token has been expired or revoked" in error_lower
+            or "invalid credentials" in error_lower
+            or "authentication failed" in error_lower
+            or "401" in str(e)
+        ):
             try:
                 if connector and not connector.config.get("auth_expired"):
                     connector.config = {**connector.config, "auth_expired": True}
