@@ -86,7 +86,7 @@ export function DocumentsFilters({
 										placeholder="Search types"
 										value={typeSearchQuery}
 										onChange={(e) => setTypeSearchQuery(e.target.value)}
-										className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none focus-visible:ring-0"
+										className="h-6 pl-6 text-sm bg-transparent border-0 shadow-none"
 									/>
 								</div>
 							</div>
@@ -172,7 +172,7 @@ export function DocumentsFilters({
 					<Input
 						id={`${id}-input`}
 						ref={inputRef}
-						className="peer h-9 w-full pl-9 pr-9 text-sm bg-sidebar border-border/60 focus-visible:ring-1 focus-visible:ring-ring/30 select-none focus:select-text"
+						className="peer h-9 w-full pl-9 pr-9 text-sm bg-sidebar border-border/60 select-none focus:select-text"
 						value={searchValue}
 						onChange={(e) => onSearch(e.target.value)}
 						placeholder="Search docs"

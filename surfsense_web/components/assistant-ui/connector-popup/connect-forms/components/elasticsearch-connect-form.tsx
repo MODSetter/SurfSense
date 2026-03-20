@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as RadioGroup from "@radix-ui/react-radio-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Info } from "lucide-react";
 import type { FC } from "react";
 import { useId, useRef, useState } from "react";
@@ -282,10 +282,9 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 								render={({ field }) => (
 									<FormItem className="space-y-3">
 										<FormControl>
-											<RadioGroup.Root
+											<RadioGroup
 												onValueChange={(value) => {
 													field.onChange(value);
-													// Clear auth fields when method changes
 													if (value !== "basic") {
 														form.setValue("username", "");
 														form.setValue("password", "");
@@ -295,38 +294,22 @@ export const ElasticsearchConnectForm: FC<ConnectFormProps> = ({ onSubmit, isSub
 													}
 												}}
 												value={field.value}
-												className="flex flex-col space-y-2"
+												className="flex flex-col gap-2"
 											>
-												<div className="flex items-center space-x-2">
-													<RadioGroup.Item
-														value="api_key"
-														id={authApiKeyId}
-														className="aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-													>
-														<RadioGroup.Indicator className="flex items-center justify-center">
-															<div className="h-2.5 w-2.5 rounded-full bg-current" />
-														</RadioGroup.Indicator>
-													</RadioGroup.Item>
+												<div className="flex items-center gap-2">
+													<RadioGroupItem value="api_key" id={authApiKeyId} />
 													<Label htmlFor={authApiKeyId} className="text-xs sm:text-sm">
 														API Key
 													</Label>
 												</div>
 
-												<div className="flex items-center space-x-2">
-													<RadioGroup.Item
-														value="basic"
-														id={authBasicId}
-														className="aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-													>
-														<RadioGroup.Indicator className="flex items-center justify-center">
-															<div className="h-2.5 w-2.5 rounded-full bg-current" />
-														</RadioGroup.Indicator>
-													</RadioGroup.Item>
+												<div className="flex items-center gap-2">
+													<RadioGroupItem value="basic" id={authBasicId} />
 													<Label htmlFor={authBasicId} className="text-xs sm:text-sm">
 														Username & Password
 													</Label>
 												</div>
-											</RadioGroup.Root>
+											</RadioGroup>
 										</FormControl>
 										<FormMessage />
 									</FormItem>
