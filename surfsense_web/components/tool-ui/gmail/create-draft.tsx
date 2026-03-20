@@ -3,8 +3,6 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
 	CornerDownLeftIcon,
-	FileEditIcon,
-	MailIcon,
 	Pen,
 	UserIcon,
 	UsersIcon,
@@ -66,10 +64,17 @@ interface AuthErrorResult {
 	connector_type?: string;
 }
 
+interface InsufficientPermissionsResult {
+	status: "insufficient_permissions";
+	connector_id: number;
+	message: string;
+}
+
 type CreateGmailDraftResult =
 	| InterruptResult
 	| SuccessResult
 	| ErrorResult
+	| InsufficientPermissionsResult
 	| AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
@@ -96,6 +101,15 @@ function isAuthErrorResult(result: unknown): result is AuthErrorResult {
 		result !== null &&
 		"status" in result &&
 		(result as AuthErrorResult).status === "auth_error"
+	);
+}
+
+function isInsufficientPermissionsResult(result: unknown): result is InsufficientPermissionsResult {
+	return (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as InsufficientPermissionsResult).status === "insufficient_permissions"
 	);
 }
 
@@ -168,7 +182,6 @@ function ApprovalCard({
 			{/* Header */}
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div className="flex items-center gap-2">
-					<FileEditIcon className="size-4 text-muted-foreground shrink-0" />
 					<div>
 						<p className="text-sm font-semibold text-foreground">
 							{decided === "reject"
@@ -388,12 +401,27 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	);
 }
 
+function InsufficientPermissionsCard({ result }: { result: InsufficientPermissionsResult }) {
+	return (
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<div className="px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-destructive">
+					Additional Gmail permissions required
+				</p>
+			</div>
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
+				<p className="text-sm text-muted-foreground">{result.message}</p>
+			</div>
+		</div>
+	);
+}
+
 function SuccessCard({ result }: { result: SuccessResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<div className="flex items-center gap-2">
-					<MailIcon className="size-4 text-muted-foreground shrink-0" />
 					<p className="text-sm font-semibold text-foreground">
 						{result.message || "Gmail draft created successfully"}
 					</p>
@@ -443,6 +471,8 @@ export const CreateGmailDraftToolUI = makeAssistantToolUI<
 		}
 
 		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+		if (isInsufficientPermissionsResult(result))
+			return <InsufficientPermissionsCard result={result} />;
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 
 		return <SuccessCard result={result as SuccessResult} />;

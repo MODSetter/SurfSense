@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-SCOPES = ["https://www.googleapis.com/auth/calendar.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 REDIRECT_URI = config.GOOGLE_CALENDAR_REDIRECT_URI
 
 # Initialize security utilities

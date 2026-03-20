@@ -251,12 +251,45 @@ def create_create_calendar_event_tool(
                     {"email": e.strip()} for e in final_attendees if e.strip()
                 ]
 
-            created = await asyncio.get_event_loop().run_in_executor(
-                None,
-                lambda: service.events()
-                .insert(calendarId="primary", body=event_body)
-                .execute(),
-            )
+            try:
+                created = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: service.events()
+                    .insert(calendarId="primary", body=event_body)
+                    .execute(),
+                )
+            except Exception as api_err:
+                from googleapiclient.errors import HttpError
+
+                if isinstance(api_err, HttpError) and api_err.resp.status == 403:
+                    logger.warning(
+                        f"Insufficient permissions for connector {actual_connector_id}: {api_err}"
+                    )
+                    try:
+                        from sqlalchemy.orm.attributes import flag_modified
+
+                        _res = await db_session.execute(
+                            select(SearchSourceConnector).where(
+                                SearchSourceConnector.id == actual_connector_id
+                            )
+                        )
+                        _conn = _res.scalar_one_or_none()
+                        if _conn and not _conn.config.get("auth_expired"):
+                            _conn.config = {**_conn.config, "auth_expired": True}
+                            flag_modified(_conn, "config")
+                            await db_session.commit()
+                    except Exception:
+                        logger.warning(
+                            "Failed to persist auth_expired for connector %s",
+                            actual_connector_id,
+                            exc_info=True,
+                        )
+                    return {
+                        "status": "insufficient_permissions",
+                        "connector_id": actual_connector_id,
+                        "message": "This Google Calendar account needs additional permissions. Please re-authenticate in connector settings.",
+                    }
+                raise
 
             logger.info(
                 f"Calendar event created: id={created.get('id')}, summary={created.get('summary')}"

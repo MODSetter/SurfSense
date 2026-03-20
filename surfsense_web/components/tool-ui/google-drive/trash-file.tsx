@@ -2,19 +2,14 @@
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import {
-	AlertTriangleIcon,
 	CornerDownLeftIcon,
 	InfoIcon,
-	RefreshCwIcon,
 	TriangleAlertIcon,
 } from "lucide-react";
-import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface GoogleDriveAccount {
 	id: number;
@@ -327,52 +322,16 @@ function ApprovalCard({
 }
 
 function InsufficientPermissionsCard({ result }: { result: InsufficientPermissionsResult }) {
-	const params = useParams();
-	const searchSpaceId = params.search_space_id as string;
-	const [loading, setLoading] = useState(false);
-
-	async function handleReauth() {
-		setLoading(true);
-		try {
-			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const url = new URL(`${backendUrl}/api/v1/auth/google/drive/connector/reauth`);
-			url.searchParams.set("connector_id", String(result.connector_id));
-			url.searchParams.set("space_id", searchSpaceId);
-			url.searchParams.set("return_url", window.location.pathname);
-			const response = await authenticatedFetch(url.toString());
-			if (!response.ok) {
-				const data = await response.json().catch(() => ({}));
-				toast.error(data.detail ?? "Failed to initiate re-authentication. Please try again.");
-				return;
-			}
-			const data = await response.json();
-			if (data.auth_url) {
-				window.location.href = data.auth_url;
-			}
-		} catch {
-			toast.error("Failed to initiate re-authentication. Please try again.");
-		} finally {
-			setLoading(false);
-		}
-	}
-
 	return (
-		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border border-amber-500/50 bg-muted/30">
+		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<div className="flex items-center gap-2">
-					<AlertTriangleIcon className="size-4 text-amber-500 shrink-0" />
-					<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-						Additional permissions required
-					</p>
-				</div>
+				<p className="text-sm font-semibold text-destructive">
+					Additional Google Drive permissions required
+				</p>
 			</div>
-			<div className="mx-5 h-px bg-amber-500/30" />
-			<div className="px-5 py-4 space-y-3">
+			<div className="mx-5 h-px bg-border/50" />
+			<div className="px-5 py-4">
 				<p className="text-sm text-muted-foreground">{result.message}</p>
-				<Button size="sm" className="rounded-lg" onClick={handleReauth} disabled={loading}>
-					<RefreshCwIcon className={`size-4 ${loading ? "animate-spin" : ""}`} />
-					Re-authenticate Google Drive
-				</Button>
 			</div>
 		</div>
 	);

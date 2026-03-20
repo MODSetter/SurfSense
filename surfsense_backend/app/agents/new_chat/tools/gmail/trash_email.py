@@ -254,10 +254,23 @@ def create_trash_gmail_email_tool(
                     logger.warning(
                         f"Insufficient permissions for connector {connector.id}: {api_err}"
                     )
+                    try:
+                        from sqlalchemy.orm.attributes import flag_modified
+
+                        if not connector.config.get("auth_expired"):
+                            connector.config = {**connector.config, "auth_expired": True}
+                            flag_modified(connector, "config")
+                            await db_session.commit()
+                    except Exception:
+                        logger.warning(
+                            "Failed to persist auth_expired for connector %s",
+                            connector.id,
+                            exc_info=True,
+                        )
                     return {
                         "status": "insufficient_permissions",
                         "connector_id": connector.id,
-                        "message": "This Gmail account needs additional permissions. Please re-authenticate.",
+                        "message": "This Gmail account needs additional permissions. Please re-authenticate in connector settings.",
                     }
                 raise
 
