@@ -1,16 +1,17 @@
 import { app, BrowserWindow, shell, ipcMain, dialog, Menu } from 'electron';
-import path from 'path';
 import { autoUpdater } from 'electron-updater';
 import { registerGlobalErrorHandlers, showErrorDialog } from './modules/errors';
-import { startNextServer, getServerPort } from './modules/server';
-import { createMainWindow, getMainWindow } from './modules/window';
+import { startNextServer } from './modules/server';
+import { createMainWindow } from './modules/window';
+import { setupDeepLinks, handlePendingDeepLink } from './modules/deep-links';
 
 registerGlobalErrorHandlers();
 
-const isDev = !app.isPackaged;
-let deepLinkUrl: string | null = null;
+if (!setupDeepLinks()) {
+  app.quit();
+}
 
-const PROTOCOL = 'surfsense';
+const isDev = !app.isPackaged;
 
 // IPC handlers
 ipcMain.on('open-external', (_event, url: string) => {
@@ -27,58 +28,6 @@ ipcMain.on('open-external', (_event, url: string) => {
 ipcMain.handle('get-app-version', () => {
   return app.getVersion();
 });
-
-// Deep link handling
-function handleDeepLink(url: string) {
-  if (!url.startsWith(`${PROTOCOL}://`)) return;
-
-  deepLinkUrl = url;
-
-  const win = getMainWindow();
-  if (!win) return;
-
-  const parsed = new URL(url);
-  if (parsed.hostname === 'auth' && parsed.pathname === '/callback') {
-    const params = parsed.searchParams.toString();
-    win.loadURL(`http://localhost:${getServerPort()}/auth/callback?${params}`);
-  }
-
-  win.show();
-  win.focus();
-}
-
-// Single instance lock — second instance passes deep link to first
-const gotTheLock = app.requestSingleInstanceLock();
-if (!gotTheLock) {
-  app.quit();
-} else {
-  app.on('second-instance', (_event, argv) => {
-    // Windows/Linux: deep link URL is in argv
-    const url = argv.find((arg) => arg.startsWith(`${PROTOCOL}://`));
-    if (url) handleDeepLink(url);
-
-    const win = getMainWindow();
-    if (win) {
-      if (win.isMinimized()) win.restore();
-      win.focus();
-    }
-  });
-}
-
-// macOS: deep link arrives via open-url event
-app.on('open-url', (event, url) => {
-  event.preventDefault();
-  handleDeepLink(url);
-});
-
-// Register surfsense:// protocol
-if (process.defaultApp) {
-  if (process.argv.length >= 2) {
-    app.setAsDefaultProtocolClient(PROTOCOL, process.execPath, [path.resolve(process.argv[1])]);
-  }
-} else {
-  app.setAsDefaultProtocolClient(PROTOCOL);
-}
 
 function setupAutoUpdater() {
   if (isDev) return;
@@ -136,11 +85,7 @@ app.whenReady().then(async () => {
   createMainWindow();
   setupAutoUpdater();
 
-  // If a deep link was received before the window was ready, handle it now
-  if (deepLinkUrl) {
-    handleDeepLink(deepLinkUrl);
-    deepLinkUrl = null;
-  }
+  handlePendingDeepLink();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
