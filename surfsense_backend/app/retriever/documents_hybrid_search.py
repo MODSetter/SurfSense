@@ -1,3 +1,4 @@
+import contextlib
 import time
 from datetime import datetime
 
@@ -205,10 +206,8 @@ class DocumentHybridSearchRetriever:
             doc_type_enums = []
             for dt in type_list:
                 if isinstance(dt, str):
-                    try:
+                    with contextlib.suppress(KeyError):
                         doc_type_enums.append(DocumentType[dt])
-                    except KeyError:
-                        pass
                 else:
                     doc_type_enums.append(dt)
             if not doc_type_enums:

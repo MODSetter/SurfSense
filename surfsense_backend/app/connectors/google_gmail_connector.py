@@ -88,11 +88,12 @@ class GoogleGmailConnector:
         """
         has_standard_refresh = bool(self._credentials.refresh_token)
 
-        if has_standard_refresh:
-            if not all([self._credentials.client_id, self._credentials.client_secret]):
-                raise ValueError(
-                    "Google OAuth credentials (client_id, client_secret) must be set"
-                )
+        if has_standard_refresh and not all(
+            [self._credentials.client_id, self._credentials.client_secret]
+        ):
+            raise ValueError(
+                "Google OAuth credentials (client_id, client_secret) must be set"
+            )
 
         if self._credentials and not self._credentials.expired:
             return self._credentials

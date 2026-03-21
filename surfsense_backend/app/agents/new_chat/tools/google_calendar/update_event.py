@@ -178,7 +178,7 @@ def create_update_calendar_event_tool(
 
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
-            _CALENDAR_TYPES = [
+            _calendar_types = [
                 SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
             ]
@@ -188,7 +188,7 @@ def create_update_calendar_event_tool(
                     SearchSourceConnector.id == final_connector_id,
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type.in_(_CALENDAR_TYPES),
+                    SearchSourceConnector.connector_type.in_(_calendar_types),
                 )
             )
             connector = result.scalars().first()

@@ -204,8 +204,8 @@ export function LayoutShell({
 							onChatArchive={onChatArchive}
 							onViewAllSharedChats={onViewAllSharedChats}
 							onViewAllPrivateChats={onViewAllPrivateChats}
-						isSharedChatsPanelOpen={activeSlideoutPanel === "shared"}
-						isPrivateChatsPanelOpen={activeSlideoutPanel === "private"}
+							isSharedChatsPanelOpen={activeSlideoutPanel === "shared"}
+							isPrivateChatsPanelOpen={activeSlideoutPanel === "private"}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -217,92 +217,92 @@ export function LayoutShell({
 							isLoadingChats={isLoadingChats}
 						/>
 
-					<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-						{children}
-					</main>
+						<main className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+							{children}
+						</main>
 
-					{/* Mobile unified slide-out panel */}
-					<SidebarSlideOutPanel
-						open={anySlideOutOpen}
-						onOpenChange={closeSlideout}
-						ariaLabel={panelAriaLabel}
-					>
-						<AnimatePresence mode="popLayout" initial={false}>
-							{activeSlideoutPanel === "inbox" && inbox && (
-								<motion.div
-									key="inbox"
-									className="h-full flex flex-col"
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
-									transition={{ duration: 0.15 }}
-								>
-									<InboxSidebarContent
-										onOpenChange={(open) => closeSlideout(open)}
-										comments={inbox.comments}
-										status={inbox.status}
-										totalUnreadCount={inbox.totalUnreadCount}
-										onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-									/>
-								</motion.div>
-							)}
-							{activeSlideoutPanel === "announcements" && (
-								<motion.div
-									key="announcements"
-									className="h-full flex flex-col"
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
-									transition={{ duration: 0.15 }}
-								>
-									<AnnouncementsSidebarContent
-										onOpenChange={(open) => closeSlideout(open)}
-										onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-									/>
-								</motion.div>
-							)}
-							{activeSlideoutPanel === "shared" && allSharedChatsPanel && (
-								<motion.div
-									key="shared"
-									className="h-full flex flex-col"
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
-									transition={{ duration: 0.15 }}
-								>
-									<AllSharedChatsSidebarContent
-										onOpenChange={(open) => closeSlideout(open)}
-										searchSpaceId={allSharedChatsPanel.searchSpaceId}
-										onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-									/>
-								</motion.div>
-							)}
-							{activeSlideoutPanel === "private" && allPrivateChatsPanel && (
-								<motion.div
-									key="private"
-									className="h-full flex flex-col"
-									initial={{ opacity: 0 }}
-									animate={{ opacity: 1 }}
-									exit={{ opacity: 0 }}
-									transition={{ duration: 0.15 }}
-								>
-									<AllPrivateChatsSidebarContent
-										onOpenChange={(open) => closeSlideout(open)}
-										searchSpaceId={allPrivateChatsPanel.searchSpaceId}
-										onCloseMobileSidebar={() => setMobileMenuOpen(false)}
-									/>
-								</motion.div>
-							)}
-						</AnimatePresence>
-					</SidebarSlideOutPanel>
+						{/* Mobile unified slide-out panel */}
+						<SidebarSlideOutPanel
+							open={anySlideOutOpen}
+							onOpenChange={closeSlideout}
+							ariaLabel={panelAriaLabel}
+						>
+							<AnimatePresence mode="popLayout" initial={false}>
+								{activeSlideoutPanel === "inbox" && inbox && (
+									<motion.div
+										key="inbox"
+										className="h-full flex flex-col"
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										exit={{ opacity: 0 }}
+										transition={{ duration: 0.15 }}
+									>
+										<InboxSidebarContent
+											onOpenChange={(open) => closeSlideout(open)}
+											comments={inbox.comments}
+											status={inbox.status}
+											totalUnreadCount={inbox.totalUnreadCount}
+											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+										/>
+									</motion.div>
+								)}
+								{activeSlideoutPanel === "announcements" && (
+									<motion.div
+										key="announcements"
+										className="h-full flex flex-col"
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										exit={{ opacity: 0 }}
+										transition={{ duration: 0.15 }}
+									>
+										<AnnouncementsSidebarContent
+											onOpenChange={(open) => closeSlideout(open)}
+											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+										/>
+									</motion.div>
+								)}
+								{activeSlideoutPanel === "shared" && allSharedChatsPanel && (
+									<motion.div
+										key="shared"
+										className="h-full flex flex-col"
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										exit={{ opacity: 0 }}
+										transition={{ duration: 0.15 }}
+									>
+										<AllSharedChatsSidebarContent
+											onOpenChange={(open) => closeSlideout(open)}
+											searchSpaceId={allSharedChatsPanel.searchSpaceId}
+											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+										/>
+									</motion.div>
+								)}
+								{activeSlideoutPanel === "private" && allPrivateChatsPanel && (
+									<motion.div
+										key="private"
+										className="h-full flex flex-col"
+										initial={{ opacity: 0 }}
+										animate={{ opacity: 1 }}
+										exit={{ opacity: 0 }}
+										transition={{ duration: 0.15 }}
+									>
+										<AllPrivateChatsSidebarContent
+											onOpenChange={(open) => closeSlideout(open)}
+											searchSpaceId={allPrivateChatsPanel.searchSpaceId}
+											onCloseMobileSidebar={() => setMobileMenuOpen(false)}
+										/>
+									</motion.div>
+								)}
+							</AnimatePresence>
+						</SidebarSlideOutPanel>
 
-					{/* Mobile Documents Sidebar - separate (not part of slide-out group) */}
-					{documentsPanel && (
-						<DocumentsSidebar
-							open={documentsPanel.open}
-							onOpenChange={documentsPanel.onOpenChange}
-						/>
-					)}
+						{/* Mobile Documents Sidebar - separate (not part of slide-out group) */}
+						{documentsPanel && (
+							<DocumentsSidebar
+								open={documentsPanel.open}
+								onOpenChange={documentsPanel.onOpenChange}
+							/>
+						)}
 					</div>
 				</TooltipProvider>
 			</SidebarProvider>
@@ -402,9 +402,7 @@ export function LayoutShell({
 										exit={{ opacity: 0 }}
 										transition={{ duration: 0.15 }}
 									>
-										<AnnouncementsSidebarContent
-											onOpenChange={(open) => closeSlideout(open)}
-										/>
+										<AnnouncementsSidebarContent onOpenChange={(open) => closeSlideout(open)} />
 									</motion.div>
 								)}
 								{activeSlideoutPanel === "shared" && allSharedChatsPanel && (

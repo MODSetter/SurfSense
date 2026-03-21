@@ -15,11 +15,11 @@ pytestmark = pytest.mark.unit
 
 
 @patch("app.services.composio_service.ComposioService")
-def test_returns_credentials_with_token_and_expiry(MockComposioService):
+def test_returns_credentials_with_token_and_expiry(mock_composio_service):
     """build_composio_credentials returns a Credentials object with the Composio access token."""
     mock_service = MagicMock()
     mock_service.get_access_token.return_value = "fake-access-token"
-    MockComposioService.return_value = mock_service
+    mock_composio_service.return_value = mock_service
 
     from app.utils.google_credentials import build_composio_credentials
 
@@ -32,14 +32,14 @@ def test_returns_credentials_with_token_and_expiry(MockComposioService):
 
 
 @patch("app.services.composio_service.ComposioService")
-def test_refresh_handler_fetches_fresh_token(MockComposioService):
+def test_refresh_handler_fetches_fresh_token(mock_composio_service):
     """The refresh_handler on the returned Credentials fetches a new token from Composio."""
     mock_service = MagicMock()
     mock_service.get_access_token.side_effect = [
         "initial-token",
         "refreshed-token",
     ]
-    MockComposioService.return_value = mock_service
+    mock_composio_service.return_value = mock_service
 
     from app.utils.google_credentials import build_composio_credentials
 

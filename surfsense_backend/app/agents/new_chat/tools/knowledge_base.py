@@ -9,6 +9,7 @@ This module provides:
 """
 
 import asyncio
+import contextlib
 import json
 import re
 import time
@@ -89,10 +90,8 @@ async def _browse_recent_documents(
         doc_type_enums = []
         for dt in type_list:
             if isinstance(dt, str):
-                try:
+                with contextlib.suppress(KeyError):
                     doc_type_enums.append(DocumentType[dt])
-                except KeyError:
-                    pass
             else:
                 doc_type_enums.append(dt)
         if not doc_type_enums:

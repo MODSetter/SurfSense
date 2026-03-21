@@ -208,7 +208,7 @@ async def test_drive_client_uses_prebuilt_composio_credentials(mock_build):
         credentials=creds,
     )
 
-    files, next_token, error = await client.list_files()
+    files, _next_token, error = await client.list_files()
 
     assert error is None
     assert files == []

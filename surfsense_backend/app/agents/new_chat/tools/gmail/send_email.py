@@ -145,7 +145,7 @@ def create_send_gmail_email_tool(
 
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
-            _GMAIL_TYPES = [
+            _gmail_types = [
                 SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
                 SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
             ]
@@ -156,7 +156,7 @@ def create_send_gmail_email_tool(
                         SearchSourceConnector.id == final_connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type.in_(_GMAIL_TYPES),
+                        SearchSourceConnector.connector_type.in_(_gmail_types),
                     )
                 )
                 connector = result.scalars().first()
@@ -171,7 +171,7 @@ def create_send_gmail_email_tool(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type.in_(_GMAIL_TYPES),
+                        SearchSourceConnector.connector_type.in_(_gmail_types),
                     )
                 )
                 connector = result.scalars().first()

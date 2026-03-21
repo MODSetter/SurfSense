@@ -225,7 +225,9 @@ class GmailToolMetadataService:
                         service = build("gmail", "v1", credentials=creds)
                         profile = await asyncio.get_event_loop().run_in_executor(
                             None,
-                            lambda: service.users().getProfile(userId="me").execute(),
+                            lambda service=service: (
+                                service.users().getProfile(userId="me").execute()
+                            ),
                         )
                         acc_dict["email"] = profile.get("emailAddress", "")
                 except Exception:
@@ -334,7 +336,9 @@ class GmailToolMetadataService:
                     kwargs["pageToken"] = page_token
                 response = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: service.users().drafts().list(**kwargs).execute(),
+                    lambda kwargs=kwargs: (
+                        service.users().drafts().list(**kwargs).execute()
+                    ),
                 )
                 for draft in response.get("drafts", []):
                     if draft.get("message", {}).get("id") == message_id:

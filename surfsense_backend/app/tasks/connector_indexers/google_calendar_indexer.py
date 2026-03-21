@@ -16,15 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.connectors.google_calendar_connector import GoogleCalendarConnector
 from app.db import Document, DocumentStatus, DocumentType, SearchSourceConnectorType
-from app.utils.google_credentials import (
-    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
-    build_composio_credentials,
-)
-
-ACCEPTED_CALENDAR_CONNECTOR_TYPES = {
-    SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
-    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
-}
 from app.services.llm_service import get_user_long_context_llm
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
@@ -33,6 +24,10 @@ from app.utils.document_converters import (
     generate_content_hash,
     generate_document_summary,
     generate_unique_identifier_hash,
+)
+from app.utils.google_credentials import (
+    COMPOSIO_GOOGLE_CONNECTOR_TYPES,
+    build_composio_credentials,
 )
 
 from .base import (
@@ -45,6 +40,11 @@ from .base import (
     safe_set_chunks,
     update_connector_last_indexed,
 )
+
+ACCEPTED_CALENDAR_CONNECTOR_TYPES = {
+    SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR,
+    SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
+}
 
 # Type hint for heartbeat callback
 HeartbeatCallbackType = Callable[[int], Awaitable[None]]

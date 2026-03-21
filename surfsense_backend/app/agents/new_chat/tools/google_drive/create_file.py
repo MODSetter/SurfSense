@@ -166,7 +166,7 @@ def create_create_google_drive_file_tool(
 
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
-            _DRIVE_TYPES = [
+            _drive_types = [
                 SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
                 SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
             ]
@@ -177,7 +177,7 @@ def create_create_google_drive_file_tool(
                         SearchSourceConnector.id == final_connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type.in_(_DRIVE_TYPES),
+                        SearchSourceConnector.connector_type.in_(_drive_types),
                     )
                 )
                 connector = result.scalars().first()
@@ -192,7 +192,7 @@ def create_create_google_drive_file_tool(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type.in_(_DRIVE_TYPES),
+                        SearchSourceConnector.connector_type.in_(_drive_types),
                     )
                 )
                 connector = result.scalars().first()

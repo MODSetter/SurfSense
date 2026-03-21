@@ -192,7 +192,7 @@ def create_update_gmail_draft_tool(
 
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
-            _GMAIL_TYPES = [
+            _gmail_types = [
                 SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
                 SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
             ]
@@ -202,7 +202,7 @@ def create_update_gmail_draft_tool(
                     SearchSourceConnector.id == final_connector_id,
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type.in_(_GMAIL_TYPES),
+                    SearchSourceConnector.connector_type.in_(_gmail_types),
                 )
             )
             connector = result.scalars().first()
@@ -419,7 +419,9 @@ async def _find_draft_id_by_message(gmail_service: Any, message_id: str) -> str 
 
             response = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: gmail_service.users().drafts().list(**kwargs).execute(),
+                lambda kwargs=kwargs: (
+                    gmail_service.users().drafts().list(**kwargs).execute()
+                ),
             )
 
             for draft in response.get("drafts", []):

@@ -24,6 +24,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getDocumentTypeLabel } from "@/app/dashboard/[search_space_id]/documents/(manage)/components/DocumentTypeIcon";
 import { setTargetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { convertRenderedToDisplay } from "@/components/chat-comments/comment-item/comment-item";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -43,7 +44,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {

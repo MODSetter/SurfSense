@@ -23,7 +23,7 @@ async def test_search_google_drive_includes_legacy_composio_docs(
 
     async with patched_session_factory() as session:
         service = ConnectorService(session, search_space_id=space_id)
-        result_object, raw_docs = await service.search_google_drive(
+        _, raw_docs = await service.search_google_drive(
             user_query="quarterly budget",
             search_space_id=space_id,
             top_k=10,
@@ -55,7 +55,7 @@ async def test_search_files_does_not_include_google_types(
 
     async with patched_session_factory() as session:
         service = ConnectorService(session, search_space_id=space_id)
-        result_object, raw_docs = await service.search_files(
+        _, raw_docs = await service.search_files(
             user_query="quarterly budget",
             search_space_id=space_id,
             top_k=10,
