@@ -53,6 +53,7 @@ interface InterruptResult {
 interface SuccessResult {
 	status: "success";
 	page_id: string;
+	page_url?: string;
 	message?: string;
 }
 
@@ -436,10 +437,21 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4 space-y-2 text-xs">
-				<div>
-					<span className="font-medium text-muted-foreground">Page ID: </span>
-					<span>{result.page_id}</span>
-				</div>
+				{result.page_url ? (
+					<a
+						href={result.page_url}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+					>
+						Open in Confluence
+					</a>
+				) : (
+					<div>
+						<span className="font-medium text-muted-foreground">Page ID: </span>
+						<span>{result.page_id}</span>
+					</div>
+				)}
 			</div>
 		</div>
 	);
