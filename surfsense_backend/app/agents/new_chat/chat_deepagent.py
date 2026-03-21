@@ -335,6 +335,32 @@ async def create_surfsense_deep_agent(
         ]
         modified_disabled_tools.extend(gmail_tools)
 
+    # Disable Jira action tools if no Jira connector is configured
+    has_jira_connector = (
+        available_connectors is not None
+        and "JIRA_CONNECTOR" in available_connectors
+    )
+    if not has_jira_connector:
+        jira_tools = [
+            "create_jira_issue",
+            "update_jira_issue",
+            "delete_jira_issue",
+        ]
+        modified_disabled_tools.extend(jira_tools)
+
+    # Disable Confluence action tools if no Confluence connector is configured
+    has_confluence_connector = (
+        available_connectors is not None
+        and "CONFLUENCE_CONNECTOR" in available_connectors
+    )
+    if not has_confluence_connector:
+        confluence_tools = [
+            "create_confluence_page",
+            "update_confluence_page",
+            "delete_confluence_page",
+        ]
+        modified_disabled_tools.extend(confluence_tools)
+
     # Build tools using the async registry (includes MCP tools)
     _t0 = time.perf_counter()
     tools = await build_tools_async(

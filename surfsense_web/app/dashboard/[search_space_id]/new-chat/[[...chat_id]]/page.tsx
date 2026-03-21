@@ -57,6 +57,16 @@ import {
 	DeleteGoogleDriveFileToolUI,
 } from "@/components/tool-ui/google-drive";
 import {
+	CreateJiraIssueToolUI,
+	DeleteJiraIssueToolUI,
+	UpdateJiraIssueToolUI,
+} from "@/components/tool-ui/jira";
+import {
+	CreateConfluencePageToolUI,
+	DeleteConfluencePageToolUI,
+	UpdateConfluencePageToolUI,
+} from "@/components/tool-ui/confluence";
+import {
 	CreateLinearIssueToolUI,
 	DeleteLinearIssueToolUI,
 	UpdateLinearIssueToolUI,
@@ -197,6 +207,12 @@ const TOOLS_WITH_UI = new Set([
 	"update_gmail_draft",
 	"send_gmail_email",
 	"trash_gmail_email",
+	"create_jira_issue",
+	"update_jira_issue",
+	"delete_jira_issue",
+	"create_confluence_page",
+	"update_confluence_page",
+	"delete_confluence_page",
 	"execute",
 	// "write_todos", // Disabled for now
 ]);
@@ -1723,6 +1739,12 @@ export default function NewChatPage() {
 			<UpdateGmailDraftToolUI />
 			<SendGmailEmailToolUI />
 			<TrashGmailEmailToolUI />
+			<CreateJiraIssueToolUI />
+			<UpdateJiraIssueToolUI />
+			<DeleteJiraIssueToolUI />
+			<CreateConfluencePageToolUI />
+			<UpdateConfluencePageToolUI />
+			<DeleteConfluencePageToolUI />
 			<SandboxExecuteToolUI />
 			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">

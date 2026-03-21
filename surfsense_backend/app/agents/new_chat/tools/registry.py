@@ -70,6 +70,16 @@ from .linear import (
 )
 from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
+from .jira import (
+    create_create_jira_issue_tool,
+    create_delete_jira_issue_tool,
+    create_update_jira_issue_tool,
+)
+from .confluence import (
+    create_create_confluence_page_tool,
+    create_delete_confluence_page_tool,
+    create_update_confluence_page_tool,
+)
 from .notion import (
     create_create_notion_page_tool,
     create_delete_notion_page_tool,
@@ -419,6 +429,74 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="update_gmail_draft",
         description="Update an existing Gmail draft",
         factory=lambda deps: create_update_gmail_draft_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # JIRA TOOLS - create, update, delete issues
+    # Auto-disabled when no Jira connector is configured (see chat_deepagent.py)
+    # =========================================================================
+    ToolDefinition(
+        name="create_jira_issue",
+        description="Create a new issue in the user's Jira project",
+        factory=lambda deps: create_create_jira_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_jira_issue",
+        description="Update an existing indexed Jira issue",
+        factory=lambda deps: create_update_jira_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_jira_issue",
+        description="Delete an existing indexed Jira issue",
+        factory=lambda deps: create_delete_jira_issue_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    # =========================================================================
+    # CONFLUENCE TOOLS - create, update, delete pages
+    # Auto-disabled when no Confluence connector is configured (see chat_deepagent.py)
+    # =========================================================================
+    ToolDefinition(
+        name="create_confluence_page",
+        description="Create a new page in the user's Confluence space",
+        factory=lambda deps: create_create_confluence_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="update_confluence_page",
+        description="Update an existing indexed Confluence page",
+        factory=lambda deps: create_update_confluence_page_tool(
+            db_session=deps["db_session"],
+            search_space_id=deps["search_space_id"],
+            user_id=deps["user_id"],
+        ),
+        requires=["db_session", "search_space_id", "user_id"],
+    ),
+    ToolDefinition(
+        name="delete_confluence_page",
+        description="Delete an existing indexed Confluence page",
+        factory=lambda deps: create_delete_confluence_page_tool(
             db_session=deps["db_session"],
             search_space_id=deps["search_space_id"],
             user_id=deps["user_id"],

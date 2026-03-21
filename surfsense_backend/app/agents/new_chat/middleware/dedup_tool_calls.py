@@ -30,6 +30,10 @@ _HITL_TOOL_DEDUP_KEYS: dict[str, str] = {
     "update_notion_page": "page_title",
     "delete_linear_issue": "issue_ref",
     "update_linear_issue": "issue_ref",
+    "update_jira_issue": "issue_title_or_key",
+    "delete_jira_issue": "issue_title_or_key",
+    "update_confluence_page": "page_title_or_id",
+    "delete_confluence_page": "page_title_or_id",
 }
 
 

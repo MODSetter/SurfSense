@@ -341,6 +341,65 @@ class ConfluenceHistoryConnector:
             logger.error(f"Confluence API request error: {e!s}", exc_info=True)
             raise Exception(f"Confluence API request failed: {e!s}") from e
 
+    async def _make_api_request_with_method(
+        self,
+        endpoint: str,
+        method: str = "GET",
+        json_payload: dict[str, Any] | None = None,
+        params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Make a request to the Confluence API with a specified HTTP method."""
+        if not self._use_oauth:
+            raise ValueError("Write operations require OAuth authentication")
+
+        token = await self._get_valid_token()
+        base_url = await self._get_base_url()
+        http_client = await self._get_client()
+
+        url = f"{base_url}/wiki/api/v2/{endpoint}"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+        }
+
+        try:
+            method_upper = method.upper()
+            if method_upper == "POST":
+                response = await http_client.post(
+                    url, headers=headers, json=json_payload, params=params
+                )
+            elif method_upper == "PUT":
+                response = await http_client.put(
+                    url, headers=headers, json=json_payload, params=params
+                )
+            elif method_upper == "DELETE":
+                response = await http_client.delete(
+                    url, headers=headers, params=params
+                )
+            else:
+                response = await http_client.get(
+                    url, headers=headers, params=params
+                )
+
+            response.raise_for_status()
+            if response.status_code == 204 or not response.text:
+                return {"status": "success"}
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            error_detail = {
+                "status_code": e.response.status_code,
+                "url": str(e.request.url),
+                "response_text": e.response.text,
+            }
+            logger.error(f"Confluence API HTTP error: {error_detail}")
+            raise Exception(
+                f"Confluence API request failed (HTTP {e.response.status_code}): {e.response.text}"
+            ) from e
+        except httpx.RequestError as e:
+            logger.error(f"Confluence API request error: {e!s}", exc_info=True)
+            raise Exception(f"Confluence API request failed: {e!s}") from e
+
     async def get_all_spaces(self) -> list[dict[str, Any]]:
         """
         Fetch all spaces from Confluence.
@@ -592,6 +651,65 @@ class ConfluenceHistoryConnector:
 
         except Exception as e:
             return [], f"Error fetching pages: {e!s}"
+
+    async def get_page(self, page_id: str) -> dict[str, Any]:
+        """Fetch a single page by ID with body content."""
+        return await self._make_api_request(
+            f"pages/{page_id}", params={"body-format": "storage"}
+        )
+
+    async def create_page(
+        self,
+        space_id: str,
+        title: str,
+        body: str,
+        parent_page_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Create a new Confluence page."""
+        payload: dict[str, Any] = {
+            "spaceId": space_id,
+            "title": title,
+            "body": {
+                "representation": "storage",
+                "value": body,
+            },
+            "status": "current",
+        }
+        if parent_page_id:
+            payload["parentId"] = parent_page_id
+        return await self._make_api_request_with_method(
+            "pages", method="POST", json_payload=payload
+        )
+
+    async def update_page(
+        self,
+        page_id: str,
+        title: str,
+        body: str,
+        version_number: int,
+    ) -> dict[str, Any]:
+        """Update an existing Confluence page (requires version number)."""
+        payload: dict[str, Any] = {
+            "id": page_id,
+            "title": title,
+            "body": {
+                "representation": "storage",
+                "value": body,
+            },
+            "version": {
+                "number": version_number,
+            },
+            "status": "current",
+        }
+        return await self._make_api_request_with_method(
+            f"pages/{page_id}", method="PUT", json_payload=payload
+        )
+
+    async def delete_page(self, page_id: str) -> dict[str, Any]:
+        """Delete a Confluence page."""
+        return await self._make_api_request_with_method(
+            f"pages/{page_id}", method="DELETE"
+        )
 
     async def close(self):
         """Close the HTTP client connection."""
