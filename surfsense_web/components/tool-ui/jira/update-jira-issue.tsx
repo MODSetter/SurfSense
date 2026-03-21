@@ -67,6 +67,7 @@ interface InterruptResult {
 interface SuccessResult {
 	status: "success";
 	issue_key: string;
+	issue_url?: string;
 	message?: string;
 }
 
@@ -532,10 +533,21 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4 space-y-2 text-xs">
-				<div>
-					<span className="font-medium text-muted-foreground">Issue Key: </span>
-					<span>{result.issue_key}</span>
-				</div>
+				{result.issue_url ? (
+					<a
+						href={result.issue_url}
+						target="_blank"
+						rel="noopener noreferrer"
+						className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
+					>
+						Open in Jira
+					</a>
+				) : (
+					<div>
+						<span className="font-medium text-muted-foreground">Issue Key: </span>
+						<span>{result.issue_key}</span>
+					</div>
+				)}
 			</div>
 		</div>
 	);

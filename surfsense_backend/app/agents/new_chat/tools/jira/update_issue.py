@@ -199,6 +199,12 @@ def create_update_jira_issue_tool(
                     }
                 raise
 
+            issue_url = (
+                f"{jira_history._base_url}/browse/{final_issue_key}"
+                if jira_history._base_url and final_issue_key
+                else ""
+            )
+
             kb_message_suffix = ""
             if final_document_id:
                 try:
@@ -228,6 +234,7 @@ def create_update_jira_issue_tool(
             return {
                 "status": "success",
                 "issue_key": final_issue_key,
+                "issue_url": issue_url,
                 "message": f"Jira issue {final_issue_key} updated successfully.{kb_message_suffix}",
             }
 

@@ -192,6 +192,11 @@ def create_create_jira_issue_tool(
                 raise
 
             issue_key = api_result.get("key", "")
+            issue_url = (
+                f"{jira_history._base_url}/browse/{issue_key}"
+                if jira_history._base_url and issue_key
+                else ""
+            )
 
             kb_message_suffix = ""
             try:
@@ -219,6 +224,7 @@ def create_create_jira_issue_tool(
             return {
                 "status": "success",
                 "issue_key": issue_key,
+                "issue_url": issue_url,
                 "message": f"Jira issue {issue_key} created successfully.{kb_message_suffix}",
             }
 
