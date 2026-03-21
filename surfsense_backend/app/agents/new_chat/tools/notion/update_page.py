@@ -281,7 +281,9 @@ def create_update_notion_page_tool(
                 return {
                     "status": "auth_error",
                     "message": str(e),
-                    "connector_id": connector_id_from_context if "connector_id_from_context" in dir() else None,
+                    "connector_id": connector_id_from_context
+                    if "connector_id_from_context" in dir()
+                    else None,
                     "connector_type": "notion",
                 }
             if isinstance(e, ValueError | NotionAPIError):

@@ -64,7 +64,9 @@ async def test_gmail_accepts_valid_composio_credentials(mock_build):
     mock_build.return_value = mock_service
 
     connector = GoogleGmailConnector(
-        creds, session=MagicMock(), user_id="test-user",
+        creds,
+        session=MagicMock(),
+        user_id="test-user",
     )
 
     profile, error = await connector.get_user_profile()
@@ -76,7 +78,9 @@ async def test_gmail_accepts_valid_composio_credentials(mock_build):
 
 @patch("app.connectors.google_gmail_connector.Request")
 @patch("app.connectors.google_gmail_connector.build")
-async def test_gmail_refreshes_expired_composio_credentials(mock_build, mock_request_cls):
+async def test_gmail_refreshes_expired_composio_credentials(
+    mock_build, mock_request_cls
+):
     """GoogleGmailConnector handles expired Composio credentials via refresh_handler
     without attempting DB persistence."""
     from app.connectors.google_gmail_connector import GoogleGmailConnector
@@ -95,7 +99,9 @@ async def test_gmail_refreshes_expired_composio_credentials(mock_build, mock_req
 
     mock_session = AsyncMock()
     connector = GoogleGmailConnector(
-        creds, session=mock_session, user_id="test-user",
+        creds,
+        session=mock_session,
+        user_id="test-user",
     )
 
     profile, error = await connector.get_user_profile()
@@ -128,7 +134,9 @@ async def test_calendar_accepts_valid_composio_credentials(mock_build):
     mock_build.return_value = mock_service
 
     connector = GoogleCalendarConnector(
-        creds, session=MagicMock(), user_id="test-user",
+        creds,
+        session=MagicMock(),
+        user_id="test-user",
     )
 
     calendars, error = await connector.get_calendars()
@@ -141,7 +149,9 @@ async def test_calendar_accepts_valid_composio_credentials(mock_build):
 
 @patch("app.connectors.google_calendar_connector.Request")
 @patch("app.connectors.google_calendar_connector.build")
-async def test_calendar_refreshes_expired_composio_credentials(mock_build, mock_request_cls):
+async def test_calendar_refreshes_expired_composio_credentials(
+    mock_build, mock_request_cls
+):
     """GoogleCalendarConnector handles expired Composio credentials via refresh_handler
     without attempting DB persistence."""
     from app.connectors.google_calendar_connector import GoogleCalendarConnector
@@ -157,7 +167,9 @@ async def test_calendar_refreshes_expired_composio_credentials(mock_build, mock_
 
     mock_session = AsyncMock()
     connector = GoogleCalendarConnector(
-        creds, session=mock_session, user_id="test-user",
+        creds,
+        session=mock_session,
+        user_id="test-user",
     )
 
     calendars, error = await connector.get_calendars()
@@ -191,7 +203,9 @@ async def test_drive_client_uses_prebuilt_composio_credentials(mock_build):
     mock_build.return_value = mock_service
 
     client = GoogleDriveClient(
-        session=MagicMock(), connector_id=999, credentials=creds,
+        session=MagicMock(),
+        connector_id=999,
+        credentials=creds,
     )
 
     files, next_token, error = await client.list_files()
@@ -218,7 +232,9 @@ async def test_drive_client_prebuilt_creds_skip_db_loading(mock_build, mock_get_
     mock_build.return_value = mock_service
 
     client = GoogleDriveClient(
-        session=MagicMock(), connector_id=999, credentials=creds,
+        session=MagicMock(),
+        connector_id=999,
+        credentials=creds,
     )
 
     await client.list_files()

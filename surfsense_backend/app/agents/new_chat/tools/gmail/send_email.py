@@ -56,9 +56,7 @@ def create_send_gmail_email_tool(
             - "Send an email to alice@example.com about the meeting"
             - "Email Bob the project update"
         """
-        logger.info(
-            f"send_gmail_email called: to='{to}', subject='{subject}'"
-        )
+        logger.info(f"send_gmail_email called: to='{to}', subject='{subject}'")
 
         if db_session is None or search_space_id is None or user_id is None:
             return {
@@ -188,7 +186,10 @@ def create_send_gmail_email_tool(
                 f"Sending Gmail email: to='{final_to}', subject='{final_subject}', connector={actual_connector_id}"
             )
 
-            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR:
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+            ):
                 from app.utils.google_credentials import build_composio_credentials
 
                 cca_id = connector.config.get("composio_connected_account_id")
@@ -252,10 +253,12 @@ def create_send_gmail_email_tool(
             try:
                 sent = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: gmail_service.users()
-                    .messages()
-                    .send(userId="me", body={"raw": raw})
-                    .execute(),
+                    lambda: (
+                        gmail_service.users()
+                        .messages()
+                        .send(userId="me", body={"raw": raw})
+                        .execute()
+                    ),
                 )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError

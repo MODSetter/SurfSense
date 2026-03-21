@@ -121,13 +121,13 @@ async def index_google_drive_files(
         # Build credentials based on connector type
         pre_built_credentials = None
         if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
-            connected_account_id = connector.config.get(
-                "composio_connected_account_id"
-            )
+            connected_account_id = connector.config.get("composio_connected_account_id")
             if not connected_account_id:
                 error_msg = f"Composio connected_account_id not found for connector {connector_id}"
                 await task_logger.log_task_failure(
-                    log_entry, error_msg, "Missing Composio account",
+                    log_entry,
+                    error_msg,
+                    "Missing Composio account",
                     {"error_type": "MissingComposioAccount"},
                 )
                 return 0, 0, error_msg
@@ -355,13 +355,13 @@ async def index_google_drive_single_file(
 
         pre_built_credentials = None
         if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
-            connected_account_id = connector.config.get(
-                "composio_connected_account_id"
-            )
+            connected_account_id = connector.config.get("composio_connected_account_id")
             if not connected_account_id:
                 error_msg = f"Composio connected_account_id not found for connector {connector_id}"
                 await task_logger.log_task_failure(
-                    log_entry, error_msg, "Missing Composio account",
+                    log_entry,
+                    error_msg,
+                    "Missing Composio account",
                     {"error_type": "MissingComposioAccount"},
                 )
                 return 0, error_msg
@@ -611,7 +611,11 @@ async def _index_full_scan(
 
     if not files_to_process and first_listing_error:
         error_lower = first_listing_error.lower()
-        if "401" in first_listing_error or "invalid credentials" in error_lower or "authError" in first_listing_error:
+        if (
+            "401" in first_listing_error
+            or "invalid credentials" in error_lower
+            or "authError" in first_listing_error
+        ):
             raise Exception(
                 f"Google Drive authentication failed. Please re-authenticate. "
                 f"(Error: {first_listing_error})"
@@ -704,7 +708,11 @@ async def _index_with_delta_sync(
     if error:
         logger.error(f"Error fetching changes: {error}")
         error_lower = error.lower()
-        if "401" in error or "invalid credentials" in error_lower or "authError" in error:
+        if (
+            "401" in error
+            or "invalid credentials" in error_lower
+            or "authError" in error
+        ):
             raise Exception(
                 f"Google Drive authentication failed. Please re-authenticate. "
                 f"(Error: {error})"
@@ -872,7 +880,10 @@ async def _create_pending_document_for_file(
         )
         if existing_document:
             existing_document.unique_identifier_hash = unique_identifier_hash
-            if existing_document.document_type == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+            if (
+                existing_document.document_type
+                == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+            ):
                 existing_document.document_type = DocumentType.GOOGLE_DRIVE_FILE
             logger.info(f"Migrated legacy Composio document to native type: {file_id}")
 
@@ -984,10 +995,12 @@ async def _check_rename_only_update(
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
-                Document.document_type.in_([
-                    DocumentType.GOOGLE_DRIVE_FILE,
-                    DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-                ]),
+                Document.document_type.in_(
+                    [
+                        DocumentType.GOOGLE_DRIVE_FILE,
+                        DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]
+                ),
                 cast(Document.document_metadata["google_drive_file_id"], String)
                 == file_id,
             )
@@ -1000,7 +1013,10 @@ async def _check_rename_only_update(
     if existing_document:
         if existing_document.unique_identifier_hash != primary_hash:
             existing_document.unique_identifier_hash = primary_hash
-        if existing_document.document_type == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+        if (
+            existing_document.document_type
+            == DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+        ):
             existing_document.document_type = DocumentType.GOOGLE_DRIVE_FILE
             logger.info(f"Migrated legacy Composio Drive document: {file_id}")
 
@@ -1232,10 +1248,12 @@ async def _remove_document(session: AsyncSession, file_id: str, search_space_id:
         result = await session.execute(
             select(Document).where(
                 Document.search_space_id == search_space_id,
-                Document.document_type.in_([
-                    DocumentType.GOOGLE_DRIVE_FILE,
-                    DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-                ]),
+                Document.document_type.in_(
+                    [
+                        DocumentType.GOOGLE_DRIVE_FILE,
+                        DocumentType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                    ]
+                ),
                 cast(Document.document_metadata["google_drive_file_id"], String)
                 == file_id,
             )

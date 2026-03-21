@@ -3,9 +3,9 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { CornerDownLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface InterruptResult {
@@ -150,7 +150,15 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [phase, setProcessing, onDecision, interruptData, issue?.id, context?.workspace?.id, deleteFromKb]);
+	}, [
+		phase,
+		setProcessing,
+		onDecision,
+		interruptData,
+		issue?.id,
+		context?.workspace?.id,
+		deleteFromKb,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -174,14 +182,12 @@ function ApprovalCard({
 								? "Linear Issue Deletion Approved"
 								: "Delete Linear Issue"}
 					</p>
-				{phase === "processing" ? (
+					{phase === "processing" ? (
 						<TextShimmerLoader text="Deleting issue" size="sm" />
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">Issue deleted</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Issue deletion was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Issue deletion was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -232,20 +238,20 @@ function ApprovalCard({
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 select-none">
-					<div className="flex items-center gap-2.5">
-						<Checkbox
-							id="linear-delete-from-kb"
-							checked={deleteFromKb}
-							onCheckedChange={(v) => setDeleteFromKb(v === true)}
-							className="shrink-0"
-						/>
-						<label htmlFor="linear-delete-from-kb" className="flex-1 cursor-pointer">
-							<span className="text-sm text-foreground">Also remove from knowledge base</span>
-							<p className="text-xs text-muted-foreground mt-0.5">
-								This will permanently delete the issue from your knowledge base (cannot be undone)
-							</p>
-						</label>
-					</div>
+						<div className="flex items-center gap-2.5">
+							<Checkbox
+								id="linear-delete-from-kb"
+								checked={deleteFromKb}
+								onCheckedChange={(v) => setDeleteFromKb(v === true)}
+								className="shrink-0"
+							/>
+							<label htmlFor="linear-delete-from-kb" className="flex-1 cursor-pointer">
+								<span className="text-sm text-foreground">Also remove from knowledge base</span>
+								<p className="text-xs text-muted-foreground mt-0.5">
+									This will permanently delete the issue from your knowledge base (cannot be undone)
+								</p>
+							</label>
+						</div>
 					</div>
 				</>
 			)}
@@ -254,12 +260,8 @@ function ApprovalCard({
 			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-				<div className="px-5 py-4 flex items-center gap-2 select-none">
-					<Button
-						size="sm"
-						className="rounded-lg gap-1.5"
-						onClick={handleApprove}
-						>
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
+						<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
 							Approve
 							<CornerDownLeftIcon className="size-3 opacity-60" />
 						</Button>
@@ -285,9 +287,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					Linear authentication expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">Linear authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -315,9 +315,7 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-					Issue not found
-				</p>
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Issue not found</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

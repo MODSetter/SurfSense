@@ -14,7 +14,12 @@ import pytest_asyncio
 
 from app.db import SearchSourceConnectorType
 
-from .conftest import cleanup_space, make_session_factory, mock_task_logger, seed_connector
+from .conftest import (
+    cleanup_space,
+    make_session_factory,
+    mock_task_logger,
+    seed_connector,
+)
 
 pytestmark = pytest.mark.integration
 
@@ -129,7 +134,9 @@ async def test_composio_connector_without_account_id_returns_error(
 
     assert count == 0
     assert error is not None
-    assert "composio_connected_account_id" in error.lower() or "composio" in error.lower()
+    assert (
+        "composio_connected_account_id" in error.lower() or "composio" in error.lower()
+    )
     mock_build_creds.assert_not_called()
 
 

@@ -214,11 +214,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 		if (!searchSpaceId) return null;
 
 		return (
-			<Dialog
-				open={isOpen}
-				modal={false}
-				onOpenChange={handleOpenChange}
-			>
+			<Dialog open={isOpen} modal={false} onOpenChange={handleOpenChange}>
 				{showTrigger && (
 					<TooltipIconButton
 						data-joyride="connector-icon"
@@ -354,11 +350,12 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onBack={handleBackFromEdit}
 							onQuickIndex={(() => {
 								const cfg = connectorConfig || editingConnector.config;
-								const isDrive = editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
+								const isDrive =
+									editingConnector.connector_type === "GOOGLE_DRIVE_CONNECTOR" ||
 									editingConnector.connector_type === "COMPOSIO_GOOGLE_DRIVE_CONNECTOR";
 								const hasDriveItems = isDrive
 									? ((cfg?.selected_folders as unknown[]) ?? []).length > 0 ||
-									  ((cfg?.selected_files as unknown[]) ?? []).length > 0
+										((cfg?.selected_files as unknown[]) ?? []).length > 0
 									: true;
 								if (!hasDriveItems) return undefined;
 								return () => {
@@ -376,37 +373,37 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 							onNameChange={setConnectorName}
 						/>
 					) : indexingConfig ? (
-					<IndexingConfigurationView
-						config={indexingConfig}
-						connector={
-							indexingConnector
-								? {
-										...indexingConnector,
-										config: indexingConnectorConfig || indexingConnector.config,
-									}
-								: undefined
-						}
-						startDate={startDate}
-						endDate={endDate}
-						periodicEnabled={periodicEnabled}
-						frequencyMinutes={frequencyMinutes}
-						enableSummary={enableSummary}
-						isStartingIndexing={isStartingIndexing}
-						isFromOAuth={isFromOAuth}
-						onStartDateChange={setStartDate}
-						onEndDateChange={setEndDate}
-						onPeriodicEnabledChange={setPeriodicEnabled}
-						onFrequencyChange={setFrequencyMinutes}
-						onEnableSummaryChange={setEnableSummary}
-						onConfigChange={setIndexingConnectorConfig}
-						onStartIndexing={() => {
-							if (indexingConfig.connectorId) {
-								startIndexing(indexingConfig.connectorId);
+						<IndexingConfigurationView
+							config={indexingConfig}
+							connector={
+								indexingConnector
+									? {
+											...indexingConnector,
+											config: indexingConnectorConfig || indexingConnector.config,
+										}
+									: undefined
 							}
-							handleStartIndexing(() => refreshConnectors());
-						}}
-						onSkip={handleSkipIndexing}
-					/>
+							startDate={startDate}
+							endDate={endDate}
+							periodicEnabled={periodicEnabled}
+							frequencyMinutes={frequencyMinutes}
+							enableSummary={enableSummary}
+							isStartingIndexing={isStartingIndexing}
+							isFromOAuth={isFromOAuth}
+							onStartDateChange={setStartDate}
+							onEndDateChange={setEndDate}
+							onPeriodicEnabledChange={setPeriodicEnabled}
+							onFrequencyChange={setFrequencyMinutes}
+							onEnableSummaryChange={setEnableSummary}
+							onConfigChange={setIndexingConnectorConfig}
+							onStartIndexing={() => {
+								if (indexingConfig.connectorId) {
+									startIndexing(indexingConfig.connectorId);
+								}
+								handleStartIndexing(() => refreshConnectors());
+							}}
+							onSkip={handleSkipIndexing}
+						/>
 					) : (
 						<Tabs
 							value={activeTab}

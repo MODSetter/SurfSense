@@ -186,7 +186,10 @@ def create_trash_gmail_email_tool(
                 f"Trashing Gmail email: message_id='{final_message_id}', connector={final_connector_id}"
             )
 
-            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR:
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+            ):
                 from app.utils.google_credentials import build_composio_credentials
 
                 cca_id = connector.config.get("composio_connected_account_id")
@@ -241,10 +244,12 @@ def create_trash_gmail_email_tool(
             try:
                 await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: gmail_service.users()
-                    .messages()
-                    .trash(userId="me", id=final_message_id)
-                    .execute(),
+                    lambda: (
+                        gmail_service.users()
+                        .messages()
+                        .trash(userId="me", id=final_message_id)
+                        .execute()
+                    ),
                 )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
@@ -257,7 +262,10 @@ def create_trash_gmail_email_tool(
                         from sqlalchemy.orm.attributes import flag_modified
 
                         if not connector.config.get("auth_expired"):
-                            connector.config = {**connector.config, "auth_expired": True}
+                            connector.config = {
+                                **connector.config,
+                                "auth_expired": True,
+                            }
                             flag_modified(connector, "config")
                             await db_session.commit()
                     except Exception:
@@ -273,9 +281,7 @@ def create_trash_gmail_email_tool(
                     }
                 raise
 
-            logger.info(
-                f"Gmail email trashed: message_id={final_message_id}"
-            )
+            logger.info(f"Gmail email trashed: message_id={final_message_id}")
 
             trash_result: dict[str, Any] = {
                 "status": "success",

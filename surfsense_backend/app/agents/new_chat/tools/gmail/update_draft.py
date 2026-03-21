@@ -216,7 +216,10 @@ def create_update_gmail_draft_tool(
                 f"Updating Gmail draft: subject='{final_subject}', connector={final_connector_id}"
             )
 
-            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR:
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+            ):
                 from app.utils.google_credentials import build_composio_credentials
 
                 cca_id = connector.config.get("composio_connected_account_id")
@@ -299,14 +302,16 @@ def create_update_gmail_draft_tool(
             try:
                 updated = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: gmail_service.users()
-                    .drafts()
-                    .update(
-                        userId="me",
-                        id=final_draft_id,
-                        body={"message": {"raw": raw}},
-                    )
-                    .execute(),
+                    lambda: (
+                        gmail_service.users()
+                        .drafts()
+                        .update(
+                            userId="me",
+                            id=final_draft_id,
+                            body={"message": {"raw": raw}},
+                        )
+                        .execute()
+                    ),
                 )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
@@ -369,7 +374,9 @@ def create_update_gmail_draft_tool(
                         document.document_metadata = meta
                         flag_modified(document, "document_metadata")
                         await db_session.commit()
-                        kb_message_suffix = " Your knowledge base has also been updated."
+                        kb_message_suffix = (
+                            " Your knowledge base has also been updated."
+                        )
                         logger.info(
                             f"KB document {document_id} updated for draft {final_draft_id}"
                         )

@@ -190,7 +190,11 @@ class LinearToolMetadataService:
             issue_api = await self._fetch_issue_context(linear_client, issue.id)
         except Exception as e:
             error_str = str(e).lower()
-            if "401" in error_str or "authentication" in error_str or "re-authenticate" in error_str:
+            if (
+                "401" in error_str
+                or "authentication" in error_str
+                or "re-authenticate" in error_str
+            ):
                 return {
                     "error": f"Failed to fetch Linear issue context: {e!s}",
                     "auth_expired": True,

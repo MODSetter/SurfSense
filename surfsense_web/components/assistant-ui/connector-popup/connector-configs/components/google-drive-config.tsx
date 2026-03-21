@@ -231,26 +231,25 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 					</div>
 				)}
 
-		<Button
-			type="button"
-			variant="outline"
-			onClick={openPicker}
-			disabled={pickerLoading || isAuthExpired}
-			className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
-		>
-			{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
-			{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}
-		</Button>
+				<Button
+					type="button"
+					variant="outline"
+					onClick={openPicker}
+					disabled={pickerLoading || isAuthExpired}
+					className="bg-slate-400/5 dark:bg-white/5 border-slate-400/20 hover:bg-slate-400/10 dark:hover:bg-white/10 text-xs sm:text-sm h-8 sm:h-9"
+				>
+					{pickerLoading && <Spinner size="xs" className="mr-1.5" />}
+					{totalSelected > 0 ? "Change Selection" : "Select from Google Drive"}
+				</Button>
 
-		{pickerError && !isAuthExpired && (
-			<p className="text-xs text-destructive">{pickerError}</p>
-		)}
+				{pickerError && !isAuthExpired && <p className="text-xs text-destructive">{pickerError}</p>}
 
-		{isAuthExpired && (
-			<p className="text-xs text-amber-600 dark:text-amber-500">
-				Your Google Drive authentication has expired. Please re-authenticate using the button below.
-			</p>
-		)}
+				{isAuthExpired && (
+					<p className="text-xs text-amber-600 dark:text-amber-500">
+						Your Google Drive authentication has expired. Please re-authenticate using the button
+						below.
+					</p>
+				)}
 			</div>
 
 			{/* Indexing Options */}

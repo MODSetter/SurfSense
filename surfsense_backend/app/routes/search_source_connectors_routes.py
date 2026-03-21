@@ -2374,7 +2374,11 @@ async def run_google_drive_indexing(
         # Index each folder with indexing options
         for folder in items.folders:
             try:
-                indexed_count, skipped_count, error_message = await index_google_drive_files(
+                (
+                    indexed_count,
+                    skipped_count,
+                    error_message,
+                ) = await index_google_drive_files(
                     session,
                     connector_id,
                     search_space_id,
@@ -2429,7 +2433,9 @@ async def run_google_drive_indexing(
             )
             if _is_auth_error(error_message):
                 await _persist_auth_expired(session, connector_id)
-                error_message = "Google Drive authentication expired. Please re-authenticate."
+                error_message = (
+                    "Google Drive authentication expired. Please re-authenticate."
+                )
         else:
             # Update notification to storing stage
             if notification:

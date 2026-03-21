@@ -1,12 +1,12 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	CornerDownLeftIcon,
-	FileIcon,
-	Pen,
-} from "lucide-react";
+import { useSetAtom } from "jotai";
+import { CornerDownLeftIcon, FileIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -15,11 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { PlateEditor } from "@/components/editor/plate-editor";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import { useSetAtom } from "jotai";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface GoogleDriveAccount {
 	id: number;
@@ -139,8 +135,8 @@ function ApprovalCard({
 	const [pendingEdits, setPendingEdits] = useState<{ name: string; content: string } | null>(null);
 
 	const accounts = interruptData.context?.accounts ?? [];
-	const validAccounts = accounts.filter(a => !a.auth_expired);
-	const expiredAccounts = accounts.filter(a => a.auth_expired);
+	const validAccounts = accounts.filter((a) => !a.auth_expired);
+	const expiredAccounts = accounts.filter((a) => a.auth_expired);
 
 	const defaultAccountId = useMemo(() => {
 		if (validAccounts.length === 1) return String(validAccounts[0].id);
@@ -162,7 +158,8 @@ function ApprovalCard({
 		setParentFolderId("__root__");
 	}, []);
 
-	const fileTypeLabel = FILE_TYPE_LABELS[selectedFileType] ?? FILE_TYPE_LABELS[args.file_type] ?? "Google Drive File";
+	const fileTypeLabel =
+		FILE_TYPE_LABELS[selectedFileType] ?? FILE_TYPE_LABELS[args.file_type] ?? "Google Drive File";
 
 	const isNameValid = useMemo(() => {
 		const name = pendingEdits?.name ?? args.name;
@@ -194,7 +191,20 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [phase, setProcessing, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedFileType, selectedAccountId, parentFolderId, pendingEdits]);
+	}, [
+		phase,
+		setProcessing,
+		isPanelOpen,
+		canApprove,
+		allowedDecisions,
+		onDecision,
+		interruptData,
+		args,
+		selectedFileType,
+		selectedAccountId,
+		parentFolderId,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -218,16 +228,17 @@ function ApprovalCard({
 								? `${fileTypeLabel} Approved`
 								: `Create ${fileTypeLabel}`}
 					</p>
-				{phase === "processing" ? (
-						<TextShimmerLoader text={pendingEdits ? "Creating file with your changes" : "Creating file"} size="sm" />
+					{phase === "processing" ? (
+						<TextShimmerLoader
+							text={pendingEdits ? "Creating file with your changes" : "Creating file"}
+							size="sm"
+						/>
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							{pendingEdits ? "File created with your changes" : "File created"}
 						</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							File creation was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">File creation was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -242,8 +253,8 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							openHitlEditPanel({
-								title: pendingEdits?.name ?? (args.name ?? ""),
-								content: pendingEdits?.content ?? (args.content ?? ""),
+								title: pendingEdits?.name ?? args.name ?? "",
+								content: pendingEdits?.content ?? args.content ?? "",
 								toolName: fileTypeLabel,
 								onSave: (newName, newContent) => {
 									setIsPanelOpen(false);
@@ -268,33 +279,33 @@ function ApprovalCard({
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
 							<>
-							{accounts.length > 0 && (
-								<div className="space-y-2">
-									<p className="text-xs font-medium text-muted-foreground">
-										Google Drive Account <span className="text-destructive">*</span>
-									</p>
-									<Select value={selectedAccountId} onValueChange={handleAccountChange}>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select an account" />
-										</SelectTrigger>
-										<SelectContent>
-											{validAccounts.map((account) => (
-												<SelectItem key={account.id} value={String(account.id)}>
-													{account.name}
-												</SelectItem>
-											))}
-											{expiredAccounts.map((a) => (
-												<div
-													key={a.id}
-													className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
-												>
-													{a.name} (expired, retry after re-auth)
-												</div>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							)}
+								{accounts.length > 0 && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">
+											Google Drive Account <span className="text-destructive">*</span>
+										</p>
+										<Select value={selectedAccountId} onValueChange={handleAccountChange}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select an account" />
+											</SelectTrigger>
+											<SelectContent>
+												{validAccounts.map((account) => (
+													<SelectItem key={account.id} value={String(account.id)}>
+														{account.name}
+													</SelectItem>
+												))}
+												{expiredAccounts.map((a) => (
+													<div
+														key={a.id}
+														className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
+													>
+														{a.name} (expired, retry after re-auth)
+													</div>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								)}
 
 								<div className="space-y-2">
 									<p className="text-xs font-medium text-muted-foreground">
@@ -311,31 +322,29 @@ function ApprovalCard({
 									</Select>
 								</div>
 
-							{selectedAccountId && (
-								<div className="space-y-2">
-									<p className="text-xs font-medium text-muted-foreground">
-										Parent Folder
-									</p>
-									<Select value={parentFolderId} onValueChange={setParentFolderId}>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Drive Root" />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="__root__">Drive Root</SelectItem>
-											{availableParentFolders.map((folder) => (
-												<SelectItem key={folder.folder_id} value={folder.folder_id}>
-													{folder.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									{availableParentFolders.length === 0 && (
-										<p className="text-xs text-muted-foreground">
-											No folders found. File will be created at Drive root.
-										</p>
-									)}
-								</div>
-							)}
+								{selectedAccountId && (
+									<div className="space-y-2">
+										<p className="text-xs font-medium text-muted-foreground">Parent Folder</p>
+										<Select value={parentFolderId} onValueChange={setParentFolderId}>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Drive Root" />
+											</SelectTrigger>
+											<SelectContent>
+												<SelectItem value="__root__">Drive Root</SelectItem>
+												{availableParentFolders.map((folder) => (
+													<SelectItem key={folder.folder_id} value={folder.folder_id}>
+														{folder.name}
+													</SelectItem>
+												))}
+											</SelectContent>
+										</Select>
+										{availableParentFolders.length === 0 && (
+											<p className="text-xs text-muted-foreground">
+												No folders found. File will be created at Drive root.
+											</p>
+										)}
+									</div>
+								)}
 							</>
 						)}
 					</div>
@@ -345,9 +354,11 @@ function ApprovalCard({
 			{/* Content preview */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-			{(pendingEdits?.name ?? args.name) != null && (
-				<p className="text-sm font-medium text-foreground">{String(pendingEdits?.name ?? args.name)}</p>
-			)}
+				{(pendingEdits?.name ?? args.name) != null && (
+					<p className="text-sm font-medium text-foreground">
+						{String(pendingEdits?.name ?? args.name)}
+					</p>
+				)}
 				{(pendingEdits?.content ?? args.content) != null && (
 					<div
 						className="mt-2 max-h-[7rem] overflow-hidden text-sm"

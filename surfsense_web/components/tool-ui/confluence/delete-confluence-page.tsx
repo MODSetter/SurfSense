@@ -3,9 +3,9 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { CornerDownLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface InterruptResult {
@@ -132,9 +132,7 @@ function isAuthErrorResult(result: unknown): result is AuthErrorResult {
 	);
 }
 
-function isInsufficientPermissionsResult(
-	result: unknown,
-): result is InsufficientPermissionsResult {
+function isInsufficientPermissionsResult(result: unknown): result is InsufficientPermissionsResult {
 	return (
 		typeof result === "object" &&
 		result !== null &&
@@ -174,7 +172,15 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [phase, setProcessing, onDecision, interruptData, page?.page_id, context?.account?.id, deleteFromKb]);
+	}, [
+		phase,
+		setProcessing,
+		onDecision,
+		interruptData,
+		page?.page_id,
+		context?.account?.id,
+		deleteFromKb,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -203,9 +209,7 @@ function ApprovalCard({
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">Page deleted</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Page deletion was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Page deletion was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -238,9 +242,7 @@ function ApprovalCard({
 										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm space-y-1">
 											<div className="font-medium">{page.page_title}</div>
 											{page.space_id && (
-												<div className="text-xs text-muted-foreground">
-													Space: {page.space_id}
-												</div>
+												<div className="text-xs text-muted-foreground">Space: {page.space_id}</div>
 											)}
 										</div>
 									</div>
@@ -279,11 +281,7 @@ function ApprovalCard({
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
-						<Button
-							size="sm"
-							className="rounded-lg gap-1.5"
-							onClick={handleApprove}
-						>
+						<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
 							Approve
 							<CornerDownLeftIcon className="size-3 opacity-60" />
 						</Button>
@@ -309,9 +307,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					Confluence authentication expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">Confluence authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -321,9 +317,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	);
 }
 
-function InsufficientPermissionsCard({
-	result,
-}: { result: InsufficientPermissionsResult }) {
+function InsufficientPermissionsCard({ result }: { result: InsufficientPermissionsResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
@@ -357,9 +351,7 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-					Page not found
-				</p>
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Page not found</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -437,7 +429,8 @@ export const DeleteConfluencePageToolUI = makeAssistantToolUI<
 
 		if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
 		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isInsufficientPermissionsResult(result)) return <InsufficientPermissionsCard result={result} />;
+		if (isInsufficientPermissionsResult(result))
+			return <InsufficientPermissionsCard result={result} />;
 		if (isWarningResult(result)) return <WarningCard result={result} />;
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 

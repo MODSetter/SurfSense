@@ -1,8 +1,12 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -11,11 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { PlateEditor } from "@/components/editor/plate-editor";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import { useSetAtom } from "jotai";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface JiraAccount {
 	id: number;
@@ -151,7 +151,9 @@ function ApprovalCard({
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
-	const [pendingEdits, setPendingEdits] = useState<{ title: string; description: string } | null>(null);
+	const [pendingEdits, setPendingEdits] = useState<{ title: string; description: string } | null>(
+		null
+	);
 
 	const [selectedAccountId, setSelectedAccountId] = useState("");
 	const [selectedProjectKey, setSelectedProjectKey] = useState(args.project_key ?? "");
@@ -177,14 +179,23 @@ function ApprovalCard({
 		(overrides?: { title?: string; description?: string }) => {
 			return {
 				summary: overrides?.title ?? pendingEdits?.title ?? args.summary,
-				description: overrides?.description ?? pendingEdits?.description ?? args.description ?? null,
+				description:
+					overrides?.description ?? pendingEdits?.description ?? args.description ?? null,
 				connector_id: selectedAccountId ? Number(selectedAccountId) : null,
 				project_key: selectedProjectKey || null,
 				issue_type: selectedIssueType === "__none__" ? null : selectedIssueType,
 				priority: selectedPriority === "__none__" ? null : selectedPriority,
 			};
 		},
-		[args.summary, args.description, selectedAccountId, selectedProjectKey, selectedIssueType, selectedPriority, pendingEdits]
+		[
+			args.summary,
+			args.description,
+			selectedAccountId,
+			selectedProjectKey,
+			selectedIssueType,
+			selectedPriority,
+			pendingEdits,
+		]
 	);
 
 	const handleApprove = useCallback(() => {
@@ -200,7 +211,17 @@ function ApprovalCard({
 				args: buildFinalArgs(),
 			},
 		});
-	}, [phase, setProcessing, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, buildFinalArgs, pendingEdits]);
+	}, [
+		phase,
+		setProcessing,
+		isPanelOpen,
+		canApprove,
+		allowedDecisions,
+		onDecision,
+		interruptData,
+		buildFinalArgs,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -225,15 +246,16 @@ function ApprovalCard({
 								: "Create Jira Issue"}
 					</p>
 					{phase === "processing" ? (
-						<TextShimmerLoader text={pendingEdits ? "Creating issue with your changes" : "Creating issue"} size="sm" />
+						<TextShimmerLoader
+							text={pendingEdits ? "Creating issue with your changes" : "Creating issue"}
+							size="sm"
+						/>
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							{pendingEdits ? "Issue created with your changes" : "Issue created"}
 						</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Issue creation was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Issue creation was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -248,8 +270,8 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							openHitlEditPanel({
-								title: pendingEdits?.title ?? (args.summary ?? ""),
-								content: pendingEdits?.description ?? (args.description ?? ""),
+								title: pendingEdits?.title ?? args.summary ?? "",
+								content: pendingEdits?.description ?? args.description ?? "",
 								toolName: "Jira Issue",
 								onSave: (newTitle, newDescription) => {
 									setIsPanelOpen(false);
@@ -316,10 +338,7 @@ function ApprovalCard({
 											<p className="text-xs font-medium text-muted-foreground">
 												Project <span className="text-destructive">*</span>
 											</p>
-											<Select
-												value={selectedProjectKey}
-												onValueChange={setSelectedProjectKey}
-											>
+											<Select value={selectedProjectKey} onValueChange={setSelectedProjectKey}>
 												<SelectTrigger className="w-full">
 													<SelectValue placeholder="Select a project" />
 												</SelectTrigger>
@@ -336,32 +355,26 @@ function ApprovalCard({
 										<div className="grid grid-cols-2 gap-3">
 											<div className="space-y-1.5">
 												<p className="text-xs font-medium text-muted-foreground">Issue Type</p>
-												<Select
-													value={selectedIssueType}
-													onValueChange={setSelectedIssueType}
-												>
+												<Select value={selectedIssueType} onValueChange={setSelectedIssueType}>
 													<SelectTrigger className="w-full">
 														<SelectValue placeholder="Task" />
 													</SelectTrigger>
 													<SelectContent>
-														{issueTypes.length > 0
-															? issueTypes.map((t) => (
+														{issueTypes.length > 0 ? (
+															issueTypes.map((t) => (
 																<SelectItem key={t.id} value={t.name}>
 																	{t.name}
 																</SelectItem>
 															))
-															: (
-																<SelectItem value="Task">Task</SelectItem>
-															)}
+														) : (
+															<SelectItem value="Task">Task</SelectItem>
+														)}
 													</SelectContent>
 												</Select>
 											</div>
 											<div className="space-y-1.5">
 												<p className="text-xs font-medium text-muted-foreground">Priority</p>
-												<Select
-													value={selectedPriority}
-													onValueChange={setSelectedPriority}
-												>
+												<Select value={selectedPriority} onValueChange={setSelectedPriority}>
 													<SelectTrigger className="w-full">
 														<SelectValue placeholder="Default" />
 													</SelectTrigger>
@@ -388,7 +401,9 @@ function ApprovalCard({
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
 				{(pendingEdits?.title ?? args.summary) != null && (
-					<p className="text-sm font-medium text-foreground">{pendingEdits?.title ?? args.summary}</p>
+					<p className="text-sm font-medium text-foreground">
+						{pendingEdits?.title ?? args.summary}
+					</p>
 				)}
 				{(pendingEdits?.description ?? args.description) != null && (
 					<div
@@ -450,9 +465,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					All Jira accounts expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">All Jira accounts expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

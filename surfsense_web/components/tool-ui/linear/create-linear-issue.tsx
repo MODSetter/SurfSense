@@ -1,8 +1,12 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,11 +17,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { PlateEditor } from "@/components/editor/plate-editor";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import { useSetAtom } from "jotai";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface LinearLabel {
 	id: string;
@@ -148,7 +148,9 @@ function ApprovalCard({
 	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
-	const [pendingEdits, setPendingEdits] = useState<{ title: string; description: string } | null>(null);
+	const [pendingEdits, setPendingEdits] = useState<{ title: string; description: string } | null>(
+		null
+	);
 
 	const [selectedWorkspaceId, setSelectedWorkspaceId] = useState("");
 	const [selectedTeamId, setSelectedTeamId] = useState("");
@@ -178,18 +180,32 @@ function ApprovalCard({
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
-	const buildFinalArgs = useCallback((overrides?: { title?: string; description?: string }) => {
-		return {
-			title: overrides?.title ?? pendingEdits?.title ?? args.title,
-			description: overrides?.description ?? pendingEdits?.description ?? args.description ?? null,
-			connector_id: selectedWorkspaceId ? Number(selectedWorkspaceId) : null,
-			team_id: selectedTeamId || null,
-			state_id: selectedStateId === "__none__" ? null : selectedStateId,
-			assignee_id: selectedAssigneeId === "__none__" ? null : selectedAssigneeId,
-			priority: Number(selectedPriority),
-			label_ids: selectedLabelIds,
-		};
-	}, [args.title, args.description, selectedWorkspaceId, selectedTeamId, selectedStateId, selectedAssigneeId, selectedPriority, selectedLabelIds, pendingEdits]);
+	const buildFinalArgs = useCallback(
+		(overrides?: { title?: string; description?: string }) => {
+			return {
+				title: overrides?.title ?? pendingEdits?.title ?? args.title,
+				description:
+					overrides?.description ?? pendingEdits?.description ?? args.description ?? null,
+				connector_id: selectedWorkspaceId ? Number(selectedWorkspaceId) : null,
+				team_id: selectedTeamId || null,
+				state_id: selectedStateId === "__none__" ? null : selectedStateId,
+				assignee_id: selectedAssigneeId === "__none__" ? null : selectedAssigneeId,
+				priority: Number(selectedPriority),
+				label_ids: selectedLabelIds,
+			};
+		},
+		[
+			args.title,
+			args.description,
+			selectedWorkspaceId,
+			selectedTeamId,
+			selectedStateId,
+			selectedAssigneeId,
+			selectedPriority,
+			selectedLabelIds,
+			pendingEdits,
+		]
+	);
 
 	const handleApprove = useCallback(() => {
 		if (phase !== "pending") return;
@@ -204,7 +220,17 @@ function ApprovalCard({
 				args: buildFinalArgs(),
 			},
 		});
-	}, [phase, setProcessing, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, buildFinalArgs, pendingEdits]);
+	}, [
+		phase,
+		setProcessing,
+		isPanelOpen,
+		canApprove,
+		allowedDecisions,
+		onDecision,
+		interruptData,
+		buildFinalArgs,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -229,15 +255,16 @@ function ApprovalCard({
 								: "Create Linear Issue"}
 					</p>
 					{phase === "processing" ? (
-						<TextShimmerLoader text={pendingEdits ? "Creating issue with your changes" : "Creating issue"} size="sm" />
+						<TextShimmerLoader
+							text={pendingEdits ? "Creating issue with your changes" : "Creating issue"}
+							size="sm"
+						/>
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							{pendingEdits ? "Issue created with your changes" : "Issue created"}
 						</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Issue creation was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Issue creation was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -252,8 +279,8 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							openHitlEditPanel({
-								title: pendingEdits?.title ?? (args.title ?? ""),
-								content: pendingEdits?.description ?? (args.description ?? ""),
+								title: pendingEdits?.title ?? args.title ?? "",
+								content: pendingEdits?.description ?? args.description ?? "",
 								toolName: "Linear Issue",
 								onSave: (newTitle, newDescription) => {
 									setIsPanelOpen(false);
@@ -269,7 +296,7 @@ function ApprovalCard({
 				)}
 			</div>
 
-				{/* Context section — real pickers in pending */}
+			{/* Context section — real pickers in pending */}
 			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
@@ -278,43 +305,43 @@ function ApprovalCard({
 							<p className="text-sm text-destructive">{interruptData.context.error}</p>
 						) : (
 							<>
-							{workspaces.length > 0 && (
-								<div className="space-y-1.5">
-									<p className="text-xs font-medium text-muted-foreground">
-										Linear Account <span className="text-destructive">*</span>
-									</p>
-									<Select
-										value={selectedWorkspaceId}
-										onValueChange={(v) => {
-											setSelectedWorkspaceId(v);
-											setSelectedTeamId("");
-											setSelectedStateId("__none__");
-											setSelectedAssigneeId("__none__");
-											setSelectedPriority("0");
-											setSelectedLabelIds([]);
-										}}
-									>
-										<SelectTrigger className="w-full">
-											<SelectValue placeholder="Select an account" />
-										</SelectTrigger>
-										<SelectContent>
-											{validWorkspaces.map((w) => (
-												<SelectItem key={w.id} value={String(w.id)}>
-													{w.name}
-												</SelectItem>
-											))}
-											{expiredWorkspaces.map((w) => (
-												<div
-													key={w.id}
-													className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
-												>
-													{w.name} (expired, retry after re-auth)
-												</div>
-											))}
-										</SelectContent>
-									</Select>
-								</div>
-							)}
+								{workspaces.length > 0 && (
+									<div className="space-y-1.5">
+										<p className="text-xs font-medium text-muted-foreground">
+											Linear Account <span className="text-destructive">*</span>
+										</p>
+										<Select
+											value={selectedWorkspaceId}
+											onValueChange={(v) => {
+												setSelectedWorkspaceId(v);
+												setSelectedTeamId("");
+												setSelectedStateId("__none__");
+												setSelectedAssigneeId("__none__");
+												setSelectedPriority("0");
+												setSelectedLabelIds([]);
+											}}
+										>
+											<SelectTrigger className="w-full">
+												<SelectValue placeholder="Select an account" />
+											</SelectTrigger>
+											<SelectContent>
+												{validWorkspaces.map((w) => (
+													<SelectItem key={w.id} value={String(w.id)}>
+														{w.name}
+													</SelectItem>
+												))}
+												{expiredWorkspaces.map((w) => (
+													<div
+														key={w.id}
+														className="relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 px-2 text-sm select-none opacity-50 pointer-events-none"
+													>
+														{w.name} (expired, retry after re-auth)
+													</div>
+												))}
+											</SelectContent>
+										</Select>
+									</div>
+								)}
 
 								{selectedWorkspace && (
 									<>
@@ -366,7 +393,10 @@ function ApprovalCard({
 												<div className="grid grid-cols-2 gap-3">
 													<div className="space-y-1.5">
 														<p className="text-xs font-medium text-muted-foreground">Assignee</p>
-														<Select value={selectedAssigneeId} onValueChange={setSelectedAssigneeId}>
+														<Select
+															value={selectedAssigneeId}
+															onValueChange={setSelectedAssigneeId}
+														>
 															<SelectTrigger className="w-full">
 																<SelectValue placeholder="Unassigned" />
 															</SelectTrigger>
@@ -520,9 +550,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					All Linear accounts expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">All Linear accounts expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

@@ -37,7 +37,9 @@ class GoogleCalendarAccount:
     name: str
 
     @classmethod
-    def from_connector(cls, connector: SearchSourceConnector) -> "GoogleCalendarAccount":
+    def from_connector(
+        cls, connector: SearchSourceConnector
+    ) -> "GoogleCalendarAccount":
         return cls(id=connector.id, name=connector.name)
 
     def to_dict(self) -> dict:
@@ -93,7 +95,10 @@ class GoogleCalendarToolMetadataService:
         self._db_session = db_session
 
     async def _build_credentials(self, connector: SearchSourceConnector) -> Credentials:
-        if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR:
+        if (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+        ):
             cca_id = connector.config.get("composio_connected_account_id")
             if cca_id:
                 return build_composio_credentials(cca_id)
@@ -108,11 +113,17 @@ class GoogleCalendarToolMetadataService:
         if token_encrypted and app_config.SECRET_KEY:
             token_encryption = TokenEncryption(app_config.SECRET_KEY)
             if config_data.get("token"):
-                config_data["token"] = token_encryption.decrypt_token(config_data["token"])
+                config_data["token"] = token_encryption.decrypt_token(
+                    config_data["token"]
+                )
             if config_data.get("refresh_token"):
-                config_data["refresh_token"] = token_encryption.decrypt_token(config_data["refresh_token"])
+                config_data["refresh_token"] = token_encryption.decrypt_token(
+                    config_data["refresh_token"]
+                )
             if config_data.get("client_secret"):
-                config_data["client_secret"] = token_encryption.decrypt_token(config_data["client_secret"])
+                config_data["client_secret"] = token_encryption.decrypt_token(
+                    config_data["client_secret"]
+                )
 
         exp = config_data.get("expiry", "")
         if exp:
@@ -149,10 +160,12 @@ class GoogleCalendarToolMetadataService:
             loop = asyncio.get_event_loop()
             await loop.run_in_executor(
                 None,
-                lambda: build("calendar", "v3", credentials=creds)
-                .calendarList()
-                .list(maxResults=1)
-                .execute(),
+                lambda: (
+                    build("calendar", "v3", credentials=creds)
+                    .calendarList()
+                    .list(maxResults=1)
+                    .execute()
+                ),
             )
             return False
         except Exception as e:
@@ -252,11 +265,13 @@ class GoogleCalendarToolMetadataService:
                     None, lambda: service.calendarList().list().execute()
                 )
                 for cal in cal_list.get("items", []):
-                    calendars.append({
-                        "id": cal.get("id", ""),
-                        "summary": cal.get("summary", ""),
-                        "primary": cal.get("primary", False),
-                    })
+                    calendars.append(
+                        {
+                            "id": cal.get("id", ""),
+                            "summary": cal.get("summary", ""),
+                            "primary": cal.get("primary", False),
+                        }
+                    )
 
                 tz_setting = await loop.run_in_executor(
                     None,
@@ -314,23 +329,34 @@ class GoogleCalendarToolMetadataService:
             calendar_id = event.calendar_id or "primary"
             live_event = await loop.run_in_executor(
                 None,
-                lambda: service.events()
-                .get(calendarId=calendar_id, eventId=event.event_id)
-                .execute(),
+                lambda: (
+                    service.events()
+                    .get(calendarId=calendar_id, eventId=event.event_id)
+                    .execute()
+                ),
             )
 
             event_dict["summary"] = live_event.get("summary", event_dict["summary"])
-            event_dict["description"] = live_event.get("description", event_dict["description"])
+            event_dict["description"] = live_event.get(
+                "description", event_dict["description"]
+            )
             event_dict["location"] = live_event.get("location", event_dict["location"])
 
             start_data = live_event.get("start", {})
-            event_dict["start"] = start_data.get("dateTime", start_data.get("date", event_dict["start"]))
+            event_dict["start"] = start_data.get(
+                "dateTime", start_data.get("date", event_dict["start"])
+            )
 
             end_data = live_event.get("end", {})
-            event_dict["end"] = end_data.get("dateTime", end_data.get("date", event_dict["end"]))
+            event_dict["end"] = end_data.get(
+                "dateTime", end_data.get("date", event_dict["end"])
+            )
 
             event_dict["attendees"] = [
-                {"email": a.get("email", ""), "responseStatus": a.get("responseStatus", "")}
+                {
+                    "email": a.get("email", ""),
+                    "responseStatus": a.get("responseStatus", ""),
+                }
                 for a in live_event.get("attendees", [])
             ]
         except Exception:

@@ -43,6 +43,7 @@ _DEGENERATE_QUERY_RE = re.compile(
 # a real search.  We want breadth (many docs) over depth (many chunks).
 _BROWSE_MAX_CHUNKS_PER_DOC = 5
 
+
 def _is_degenerate_query(query: str) -> bool:
     """Return True when the query carries no meaningful search signal.
 
@@ -82,7 +83,9 @@ async def _browse_recent_documents(
     base_conditions = [Document.search_space_id == search_space_id]
 
     if document_type is not None:
-        type_list = document_type if isinstance(document_type, list) else [document_type]
+        type_list = (
+            document_type if isinstance(document_type, list) else [document_type]
+        )
         doc_type_enums = []
         for dt in type_list:
             if isinstance(dt, str):

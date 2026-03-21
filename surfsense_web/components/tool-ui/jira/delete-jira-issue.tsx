@@ -3,9 +3,9 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { CornerDownLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface JiraAccount {
@@ -204,9 +204,7 @@ function ApprovalCard({
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">Issue deleted</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Issue deletion was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Issue deletion was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -280,11 +278,7 @@ function ApprovalCard({
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
-						<Button
-							size="sm"
-							className="rounded-lg gap-1.5"
-							onClick={handleApprove}
-						>
+						<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
 							Approve
 							<CornerDownLeftIcon className="size-3 opacity-60" />
 						</Button>
@@ -310,9 +304,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					Jira authentication expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">Jira authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -356,9 +348,7 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-					Issue not found
-				</p>
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Issue not found</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

@@ -44,14 +44,18 @@ def create_update_jira_issue_tool(
             - If status is "not_found", relay the message and ask user to verify.
             - If status is "insufficient_permissions", inform user to re-authenticate.
         """
-        logger.info(f"update_jira_issue called: issue_title_or_key='{issue_title_or_key}'")
+        logger.info(
+            f"update_jira_issue called: issue_title_or_key='{issue_title_or_key}'"
+        )
 
         if db_session is None or search_space_id is None or user_id is None:
             return {"status": "error", "message": "Jira tool not properly configured."}
 
         try:
             metadata_service = JiraToolMetadataService(db_session)
-            context = await metadata_service.get_update_context(search_space_id, user_id, issue_title_or_key)
+            context = await metadata_service.get_update_context(
+                search_space_id, user_id, issue_title_or_key
+            )
 
             if "error" in context:
                 error_msg = context["error"]
@@ -71,24 +75,30 @@ def create_update_jira_issue_tool(
             document_id = issue_data.get("document_id")
             connector_id_from_context = context.get("account", {}).get("id")
 
-            approval = interrupt({
-                "type": "jira_issue_update",
-                "action": {
-                    "tool": "update_jira_issue",
-                    "params": {
-                        "issue_key": issue_key,
-                        "document_id": document_id,
-                        "new_summary": new_summary,
-                        "new_description": new_description,
-                        "new_priority": new_priority,
-                        "connector_id": connector_id_from_context,
+            approval = interrupt(
+                {
+                    "type": "jira_issue_update",
+                    "action": {
+                        "tool": "update_jira_issue",
+                        "params": {
+                            "issue_key": issue_key,
+                            "document_id": document_id,
+                            "new_summary": new_summary,
+                            "new_description": new_description,
+                            "new_priority": new_priority,
+                            "connector_id": connector_id_from_context,
+                        },
                     },
-                },
-                "context": context,
-            })
+                    "context": context,
+                }
+            )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 return {"status": "error", "message": "No approval decision received"}
@@ -97,7 +107,10 @@ def create_update_jira_issue_tool(
             decision_type = decision.get("type") or decision.get("decision_type")
 
             if decision_type == "reject":
-                return {"status": "rejected", "message": "User declined. The issue was not updated."}
+                return {
+                    "status": "rejected",
+                    "message": "User declined. The issue was not updated.",
+                }
 
             final_params: dict[str, Any] = {}
             edited_action = decision.get("edited_action")
@@ -112,26 +125,35 @@ def create_update_jira_issue_tool(
             final_summary = final_params.get("new_summary", new_summary)
             final_description = final_params.get("new_description", new_description)
             final_priority = final_params.get("new_priority", new_priority)
-            final_connector_id = final_params.get("connector_id", connector_id_from_context)
+            final_connector_id = final_params.get(
+                "connector_id", connector_id_from_context
+            )
             final_document_id = final_params.get("document_id", document_id)
 
             from sqlalchemy.future import select
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
             if not final_connector_id:
-                return {"status": "error", "message": "No connector found for this issue."}
+                return {
+                    "status": "error",
+                    "message": "No connector found for this issue.",
+                }
 
             result = await db_session.execute(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == final_connector_id,
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.JIRA_CONNECTOR,
                 )
             )
             connector = result.scalars().first()
             if not connector:
-                return {"status": "error", "message": "Selected Jira connector is invalid."}
+                return {
+                    "status": "error",
+                    "message": "Selected Jira connector is invalid.",
+                }
 
             fields: dict[str, Any] = {}
             if final_summary:
@@ -140,7 +162,12 @@ def create_update_jira_issue_tool(
                 fields["description"] = {
                     "type": "doc",
                     "version": 1,
-                    "content": [{"type": "paragraph", "content": [{"type": "text", "text": final_description}]}],
+                    "content": [
+                        {
+                            "type": "paragraph",
+                            "content": [{"type": "text", "text": final_description}],
+                        }
+                    ],
                 }
             if final_priority:
                 fields["priority"] = {"name": final_priority}
@@ -149,9 +176,13 @@ def create_update_jira_issue_tool(
                 return {"status": "error", "message": "No changes specified."}
 
             try:
-                jira_history = JiraHistoryConnector(session=db_session, connector_id=final_connector_id)
+                jira_history = JiraHistoryConnector(
+                    session=db_session, connector_id=final_connector_id
+                )
                 jira_client = await jira_history._get_jira_client()
-                await asyncio.to_thread(jira_client.update_issue, final_issue_key, fields)
+                await asyncio.to_thread(
+                    jira_client.update_issue, final_issue_key, fields
+                )
             except Exception as api_err:
                 if "status code 403" in str(api_err).lower():
                     try:
@@ -171,6 +202,7 @@ def create_update_jira_issue_tool(
             if final_document_id:
                 try:
                     from app.services.jira import JiraKBSyncService
+
                     kb_service = JiraKBSyncService(db_session)
                     kb_result = await kb_service.sync_after_update(
                         document_id=final_document_id,
@@ -179,12 +211,18 @@ def create_update_jira_issue_tool(
                         search_space_id=search_space_id,
                     )
                     if kb_result["status"] == "success":
-                        kb_message_suffix = " Your knowledge base has also been updated."
+                        kb_message_suffix = (
+                            " Your knowledge base has also been updated."
+                        )
                     else:
-                        kb_message_suffix = " The knowledge base will be updated in the next sync."
+                        kb_message_suffix = (
+                            " The knowledge base will be updated in the next sync."
+                        )
                 except Exception as kb_err:
                     logger.warning(f"KB sync after update failed: {kb_err}")
-                    kb_message_suffix = " The knowledge base will be updated in the next sync."
+                    kb_message_suffix = (
+                        " The knowledge base will be updated in the next sync."
+                    )
 
             return {
                 "status": "success",
@@ -194,9 +232,13 @@ def create_update_jira_issue_tool(
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt
+
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error(f"Error updating Jira issue: {e}", exc_info=True)
-            return {"status": "error", "message": "Something went wrong while updating the issue."}
+            return {
+                "status": "error",
+                "message": "Something went wrong while updating the issue.",
+            }
 
     return update_jira_issue

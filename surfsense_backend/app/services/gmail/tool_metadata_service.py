@@ -183,10 +183,12 @@ class GmailToolMetadataService:
                 and_(
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type.in_([
-                        SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
-                        SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
-                    ]),
+                    SearchSourceConnector.connector_type.in_(
+                        [
+                            SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR,
+                            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
+                        ]
+                    ),
                 )
             )
             .order_by(SearchSourceConnector.last_indexed_at.desc())
@@ -223,9 +225,7 @@ class GmailToolMetadataService:
                         service = build("gmail", "v1", credentials=creds)
                         profile = await asyncio.get_event_loop().run_in_executor(
                             None,
-                            lambda: service.users()
-                            .getProfile(userId="me")
-                            .execute(),
+                            lambda: service.users().getProfile(userId="me").execute(),
                         )
                         acc_dict["email"] = profile.get("emailAddress", "")
                 except Exception:
@@ -306,10 +306,12 @@ class GmailToolMetadataService:
 
             draft = await asyncio.get_event_loop().run_in_executor(
                 None,
-                lambda: service.users()
-                .drafts()
-                .get(userId="me", id=draft_id, format="full")
-                .execute(),
+                lambda: (
+                    service.users()
+                    .drafts()
+                    .get(userId="me", id=draft_id, format="full")
+                    .execute()
+                ),
             )
 
             payload = draft.get("message", {}).get("payload", {})
@@ -422,15 +424,15 @@ class GmailToolMetadataService:
             .filter(
                 and_(
                     Document.search_space_id == search_space_id,
-                    Document.document_type.in_([
-                        DocumentType.GOOGLE_GMAIL_CONNECTOR,
-                        DocumentType.COMPOSIO_GMAIL_CONNECTOR,
-                    ]),
+                    Document.document_type.in_(
+                        [
+                            DocumentType.GOOGLE_GMAIL_CONNECTOR,
+                            DocumentType.COMPOSIO_GMAIL_CONNECTOR,
+                        ]
+                    ),
                     SearchSourceConnector.user_id == user_id,
                     or_(
-                        func.lower(
-                            cast(Document.document_metadata["subject"], String)
-                        )
+                        func.lower(cast(Document.document_metadata["subject"], String))
                         == func.lower(email_ref),
                         func.lower(Document.title) == func.lower(email_ref),
                     ),

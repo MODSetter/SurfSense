@@ -14,7 +14,9 @@ interface HitlEditPanelState {
 	content: string;
 	toolName: string;
 	extraFields?: ExtraField[];
-	onSave: ((title: string, content: string, extraFieldValues?: Record<string, string>) => void) | null;
+	onSave:
+		| ((title: string, content: string, extraFieldValues?: Record<string, string>) => void)
+		| null;
 	onClose: (() => void) | null;
 }
 

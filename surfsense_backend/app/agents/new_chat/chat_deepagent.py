@@ -298,8 +298,7 @@ async def create_surfsense_deep_agent(
 
     # Disable Google Drive action tools if no Google Drive connector is configured
     has_google_drive_connector = (
-        available_connectors is not None
-        and "GOOGLE_DRIVE_FILE" in available_connectors
+        available_connectors is not None and "GOOGLE_DRIVE_FILE" in available_connectors
     )
     if not has_google_drive_connector:
         google_drive_tools = [
@@ -337,8 +336,7 @@ async def create_surfsense_deep_agent(
 
     # Disable Jira action tools if no Jira connector is configured
     has_jira_connector = (
-        available_connectors is not None
-        and "JIRA_CONNECTOR" in available_connectors
+        available_connectors is not None and "JIRA_CONNECTOR" in available_connectors
     )
     if not has_jira_connector:
         jira_tools = [

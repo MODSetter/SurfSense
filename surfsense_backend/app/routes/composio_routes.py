@@ -461,10 +461,14 @@ async def reauth_composio_connector(
         return_url: Optional frontend path to redirect to after completion
     """
     if not ComposioService.is_enabled():
-        raise HTTPException(status_code=503, detail="Composio integration is not enabled.")
+        raise HTTPException(
+            status_code=503, detail="Composio integration is not enabled."
+        )
 
     if not config.SECRET_KEY:
-        raise HTTPException(status_code=500, detail="SECRET_KEY not configured for OAuth security.")
+        raise HTTPException(
+            status_code=500, detail="SECRET_KEY not configured for OAuth security."
+        )
 
     try:
         result = await session.execute(
@@ -502,7 +506,9 @@ async def reauth_composio_connector(
         callback_base = config.COMPOSIO_REDIRECT_URI
         if not callback_base:
             backend_url = config.BACKEND_URL or "http://localhost:8000"
-            callback_base = f"{backend_url}/api/v1/auth/composio/connector/reauth/callback"
+            callback_base = (
+                f"{backend_url}/api/v1/auth/composio/connector/reauth/callback"
+            )
         else:
             # Replace the normal callback path with the reauth one
             callback_base = callback_base.replace(
@@ -524,8 +530,13 @@ async def reauth_composio_connector(
                 connector.config = {**connector.config, "auth_expired": False}
                 flag_modified(connector, "config")
                 await session.commit()
-            logger.info(f"Composio account {connected_account_id} refreshed server-side (no redirect needed)")
-            return {"success": True, "message": "Authentication refreshed successfully."}
+            logger.info(
+                f"Composio account {connected_account_id} refreshed server-side (no redirect needed)"
+            )
+            return {
+                "success": True,
+                "message": "Authentication refreshed successfully.",
+            }
 
         logger.info(f"Initiating Composio re-auth for connector {connector_id}")
         return {"auth_url": refresh_result["redirect_url"]}
@@ -679,9 +690,7 @@ async def list_composio_drive_folders(
             )
 
         credentials = build_composio_credentials(composio_connected_account_id)
-        drive_client = GoogleDriveClient(
-            session, connector_id, credentials=credentials
-        )
+        drive_client = GoogleDriveClient(session, connector_id, credentials=credentials)
 
         items, error = await list_folder_contents(drive_client, parent_id=parent_id)
 
@@ -699,11 +708,17 @@ async def list_composio_drive_folders(
                         connector.config = {**connector.config, "auth_expired": True}
                         flag_modified(connector, "config")
                         await session.commit()
-                        logger.info(f"Marked Composio connector {connector_id} as auth_expired")
+                        logger.info(
+                            f"Marked Composio connector {connector_id} as auth_expired"
+                        )
                 except Exception:
-                    logger.warning(f"Failed to persist auth_expired for connector {connector_id}", exc_info=True)
+                    logger.warning(
+                        f"Failed to persist auth_expired for connector {connector_id}",
+                        exc_info=True,
+                    )
                 raise HTTPException(
-                    status_code=400, detail="Google Drive authentication expired. Please re-authenticate."
+                    status_code=400,
+                    detail="Google Drive authentication expired. Please re-authenticate.",
                 )
             raise HTTPException(
                 status_code=500, detail=f"Failed to list folder contents: {error}"
@@ -736,11 +751,17 @@ async def list_composio_drive_folders(
                     connector.config = {**connector.config, "auth_expired": True}
                     flag_modified(connector, "config")
                     await session.commit()
-                    logger.info(f"Marked Composio connector {connector_id} as auth_expired")
+                    logger.info(
+                        f"Marked Composio connector {connector_id} as auth_expired"
+                    )
             except Exception:
-                logger.warning(f"Failed to persist auth_expired for connector {connector_id}", exc_info=True)
+                logger.warning(
+                    f"Failed to persist auth_expired for connector {connector_id}",
+                    exc_info=True,
+                )
             raise HTTPException(
-                status_code=400, detail="Google Drive authentication expired. Please re-authenticate."
+                status_code=400,
+                detail="Google Drive authentication expired. Please re-authenticate.",
             ) from e
         raise HTTPException(
             status_code=500, detail=f"Failed to list Drive contents: {e!s}"

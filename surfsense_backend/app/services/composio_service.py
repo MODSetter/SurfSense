@@ -283,9 +283,7 @@ class ComposioService:
                 timeout=timeout,
             )
             status = getattr(account, "status", "UNKNOWN")
-            logger.info(
-                f"Composio account {connected_account_id} is now {status}"
-            )
+            logger.info(f"Composio account {connected_account_id} is now {status}")
             return status
         except Exception as e:
             logger.error(

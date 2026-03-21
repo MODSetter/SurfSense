@@ -8,7 +8,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm.attributes import flag_modified
 
-from app.db import Document, DocumentType, SearchSourceConnector, SearchSourceConnectorType
+from app.db import (
+    Document,
+    DocumentType,
+    SearchSourceConnector,
+    SearchSourceConnectorType,
+)
 from app.services.llm_service import get_user_long_context_llm
 from app.utils.document_converters import (
     create_document_chunks,
@@ -107,7 +112,9 @@ class GoogleCalendarKBSyncService:
                 )
             else:
                 logger.warning("No LLM configured -- using fallback summary")
-                summary_content = f"Google Calendar Event: {event_summary}\n\n{indexable_content}"
+                summary_content = (
+                    f"Google Calendar Event: {event_summary}\n\n{indexable_content}"
+                )
                 summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(indexable_content)
@@ -201,12 +208,16 @@ class GoogleCalendarKBSyncService:
                 None, lambda: build("calendar", "v3", credentials=creds)
             )
 
-            calendar_id = (document.document_metadata or {}).get("calendar_id", "primary")
+            calendar_id = (document.document_metadata or {}).get(
+                "calendar_id", "primary"
+            )
             live_event = await loop.run_in_executor(
                 None,
-                lambda: service.events()
-                .get(calendarId=calendar_id, eventId=event_id)
-                .execute(),
+                lambda: (
+                    service.events()
+                    .get(calendarId=calendar_id, eventId=event_id)
+                    .execute()
+                ),
             )
 
             event_summary = live_event.get("summary", "")
@@ -220,7 +231,10 @@ class GoogleCalendarKBSyncService:
             end_time = end_data.get("dateTime", end_data.get("date", ""))
 
             attendees = [
-                {"email": a.get("email", ""), "responseStatus": a.get("responseStatus", "")}
+                {
+                    "email": a.get("email", ""),
+                    "responseStatus": a.get("responseStatus", ""),
+                }
                 for a in live_event.get("attendees", [])
             ]
 
@@ -252,7 +266,9 @@ class GoogleCalendarKBSyncService:
                     indexable_content, user_llm, doc_metadata_for_summary
                 )
             else:
-                summary_content = f"Google Calendar Event: {event_summary}\n\n{indexable_content}"
+                summary_content = (
+                    f"Google Calendar Event: {event_summary}\n\n{indexable_content}"
+                )
                 summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(indexable_content)
@@ -313,7 +329,10 @@ class GoogleCalendarKBSyncService:
         if not connector:
             raise ValueError(f"Connector {connector_id} not found")
 
-        if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR:
+        if (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+        ):
             cca_id = connector.config.get("composio_connected_account_id")
             if cca_id:
                 return build_composio_credentials(cca_id)
@@ -328,11 +347,17 @@ class GoogleCalendarKBSyncService:
         if token_encrypted and app_config.SECRET_KEY:
             token_encryption = TokenEncryption(app_config.SECRET_KEY)
             if config_data.get("token"):
-                config_data["token"] = token_encryption.decrypt_token(config_data["token"])
+                config_data["token"] = token_encryption.decrypt_token(
+                    config_data["token"]
+                )
             if config_data.get("refresh_token"):
-                config_data["refresh_token"] = token_encryption.decrypt_token(config_data["refresh_token"])
+                config_data["refresh_token"] = token_encryption.decrypt_token(
+                    config_data["refresh_token"]
+                )
             if config_data.get("client_secret"):
-                config_data["client_secret"] = token_encryption.decrypt_token(config_data["client_secret"])
+                config_data["client_secret"] = token_encryption.decrypt_token(
+                    config_data["client_secret"]
+                )
 
         exp = config_data.get("expiry", "")
         if exp:

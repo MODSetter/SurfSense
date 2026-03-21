@@ -67,7 +67,10 @@ class ConfluenceKBSyncService:
                 content_hash = unique_hash
 
             user_llm = await get_user_long_context_llm(
-                self.db_session, user_id, search_space_id, disable_streaming=True,
+                self.db_session,
+                user_id,
+                search_space_id,
+                disable_streaming=True,
             )
 
             doc_metadata_for_summary = {
@@ -116,17 +119,26 @@ class ConfluenceKBSyncService:
 
             logger.info(
                 "KB sync after create succeeded: doc_id=%s, page=%s",
-                document.id, page_title,
+                document.id,
+                page_title,
             )
             return {"status": "success"}
 
         except Exception as e:
             error_str = str(e).lower()
-            if "duplicate key value violates unique constraint" in error_str or "uniqueviolationerror" in error_str:
+            if (
+                "duplicate key value violates unique constraint" in error_str
+                or "uniqueviolationerror" in error_str
+            ):
                 await self.db_session.rollback()
                 return {"status": "error", "message": "Duplicate document detected"}
 
-            logger.error("KB sync after create failed for page %s: %s", page_title, e, exc_info=True)
+            logger.error(
+                "KB sync after create failed for page %s: %s",
+                page_title,
+                e,
+                exc_info=True,
+            )
             await self.db_session.rollback()
             return {"status": "error", "message": str(e)}
 
@@ -215,11 +227,14 @@ class ConfluenceKBSyncService:
 
             logger.info(
                 "KB sync successful for document %s (%s)",
-                document_id, page_title,
+                document_id,
+                page_title,
             )
             return {"status": "success"}
 
         except Exception as e:
-            logger.error("KB sync failed for document %s: %s", document_id, e, exc_info=True)
+            logger.error(
+                "KB sync failed for document %s: %s", document_id, e, exc_info=True
+            )
             await self.db_session.rollback()
             return {"status": "error", "message": str(e)}

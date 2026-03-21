@@ -4,6 +4,9 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,10 +16,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { PlateEditor } from "@/components/editor/plate-editor";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface JiraIssue {
 	issue_id: string;
@@ -194,9 +194,12 @@ function ApprovalCard({
 	const canEdit = allowedDecisions.includes("edit");
 
 	const hasProposedChanges =
-		actionArgs.new_summary || args.new_summary ||
-		actionArgs.new_description || args.new_description ||
-		actionArgs.new_priority || args.new_priority;
+		actionArgs.new_summary ||
+		args.new_summary ||
+		actionArgs.new_description ||
+		args.new_description ||
+		actionArgs.new_priority ||
+		args.new_priority;
 
 	const buildFinalArgs = useCallback(() => {
 		return {
@@ -222,7 +225,16 @@ function ApprovalCard({
 				args: buildFinalArgs(),
 			},
 		});
-	}, [phase, setProcessing, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs, hasPanelEdits]);
+	}, [
+		phase,
+		setProcessing,
+		isPanelOpen,
+		allowedDecisions,
+		onDecision,
+		interruptData,
+		buildFinalArgs,
+		hasPanelEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -247,15 +259,16 @@ function ApprovalCard({
 								: "Update Jira Issue"}
 					</p>
 					{phase === "processing" ? (
-						<TextShimmerLoader text={hasPanelEdits ? "Updating issue with your changes" : "Updating issue"} size="sm" />
+						<TextShimmerLoader
+							text={hasPanelEdits ? "Updating issue with your changes" : "Updating issue"}
+							size="sm"
+						/>
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							{hasPanelEdits ? "Issue updated with your changes" : "Issue updated"}
 						</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Issue update was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Issue update was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -366,14 +379,20 @@ function ApprovalCard({
 			{/* Content preview — proposed changes */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-				{(hasProposedChanges || hasPanelEdits) ? (
+				{hasProposedChanges || hasPanelEdits ? (
 					<>
-						{(hasPanelEdits ? editedArgs.summary : (actionArgs.new_summary ?? args.new_summary)) && (
+						{(hasPanelEdits
+							? editedArgs.summary
+							: (actionArgs.new_summary ?? args.new_summary)) && (
 							<p className="text-sm font-medium text-foreground">
-								{String(hasPanelEdits ? editedArgs.summary : (actionArgs.new_summary ?? args.new_summary))}
+								{String(
+									hasPanelEdits ? editedArgs.summary : (actionArgs.new_summary ?? args.new_summary)
+								)}
 							</p>
 						)}
-						{(hasPanelEdits ? editedArgs.description : (actionArgs.new_description ?? args.new_description)) && (
+						{(hasPanelEdits
+							? editedArgs.description
+							: (actionArgs.new_description ?? args.new_description)) && (
 							<div
 								className="max-h-[7rem] overflow-hidden text-sm"
 								style={{
@@ -382,7 +401,11 @@ function ApprovalCard({
 								}}
 							>
 								<PlateEditor
-									markdown={String(hasPanelEdits ? editedArgs.description : (actionArgs.new_description ?? args.new_description))}
+									markdown={String(
+										hasPanelEdits
+											? editedArgs.description
+											: (actionArgs.new_description ?? args.new_description)
+									)}
 									readOnly
 									preset="readonly"
 									editorVariant="none"
@@ -445,9 +468,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					Jira authentication expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">Jira authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -491,9 +512,7 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-					Issue not found
-				</p>
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Issue not found</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

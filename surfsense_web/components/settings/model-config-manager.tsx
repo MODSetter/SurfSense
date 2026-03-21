@@ -13,7 +13,6 @@ import {
 	Wand2,
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { membersAtom, myAccessAtom } from "@/atoms/members/members-query.atoms";
 import {
 	createNewLLMConfigMutationAtom,
@@ -36,6 +35,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";

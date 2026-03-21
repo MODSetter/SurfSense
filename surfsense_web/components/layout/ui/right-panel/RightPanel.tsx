@@ -114,7 +114,13 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 	} else if (effectiveTab === "report" && !reportOpen) {
 		effectiveTab = editorOpen ? "editor" : "sources";
 	} else if (effectiveTab === "sources" && !documentsOpen) {
-		effectiveTab = hitlEditOpen ? "hitl-edit" : editorOpen ? "editor" : reportOpen ? "report" : "sources";
+		effectiveTab = hitlEditOpen
+			? "hitl-edit"
+			: editorOpen
+				? "editor"
+				: reportOpen
+					? "report"
+					: "sources";
 	}
 
 	const targetWidth = PANEL_WIDTHS[effectiveTab];
@@ -160,14 +166,14 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 				)}
 				{effectiveTab === "hitl-edit" && hitlEditOpen && hitlEditState.onSave && (
 					<div className="h-full flex flex-col">
-					<HitlEditPanelContent
-						title={hitlEditState.title}
-						content={hitlEditState.content}
-						toolName={hitlEditState.toolName}
-						extraFields={hitlEditState.extraFields}
-						onSave={hitlEditState.onSave}
-						onClose={closeHitlEdit}
-					/>
+						<HitlEditPanelContent
+							title={hitlEditState.title}
+							content={hitlEditState.content}
+							toolName={hitlEditState.toolName}
+							extraFields={hitlEditState.extraFields}
+							onSave={hitlEditState.onSave}
+							onClose={closeHitlEdit}
+						/>
 					</div>
 				)}
 			</div>

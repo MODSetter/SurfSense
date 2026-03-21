@@ -41,14 +41,21 @@ def create_update_confluence_page_tool(
             - If status is "not_found", relay the message to the user.
             - If status is "insufficient_permissions", inform user to re-authenticate.
         """
-        logger.info(f"update_confluence_page called: page_title_or_id='{page_title_or_id}'")
+        logger.info(
+            f"update_confluence_page called: page_title_or_id='{page_title_or_id}'"
+        )
 
         if db_session is None or search_space_id is None or user_id is None:
-            return {"status": "error", "message": "Confluence tool not properly configured."}
+            return {
+                "status": "error",
+                "message": "Confluence tool not properly configured.",
+            }
 
         try:
             metadata_service = ConfluenceToolMetadataService(db_session)
-            context = await metadata_service.get_update_context(search_space_id, user_id, page_title_or_id)
+            context = await metadata_service.get_update_context(
+                search_space_id, user_id, page_title_or_id
+            )
 
             if "error" in context:
                 error_msg = context["error"]
@@ -71,24 +78,30 @@ def create_update_confluence_page_tool(
             document_id = page_data.get("document_id")
             connector_id_from_context = context.get("account", {}).get("id")
 
-            approval = interrupt({
-                "type": "confluence_page_update",
-                "action": {
-                    "tool": "update_confluence_page",
-                    "params": {
-                        "page_id": page_id,
-                        "document_id": document_id,
-                        "new_title": new_title,
-                        "new_content": new_content,
-                        "version": current_version,
-                        "connector_id": connector_id_from_context,
+            approval = interrupt(
+                {
+                    "type": "confluence_page_update",
+                    "action": {
+                        "tool": "update_confluence_page",
+                        "params": {
+                            "page_id": page_id,
+                            "document_id": document_id,
+                            "new_title": new_title,
+                            "new_content": new_content,
+                            "version": current_version,
+                            "connector_id": connector_id_from_context,
+                        },
                     },
-                },
-                "context": context,
-            })
+                    "context": context,
+                }
+            )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 return {"status": "error", "message": "No approval decision received"}
@@ -97,7 +110,10 @@ def create_update_confluence_page_tool(
             decision_type = decision.get("type") or decision.get("decision_type")
 
             if decision_type == "reject":
-                return {"status": "rejected", "message": "User declined. The page was not updated."}
+                return {
+                    "status": "rejected",
+                    "message": "User declined. The page was not updated.",
+                }
 
             final_params: dict[str, Any] = {}
             edited_action = decision.get("edited_action")
@@ -114,29 +130,40 @@ def create_update_confluence_page_tool(
             if final_content is None:
                 final_content = current_body
             final_version = final_params.get("version", current_version)
-            final_connector_id = final_params.get("connector_id", connector_id_from_context)
+            final_connector_id = final_params.get(
+                "connector_id", connector_id_from_context
+            )
             final_document_id = final_params.get("document_id", document_id)
 
             from sqlalchemy.future import select
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
             if not final_connector_id:
-                return {"status": "error", "message": "No connector found for this page."}
+                return {
+                    "status": "error",
+                    "message": "No connector found for this page.",
+                }
 
             result = await db_session.execute(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == final_connector_id,
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
                 )
             )
             connector = result.scalars().first()
             if not connector:
-                return {"status": "error", "message": "Selected Confluence connector is invalid."}
+                return {
+                    "status": "error",
+                    "message": "Selected Confluence connector is invalid.",
+                }
 
             try:
-                client = ConfluenceHistoryConnector(session=db_session, connector_id=final_connector_id)
+                client = ConfluenceHistoryConnector(
+                    session=db_session, connector_id=final_connector_id
+                )
                 await client.update_page(
                     page_id=final_page_id,
                     title=final_title,
@@ -145,7 +172,10 @@ def create_update_confluence_page_tool(
                 )
                 await client.close()
             except Exception as api_err:
-                if "http 403" in str(api_err).lower() or "status code 403" in str(api_err).lower():
+                if (
+                    "http 403" in str(api_err).lower()
+                    or "status code 403" in str(api_err).lower()
+                ):
                     try:
                         connector.config = {**connector.config, "auth_expired": True}
                         flag_modified(connector, "config")
@@ -163,6 +193,7 @@ def create_update_confluence_page_tool(
             if final_document_id:
                 try:
                     from app.services.confluence import ConfluenceKBSyncService
+
                     kb_service = ConfluenceKBSyncService(db_session)
                     kb_result = await kb_service.sync_after_update(
                         document_id=final_document_id,
@@ -171,12 +202,18 @@ def create_update_confluence_page_tool(
                         search_space_id=search_space_id,
                     )
                     if kb_result["status"] == "success":
-                        kb_message_suffix = " Your knowledge base has also been updated."
+                        kb_message_suffix = (
+                            " Your knowledge base has also been updated."
+                        )
                     else:
-                        kb_message_suffix = " The knowledge base will be updated in the next sync."
+                        kb_message_suffix = (
+                            " The knowledge base will be updated in the next sync."
+                        )
                 except Exception as kb_err:
                     logger.warning(f"KB sync after update failed: {kb_err}")
-                    kb_message_suffix = " The knowledge base will be updated in the next sync."
+                    kb_message_suffix = (
+                        " The knowledge base will be updated in the next sync."
+                    )
 
             return {
                 "status": "success",
@@ -186,9 +223,13 @@ def create_update_confluence_page_tool(
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt
+
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error(f"Error updating Confluence page: {e}", exc_info=True)
-            return {"status": "error", "message": "Something went wrong while updating the page."}
+            return {
+                "status": "error",
+                "message": "Something went wrong while updating the page.",
+            }
 
     return update_confluence_page

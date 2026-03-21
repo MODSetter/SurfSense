@@ -170,9 +170,7 @@ function HeroCarousel() {
 
 		const id = setTimeout(() => {
 			directionRef.current = "forward";
-			setActiveIndex((prev) =>
-				prev >= carouselItems.length - 1 ? 0 : prev + 1
-			);
+			setActiveIndex((prev) => (prev >= carouselItems.length - 1 ? 0 : prev + 1));
 		}, AUTOPLAY_MS);
 
 		return () => clearTimeout(id);

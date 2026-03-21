@@ -190,7 +190,9 @@ class ConfluenceHistoryConnector:
                     )
 
                 # Lazy import to avoid circular dependency
-                from app.routes.confluence_add_connector_route import refresh_confluence_token
+                from app.routes.confluence_add_connector_route import (
+                    refresh_confluence_token,
+                )
 
                 connector = await refresh_confluence_token(self._session, connector)
 
@@ -375,13 +377,9 @@ class ConfluenceHistoryConnector:
                     url, headers=headers, json=json_payload, params=params
                 )
             elif method_upper == "DELETE":
-                response = await http_client.delete(
-                    url, headers=headers, params=params
-                )
+                response = await http_client.delete(url, headers=headers, params=params)
             else:
-                response = await http_client.get(
-                    url, headers=headers, params=params
-                )
+                response = await http_client.get(url, headers=headers, params=params)
 
             response.raise_for_status()
             if response.status_code == 204 or not response.text:

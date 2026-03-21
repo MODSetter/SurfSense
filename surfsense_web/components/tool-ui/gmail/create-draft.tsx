@@ -1,13 +1,13 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	CornerDownLeftIcon,
-	Pen,
-	UserIcon,
-	UsersIcon,
-} from "lucide-react";
+import { useSetAtom } from "jotai";
+import { CornerDownLeftIcon, Pen, UserIcon, UsersIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -16,11 +16,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { PlateEditor } from "@/components/editor/plate-editor";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { useSetAtom } from "jotai";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
-import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GmailAccount {
@@ -132,7 +127,11 @@ function ApprovalCard({
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{
-		subject: string; body: string; to: string; cc: string; bcc: string;
+		subject: string;
+		body: string;
+		to: string;
+		cc: string;
+		bcc: string;
 	} | null>(null);
 
 	const accounts = interruptData.context?.accounts ?? [];
@@ -175,7 +174,18 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [phase, isPanelOpen, canApprove, allowedDecisions, setProcessing, onDecision, interruptData, args, selectedAccountId, pendingEdits]);
+	}, [
+		phase,
+		isPanelOpen,
+		canApprove,
+		allowedDecisions,
+		setProcessing,
+		onDecision,
+		interruptData,
+		args,
+		selectedAccountId,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -200,16 +210,17 @@ function ApprovalCard({
 									? "Gmail Draft Approved"
 									: "Create Gmail Draft"}
 						</p>
-					{phase === "processing" ? (
-							<TextShimmerLoader text={pendingEdits ? "Creating draft with your changes" : "Creating draft"} size="sm" />
+						{phase === "processing" ? (
+							<TextShimmerLoader
+								text={pendingEdits ? "Creating draft with your changes" : "Creating draft"}
+								size="sm"
+							/>
 						) : phase === "complete" ? (
 							<p className="text-xs text-muted-foreground mt-0.5">
 								{pendingEdits ? "Draft created with your changes" : "Draft created"}
 							</p>
 						) : phase === "rejected" ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								Draft creation was cancelled
-							</p>
+							<p className="text-xs text-muted-foreground mt-0.5">Draft creation was cancelled</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
 								Requires your approval to proceed
@@ -225,13 +236,28 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							const extraFields: ExtraField[] = [
-								{ key: "to", label: "To", type: "emails", value: pendingEdits?.to ?? args.to ?? "" },
-								{ key: "cc", label: "CC", type: "emails", value: pendingEdits?.cc ?? args.cc ?? "" },
-								{ key: "bcc", label: "BCC", type: "emails", value: pendingEdits?.bcc ?? args.bcc ?? "" },
+								{
+									key: "to",
+									label: "To",
+									type: "emails",
+									value: pendingEdits?.to ?? args.to ?? "",
+								},
+								{
+									key: "cc",
+									label: "CC",
+									type: "emails",
+									value: pendingEdits?.cc ?? args.cc ?? "",
+								},
+								{
+									key: "bcc",
+									label: "BCC",
+									type: "emails",
+									value: pendingEdits?.bcc ?? args.bcc ?? "",
+								},
 							];
 							openHitlEditPanel({
-								title: pendingEdits?.subject ?? (args.subject ?? ""),
-								content: pendingEdits?.body ?? (args.body ?? ""),
+								title: pendingEdits?.subject ?? args.subject ?? "",
+								content: pendingEdits?.body ?? args.body ?? "",
 								toolName: "Gmail Draft",
 								extraFields,
 								onSave: (newTitle, newContent, extraFieldValues) => {
@@ -322,7 +348,9 @@ function ApprovalCard({
 
 			<div className="px-5 pt-1">
 				{(pendingEdits?.subject ?? args.subject) != null && (
-					<p className="text-sm font-medium text-foreground">{pendingEdits?.subject ?? args.subject}</p>
+					<p className="text-sm font-medium text-foreground">
+						{pendingEdits?.subject ?? args.subject}
+					</p>
 				)}
 				{(pendingEdits?.body ?? args.body) != null && (
 					<div
@@ -398,9 +426,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					Gmail authentication expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">Gmail authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

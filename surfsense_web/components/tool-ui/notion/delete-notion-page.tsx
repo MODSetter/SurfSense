@@ -3,9 +3,9 @@
 import { makeAssistantToolUI } from "@assistant-ui/react";
 import { CornerDownLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface InterruptResult {
@@ -183,14 +183,12 @@ function ApprovalCard({
 								? "Notion Page Deletion Approved"
 								: "Delete Notion Page"}
 					</p>
-				{phase === "processing" ? (
+					{phase === "processing" ? (
 						<TextShimmerLoader text="Deleting page" size="sm" />
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">Page deleted</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Page deletion was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Page deletion was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -259,11 +257,7 @@ function ApprovalCard({
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
-						<Button
-							size="sm"
-							className="rounded-lg gap-1.5"
-							onClick={handleApprove}
-						>
+						<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
 							Approve
 							<CornerDownLeftIcon className="size-3 opacity-60" />
 						</Button>
@@ -289,9 +283,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					All Notion accounts expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">All Notion accounts expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -319,9 +311,7 @@ function InfoCard({ result }: { result: InfoResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-					Page not found
-				</p>
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Page not found</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

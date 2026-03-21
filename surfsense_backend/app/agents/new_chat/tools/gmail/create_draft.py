@@ -55,9 +55,7 @@ def create_create_gmail_draft_tool(
             - "Draft an email to alice@example.com about the meeting"
             - "Compose a reply to Bob about the project update"
         """
-        logger.info(
-            f"create_gmail_draft called: to='{to}', subject='{subject}'"
-        )
+        logger.info(f"create_gmail_draft called: to='{to}', subject='{subject}'")
 
         if db_session is None or search_space_id is None or user_id is None:
             return {
@@ -187,7 +185,10 @@ def create_create_gmail_draft_tool(
                 f"Creating Gmail draft: to='{final_to}', subject='{final_subject}', connector={actual_connector_id}"
             )
 
-            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR:
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+            ):
                 from app.utils.google_credentials import build_composio_credentials
 
                 cca_id = connector.config.get("composio_connected_account_id")
@@ -251,10 +252,12 @@ def create_create_gmail_draft_tool(
             try:
                 created = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: gmail_service.users()
-                    .drafts()
-                    .create(userId="me", body={"message": {"raw": raw}})
-                    .execute(),
+                    lambda: (
+                        gmail_service.users()
+                        .drafts()
+                        .create(userId="me", body={"message": {"raw": raw}})
+                        .execute()
+                    ),
                 )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
@@ -289,9 +292,7 @@ def create_create_gmail_draft_tool(
                     }
                 raise
 
-            logger.info(
-                f"Gmail draft created: id={created.get('id')}"
-            )
+            logger.info(f"Gmail draft created: id={created.get('id')}")
 
             kb_message_suffix = ""
             try:

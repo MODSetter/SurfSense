@@ -187,7 +187,10 @@ def create_delete_google_drive_file_tool(
             )
 
             pre_built_creds = None
-            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR:
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+            ):
                 from app.utils.google_credentials import build_composio_credentials
 
                 cca_id = connector.config.get("composio_connected_account_id")
@@ -210,7 +213,10 @@ def create_delete_google_drive_file_tool(
                         from sqlalchemy.orm.attributes import flag_modified
 
                         if not connector.config.get("auth_expired"):
-                            connector.config = {**connector.config, "auth_expired": True}
+                            connector.config = {
+                                **connector.config,
+                                "auth_expired": True,
+                            }
                             flag_modified(connector, "config")
                             await db_session.commit()
                     except Exception:

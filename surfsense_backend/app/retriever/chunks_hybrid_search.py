@@ -219,7 +219,9 @@ class ChucksHybridSearchRetriever:
 
         # Add document type filter if provided (single string or list of strings)
         if document_type is not None:
-            type_list = document_type if isinstance(document_type, list) else [document_type]
+            type_list = (
+                document_type if isinstance(document_type, list) else [document_type]
+            )
             doc_type_enums = []
             for dt in type_list:
                 if isinstance(dt, str):

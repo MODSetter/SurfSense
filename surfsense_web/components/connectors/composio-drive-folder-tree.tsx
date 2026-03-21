@@ -78,14 +78,21 @@ export function ComposioDriveFolderTree({
 }: ComposioDriveFolderTreeProps) {
 	const [itemStates, setItemStates] = useState<Map<string, ItemTreeNode>>(new Map());
 
-	const { data: rootData, isLoading: isLoadingRoot, error: rootError } = useComposioDriveFolders({
+	const {
+		data: rootData,
+		isLoading: isLoadingRoot,
+		error: rootError,
+	} = useComposioDriveFolders({
 		connectorId,
 	});
 
 	useEffect(() => {
 		if (rootError && onAuthError) {
 			const msg = rootError instanceof Error ? rootError.message : String(rootError);
-			if (msg.toLowerCase().includes("authentication expired") || msg.toLowerCase().includes("re-authenticate")) {
+			if (
+				msg.toLowerCase().includes("authentication expired") ||
+				msg.toLowerCase().includes("re-authenticate")
+			) {
 				onAuthError(msg);
 			}
 		}
@@ -363,19 +370,21 @@ export function ComposioDriveFolderTree({
 						{!isLoadingRoot && rootItems.map((item) => renderItem(item, 0))}
 					</div>
 
-				{!isLoadingRoot && rootError && (
-					<div className="text-center text-xs sm:text-sm text-amber-600 dark:text-amber-500 py-4 sm:py-8">
-						{(rootError instanceof Error ? rootError.message : String(rootError)).includes("authentication expired")
-							? "Google Drive authentication has expired. Please re-authenticate above."
-							: "Failed to load Google Drive contents."}
-					</div>
-				)}
+					{!isLoadingRoot && rootError && (
+						<div className="text-center text-xs sm:text-sm text-amber-600 dark:text-amber-500 py-4 sm:py-8">
+							{(rootError instanceof Error ? rootError.message : String(rootError)).includes(
+								"authentication expired"
+							)
+								? "Google Drive authentication has expired. Please re-authenticate above."
+								: "Failed to load Google Drive contents."}
+						</div>
+					)}
 
-				{!isLoadingRoot && !rootError && rootItems.length === 0 && (
-					<div className="text-center text-xs sm:text-sm text-muted-foreground py-4 sm:py-8">
-						No files or folders found in your Google Drive
-					</div>
-				)}
+					{!isLoadingRoot && !rootError && rootItems.length === 0 && (
+						<div className="text-center text-xs sm:text-sm text-muted-foreground py-4 sm:py-8">
+							No files or folders found in your Google Drive
+						</div>
+					)}
 				</div>
 			</ScrollArea>
 		</div>

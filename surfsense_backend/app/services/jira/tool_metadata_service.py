@@ -87,7 +87,7 @@ class JiraToolMetadataService:
 
     async def _check_account_health(self, connector: SearchSourceConnector) -> bool:
         """Check if the Jira connector auth is still valid.
-        
+
         Returns True if auth is expired/invalid, False if healthy.
         """
         try:
@@ -98,9 +98,7 @@ class JiraToolMetadataService:
             await asyncio.to_thread(jira_client.get_myself)
             return False
         except Exception as e:
-            logger.warning(
-                "Jira connector %s health check failed: %s", connector.id, e
-            )
+            logger.warning("Jira connector %s health check failed: %s", connector.id, e)
             try:
                 connector.config = {**connector.config, "auth_expired": True}
                 flag_modified(connector, "config")
@@ -116,7 +114,7 @@ class JiraToolMetadataService:
 
     async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
         """Return context needed to create a new Jira issue.
-        
+
         Fetches all connected Jira accounts, and for the first healthy one
         fetches projects, issue types, and priorities.
         """
@@ -165,7 +163,8 @@ class JiraToolMetadataService:
                 except Exception as e:
                     logger.warning(
                         "Failed to fetch Jira context for connector %s: %s",
-                        connector.id, e,
+                        connector.id,
+                        e,
                     )
 
         return {
@@ -179,7 +178,7 @@ class JiraToolMetadataService:
         self, search_space_id: int, user_id: str, issue_ref: str
     ) -> dict:
         """Return context needed to update an indexed Jira issue.
-        
+
         Resolves the issue from the KB, then fetches current details from the Jira API.
         """
         document = await self._resolve_issue(search_space_id, user_id, issue_ref)
@@ -209,13 +208,15 @@ class JiraToolMetadataService:
                 session=self._db_session, connector_id=connector.id
             )
             jira_client = await jira_history._get_jira_client()
-            issue_data = await asyncio.to_thread(
-                jira_client.get_issue, issue.issue_id
-            )
+            issue_data = await asyncio.to_thread(jira_client.get_issue, issue.issue_id)
             formatted = jira_client.format_issue(issue_data)
         except Exception as e:
             error_str = str(e).lower()
-            if "401" in error_str or "403" in error_str or "authentication" in error_str:
+            if (
+                "401" in error_str
+                or "403" in error_str
+                or "authentication" in error_str
+            ):
                 return {
                     "error": f"Failed to fetch Jira issue: {e!s}",
                     "auth_expired": True,

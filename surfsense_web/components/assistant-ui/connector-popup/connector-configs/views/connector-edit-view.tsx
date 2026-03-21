@@ -220,10 +220,8 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 							</p>
 						</div>
 					</div>
-				{/* Quick Index Button - hidden when auth is expired */}
-				{connector.is_indexable &&
-					onQuickIndex &&
-					!isAuthExpired && (
+					{/* Quick Index Button - hidden when auth is expired */}
+					{connector.is_indexable && onQuickIndex && !isAuthExpired && (
 						<Button
 							variant="secondary"
 							size="sm"
@@ -401,31 +399,31 @@ export const ConnectorEditView: FC<ConnectorEditViewProps> = ({
 						Disconnect
 					</Button>
 				)}
-			{isAuthExpired && reauthEndpoint ? (
-				<Button
-					onClick={handleReauth}
-					disabled={reauthing || isDisconnecting}
-					className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white"
-				>
-					<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
-					Re-authenticate
-				</Button>
-			) : (
-				<Button
-					onClick={onSave}
-					disabled={isSaving || isDisconnecting}
-					className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
-				>
-					{isSaving ? (
-						<>
-							<Spinner size="sm" className="mr-2" />
-							Saving
-						</>
-					) : (
-						"Save Changes"
-					)}
-				</Button>
-			)}
+				{isAuthExpired && reauthEndpoint ? (
+					<Button
+						onClick={handleReauth}
+						disabled={reauthing || isDisconnecting}
+						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2 bg-amber-600 hover:bg-amber-700 text-white"
+					>
+						<RefreshCw className={cn("size-3.5", reauthing && "animate-spin")} />
+						Re-authenticate
+					</Button>
+				) : (
+					<Button
+						onClick={onSave}
+						disabled={isSaving || isDisconnecting}
+						className="text-xs sm:text-sm flex-1 sm:flex-initial h-12 sm:h-auto py-3 sm:py-2"
+					>
+						{isSaving ? (
+							<>
+								<Spinner size="sm" className="mr-2" />
+								Saving
+							</>
+						) : (
+							"Save Changes"
+						)}
+					</Button>
+				)}
 			</div>
 		</div>
 	);

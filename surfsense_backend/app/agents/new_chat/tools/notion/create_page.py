@@ -245,7 +245,9 @@ def create_create_notion_page_tool(
                         user_id=user_id,
                     )
                     if kb_result["status"] == "success":
-                        kb_message_suffix = " Your knowledge base has also been updated."
+                        kb_message_suffix = (
+                            " Your knowledge base has also been updated."
+                        )
                     else:
                         kb_message_suffix = " This page will be added to your knowledge base in the next scheduled sync."
                 except Exception as kb_err:

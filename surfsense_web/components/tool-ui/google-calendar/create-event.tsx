@@ -1,16 +1,13 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	ClockIcon,
-	MapPinIcon,
-	UsersIcon,
-	GlobeIcon,
-	CornerDownLeftIcon,
-	Pen,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSetAtom } from "jotai";
+import { ClockIcon, CornerDownLeftIcon, GlobeIcon, MapPinIcon, Pen, UsersIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -19,11 +16,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { PlateEditor } from "@/components/editor/plate-editor";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
-import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface GoogleCalendarAccount {
 	id: number;
@@ -160,8 +153,12 @@ function ApprovalCard({
 	const [wasEdited, setWasEdited] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{
-		summary: string; description: string; start_datetime: string;
-		end_datetime: string; location: string; attendees: string;
+		summary: string;
+		description: string;
+		start_datetime: string;
+		end_datetime: string;
+		location: string;
+		attendees: string;
 	} | null>(null);
 
 	const accounts = interruptData.context?.accounts ?? [];
@@ -236,7 +233,19 @@ function ApprovalCard({
 				args: finalArgs,
 			},
 		});
-	}, [phase, isPanelOpen, canApprove, allowedDecisions, setProcessing, onDecision, interruptData, args, selectedAccountId, selectedCalendarId, pendingEdits]);
+	}, [
+		phase,
+		isPanelOpen,
+		canApprove,
+		allowedDecisions,
+		setProcessing,
+		onDecision,
+		interruptData,
+		args,
+		selectedAccountId,
+		selectedCalendarId,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -250,7 +259,10 @@ function ApprovalCard({
 
 	const attendeesList = (args.attendees as string[]) ?? [];
 	const displayAttendees = pendingEdits?.attendees
-		? pendingEdits.attendees.split(",").map((e) => e.trim()).filter(Boolean)
+		? pendingEdits.attendees
+				.split(",")
+				.map((e) => e.trim())
+				.filter(Boolean)
 		: attendeesList;
 
 	return (
@@ -266,16 +278,17 @@ function ApprovalCard({
 									? "Calendar Event Approved"
 									: "Create Calendar Event"}
 						</p>
-					{phase === "processing" ? (
-							<TextShimmerLoader text={wasEdited ? "Creating event with your changes" : "Creating event"} size="sm" />
+						{phase === "processing" ? (
+							<TextShimmerLoader
+								text={wasEdited ? "Creating event with your changes" : "Creating event"}
+								size="sm"
+							/>
 						) : phase === "complete" ? (
 							<p className="text-xs text-muted-foreground mt-0.5">
 								{wasEdited ? "Event created with your changes" : "Event created"}
 							</p>
 						) : phase === "rejected" ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								Event creation was cancelled
-							</p>
+							<p className="text-xs text-muted-foreground mt-0.5">Event creation was cancelled</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
 								Requires your approval to proceed
@@ -291,14 +304,34 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							const extraFields: ExtraField[] = [
-								{ key: "start_datetime", label: "Start", type: "datetime-local", value: pendingEdits?.start_datetime ?? args.start_datetime ?? "" },
-								{ key: "end_datetime", label: "End", type: "datetime-local", value: pendingEdits?.end_datetime ?? args.end_datetime ?? "" },
-								{ key: "location", label: "Location", type: "text", value: pendingEdits?.location ?? args.location ?? "" },
-								{ key: "attendees", label: "Attendees", type: "emails", value: pendingEdits?.attendees ?? attendeesList.join(", ") },
+								{
+									key: "start_datetime",
+									label: "Start",
+									type: "datetime-local",
+									value: pendingEdits?.start_datetime ?? args.start_datetime ?? "",
+								},
+								{
+									key: "end_datetime",
+									label: "End",
+									type: "datetime-local",
+									value: pendingEdits?.end_datetime ?? args.end_datetime ?? "",
+								},
+								{
+									key: "location",
+									label: "Location",
+									type: "text",
+									value: pendingEdits?.location ?? args.location ?? "",
+								},
+								{
+									key: "attendees",
+									label: "Attendees",
+									type: "emails",
+									value: pendingEdits?.attendees ?? attendeesList.join(", "),
+								},
 							];
 							openHitlEditPanel({
-								title: pendingEdits?.summary ?? (args.summary ?? ""),
-								content: pendingEdits?.description ?? (args.description ?? ""),
+								title: pendingEdits?.summary ?? args.summary ?? "",
+								content: pendingEdits?.description ?? args.description ?? "",
 								toolName: "Calendar Event",
 								extraFields,
 								onSave: (newTitle, newContent, extraFieldValues) => {
@@ -307,10 +340,16 @@ function ApprovalCard({
 									setPendingEdits({
 										summary: newTitle,
 										description: newContent,
-										start_datetime: extras.start_datetime ?? pendingEdits?.start_datetime ?? args.start_datetime ?? "",
-										end_datetime: extras.end_datetime ?? pendingEdits?.end_datetime ?? args.end_datetime ?? "",
+										start_datetime:
+											extras.start_datetime ??
+											pendingEdits?.start_datetime ??
+											args.start_datetime ??
+											"",
+										end_datetime:
+											extras.end_datetime ?? pendingEdits?.end_datetime ?? args.end_datetime ?? "",
 										location: extras.location ?? pendingEdits?.location ?? args.location ?? "",
-										attendees: extras.attendees ?? pendingEdits?.attendees ?? attendeesList.join(", "),
+										attendees:
+											extras.attendees ?? pendingEdits?.attendees ?? attendeesList.join(", "),
 									});
 								},
 								onClose: () => setIsPanelOpen(false),
@@ -372,7 +411,8 @@ function ApprovalCard({
 											<SelectContent>
 												{calendars.map((cal) => (
 													<SelectItem key={cal.id} value={cal.id}>
-														{cal.summary}{cal.primary ? " (primary)" : ""}
+														{cal.summary}
+														{cal.primary ? " (primary)" : ""}
 													</SelectItem>
 												))}
 											</SelectContent>
@@ -399,16 +439,26 @@ function ApprovalCard({
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3 pb-3 space-y-2">
 				{(pendingEdits?.summary ?? args.summary) && (
-					<p className="text-sm font-medium text-foreground">{pendingEdits?.summary ?? args.summary}</p>
+					<p className="text-sm font-medium text-foreground">
+						{pendingEdits?.summary ?? args.summary}
+					</p>
 				)}
 
-				{((pendingEdits?.start_datetime ?? args.start_datetime) || (pendingEdits?.end_datetime ?? args.end_datetime)) && (
+				{((pendingEdits?.start_datetime ?? args.start_datetime) ||
+					(pendingEdits?.end_datetime ?? args.end_datetime)) && (
 					<div className="flex items-center gap-1.5 text-xs text-muted-foreground">
 						<ClockIcon className="size-3.5 shrink-0" />
 						<span>
-							{(pendingEdits?.start_datetime ?? args.start_datetime) ? formatDateTime(pendingEdits?.start_datetime ?? args.start_datetime) : ""}
-							{(pendingEdits?.start_datetime ?? args.start_datetime) && (pendingEdits?.end_datetime ?? args.end_datetime) ? " — " : ""}
-							{(pendingEdits?.end_datetime ?? args.end_datetime) ? formatDateTime(pendingEdits?.end_datetime ?? args.end_datetime) : ""}
+							{(pendingEdits?.start_datetime ?? args.start_datetime)
+								? formatDateTime(pendingEdits?.start_datetime ?? args.start_datetime)
+								: ""}
+							{(pendingEdits?.start_datetime ?? args.start_datetime) &&
+							(pendingEdits?.end_datetime ?? args.end_datetime)
+								? " — "
+								: ""}
+							{(pendingEdits?.end_datetime ?? args.end_datetime)
+								? formatDateTime(pendingEdits?.end_datetime ?? args.end_datetime)
+								: ""}
 						</span>
 					</div>
 				)}

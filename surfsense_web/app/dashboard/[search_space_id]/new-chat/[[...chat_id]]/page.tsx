@@ -37,21 +37,26 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
 import { MobileHitlEditPanel } from "@/components/hitl-edit-panel/hitl-edit-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
+import {
+	CreateConfluencePageToolUI,
+	DeleteConfluencePageToolUI,
+	UpdateConfluencePageToolUI,
+} from "@/components/tool-ui/confluence";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import {
-	CreateCalendarEventToolUI,
-	UpdateCalendarEventToolUI,
-	DeleteCalendarEventToolUI,
-} from "@/components/tool-ui/google-calendar";
 import {
 	CreateGmailDraftToolUI,
 	SendGmailEmailToolUI,
 	TrashGmailEmailToolUI,
 	UpdateGmailDraftToolUI,
 } from "@/components/tool-ui/gmail";
+import {
+	CreateCalendarEventToolUI,
+	DeleteCalendarEventToolUI,
+	UpdateCalendarEventToolUI,
+} from "@/components/tool-ui/google-calendar";
 import {
 	CreateGoogleDriveFileToolUI,
 	DeleteGoogleDriveFileToolUI,
@@ -61,11 +66,6 @@ import {
 	DeleteJiraIssueToolUI,
 	UpdateJiraIssueToolUI,
 } from "@/components/tool-ui/jira";
-import {
-	CreateConfluencePageToolUI,
-	DeleteConfluencePageToolUI,
-	UpdateConfluencePageToolUI,
-} from "@/components/tool-ui/confluence";
 import {
 	CreateLinearIssueToolUI,
 	DeleteLinearIssueToolUI,

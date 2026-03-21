@@ -43,11 +43,16 @@ def create_create_confluence_page_tool(
         logger.info(f"create_confluence_page called: title='{title}'")
 
         if db_session is None or search_space_id is None or user_id is None:
-            return {"status": "error", "message": "Confluence tool not properly configured."}
+            return {
+                "status": "error",
+                "message": "Confluence tool not properly configured.",
+            }
 
         try:
             metadata_service = ConfluenceToolMetadataService(db_session)
-            context = await metadata_service.get_creation_context(search_space_id, user_id)
+            context = await metadata_service.get_creation_context(
+                search_space_id, user_id
+            )
 
             if "error" in context:
                 return {"status": "error", "message": context["error"]}
@@ -60,22 +65,28 @@ def create_create_confluence_page_tool(
                     "connector_type": "confluence",
                 }
 
-            approval = interrupt({
-                "type": "confluence_page_creation",
-                "action": {
-                    "tool": "create_confluence_page",
-                    "params": {
-                        "title": title,
-                        "content": content,
-                        "space_id": space_id,
-                        "connector_id": connector_id,
+            approval = interrupt(
+                {
+                    "type": "confluence_page_creation",
+                    "action": {
+                        "tool": "create_confluence_page",
+                        "params": {
+                            "title": title,
+                            "content": content,
+                            "space_id": space_id,
+                            "connector_id": connector_id,
+                        },
                     },
-                },
-                "context": context,
-            })
+                    "context": context,
+                }
+            )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 return {"status": "error", "message": "No approval decision received"}
@@ -84,7 +95,10 @@ def create_create_confluence_page_tool(
             decision_type = decision.get("type") or decision.get("decision_type")
 
             if decision_type == "reject":
-                return {"status": "rejected", "message": "User declined. The page was not created."}
+                return {
+                    "status": "rejected",
+                    "message": "User declined. The page was not created.",
+                }
 
             final_params: dict[str, Any] = {}
             edited_action = decision.get("edited_action")
@@ -114,12 +128,16 @@ def create_create_confluence_page_tool(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
                     )
                 )
                 connector = result.scalars().first()
                 if not connector:
-                    return {"status": "error", "message": "No Confluence connector found."}
+                    return {
+                        "status": "error",
+                        "message": "No Confluence connector found.",
+                    }
                 actual_connector_id = connector.id
             else:
                 result = await db_session.execute(
@@ -127,15 +145,21 @@ def create_create_confluence_page_tool(
                         SearchSourceConnector.id == actual_connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.CONFLUENCE_CONNECTOR,
                     )
                 )
                 connector = result.scalars().first()
                 if not connector:
-                    return {"status": "error", "message": "Selected Confluence connector is invalid."}
+                    return {
+                        "status": "error",
+                        "message": "Selected Confluence connector is invalid.",
+                    }
 
             try:
-                client = ConfluenceHistoryConnector(session=db_session, connector_id=actual_connector_id)
+                client = ConfluenceHistoryConnector(
+                    session=db_session, connector_id=actual_connector_id
+                )
                 api_result = await client.create_page(
                     space_id=final_space_id,
                     title=final_title,
@@ -143,7 +167,10 @@ def create_create_confluence_page_tool(
                 )
                 await client.close()
             except Exception as api_err:
-                if "http 403" in str(api_err).lower() or "status code 403" in str(api_err).lower():
+                if (
+                    "http 403" in str(api_err).lower()
+                    or "status code 403" in str(api_err).lower()
+                ):
                     try:
                         _conn = connector
                         _conn.config = {**_conn.config, "auth_expired": True}
@@ -163,6 +190,7 @@ def create_create_confluence_page_tool(
             kb_message_suffix = ""
             try:
                 from app.services.confluence import ConfluenceKBSyncService
+
                 kb_service = ConfluenceKBSyncService(db_session)
                 kb_result = await kb_service.sync_after_create(
                     page_id=page_id,
@@ -189,9 +217,13 @@ def create_create_confluence_page_tool(
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt
+
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error(f"Error creating Confluence page: {e}", exc_info=True)
-            return {"status": "error", "message": "Something went wrong while creating the page."}
+            return {
+                "status": "error",
+                "message": "Something went wrong while creating the page.",
+            }
 
     return create_confluence_page

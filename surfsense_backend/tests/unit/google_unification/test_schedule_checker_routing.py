@@ -20,8 +20,14 @@ def test_drive_indexer_accepts_both_native_and_composio():
         ACCEPTED_DRIVE_CONNECTOR_TYPES,
     )
 
-    assert SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR in ACCEPTED_DRIVE_CONNECTOR_TYPES
-    assert SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR in ACCEPTED_DRIVE_CONNECTOR_TYPES
+    assert (
+        SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR
+        in ACCEPTED_DRIVE_CONNECTOR_TYPES
+    )
+    assert (
+        SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+        in ACCEPTED_DRIVE_CONNECTOR_TYPES
+    )
 
 
 def test_gmail_indexer_accepts_both_native_and_composio():
@@ -30,8 +36,14 @@ def test_gmail_indexer_accepts_both_native_and_composio():
         ACCEPTED_GMAIL_CONNECTOR_TYPES,
     )
 
-    assert SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR in ACCEPTED_GMAIL_CONNECTOR_TYPES
-    assert SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR in ACCEPTED_GMAIL_CONNECTOR_TYPES
+    assert (
+        SearchSourceConnectorType.GOOGLE_GMAIL_CONNECTOR
+        in ACCEPTED_GMAIL_CONNECTOR_TYPES
+    )
+    assert (
+        SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+        in ACCEPTED_GMAIL_CONNECTOR_TYPES
+    )
 
 
 def test_calendar_indexer_accepts_both_native_and_composio():
@@ -40,14 +52,29 @@ def test_calendar_indexer_accepts_both_native_and_composio():
         ACCEPTED_CALENDAR_CONNECTOR_TYPES,
     )
 
-    assert SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR in ACCEPTED_CALENDAR_CONNECTOR_TYPES
-    assert SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR in ACCEPTED_CALENDAR_CONNECTOR_TYPES
+    assert (
+        SearchSourceConnectorType.GOOGLE_CALENDAR_CONNECTOR
+        in ACCEPTED_CALENDAR_CONNECTOR_TYPES
+    )
+    assert (
+        SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+        in ACCEPTED_CALENDAR_CONNECTOR_TYPES
+    )
 
 
 def test_composio_connector_types_set_covers_all_google_services():
     """COMPOSIO_GOOGLE_CONNECTOR_TYPES should contain all three Composio Google types."""
     from app.utils.google_credentials import COMPOSIO_GOOGLE_CONNECTOR_TYPES
 
-    assert SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR in COMPOSIO_GOOGLE_CONNECTOR_TYPES
-    assert SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR in COMPOSIO_GOOGLE_CONNECTOR_TYPES
-    assert SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR in COMPOSIO_GOOGLE_CONNECTOR_TYPES
+    assert (
+        SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
+        in COMPOSIO_GOOGLE_CONNECTOR_TYPES
+    )
+    assert (
+        SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+        in COMPOSIO_GOOGLE_CONNECTOR_TYPES
+    )
+    assert (
+        SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+        in COMPOSIO_GOOGLE_CONNECTOR_TYPES
+    )

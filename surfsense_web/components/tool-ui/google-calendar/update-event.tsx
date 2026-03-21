@@ -1,22 +1,22 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useSetAtom } from "jotai";
 import {
-	ClockIcon,
-	MapPinIcon,
-	UsersIcon,
 	ArrowRightIcon,
+	ClockIcon,
 	CornerDownLeftIcon,
+	MapPinIcon,
 	Pen,
+	UsersIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { useSetAtom } from "jotai";
-import { Button } from "@/components/ui/button";
+import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { Button } from "@/components/ui/button";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
-import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface GoogleCalendarAccount {
 	id: number;
@@ -180,8 +180,12 @@ function ApprovalCard({
 	const [wasEdited, setWasEdited] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{
-		summary: string; description: string; start_datetime: string;
-		end_datetime: string; location: string; attendees: string;
+		summary: string;
+		description: string;
+		start_datetime: string;
+		end_datetime: string;
+		location: string;
+		attendees: string;
 	} | null>(null);
 
 	const reviewConfig = interruptData.review_configs[0];
@@ -196,19 +200,21 @@ function ApprovalCard({
 	const effectiveNewSummary = actionArgs.new_summary ?? args.new_summary;
 	const effectiveNewStartDatetime = actionArgs.new_start_datetime ?? args.new_start_datetime;
 	const effectiveNewEndDatetime = actionArgs.new_end_datetime ?? args.new_end_datetime;
-	const effectiveNewLocation = actionArgs.new_location !== undefined
-		? actionArgs.new_location
-		: args.new_location;
-	const effectiveNewAttendees = proposedAttendees
-		?? (Array.isArray(args.new_attendees) ? args.new_attendees : null);
-	const effectiveNewDescription = actionArgs.new_description !== undefined
-		? actionArgs.new_description
-		: args.new_description;
+	const effectiveNewLocation =
+		actionArgs.new_location !== undefined ? actionArgs.new_location : args.new_location;
+	const effectiveNewAttendees =
+		proposedAttendees ?? (Array.isArray(args.new_attendees) ? args.new_attendees : null);
+	const effectiveNewDescription =
+		actionArgs.new_description !== undefined ? actionArgs.new_description : args.new_description;
 
 	const changes: Array<{ label: string; oldVal: string; newVal: string }> = [];
 
 	if (effectiveNewSummary && String(effectiveNewSummary) !== (event?.summary ?? "")) {
-		changes.push({ label: "Summary", oldVal: event?.summary ?? "", newVal: String(effectiveNewSummary) });
+		changes.push({
+			label: "Summary",
+			oldVal: event?.summary ?? "",
+			newVal: String(effectiveNewSummary),
+		});
 	}
 	if (effectiveNewStartDatetime && String(effectiveNewStartDatetime) !== (event?.start ?? "")) {
 		changes.push({
@@ -224,8 +230,15 @@ function ApprovalCard({
 			newVal: formatDateTime(String(effectiveNewEndDatetime)),
 		});
 	}
-	if (effectiveNewLocation !== undefined && String(effectiveNewLocation ?? "") !== (event?.location ?? "")) {
-		changes.push({ label: "Location", oldVal: event?.location ?? "", newVal: String(effectiveNewLocation ?? "") });
+	if (
+		effectiveNewLocation !== undefined &&
+		String(effectiveNewLocation ?? "") !== (event?.location ?? "")
+	) {
+		changes.push({
+			label: "Location",
+			oldVal: event?.location ?? "",
+			newVal: String(effectiveNewLocation ?? ""),
+		});
 	}
 	if (effectiveNewAttendees) {
 		const oldStr = currentAttendees.join(", ");
@@ -242,7 +255,10 @@ function ApprovalCard({
 	const buildFinalArgs = useCallback(() => {
 		if (pendingEdits) {
 			const attendeesArr = pendingEdits.attendees
-				? pendingEdits.attendees.split(",").map((e) => e.trim()).filter(Boolean)
+				? pendingEdits.attendees
+						.split(",")
+						.map((e) => e.trim())
+						.filter(Boolean)
 				: null;
 			return {
 				event_id: event?.event_id,
@@ -282,7 +298,16 @@ function ApprovalCard({
 				args: buildFinalArgs(),
 			},
 		});
-	}, [phase, isPanelOpen, allowedDecisions, setProcessing, onDecision, interruptData, buildFinalArgs, pendingEdits]);
+	}, [
+		phase,
+		isPanelOpen,
+		allowedDecisions,
+		setProcessing,
+		onDecision,
+		interruptData,
+		buildFinalArgs,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -308,15 +333,16 @@ function ApprovalCard({
 									: "Update Calendar Event"}
 						</p>
 						{phase === "processing" ? (
-							<TextShimmerLoader text={wasEdited ? "Updating event with your changes" : "Updating event"} size="sm" />
+							<TextShimmerLoader
+								text={wasEdited ? "Updating event with your changes" : "Updating event"}
+								size="sm"
+							/>
 						) : phase === "complete" ? (
 							<p className="text-xs text-muted-foreground mt-0.5">
 								{wasEdited ? "Event updated with your changes" : "Event updated"}
 							</p>
 						) : phase === "rejected" ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								Event update was cancelled
-							</p>
+							<p className="text-xs text-muted-foreground mt-0.5">Event update was cancelled</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
 								Requires your approval to proceed
@@ -331,24 +357,48 @@ function ApprovalCard({
 						className="rounded-lg text-muted-foreground -mt-1 -mr-2"
 						onClick={() => {
 							setIsPanelOpen(true);
-							const proposedSummary = pendingEdits?.summary
-								?? (actionArgs.new_summary ? String(actionArgs.new_summary) : (event?.summary ?? ""));
-							const proposedDescription = pendingEdits?.description
-								?? (actionArgs.new_description ? String(actionArgs.new_description) : (event?.description ?? ""));
-							const proposedStart = pendingEdits?.start_datetime
-								?? (actionArgs.new_start_datetime ? String(actionArgs.new_start_datetime) : (event?.start ?? ""));
-							const proposedEnd = pendingEdits?.end_datetime
-								?? (actionArgs.new_end_datetime ? String(actionArgs.new_end_datetime) : (event?.end ?? ""));
-							const proposedLocation = pendingEdits?.location
-								?? (actionArgs.new_location !== undefined ? String(actionArgs.new_location ?? "") : (event?.location ?? ""));
-							const proposedAttendeesStr = pendingEdits?.attendees
-								?? (proposedAttendees ? proposedAttendees.join(", ") : currentAttendees.join(", "));
+							const proposedSummary =
+								pendingEdits?.summary ??
+								(actionArgs.new_summary ? String(actionArgs.new_summary) : (event?.summary ?? ""));
+							const proposedDescription =
+								pendingEdits?.description ??
+								(actionArgs.new_description
+									? String(actionArgs.new_description)
+									: (event?.description ?? ""));
+							const proposedStart =
+								pendingEdits?.start_datetime ??
+								(actionArgs.new_start_datetime
+									? String(actionArgs.new_start_datetime)
+									: (event?.start ?? ""));
+							const proposedEnd =
+								pendingEdits?.end_datetime ??
+								(actionArgs.new_end_datetime
+									? String(actionArgs.new_end_datetime)
+									: (event?.end ?? ""));
+							const proposedLocation =
+								pendingEdits?.location ??
+								(actionArgs.new_location !== undefined
+									? String(actionArgs.new_location ?? "")
+									: (event?.location ?? ""));
+							const proposedAttendeesStr =
+								pendingEdits?.attendees ??
+								(proposedAttendees ? proposedAttendees.join(", ") : currentAttendees.join(", "));
 
 							const extraFields: ExtraField[] = [
-								{ key: "start_datetime", label: "Start", type: "datetime-local", value: proposedStart },
+								{
+									key: "start_datetime",
+									label: "Start",
+									type: "datetime-local",
+									value: proposedStart,
+								},
 								{ key: "end_datetime", label: "End", type: "datetime-local", value: proposedEnd },
 								{ key: "location", label: "Location", type: "text", value: proposedLocation },
-								{ key: "attendees", label: "Attendees", type: "emails", value: proposedAttendeesStr },
+								{
+									key: "attendees",
+									label: "Attendees",
+									type: "emails",
+									value: proposedAttendeesStr,
+								},
 							];
 							openHitlEditPanel({
 								title: proposedSummary,
@@ -377,7 +427,7 @@ function ApprovalCard({
 				)}
 			</div>
 
-				{/* Content section */}
+			{/* Content section */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4 space-y-4 select-none">
 				{context?.error ? (
@@ -433,9 +483,13 @@ function ApprovalCard({
 										<div key={change.label} className="text-xs space-y-0.5">
 											<span className="text-muted-foreground">{change.label}</span>
 											<div className="flex items-center gap-1.5 flex-wrap">
-												<span className="text-muted-foreground line-through">{change.oldVal || "(empty)"}</span>
+												<span className="text-muted-foreground line-through">
+													{change.oldVal || "(empty)"}
+												</span>
 												<ArrowRightIcon className="size-3 text-muted-foreground shrink-0" />
-												<span className="font-medium text-foreground">{change.newVal || "(empty)"}</span>
+												<span className="font-medium text-foreground">
+													{change.newVal || "(empty)"}
+												</span>
 											</div>
 										</div>
 									))}
@@ -446,7 +500,8 @@ function ApprovalCard({
 												className="mt-1 max-h-[5rem] overflow-hidden"
 												style={{
 													maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
-													WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
+													WebkitMaskImage:
+														"linear-gradient(to bottom, black 50%, transparent 100%)",
 												}}
 											>
 												<PlateEditor

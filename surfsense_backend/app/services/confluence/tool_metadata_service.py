@@ -83,7 +83,7 @@ class ConfluenceToolMetadataService:
 
     async def _check_account_health(self, connector: SearchSourceConnector) -> bool:
         """Check if the Confluence connector auth is still valid.
-        
+
         Returns True if auth is expired/invalid, False if healthy.
         """
         try:
@@ -112,7 +112,7 @@ class ConfluenceToolMetadataService:
 
     async def get_creation_context(self, search_space_id: int, user_id: str) -> dict:
         """Return context needed to create a new Confluence page.
-        
+
         Fetches all connected accounts, and for the first healthy one fetches spaces.
         """
         connectors = await self._get_all_confluence_connectors(search_space_id, user_id)
@@ -126,10 +126,12 @@ class ConfluenceToolMetadataService:
         for connector in connectors:
             auth_expired = await self._check_account_health(connector)
             workspace = ConfluenceWorkspace.from_connector(connector)
-            accounts.append({
-                **workspace.to_dict(),
-                "auth_expired": auth_expired,
-            })
+            accounts.append(
+                {
+                    **workspace.to_dict(),
+                    "auth_expired": auth_expired,
+                }
+            )
 
             if not auth_expired and not fetched_context:
                 try:
@@ -146,7 +148,8 @@ class ConfluenceToolMetadataService:
                 except Exception as e:
                     logger.warning(
                         "Failed to fetch Confluence spaces for connector %s: %s",
-                        connector.id, e,
+                        connector.id,
+                        e,
                     )
 
         return {
@@ -158,7 +161,7 @@ class ConfluenceToolMetadataService:
         self, search_space_id: int, user_id: str, page_ref: str
     ) -> dict:
         """Return context needed to update an indexed Confluence page.
-        
+
         Resolves the page from KB, then fetches current content and version from API.
         """
         document = await self._resolve_page(search_space_id, user_id, page_ref)
@@ -191,7 +194,11 @@ class ConfluenceToolMetadataService:
             await client.close()
         except Exception as e:
             error_str = str(e).lower()
-            if "401" in error_str or "403" in error_str or "authentication" in error_str:
+            if (
+                "401" in error_str
+                or "403" in error_str
+                or "authentication" in error_str
+            ):
                 return {
                     "error": f"Failed to fetch Confluence page: {e!s}",
                     "auth_expired": True,
@@ -207,7 +214,9 @@ class ConfluenceToolMetadataService:
                 body_storage = storage.get("value", "")
 
         version_obj = page_data.get("version", {})
-        version_number = version_obj.get("number", 1) if isinstance(version_obj, dict) else 1
+        version_number = (
+            version_obj.get("number", 1) if isinstance(version_obj, dict) else 1
+        )
 
         return {
             "account": {**workspace.to_dict(), "auth_expired": False},
@@ -263,9 +272,7 @@ class ConfluenceToolMetadataService:
                     Document.document_type == DocumentType.CONFLUENCE_CONNECTOR,
                     SearchSourceConnector.user_id == user_id,
                     or_(
-                        func.lower(
-                            Document.document_metadata.op("->>")("page_title")
-                        )
+                        func.lower(Document.document_metadata.op("->>")("page_title"))
                         == ref_lower,
                         func.lower(Document.title) == ref_lower,
                     ),

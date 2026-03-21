@@ -1,16 +1,11 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	CalendarIcon,
-	CornerDownLeftIcon,
-	MailIcon,
-	UserIcon,
-} from "lucide-react";
+import { CalendarIcon, CornerDownLeftIcon, MailIcon, UserIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GmailAccount {
@@ -192,14 +187,12 @@ function ApprovalCard({
 									? "Email Trash Approved"
 									: "Trash Email"}
 						</p>
-					{phase === "processing" ? (
+						{phase === "processing" ? (
 							<TextShimmerLoader text="Trashing email" size="sm" />
 						) : phase === "complete" ? (
 							<p className="text-xs text-muted-foreground mt-0.5">Email trashed</p>
 						) : phase === "rejected" ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								Email trash was cancelled
-							</p>
+							<p className="text-xs text-muted-foreground mt-0.5">Email trash was cancelled</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
 								Requires your approval to proceed
@@ -280,11 +273,7 @@ function ApprovalCard({
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
-						<Button
-							size="sm"
-							className="rounded-lg gap-1.5"
-							onClick={handleApprove}
-						>
+						<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
 							Approve
 							<CornerDownLeftIcon className="size-3 opacity-60" />
 						</Button>
@@ -324,9 +313,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					Gmail authentication expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">Gmail authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

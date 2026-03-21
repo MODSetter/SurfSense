@@ -39,9 +39,7 @@ async def test_list_of_types_returns_both_matching_doc_types(
     assert "FILE" not in returned_types
 
 
-async def test_single_string_type_returns_only_that_type(
-    db_session, seed_google_docs
-):
+async def test_single_string_type_returns_only_that_type(db_session, seed_google_docs):
     """Searching with a single string type returns only documents of that exact type."""
     space_id = seed_google_docs["search_space"].id
 

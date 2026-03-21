@@ -520,9 +520,13 @@ async def list_google_drive_folders(
                         await session.commit()
                         logger.info(f"Marked connector {connector_id} as auth_expired")
                 except Exception:
-                    logger.warning(f"Failed to persist auth_expired for connector {connector_id}", exc_info=True)
+                    logger.warning(
+                        f"Failed to persist auth_expired for connector {connector_id}",
+                        exc_info=True,
+                    )
                 raise HTTPException(
-                    status_code=400, detail="Google Drive authentication expired. Please re-authenticate."
+                    status_code=400,
+                    detail="Google Drive authentication expired. Please re-authenticate.",
                 )
             raise HTTPException(
                 status_code=500, detail=f"Failed to list folder contents: {error}"
@@ -562,9 +566,13 @@ async def list_google_drive_folders(
                     await session.commit()
                     logger.info(f"Marked connector {connector_id} as auth_expired")
             except Exception:
-                logger.warning(f"Failed to persist auth_expired for connector {connector_id}", exc_info=True)
+                logger.warning(
+                    f"Failed to persist auth_expired for connector {connector_id}",
+                    exc_info=True,
+                )
             raise HTTPException(
-                status_code=400, detail="Google Drive authentication expired. Please re-authenticate."
+                status_code=400,
+                detail="Google Drive authentication expired. Please re-authenticate.",
             ) from e
         raise HTTPException(
             status_code=500, detail=f"Failed to list Drive contents: {e!s}"

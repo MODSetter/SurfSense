@@ -1,8 +1,12 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
+import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -11,11 +15,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { PlateEditor } from "@/components/editor/plate-editor";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import { useSetAtom } from "jotai";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface ConfluenceAccount {
 	id: number;
@@ -108,9 +108,7 @@ function isAuthErrorResult(result: unknown): result is AuthErrorResult {
 	);
 }
 
-function isInsufficientPermissionsResult(
-	result: unknown,
-): result is InsufficientPermissionsResult {
+function isInsufficientPermissionsResult(result: unknown): result is InsufficientPermissionsResult {
 	return (
 		typeof result === "object" &&
 		result !== null &&
@@ -161,7 +159,7 @@ function ApprovalCard({
 				space_id: selectedSpaceId || null,
 			};
 		},
-		[args.title, args.content, selectedAccountId, selectedSpaceId, pendingEdits],
+		[args.title, args.content, selectedAccountId, selectedSpaceId, pendingEdits]
 	);
 
 	const handleApprove = useCallback(() => {
@@ -177,7 +175,17 @@ function ApprovalCard({
 				args: buildFinalArgs(),
 			},
 		});
-	}, [phase, setProcessing, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, buildFinalArgs, pendingEdits]);
+	}, [
+		phase,
+		setProcessing,
+		isPanelOpen,
+		canApprove,
+		allowedDecisions,
+		onDecision,
+		interruptData,
+		buildFinalArgs,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -202,15 +210,16 @@ function ApprovalCard({
 								: "Create Confluence Page"}
 					</p>
 					{phase === "processing" ? (
-						<TextShimmerLoader text={pendingEdits ? "Creating page with your changes" : "Creating page"} size="sm" />
+						<TextShimmerLoader
+							text={pendingEdits ? "Creating page with your changes" : "Creating page"}
+							size="sm"
+						/>
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							{pendingEdits ? "Page created with your changes" : "Page created"}
 						</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Page creation was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Page creation was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -225,8 +234,8 @@ function ApprovalCard({
 						onClick={() => {
 							setIsPanelOpen(true);
 							openHitlEditPanel({
-								title: pendingEdits?.title ?? (args.title ?? ""),
-								content: pendingEdits?.content ?? (args.content ?? ""),
+								title: pendingEdits?.title ?? args.title ?? "",
+								content: pendingEdits?.content ?? args.content ?? "",
 								toolName: "Confluence Page",
 								onSave: (newTitle, newContent) => {
 									setIsPanelOpen(false);
@@ -290,10 +299,7 @@ function ApprovalCard({
 										<p className="text-xs font-medium text-muted-foreground">
 											Space <span className="text-destructive">*</span>
 										</p>
-										<Select
-											value={selectedSpaceId}
-											onValueChange={setSelectedSpaceId}
-										>
+										<Select value={selectedSpaceId} onValueChange={setSelectedSpaceId}>
 											<SelectTrigger className="w-full">
 												<SelectValue placeholder="Select a space" />
 											</SelectTrigger>
@@ -379,9 +385,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					All Confluence accounts expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">All Confluence accounts expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -391,9 +395,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	);
 }
 
-function InsufficientPermissionsCard({
-	result,
-}: { result: InsufficientPermissionsResult }) {
+function InsufficientPermissionsCard({ result }: { result: InsufficientPermissionsResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
@@ -474,7 +476,8 @@ export const CreateConfluencePageToolUI = makeAssistantToolUI<
 		}
 
 		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isInsufficientPermissionsResult(result)) return <InsufficientPermissionsCard result={result} />;
+		if (isInsufficientPermissionsResult(result))
+			return <InsufficientPermissionsCard result={result} />;
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 
 		return <SuccessCard result={result as SuccessResult} />;

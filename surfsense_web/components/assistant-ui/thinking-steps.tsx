@@ -32,7 +32,9 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 
 	const inProgressStep = steps.find((s) => getEffectiveStatus(s) === "in_progress");
 	const allCompleted =
-		steps.length > 0 && !isThreadRunning && steps.every((s) => getEffectiveStatus(s) === "completed");
+		steps.length > 0 &&
+		!isThreadRunning &&
+		steps.every((s) => getEffectiveStatus(s) === "completed");
 	const isProcessing = isThreadRunning && !allCompleted;
 
 	// Auto-collapse when all tasks are completed
@@ -127,7 +129,7 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 													effectiveStatus === "pending" && "text-muted-foreground/60"
 												)}
 											>
-											{step.title}
+												{step.title}
 											</div>
 
 											{/* Step items (sub-content) */}

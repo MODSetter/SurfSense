@@ -187,7 +187,10 @@ def create_delete_calendar_event_tool(
                 f"Deleting calendar event: event_id='{final_event_id}', connector={actual_connector_id}"
             )
 
-            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR:
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+            ):
                 from app.utils.google_credentials import build_composio_credentials
 
                 cca_id = connector.config.get("composio_connected_account_id")
@@ -209,7 +212,9 @@ def create_delete_calendar_event_tool(
                     token_encryption = TokenEncryption(app_config.SECRET_KEY)
                     for key in ("token", "refresh_token", "client_secret"):
                         if config_data.get(key):
-                            config_data[key] = token_encryption.decrypt_token(config_data[key])
+                            config_data[key] = token_encryption.decrypt_token(
+                                config_data[key]
+                            )
 
                 exp = config_data.get("expiry", "")
                 if exp:
@@ -232,9 +237,11 @@ def create_delete_calendar_event_tool(
             try:
                 await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: service.events()
-                    .delete(calendarId="primary", eventId=final_event_id)
-                    .execute(),
+                    lambda: (
+                        service.events()
+                        .delete(calendarId="primary", eventId=final_event_id)
+                        .execute()
+                    ),
                 )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
@@ -269,9 +276,7 @@ def create_delete_calendar_event_tool(
                     }
                 raise
 
-            logger.info(
-                f"Calendar event deleted: event_id={final_event_id}"
-            )
+            logger.info(f"Calendar event deleted: event_id={final_event_id}")
 
             delete_result: dict[str, Any] = {
                 "status": "success",

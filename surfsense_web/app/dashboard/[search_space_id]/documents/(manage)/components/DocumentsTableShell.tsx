@@ -1,5 +1,6 @@
 "use client";
 
+import { useAtomValue, useSetAtom } from "jotai";
 import {
 	AlertCircle,
 	CheckCircle2,
@@ -16,12 +17,11 @@ import {
 	Trash2,
 	User,
 } from "lucide-react";
-import { useAtomValue, useSetAtom } from "jotai";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { membersAtom } from "@/atoms/members/members-query.atoms";
-import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { toast } from "sonner";
+import { openEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
 import { JsonMetadataViewer } from "@/components/json-metadata-viewer";
 import { MarkdownViewer } from "@/components/markdown-viewer";
@@ -35,14 +35,9 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
 	Drawer,
@@ -51,7 +46,12 @@ import {
 	DrawerHeader,
 	DrawerTitle,
 } from "@/components/ui/drawer";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import {

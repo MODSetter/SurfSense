@@ -4,10 +4,10 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { Button } from "@/components/ui/button";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface InterruptResult {
@@ -68,7 +68,12 @@ interface AuthErrorResult {
 	connector_type: string;
 }
 
-type UpdateNotionPageResult = InterruptResult | SuccessResult | ErrorResult | InfoResult | AuthErrorResult;
+type UpdateNotionPageResult =
+	| InterruptResult
+	| SuccessResult
+	| ErrorResult
+	| InfoResult
+	| AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -148,7 +153,17 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [phase, isPanelOpen, allowedDecisions, setProcessing, onDecision, interruptData, args, account?.id, pendingEdits]);
+	}, [
+		phase,
+		isPanelOpen,
+		allowedDecisions,
+		setProcessing,
+		onDecision,
+		interruptData,
+		args,
+		account?.id,
+		pendingEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -173,15 +188,16 @@ function ApprovalCard({
 								: "Update Notion Page"}
 					</p>
 					{phase === "processing" ? (
-						<TextShimmerLoader text={pendingEdits ? "Updating page with your changes" : "Updating page"} size="sm" />
+						<TextShimmerLoader
+							text={pendingEdits ? "Updating page with your changes" : "Updating page"}
+							size="sm"
+						/>
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							{pendingEdits ? "Page updated with your changes" : "Page updated"}
 						</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Page update was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Page update was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -213,7 +229,7 @@ function ApprovalCard({
 				)}
 			</div>
 
-				{/* Context section — real UI in pending/processing/complete */}
+			{/* Context section — real UI in pending/processing/complete */}
 			{phase !== "rejected" && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
@@ -310,9 +326,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					Notion authentication expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">Notion authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -340,9 +354,7 @@ function InfoCard({ result }: { result: InfoResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-					Page not found
-				</p>
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Page not found</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

@@ -90,7 +90,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { CONNECTOR_ICON_TO_TYPES, CONNECTOR_TOOL_ICON_PATHS, getToolIcon } from "@/contracts/enums/toolIcons";
+import {
+	CONNECTOR_ICON_TO_TYPES,
+	CONNECTOR_TOOL_ICON_PATHS,
+	getToolIcon,
+} from "@/contracts/enums/toolIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
@@ -735,71 +739,75 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									</span>
 								</div>
 								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
-									{groupedTools.filter((g) => !g.connectorIcon).map((group) => (
-										<div key={group.label}>
-											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
-												{group.label}
+									{groupedTools
+										.filter((g) => !g.connectorIcon)
+										.map((group) => (
+											<div key={group.label}>
+												<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+													{group.label}
+												</div>
+												{group.tools.map((tool) => {
+													const isDisabled = disabledTools.includes(tool.name);
+													const ToolIcon = getToolIcon(tool.name);
+													return (
+														<div
+															key={tool.name}
+															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
+														>
+															<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
+															<span className="flex-1 min-w-0 text-sm font-medium truncate">
+																{formatToolName(tool.name)}
+															</span>
+															<Switch
+																checked={!isDisabled}
+																onCheckedChange={() => toggleTool(tool.name)}
+																className="shrink-0"
+															/>
+														</div>
+													);
+												})}
 											</div>
-											{group.tools.map((tool) => {
-												const isDisabled = disabledTools.includes(tool.name);
-												const ToolIcon = getToolIcon(tool.name);
-												return (
-													<div
-														key={tool.name}
-														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
-													>
-														<ToolIcon className="size-4 shrink-0 text-muted-foreground" />
-														<span className="flex-1 min-w-0 text-sm font-medium truncate">
-															{formatToolName(tool.name)}
-														</span>
-														<Switch
-															checked={!isDisabled}
-															onCheckedChange={() => toggleTool(tool.name)}
-															className="shrink-0"
-														/>
-													</div>
-												);
-											})}
-										</div>
-									))}
+										))}
 									{groupedTools.some((g) => g.connectorIcon) && (
 										<div>
 											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
 												Connector Actions
 											</div>
-											{groupedTools.filter((g) => g.connectorIcon).map((group) => {
-												const iconKey = group.connectorIcon ?? "";
-												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
-												const toolNames = group.tools.map((t) => t.name);
-												const allDisabled = toolNames.every((n) => disabledTools.includes(n));
-												return (
-													<div
-														key={group.label}
-														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
-													>
-														{iconInfo ? (
-															<Image
-																src={iconInfo.src}
-																alt={iconInfo.alt}
-																width={18}
-																height={18}
-																className="size-[18px] shrink-0 select-none pointer-events-none"
-																draggable={false}
+											{groupedTools
+												.filter((g) => g.connectorIcon)
+												.map((group) => {
+													const iconKey = group.connectorIcon ?? "";
+													const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+													const toolNames = group.tools.map((t) => t.name);
+													const allDisabled = toolNames.every((n) => disabledTools.includes(n));
+													return (
+														<div
+															key={group.label}
+															className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
+														>
+															{iconInfo ? (
+																<Image
+																	src={iconInfo.src}
+																	alt={iconInfo.alt}
+																	width={18}
+																	height={18}
+																	className="size-[18px] shrink-0 select-none pointer-events-none"
+																	draggable={false}
+																/>
+															) : (
+																<Wrench className="size-4 shrink-0 text-muted-foreground" />
+															)}
+															<span className="flex-1 min-w-0 text-sm font-medium truncate">
+																{group.label}
+															</span>
+															<Switch
+																checked={!allDisabled}
+																onCheckedChange={() => toggleToolGroup(toolNames)}
+																className="shrink-0"
 															/>
-														) : (
-															<Wrench className="size-4 shrink-0 text-muted-foreground" />
-														)}
-														<span className="flex-1 min-w-0 text-sm font-medium truncate">
-															{group.label}
-														</span>
-														<Switch
-															checked={!allDisabled}
-															onCheckedChange={() => toggleToolGroup(toolNames)}
-															className="shrink-0"
-														/>
-													</div>
-												);
-											})}
+														</div>
+													);
+												})}
 										</div>
 									)}
 									{!filteredTools?.length && (
@@ -857,82 +865,87 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
 								}}
 							>
-								{groupedTools.filter((g) => !g.connectorIcon).map((group) => (
-									<div key={group.label}>
-										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
-											{group.label}
+								{groupedTools
+									.filter((g) => !g.connectorIcon)
+									.map((group) => (
+										<div key={group.label}>
+											<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+												{group.label}
+											</div>
+											{group.tools.map((tool) => {
+												const isDisabled = disabledTools.includes(tool.name);
+												const ToolIcon = getToolIcon(tool.name);
+												const row = (
+													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+														<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+															{formatToolName(tool.name)}
+														</span>
+														<Switch
+															checked={!isDisabled}
+															onCheckedChange={() => toggleTool(tool.name)}
+															className="shrink-0 scale-[0.6] sm:scale-75"
+														/>
+													</div>
+												);
+												return (
+													<Tooltip key={tool.name}>
+														<TooltipTrigger asChild>{row}</TooltipTrigger>
+														<TooltipContent side="right" className="max-w-64 text-xs">
+															{tool.description}
+														</TooltipContent>
+													</Tooltip>
+												);
+											})}
 										</div>
-										{group.tools.map((tool) => {
-											const isDisabled = disabledTools.includes(tool.name);
-											const ToolIcon = getToolIcon(tool.name);
-											const row = (
-												<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
-													<ToolIcon className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
-													<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
-														{formatToolName(tool.name)}
-													</span>
-													<Switch
-														checked={!isDisabled}
-														onCheckedChange={() => toggleTool(tool.name)}
-														className="shrink-0 scale-[0.6] sm:scale-75"
-													/>
-												</div>
-											);
-											return (
-												<Tooltip key={tool.name}>
-													<TooltipTrigger asChild>{row}</TooltipTrigger>
-													<TooltipContent side="right" className="max-w-64 text-xs">
-														{tool.description}
-													</TooltipContent>
-												</Tooltip>
-											);
-										})}
-									</div>
-								))}
+									))}
 								{groupedTools.some((g) => g.connectorIcon) && (
 									<div>
 										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
 											Connector Actions
 										</div>
-										{groupedTools.filter((g) => g.connectorIcon).map((group) => {
-											const iconKey = group.connectorIcon ?? "";
-											const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
-											const toolNames = group.tools.map((t) => t.name);
-											const allDisabled = toolNames.every((n) => disabledTools.includes(n));
-											const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
-											const row = (
-												<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
-													{iconInfo ? (
-														<Image
-															src={iconInfo.src}
-															alt={iconInfo.alt}
-															width={16}
-															height={16}
-															className="size-3.5 sm:size-4 shrink-0 select-none pointer-events-none"
-															draggable={false}
+										{groupedTools
+											.filter((g) => g.connectorIcon)
+											.map((group) => {
+												const iconKey = group.connectorIcon ?? "";
+												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+												const toolNames = group.tools.map((t) => t.name);
+												const allDisabled = toolNames.every((n) => disabledTools.includes(n));
+												const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
+												const row = (
+													<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+														{iconInfo ? (
+															<Image
+																src={iconInfo.src}
+																alt={iconInfo.alt}
+																width={16}
+																height={16}
+																className="size-3.5 sm:size-4 shrink-0 select-none pointer-events-none"
+																draggable={false}
+															/>
+														) : (
+															<Wrench className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+														)}
+														<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+															{group.label}
+														</span>
+														<Switch
+															checked={!allDisabled}
+															onCheckedChange={() => toggleToolGroup(toolNames)}
+															className="shrink-0 scale-[0.6] sm:scale-75"
 														/>
-													) : (
-														<Wrench className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
-													)}
-													<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
-														{group.label}
-													</span>
-													<Switch
-														checked={!allDisabled}
-														onCheckedChange={() => toggleToolGroup(toolNames)}
-														className="shrink-0 scale-[0.6] sm:scale-75"
-													/>
-												</div>
-											);
-											return (
-												<Tooltip key={group.label}>
-													<TooltipTrigger asChild>{row}</TooltipTrigger>
-													<TooltipContent side="right" className="max-w-72 text-xs">
-														{groupDef?.tooltip ?? group.tools.map((t) => t.description).join(" · ")}
-													</TooltipContent>
-												</Tooltip>
-											);
-										})}
+													</div>
+												);
+												return (
+													<Tooltip key={group.label}>
+														<TooltipTrigger asChild>{row}</TooltipTrigger>
+														<TooltipContent side="right" className="max-w-72 text-xs">
+															{groupDef?.tooltip ??
+																group.tools.map((t) => t.description).join(" · ")}
+														</TooltipContent>
+													</Tooltip>
+												);
+											})}
 									</div>
 								)}
 								{!filteredTools?.length && (

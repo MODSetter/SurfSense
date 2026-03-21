@@ -156,9 +156,7 @@ async def committed_google_data(async_engine):
         session.add(user)
         await session.flush()
 
-        space = SearchSpace(
-            name=f"Google Test {uuid.uuid4().hex[:6]}", user_id=user.id
-        )
+        space = SearchSpace(name=f"Google Test {uuid.uuid4().hex[:6]}", user_id=user.id)
         session.add(space)
         await session.flush()
         space_id = space.id
@@ -215,7 +213,9 @@ async def committed_google_data(async_engine):
 def patched_session_factory(async_engine, monkeypatch):
     """Replace ``async_session_maker`` in connector_service with one bound to the test engine."""
     test_maker = async_sessionmaker(async_engine, expire_on_commit=False)
-    monkeypatch.setattr("app.services.connector_service.async_session_maker", test_maker)
+    monkeypatch.setattr(
+        "app.services.connector_service.async_session_maker", test_maker
+    )
     return test_maker
 
 

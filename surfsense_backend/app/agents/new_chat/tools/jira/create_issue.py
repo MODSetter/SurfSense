@@ -45,14 +45,18 @@ def create_create_jira_issue_tool(
             - If status is "rejected", the user declined. Do NOT retry.
             - If status is "insufficient_permissions", inform user to re-authenticate.
         """
-        logger.info(f"create_jira_issue called: project_key='{project_key}', summary='{summary}'")
+        logger.info(
+            f"create_jira_issue called: project_key='{project_key}', summary='{summary}'"
+        )
 
         if db_session is None or search_space_id is None or user_id is None:
             return {"status": "error", "message": "Jira tool not properly configured."}
 
         try:
             metadata_service = JiraToolMetadataService(db_session)
-            context = await metadata_service.get_creation_context(search_space_id, user_id)
+            context = await metadata_service.get_creation_context(
+                search_space_id, user_id
+            )
 
             if "error" in context:
                 return {"status": "error", "message": context["error"]}
@@ -65,24 +69,30 @@ def create_create_jira_issue_tool(
                     "connector_type": "jira",
                 }
 
-            approval = interrupt({
-                "type": "jira_issue_creation",
-                "action": {
-                    "tool": "create_jira_issue",
-                    "params": {
-                        "project_key": project_key,
-                        "summary": summary,
-                        "issue_type": issue_type,
-                        "description": description,
-                        "priority": priority,
-                        "connector_id": connector_id,
+            approval = interrupt(
+                {
+                    "type": "jira_issue_creation",
+                    "action": {
+                        "tool": "create_jira_issue",
+                        "params": {
+                            "project_key": project_key,
+                            "summary": summary,
+                            "issue_type": issue_type,
+                            "description": description,
+                            "priority": priority,
+                            "connector_id": connector_id,
+                        },
                     },
-                },
-                "context": context,
-            })
+                    "context": context,
+                }
+            )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 return {"status": "error", "message": "No approval decision received"}
@@ -91,7 +101,10 @@ def create_create_jira_issue_tool(
             decision_type = decision.get("type") or decision.get("decision_type")
 
             if decision_type == "reject":
-                return {"status": "rejected", "message": "User declined. The issue was not created."}
+                return {
+                    "status": "rejected",
+                    "message": "User declined. The issue was not created.",
+                }
 
             final_params: dict[str, Any] = {}
             edited_action = decision.get("edited_action")
@@ -123,7 +136,8 @@ def create_create_jira_issue_tool(
                     select(SearchSourceConnector).filter(
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.JIRA_CONNECTOR,
                     )
                 )
                 connector = result.scalars().first()
@@ -136,15 +150,21 @@ def create_create_jira_issue_tool(
                         SearchSourceConnector.id == actual_connector_id,
                         SearchSourceConnector.search_space_id == search_space_id,
                         SearchSourceConnector.user_id == user_id,
-                        SearchSourceConnector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR,
+                        SearchSourceConnector.connector_type
+                        == SearchSourceConnectorType.JIRA_CONNECTOR,
                     )
                 )
                 connector = result.scalars().first()
                 if not connector:
-                    return {"status": "error", "message": "Selected Jira connector is invalid."}
+                    return {
+                        "status": "error",
+                        "message": "Selected Jira connector is invalid.",
+                    }
 
             try:
-                jira_history = JiraHistoryConnector(session=db_session, connector_id=actual_connector_id)
+                jira_history = JiraHistoryConnector(
+                    session=db_session, connector_id=actual_connector_id
+                )
                 jira_client = await jira_history._get_jira_client()
                 api_result = await asyncio.to_thread(
                     jira_client.create_issue,
@@ -175,6 +195,7 @@ def create_create_jira_issue_tool(
             kb_message_suffix = ""
             try:
                 from app.services.jira import JiraKBSyncService
+
                 kb_service = JiraKBSyncService(db_session)
                 kb_result = await kb_service.sync_after_create(
                     issue_id=issue_key,
@@ -202,9 +223,13 @@ def create_create_jira_issue_tool(
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt
+
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error(f"Error creating Jira issue: {e}", exc_info=True)
-            return {"status": "error", "message": "Something went wrong while creating the issue."}
+            return {
+                "status": "error",
+                "message": "Something went wrong while creating the issue.",
+            }
 
     return create_jira_issue

@@ -4,6 +4,9 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,10 +17,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { PlateEditor } from "@/components/editor/plate-editor";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
-import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface LinearLabel {
 	id: string;
@@ -110,7 +110,12 @@ interface AuthErrorResult {
 	connector_type: string;
 }
 
-type UpdateLinearIssueResult = InterruptResult | SuccessResult | ErrorResult | NotFoundResult | AuthErrorResult;
+type UpdateLinearIssueResult =
+	| InterruptResult
+	| SuccessResult
+	| ErrorResult
+	| NotFoundResult
+	| AuthErrorResult;
 
 function isInterruptResult(result: unknown): result is InterruptResult {
 	return (
@@ -178,7 +183,9 @@ function ApprovalCard({
 	const issue = context?.issue;
 
 	const initialEditState = {
-		title: actionArgs.new_title ? String(actionArgs.new_title) : (issue?.title ?? args.new_title ?? ""),
+		title: actionArgs.new_title
+			? String(actionArgs.new_title)
+			: (issue?.title ?? args.new_title ?? ""),
 		description: actionArgs.new_description
 			? String(actionArgs.new_description)
 			: (issue?.description ?? args.new_description ?? ""),
@@ -256,8 +263,10 @@ function ApprovalCard({
 	);
 
 	const hasProposedChanges =
-		actionArgs.new_title || args.new_title ||
-		actionArgs.new_description || args.new_description ||
+		actionArgs.new_title ||
+		args.new_title ||
+		actionArgs.new_description ||
+		args.new_description ||
 		proposedStateName ||
 		proposedAssigneeName ||
 		proposedPriorityLabel ||
@@ -276,7 +285,16 @@ function ApprovalCard({
 				args: buildFinalArgs(),
 			},
 		});
-	}, [phase, setProcessing, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs, hasPanelEdits]);
+	}, [
+		phase,
+		setProcessing,
+		isPanelOpen,
+		allowedDecisions,
+		onDecision,
+		interruptData,
+		buildFinalArgs,
+		hasPanelEdits,
+	]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -301,15 +319,16 @@ function ApprovalCard({
 								: "Update Linear Issue"}
 					</p>
 					{phase === "processing" ? (
-						<TextShimmerLoader text={hasPanelEdits ? "Updating issue with your changes" : "Updating issue"} size="sm" />
+						<TextShimmerLoader
+							text={hasPanelEdits ? "Updating issue with your changes" : "Updating issue"}
+							size="sm"
+						/>
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							{hasPanelEdits ? "Issue updated with your changes" : "Issue updated"}
 						</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Issue update was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Issue update was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -346,7 +365,7 @@ function ApprovalCard({
 				)}
 			</div>
 
-				{/* Context section — workspace + current issue + pickers in pending */}
+			{/* Context section — workspace + current issue + pickers in pending */}
 			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
@@ -385,7 +404,9 @@ function ApprovalCard({
 												)}
 												{issue.current_assignee && <span>{issue.current_assignee.name}</span>}
 												{priorities.find((p) => p.priority === issue.priority) && (
-													<span>{priorities.find((p) => p.priority === issue.priority)?.label}</span>
+													<span>
+														{priorities.find((p) => p.priority === issue.priority)?.label}
+													</span>
 												)}
 											</div>
 											{issue.current_labels && issue.current_labels.length > 0 && (
@@ -510,9 +531,7 @@ function ApprovalCard({
 																			? `${label.color}70`
 																			: `${label.color}28`,
 																		color: label.color,
-																		borderColor: isSelected
-																			? `${label.color}cc`
-																			: "transparent",
+																		borderColor: isSelected ? `${label.color}cc` : "transparent",
 																	}}
 																>
 																	<span
@@ -538,12 +557,18 @@ function ApprovalCard({
 			{/* Content preview — proposed changes */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3">
-				{(hasProposedChanges || hasPanelEdits) ? (
+				{hasProposedChanges || hasPanelEdits ? (
 					<>
 						{(hasPanelEdits ? editedArgs.title : (actionArgs.new_title ?? args.new_title)) && (
-							<p className="text-sm font-medium text-foreground">{String(hasPanelEdits ? editedArgs.title : (actionArgs.new_title ?? args.new_title))}</p>
+							<p className="text-sm font-medium text-foreground">
+								{String(
+									hasPanelEdits ? editedArgs.title : (actionArgs.new_title ?? args.new_title)
+								)}
+							</p>
 						)}
-						{(hasPanelEdits ? editedArgs.description : (actionArgs.new_description ?? args.new_description)) && (
+						{(hasPanelEdits
+							? editedArgs.description
+							: (actionArgs.new_description ?? args.new_description)) && (
 							<div
 								className="max-h-[7rem] overflow-hidden text-sm"
 								style={{
@@ -552,7 +577,11 @@ function ApprovalCard({
 								}}
 							>
 								<PlateEditor
-									markdown={String(hasPanelEdits ? editedArgs.description : (actionArgs.new_description ?? args.new_description))}
+									markdown={String(
+										hasPanelEdits
+											? editedArgs.description
+											: (actionArgs.new_description ?? args.new_description)
+									)}
 									readOnly
 									preset="readonly"
 									editorVariant="none"
@@ -641,9 +670,7 @@ function AuthErrorCard({ result }: { result: AuthErrorResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-destructive">
-					Linear authentication expired
-				</p>
+				<p className="text-sm font-semibold text-destructive">Linear authentication expired</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">
@@ -671,9 +698,7 @@ function NotFoundCard({ result }: { result: NotFoundResult }) {
 	return (
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
-					Issue not found
-				</p>
+				<p className="text-sm font-semibold text-amber-600 dark:text-amber-400">Issue not found</p>
 			</div>
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 py-4">

@@ -102,7 +102,10 @@ class NotionToolMetadataService:
                     )
                     db_connector = result.scalar_one_or_none()
                     if db_connector and not db_connector.config.get("auth_expired"):
-                        db_connector.config = {**db_connector.config, "auth_expired": True}
+                        db_connector.config = {
+                            **db_connector.config,
+                            "auth_expired": True,
+                        }
                         flag_modified(db_connector, "config")
                         await self._db_session.commit()
                         await self._db_session.refresh(db_connector)

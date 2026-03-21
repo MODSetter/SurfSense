@@ -119,9 +119,7 @@ async def index_google_gmail_messages(
 
         # Build credentials based on connector type
         if connector.connector_type in COMPOSIO_GOOGLE_CONNECTOR_TYPES:
-            connected_account_id = connector.config.get(
-                "composio_connected_account_id"
-            )
+            connected_account_id = connector.config.get("composio_connected_account_id")
             if not connected_account_id:
                 await task_logger.log_task_failure(
                     log_entry,
@@ -323,10 +321,19 @@ async def index_google_gmail_messages(
                         session, legacy_hash
                     )
                     if existing_document:
-                        existing_document.unique_identifier_hash = unique_identifier_hash
-                        if existing_document.document_type == DocumentType.COMPOSIO_GMAIL_CONNECTOR:
-                            existing_document.document_type = DocumentType.GOOGLE_GMAIL_CONNECTOR
-                        logger.info(f"Migrated legacy Composio Gmail document: {message_id}")
+                        existing_document.unique_identifier_hash = (
+                            unique_identifier_hash
+                        )
+                        if (
+                            existing_document.document_type
+                            == DocumentType.COMPOSIO_GMAIL_CONNECTOR
+                        ):
+                            existing_document.document_type = (
+                                DocumentType.GOOGLE_GMAIL_CONNECTOR
+                            )
+                        logger.info(
+                            f"Migrated legacy Composio Gmail document: {message_id}"
+                        )
 
                 if existing_document:
                     # Document exists - check if content has changed

@@ -58,9 +58,7 @@ def create_update_calendar_event_tool(
             - "Reschedule the team standup to 3pm"
             - "Change the location of my dentist appointment"
         """
-        logger.info(
-            f"update_calendar_event called: event_ref='{event_title_or_id}'"
-        )
+        logger.info(f"update_calendar_event called: event_ref='{event_title_or_id}'")
 
         if db_session is None or search_space_id is None or user_id is None:
             return {
@@ -83,9 +81,7 @@ def create_update_calendar_event_tool(
                 return {"status": "error", "message": error_msg}
 
             if context.get("auth_expired"):
-                logger.warning(
-                    "Google Calendar account has expired authentication"
-                )
+                logger.warning("Google Calendar account has expired authentication")
                 return {
                     "status": "auth_error",
                     "message": "The Google Calendar account for this event needs re-authentication. Please re-authenticate in your connector settings.",
@@ -162,8 +158,12 @@ def create_update_calendar_event_tool(
                 "connector_id", connector_id_from_context
             )
             final_new_summary = final_params.get("new_summary", new_summary)
-            final_new_start_datetime = final_params.get("new_start_datetime", new_start_datetime)
-            final_new_end_datetime = final_params.get("new_end_datetime", new_end_datetime)
+            final_new_start_datetime = final_params.get(
+                "new_start_datetime", new_start_datetime
+            )
+            final_new_end_datetime = final_params.get(
+                "new_end_datetime", new_end_datetime
+            )
             final_new_description = final_params.get("new_description", new_description)
             final_new_location = final_params.get("new_location", new_location)
             final_new_attendees = final_params.get("new_attendees", new_attendees)
@@ -204,7 +204,10 @@ def create_update_calendar_event_tool(
                 f"Updating calendar event: event_id='{final_event_id}', connector={actual_connector_id}"
             )
 
-            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR:
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+            ):
                 from app.utils.google_credentials import build_composio_credentials
 
                 cca_id = connector.config.get("composio_connected_account_id")
@@ -226,7 +229,9 @@ def create_update_calendar_event_tool(
                     token_encryption = TokenEncryption(app_config.SECRET_KEY)
                     for key in ("token", "refresh_token", "client_secret"):
                         if config_data.get(key):
-                            config_data[key] = token_encryption.decrypt_token(config_data[key])
+                            config_data[key] = token_encryption.decrypt_token(
+                                config_data[key]
+                            )
 
                 exp = config_data.get("expiry", "")
                 if exp:
@@ -250,11 +255,25 @@ def create_update_calendar_event_tool(
             if final_new_summary is not None:
                 update_body["summary"] = final_new_summary
             if final_new_start_datetime is not None:
-                tz = context.get("timezone", "UTC") if isinstance(context, dict) else "UTC"
-                update_body["start"] = {"dateTime": final_new_start_datetime, "timeZone": tz}
+                tz = (
+                    context.get("timezone", "UTC")
+                    if isinstance(context, dict)
+                    else "UTC"
+                )
+                update_body["start"] = {
+                    "dateTime": final_new_start_datetime,
+                    "timeZone": tz,
+                }
             if final_new_end_datetime is not None:
-                tz = context.get("timezone", "UTC") if isinstance(context, dict) else "UTC"
-                update_body["end"] = {"dateTime": final_new_end_datetime, "timeZone": tz}
+                tz = (
+                    context.get("timezone", "UTC")
+                    if isinstance(context, dict)
+                    else "UTC"
+                )
+                update_body["end"] = {
+                    "dateTime": final_new_end_datetime,
+                    "timeZone": tz,
+                }
             if final_new_description is not None:
                 update_body["description"] = final_new_description
             if final_new_location is not None:
@@ -273,9 +292,15 @@ def create_update_calendar_event_tool(
             try:
                 updated = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: service.events()
-                    .patch(calendarId="primary", eventId=final_event_id, body=update_body)
-                    .execute(),
+                    lambda: (
+                        service.events()
+                        .patch(
+                            calendarId="primary",
+                            eventId=final_event_id,
+                            body=update_body,
+                        )
+                        .execute()
+                    ),
                 )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError
@@ -310,9 +335,7 @@ def create_update_calendar_event_tool(
                     }
                 raise
 
-            logger.info(
-                f"Calendar event updated: event_id={final_event_id}"
-            )
+            logger.info(f"Calendar event updated: event_id={final_event_id}")
 
             kb_message_suffix = ""
             if document_id is not None:
@@ -328,7 +351,9 @@ def create_update_calendar_event_tool(
                         user_id=user_id,
                     )
                     if kb_result["status"] == "success":
-                        kb_message_suffix = " Your knowledge base has also been updated."
+                        kb_message_suffix = (
+                            " Your knowledge base has also been updated."
+                        )
                     else:
                         kb_message_suffix = " The knowledge base will be updated in the next scheduled sync."
                 except Exception as kb_err:

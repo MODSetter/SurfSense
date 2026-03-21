@@ -89,9 +89,7 @@ class GoogleGmailConnector:
         has_standard_refresh = bool(self._credentials.refresh_token)
 
         if has_standard_refresh:
-            if not all(
-                [self._credentials.client_id, self._credentials.client_secret]
-            ):
+            if not all([self._credentials.client_id, self._credentials.client_secret]):
                 raise ValueError(
                     "Google OAuth credentials (client_id, client_secret) must be set"
                 )
@@ -139,17 +137,13 @@ class GoogleGmailConnector:
                     from app.utils.oauth_security import TokenEncryption
 
                     creds_dict = json.loads(self._credentials.to_json())
-                    token_encrypted = connector.config.get(
-                        "_token_encrypted", False
-                    )
+                    token_encrypted = connector.config.get("_token_encrypted", False)
 
                     if token_encrypted and config.SECRET_KEY:
                         token_encryption = TokenEncryption(config.SECRET_KEY)
                         if creds_dict.get("token"):
-                            creds_dict["token"] = (
-                                token_encryption.encrypt_token(
-                                    creds_dict["token"]
-                                )
+                            creds_dict["token"] = token_encryption.encrypt_token(
+                                creds_dict["token"]
                             )
                         if creds_dict.get("refresh_token"):
                             creds_dict["refresh_token"] = (

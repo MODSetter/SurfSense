@@ -40,14 +40,18 @@ def create_delete_jira_issue_tool(
             - If status is "not_found", relay the message to the user.
             - If status is "insufficient_permissions", inform user to re-authenticate.
         """
-        logger.info(f"delete_jira_issue called: issue_title_or_key='{issue_title_or_key}'")
+        logger.info(
+            f"delete_jira_issue called: issue_title_or_key='{issue_title_or_key}'"
+        )
 
         if db_session is None or search_space_id is None or user_id is None:
             return {"status": "error", "message": "Jira tool not properly configured."}
 
         try:
             metadata_service = JiraToolMetadataService(db_session)
-            context = await metadata_service.get_deletion_context(search_space_id, user_id, issue_title_or_key)
+            context = await metadata_service.get_deletion_context(
+                search_space_id, user_id, issue_title_or_key
+            )
 
             if "error" in context:
                 error_msg = context["error"]
@@ -67,21 +71,27 @@ def create_delete_jira_issue_tool(
             document_id = issue_data["document_id"]
             connector_id_from_context = context.get("account", {}).get("id")
 
-            approval = interrupt({
-                "type": "jira_issue_deletion",
-                "action": {
-                    "tool": "delete_jira_issue",
-                    "params": {
-                        "issue_key": issue_key,
-                        "connector_id": connector_id_from_context,
-                        "delete_from_kb": delete_from_kb,
+            approval = interrupt(
+                {
+                    "type": "jira_issue_deletion",
+                    "action": {
+                        "tool": "delete_jira_issue",
+                        "params": {
+                            "issue_key": issue_key,
+                            "connector_id": connector_id_from_context,
+                            "delete_from_kb": delete_from_kb,
+                        },
                     },
-                },
-                "context": context,
-            })
+                    "context": context,
+                }
+            )
 
-            decisions_raw = approval.get("decisions", []) if isinstance(approval, dict) else []
-            decisions = decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            decisions_raw = (
+                approval.get("decisions", []) if isinstance(approval, dict) else []
+            )
+            decisions = (
+                decisions_raw if isinstance(decisions_raw, list) else [decisions_raw]
+            )
             decisions = [d for d in decisions if isinstance(d, dict)]
             if not decisions:
                 return {"status": "error", "message": "No approval decision received"}
@@ -90,7 +100,10 @@ def create_delete_jira_issue_tool(
             decision_type = decision.get("type") or decision.get("decision_type")
 
             if decision_type == "reject":
-                return {"status": "rejected", "message": "User declined. The issue was not deleted."}
+                return {
+                    "status": "rejected",
+                    "message": "User declined. The issue was not deleted.",
+                }
 
             final_params: dict[str, Any] = {}
             edited_action = decision.get("edited_action")
@@ -102,29 +115,40 @@ def create_delete_jira_issue_tool(
                 final_params = decision["args"]
 
             final_issue_key = final_params.get("issue_key", issue_key)
-            final_connector_id = final_params.get("connector_id", connector_id_from_context)
+            final_connector_id = final_params.get(
+                "connector_id", connector_id_from_context
+            )
             final_delete_from_kb = final_params.get("delete_from_kb", delete_from_kb)
 
             from sqlalchemy.future import select
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
             if not final_connector_id:
-                return {"status": "error", "message": "No connector found for this issue."}
+                return {
+                    "status": "error",
+                    "message": "No connector found for this issue.",
+                }
 
             result = await db_session.execute(
                 select(SearchSourceConnector).filter(
                     SearchSourceConnector.id == final_connector_id,
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type == SearchSourceConnectorType.JIRA_CONNECTOR,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.JIRA_CONNECTOR,
                 )
             )
             connector = result.scalars().first()
             if not connector:
-                return {"status": "error", "message": "Selected Jira connector is invalid."}
+                return {
+                    "status": "error",
+                    "message": "Selected Jira connector is invalid.",
+                }
 
             try:
-                jira_history = JiraHistoryConnector(session=db_session, connector_id=final_connector_id)
+                jira_history = JiraHistoryConnector(
+                    session=db_session, connector_id=final_connector_id
+                )
                 jira_client = await jira_history._get_jira_client()
                 await asyncio.to_thread(jira_client.delete_issue, final_issue_key)
             except Exception as api_err:
@@ -146,6 +170,7 @@ def create_delete_jira_issue_tool(
             if final_delete_from_kb and document_id:
                 try:
                     from app.db import Document
+
                     doc_result = await db_session.execute(
                         select(Document).filter(Document.id == document_id)
                     )
@@ -171,9 +196,13 @@ def create_delete_jira_issue_tool(
 
         except Exception as e:
             from langgraph.errors import GraphInterrupt
+
             if isinstance(e, GraphInterrupt):
                 raise
             logger.error(f"Error deleting Jira issue: {e}", exc_info=True)
-            return {"status": "error", "message": "Something went wrong while deleting the issue."}
+            return {
+                "status": "error",
+                "message": "Something went wrong while deleting the issue.",
+            }
 
     return delete_jira_issue

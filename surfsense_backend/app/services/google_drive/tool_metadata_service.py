@@ -133,10 +133,12 @@ class GoogleDriveToolMetadataService:
                 and_(
                     SearchSourceConnector.id == document.connector_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type.in_([
-                        SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
-                        SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-                    ]),
+                    SearchSourceConnector.connector_type.in_(
+                        [
+                            SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                            SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                        ]
+                    ),
                 )
             )
         )
@@ -168,10 +170,12 @@ class GoogleDriveToolMetadataService:
                 and_(
                     SearchSourceConnector.search_space_id == search_space_id,
                     SearchSourceConnector.user_id == user_id,
-                    SearchSourceConnector.connector_type.in_([
-                        SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
-                        SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
-                    ]),
+                    SearchSourceConnector.connector_type.in_(
+                        [
+                            SearchSourceConnectorType.GOOGLE_DRIVE_CONNECTOR,
+                            SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR,
+                        ]
+                    ),
                 )
             )
             .order_by(SearchSourceConnector.last_indexed_at.desc())

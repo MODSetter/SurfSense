@@ -104,77 +104,77 @@ export function useGooglePicker({ connectorId, onPicked }: UseGooglePickerOption
 		setError(null);
 
 		try {
-		const [tokenData] = await Promise.all([
-			connectorsApiService.getDrivePickerToken(connectorId),
-			loadPickerScript().then(() => loadPickerApi()),
-		]);
+			const [tokenData] = await Promise.all([
+				connectorsApiService.getDrivePickerToken(connectorId),
+				loadPickerScript().then(() => loadPickerApi()),
+			]);
 
-		const { access_token, picker_api_key } = tokenData;
+			const { access_token, picker_api_key } = tokenData;
 
-		const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS)
-			.setIncludeFolders(true)
-			.setSelectFolderEnabled(true);
+			const docsView = new google.picker.DocsView(google.picker.ViewId.DOCS)
+				.setIncludeFolders(true)
+				.setSelectFolderEnabled(true);
 
-		const builder = new google.picker.PickerBuilder()
-			.addView(docsView)
-			.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-			.setOAuthToken(access_token)
-			.setOrigin(window.location.protocol + "//" + window.location.host)
-			.setTitle("Select files and folders to index");
+			const builder = new google.picker.PickerBuilder()
+				.addView(docsView)
+				.enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+				.setOAuthToken(access_token)
+				.setOrigin(window.location.protocol + "//" + window.location.host)
+				.setTitle("Select files and folders to index");
 
-		if (picker_api_key) {
-			builder.setDeveloperKey(picker_api_key);
-		}
+			if (picker_api_key) {
+				builder.setDeveloperKey(picker_api_key);
+			}
 
-		if (window.innerWidth < 640) {
-			builder.setSize(window.innerWidth - 32, window.innerHeight * 0.75);
-		}
+			if (window.innerWidth < 640) {
+				builder.setSize(window.innerWidth - 32, window.innerHeight * 0.75);
+			}
 
-		const picker = builder
-			.setCallback((data: google.picker.ResponseObject) => {
-				const action = data[google.picker.Response.ACTION];
+			const picker = builder
+				.setCallback((data: google.picker.ResponseObject) => {
+					const action = data[google.picker.Response.ACTION];
 
-				if (action === google.picker.Action.PICKED) {
-					const docs = data[google.picker.Response.DOCUMENTS];
-					if (docs) {
-						const folders: PickerItem[] = [];
-						const files: PickerItem[] = [];
+					if (action === google.picker.Action.PICKED) {
+						const docs = data[google.picker.Response.DOCUMENTS];
+						if (docs) {
+							const folders: PickerItem[] = [];
+							const files: PickerItem[] = [];
 
-						for (const doc of docs) {
-							const mimeType = doc[google.picker.Document.MIME_TYPE] ?? "";
-							const item: PickerItem = {
-								id: doc[google.picker.Document.ID],
-								name: doc[google.picker.Document.NAME] ?? "Untitled",
-								mimeType,
-							};
-							if (mimeType === FOLDER_MIME) {
-								folders.push(item);
-							} else {
-								files.push(item);
+							for (const doc of docs) {
+								const mimeType = doc[google.picker.Document.MIME_TYPE] ?? "";
+								const item: PickerItem = {
+									id: doc[google.picker.Document.ID],
+									name: doc[google.picker.Document.NAME] ?? "Untitled",
+									mimeType,
+								};
+								if (mimeType === FOLDER_MIME) {
+									folders.push(item);
+								} else {
+									files.push(item);
+								}
 							}
+
+							onPickedRef.current({ folders, files });
 						}
-
-						onPickedRef.current({ folders, files });
 					}
-				}
 
-				if (action === google.picker.Action.ERROR) {
-					setError("Google Drive encountered an error. Please try again.");
-				}
+					if (action === google.picker.Action.ERROR) {
+						setError("Google Drive encountered an error. Please try again.");
+					}
 
-				if (
-					action === google.picker.Action.PICKED ||
-					action === google.picker.Action.CANCEL ||
-					action === google.picker.Action.ERROR
-				) {
-					closePicker();
-				}
-			})
-			.build();
+					if (
+						action === google.picker.Action.PICKED ||
+						action === google.picker.Action.CANCEL ||
+						action === google.picker.Action.ERROR
+					) {
+						closePicker();
+					}
+				})
+				.build();
 
-		pickerRef.current = picker;
-		window.dispatchEvent(new Event(PICKER_OPEN_EVENT));
-		picker.setVisible(true);
+			pickerRef.current = picker;
+			window.dispatchEvent(new Event(PICKER_OPEN_EVENT));
+			picker.setVisible(true);
 		} catch (err) {
 			window.dispatchEvent(new Event(PICKER_CLOSE_EVENT));
 			openingRef.current = false;

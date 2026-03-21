@@ -1,16 +1,11 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	CalendarIcon,
-	ClockIcon,
-	MapPinIcon,
-	CornerDownLeftIcon,
-} from "lucide-react";
+import { CalendarIcon, ClockIcon, CornerDownLeftIcon, MapPinIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GoogleCalendarAccount {
@@ -220,14 +215,12 @@ function ApprovalCard({
 									? "Calendar Event Deletion Approved"
 									: "Delete Calendar Event"}
 						</p>
-					{phase === "processing" ? (
+						{phase === "processing" ? (
 							<TextShimmerLoader text="Deleting event" size="sm" />
 						) : phase === "complete" ? (
 							<p className="text-xs text-muted-foreground mt-0.5">Event deleted</p>
 						) : phase === "rejected" ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								Event deletion was cancelled
-							</p>
+							<p className="text-xs text-muted-foreground mt-0.5">Event deletion was cancelled</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
 								Requires your approval to proceed
@@ -247,7 +240,9 @@ function ApprovalCard({
 							<>
 								{account && (
 									<div className="space-y-2">
-										<p className="text-xs font-medium text-muted-foreground">Google Calendar Account</p>
+										<p className="text-xs font-medium text-muted-foreground">
+											Google Calendar Account
+										</p>
 										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
 											{account.name}
 										</div>
@@ -315,11 +310,7 @@ function ApprovalCard({
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
-						<Button
-							size="sm"
-							className="rounded-lg gap-1.5"
-							onClick={handleApprove}
-						>
+						<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
 							Approve
 							<CornerDownLeftIcon className="size-3 opacity-60" />
 						</Button>

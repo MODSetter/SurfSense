@@ -1270,9 +1270,16 @@ async def process_file_in_background(
                     print("Error deleting temp file", e)
                     pass
 
-                enable_summary = connector.get("enable_summary", True) if connector else True
+                enable_summary = (
+                    connector.get("enable_summary", True) if connector else True
+                )
                 result = await add_received_file_document_using_unstructured(
-                    session, filename, docs, search_space_id, user_id, connector,
+                    session,
+                    filename,
+                    docs,
+                    search_space_id,
+                    user_id,
+                    connector,
                     enable_summary=enable_summary,
                 )
 
@@ -1414,7 +1421,9 @@ async def process_file_in_background(
                     # Extract text content from the markdown documents
                     markdown_content = doc.text
 
-                    enable_summary = connector.get("enable_summary", True) if connector else True
+                    enable_summary = (
+                        connector.get("enable_summary", True) if connector else True
+                    )
                     doc_result = await add_received_file_document_using_llamacloud(
                         session,
                         filename,
@@ -1569,7 +1578,9 @@ async def process_file_in_background(
                         session, notification, stage="chunking"
                     )
 
-                enable_summary = connector.get("enable_summary", True) if connector else True
+                enable_summary = (
+                    connector.get("enable_summary", True) if connector else True
+                )
                 doc_result = await add_received_file_document_using_docling(
                     session,
                     filename,

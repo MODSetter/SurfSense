@@ -203,8 +203,7 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 					<div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
 						{typeConnectors.map((connector) => {
 							const isIndexing = indexingConnectorIds.has(connector.id);
-							const isAuthExpired =
-								!!reauthEndpoint && connector.config?.auth_expired === true;
+							const isAuthExpired = !!reauthEndpoint && connector.config?.auth_expired === true;
 
 							return (
 								<div
@@ -252,7 +251,9 @@ export const ConnectorAccountsListView: FC<ConnectorAccountsListViewProps> = ({
 											onClick={() => handleReauth(connector.id)}
 											disabled={reauthingId === connector.id}
 										>
-											<RefreshCw className={cn("size-3.5", reauthingId === connector.id && "animate-spin")} />
+											<RefreshCw
+												className={cn("size-3.5", reauthingId === connector.id && "animate-spin")}
+											/>
 											Re-authenticate
 										</Button>
 									) : (

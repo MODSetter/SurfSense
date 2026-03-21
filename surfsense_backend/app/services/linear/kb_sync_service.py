@@ -66,7 +66,9 @@ class LinearKBSyncService:
             if not indexable_content:
                 indexable_content = f"Linear Issue {issue_identifier}: {issue_title}"
 
-            issue_content = f"# {issue_identifier}: {issue_title}\n\n{indexable_content}"
+            issue_content = (
+                f"# {issue_identifier}: {issue_title}\n\n{indexable_content}"
+            )
 
             content_hash = generate_content_hash(issue_content, search_space_id)
 

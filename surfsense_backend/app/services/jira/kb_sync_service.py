@@ -53,7 +53,8 @@ class JiraKBSyncService:
             if existing:
                 logger.info(
                     "Document for Jira issue %s already exists (doc_id=%s), skipping",
-                    issue_identifier, existing.id,
+                    issue_identifier,
+                    existing.id,
                 )
                 return {"status": "success"}
 
@@ -61,7 +62,9 @@ class JiraKBSyncService:
             if not indexable_content:
                 indexable_content = f"Jira Issue {issue_identifier}: {issue_title}"
 
-            issue_content = f"# {issue_identifier}: {issue_title}\n\n{indexable_content}"
+            issue_content = (
+                f"# {issue_identifier}: {issue_title}\n\n{indexable_content}"
+            )
 
             content_hash = generate_content_hash(issue_content, search_space_id)
 
@@ -73,7 +76,10 @@ class JiraKBSyncService:
                 content_hash = unique_hash
 
             user_llm = await get_user_long_context_llm(
-                self.db_session, user_id, search_space_id, disable_streaming=True,
+                self.db_session,
+                user_id,
+                search_space_id,
+                disable_streaming=True,
             )
 
             doc_metadata_for_summary = {
@@ -88,7 +94,9 @@ class JiraKBSyncService:
                     issue_content, user_llm, doc_metadata_for_summary
                 )
             else:
-                summary_content = f"Jira Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
+                summary_content = (
+                    f"Jira Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
+                )
                 summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(issue_content)
@@ -122,17 +130,26 @@ class JiraKBSyncService:
 
             logger.info(
                 "KB sync after create succeeded: doc_id=%s, issue=%s",
-                document.id, issue_identifier,
+                document.id,
+                issue_identifier,
             )
             return {"status": "success"}
 
         except Exception as e:
             error_str = str(e).lower()
-            if "duplicate key value violates unique constraint" in error_str or "uniqueviolationerror" in error_str:
+            if (
+                "duplicate key value violates unique constraint" in error_str
+                or "uniqueviolationerror" in error_str
+            ):
                 await self.db_session.rollback()
                 return {"status": "error", "message": "Duplicate document detected"}
 
-            logger.error("KB sync after create failed for issue %s: %s", issue_identifier, e, exc_info=True)
+            logger.error(
+                "KB sync after create failed for issue %s: %s",
+                issue_identifier,
+                e,
+                exc_info=True,
+            )
             await self.db_session.rollback()
             return {"status": "error", "message": str(e)}
 
@@ -189,14 +206,18 @@ class JiraKBSyncService:
                     issue_content, user_llm, doc_meta
                 )
             else:
-                summary_content = f"Jira Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
+                summary_content = (
+                    f"Jira Issue {issue_identifier}: {issue_title}\n\n{issue_content}"
+                )
                 summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(issue_content)
 
             document.title = f"{issue_identifier}: {issue_title}"
             document.content = summary_content
-            document.content_hash = generate_content_hash(issue_content, search_space_id)
+            document.content_hash = generate_content_hash(
+                issue_content, search_space_id
+            )
             document.embedding = summary_embedding
 
             from sqlalchemy.orm.attributes import flag_modified
@@ -219,11 +240,15 @@ class JiraKBSyncService:
 
             logger.info(
                 "KB sync successful for document %s (%s: %s)",
-                document_id, issue_identifier, issue_title,
+                document_id,
+                issue_identifier,
+                issue_title,
             )
             return {"status": "success"}
 
         except Exception as e:
-            logger.error("KB sync failed for document %s: %s", document_id, e, exc_info=True)
+            logger.error(
+                "KB sync failed for document %s: %s", document_id, e, exc_info=True
+            )
             await self.db_session.rollback()
             return {"status": "error", "message": str(e)}

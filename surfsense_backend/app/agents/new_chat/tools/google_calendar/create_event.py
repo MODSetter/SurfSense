@@ -78,7 +78,9 @@ def create_create_calendar_event_tool(
 
             accounts = context.get("accounts", [])
             if accounts and all(a.get("auth_expired") for a in accounts):
-                logger.warning("All Google Calendar accounts have expired authentication")
+                logger.warning(
+                    "All Google Calendar accounts have expired authentication"
+                )
                 return {
                     "status": "auth_error",
                     "message": "All connected Google Calendar accounts need re-authentication. Please re-authenticate in your connector settings.",
@@ -194,7 +196,10 @@ def create_create_calendar_event_tool(
                 f"Creating calendar event: summary='{final_summary}', connector={actual_connector_id}"
             )
 
-            if connector.connector_type == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR:
+            if (
+                connector.connector_type
+                == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+            ):
                 from app.utils.google_credentials import build_composio_credentials
 
                 cca_id = connector.config.get("composio_connected_account_id")
@@ -216,7 +221,9 @@ def create_create_calendar_event_tool(
                     token_encryption = TokenEncryption(app_config.SECRET_KEY)
                     for key in ("token", "refresh_token", "client_secret"):
                         if config_data.get(key):
-                            config_data[key] = token_encryption.decrypt_token(config_data[key])
+                            config_data[key] = token_encryption.decrypt_token(
+                                config_data[key]
+                            )
 
                 exp = config_data.get("expiry", "")
                 if exp:
@@ -254,9 +261,11 @@ def create_create_calendar_event_tool(
             try:
                 created = await asyncio.get_event_loop().run_in_executor(
                     None,
-                    lambda: service.events()
-                    .insert(calendarId="primary", body=event_body)
-                    .execute(),
+                    lambda: (
+                        service.events()
+                        .insert(calendarId="primary", body=event_body)
+                        .execute()
+                    ),
                 )
             except Exception as api_err:
                 from googleapiclient.errors import HttpError

@@ -1,18 +1,15 @@
 "use client";
 
-import { TagInput, type Tag as TagType } from "emblor";
 import { format } from "date-fns";
+import { TagInput, type Tag as TagType } from "emblor";
 import { useAtomValue, useSetAtom } from "jotai";
 import { CalendarIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-	closeHitlEditPanelAtom,
-	hitlEditPanelAtom,
-} from "@/atoms/chat/hitl-edit-panel.atom";
 import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
-import { Calendar } from "@/components/ui/calendar";
+import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,14 +55,9 @@ function EmailsTagField({
 		onChangeRef.current(tagsToEmailString(tags));
 	}, [tags]);
 
-	const handleSetTags = useCallback(
-		(newTags: TagType[] | ((prev: TagType[]) => TagType[])) => {
-			setTags((prev) =>
-				typeof newTags === "function" ? newTags(prev) : newTags
-			);
-		},
-		[]
-	);
+	const handleSetTags = useCallback((newTags: TagType[] | ((prev: TagType[]) => TagType[])) => {
+		setTags((prev) => (typeof newTags === "function" ? newTags(prev) : newTags));
+	}, []);
 
 	const handleAddTag = useCallback(
 		(text: string) => {
@@ -265,7 +257,10 @@ export function HitlEditPanelContent({
 				<div className="flex flex-col gap-3 px-4 py-3 border-b">
 					{extraFields.map((field) => (
 						<div key={field.key} className="flex flex-col gap-1.5">
-							<Label htmlFor={`extra-field-${field.key}`} className="text-xs font-medium text-muted-foreground">
+							<Label
+								htmlFor={`extra-field-${field.key}`}
+								className="text-xs font-medium text-muted-foreground"
+							>
 								{field.label}
 							</Label>
 							{field.type === "emails" ? (
@@ -360,9 +355,7 @@ function MobileHitlEditDrawer() {
 				overlayClassName="z-80"
 			>
 				<DrawerHandle />
-				<DrawerTitle className="sr-only">
-					Edit {panelState.toolName}
-				</DrawerTitle>
+				<DrawerTitle className="sr-only">Edit {panelState.toolName}</DrawerTitle>
 				<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
 					<HitlEditPanelContent
 						title={panelState.title}

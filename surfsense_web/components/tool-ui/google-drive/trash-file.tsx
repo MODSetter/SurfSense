@@ -1,14 +1,11 @@
 "use client";
 
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	CornerDownLeftIcon,
-	InfoIcon,
-} from "lucide-react";
+import { CornerDownLeftIcon, InfoIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GoogleDriveAccount {
@@ -207,14 +204,12 @@ function ApprovalCard({
 								? "Google Drive File Deletion Approved"
 								: "Delete Google Drive File"}
 					</p>
-				{phase === "processing" ? (
+					{phase === "processing" ? (
 						<TextShimmerLoader text="Trashing file" size="sm" />
 					) : phase === "complete" ? (
 						<p className="text-xs text-muted-foreground mt-0.5">File trashed</p>
 					) : phase === "rejected" ? (
-						<p className="text-xs text-muted-foreground mt-0.5">
-							File deletion was cancelled
-						</p>
+						<p className="text-xs text-muted-foreground mt-0.5">File deletion was cancelled</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
 							Requires your approval to proceed
@@ -274,22 +269,23 @@ function ApprovalCard({
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-3 select-none">
 						<p className="text-xs text-muted-foreground">
-							The file will be moved to Google Drive trash. You can restore it from trash within 30 days.
+							The file will be moved to Google Drive trash. You can restore it from trash within 30
+							days.
 						</p>
-					<div className="flex items-center gap-2.5">
-						<Checkbox
-							id="delete-from-kb"
-							checked={deleteFromKb}
-							onCheckedChange={(v) => setDeleteFromKb(v === true)}
-							className="shrink-0"
-						/>
-						<label htmlFor="delete-from-kb" className="flex-1 cursor-pointer">
-							<span className="text-sm text-foreground">Also remove from knowledge base</span>
-							<p className="text-xs text-muted-foreground mt-0.5">
-								This will permanently delete the file from your knowledge base (cannot be undone)
-							</p>
-						</label>
-					</div>
+						<div className="flex items-center gap-2.5">
+							<Checkbox
+								id="delete-from-kb"
+								checked={deleteFromKb}
+								onCheckedChange={(v) => setDeleteFromKb(v === true)}
+								className="shrink-0"
+							/>
+							<label htmlFor="delete-from-kb" className="flex-1 cursor-pointer">
+								<span className="text-sm text-foreground">Also remove from knowledge base</span>
+								<p className="text-xs text-muted-foreground mt-0.5">
+									This will permanently delete the file from your knowledge base (cannot be undone)
+								</p>
+							</label>
+						</div>
 					</div>
 				</>
 			)}
@@ -298,27 +294,23 @@ function ApprovalCard({
 			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-				<div className="px-5 py-4 flex items-center gap-2 select-none">
-					<Button
-						size="sm"
-						className="rounded-lg gap-1.5"
-						onClick={handleApprove}
-					>
-						Approve
-						<CornerDownLeftIcon className="size-3 opacity-60" />
-					</Button>
-					<Button
-						size="sm"
-						variant="ghost"
-						className="rounded-lg text-muted-foreground"
-						onClick={() => {
-							setRejected();
-							onDecision({ type: "reject", message: "User rejected the action." });
-						}}
-					>
-						Reject
-					</Button>
-				</div>
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
+						<Button size="sm" className="rounded-lg gap-1.5" onClick={handleApprove}>
+							Approve
+							<CornerDownLeftIcon className="size-3 opacity-60" />
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="rounded-lg text-muted-foreground"
+							onClick={() => {
+								setRejected();
+								onDecision({ type: "reject", message: "User rejected the action." });
+							}}
+						>
+							Reject
+						</Button>
+					</div>
 				</>
 			)}
 		</div>

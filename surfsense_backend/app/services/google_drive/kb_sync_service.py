@@ -56,7 +56,9 @@ class GoogleDriveKBSyncService:
 
             indexable_content = (content or "").strip()
             if not indexable_content:
-                indexable_content = f"Google Drive file: {file_name} (type: {mime_type})"
+                indexable_content = (
+                    f"Google Drive file: {file_name} (type: {mime_type})"
+                )
 
             content_hash = generate_content_hash(indexable_content, search_space_id)
 
@@ -93,7 +95,9 @@ class GoogleDriveKBSyncService:
                 )
             else:
                 logger.warning("No LLM configured — using fallback summary")
-                summary_content = f"Google Drive File: {file_name}\n\n{indexable_content}"
+                summary_content = (
+                    f"Google Drive File: {file_name}\n\n{indexable_content}"
+                )
                 summary_embedding = embed_text(summary_content)
 
             chunks = await create_document_chunks(indexable_content)

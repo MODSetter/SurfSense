@@ -82,10 +82,7 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 	return <File className={`${className} text-gray-500`} />;
 }
 
-export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({
-	connector,
-	onConfigChange,
-}) => {
+export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
 	const isIndexable = connector.config?.is_indexable as boolean;
 
 	const existingFolders =
@@ -236,47 +233,48 @@ export const ComposioDriveConfig: FC<ConnectorConfigProps> = ({
 					</div>
 				)}
 
-		{isAuthExpired && (
-			<p className="text-xs text-amber-600 dark:text-amber-500">
-				Your Google Drive authentication has expired. Please re-authenticate using the button below.
-			</p>
-		)}
+				{isAuthExpired && (
+					<p className="text-xs text-amber-600 dark:text-amber-500">
+						Your Google Drive authentication has expired. Please re-authenticate using the button
+						below.
+					</p>
+				)}
 
-		{isEditMode ? (
-				<div className="space-y-2">
-					<button
-						type="button"
-						onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
-						className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
-					>
-						Change Selection
-						{isFolderTreeOpen ? (
-							<ChevronDown className="size-4" />
-						) : (
-							<ChevronRight className="size-4" />
+				{isEditMode ? (
+					<div className="space-y-2">
+						<button
+							type="button"
+							onClick={() => setIsFolderTreeOpen(!isFolderTreeOpen)}
+							className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors w-fit"
+						>
+							Change Selection
+							{isFolderTreeOpen ? (
+								<ChevronDown className="size-4" />
+							) : (
+								<ChevronRight className="size-4" />
+							)}
+						</button>
+						{isFolderTreeOpen && (
+							<ComposioDriveFolderTree
+								connectorId={connector.id}
+								selectedFolders={selectedFolders}
+								onSelectFolders={handleSelectFolders}
+								selectedFiles={selectedFiles}
+								onSelectFiles={handleSelectFiles}
+								onAuthError={handleAuthError}
+							/>
 						)}
-					</button>
-					{isFolderTreeOpen && (
-						<ComposioDriveFolderTree
-							connectorId={connector.id}
-							selectedFolders={selectedFolders}
-							onSelectFolders={handleSelectFolders}
-							selectedFiles={selectedFiles}
-							onSelectFiles={handleSelectFiles}
-							onAuthError={handleAuthError}
-						/>
-					)}
-				</div>
-			) : (
-				<ComposioDriveFolderTree
-					connectorId={connector.id}
-					selectedFolders={selectedFolders}
-					onSelectFolders={handleSelectFolders}
-					selectedFiles={selectedFiles}
-					onSelectFiles={handleSelectFiles}
-					onAuthError={handleAuthError}
-				/>
-			)}
+					</div>
+				) : (
+					<ComposioDriveFolderTree
+						connectorId={connector.id}
+						selectedFolders={selectedFolders}
+						onSelectFolders={handleSelectFolders}
+						selectedFiles={selectedFiles}
+						onSelectFiles={handleSelectFiles}
+						onAuthError={handleAuthError}
+					/>
+				)}
 			</div>
 
 			{/* Indexing Options */}

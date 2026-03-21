@@ -3,7 +3,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { AlertTriangle, Inbox, Megaphone, SquareLibrary } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
 import { useParams, usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
@@ -22,6 +21,10 @@ import {
 	userSettingsDialogAtom,
 } from "@/atoms/settings/settings-dialog.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
+import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
+import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
+import { TeamDialog } from "@/components/settings/team-dialog";
+import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -42,7 +45,7 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-
+import { Spinner } from "@/components/ui/spinner";
 import { useAnnouncements } from "@/hooks/use-announcements";
 import { useDocumentsProcessing } from "@/hooks/use-documents-processing";
 import { useInbox } from "@/hooks/use-inbox";
@@ -54,10 +57,6 @@ import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-pers
 import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
-import { MorePagesDialog } from "@/components/settings/more-pages-dialog";
-import { SearchSpaceSettingsDialog } from "@/components/settings/search-space-settings-dialog";
-import { TeamDialog } from "@/components/settings/team-dialog";
-import { UserSettingsDialog } from "@/components/settings/user-settings-dialog";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
 import { CreateSearchSpaceDialog } from "../ui/dialogs";
 import { LayoutShell } from "../ui/shell";
@@ -822,11 +821,7 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 							disabled={isDeletingChat}
 							className="bg-destructive text-destructive-foreground hover:bg-destructive/90 gap-2"
 						>
-							{isDeletingChat ? (
-								<Spinner size="sm" />
-							) : (
-								tCommon("delete")
-							)}
+							{isDeletingChat ? <Spinner size="sm" /> : tCommon("delete")}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>

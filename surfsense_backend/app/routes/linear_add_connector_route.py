@@ -580,7 +580,9 @@ async def refresh_linear_token(
         credentials_dict = credentials.to_dict()
         credentials_dict["_token_encrypted"] = True
         if connector.config.get("organization_name"):
-            credentials_dict["organization_name"] = connector.config["organization_name"]
+            credentials_dict["organization_name"] = connector.config[
+                "organization_name"
+            ]
         credentials_dict.pop("auth_expired", None)
         connector.config = credentials_dict
         flag_modified(connector, "config")

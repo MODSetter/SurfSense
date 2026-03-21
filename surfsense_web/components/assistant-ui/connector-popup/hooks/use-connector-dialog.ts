@@ -261,35 +261,28 @@ export const useConnectorDialog = () => {
 					| (typeof COMPOSIO_CONNECTORS)[number]
 					| undefined;
 
-			if (result.connectorId) {
-				const connectorId = parseInt(result.connectorId, 10);
-				newConnector = fetchResult.data.find(
-					(c: SearchSourceConnector) => c.id === connectorId
-				);
-				if (newConnector) {
-					const connectorType = newConnector.connector_type;
-					oauthConnector =
-						OAUTH_CONNECTORS.find(
-							(c) => c.connectorType === connectorType
-						) ||
-						COMPOSIO_CONNECTORS.find(
-							(c) => c.connectorType === connectorType
-						);
+				if (result.connectorId) {
+					const connectorId = parseInt(result.connectorId, 10);
+					newConnector = fetchResult.data.find((c: SearchSourceConnector) => c.id === connectorId);
+					if (newConnector) {
+						const connectorType = newConnector.connector_type;
+						oauthConnector =
+							OAUTH_CONNECTORS.find((c) => c.connectorType === connectorType) ||
+							COMPOSIO_CONNECTORS.find((c) => c.connectorType === connectorType);
+					}
 				}
-			}
 
-			if (!newConnector && result.connector) {
-				oauthConnector =
-					OAUTH_CONNECTORS.find((c) => c.id === result.connector) ||
-					COMPOSIO_CONNECTORS.find((c) => c.id === result.connector);
-				if (oauthConnector) {
-					const oauthType = oauthConnector.connectorType;
-					newConnector = fetchResult.data.find(
-						(c: SearchSourceConnector) =>
-							c.connector_type === oauthType
-					);
+				if (!newConnector && result.connector) {
+					oauthConnector =
+						OAUTH_CONNECTORS.find((c) => c.id === result.connector) ||
+						COMPOSIO_CONNECTORS.find((c) => c.id === result.connector);
+					if (oauthConnector) {
+						const oauthType = oauthConnector.connectorType;
+						newConnector = fetchResult.data.find(
+							(c: SearchSourceConnector) => c.connector_type === oauthType
+						);
+					}
 				}
-			}
 
 				if (newConnector && oauthConnector) {
 					const connectorValidation = searchSourceConnector.safeParse(newConnector);
@@ -599,17 +592,17 @@ export const useConnectorDialog = () => {
 										: `${connectorTitle} connected and syncing started!`;
 								toast.success(successMessage);
 
-							setIsOpen(false);
+								setIsOpen(false);
 
-							setIndexingConfig(null);
-							setIndexingConnector(null);
-							setIndexingConnectorConfig(null);
+								setIndexingConfig(null);
+								setIndexingConnector(null);
+								setIndexingConnectorConfig(null);
 
-							queryClient.invalidateQueries({
-								queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-							});
+								queryClient.invalidateQueries({
+									queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+								});
 
-							await refetchAllConnectors();
+								await refetchAllConnectors();
 							} else {
 								// Non-indexable connector
 								// For Circleback, transition to edit view to show webhook URL
@@ -631,11 +624,11 @@ export const useConnectorDialog = () => {
 									setStartDate(undefined);
 									setEndDate(undefined);
 
-								toast.success(`${connectorTitle} connected successfully!`, {
-									description: "Configure the webhook URL in your Circleback settings.",
-								});
+									toast.success(`${connectorTitle} connected successfully!`, {
+										description: "Configure the webhook URL in your Circleback settings.",
+									});
 
-								await refetchAllConnectors();
+									await refetchAllConnectors();
 								} else {
 									// Other non-indexable connectors - just show success message and close
 									const successMessage =
@@ -644,13 +637,13 @@ export const useConnectorDialog = () => {
 											: `${connectorTitle} connected successfully!`;
 									toast.success(successMessage);
 
-								await refetchAllConnectors();
+									await refetchAllConnectors();
 
-								setIsOpen(false);
+									setIsOpen(false);
 
-								setIndexingConfig(null);
-								setIndexingConnector(null);
-								setIndexingConnectorConfig(null);
+									setIndexingConfig(null);
+									setIndexingConnector(null);
+									setIndexingConnectorConfig(null);
 								}
 							}
 						}
@@ -870,12 +863,12 @@ export const useConnectorDialog = () => {
 					);
 				}
 
-			toast.success(`${indexingConfig.connectorTitle} indexing started`);
+				toast.success(`${indexingConfig.connectorTitle} indexing started`);
 
-			setIsOpen(false);
-			setIsFromOAuth(false);
+				setIsOpen(false);
+				setIsFromOAuth(false);
 
-			refreshConnectors();
+				refreshConnectors();
 				queryClient.invalidateQueries({
 					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 				});
@@ -927,21 +920,21 @@ export const useConnectorDialog = () => {
 				return;
 			}
 
-		// Track if we came from accounts list view so handleBackFromEdit can restore it
-		if (viewingAccountsType && viewingAccountsType.connectorType === connector.connector_type) {
-			setCameFromAccountsList(viewingAccountsType);
-		} else {
-			setCameFromAccountsList(null);
-		}
-		setViewingAccountsType(null);
+			// Track if we came from accounts list view so handleBackFromEdit can restore it
+			if (viewingAccountsType && viewingAccountsType.connectorType === connector.connector_type) {
+				setCameFromAccountsList(viewingAccountsType);
+			} else {
+				setCameFromAccountsList(null);
+			}
+			setViewingAccountsType(null);
 
-		// Track if we came from MCP list view so handleBackFromEdit can restore it
-		if (viewingMCPList && connector.connector_type === "MCP_CONNECTOR") {
-			setCameFromMCPList(true);
-		} else {
-			setCameFromMCPList(false);
-		}
-		setViewingMCPList(false);
+			// Track if we came from MCP list view so handleBackFromEdit can restore it
+			if (viewingMCPList && connector.connector_type === "MCP_CONNECTOR") {
+				setCameFromMCPList(true);
+			} else {
+				setCameFromMCPList(false);
+			}
+			setViewingMCPList(false);
 
 			// Track index with date range opened event
 			if (connector.is_indexable) {
@@ -952,15 +945,15 @@ export const useConnectorDialog = () => {
 				);
 			}
 
-		setEditingConnector(connector);
-		setConnectorName(connector.name);
-		setPeriodicEnabled(!connector.is_indexable ? false : connector.periodic_indexing_enabled);
-		setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
-		setEnableSummary(connector.enable_summary ?? false);
-		setStartDate(undefined);
-		setEndDate(undefined);
-	},
-	[searchSpaceId, viewingAccountsType, viewingMCPList, handleViewMCPList, activeTab]
+			setEditingConnector(connector);
+			setConnectorName(connector.name);
+			setPeriodicEnabled(!connector.is_indexable ? false : connector.periodic_indexing_enabled);
+			setFrequencyMinutes(connector.indexing_frequency_minutes?.toString() || "1440");
+			setEnableSummary(connector.enable_summary ?? false);
+			setStartDate(undefined);
+			setEndDate(undefined);
+		},
+		[searchSpaceId, viewingAccountsType, viewingMCPList, handleViewMCPList, activeTab]
 	);
 
 	// Handle saving connector changes
@@ -1139,35 +1132,35 @@ export const useConnectorDialog = () => {
 						: indexingDescription,
 				});
 
-			setIsOpen(false);
+				setIsOpen(false);
 
-			refreshConnectors();
-			queryClient.invalidateQueries({
-				queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
-			});
-		} catch (error) {
-			console.error("Error saving connector:", error);
-			toast.error("Failed to save connector changes");
-		} finally {
-			setIsSaving(false);
-		}
-	},
-	[
-		editingConnector,
-		searchSpaceId,
-		isSaving,
-		startDate,
-		endDate,
-		indexConnector,
-		updateConnector,
-		periodicEnabled,
-		frequencyMinutes,
-		enableSummary,
-		getFrequencyLabel,
-		connectorConfig,
-		connectorName,
-		setIsOpen,
-	]
+				refreshConnectors();
+				queryClient.invalidateQueries({
+					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
+				});
+			} catch (error) {
+				console.error("Error saving connector:", error);
+				toast.error("Failed to save connector changes");
+			} finally {
+				setIsSaving(false);
+			}
+		},
+		[
+			editingConnector,
+			searchSpaceId,
+			isSaving,
+			startDate,
+			endDate,
+			indexConnector,
+			updateConnector,
+			periodicEnabled,
+			frequencyMinutes,
+			enableSummary,
+			getFrequencyLabel,
+			connectorConfig,
+			connectorName,
+			setIsOpen,
+		]
 	);
 
 	// Handle disconnecting connector
@@ -1194,19 +1187,19 @@ export const useConnectorDialog = () => {
 						: `${editingConnector.name} disconnected successfully`
 				);
 
-			if (editingConnector.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
-				setViewingMCPList(true);
-				setEditingConnector(null);
-				setConnectorName(null);
-				setConnectorConfig(null);
-			} else {
-				setEditingConnector(null);
-				setConnectorName(null);
-				setConnectorConfig(null);
-				setIsOpen(false);
-			}
+				if (editingConnector.connector_type === "MCP_CONNECTOR" && cameFromMCPList) {
+					setViewingMCPList(true);
+					setEditingConnector(null);
+					setConnectorName(null);
+					setConnectorConfig(null);
+				} else {
+					setEditingConnector(null);
+					setConnectorName(null);
+					setConnectorConfig(null);
+					setIsOpen(false);
+				}
 
-			refreshConnectors();
+				refreshConnectors();
 				queryClient.invalidateQueries({
 					queryKey: cacheKeys.logs.summary(Number(searchSpaceId)),
 				});
@@ -1312,13 +1305,13 @@ export const useConnectorDialog = () => {
 					setEditingConnector(null);
 					setConnectorName(null);
 					setConnectorConfig(null);
-				setConnectingConnectorType(null);
-				setViewingAccountsType(null);
-				setViewingMCPList(false);
-				setCameFromAccountsList(null);
-				setCameFromMCPList(false);
-				setConnectCameFromMCPList(false);
-				setStartDate(undefined);
+					setConnectingConnectorType(null);
+					setViewingAccountsType(null);
+					setViewingMCPList(false);
+					setCameFromAccountsList(null);
+					setCameFromMCPList(false);
+					setConnectCameFromMCPList(false);
+					setStartDate(undefined);
 					setEndDate(undefined);
 					setPeriodicEnabled(false);
 					setFrequencyMinutes("1440");
