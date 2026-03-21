@@ -612,14 +612,14 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 											role="combobox"
 											className="w-full justify-between font-normal"
 										>
-											{formData.model_name || "Select or type a model..."}
+											{formData.model_name || "Select a model"}
 											<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-full p-0" align="start">
 										<Command>
 											<CommandInput
-												placeholder="Search or type model name..."
+												placeholder="Search a model name"
 												value={formData.model_name}
 												onValueChange={(val) => setFormData((p) => ({ ...p, model_name: val }))}
 											/>
