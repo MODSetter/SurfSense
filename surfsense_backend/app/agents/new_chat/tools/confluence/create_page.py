@@ -187,7 +187,9 @@ def create_create_confluence_page_tool(
                 raise
 
             page_id = str(api_result.get("id", ""))
-            page_links = api_result.get("_links", {}) if isinstance(api_result, dict) else {}
+            page_links = (
+                api_result.get("_links", {}) if isinstance(api_result, dict) else {}
+            )
             page_url = ""
             if page_links.get("base") and page_links.get("webui"):
                 page_url = f"{page_links['base']}{page_links['webui']}"
