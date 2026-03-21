@@ -43,7 +43,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import {
@@ -851,14 +851,11 @@ export function InboxSidebar({
 						setActiveFilter("all");
 					}
 				}}
-				className="shrink-0 mx-4"
+				className="shrink-0 mx-4 mt-2"
 			>
-				<TabsList className="w-full h-auto p-0 bg-transparent rounded-none border-b">
-					<TabsTrigger
-						value="comments"
-						className="group flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-					>
-						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted group-data-[state=active]:bg-muted transition-colors">
+				<TabsList stretch showBottomBorder size="sm">
+					<TabsTrigger value="comments">
+						<span className="inline-flex items-center gap-1.5">
 							<MessageSquare className="h-4 w-4" />
 							<span>{t("comments") || "Comments"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -866,11 +863,8 @@ export function InboxSidebar({
 							</span>
 						</span>
 					</TabsTrigger>
-					<TabsTrigger
-						value="status"
-						className="group flex-1 rounded-none border-b-2 border-transparent px-1 py-2 text-xs font-medium data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-					>
-						<span className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-muted group-data-[state=active]:bg-muted transition-colors">
+					<TabsTrigger value="status">
+						<span className="inline-flex items-center gap-1.5">
 							<History className="h-4 w-4" />
 							<span>{t("status") || "Status"}</span>
 							<span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-primary/20 text-muted-foreground text-xs font-medium">
@@ -885,9 +879,9 @@ export function InboxSidebar({
 				{isLoading ? (
 					<div className="space-y-2">
 						{activeTab === "comments"
-							? [85, 60, 90, 70, 50, 75].map((titleWidth, i) => (
+							? [85, 60, 90, 70, 50, 75].map((titleWidth) => (
 									<div
-										key={`skeleton-comment-${i}`}
+										key={`skeleton-comment-${titleWidth}`}
 										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 									>
 										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -898,9 +892,9 @@ export function InboxSidebar({
 										<Skeleton className="h-3 w-6 shrink-0 rounded" />
 									</div>
 								))
-							: [75, 90, 55, 80, 65, 85].map((titleWidth, i) => (
+							: [75, 90, 55, 80, 65, 85].map((titleWidth) => (
 									<div
-										key={`skeleton-status-${i}`}
+										key={`skeleton-status-${titleWidth}`}
 										className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 									>
 										<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -1003,9 +997,9 @@ export function InboxSidebar({
 						)}
 						{activeSource.loadingMore &&
 							(activeTab === "comments"
-								? [80, 60, 90].map((titleWidth, i) => (
+								? [80, 60, 90].map((titleWidth) => (
 										<div
-											key={`loading-more-comment-${i}`}
+											key={`loading-more-comment-${titleWidth}`}
 											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 										>
 											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
@@ -1016,9 +1010,9 @@ export function InboxSidebar({
 											<Skeleton className="h-3 w-6 shrink-0 rounded" />
 										</div>
 									))
-								: [70, 85, 55].map((titleWidth, i) => (
+								: [70, 85, 55].map((titleWidth) => (
 										<div
-											key={`loading-more-status-${i}`}
+											key={`loading-more-status-${titleWidth}`}
 											className="flex items-center gap-3 rounded-lg px-3 py-3 h-[80px]"
 										>
 											<Skeleton className="h-8 w-8 rounded-full shrink-0" />
