@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 import { useSetAtom } from "jotai";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
@@ -29,6 +30,7 @@ interface GoogleDriveAccount {
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject" | "edit";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -131,10 +133,7 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{ name: string; content: string } | null>(null);
@@ -172,15 +171,16 @@ function ApprovalCard({
 
 	const canApprove = !!selectedAccountId && isNameValid;
 
-	const reviewConfig = interruptData.review_configs[0];
+	const reviewConfig = interruptData.review_configs?.[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
 	const handleApprove = useCallback(() => {
-		if (decided || isPanelOpen || !canApprove) return;
+		if (phase !== "pending") return;
+		if (isPanelOpen || !canApprove) return;
 		if (!allowedDecisions.includes("approve")) return;
 		const isEdited = pendingEdits !== null;
-		setDecided(isEdited ? "edit" : "approve");
+		setProcessing();
 		onDecision({
 			type: isEdited ? "edit" : "approve",
 			edited_action: {
@@ -194,7 +194,7 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedFileType, selectedAccountId, parentFolderId, pendingEdits]);
+	}, [phase, setProcessing, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedFileType, selectedAccountId, parentFolderId, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -212,29 +212,29 @@ function ApprovalCard({
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
-						{decided === "reject"
+						{phase === "rejected"
 							? `${fileTypeLabel} Rejected`
-							: decided === "approve" || decided === "edit"
+							: phase === "processing" || phase === "complete"
 								? `${fileTypeLabel} Approved`
 								: `Create ${fileTypeLabel}`}
 					</p>
-					{decided === "approve" || decided === "edit" ? (
-						wasAlreadyDecided ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								{decided === "edit" ? "File created with your changes" : "File created"}
-							</p>
-						) : (
-							<TextShimmerLoader text={decided === "edit" ? "Creating file with your changes" : "Creating file"} size="sm" />
-						)
+				{phase === "processing" ? (
+						<TextShimmerLoader text={pendingEdits ? "Creating file with your changes" : "Creating file"} size="sm" />
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{pendingEdits ? "File created with your changes" : "File created"}
+						</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							File creation was cancelled
+						</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "File creation was cancelled"
-								: "Requires your approval to proceed"}
+							Requires your approval to proceed
 						</p>
 					)}
 				</div>
-				{!decided && canEdit && (
+				{phase === "pending" && canEdit && (
 					<Button
 						size="sm"
 						variant="ghost"
@@ -259,8 +259,8 @@ function ApprovalCard({
 				)}
 			</div>
 
-			{/* Context section */}
-			{!decided && interruptData.context && (
+			{/* Context section — real pickers in pending */}
+			{phase === "pending" && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
@@ -368,7 +368,7 @@ function ApprovalCard({
 			</div>
 
 			{/* Action buttons - only shown when pending */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -390,7 +390,7 @@ function ApprovalCard({
 								className="rounded-lg text-muted-foreground"
 								disabled={isPanelOpen}
 								onClick={() => {
-									setDecided("reject");
+									setRejected();
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
@@ -486,7 +486,7 @@ export const CreateGoogleDriveFileToolUI = makeAssistantToolUI<
 	CreateGoogleDriveFileResult
 >({
 	toolName: "create_google_drive_file",
-	render: function CreateGoogleDriveFileUI({ args, result, status: _status }) {
+	render: function CreateGoogleDriveFileUI({ args, result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

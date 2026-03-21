@@ -21,6 +21,7 @@ import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { useSetAtom } from "jotai";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GmailAccount {
 	id: number;
@@ -32,6 +33,7 @@ interface GmailAccount {
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject" | "edit";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -126,10 +128,7 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{
@@ -149,15 +148,16 @@ function ApprovalCard({
 
 	const canApprove = !!selectedAccountId;
 
-	const reviewConfig = interruptData.review_configs[0];
+	const reviewConfig = interruptData.review_configs?.[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
 
 	const handleApprove = useCallback(() => {
-		if (decided || isPanelOpen || !canApprove) return;
+		if (phase !== "pending") return;
+		if (isPanelOpen || !canApprove) return;
 		if (!allowedDecisions.includes("approve")) return;
 		const isEdited = pendingEdits !== null;
-		setDecided(isEdited ? "edit" : "approve");
+		setProcessing();
 		onDecision({
 			type: isEdited ? "edit" : "approve",
 			edited_action: {
@@ -175,7 +175,7 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedAccountId, pendingEdits]);
+	}, [phase, isPanelOpen, canApprove, allowedDecisions, setProcessing, onDecision, interruptData, args, selectedAccountId, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -194,30 +194,30 @@ function ApprovalCard({
 				<div className="flex items-center gap-2">
 					<div>
 						<p className="text-sm font-semibold text-foreground">
-							{decided === "reject"
+							{phase === "rejected"
 								? "Gmail Draft Rejected"
-								: decided === "approve" || decided === "edit"
+								: phase === "processing" || phase === "complete"
 									? "Gmail Draft Approved"
 									: "Create Gmail Draft"}
 						</p>
-						{decided === "approve" || decided === "edit" ? (
-							wasAlreadyDecided ? (
-								<p className="text-xs text-muted-foreground mt-0.5">
-									{decided === "edit" ? "Draft created with your changes" : "Draft created"}
-								</p>
-							) : (
-								<TextShimmerLoader text={decided === "edit" ? "Creating draft with your changes" : "Creating draft"} size="sm" />
-							)
+					{phase === "processing" ? (
+							<TextShimmerLoader text={pendingEdits ? "Creating draft with your changes" : "Creating draft"} size="sm" />
+						) : phase === "complete" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{pendingEdits ? "Draft created with your changes" : "Draft created"}
+							</p>
+						) : phase === "rejected" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								Draft creation was cancelled
+							</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
-								{decided === "reject"
-									? "Draft creation was cancelled"
-									: "Requires your approval to proceed"}
+								Requires your approval to proceed
 							</p>
 						)}
 					</div>
 				</div>
-				{!decided && canEdit && (
+				{phase === "pending" && canEdit && (
 					<Button
 						size="sm"
 						variant="ghost"
@@ -255,8 +255,8 @@ function ApprovalCard({
 				)}
 			</div>
 
-			{/* Account selector */}
-			{!decided && interruptData.context && (
+			{/* Account selector — real dropdown in pending */}
+			{phase === "pending" && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
@@ -297,7 +297,7 @@ function ApprovalCard({
 				</>
 			)}
 
-			{/* Email headers + body preview */}
+			{/* Email headers + body preview — visible in ALL phases */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3 pb-2 space-y-1.5 select-none">
 				{(pendingEdits?.to ?? args.to) && (
@@ -343,8 +343,8 @@ function ApprovalCard({
 				)}
 			</div>
 
-			{/* Action buttons */}
-			{!decided && (
+			{/* Action buttons — only in pending */}
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -366,7 +366,7 @@ function ApprovalCard({
 								className="rounded-lg text-muted-foreground"
 								disabled={isPanelOpen}
 								onClick={() => {
-									setDecided("reject");
+									setRejected();
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
@@ -445,7 +445,7 @@ export const CreateGmailDraftToolUI = makeAssistantToolUI<
 	CreateGmailDraftResult
 >({
 	toolName: "create_gmail_draft",
-	render: function CreateGmailDraftUI({ args, result, status: _status }) {
+	render: function CreateGmailDraftUI({ args, result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

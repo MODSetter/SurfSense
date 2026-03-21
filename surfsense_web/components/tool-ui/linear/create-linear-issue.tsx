@@ -15,6 +15,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 import { useSetAtom } from "jotai";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
@@ -66,6 +67,7 @@ interface LinearWorkspace {
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject" | "edit";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -143,10 +145,7 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{ title: string; description: string } | null>(null);
@@ -193,10 +192,11 @@ function ApprovalCard({
 	}, [args.title, args.description, selectedWorkspaceId, selectedTeamId, selectedStateId, selectedAssigneeId, selectedPriority, selectedLabelIds, pendingEdits]);
 
 	const handleApprove = useCallback(() => {
-		if (decided || isPanelOpen || !canApprove) return;
+		if (phase !== "pending") return;
+		if (isPanelOpen || !canApprove) return;
 		if (!allowedDecisions.includes("approve")) return;
 		const isEdited = pendingEdits !== null;
-		setDecided(isEdited ? "edit" : "approve");
+		setProcessing();
 		onDecision({
 			type: isEdited ? "edit" : "approve",
 			edited_action: {
@@ -204,7 +204,7 @@ function ApprovalCard({
 				args: buildFinalArgs(),
 			},
 		});
-	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, buildFinalArgs, pendingEdits]);
+	}, [phase, setProcessing, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, buildFinalArgs, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -222,29 +222,29 @@ function ApprovalCard({
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
-						{decided === "reject"
+						{phase === "rejected"
 							? "Linear Issue Rejected"
-							: decided === "approve" || decided === "edit"
+							: phase === "processing" || phase === "complete"
 								? "Linear Issue Approved"
 								: "Create Linear Issue"}
 					</p>
-					{decided === "approve" || decided === "edit" ? (
-						wasAlreadyDecided ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								{decided === "edit" ? "Issue created with your changes" : "Issue created"}
-							</p>
-						) : (
-							<TextShimmerLoader text={decided === "edit" ? "Creating issue with your changes" : "Creating issue"} size="sm" />
-						)
+					{phase === "processing" ? (
+						<TextShimmerLoader text={pendingEdits ? "Creating issue with your changes" : "Creating issue"} size="sm" />
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{pendingEdits ? "Issue created with your changes" : "Issue created"}
+						</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Issue creation was cancelled
+						</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Issue creation was cancelled"
-								: "Requires your approval to proceed"}
+							Requires your approval to proceed
 						</p>
 					)}
 				</div>
-				{!decided && canEdit && (
+				{phase === "pending" && canEdit && (
 					<Button
 						size="sm"
 						variant="ghost"
@@ -269,8 +269,8 @@ function ApprovalCard({
 				)}
 			</div>
 
-			{/* Context section */}
-			{!decided && (
+				{/* Context section — real pickers in pending */}
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-3 space-y-3 select-none">
@@ -480,7 +480,7 @@ function ApprovalCard({
 			</div>
 
 			{/* Action buttons - only shown when pending */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-3 flex items-center gap-2 select-none">
@@ -502,7 +502,7 @@ function ApprovalCard({
 								className="rounded-lg text-muted-foreground"
 								disabled={isPanelOpen}
 								onClick={() => {
-									setDecided("reject");
+									setRejected();
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
@@ -582,7 +582,7 @@ export const CreateLinearIssueToolUI = makeAssistantToolUI<
 	CreateLinearIssueResult
 >({
 	toolName: "create_linear_issue",
-	render: function CreateLinearIssueUI({ args, result, status: _status }) {
+	render: function CreateLinearIssueUI({ args, result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {

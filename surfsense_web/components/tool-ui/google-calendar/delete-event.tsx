@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GoogleCalendarAccount {
 	id: number;
@@ -34,6 +35,7 @@ interface CalendarEvent {
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -172,10 +174,7 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
 	const context = interruptData.context;
@@ -183,8 +182,8 @@ function ApprovalCard({
 	const event = context?.event;
 
 	const handleApprove = useCallback(() => {
-		if (decided) return;
-		setDecided("approve");
+		if (phase !== "pending") return;
+		setProcessing();
 		onDecision({
 			type: "approve",
 			edited_action: {
@@ -196,7 +195,7 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [decided, onDecision, interruptData, event?.event_id, account?.id, deleteFromKb]);
+	}, [phase, setProcessing, onDecision, interruptData, event?.event_id, account?.id, deleteFromKb]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -215,31 +214,30 @@ function ApprovalCard({
 				<div className="flex items-center gap-2">
 					<div>
 						<p className="text-sm font-semibold text-foreground">
-							{decided === "reject"
+							{phase === "rejected"
 								? "Calendar Event Deletion Rejected"
-								: decided === "approve"
+								: phase === "processing" || phase === "complete"
 									? "Calendar Event Deletion Approved"
 									: "Delete Calendar Event"}
 						</p>
-						{decided === "approve" ? (
-							wasAlreadyDecided ? (
-								<p className="text-xs text-muted-foreground mt-0.5">Event deleted</p>
-							) : (
-								<TextShimmerLoader text="Deleting event" size="sm" />
-							)
+					{phase === "processing" ? (
+							<TextShimmerLoader text="Deleting event" size="sm" />
+						) : phase === "complete" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">Event deleted</p>
+						) : phase === "rejected" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								Event deletion was cancelled
+							</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
-								{decided === "reject"
-									? "Event deletion was cancelled"
-									: "Requires your approval to proceed"}
+								Requires your approval to proceed
 							</p>
 						)}
 					</div>
 				</div>
 			</div>
 
-			{/* Context section */}
-			{!decided && context && (
+			{phase !== "rejected" && context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
@@ -290,7 +288,7 @@ function ApprovalCard({
 			)}
 
 			{/* delete_from_kb toggle */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 select-none">
@@ -313,7 +311,7 @@ function ApprovalCard({
 			)}
 
 			{/* Action buttons */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -330,7 +328,7 @@ function ApprovalCard({
 							variant="ghost"
 							className="rounded-lg text-muted-foreground"
 							onClick={() => {
-								setDecided("reject");
+								setRejected();
 								onDecision({ type: "reject", message: "User rejected the action." });
 							}}
 						>
@@ -443,7 +441,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 }
 
 export const DeleteCalendarEventToolUI = makeAssistantToolUI<
-	{ event_ref: string; delete_from_kb?: boolean },
+	{ event_title_or_id: string; delete_from_kb?: boolean },
 	DeleteCalendarEventResult
 >({
 	toolName: "delete_calendar_event",

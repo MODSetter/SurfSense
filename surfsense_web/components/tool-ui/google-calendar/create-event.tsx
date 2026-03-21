@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import type { ExtraField } from "@/atoms/chat/hitl-edit-panel.atom";
 
@@ -39,6 +40,7 @@ interface CalendarEntry {
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject" | "edit";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -153,11 +155,9 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
+	const [wasEdited, setWasEdited] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{
 		summary: string; description: string; start_datetime: string;
@@ -185,6 +185,14 @@ function ApprovalCard({
 	const [selectedAccountId, setSelectedAccountId] = useState<string>(defaultAccountId);
 	const [selectedCalendarId, setSelectedCalendarId] = useState<string>(defaultCalendarId);
 
+	useEffect(() => {
+		if (defaultAccountId && !selectedAccountId) setSelectedAccountId(defaultAccountId);
+	}, [defaultAccountId, selectedAccountId]);
+
+	useEffect(() => {
+		if (defaultCalendarId && !selectedCalendarId) setSelectedCalendarId(defaultCalendarId);
+	}, [defaultCalendarId, selectedCalendarId]);
+
 	const reviewConfig = interruptData.review_configs[0];
 	const allowedDecisions = reviewConfig?.allowed_decisions ?? ["approve", "reject"];
 	const canEdit = allowedDecisions.includes("edit");
@@ -195,10 +203,11 @@ function ApprovalCard({
 		!!(pendingEdits?.summary ?? args.summary)?.trim();
 
 	const handleApprove = useCallback(() => {
-		if (decided || isPanelOpen || !canApprove) return;
+		if (phase !== "pending" || isPanelOpen || !canApprove) return;
 		if (!allowedDecisions.includes("approve")) return;
 		const isEdited = pendingEdits !== null;
-		setDecided(isEdited ? "edit" : "approve");
+		setWasEdited(isEdited);
+		setProcessing();
 
 		const finalArgs: Record<string, unknown> = {
 			...args,
@@ -227,7 +236,7 @@ function ApprovalCard({
 				args: finalArgs,
 			},
 		});
-	}, [decided, isPanelOpen, canApprove, allowedDecisions, onDecision, interruptData, args, selectedAccountId, selectedCalendarId, pendingEdits]);
+	}, [phase, isPanelOpen, canApprove, allowedDecisions, setProcessing, onDecision, interruptData, args, selectedAccountId, selectedCalendarId, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -251,30 +260,30 @@ function ApprovalCard({
 				<div className="flex items-center gap-2">
 					<div>
 						<p className="text-sm font-semibold text-foreground">
-							{decided === "reject"
+							{phase === "rejected"
 								? "Calendar Event Rejected"
-								: decided === "approve" || decided === "edit"
+								: phase === "processing" || phase === "complete"
 									? "Calendar Event Approved"
 									: "Create Calendar Event"}
 						</p>
-						{decided === "approve" || decided === "edit" ? (
-							wasAlreadyDecided ? (
-								<p className="text-xs text-muted-foreground mt-0.5">
-									{decided === "edit" ? "Event created with your changes" : "Event created"}
-								</p>
-							) : (
-								<TextShimmerLoader text={decided === "edit" ? "Creating event with your changes" : "Creating event"} size="sm" />
-							)
+					{phase === "processing" ? (
+							<TextShimmerLoader text={wasEdited ? "Creating event with your changes" : "Creating event"} size="sm" />
+						) : phase === "complete" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								{wasEdited ? "Event created with your changes" : "Event created"}
+							</p>
+						) : phase === "rejected" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								Event creation was cancelled
+							</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
-								{decided === "reject"
-									? "Event creation was cancelled"
-									: "Requires your approval to proceed"}
+								Requires your approval to proceed
 							</p>
 						)}
 					</div>
 				</div>
-				{!decided && canEdit && (
+				{phase === "pending" && canEdit && (
 					<Button
 						size="sm"
 						variant="ghost"
@@ -314,8 +323,8 @@ function ApprovalCard({
 				)}
 			</div>
 
-			{/* Context section */}
-			{!decided && interruptData.context && (
+			{/* Context section - pending with real dropdowns */}
+			{phase === "pending" && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
@@ -386,7 +395,7 @@ function ApprovalCard({
 				</>
 			)}
 
-			{/* Content preview */}
+			{/* Content preview - visible in ALL phases */}
 			<div className="mx-5 h-px bg-border/50" />
 			<div className="px-5 pt-3 pb-3 space-y-2">
 				{(pendingEdits?.summary ?? args.summary) && (
@@ -437,8 +446,8 @@ function ApprovalCard({
 				)}
 			</div>
 
-			{/* Action buttons */}
-			{!decided && (
+			{/* Action buttons - pending only */}
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -460,7 +469,7 @@ function ApprovalCard({
 								className="rounded-lg text-muted-foreground"
 								disabled={isPanelOpen}
 								onClick={() => {
-									setDecided("reject");
+									setRejected();
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>

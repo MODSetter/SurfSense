@@ -9,6 +9,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GoogleDriveAccount {
 	id: number;
@@ -26,6 +27,7 @@ interface GoogleDriveFile {
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -159,19 +161,17 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
-	const account = interruptData.context?.account;
-	const file = interruptData.context?.file;
+	const context = interruptData.context;
+	const account = context?.account;
+	const file = context?.file;
 	const fileLabel = file?.mime_type ? (MIME_TYPE_LABELS[file.mime_type] ?? "File") : "File";
 
 	const handleApprove = useCallback(() => {
-		if (decided) return;
-		setDecided("approve");
+		if (phase !== "pending") return;
+		setProcessing();
 		onDecision({
 			type: "approve",
 			edited_action: {
@@ -183,7 +183,7 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [decided, onDecision, interruptData, file?.file_id, account?.id, deleteFromKb]);
+	}, [phase, setProcessing, onDecision, interruptData, file?.file_id, account?.id, deleteFromKb]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -201,35 +201,35 @@ function ApprovalCard({
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
-						{decided === "reject"
+						{phase === "rejected"
 							? "Google Drive File Deletion Rejected"
-							: decided === "approve"
+							: phase === "processing" || phase === "complete"
 								? "Google Drive File Deletion Approved"
 								: "Delete Google Drive File"}
 					</p>
-					{decided === "approve" ? (
-						wasAlreadyDecided ? (
-							<p className="text-xs text-muted-foreground mt-0.5">File trashed</p>
-						) : (
-							<TextShimmerLoader text="Trashing file" size="sm" />
-						)
+				{phase === "processing" ? (
+						<TextShimmerLoader text="Trashing file" size="sm" />
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">File trashed</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							File deletion was cancelled
+						</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "File deletion was cancelled"
-								: "Requires your approval to proceed"}
+							Requires your approval to proceed
 						</p>
 					)}
 				</div>
 			</div>
 
-			{/* Context — read-only file details */}
-			{!decided && interruptData.context && (
+			{/* Context — read-only file details (visible in pending, processing, complete) */}
+			{phase !== "rejected" && context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
-						{interruptData.context.error ? (
-							<p className="text-sm text-destructive">{interruptData.context.error}</p>
+						{context.error ? (
+							<p className="text-sm text-destructive">{context.error}</p>
 						) : (
 							<>
 								{account && (
@@ -269,7 +269,7 @@ function ApprovalCard({
 			)}
 
 			{/* Trash warning + delete_from_kb toggle */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-3 select-none">
@@ -295,7 +295,7 @@ function ApprovalCard({
 			)}
 
 			{/* Action buttons - only shown when pending */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 				<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -312,7 +312,7 @@ function ApprovalCard({
 						variant="ghost"
 						className="rounded-lg text-muted-foreground"
 						onClick={() => {
-							setDecided("reject");
+							setRejected();
 							onDecision({ type: "reject", message: "User rejected the action." });
 						}}
 					>
@@ -423,7 +423,7 @@ export const DeleteGoogleDriveFileToolUI = makeAssistantToolUI<
 	DeleteGoogleDriveFileResult
 >({
 	toolName: "delete_google_drive_file",
-	render: function DeleteGoogleDriveFileUI({ result, status: _status }) {
+	render: function DeleteGoogleDriveFileUI({ result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
@@ -431,9 +431,10 @@ export const DeleteGoogleDriveFileToolUI = makeAssistantToolUI<
 				<ApprovalCard
 					interruptData={result}
 					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
+						const event = new CustomEvent("hitl-decision", {
+							detail: { decisions: [decision] },
+						});
+						window.dispatchEvent(event);
 					}}
 				/>
 			);

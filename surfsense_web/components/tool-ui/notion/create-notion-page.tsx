@@ -15,10 +15,12 @@ import {
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject" | "edit";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -115,10 +117,7 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const openHitlEditPanel = useSetAtom(openHitlEditPanelAtom);
 	const [pendingEdits, setPendingEdits] = useState<{ title: string; content: string } | null>(null);
@@ -154,10 +153,11 @@ function ApprovalCard({
 	const canEdit = allowedDecisions.includes("edit");
 
 	const handleApprove = useCallback(() => {
-		if (decided || isPanelOpen || !selectedAccountId || !isTitleValid) return;
+		if (phase !== "pending") return;
+		if (isPanelOpen || !selectedAccountId || !isTitleValid) return;
 		if (!allowedDecisions.includes("approve")) return;
 		const isEdited = pendingEdits !== null;
-		setDecided(isEdited ? "edit" : "approve");
+		setProcessing();
 		onDecision({
 			type: isEdited ? "edit" : "approve",
 			edited_action: {
@@ -171,7 +171,7 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [decided, isPanelOpen, selectedAccountId, isTitleValid, allowedDecisions, onDecision, interruptData, args, selectedParentPageId, pendingEdits]);
+	}, [phase, isPanelOpen, selectedAccountId, isTitleValid, allowedDecisions, setProcessing, onDecision, interruptData, args, selectedParentPageId, pendingEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -191,29 +191,29 @@ function ApprovalCard({
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
-						{decided === "reject"
+						{phase === "rejected"
 							? "Notion Page Rejected"
-							: decided === "approve" || decided === "edit"
+							: phase === "processing" || phase === "complete"
 								? "Notion Page Approved"
 								: "Create Notion Page"}
 					</p>
-					{decided === "approve" || decided === "edit" ? (
-						wasAlreadyDecided ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								{decided === "edit" ? "Page created with your changes" : "Page created"}
-							</p>
-						) : (
-							<TextShimmerLoader text={decided === "edit" ? "Creating page with your changes" : "Creating page"} size="sm" />
-						)
+					{phase === "processing" ? (
+						<TextShimmerLoader text={pendingEdits ? "Creating page with your changes" : "Creating page"} size="sm" />
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{pendingEdits ? "Page created with your changes" : "Page created"}
+						</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Page creation was cancelled
+						</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Page creation was cancelled"
-								: "Requires your approval to proceed"}
+							Requires your approval to proceed
 						</p>
 					)}
 				</div>
-				{!decided && canEdit && (
+				{phase === "pending" && canEdit && (
 					<Button
 						size="sm"
 						variant="ghost"
@@ -238,8 +238,8 @@ function ApprovalCard({
 				)}
 			</div>
 
-			{/* Context section */}
-			{!decided && interruptData.context && (
+				{/* Account/workspace picker — real UI in pending */}
+			{phase === "pending" && interruptData.context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
@@ -338,7 +338,7 @@ function ApprovalCard({
 			</div>
 
 			{/* Action buttons - only shown when pending */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -360,7 +360,7 @@ function ApprovalCard({
 								className="rounded-lg text-muted-foreground"
 								disabled={isPanelOpen}
 								onClick={() => {
-									setDecided("reject");
+									setRejected();
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
@@ -441,9 +441,7 @@ export const CreateNotionPageToolUI = makeAssistantToolUI<
 >({
 	toolName: "create_notion_page",
 	render: function CreateNotionPageUI({ args, result }) {
-		if (!result) {
-			return null;
-		}
+		if (!result) return null;
 
 		if (isInterruptResult(result)) {
 			return (

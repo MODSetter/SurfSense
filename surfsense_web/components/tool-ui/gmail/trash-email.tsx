@@ -11,6 +11,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface GmailAccount {
 	id: number;
@@ -32,6 +33,7 @@ interface GmailMessage {
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -144,18 +146,16 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
-	const account = interruptData.context?.account;
-	const email = interruptData.context?.email;
+	const context = interruptData.context;
+	const account = context?.account;
+	const email = context?.email;
 
 	const handleApprove = useCallback(() => {
-		if (decided) return;
-		setDecided("approve");
+		if (phase !== "pending") return;
+		setProcessing();
 		onDecision({
 			type: "approve",
 			edited_action: {
@@ -167,7 +167,7 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [decided, onDecision, interruptData, email, account?.id, deleteFromKb]);
+	}, [phase, setProcessing, onDecision, interruptData, email, account?.id, deleteFromKb]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -186,23 +186,23 @@ function ApprovalCard({
 				<div className="flex items-center gap-2">
 					<div>
 						<p className="text-sm font-semibold text-foreground">
-							{decided === "reject"
+							{phase === "rejected"
 								? "Email Trash Rejected"
-								: decided === "approve"
+								: phase === "processing" || phase === "complete"
 									? "Email Trash Approved"
 									: "Trash Email"}
 						</p>
-						{decided === "approve" ? (
-							wasAlreadyDecided ? (
-								<p className="text-xs text-muted-foreground mt-0.5">Email trashed</p>
-							) : (
-								<TextShimmerLoader text="Trashing email" size="sm" />
-							)
+					{phase === "processing" ? (
+							<TextShimmerLoader text="Trashing email" size="sm" />
+						) : phase === "complete" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">Email trashed</p>
+						) : phase === "rejected" ? (
+							<p className="text-xs text-muted-foreground mt-0.5">
+								Email trash was cancelled
+							</p>
 						) : (
 							<p className="text-xs text-muted-foreground mt-0.5">
-								{decided === "reject"
-									? "Email trash was cancelled"
-									: "Requires your approval to proceed"}
+								Requires your approval to proceed
 							</p>
 						)}
 					</div>
@@ -210,12 +210,12 @@ function ApprovalCard({
 			</div>
 
 			{/* Context — read-only account and email info */}
-			{!decided && interruptData.context && (
+			{phase !== "rejected" && context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
-						{interruptData.context.error ? (
-							<p className="text-sm text-destructive">{interruptData.context.error}</p>
+						{context.error ? (
+							<p className="text-sm text-destructive">{context.error}</p>
 						) : (
 							<>
 								{account && (
@@ -253,7 +253,7 @@ function ApprovalCard({
 			)}
 
 			{/* delete_from_kb toggle */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 select-none">
@@ -276,7 +276,7 @@ function ApprovalCard({
 			)}
 
 			{/* Action buttons */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -293,7 +293,7 @@ function ApprovalCard({
 							variant="ghost"
 							className="rounded-lg text-muted-foreground"
 							onClick={() => {
-								setDecided("reject");
+								setRejected();
 								onDecision({ type: "reject", message: "User rejected the action." });
 							}}
 						>
@@ -397,7 +397,7 @@ export const TrashGmailEmailToolUI = makeAssistantToolUI<
 	TrashGmailEmailResult
 >({
 	toolName: "trash_gmail_email",
-	render: function TrashGmailEmailUI({ result, status: _status }) {
+	render: function TrashGmailEmailUI({ result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
@@ -405,9 +405,10 @@ export const TrashGmailEmailToolUI = makeAssistantToolUI<
 				<ApprovalCard
 					interruptData={result}
 					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
+						const event = new CustomEvent("hitl-decision", {
+							detail: { decisions: [decision] },
+						});
+						window.dispatchEvent(event);
 					}}
 				/>
 			);

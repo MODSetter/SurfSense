@@ -6,10 +6,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -128,21 +130,15 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const actionArgs = interruptData.action_requests[0]?.args ?? {};
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
+	const [deleteFromKb, setDeleteFromKb] = useState(false);
+
 	const context = interruptData.context;
 	const issue = context?.issue;
 
-	const [decided, setDecided] = useState<"approve" | "reject" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
-	const [deleteFromKb, setDeleteFromKb] = useState(
-		typeof actionArgs.delete_from_kb === "boolean" ? actionArgs.delete_from_kb : false
-	);
-
 	const handleApprove = useCallback(() => {
-		if (decided) return;
-		setDecided("approve");
+		if (phase !== "pending") return;
+		setProcessing();
 		onDecision({
 			type: "approve",
 			edited_action: {
@@ -154,7 +150,7 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [decided, onDecision, interruptData, issue?.id, context?.workspace?.id, deleteFromKb]);
+	}, [phase, setProcessing, onDecision, interruptData, issue?.id, context?.workspace?.id, deleteFromKb]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -172,38 +168,38 @@ function ApprovalCard({
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
-						{decided === "reject"
+						{phase === "rejected"
 							? "Linear Issue Deletion Rejected"
-							: decided === "approve"
+							: phase === "processing" || phase === "complete"
 								? "Linear Issue Deletion Approved"
 								: "Delete Linear Issue"}
 					</p>
-					{decided === "approve" ? (
-						wasAlreadyDecided ? (
-							<p className="text-xs text-muted-foreground mt-0.5">Issue deleted</p>
-						) : (
-							<TextShimmerLoader text="Deleting issue" size="sm" />
-						)
+				{phase === "processing" ? (
+						<TextShimmerLoader text="Deleting issue" size="sm" />
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">Issue deleted</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Issue deletion was cancelled
+						</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Issue deletion was cancelled"
-								: "Requires your approval to proceed"}
+							Requires your approval to proceed
 						</p>
 					)}
 				</div>
 			</div>
 
-			{/* Context section — workspace + issue info (read-only) */}
-			{!decided && (
+			{/* Context section — workspace + issue info (visible in pending, processing, complete) */}
+			{phase !== "rejected" && context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
-						{context?.error ? (
+						{context.error ? (
 							<p className="text-sm text-destructive">{context.error}</p>
 						) : (
 							<>
-								{context?.workspace && (
+								{context.workspace && (
 									<div className="space-y-2">
 										<p className="text-xs font-medium text-muted-foreground">Linear Account</p>
 										<div className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm">
@@ -232,7 +228,7 @@ function ApprovalCard({
 			)}
 
 			{/* delete_from_kb toggle */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 select-none">
@@ -255,7 +251,7 @@ function ApprovalCard({
 			)}
 
 			{/* Action buttons - only shown when pending */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 				<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -272,7 +268,7 @@ function ApprovalCard({
 							variant="ghost"
 							className="rounded-lg text-muted-foreground"
 							onClick={() => {
-								setDecided("reject");
+								setRejected();
 								onDecision({ type: "reject", message: "User rejected the action." });
 							}}
 						>
@@ -371,7 +367,7 @@ export const DeleteLinearIssueToolUI = makeAssistantToolUI<
 	DeleteLinearIssueResult
 >({
 	toolName: "delete_linear_issue",
-	render: function DeleteLinearIssueUI({ result, status: _status }) {
+	render: function DeleteLinearIssueUI({ result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
@@ -379,9 +375,10 @@ export const DeleteLinearIssueToolUI = makeAssistantToolUI<
 				<ApprovalCard
 					interruptData={result}
 					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
+						const event = new CustomEvent("hitl-decision", {
+							detail: { decisions: [decision] },
+						});
+						window.dispatchEvent(event);
 					}}
 				/>
 			);

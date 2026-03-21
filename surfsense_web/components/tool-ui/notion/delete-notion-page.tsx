@@ -6,10 +6,12 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -136,18 +138,16 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
-	const [decided, setDecided] = useState<"approve" | "reject" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
 	const [deleteFromKb, setDeleteFromKb] = useState(false);
 
-	const account = interruptData.context?.account;
-	const currentTitle = interruptData.context?.current_title;
+	const context = interruptData.context;
+	const account = context?.account;
+	const currentTitle = context?.current_title;
 
 	const handleApprove = useCallback(() => {
-		if (decided) return;
-		setDecided("approve");
+		if (phase !== "pending") return;
+		setProcessing();
 		onDecision({
 			type: "approve",
 			edited_action: {
@@ -159,7 +159,7 @@ function ApprovalCard({
 				},
 			},
 		});
-	}, [decided, onDecision, interruptData, account?.id, deleteFromKb]);
+	}, [phase, setProcessing, onDecision, interruptData, account?.id, deleteFromKb]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -177,35 +177,35 @@ function ApprovalCard({
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
-						{decided === "reject"
+						{phase === "rejected"
 							? "Notion Page Deletion Rejected"
-							: decided === "approve"
+							: phase === "processing" || phase === "complete"
 								? "Notion Page Deletion Approved"
 								: "Delete Notion Page"}
 					</p>
-					{decided === "approve" ? (
-						wasAlreadyDecided ? (
-							<p className="text-xs text-muted-foreground mt-0.5">Page deleted</p>
-						) : (
-							<TextShimmerLoader text="Deleting page" size="sm" />
-						)
+				{phase === "processing" ? (
+						<TextShimmerLoader text="Deleting page" size="sm" />
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">Page deleted</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Page deletion was cancelled
+						</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Page deletion was cancelled"
-								: "Requires your approval to proceed"}
+							Requires your approval to proceed
 						</p>
 					)}
 				</div>
 			</div>
 
 			{/* Context section — read-only account and page info */}
-			{!decided && interruptData.context && (
+			{phase !== "rejected" && context && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
-						{interruptData.context.error ? (
-							<p className="text-sm text-destructive">{interruptData.context.error}</p>
+						{context.error ? (
+							<p className="text-sm text-destructive">{context.error}</p>
 						) : (
 							<>
 								{account && (
@@ -232,53 +232,53 @@ function ApprovalCard({
 			)}
 
 			{/* delete_from_kb toggle */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 select-none">
-					<div className="flex items-center gap-2.5">
-						<Checkbox
-							id="notion-delete-from-kb"
-							checked={deleteFromKb}
-							onCheckedChange={(v) => setDeleteFromKb(v === true)}
-							className="shrink-0"
-						/>
-						<label htmlFor="notion-delete-from-kb" className="flex-1 cursor-pointer">
-							<span className="text-sm text-foreground">Also remove from knowledge base</span>
-							<p className="text-xs text-muted-foreground mt-0.5">
-								This will permanently delete the page from your knowledge base (cannot be undone)
-							</p>
-						</label>
-					</div>
+						<div className="flex items-center gap-2.5">
+							<Checkbox
+								id="notion-delete-from-kb"
+								checked={deleteFromKb}
+								onCheckedChange={(v) => setDeleteFromKb(v === true)}
+								className="shrink-0"
+							/>
+							<label htmlFor="notion-delete-from-kb" className="flex-1 cursor-pointer">
+								<span className="text-sm text-foreground">Also remove from knowledge base</span>
+								<p className="text-xs text-muted-foreground mt-0.5">
+									This will permanently delete the page from your knowledge base (cannot be undone)
+								</p>
+							</label>
+						</div>
 					</div>
 				</>
 			)}
 
-			{/* Action buttons - only shown when pending */}
-			{!decided && (
+			{/* Action buttons */}
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
-				<div className="px-5 py-4 flex items-center gap-2 select-none">
-					<Button
-						size="sm"
-						className="rounded-lg gap-1.5"
-						onClick={handleApprove}
-					>
-						Approve
-						<CornerDownLeftIcon className="size-3 opacity-60" />
-					</Button>
-					<Button
-						size="sm"
-						variant="ghost"
-						className="rounded-lg text-muted-foreground"
-						onClick={() => {
-							setDecided("reject");
-							onDecision({ type: "reject", message: "User rejected the action." });
-						}}
-					>
-						Reject
-					</Button>
-				</div>
+					<div className="px-5 py-4 flex items-center gap-2 select-none">
+						<Button
+							size="sm"
+							className="rounded-lg gap-1.5"
+							onClick={handleApprove}
+						>
+							Approve
+							<CornerDownLeftIcon className="size-3 opacity-60" />
+						</Button>
+						<Button
+							size="sm"
+							variant="ghost"
+							className="rounded-lg text-muted-foreground"
+							onClick={() => {
+								setRejected();
+								onDecision({ type: "reject", message: "User rejected the action." });
+							}}
+						>
+							Reject
+						</Button>
+					</div>
 				</>
 			)}
 		</div>
@@ -388,9 +388,7 @@ export const DeleteNotionPageToolUI = makeAssistantToolUI<
 >({
 	toolName: "delete_notion_page",
 	render: function DeleteNotionPageUI({ result }) {
-		if (!result) {
-			return null;
-		}
+		if (!result) return null;
 
 		if (isInterruptResult(result)) {
 			return (

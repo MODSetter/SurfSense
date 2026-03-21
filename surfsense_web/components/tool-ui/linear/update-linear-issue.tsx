@@ -16,6 +16,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { PlateEditor } from "@/components/editor/plate-editor";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useHitlPhase } from "@/hooks/use-hitl-phase";
 import { openHitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 
 interface LinearLabel {
@@ -47,6 +48,7 @@ interface LinearPriority {
 interface InterruptResult {
 	__interrupt__: true;
 	__decided__?: "approve" | "reject" | "edit";
+	__completed__?: boolean;
 	action_requests: Array<{
 		name: string;
 		args: Record<string, unknown>;
@@ -147,9 +149,19 @@ function isAuthErrorResult(result: unknown): result is AuthErrorResult {
 }
 
 function ApprovalCard({
+	args,
 	interruptData,
 	onDecision,
 }: {
+	args: {
+		issue_ref: string;
+		new_title?: string;
+		new_description?: string;
+		new_state_name?: string;
+		new_assignee_email?: string;
+		new_priority?: number;
+		new_label_names?: string[];
+	};
 	interruptData: InterruptResult;
 	onDecision: (decision: {
 		type: "approve" | "reject" | "edit";
@@ -157,6 +169,8 @@ function ApprovalCard({
 		edited_action?: { name: string; args: Record<string, unknown> };
 	}) => void;
 }) {
+	const { phase, setProcessing, setRejected } = useHitlPhase(interruptData);
+
 	const actionArgs = interruptData.action_requests[0]?.args ?? {};
 	const context = interruptData.context;
 	const team = context?.team;
@@ -164,10 +178,10 @@ function ApprovalCard({
 	const issue = context?.issue;
 
 	const initialEditState = {
-		title: actionArgs.new_title ? String(actionArgs.new_title) : (issue?.title ?? ""),
+		title: actionArgs.new_title ? String(actionArgs.new_title) : (issue?.title ?? args.new_title ?? ""),
 		description: actionArgs.new_description
 			? String(actionArgs.new_description)
-			: (issue?.description ?? ""),
+			: (issue?.description ?? args.new_description ?? ""),
 		stateId: actionArgs.new_state_id
 			? String(actionArgs.new_state_id)
 			: (issue?.current_state?.id ?? "__none__"),
@@ -183,10 +197,6 @@ function ApprovalCard({
 			: (issue?.current_labels?.map((l) => l.id) ?? []),
 	};
 
-	const [decided, setDecided] = useState<"approve" | "reject" | "edit" | null>(
-		interruptData.__decided__ ?? null
-	);
-	const [wasAlreadyDecided] = useState(() => interruptData.__decided__ != null);
 	const [isPanelOpen, setIsPanelOpen] = useState(false);
 	const [editedArgs, setEditedArgs] = useState(initialEditState);
 	const [hasPanelEdits, setHasPanelEdits] = useState(false);
@@ -246,18 +256,19 @@ function ApprovalCard({
 	);
 
 	const hasProposedChanges =
-		actionArgs.new_title ||
-		actionArgs.new_description ||
+		actionArgs.new_title || args.new_title ||
+		actionArgs.new_description || args.new_description ||
 		proposedStateName ||
 		proposedAssigneeName ||
 		proposedPriorityLabel ||
 		proposedLabelObjects.length > 0;
 
 	const handleApprove = useCallback(() => {
-		if (decided || isPanelOpen) return;
+		if (phase !== "pending") return;
+		if (isPanelOpen) return;
 		if (!allowedDecisions.includes("approve")) return;
 		const isEdited = hasPanelEdits;
-		setDecided(isEdited ? "edit" : "approve");
+		setProcessing();
 		onDecision({
 			type: isEdited ? "edit" : "approve",
 			edited_action: {
@@ -265,7 +276,7 @@ function ApprovalCard({
 				args: buildFinalArgs(),
 			},
 		});
-	}, [decided, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs, hasPanelEdits]);
+	}, [phase, setProcessing, isPanelOpen, allowedDecisions, onDecision, interruptData, buildFinalArgs, hasPanelEdits]);
 
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
@@ -283,29 +294,29 @@ function ApprovalCard({
 			<div className="flex items-start justify-between px-5 pt-5 pb-4 select-none">
 				<div>
 					<p className="text-sm font-semibold text-foreground">
-						{decided === "reject"
+						{phase === "rejected"
 							? "Linear Issue Update Rejected"
-							: decided === "approve" || decided === "edit"
+							: phase === "processing" || phase === "complete"
 								? "Linear Issue Update Approved"
 								: "Update Linear Issue"}
 					</p>
-					{decided === "approve" || decided === "edit" ? (
-						wasAlreadyDecided ? (
-							<p className="text-xs text-muted-foreground mt-0.5">
-								{decided === "edit" ? "Issue updated with your changes" : "Issue updated"}
-							</p>
-						) : (
-							<TextShimmerLoader text={decided === "edit" ? "Updating issue with your changes" : "Updating issue"} size="sm" />
-						)
+					{phase === "processing" ? (
+						<TextShimmerLoader text={hasPanelEdits ? "Updating issue with your changes" : "Updating issue"} size="sm" />
+					) : phase === "complete" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							{hasPanelEdits ? "Issue updated with your changes" : "Issue updated"}
+						</p>
+					) : phase === "rejected" ? (
+						<p className="text-xs text-muted-foreground mt-0.5">
+							Issue update was cancelled
+						</p>
 					) : (
 						<p className="text-xs text-muted-foreground mt-0.5">
-							{decided === "reject"
-								? "Issue update was cancelled"
-								: "Requires your approval to proceed"}
+							Requires your approval to proceed
 						</p>
 					)}
 				</div>
-				{!decided && canEdit && (
+				{phase === "pending" && canEdit && (
 					<Button
 						size="sm"
 						variant="ghost"
@@ -335,8 +346,8 @@ function ApprovalCard({
 				)}
 			</div>
 
-			{/* Context section — workspace + current issue (read-only) */}
-			{!decided && (
+				{/* Context section — workspace + current issue + pickers in pending */}
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 space-y-4 select-none">
@@ -407,7 +418,6 @@ function ApprovalCard({
 									</div>
 								)}
 
-								{/* Editable context selects for state, assignee, priority, labels */}
 								{team && (
 									<>
 										<div className="space-y-2">
@@ -530,10 +540,10 @@ function ApprovalCard({
 			<div className="px-5 pt-3">
 				{(hasProposedChanges || hasPanelEdits) ? (
 					<>
-						{(hasPanelEdits ? editedArgs.title : actionArgs.new_title) && (
-							<p className="text-sm font-medium text-foreground">{String(hasPanelEdits ? editedArgs.title : actionArgs.new_title)}</p>
+						{(hasPanelEdits ? editedArgs.title : (actionArgs.new_title ?? args.new_title)) && (
+							<p className="text-sm font-medium text-foreground">{String(hasPanelEdits ? editedArgs.title : (actionArgs.new_title ?? args.new_title))}</p>
 						)}
-						{(hasPanelEdits ? editedArgs.description : actionArgs.new_description) && (
+						{(hasPanelEdits ? editedArgs.description : (actionArgs.new_description ?? args.new_description)) && (
 							<div
 								className="max-h-[7rem] overflow-hidden text-sm"
 								style={{
@@ -542,7 +552,7 @@ function ApprovalCard({
 								}}
 							>
 								<PlateEditor
-									markdown={String(hasPanelEdits ? editedArgs.description : actionArgs.new_description)}
+									markdown={String(hasPanelEdits ? editedArgs.description : (actionArgs.new_description ?? args.new_description))}
 									readOnly
 									preset="readonly"
 									editorVariant="none"
@@ -591,7 +601,7 @@ function ApprovalCard({
 			</div>
 
 			{/* Action buttons - only shown when pending */}
-			{!decided && (
+			{phase === "pending" && (
 				<>
 					<div className="mx-5 h-px bg-border/50" />
 					<div className="px-5 py-4 flex items-center gap-2 select-none">
@@ -613,7 +623,7 @@ function ApprovalCard({
 								className="rounded-lg text-muted-foreground"
 								disabled={isPanelOpen}
 								onClick={() => {
-									setDecided("reject");
+									setRejected();
 									onDecision({ type: "reject", message: "User rejected the action." });
 								}}
 							>
@@ -717,12 +727,13 @@ export const UpdateLinearIssueToolUI = makeAssistantToolUI<
 	UpdateLinearIssueResult
 >({
 	toolName: "update_linear_issue",
-	render: function UpdateLinearIssueUI({ result, status: _status }) {
+	render: function UpdateLinearIssueUI({ args, result }) {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
 			return (
 				<ApprovalCard
+					args={args}
 					interruptData={result}
 					onDecision={(decision) => {
 						window.dispatchEvent(

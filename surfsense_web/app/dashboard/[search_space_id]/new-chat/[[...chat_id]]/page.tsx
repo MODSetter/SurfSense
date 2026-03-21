@@ -108,6 +108,25 @@ import {
 } from "@/lib/posthog/events";
 
 /**
+ * After a tool produces output, mark any previously-decided interrupt tool
+ * calls as completed so the ApprovalCard can transition from shimmer to done.
+ */
+function markInterruptsCompleted(contentParts: Array<{ type: string; result?: unknown }>): void {
+	for (const part of contentParts) {
+		if (
+			part.type === "tool-call" &&
+			typeof part.result === "object" &&
+			part.result !== null &&
+			(part.result as Record<string, unknown>).__interrupt__ === true &&
+			(part.result as Record<string, unknown>).__decided__ &&
+			!(part.result as Record<string, unknown>).__completed__
+		) {
+			part.result = { ...(part.result as Record<string, unknown>), __completed__: true };
+		}
+	}
+}
+
+/**
  * Extract thinking steps from message content
  */
 function extractThinkingSteps(content: unknown): ThinkingStep[] {
@@ -729,6 +748,7 @@ export default function NewChatPage() {
 						case "tool-output-available": {
 							// Update the tool call with its result
 							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
 							// Handle podcast-specific logic
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								// Check if this is a podcast tool by looking at the content part
@@ -1107,6 +1127,7 @@ export default function NewChatPage() {
 							updateToolCall(contentPartsState, parsed.toolCallId, {
 								result: parsed.output,
 							});
+							markInterruptsCompleted(contentParts);
 							setMessages((prev) =>
 								prev.map((m) =>
 									m.id === assistantMsgId
@@ -1458,6 +1479,7 @@ export default function NewChatPage() {
 
 						case "tool-output-available":
 							updateToolCall(contentPartsState, parsed.toolCallId, { result: parsed.output });
+							markInterruptsCompleted(contentParts);
 							if (parsed.output?.status === "pending" && parsed.output?.podcast_id) {
 								const idx = toolCallIndices.get(parsed.toolCallId);
 								if (idx !== undefined) {
