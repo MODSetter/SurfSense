@@ -211,9 +211,14 @@ export function LocalLoginForm() {
 				<button
 					type="submit"
 					disabled={isLoggingIn}
-					className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+					className="relative w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
 				>
-					{isLoggingIn ? <Spinner size="sm" className="text-white" /> : t("sign_in")}
+					<span className={isLoggingIn ? "invisible" : ""}>{t("sign_in")}</span>
+					{isLoggingIn && (
+						<span className="absolute inset-0 flex items-center justify-center">
+							<Spinner size="sm" className="text-white" />
+						</span>
+					)}
 				</button>
 			</form>
 
