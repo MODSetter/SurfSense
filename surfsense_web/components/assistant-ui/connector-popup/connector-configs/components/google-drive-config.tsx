@@ -50,14 +50,14 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.endsWith(".csv") ||
 		lowerName.includes("spreadsheet")
 	) {
-		return <FileSpreadsheet className={`${className} text-green-500`} />;
+		return <FileSpreadsheet className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".pptx") ||
 		lowerName.endsWith(".ppt") ||
 		lowerName.includes("presentation")
 	) {
-		return <Presentation className={`${className} text-orange-500`} />;
+		return <Presentation className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".docx") ||
@@ -67,7 +67,7 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.includes("word") ||
 		lowerName.includes("text")
 	) {
-		return <FileText className={`${className} text-gray-500`} />;
+		return <FileText className={`${className} text-muted-foreground`} />;
 	}
 	if (
 		lowerName.endsWith(".png") ||
@@ -77,9 +77,9 @@ function getFileIconFromName(fileName: string, className: string = "size-3.5 shr
 		lowerName.endsWith(".webp") ||
 		lowerName.endsWith(".svg")
 	) {
-		return <Image className={`${className} text-purple-500`} />;
+		return <Image className={`${className} text-muted-foreground`} />;
 	}
-	return <File className={`${className} text-gray-500`} />;
+	return <File className={`${className} text-muted-foreground`} />;
 }
 
 export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfigChange }) => {
@@ -197,7 +197,7 @@ export const GoogleDriveConfig: FC<ConnectorConfigProps> = ({ connector, onConfi
 									className="text-xs sm:text-sm text-muted-foreground truncate flex items-center gap-1.5"
 									title={folder.name}
 								>
-									<FolderClosed className="size-3.5 shrink-0 text-gray-500" />
+									<FolderClosed className="size-3.5 shrink-0 text-muted-foreground" />
 									<span className="flex-1 truncate">{folder.name}</span>
 									<button
 										type="button"
