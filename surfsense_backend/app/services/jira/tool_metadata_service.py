@@ -149,11 +149,15 @@ class JiraToolMetadataService:
                         for p in raw_projects
                     ]
                     raw_types = await asyncio.to_thread(jira_client.get_issue_types)
-                    issue_types = [
-                        {"id": t.get("id"), "name": t.get("name")}
-                        for t in raw_types
-                        if not t.get("subtask", False)
-                    ]
+                    seen_type_names: set[str] = set()
+                    issue_types = []
+                    for t in raw_types:
+                        if t.get("subtask", False):
+                            continue
+                        name = t.get("name")
+                        if name not in seen_type_names:
+                            seen_type_names.add(name)
+                            issue_types.append({"id": t.get("id"), "name": name})
                     raw_priorities = await asyncio.to_thread(jira_client.get_priorities)
                     priorities = [
                         {"id": p.get("id"), "name": p.get("name")}
