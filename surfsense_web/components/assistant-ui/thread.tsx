@@ -262,7 +262,7 @@ const BANNER_CONNECTORS = [
 
 const BANNER_DISMISSED_KEY = "surfsense-connect-tools-banner-dismissed";
 
-const ConnectToolsBanner: FC = () => {
+const ConnectToolsBanner: FC<{ isThreadEmpty: boolean }> = ({ isThreadEmpty }) => {
 	const { data: connectors } = useAtomValue(connectorsAtom);
 	const setConnectorDialogOpen = useSetAtom(connectorDialogOpenAtom);
 	const [dismissed, setDismissed] = useState(() => {
@@ -272,7 +272,7 @@ const ConnectToolsBanner: FC = () => {
 
 	const hasConnectors = (connectors?.length ?? 0) > 0;
 
-	if (dismissed || hasConnectors) return null;
+	if (dismissed || hasConnectors || !isThreadEmpty) return null;
 
 	const handleDismiss = (e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -566,7 +566,7 @@ const Composer: FC = () => {
 					)}
 				<ComposerAction isBlockedByOtherUser={isBlockedByOtherUser} />
 				<ConnectorIndicator showTrigger={false} />
-				<ConnectToolsBanner />
+				<ConnectToolsBanner isThreadEmpty={isThreadEmpty} />
 			</div>
 		</ComposerPrimitive.Root>
 	);
