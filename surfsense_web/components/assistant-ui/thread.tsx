@@ -90,7 +90,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { CONNECTOR_TOOL_ICON_PATHS, getToolIcon } from "@/contracts/enums/toolIcons";
+import { CONNECTOR_ICON_TO_TYPES, CONNECTOR_TOOL_ICON_PATHS, getToolIcon } from "@/contracts/enums/toolIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
@@ -603,6 +603,12 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const setDisabledTools = useSetAtom(disabledToolsAtom);
 	const hydrateDisabled = useSetAtom(hydrateDisabledToolsAtom);
 
+	const { data: connectors } = useAtomValue(connectorsAtom);
+	const connectedTypes = useMemo(
+		() => new Set<string>((connectors ?? []).map((c) => c.connector_type)),
+		[connectors]
+	);
+
 	const toggleToolGroup = useCallback(
 		(toolNames: string[]) => {
 			const allDisabled = toolNames.every((name) => disabledTools.includes(name));
@@ -628,6 +634,15 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		const placed = new Set<string>();
 
 		for (const group of TOOL_GROUPS) {
+			if (group.connectorIcon) {
+				const requiredTypes = CONNECTOR_ICON_TO_TYPES[group.connectorIcon];
+				const isConnected = requiredTypes?.some((t) => connectedTypes.has(t));
+				if (!isConnected) {
+					for (const name of group.tools) placed.add(name);
+					continue;
+				}
+			}
+
 			const matched = group.tools.flatMap((name) => {
 				const tool = toolsByName.get(name);
 				if (!tool) return [];
@@ -645,7 +660,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		}
 
 		return result;
-	}, [filteredTools]);
+	}, [filteredTools, connectedTypes]);
 
 	const { visibleTotal, visibleEnabled } = useMemo(() => {
 		let total = 0;
@@ -668,6 +683,30 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	useEffect(() => {
 		hydrateDisabled();
 	}, [hydrateDisabled]);
+
+	useEffect(() => {
+		const unavailable: string[] = [];
+		for (const group of TOOL_GROUPS) {
+			if (!group.connectorIcon) continue;
+			const requiredTypes = CONNECTOR_ICON_TO_TYPES[group.connectorIcon];
+			const isConnected = requiredTypes?.some((t) => connectedTypes.has(t));
+			if (!isConnected) {
+				unavailable.push(...group.tools);
+			}
+		}
+		if (unavailable.length === 0) return;
+		setDisabledTools((prev) => {
+			const next = new Set(prev);
+			let changed = false;
+			for (const name of unavailable) {
+				if (!next.has(name)) {
+					next.add(name);
+					changed = true;
+				}
+			}
+			return changed ? [...next] : prev;
+		});
+	}, [connectedTypes, setDisabledTools]);
 
 	const hasModelConfigured = useMemo(() => {
 		if (!preferences) return false;
@@ -1091,6 +1130,18 @@ const TOOL_GROUPS: ToolGroup[] = [
 		tools: ["create_linear_issue", "update_linear_issue", "delete_linear_issue"],
 		connectorIcon: "linear",
 		tooltip: "Create, update, and delete issues in Linear.",
+	},
+	{
+		label: "Jira",
+		tools: ["create_jira_issue", "update_jira_issue", "delete_jira_issue"],
+		connectorIcon: "jira",
+		tooltip: "Create, update, and delete issues in Jira.",
+	},
+	{
+		label: "Confluence",
+		tools: ["create_confluence_page", "update_confluence_page", "delete_confluence_page"],
+		connectorIcon: "confluence",
+		tooltip: "Create, update, and delete pages in Confluence.",
 	},
 ];
 

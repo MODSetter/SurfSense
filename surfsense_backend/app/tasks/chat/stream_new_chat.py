@@ -880,6 +880,12 @@ async def _stream_agent_events(
                 "create_calendar_event",
                 "update_calendar_event",
                 "delete_calendar_event",
+                "create_jira_issue",
+                "update_jira_issue",
+                "delete_jira_issue",
+                "create_confluence_page",
+                "update_confluence_page",
+                "delete_confluence_page",
             ):
                 yield streaming_service.format_tool_output_available(
                     tool_call_id,

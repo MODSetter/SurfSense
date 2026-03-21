@@ -14,7 +14,6 @@ from sqlalchemy.future import select
 from app.config import config
 from app.connectors.jira_connector import JiraConnector
 from app.db import SearchSourceConnector
-from app.routes.jira_add_connector_route import refresh_jira_token
 from app.schemas.atlassian_auth_credentials import AtlassianAuthCredentialsBase
 from app.utils.oauth_security import TokenEncryption
 
@@ -184,7 +183,9 @@ class JiraHistoryConnector:
                         f"Connector {self._connector_id} not found; cannot refresh token."
                     )
 
-                # Refresh token
+                # Lazy import to avoid circular dependency
+                from app.routes.jira_add_connector_route import refresh_jira_token
+
                 connector = await refresh_jira_token(self._session, connector)
 
                 # Reload credentials after refresh
