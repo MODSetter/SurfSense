@@ -684,30 +684,6 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		hydrateDisabled();
 	}, [hydrateDisabled]);
 
-	useEffect(() => {
-		const unavailable: string[] = [];
-		for (const group of TOOL_GROUPS) {
-			if (!group.connectorIcon) continue;
-			const requiredTypes = CONNECTOR_ICON_TO_TYPES[group.connectorIcon];
-			const isConnected = requiredTypes?.some((t) => connectedTypes.has(t));
-			if (!isConnected) {
-				unavailable.push(...group.tools);
-			}
-		}
-		if (unavailable.length === 0) return;
-		setDisabledTools((prev) => {
-			const next = new Set(prev);
-			let changed = false;
-			for (const name of unavailable) {
-				if (!next.has(name)) {
-					next.add(name);
-					changed = true;
-				}
-			}
-			return changed ? [...next] : prev;
-		});
-	}, [connectedTypes, setDisabledTools]);
-
 	const hasModelConfigured = useMemo(() => {
 		if (!preferences) return false;
 		const agentLlmId = preferences.agent_llm_id;
