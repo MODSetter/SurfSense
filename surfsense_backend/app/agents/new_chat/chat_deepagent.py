@@ -329,6 +329,7 @@ async def create_surfsense_deep_agent(
     if not has_gmail_connector:
         gmail_tools = [
             "create_gmail_draft",
+            "update_gmail_draft",
             "send_gmail_email",
             "trash_gmail_email",
         ]

@@ -26,9 +26,11 @@ import {
 	SquareIcon,
 	Unplug,
 	Upload,
+	Wrench,
 	X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import Image from "next/image";
 import { useParams } from "next/navigation";
 import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -88,7 +90,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { getToolIcon } from "@/contracts/enums/toolIcons";
+import { CONNECTOR_TOOL_ICON_PATHS, getToolIcon } from "@/contracts/enums/toolIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
 import { useCommentsElectric } from "@/hooks/use-comments-electric";
@@ -598,7 +600,20 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const { data: agentTools } = useAtomValue(agentToolsAtom);
 	const disabledTools = useAtomValue(disabledToolsAtom);
 	const toggleTool = useSetAtom(toggleToolAtom);
+	const setDisabledTools = useSetAtom(disabledToolsAtom);
 	const hydrateDisabled = useSetAtom(hydrateDisabledToolsAtom);
+
+	const toggleToolGroup = useCallback(
+		(toolNames: string[]) => {
+			const allDisabled = toolNames.every((name) => disabledTools.includes(name));
+			if (allDisabled) {
+				setDisabledTools((prev) => prev.filter((t) => !toolNames.includes(t)));
+			} else {
+				setDisabledTools((prev) => [...new Set([...prev, ...toolNames])]);
+			}
+		},
+		[disabledTools, setDisabledTools]
+	);
 
 	const hasWebSearchTool = agentTools?.some((t) => t.name === "web_search") ?? false;
 	const isWebSearchEnabled = hasWebSearchTool && !disabledTools.includes("web_search");
@@ -606,18 +621,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		() => agentTools?.filter((t) => t.name !== "web_search"),
 		[agentTools]
 	);
-	const filteredEnabledCount = useMemo(() => {
-		if (!filteredTools) return 0;
-		return (
-			filteredTools.length -
-			disabledTools.filter((d) => filteredTools.some((t) => t.name === d)).length
-		);
-	}, [filteredTools, disabledTools]);
-
 	const groupedTools = useMemo(() => {
 		if (!filteredTools) return [];
 		const toolsByName = new Map(filteredTools.map((t) => [t.name, t]));
-		const result: { label: string; tools: typeof filteredTools }[] = [];
+		const result: { label: string; tools: typeof filteredTools; connectorIcon?: string }[] = [];
 		const placed = new Set<string>();
 
 		for (const group of TOOL_GROUPS) {
@@ -628,7 +635,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 				return [tool];
 			});
 			if (matched.length > 0) {
-				result.push({ label: group.label, tools: matched });
+				result.push({ label: group.label, tools: matched, connectorIcon: group.connectorIcon });
 			}
 		}
 
@@ -639,6 +646,24 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 
 		return result;
 	}, [filteredTools]);
+
+	const { visibleTotal, visibleEnabled } = useMemo(() => {
+		let total = 0;
+		let enabled = 0;
+		for (const group of groupedTools) {
+			if (group.connectorIcon) {
+				total += 1;
+				const allDisabled = group.tools.every((t) => disabledTools.includes(t.name));
+				if (!allDisabled) enabled += 1;
+			} else {
+				for (const tool of group.tools) {
+					total += 1;
+					if (!disabledTools.includes(tool.name)) enabled += 1;
+				}
+			}
+		}
+		return { visibleTotal: total, visibleEnabled: enabled };
+	}, [groupedTools, disabledTools]);
 
 	useEffect(() => {
 		hydrateDisabled();
@@ -691,11 +716,11 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 								<div className="flex items-center justify-between px-4 py-2">
 									<DrawerTitle className="text-sm font-medium">Agent Tools</DrawerTitle>
 									<span className="text-xs text-muted-foreground">
-										{filteredEnabledCount}/{filteredTools?.length ?? 0} enabled
+										{visibleEnabled}/{visibleTotal} enabled
 									</span>
 								</div>
 								<div className="overflow-y-auto pb-6" onScroll={handleToolsScroll}>
-									{groupedTools.map((group) => (
+									{groupedTools.filter((g) => !g.connectorIcon).map((group) => (
 										<div key={group.label}>
 											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
 												{group.label}
@@ -722,6 +747,46 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 											})}
 										</div>
 									))}
+									{groupedTools.some((g) => g.connectorIcon) && (
+										<div>
+											<div className="px-4 pt-3 pb-1 text-xs text-muted-foreground/80 font-medium select-none">
+												Connector Actions
+											</div>
+											{groupedTools.filter((g) => g.connectorIcon).map((group) => {
+												const iconKey = group.connectorIcon ?? "";
+												const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+												const toolNames = group.tools.map((t) => t.name);
+												const allDisabled = toolNames.every((n) => disabledTools.includes(n));
+												return (
+													<div
+														key={group.label}
+														className="flex w-full items-center gap-3 px-4 py-2 hover:bg-muted-foreground/10 transition-colors"
+													>
+														{iconInfo ? (
+															<Image
+																src={iconInfo.src}
+																alt={iconInfo.alt}
+																width={18}
+																height={18}
+																className="size-[18px] shrink-0 select-none pointer-events-none"
+																draggable={false}
+															/>
+														) : (
+															<Wrench className="size-4 shrink-0 text-muted-foreground" />
+														)}
+														<span className="flex-1 min-w-0 text-sm font-medium truncate">
+															{group.label}
+														</span>
+														<Switch
+															checked={!allDisabled}
+															onCheckedChange={() => toggleToolGroup(toolNames)}
+															className="shrink-0"
+														/>
+													</div>
+												);
+											})}
+										</div>
+									)}
 									{!filteredTools?.length && (
 										<div className="px-4 py-6 text-center text-sm text-muted-foreground">
 											Loading tools...
@@ -766,7 +831,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<div className="flex items-center justify-between px-2.5 py-2 sm:px-3 sm:py-2.5 border-b">
 								<span className="text-xs sm:text-sm font-medium">Agent Tools</span>
 								<span className="text-[10px] sm:text-xs text-muted-foreground">
-									{filteredEnabledCount}/{filteredTools?.length ?? 0} enabled
+									{visibleEnabled}/{visibleTotal} enabled
 								</span>
 							</div>
 							<div
@@ -777,7 +842,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 									WebkitMaskImage: `linear-gradient(to bottom, ${toolsScrollPos === "top" ? "black" : "transparent"}, black 16px, black calc(100% - 16px), ${toolsScrollPos === "bottom" ? "black" : "transparent"})`,
 								}}
 							>
-								{groupedTools.map((group) => (
+								{groupedTools.filter((g) => !g.connectorIcon).map((group) => (
 									<div key={group.label}>
 										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
 											{group.label}
@@ -809,6 +874,52 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 										})}
 									</div>
 								))}
+								{groupedTools.some((g) => g.connectorIcon) && (
+									<div>
+										<div className="px-2.5 sm:px-3 pt-2 pb-0.5 text-[10px] sm:text-xs text-muted-foreground/80 font-normal select-none">
+											Connector Actions
+										</div>
+										{groupedTools.filter((g) => g.connectorIcon).map((group) => {
+											const iconKey = group.connectorIcon ?? "";
+											const iconInfo = CONNECTOR_TOOL_ICON_PATHS[iconKey];
+											const toolNames = group.tools.map((t) => t.name);
+											const allDisabled = toolNames.every((n) => disabledTools.includes(n));
+											const groupDef = TOOL_GROUPS.find((g) => g.label === group.label);
+											const row = (
+												<div className="flex w-full items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-1 sm:py-1.5 hover:bg-muted-foreground/10 transition-colors">
+													{iconInfo ? (
+														<Image
+															src={iconInfo.src}
+															alt={iconInfo.alt}
+															width={16}
+															height={16}
+															className="size-3.5 sm:size-4 shrink-0 select-none pointer-events-none"
+															draggable={false}
+														/>
+													) : (
+														<Wrench className="size-3.5 sm:size-4 shrink-0 text-muted-foreground" />
+													)}
+													<span className="flex-1 min-w-0 text-xs sm:text-sm font-medium truncate">
+														{group.label}
+													</span>
+													<Switch
+														checked={!allDisabled}
+														onCheckedChange={() => toggleToolGroup(toolNames)}
+														className="shrink-0 scale-[0.6] sm:scale-75"
+													/>
+												</div>
+											);
+											return (
+												<Tooltip key={group.label}>
+													<TooltipTrigger asChild>{row}</TooltipTrigger>
+													<TooltipContent side="right" className="max-w-72 text-xs">
+														{groupDef?.tooltip ?? group.tools.map((t) => t.description).join(" · ")}
+													</TooltipContent>
+												</Tooltip>
+											);
+										})}
+									</div>
+								)}
 								{!filteredTools?.length && (
 									<div className="px-3 py-4 text-center text-xs text-muted-foreground">
 										Loading tools...
@@ -931,7 +1042,14 @@ function formatToolName(name: string): string {
 		.join(" ");
 }
 
-const TOOL_GROUPS: { label: string; tools: string[] }[] = [
+interface ToolGroup {
+	label: string;
+	tools: string[];
+	connectorIcon?: string;
+	tooltip?: string;
+}
+
+const TOOL_GROUPS: ToolGroup[] = [
 	{
 		label: "Research",
 		tools: ["search_knowledge_base", "search_surfsense_docs", "scrape_webpage", "link_preview"],
@@ -943,6 +1061,36 @@ const TOOL_GROUPS: { label: string; tools: string[] }[] = [
 	{
 		label: "Memory",
 		tools: ["save_memory", "recall_memory"],
+	},
+	{
+		label: "Gmail",
+		tools: ["create_gmail_draft", "update_gmail_draft", "send_gmail_email", "trash_gmail_email"],
+		connectorIcon: "gmail",
+		tooltip: "Create drafts, update drafts, send emails, and trash emails in Gmail.",
+	},
+	{
+		label: "Google Calendar",
+		tools: ["create_calendar_event", "update_calendar_event", "delete_calendar_event"],
+		connectorIcon: "google_calendar",
+		tooltip: "Create, update, and delete events in Google Calendar.",
+	},
+	{
+		label: "Google Drive",
+		tools: ["create_google_drive_file", "delete_google_drive_file"],
+		connectorIcon: "google_drive",
+		tooltip: "Create and delete files in Google Drive.",
+	},
+	{
+		label: "Notion",
+		tools: ["create_notion_page", "update_notion_page", "delete_notion_page"],
+		connectorIcon: "notion",
+		tooltip: "Create, update, and delete pages in Notion.",
+	},
+	{
+		label: "Linear",
+		tools: ["create_linear_issue", "update_linear_issue", "delete_linear_issue"],
+		connectorIcon: "linear",
+		tooltip: "Create, update, and delete issues in Linear.",
 	},
 ];
 
