@@ -6,6 +6,9 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13.0",
     "asyncpg>=0.30.0",
+    "authlib>=1.6.9",
+    "PyJWT>=2.12.0",
+    "tornado>=6.5.5",
     "datasets>=2.21.0",
     "pyarrow>=15.0.0,<19.0.0",
     "discord-py>=2.5.2",

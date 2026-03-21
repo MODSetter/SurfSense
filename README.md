@@ -46,11 +46,11 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 2. Connect your connectors and sync. Enable periodic syncing to keep connectors synced.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/59da61d7-da05-4576-b7c0-dbc09f5985e8" alt="Connectors" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/0740f351-23fa-4909-9880-70aa1dcc1df7" alt="Connectors" /></p>
 
 3. Till connectors data index, upload Documents.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/d1e8b2e2-9eac-41d8-bdc0-f0cdc405d128" alt="Upload Documents" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/daf3dbae-ef86-4e86-82ea-fcbcad988761" alt="Upload Documents" /></p>
 
 4. Once everything is indexed, Ask Away (Use Cases):
 
@@ -60,6 +60,7 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
    - Document Mention QNA
 
+   <p align="center"><img src="https://github.com/user-attachments/assets/65c3bf06-1d46-4dd5-b169-4d934c9b6798" alt="Document Mention QNA" /></p>
    <p align="center"><img src="https://github.com/user-attachments/assets/be958295-0a8c-4707-998c-9fe1f1c007be" alt="Document Mention QNA" /></p>
 
    - Report Generations and Exports (PDF, DOCX, HTML, LaTeX, EPUB, ODT, Plain Text)
