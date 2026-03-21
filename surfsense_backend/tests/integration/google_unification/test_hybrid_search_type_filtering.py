@@ -8,7 +8,6 @@ which is the foundation of the Google unification changes.
 
 import pytest
 
-from app.config import config as app_config
 from app.retriever.chunks_hybrid_search import ChucksHybridSearchRetriever
 
 from .conftest import DUMMY_EMBEDDING

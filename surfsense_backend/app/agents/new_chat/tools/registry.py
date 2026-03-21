@@ -45,6 +45,11 @@ from langchain_core.tools import BaseTool
 
 from app.db import ChatVisibility
 
+from .confluence import (
+    create_create_confluence_page_tool,
+    create_delete_confluence_page_tool,
+    create_update_confluence_page_tool,
+)
 from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
 from .gmail import (
@@ -62,6 +67,11 @@ from .google_drive import (
     create_create_google_drive_file_tool,
     create_delete_google_drive_file_tool,
 )
+from .jira import (
+    create_create_jira_issue_tool,
+    create_delete_jira_issue_tool,
+    create_update_jira_issue_tool,
+)
 from .knowledge_base import create_search_knowledge_base_tool
 from .linear import (
     create_create_linear_issue_tool,
@@ -70,16 +80,6 @@ from .linear import (
 )
 from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
-from .jira import (
-    create_create_jira_issue_tool,
-    create_delete_jira_issue_tool,
-    create_update_jira_issue_tool,
-)
-from .confluence import (
-    create_create_confluence_page_tool,
-    create_delete_confluence_page_tool,
-    create_update_confluence_page_tool,
-)
 from .notion import (
     create_create_notion_page_tool,
     create_delete_notion_page_tool,

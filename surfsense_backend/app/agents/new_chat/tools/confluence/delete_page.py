@@ -124,6 +124,7 @@ def create_delete_confluence_page_tool(
             final_delete_from_kb = final_params.get("delete_from_kb", delete_from_kb)
 
             from sqlalchemy.future import select
+
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
             if not final_connector_id:

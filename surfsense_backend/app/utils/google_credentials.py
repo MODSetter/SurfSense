@@ -1,7 +1,7 @@
 """Shared Google OAuth credential utilities for native and Composio connectors."""
 
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from google.oauth2.credentials import Credentials
 
@@ -31,11 +31,11 @@ def build_composio_credentials(connected_account_id: str) -> Credentials:
 
     def composio_refresh_handler(request, scopes):
         fresh_token = service.get_access_token(connected_account_id)
-        expiry = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=55)
+        expiry = datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=55)
         return fresh_token, expiry
 
     return Credentials(
         token=access_token,
-        expiry=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(minutes=55),
+        expiry=datetime.now(UTC).replace(tzinfo=None) + timedelta(minutes=55),
         refresh_handler=composio_refresh_handler,
     )

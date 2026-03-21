@@ -10,7 +10,7 @@ allows Composio credentials through without raising ValueError or persisting to 
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -21,7 +21,7 @@ pytestmark = pytest.mark.unit
 
 def _utcnow_naive() -> datetime:
     """Return current UTC time as a naive datetime (matches google-auth convention)."""
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)
 
 
 def _composio_credentials(*, expired: bool = False) -> Credentials:

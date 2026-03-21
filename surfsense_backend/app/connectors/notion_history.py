@@ -1,13 +1,12 @@
 import asyncio
 import contextlib
 import logging
-import re
 from collections.abc import Awaitable, Callable
 from typing import Any, TypeVar
 
 from notion_client import AsyncClient
-from notion_markdown import to_notion
 from notion_client.errors import APIResponseError
+from notion_markdown import to_notion
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 

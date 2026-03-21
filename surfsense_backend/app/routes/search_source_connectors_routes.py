@@ -72,6 +72,7 @@ from app.tasks.connector_indexers import (
     index_slack_messages,
 )
 from app.users import current_active_user
+from app.utils.connector_naming import ensure_unique_connector_name
 from app.utils.indexing_locks import (
     acquire_connector_indexing_lock,
     release_connector_indexing_lock,
@@ -81,7 +82,6 @@ from app.utils.periodic_scheduler import (
     delete_periodic_schedule,
     update_periodic_schedule,
 )
-from app.utils.connector_naming import ensure_unique_connector_name
 from app.utils.rbac import check_permission
 
 # Set up logging

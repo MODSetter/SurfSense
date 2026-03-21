@@ -136,6 +136,7 @@ def create_update_confluence_page_tool(
             final_document_id = final_params.get("document_id", document_id)
 
             from sqlalchemy.future import select
+
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
             if not final_connector_id:

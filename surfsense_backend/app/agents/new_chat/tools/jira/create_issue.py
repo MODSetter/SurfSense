@@ -128,6 +128,7 @@ def create_create_jira_issue_tool(
                 return {"status": "error", "message": "A project must be selected."}
 
             from sqlalchemy.future import select
+
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
             actual_connector_id = final_connector_id

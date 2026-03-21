@@ -5,11 +5,10 @@ returned ``google.oauth2.credentials.Credentials`` object is correctly
 configured with a token and a working refresh handler.
 """
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from google.oauth2.credentials import Credentials
 
 pytestmark = pytest.mark.unit
@@ -29,7 +28,7 @@ def test_returns_credentials_with_token_and_expiry(MockComposioService):
     assert isinstance(creds, Credentials)
     assert creds.token == "fake-access-token"
     assert creds.expiry is not None
-    assert creds.expiry > datetime.now(timezone.utc).replace(tzinfo=None)
+    assert creds.expiry > datetime.now(UTC).replace(tzinfo=None)
 
 
 @patch("app.services.composio_service.ComposioService")
@@ -53,5 +52,5 @@ def test_refresh_handler_fetches_fresh_token(MockComposioService):
     new_token, new_expiry = refresh_handler(request=None, scopes=None)
 
     assert new_token == "refreshed-token"
-    assert new_expiry > datetime.now(timezone.utc).replace(tzinfo=None)
+    assert new_expiry > datetime.now(UTC).replace(tzinfo=None)
     assert mock_service.get_access_token.call_count == 2

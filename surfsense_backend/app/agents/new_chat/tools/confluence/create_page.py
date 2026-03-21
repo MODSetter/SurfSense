@@ -120,6 +120,7 @@ def create_create_confluence_page_tool(
                 return {"status": "error", "message": "A space must be selected."}
 
             from sqlalchemy.future import select
+
             from app.db import SearchSourceConnector, SearchSourceConnectorType
 
             actual_connector_id = final_connector_id

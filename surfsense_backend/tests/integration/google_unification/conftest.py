@@ -67,7 +67,7 @@ def make_chunk(*, content: str, document_id: int) -> Chunk:
 
 @pytest_asyncio.fixture
 async def seed_google_docs(
-    db_session: AsyncSession, db_user: "User", db_search_space: "SearchSpace"
+    db_session: AsyncSession, db_user: User, db_search_space: SearchSpace
 ):
     """Insert a native Drive doc, a legacy Composio Drive doc, and a FILE doc.
 
@@ -269,7 +269,7 @@ def mock_task_logger():
 async def seed_connector(
     async_engine,
     *,
-    connector_type: "SearchSourceConnectorType",
+    connector_type: SearchSourceConnectorType,
     config: dict,
     name_prefix: str = "test",
 ):
