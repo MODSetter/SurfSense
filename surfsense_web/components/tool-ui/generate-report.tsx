@@ -106,9 +106,7 @@ function ReportCancelledState() {
 		<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 			<div className="px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-muted-foreground">Report Cancelled</p>
-				<p className="text-xs text-muted-foreground mt-0.5">
-					Report generation was cancelled
-				</p>
+				<p className="text-xs text-muted-foreground mt-0.5">Report generation was cancelled</p>
 			</div>
 		</div>
 	);
@@ -229,8 +227,7 @@ function ReportCard({
 							<span className="inline-block h-3 w-24 rounded bg-muted/60 animate-pulse" />
 						) : (
 							<>
-								{metadata.wordCount != null &&
-									`${metadata.wordCount.toLocaleString()} words`}
+								{metadata.wordCount != null && `${metadata.wordCount.toLocaleString()} words`}
 								{metadata.wordCount != null && metadata.versionLabel && (
 									<Dot className="inline size-4" />
 								)}
@@ -250,8 +247,7 @@ function ReportCard({
 							className="max-h-[7rem] overflow-hidden [&_*]:!text-[24px]"
 							style={{
 								maskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
-								WebkitMaskImage:
-									"linear-gradient(to bottom, black 50%, transparent 100%)",
+								WebkitMaskImage: "linear-gradient(to bottom, black 50%, transparent 100%)",
 							}}
 						>
 							<PlateEditor

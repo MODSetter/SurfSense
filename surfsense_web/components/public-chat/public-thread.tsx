@@ -24,7 +24,7 @@ interface PublicThreadProps {
 export const PublicThread: FC<PublicThreadProps> = ({ footer }) => {
 	return (
 		<ThreadPrimitive.Root
-			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-background"
+			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
 				["--thread-max-width" as string]: "44rem",
 			}}
@@ -42,7 +42,7 @@ export const PublicThread: FC<PublicThreadProps> = ({ footer }) => {
 			</ThreadPrimitive.Viewport>
 
 			{footer && (
-				<div className="sticky bottom-0 z-20 border-t bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
+				<div className="sticky bottom-0 z-20 border-t bg-main-panel/95 backdrop-blur supports-backdrop-filter:bg-main-panel/60">
 					{footer}
 				</div>
 			)}
