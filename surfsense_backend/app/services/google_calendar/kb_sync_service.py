@@ -136,6 +136,7 @@ class GoogleCalendarKBSyncService:
                 connector_id=connector_id,
                 source_markdown=indexable_content,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
             )
 
             self.db_session.add(document)

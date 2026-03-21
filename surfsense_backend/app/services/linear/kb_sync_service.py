@@ -130,6 +130,7 @@ class LinearKBSyncService:
                 search_space_id=search_space_id,
                 connector_id=connector_id,
                 updated_at=get_current_timestamp(),
+                created_by_id=user_id,
             )
 
             self.db_session.add(document)
