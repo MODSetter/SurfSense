@@ -97,6 +97,7 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 						label={item.title}
 						onClick={() => onItemClick?.(item)}
 						isCollapsed={isCollapsed}
+						isActive={item.isActive}
 						badge={item.badge}
 						collapsedOverlay={<CollapsedOverlay item={item} />}
 						expandedIconNode={

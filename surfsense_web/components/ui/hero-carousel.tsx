@@ -88,8 +88,7 @@ function HeroCarouselCard({
 
 	return (
 		<>
-			<div className="rounded-2xl border border-neutral-200/60 bg-white shadow-xl sm:rounded-3xl dark:border-neutral-700/60 dark:bg-neutral-900">
-				<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
+				<div className="overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-xl sm:rounded-3xl dark:border-neutral-700/60 dark:bg-neutral-900">				<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
 					<div className="min-w-0">
 						<h3 className="truncate text-base font-semibold text-neutral-900 sm:text-xl dark:text-white">
 							{title}

@@ -10,6 +10,7 @@ interface SidebarButtonProps {
 	label: string;
 	onClick?: () => void;
 	isCollapsed?: boolean;
+	isActive?: boolean;
 	badge?: React.ReactNode;
 	/** Overlay in the top-right corner of the collapsed icon (e.g. status badge) */
 	collapsedOverlay?: React.ReactNode;
@@ -37,12 +38,15 @@ export function SidebarButton({
 	label,
 	onClick,
 	isCollapsed = false,
+	isActive = false,
 	badge,
 	collapsedOverlay,
 	expandedIconNode,
 	className,
 	buttonProps,
 }: SidebarButtonProps) {
+	const activeClassName = "bg-accent text-accent-foreground";
+
 	if (isCollapsed) {
 		return (
 			<Tooltip>
@@ -50,7 +54,7 @@ export function SidebarButton({
 					<button
 						type="button"
 						onClick={onClick}
-						className={cn(collapsedClassName, className)}
+						className={cn(collapsedClassName, isActive && activeClassName, className)}
 						{...buttonProps}
 					>
 						<Icon className="h-4 w-4" />
@@ -70,7 +74,7 @@ export function SidebarButton({
 		<button
 			type="button"
 			onClick={onClick}
-			className={cn(expandedClassName, className)}
+			className={cn(expandedClassName, isActive && activeClassName, className)}
 			{...buttonProps}
 		>
 			{expandedIconNode ?? <Icon className="h-4 w-4 shrink-0" />}
