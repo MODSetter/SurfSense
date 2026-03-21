@@ -237,6 +237,7 @@ function ApprovalCard({
 								title: pendingEdits?.title ?? args.title ?? "",
 								content: pendingEdits?.content ?? args.content ?? "",
 								toolName: "Confluence Page",
+								contentFormat: "html",
 								onSave: (newTitle, newContent) => {
 									setIsPanelOpen(false);
 									setPendingEdits({ title: newTitle, content: newContent });
@@ -334,7 +335,7 @@ function ApprovalCard({
 						}}
 					>
 						<PlateEditor
-							markdown={pendingEdits?.content ?? args.content ?? ""}
+							html={pendingEdits?.content ?? args.content ?? ""}
 							readOnly
 							preset="readonly"
 							editorVariant="none"

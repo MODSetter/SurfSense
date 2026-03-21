@@ -254,6 +254,7 @@ function ApprovalCard({
 								title: editedArgs.title,
 								content: editedArgs.content,
 								toolName: "Confluence Page",
+								contentFormat: "html",
 								onSave: (newTitle, newContent) => {
 									setIsPanelOpen(false);
 									setEditedArgs({
@@ -305,7 +306,7 @@ function ApprovalCard({
 													}}
 												>
 													<PlateEditor
-														markdown={page.body}
+														html={page.body}
 														readOnly
 														preset="readonly"
 														editorVariant="none"
@@ -348,7 +349,7 @@ function ApprovalCard({
 								}}
 							>
 								<PlateEditor
-									markdown={String(
+									html={String(
 										hasPanelEdits
 											? editedArgs.content
 											: (actionArgs.new_content ?? args.new_content)

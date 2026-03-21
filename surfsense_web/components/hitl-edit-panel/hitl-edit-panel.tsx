@@ -194,6 +194,7 @@ function DateTimePickerField({
 export function HitlEditPanelContent({
 	title: initialTitle,
 	content: initialContent,
+	contentFormat,
 	extraFields,
 	onSave,
 	onClose,
@@ -202,13 +203,14 @@ export function HitlEditPanelContent({
 	title: string;
 	content: string;
 	toolName: string;
+	contentFormat?: "markdown" | "html";
 	extraFields?: ExtraField[];
 	onSave: (title: string, content: string, extraFieldValues?: Record<string, string>) => void;
 	onClose?: () => void;
 	showCloseButton?: boolean;
 }) {
 	const [editedTitle, setEditedTitle] = useState(initialTitle);
-	const markdownRef = useRef(initialContent);
+	const contentRef = useRef(initialContent);
 	const [isSaving, setIsSaving] = useState(false);
 	const [extraFieldValues, setExtraFieldValues] = useState<Record<string, string>>(() => {
 		if (!extraFields) return {};
@@ -219,8 +221,8 @@ export function HitlEditPanelContent({
 		return initial;
 	});
 
-	const handleMarkdownChange = useCallback((md: string) => {
-		markdownRef.current = md;
+	const handleContentChange = useCallback((content: string) => {
+		contentRef.current = content;
 	}, []);
 
 	const handleExtraFieldChange = useCallback((key: string, value: string) => {
@@ -231,7 +233,7 @@ export function HitlEditPanelContent({
 		if (!editedTitle.trim()) return;
 		setIsSaving(true);
 		const extras = extraFields && extraFields.length > 0 ? extraFieldValues : undefined;
-		onSave(editedTitle, markdownRef.current, extras);
+		onSave(editedTitle, contentRef.current, extras);
 		onClose?.();
 	}, [editedTitle, onSave, onClose, extraFields, extraFieldValues]);
 
@@ -299,8 +301,9 @@ export function HitlEditPanelContent({
 
 			<div className="flex-1 overflow-hidden">
 				<PlateEditor
-					markdown={initialContent}
-					onMarkdownChange={handleMarkdownChange}
+					{...(contentFormat === "html"
+						? { html: initialContent, onHtmlChange: handleContentChange }
+						: { markdown: initialContent, onMarkdownChange: handleContentChange })}
 					readOnly={false}
 					preset="full"
 					placeholder="Start writing..."
@@ -328,6 +331,7 @@ function DesktopHitlEditPanel() {
 				title={panelState.title}
 				content={panelState.content}
 				toolName={panelState.toolName}
+				contentFormat={panelState.contentFormat}
 				extraFields={panelState.extraFields}
 				onSave={panelState.onSave}
 				onClose={closePanel}
@@ -361,6 +365,7 @@ function MobileHitlEditDrawer() {
 						title={panelState.title}
 						content={panelState.content}
 						toolName={panelState.toolName}
+						contentFormat={panelState.contentFormat}
 						extraFields={panelState.extraFields}
 						onSave={panelState.onSave}
 						onClose={closePanel}

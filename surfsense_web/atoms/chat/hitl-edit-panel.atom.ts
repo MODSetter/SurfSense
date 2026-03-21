@@ -13,6 +13,7 @@ interface HitlEditPanelState {
 	title: string;
 	content: string;
 	toolName: string;
+	contentFormat?: "markdown" | "html";
 	extraFields?: ExtraField[];
 	onSave:
 		| ((title: string, content: string, extraFieldValues?: Record<string, string>) => void)
@@ -25,6 +26,7 @@ const initialState: HitlEditPanelState = {
 	title: "",
 	content: "",
 	toolName: "",
+	contentFormat: undefined,
 	extraFields: undefined,
 	onSave: null,
 	onClose: null,
@@ -43,6 +45,7 @@ export const openHitlEditPanelAtom = atom(
 			title: string;
 			content: string;
 			toolName: string;
+			contentFormat?: "markdown" | "html";
 			extraFields?: ExtraField[];
 			onSave: (title: string, content: string, extraFieldValues?: Record<string, string>) => void;
 			onClose?: () => void;
@@ -56,6 +59,7 @@ export const openHitlEditPanelAtom = atom(
 			title: payload.title,
 			content: payload.content,
 			toolName: payload.toolName,
+			contentFormat: payload.contentFormat,
 			extraFields: payload.extraFields,
 			onSave: payload.onSave,
 			onClose: payload.onClose ?? null,

@@ -170,6 +170,7 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 							title={hitlEditState.title}
 							content={hitlEditState.content}
 							toolName={hitlEditState.toolName}
+							contentFormat={hitlEditState.contentFormat}
 							extraFields={hitlEditState.extraFields}
 							onSave={hitlEditState.onSave}
 							onClose={closeHitlEdit}
