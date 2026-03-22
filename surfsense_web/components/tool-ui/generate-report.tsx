@@ -63,10 +63,12 @@ type GenerateReportResult = z.infer<typeof GenerateReportResultSchema>;
 
 function ContentSkeleton() {
 	return (
-		<div className="space-y-2">
+		<div className="h-[7rem] space-y-2">
 			<div className="h-3 w-full rounded bg-muted/60 animate-pulse" />
 			<div className="h-3 w-[92%] rounded bg-muted/60 animate-pulse [animation-delay:100ms]" />
 			<div className="h-3 w-[75%] rounded bg-muted/60 animate-pulse [animation-delay:200ms]" />
+			<div className="h-3 w-[85%] rounded bg-muted/60 animate-pulse [animation-delay:300ms]" />
+			<div className="h-3 w-[60%] rounded bg-muted/60 animate-pulse [animation-delay:400ms]" />
 		</div>
 	);
 }
