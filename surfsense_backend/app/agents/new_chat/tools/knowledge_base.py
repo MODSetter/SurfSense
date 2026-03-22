@@ -353,6 +353,20 @@ def _compute_tool_output_budget(max_input_tokens: int | None) -> int:
     return max(_MIN_TOOL_OUTPUT_CHARS, min(budget, _MAX_TOOL_OUTPUT_CHARS))
 
 
+_INTERNAL_METADATA_KEYS: frozenset[str] = frozenset(
+    {
+        "message_id",
+        "thread_id",
+        "event_id",
+        "calendar_id",
+        "google_drive_file_id",
+        "page_id",
+        "issue_id",
+        "connector_id",
+    }
+)
+
+
 def format_documents_for_context(
     documents: list[dict[str, Any]],
     *,
@@ -481,7 +495,10 @@ def format_documents_for_context(
     total_docs = len(grouped)
 
     for doc_idx, g in enumerate(grouped.values()):
-        metadata_json = json.dumps(g["metadata"], ensure_ascii=False)
+        metadata_clean = {
+            k: v for k, v in g["metadata"].items() if k not in _INTERNAL_METADATA_KEYS
+        }
+        metadata_json = json.dumps(metadata_clean, ensure_ascii=False)
         is_live_search = g["document_type"] in live_search_connectors
 
         doc_lines: list[str] = [
