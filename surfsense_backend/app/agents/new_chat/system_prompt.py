@@ -132,6 +132,17 @@ _TOOL_INSTRUCTIONS["generate_podcast"] = """
   - After calling this tool, inform the user that podcast generation has started and they will see the player when it's ready (takes 3-5 minutes).
 """
 
+_TOOL_INSTRUCTIONS["generate_video_presentation"] = """
+- generate_video_presentation: Generate a video presentation from provided content.
+  - Use this when the user asks to create a video, presentation, slides, or slide deck.
+  - Trigger phrases: "give me a presentation", "create slides", "generate a video", "make a slide deck", "turn this into a presentation"
+  - Args:
+    - source_content: The text content to turn into a presentation. The more detailed, the better.
+    - video_title: Optional title (default: "SurfSense Presentation")
+    - user_prompt: Optional style instructions (e.g., "Make it technical and detailed")
+  - After calling this tool, inform the user that generation has started and they will see the presentation when it's ready.
+"""
+
 _TOOL_INSTRUCTIONS["generate_report"] = """
 - generate_report: Generate or revise a structured Markdown report artifact.
   - WHEN TO CALL THIS TOOL — the message must contain a creation or modification VERB directed at producing a deliverable:
@@ -438,6 +449,16 @@ _TOOL_EXAMPLES["generate_podcast"] = """
   - Then: `generate_podcast(source_content="Key insights about quantum computing from the knowledge base:\\n\\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", podcast_title="Quantum Computing Explained")`
 """
 
+_TOOL_EXAMPLES["generate_video_presentation"] = """
+- User: "Give me a presentation about AI trends based on what we discussed"
+  - First search for relevant content, then call: `generate_video_presentation(source_content="Based on our conversation and search results: [detailed summary of chat + search findings]", video_title="AI Trends Presentation")`
+- User: "Create slides summarizing this conversation"
+  - Call: `generate_video_presentation(source_content="Complete conversation summary:\\n\\nUser asked about [topic 1]:\\n[Your detailed response]\\n\\nUser then asked about [topic 2]:\\n[Your detailed response]\\n\\n[Continue for all exchanges in the conversation]", video_title="Conversation Summary")`
+- User: "Make a video presentation about quantum computing"
+  - First search: `search_knowledge_base(query="quantum computing")`
+  - Then: `generate_video_presentation(source_content="Key insights about quantum computing from the knowledge base:\\n\\n[Comprehensive summary of all relevant search results with key facts, concepts, and findings]", video_title="Quantum Computing Explained")`
+"""
+
 _TOOL_EXAMPLES["generate_report"] = """
 - User: "Generate a report about AI trends"
   - Call: `generate_report(topic="AI Trends Report", source_strategy="kb_search", search_queries=["AI trends recent developments", "artificial intelligence industry trends", "AI market growth and predictions"], report_style="detailed")`
@@ -499,6 +520,7 @@ _ALL_TOOL_NAMES_ORDERED = [
     "search_knowledge_base",
     "web_search",
     "generate_podcast",
+    "generate_video_presentation",
     "generate_report",
     "link_preview",
     "display_image",

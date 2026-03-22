@@ -3,6 +3,7 @@ import {
 	Brain,
 	Database,
 	FileText,
+	Film,
 	Globe,
 	ImageIcon,
 	Link2,
@@ -16,6 +17,7 @@ import {
 const TOOL_ICONS: Record<string, LucideIcon> = {
 	search_knowledge_base: Database,
 	generate_podcast: Podcast,
+	generate_video_presentation: Film,
 	generate_report: FileText,
 	link_preview: Link2,
 	display_image: ImageIcon,

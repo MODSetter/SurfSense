@@ -101,6 +101,12 @@ from .search_space import (
     SearchSpaceWithStats,
 )
 from .users import UserCreate, UserRead, UserUpdate
+from .video_presentations import (
+    VideoPresentationBase,
+    VideoPresentationCreate,
+    VideoPresentationRead,
+    VideoPresentationUpdate,
+)
 
 __all__ = [
     # Chat schemas (assistant-ui integration)
@@ -220,4 +226,9 @@ __all__ = [
     "UserRead",
     "UserSearchSpaceAccess",
     "UserUpdate",
+    # Video Presentation schemas
+    "VideoPresentationBase",
+    "VideoPresentationCreate",
+    "VideoPresentationRead",
+    "VideoPresentationUpdate",
 ]
