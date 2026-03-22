@@ -7,7 +7,7 @@ Revises: 106
 from collections.abc import Sequence
 
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ENUM, JSONB
 
 from alembic import op
 
@@ -16,17 +16,24 @@ down_revision: str | None = "106"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
-video_presentation_status_enum = sa.Enum(
+video_presentation_status_enum = ENUM(
     "pending",
     "generating",
     "ready",
     "failed",
     name="video_presentation_status",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
-    video_presentation_status_enum.create(op.get_bind(), checkfirst=True)
+    op.execute("""
+        DO $$ BEGIN
+            CREATE TYPE video_presentation_status AS ENUM ('pending', 'generating', 'ready', 'failed');
+        EXCEPTION
+            WHEN duplicate_object THEN null;
+        END $$;
+    """)
 
     op.create_table(
         "video_presentations",
@@ -82,4 +89,4 @@ def downgrade() -> None:
     op.drop_index("ix_video_presentations_thread_id", table_name="video_presentations")
     op.drop_index("ix_video_presentations_status", table_name="video_presentations")
     op.drop_table("video_presentations")
-    video_presentation_status_enum.drop(op.get_bind(), checkfirst=True)
+    op.execute("DROP TYPE IF EXISTS video_presentation_status")
