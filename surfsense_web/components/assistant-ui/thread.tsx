@@ -938,7 +938,7 @@ const TOOL_GROUPS: { label: string; tools: string[] }[] = [
 	},
 	{
 		label: "Generate",
-		tools: ["generate_podcast", "generate_report", "generate_image", "display_image"],
+		tools: ["generate_podcast", "generate_video_presentation", "generate_report", "generate_image", "display_image"],
 	},
 	{
 		label: "Memory",

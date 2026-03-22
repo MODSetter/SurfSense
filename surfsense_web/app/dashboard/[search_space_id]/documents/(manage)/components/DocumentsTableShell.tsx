@@ -472,21 +472,21 @@ export function DocumentsTableShell({
 		setBulkDeleteConfirmOpen(false);
 	}, [deletableSelectedIds, bulkDeleteDocuments, deleteDocument]);
 
+	const bulkDeleteBar = hasDeletableSelection ? (
+		<div className="flex items-center justify-center py-1.5 border-b border-border/50 bg-destructive/5 shrink-0 animate-in fade-in slide-in-from-top-1 duration-150">
+			<button
+				type="button"
+				onClick={() => setBulkDeleteConfirmOpen(true)}
+				className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-destructive text-destructive-foreground shadow-sm text-xs font-medium hover:bg-destructive/90 transition-colors"
+			>
+				<Trash2 size={12} />
+				Delete ({deletableSelectedIds.length} selected)
+			</button>
+		</div>
+	) : null;
+
 	return (
-		<div className="bg-sidebar overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0 relative">
-			{/* Floating bulk delete pill */}
-			{hasDeletableSelection && (
-				<div className="absolute left-1/2 -translate-x-1/2 top-2 md:top-9 z-20 animate-in fade-in slide-in-from-top-1 duration-150">
-					<button
-						type="button"
-						onClick={() => setBulkDeleteConfirmOpen(true)}
-						className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-destructive text-destructive-foreground shadow-md text-xs font-medium"
-					>
-						<Trash2 size={12} />
-						Delete ({deletableSelectedIds.length} selected)
-					</button>
-				</div>
-			)}
+		<div className="bg-sidebar overflow-hidden select-none border-t border-border/50 flex-1 flex flex-col min-h-0">
 			{/* Desktop Table View */}
 			<div className="hidden md:flex md:flex-col flex-1 min-h-0">
 				<Table className="table-fixed w-full">
@@ -526,6 +526,7 @@ export function DocumentsTableShell({
 						</TableRow>
 					</TableHeader>
 				</Table>
+				{bulkDeleteBar}
 				{loading ? (
 					<div className="flex-1 overflow-auto">
 						<Table className="table-fixed w-full">
@@ -776,6 +777,9 @@ export function DocumentsTableShell({
 					</div>
 				)}
 			</div>
+
+			{/* Mobile bulk delete bar */}
+			<div className="md:hidden">{bulkDeleteBar}</div>
 
 			{/* Mobile Card View */}
 			{loading ? (

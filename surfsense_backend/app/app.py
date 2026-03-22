@@ -341,7 +341,7 @@ if config.NEXT_FRONTEND_URL:
             allowed_origins.append(www_url)
 
 allowed_origins.extend(
-    [ # For local development and desktop app
+    [  # For local development and desktop app
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]

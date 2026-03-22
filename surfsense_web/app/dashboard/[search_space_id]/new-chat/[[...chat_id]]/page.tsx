@@ -40,6 +40,7 @@ import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
+import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 import {
 	CreateGoogleDriveFileToolUI,
 	DeleteGoogleDriveFileToolUI,
@@ -148,6 +149,7 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 const TOOLS_WITH_UI = new Set([
 	"generate_podcast",
 	"generate_report",
+	"generate_video_presentation",
 	"link_preview",
 	"display_image",
 	"delete_notion_page",
@@ -1662,6 +1664,7 @@ export default function NewChatPage() {
 		<AssistantRuntimeProvider runtime={runtime}>
 			<GeneratePodcastToolUI />
 			<GenerateReportToolUI />
+			<GenerateVideoPresentationToolUI />
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />

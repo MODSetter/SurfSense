@@ -42,6 +42,7 @@ from .search_spaces_routes import router as search_spaces_router
 from .slack_add_connector_route import router as slack_add_connector_router
 from .surfsense_docs_routes import router as surfsense_docs_router
 from .teams_add_connector_route import router as teams_add_connector_router
+from .video_presentations_routes import router as video_presentations_router
 from .youtube_routes import router as youtube_router
 
 router = APIRouter()
@@ -55,6 +56,9 @@ router.include_router(new_chat_router)  # Chat with assistant-ui persistence
 router.include_router(sandbox_router)  # Sandbox file downloads (Daytona)
 router.include_router(chat_comments_router)
 router.include_router(podcasts_router)  # Podcast task status and audio
+router.include_router(
+    video_presentations_router
+)  # Video presentation status and streaming
 router.include_router(reports_router)  # Report CRUD and multi-format export
 router.include_router(image_generation_router)  # Image generation via litellm
 router.include_router(search_source_connectors_router)
