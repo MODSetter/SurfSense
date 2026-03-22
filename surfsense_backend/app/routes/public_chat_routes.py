@@ -21,6 +21,7 @@ from app.services.public_chat_service import (
     get_public_chat,
     get_snapshot_podcast,
     get_snapshot_report,
+    get_snapshot_video_presentation,
 )
 from app.users import current_active_user
 
@@ -115,6 +116,119 @@ async def stream_public_podcast(
             "Content-Disposition": f"inline; filename={os.path.basename(file_path)}",
         },
     )
+
+
+@router.get("/{share_token}/video-presentations/{video_presentation_id}")
+async def get_public_video_presentation(
+    share_token: str,
+    video_presentation_id: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Get video presentation details from a public chat snapshot.
+
+    No authentication required - the share_token provides access.
+    Returns slide data (with public audio URLs) and scene codes.
+    """
+    vp_info = await get_snapshot_video_presentation(
+        session, share_token, video_presentation_id
+    )
+
+    if not vp_info:
+        raise HTTPException(status_code=404, detail="Video presentation not found")
+
+    slides = vp_info.get("slides") or []
+    public_slides = _replace_audio_paths_with_public_urls(
+        share_token, video_presentation_id, slides
+    )
+
+    return {
+        "id": vp_info.get("original_id"),
+        "title": vp_info.get("title"),
+        "status": "ready",
+        "slides": public_slides,
+        "scene_codes": vp_info.get("scene_codes"),
+        "slide_count": len(slides) if slides else None,
+    }
+
+
+@router.get(
+    "/{share_token}/video-presentations/{video_presentation_id}/slides/{slide_number}/audio"
+)
+async def stream_public_slide_audio(
+    share_token: str,
+    video_presentation_id: int,
+    slide_number: int,
+    session: AsyncSession = Depends(get_async_session),
+):
+    """
+    Stream a slide's audio from a public chat snapshot.
+
+    No authentication required - the share_token provides access.
+    """
+    from pathlib import Path
+
+    vp_info = await get_snapshot_video_presentation(
+        session, share_token, video_presentation_id
+    )
+
+    if not vp_info:
+        raise HTTPException(status_code=404, detail="Video presentation not found")
+
+    slides = vp_info.get("slides") or []
+    slide_data = None
+    for s in slides:
+        if s.get("slide_number") == slide_number:
+            slide_data = s
+            break
+
+    if not slide_data:
+        raise HTTPException(status_code=404, detail=f"Slide {slide_number} not found")
+
+    file_path = slide_data.get("audio_file")
+    if not file_path or not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="Slide audio file not found")
+
+    ext = Path(file_path).suffix.lower()
+    media_type = "audio/wav" if ext == ".wav" else "audio/mpeg"
+
+    def iterfile():
+        with open(file_path, mode="rb") as file_like:
+            yield from file_like
+
+    return StreamingResponse(
+        iterfile(),
+        media_type=media_type,
+        headers={
+            "Accept-Ranges": "bytes",
+            "Content-Disposition": f"inline; filename={Path(file_path).name}",
+        },
+    )
+
+
+def _replace_audio_paths_with_public_urls(
+    share_token: str,
+    video_presentation_id: int,
+    slides: list[dict],
+) -> list[dict]:
+    """Replace server-local audio_file paths with public streaming API URLs."""
+    result = []
+    for slide in slides:
+        slide_copy = dict(slide)
+        slide_number = slide_copy.get("slide_number")
+        audio_file = slide_copy.pop("audio_file", None)
+
+        if audio_file and slide_number is not None:
+            slide_copy["audio_url"] = (
+                f"/api/v1/public/{share_token}"
+                f"/video-presentations/{video_presentation_id}"
+                f"/slides/{slide_number}/audio"
+            )
+        else:
+            slide_copy["audio_url"] = None
+
+        result.append(slide_copy)
+    return result
 
 
 @router.get("/{share_token}/reports/{report_id}/content")

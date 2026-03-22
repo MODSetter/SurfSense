@@ -10,6 +10,7 @@ import {
 	Presentation,
 	X,
 } from "lucide-react";
+import { useParams, usePathname } from "next/navigation";
 import { z } from "zod";
 import { Spinner } from "@/components/ui/spinner";
 import { baseApiService } from "@/lib/apis/base-api.service";
@@ -157,9 +158,11 @@ function CompilationLoadingState({ title }: { title: string }) {
 function VideoPresentationPlayer({
 	presentationId,
 	title,
+	shareToken,
 }: {
 	presentationId: number;
 	title: string;
+	shareToken?: string | null;
 }) {
 	const [isLoading, setIsLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
@@ -181,9 +184,11 @@ function VideoPresentationPlayer({
 		setIsLoading(true);
 		setError(null);
 		try {
-			const raw = await baseApiService.get<unknown>(
-				`/api/v1/video-presentations/${presentationId}`,
-			);
+			const apiPath = shareToken
+				? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
+				: `/api/v1/video-presentations/${presentationId}`;
+
+			const raw = await baseApiService.get<unknown>(apiPath);
 			const data = parseStatusResponse(raw);
 			if (!data) throw new Error("Invalid response");
 			if (data.status !== "ready") throw new Error(`Unexpected status: ${data.status}`);
@@ -224,23 +229,30 @@ function VideoPresentationPlayer({
 				throw new Error("No slides compiled successfully");
 			}
 
-			// Pre-fetch all audio files with auth headers and convert to blob URLs.
-			// Remotion's <Audio> uses a plain <audio> element which can't send auth
-			// headers, so we fetch the audio ourselves and hand it a blob: URL.
+			// Pre-fetch audio and convert to blob URLs.
+			// For public routes the audio endpoints don't need auth, but we
+			// still use blob URLs so Remotion's plain <audio> element works.
 			const withBlobs = await Promise.all(
 				compiled.map(async (slide) => {
 					if (!slide.audioUrl) return slide;
 					try {
-						const resp = await authenticatedFetch(slide.audioUrl, {
-							method: "GET",
-						});
-						if (!resp.ok) {
-							console.warn(
-								`Audio fetch ${resp.status} for slide "${slide.title}"`,
+						let blob: Blob;
+						if (shareToken) {
+							blob = await baseApiService.getBlob(
+								new URL(slide.audioUrl).pathname,
 							);
-							return { ...slide, audioUrl: undefined };
+						} else {
+							const resp = await authenticatedFetch(slide.audioUrl, {
+								method: "GET",
+							});
+							if (!resp.ok) {
+								console.warn(
+									`Audio fetch ${resp.status} for slide "${slide.title}"`,
+								);
+								return { ...slide, audioUrl: undefined };
+							}
+							blob = await resp.blob();
 						}
-						const blob = await resp.blob();
 						const blobUrl = URL.createObjectURL(blob);
 						audioBlobUrlsRef.current.push(blobUrl);
 						return { ...slide, audioUrl: blobUrl };
@@ -258,7 +270,7 @@ function VideoPresentationPlayer({
 		} finally {
 			setIsLoading(false);
 		}
-	}, [presentationId, backendUrl]);
+	}, [presentationId, backendUrl, shareToken]);
 
 	useEffect(() => {
 		loadPresentation();
@@ -542,9 +554,11 @@ function VideoPresentationPlayer({
 function StatusPoller({
 	presentationId,
 	title,
+	shareToken,
 }: {
 	presentationId: number;
 	title: string;
+	shareToken?: string | null;
 }) {
 	const [status, setStatus] = useState<VideoPresentationStatusResponse | null>(null);
 	const pollingRef = useRef<NodeJS.Timeout | null>(null);
@@ -552,9 +566,11 @@ function StatusPoller({
 	useEffect(() => {
 		const poll = async () => {
 			try {
-				const raw = await baseApiService.get<unknown>(
-					`/api/v1/video-presentations/${presentationId}`,
-				);
+				const apiPath = shareToken
+					? `/api/v1/public/${shareToken}/video-presentations/${presentationId}`
+					: `/api/v1/video-presentations/${presentationId}`;
+
+				const raw = await baseApiService.get<unknown>(apiPath);
 				const response = parseStatusResponse(raw);
 				if (response) {
 					setStatus(response);
@@ -578,7 +594,7 @@ function StatusPoller({
 				clearInterval(pollingRef.current);
 			}
 		};
-	}, [presentationId]);
+	}, [presentationId, shareToken]);
 
 	if (!status || status.status === "pending" || status.status === "generating") {
 		return <GeneratingState title={title} />;
@@ -593,6 +609,7 @@ function StatusPoller({
 			<VideoPresentationPlayer
 				presentationId={status.id}
 				title={status.title || title}
+				shareToken={shareToken}
 			/>
 		);
 	}
@@ -606,6 +623,12 @@ export const GenerateVideoPresentationToolUI = makeAssistantToolUI<
 >({
 	toolName: "generate_video_presentation",
 	render: function GenerateVideoPresentationUI({ args, result, status }) {
+		const params = useParams();
+		const pathname = usePathname();
+		const isPublicRoute = pathname?.startsWith("/public/");
+		const shareToken =
+			isPublicRoute && typeof params?.token === "string" ? params.token : null;
+
 		const title = args.video_title || "SurfSense Presentation";
 
 		if (status.type === "running" || status.type === "requires-action") {
@@ -666,6 +689,7 @@ export const GenerateVideoPresentationToolUI = makeAssistantToolUI<
 				<StatusPoller
 					presentationId={result.video_presentation_id}
 					title={result.title || title}
+					shareToken={shareToken}
 				/>
 			);
 		}
@@ -675,6 +699,7 @@ export const GenerateVideoPresentationToolUI = makeAssistantToolUI<
 				<VideoPresentationPlayer
 					presentationId={result.video_presentation_id}
 					title={result.title || title}
+					shareToken={shareToken}
 				/>
 			);
 		}
