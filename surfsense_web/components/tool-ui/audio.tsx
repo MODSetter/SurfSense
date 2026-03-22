@@ -1,8 +1,21 @@
 "use client";
 
-import { DownloadIcon, PauseIcon, PlayIcon, Volume2Icon, VolumeXIcon } from "lucide-react";
+import {
+	DownloadIcon,
+	EllipsisVerticalIcon,
+	PauseIcon,
+	PlayIcon,
+	Volume2Icon,
+	VolumeXIcon,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+	DropdownMenu,
+	DropdownMenuContent,
+	DropdownMenuItem,
+	DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
@@ -174,8 +187,25 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 				<track kind="captions" srcLang="en" label="English captions" default />
 			</audio>
 
-			<div className="px-5 pt-5 pb-4">
-				<p className="text-sm font-semibold text-foreground line-clamp-2">{title}</p>
+			<div className="flex items-start gap-2 px-5 pt-5 pb-4">
+				<p className="text-sm font-semibold text-foreground line-clamp-2 flex-1 min-w-0">{title}</p>
+				<DropdownMenu>
+					<DropdownMenuTrigger asChild>
+						<Button
+							variant="ghost"
+							size="icon"
+							className="size-7 shrink-0 -mt-0.5 -mr-2 text-muted-foreground"
+						>
+							<EllipsisVerticalIcon className="size-4" />
+						</Button>
+					</DropdownMenuTrigger>
+					<DropdownMenuContent align="end">
+						<DropdownMenuItem onClick={handleDownload}>
+							<DownloadIcon className="size-4" />
+							Download
+						</DropdownMenuItem>
+					</DropdownMenuContent>
+				</DropdownMenu>
 			</div>
 
 			<div className="mx-5 h-px bg-border/50" />
@@ -196,62 +226,50 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 					</div>
 				</div>
 
-				<div className="flex items-center justify-between">
-					<div className="flex items-center gap-1.5 sm:gap-2">
-						<Button
-							variant="secondary"
-							size="icon"
-							onClick={togglePlayPause}
-							disabled={isLoading}
-							className="size-7 sm:size-8"
-						>
-							{isLoading ? (
-								<div className="size-3 sm:size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-							) : isPlaying ? (
-								<PauseIcon className="size-3.5 sm:size-4" fill="currentColor" />
+				<div className="flex items-center gap-1.5 sm:gap-2">
+					<Button
+						variant="secondary"
+						size="icon"
+						onClick={togglePlayPause}
+						disabled={isLoading}
+						className="size-7 sm:size-8"
+					>
+						{isLoading ? (
+							<div className="size-3 sm:size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+						) : isPlaying ? (
+							<PauseIcon className="size-3.5 sm:size-4" fill="currentColor" />
+						) : (
+							<PlayIcon className="size-3.5 sm:size-4" fill="currentColor" />
+						)}
+					</Button>
+
+					<div className="group/volume flex items-center gap-1 sm:gap-1.5">
+						<Button variant="ghost" size="icon" onClick={toggleMute} className="size-7 sm:size-8">
+							{isMuted ? (
+								<VolumeXIcon className="size-3.5 sm:size-4" />
 							) : (
-								<PlayIcon className="size-3.5 sm:size-4" fill="currentColor" />
+								<Volume2Icon className="size-3.5 sm:size-4" />
 							)}
 						</Button>
-
-						<div className="flex items-center gap-1 sm:gap-1.5">
-							<Button variant="ghost" size="icon" onClick={toggleMute} className="size-7 sm:size-8">
-								{isMuted ? (
-									<VolumeXIcon className="size-3.5 sm:size-4" />
-								) : (
-									<Volume2Icon className="size-3.5 sm:size-4" />
-								)}
-							</Button>
-							<div className="relative flex h-6 w-12 sm:w-16 items-center">
-								<div className="relative h-1 w-full rounded-full bg-muted-foreground/20">
-									<div
-										className="absolute left-0 top-0 h-full rounded-full bg-muted-foreground/60 transition-all"
-										style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
-									/>
-								</div>
-								<input
-									type="range"
-									min={0}
-									max={1}
-									step={0.01}
-									value={isMuted ? 0 : volume}
-									onChange={(e) => handleVolumeChange([Number.parseFloat(e.target.value)])}
-									className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-									aria-label="Volume"
+						<div className="relative hidden h-6 w-16 items-center md:flex md:opacity-0 md:pointer-events-none md:group-hover/volume:opacity-100 md:group-hover/volume:pointer-events-auto md:transition-opacity md:duration-200">
+							<div className="relative h-1 w-full rounded-full bg-muted-foreground/20">
+								<div
+									className="absolute left-0 top-0 h-full rounded-full bg-muted-foreground/60 transition-all"
+									style={{ width: `${(isMuted ? 0 : volume) * 100}%` }}
 								/>
 							</div>
+							<input
+								type="range"
+								min={0}
+								max={1}
+								step={0.01}
+								value={isMuted ? 0 : volume}
+								onChange={(e) => handleVolumeChange([Number.parseFloat(e.target.value)])}
+								className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+								aria-label="Volume"
+							/>
 						</div>
 					</div>
-
-					<Button
-						variant="ghost"
-						size="sm"
-						onClick={handleDownload}
-						className="gap-1.5 sm:gap-2 h-7 sm:h-8 px-2.5 sm:px-3 text-xs sm:text-sm text-muted-foreground"
-					>
-						<DownloadIcon className="size-3 sm:size-4" />
-						Download
-					</Button>
 				</div>
 			</div>
 		</div>
