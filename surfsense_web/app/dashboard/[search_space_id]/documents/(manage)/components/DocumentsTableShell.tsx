@@ -498,7 +498,7 @@ export function DocumentsTableShell({
 										checked={allMentionedOnPage || (someMentionedOnPage && "indeterminate")}
 										onCheckedChange={(v) => toggleAll(!!v)}
 										aria-label={hasChatMode ? "Toggle all for chat" : "Select all"}
-										className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+										className="shrink-0"
 									/>
 								</div>
 							</TableHead>
@@ -650,7 +650,7 @@ export function DocumentsTableShell({
 																		checked={isMentioned}
 																		onCheckedChange={() => handleRowToggle()}
 																		aria-label="Remove from chat"
-																		className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+																		className="shrink-0"
 																	/>
 																);
 															}
@@ -664,7 +664,7 @@ export function DocumentsTableShell({
 																			checked={isMentioned}
 																			onCheckedChange={() => handleRowToggle()}
 																			aria-label="Add to chat"
-																			className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+																			className="shrink-0"
 																		/>
 																	</span>
 																</>
@@ -675,7 +675,7 @@ export function DocumentsTableShell({
 																checked={isMentioned}
 																onCheckedChange={() => handleRowToggle()}
 																aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-																className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+																className="shrink-0"
 															/>
 														);
 													})()}
@@ -888,7 +888,7 @@ export function DocumentsTableShell({
 													checked={isMentioned}
 													onCheckedChange={() => handleCardClick()}
 													aria-label={isMentioned ? "Remove from chat" : "Add to chat"}
-													className="border-foreground data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+													className="shrink-0"
 												/>
 											) : (
 												<StatusIndicator status={doc.status} />
