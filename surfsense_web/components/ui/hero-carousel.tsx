@@ -18,6 +18,12 @@ const carouselItems = [
 		src: "/homepage/hero_tutorial/DocUploadGif.mp4",
 	},
 	{
+		title: "Video Generation",
+		description:
+			"Create short videos with AI-generated visuals and narration from your sources.",
+		src: "/homepage/hero_tutorial/video_gen_surf.mp4",
+	},
+	{
 		title: "Search & Citation",
 		description: "Ask questions and get cited responses from your knowledge base.",
 		src: "/homepage/hero_tutorial/BSNCGif.mp4",

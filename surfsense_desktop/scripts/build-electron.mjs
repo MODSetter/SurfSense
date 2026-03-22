@@ -109,7 +109,7 @@ async function buildElectron() {
     minify: false,
     define: {
       'process.env.HOSTED_FRONTEND_URL': JSON.stringify(
-        desktopEnv.HOSTED_FRONTEND_URL || 'https://surfsense.net'
+        process.env.HOSTED_FRONTEND_URL || desktopEnv.HOSTED_FRONTEND_URL || 'https://surfsense.net'
       ),
     },
   };

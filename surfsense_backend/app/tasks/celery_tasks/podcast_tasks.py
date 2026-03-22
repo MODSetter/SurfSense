@@ -9,7 +9,6 @@ from sqlalchemy import select
 from app.agents.podcaster.graph import graph as podcaster_graph
 from app.agents.podcaster.state import State as PodcasterState
 from app.celery_app import celery_app
-from app.config import config
 from app.db import Podcast, PodcastStatus
 from app.tasks.celery_tasks import get_celery_session_maker
 
@@ -27,21 +26,6 @@ if sys.platform.startswith("win"):
 # =============================================================================
 # Content-based podcast generation (for new-chat)
 # =============================================================================
-
-
-def _clear_generating_podcast(search_space_id: int) -> None:
-    """Clear the generating podcast marker from Redis when task completes."""
-    import redis
-
-    try:
-        client = redis.from_url(config.REDIS_APP_URL, decode_responses=True)
-        key = f"podcast:generating:{search_space_id}"
-        client.delete(key)
-        logger.info(
-            f"Cleared generating podcast key for search_space_id={search_space_id}"
-        )
-    except Exception as e:
-        logger.warning(f"Could not clear generating podcast key: {e}")
 
 
 @celery_app.task(name="generate_content_podcast", bind=True)
@@ -75,7 +59,6 @@ def generate_content_podcast_task(
         loop.run_until_complete(_mark_podcast_failed(podcast_id))
         return {"status": "failed", "podcast_id": podcast_id}
     finally:
-        _clear_generating_podcast(search_space_id)
         asyncio.set_event_loop(None)
         loop.close()
 

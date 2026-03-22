@@ -94,6 +94,7 @@ from .shared_memory import (
     create_save_shared_memory_tool,
 )
 from .user_memory import create_recall_memory_tool, create_save_memory_tool
+from .video_presentation import create_generate_video_presentation_tool
 from .web_search import create_web_search_tool
 
 # =============================================================================
@@ -151,6 +152,17 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="generate_podcast",
         description="Generate an audio podcast from provided content",
         factory=lambda deps: create_generate_podcast_tool(
+            search_space_id=deps["search_space_id"],
+            db_session=deps["db_session"],
+            thread_id=deps["thread_id"],
+        ),
+        requires=["search_space_id", "db_session", "thread_id"],
+    ),
+    # Video presentation generation tool
+    ToolDefinition(
+        name="generate_video_presentation",
+        description="Generate a video presentation with slides and narration from provided content",
+        factory=lambda deps: create_generate_video_presentation_tool(
             search_space_id=deps["search_space_id"],
             db_session=deps["db_session"],
             thread_id=deps["thread_id"],
