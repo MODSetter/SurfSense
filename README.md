@@ -27,11 +27,18 @@ SurfSense is a highly customizable AI research agent, connected to external sour
 
 
 
-# Video 
+# Demo
 
 https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 
-## Podcast Sample
+## Video Agent Sample
+
+
+https://github.com/user-attachments/assets/cc977e6d-8292-4ffe-abb8-3b0560ef5562
+
+
+
+## Podcast Agent Sample
 
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
@@ -54,6 +61,10 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 4. Once everything is indexed, Ask Away (Use Cases):
 
+   - Video Generation
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/af85c0f3-6cfd-4757-9706-07fd5e32c857" alt="Search and Citation" /></p>
+   
    - Basic search and citation
 
    <p align="center"><img src="https://github.com/user-attachments/assets/81e797a1-e01a-4003-8e60-0a0b3a9789df" alt="Search and Citation" /></p>
