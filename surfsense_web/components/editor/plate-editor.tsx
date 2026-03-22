@@ -87,15 +87,13 @@ export function PlateEditor({
 		onSaveRef.current = onSave;
 	}, [onSave]);
 
-	// Stable Plate plugin for ⌘+S / Ctrl+S save shortcut.
-	// Only included when onSave is provided.
 	const SaveShortcutPlugin = useMemo(
 		() =>
 			createPlatePlugin({
 				key: "save-shortcut",
 				shortcuts: {
 					save: {
-						keys: [[Key.Mod, "s"]],
+						keys: [[Key.Mod, Key.Shift, "s"]],
 						handler: () => {
 							onSaveRef.current?.();
 						},
