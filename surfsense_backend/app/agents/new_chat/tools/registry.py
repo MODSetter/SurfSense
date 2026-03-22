@@ -73,6 +73,8 @@ from .shared_memory import (
     create_save_shared_memory_tool,
 )
 from .user_memory import create_recall_memory_tool, create_save_memory_tool
+from .video_presentation import create_generate_video_presentation_tool
+from .web_search import create_web_search_tool
 
 # =============================================================================
 # Tool Definition
@@ -135,6 +137,17 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=["search_space_id", "db_session", "thread_id"],
     ),
+    # Video presentation generation tool
+    ToolDefinition(
+        name="generate_video_presentation",
+        description="Generate a video presentation with slides and narration from provided content",
+        factory=lambda deps: create_generate_video_presentation_tool(
+            search_space_id=deps["search_space_id"],
+            db_session=deps["db_session"],
+            thread_id=deps["thread_id"],
+        ),
+        requires=["search_space_id", "db_session", "thread_id"],
+    ),
     # Report generation tool (inline, short-lived sessions for DB ops)
     # Supports internal KB search via source_strategy so the agent doesn't
     # need to call search_knowledge_base separately before generating.
@@ -186,7 +199,16 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         ),
         requires=[],  # firecrawl_api_key is optional
     ),
-    # Note: write_todos is now provided by TodoListMiddleware from deepagents
+    # Web search tool — real-time web search via SearXNG + user-configured engines
+    ToolDefinition(
+        name="web_search",
+        description="Search the web for real-time information using configured search engines",
+        factory=lambda deps: create_web_search_tool(
+            search_space_id=deps.get("search_space_id"),
+            available_connectors=deps.get("available_connectors"),
+        ),
+        requires=[],
+    ),
     # Surfsense documentation search tool
     ToolDefinition(
         name="search_surfsense_docs",

@@ -30,14 +30,17 @@ import {
 	// extractWriteTodosFromContent,
 } from "@/atoms/chat/plan-state.atom";
 import { closeReportPanelAtom } from "@/atoms/chat/report-panel.atom";
+import { closeEditorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { membersAtom } from "@/atoms/members/members-query.atoms";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
 import { Thread } from "@/components/assistant-ui/thread";
+import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
+import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 import {
 	CreateGoogleDriveFileToolUI,
 	DeleteGoogleDriveFileToolUI,
@@ -146,6 +149,7 @@ function extractMentionedDocuments(content: unknown): MentionedDocumentInfo[] {
 const TOOLS_WITH_UI = new Set([
 	"generate_podcast",
 	"generate_report",
+	"generate_video_presentation",
 	"link_preview",
 	"display_image",
 	"delete_notion_page",
@@ -195,6 +199,7 @@ export default function NewChatPage() {
 	const setTargetCommentId = useSetAtom(setTargetCommentIdAtom);
 	const clearTargetCommentId = useSetAtom(clearTargetCommentIdAtom);
 	const closeReportPanel = useSetAtom(closeReportPanelAtom);
+	const closeEditorPanel = useSetAtom(closeEditorPanelAtom);
 
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
@@ -286,6 +291,7 @@ export default function NewChatPage() {
 		setMessageDocumentsMap({});
 		clearPlanOwnerRegistry();
 		closeReportPanel();
+		closeEditorPanel();
 
 		try {
 			if (urlChatId > 0) {
@@ -351,6 +357,7 @@ export default function NewChatPage() {
 		setMentionedDocuments,
 		setSidebarDocuments,
 		closeReportPanel,
+		closeEditorPanel,
 	]);
 
 	// Initialize on mount
@@ -1596,7 +1603,7 @@ export default function NewChatPage() {
 	// Show loading state only when loading an existing thread
 	if (isInitializing) {
 		return (
-			<div className="flex h-[calc(100dvh-64px)] flex-col bg-background px-4">
+			<div className="flex h-[calc(100dvh-64px)] flex-col bg-main-panel px-4">
 				<div className="mx-auto w-full max-w-[44rem] flex flex-1 flex-col gap-6 py-8">
 					{/* User message */}
 					<div className="flex justify-end">
@@ -1624,7 +1631,7 @@ export default function NewChatPage() {
 				</div>
 
 				{/* Input bar */}
-				<div className="sticky bottom-0 pb-6 bg-background">
+				<div className="sticky bottom-0 pb-6 bg-main-panel">
 					<div className="mx-auto w-full max-w-[44rem]">
 						<Skeleton className="h-24 w-full rounded-2xl" />
 					</div>
@@ -1657,6 +1664,7 @@ export default function NewChatPage() {
 		<AssistantRuntimeProvider runtime={runtime}>
 			<GeneratePodcastToolUI />
 			<GenerateReportToolUI />
+			<GenerateVideoPresentationToolUI />
 			<LinkPreviewToolUI />
 			<DisplayImageToolUI />
 			<ScrapeWebpageToolUI />
@@ -1677,6 +1685,7 @@ export default function NewChatPage() {
 					<Thread messageThinkingSteps={messageThinkingSteps} />
 				</div>
 				<MobileReportPanel />
+				<MobileEditorPanel />
 			</div>
 		</AssistantRuntimeProvider>
 	);

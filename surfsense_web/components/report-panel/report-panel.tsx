@@ -307,7 +307,7 @@ export function ReportPanelContent({
 						size="sm"
 						onClick={handleCopy}
 						disabled={isLoading || !reportContent?.content}
-						className="h-8 min-w-[80px] px-3.5 py-4 text-[15px]"
+						className="h-8 min-w-[80px] px-3.5 py-4 text-[15px] bg-sidebar select-none"
 					>
 						{copied ? "Copied" : "Copy"}
 					</Button>
@@ -319,7 +319,7 @@ export function ReportPanelContent({
 								variant="outline"
 								size="sm"
 								disabled={isLoading || !reportContent?.content}
-								className="h-8 px-3.5 py-4 text-[15px] gap-1.5"
+								className="h-8 px-3.5 py-4 text-[15px] gap-1.5 bg-sidebar select-none"
 							>
 								Export
 								<ChevronDownIcon className="size-3" />
@@ -327,7 +327,7 @@ export function ReportPanelContent({
 						</DropdownMenuTrigger>
 						<DropdownMenuContent
 							align="start"
-							className={`min-w-[200px] dark:bg-neutral-900 dark:border dark:border-white/5${insideDrawer ? " z-[100]" : ""}`}
+							className={`min-w-[200px] select-none${insideDrawer ? " z-[100]" : ""}`}
 						>
 							{!shareToken && (
 								<>
@@ -398,14 +398,18 @@ export function ReportPanelContent({
 					{versions.length > 1 && (
 						<DropdownMenu modal={insideDrawer ? false : undefined}>
 							<DropdownMenuTrigger asChild>
-								<Button variant="outline" size="sm" className="h-8 px-3.5 py-4 text-[15px] gap-1.5">
+								<Button
+									variant="outline"
+									size="sm"
+									className="h-8 px-3.5 py-4 text-[15px] gap-1.5 bg-sidebar select-none"
+								>
 									v{activeVersionIndex + 1}
 									<ChevronDownIcon className="size-3" />
 								</Button>
 							</DropdownMenuTrigger>
 							<DropdownMenuContent
 								align="start"
-								className={`min-w-[120px] dark:bg-neutral-900 dark:border dark:border-white/5${insideDrawer ? " z-[100]" : ""}`}
+								className={`min-w-[120px] select-none${insideDrawer ? " z-[100]" : ""}`}
 							>
 								{versions.map((v, i) => (
 									<DropdownMenuItem
@@ -455,6 +459,7 @@ export function ReportPanelContent({
 							onSave={handleSave}
 							hasUnsavedChanges={editedMarkdown !== null}
 							isSaving={saving}
+							className="[&_[role=toolbar]]:!bg-sidebar"
 						/>
 					)
 				) : (
@@ -491,7 +496,7 @@ function DesktopReportPanel() {
 	return (
 		<div
 			ref={panelRef}
-			className="flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l bg-background animate-in slide-in-from-right-4 duration-300 ease-out"
+			className="flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l bg-sidebar text-sidebar-foreground animate-in slide-in-from-right-4 duration-300 ease-out"
 		>
 			<ReportPanelContent
 				reportId={panelState.reportId}
@@ -521,7 +526,7 @@ function MobileReportDrawer() {
 			shouldScaleBackground={false}
 		>
 			<DrawerContent
-				className="h-[90vh] max-h-[90vh] z-80 !rounded-none border-none"
+				className="h-[95vh] max-h-[95vh] z-80 bg-sidebar overflow-hidden"
 				overlayClassName="z-80"
 			>
 				<DrawerHandle />

@@ -14,45 +14,35 @@ from app.db import Document
 md = MarkdownifyTransformer()
 
 
-def safe_set_chunks(document: Document, chunks: list) -> None:
+async def safe_set_chunks(
+    session: "AsyncSession", document: Document, chunks: list
+) -> None:
     """
-    Safely assign chunks to a document without triggering lazy loading.
+    Delete old chunks and assign new ones to a document.
 
-    ALWAYS use this instead of `document.chunks = chunks` to avoid
-    SQLAlchemy async errors (MissingGreenlet / greenlet_spawn).
-
-    Why this is needed:
-    - Direct assignment `document.chunks = chunks` triggers SQLAlchemy to
-      load the OLD chunks first (for comparison/orphan detection)
-    - This lazy loading fails in async context with asyncpg driver
-    - set_committed_value bypasses this by setting the value directly
-
-    This function is safe regardless of how the document was loaded
-    (with or without selectinload).
+    This replaces direct ``document.chunks = chunks`` which triggers lazy
+    loading (and MissingGreenlet errors in async contexts).  It also
+    explicitly deletes pre-existing chunks so they don't accumulate across
+    repeated re-indexes — ``set_committed_value`` bypasses SQLAlchemy's
+    delete-orphan cascade.
 
     Args:
-        document: The Document object to update
-        chunks: List of Chunk objects to assign
-
-    Example:
-        # Instead of: document.chunks = chunks (DANGEROUS!)
-        safe_set_chunks(document, chunks)  # Always safe
+        session: The current async database session.
+        document: The Document object to update.
+        chunks: List of Chunk objects to assign.
     """
-    from sqlalchemy.orm import object_session
+    from sqlalchemy import delete
     from sqlalchemy.orm.attributes import set_committed_value
 
-    # Keep relationship assignment lazy-load-safe.
-    set_committed_value(document, "chunks", chunks)
+    from app.db import Chunk
 
-    # Ensure chunk rows are actually persisted.
-    # set_committed_value bypasses normal unit-of-work tracking, so we need to
-    # explicitly attach chunk objects to the current session.
-    session = object_session(document)
-    if session is not None:
-        if document.id is not None:
-            for chunk in chunks:
-                chunk.document_id = document.id
-        session.add_all(chunks)
+    if document.id is not None:
+        await session.execute(delete(Chunk).where(Chunk.document_id == document.id))
+        for chunk in chunks:
+            chunk.document_id = document.id
+
+    set_committed_value(document, "chunks", chunks)
+    session.add_all(chunks)
 
 
 def get_current_timestamp() -> datetime:

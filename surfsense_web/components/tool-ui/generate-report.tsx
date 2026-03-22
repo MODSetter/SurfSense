@@ -4,10 +4,11 @@ import { makeAssistantToolUI } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Dot, FileTextIcon } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { z } from "zod";
 import { openReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { baseApiService } from "@/lib/apis/base-api.service";
 
 /**
@@ -110,15 +111,20 @@ function ReportCard({
 	title,
 	wordCount,
 	shareToken,
+	autoOpen = false,
 }: {
 	reportId: number;
 	title: string;
 	wordCount?: number;
 	/** When set, uses public endpoint for fetching report data */
 	shareToken?: string | null;
+	/** When true, auto-opens the report panel on desktop after metadata loads */
+	autoOpen?: boolean;
 }) {
 	const openPanel = useSetAtom(openReportPanelAtom);
 	const panelState = useAtomValue(reportPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 768px)");
+	const autoOpenedRef = useRef(false);
 	const [metadata, setMetadata] = useState<{
 		title: string;
 		wordCount: number | null;
@@ -154,11 +160,19 @@ function ReportCard({
 								versionLabel = `version ${idx + 1}`;
 							}
 						}
-						setMetadata({
-							title: parsed.data.title || title,
-							wordCount: parsed.data.report_metadata?.word_count ?? wordCount ?? null,
-							versionLabel,
-						});
+						const resolvedTitle = parsed.data.title || title;
+						const resolvedWordCount = parsed.data.report_metadata?.word_count ?? wordCount ?? null;
+						setMetadata({ title: resolvedTitle, wordCount: resolvedWordCount, versionLabel });
+
+						if (autoOpen && isDesktop && !autoOpenedRef.current) {
+							autoOpenedRef.current = true;
+							openPanel({
+								reportId,
+								title: resolvedTitle,
+								wordCount: resolvedWordCount ?? undefined,
+								shareToken,
+							});
+						}
 					}
 				}
 			} catch {
@@ -171,7 +185,7 @@ function ReportCard({
 		return () => {
 			cancelled = true;
 		};
-	}, [reportId, title, wordCount, shareToken]);
+	}, [reportId, title, wordCount, shareToken, autoOpen, isDesktop, openPanel]);
 
 	// Show non-clickable error card for any error (failed status, not found, etc.)
 	if (!isLoading && error) {
@@ -243,6 +257,13 @@ export const GenerateReportToolUI = makeAssistantToolUI<GenerateReportArgs, Gene
 
 		const topic = args.topic || "Report";
 
+		// Track whether we witnessed the generation (running state).
+		// If we mount directly with a result, this stays false → it's a revisit.
+		const sawRunningRef = useRef(false);
+		if (status.type === "running" || status.type === "requires-action") {
+			sawRunningRef.current = true;
+		}
+
 		// Loading state - tool is still running (LLM generating report)
 		if (status.type === "running" || status.type === "requires-action") {
 			return <ReportGeneratingState topic={topic} />;
@@ -293,6 +314,7 @@ export const GenerateReportToolUI = makeAssistantToolUI<GenerateReportArgs, Gene
 					title={result.title || topic}
 					wordCount={result.word_count ?? undefined}
 					shareToken={shareToken}
+					autoOpen={sawRunningRef.current}
 				/>
 			);
 		}

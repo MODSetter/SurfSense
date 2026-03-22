@@ -14,8 +14,6 @@ interface MobileSidebarProps {
 	searchSpaces: SearchSpace[];
 	activeSearchSpaceId: number | null;
 	onSearchSpaceSelect: (id: number) => void;
-	onSearchSpaceDelete?: (searchSpace: SearchSpace) => void;
-	onSearchSpaceSettings?: (searchSpace: SearchSpace) => void;
 	onAddSearchSpace: () => void;
 	searchSpace: SearchSpace | null;
 	navItems: NavItem[];
@@ -30,6 +28,8 @@ interface MobileSidebarProps {
 	onChatArchive?: (chat: ChatItem) => void;
 	onViewAllSharedChats?: () => void;
 	onViewAllPrivateChats?: () => void;
+	isSharedChatsPanelOpen?: boolean;
+	isPrivateChatsPanelOpen?: boolean;
 	user: User;
 	onSettings?: () => void;
 	onManageMembers?: () => void;
@@ -56,8 +56,7 @@ export function MobileSidebar({
 	searchSpaces,
 	activeSearchSpaceId,
 	onSearchSpaceSelect,
-	onSearchSpaceDelete,
-	onSearchSpaceSettings,
+
 	onAddSearchSpace,
 	searchSpace,
 	navItems,
@@ -72,6 +71,8 @@ export function MobileSidebar({
 	onChatArchive,
 	onViewAllSharedChats,
 	onViewAllPrivateChats,
+	isSharedChatsPanelOpen = false,
+	isPrivateChatsPanelOpen = false,
 	user,
 	onSettings,
 	onManageMembers,
@@ -165,6 +166,8 @@ export function MobileSidebar({
 									}
 								: undefined
 						}
+						isSharedChatsPanelOpen={isSharedChatsPanelOpen}
+						isPrivateChatsPanelOpen={isPrivateChatsPanelOpen}
 						user={user}
 						onSettings={
 							onSettings

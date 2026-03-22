@@ -340,20 +340,17 @@ if config.NEXT_FRONTEND_URL:
         if www_url not in allowed_origins:
             allowed_origins.append(www_url)
 
-# For local development, also allow common localhost origins
-if not config.BACKEND_URL or (
-    config.NEXT_FRONTEND_URL and "localhost" in config.NEXT_FRONTEND_URL
-):
-    allowed_origins.extend(
-        [
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-        ]
-    )
+allowed_origins.extend(
+    [  # For local development and desktop app
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
     allow_credentials=True,
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers

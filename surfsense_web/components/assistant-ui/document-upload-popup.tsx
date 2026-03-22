@@ -1,8 +1,7 @@
 "use client";
 
-import { useAtomValue } from "jotai";
-import { AlertTriangle, Settings, Upload } from "lucide-react";
-import Link from "next/link";
+import { useAtomValue, useSetAtom } from "jotai";
+import { AlertTriangle, Settings } from "lucide-react";
 import {
 	createContext,
 	type FC,
@@ -17,6 +16,7 @@ import {
 	llmPreferencesAtom,
 } from "@/atoms/new-llm-config/new-llm-config-query.atoms";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
+import { searchSpaceSettingsDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { DocumentUploadTab } from "@/components/sources/DocumentUploadTab";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -91,6 +91,7 @@ const DocumentUploadPopupContent: FC<{
 	onOpenChange: (open: boolean) => void;
 }> = ({ isOpen, onOpenChange }) => {
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
+	const setSearchSpaceSettingsDialog = useSetAtom(searchSpaceSettingsDialogAtom);
 	const { data: preferences = {}, isFetching: preferencesLoading } =
 		useAtomValue(llmPreferencesAtom);
 	const { data: globalConfigs = [], isFetching: globalConfigsLoading } =
@@ -157,11 +158,19 @@ const DocumentUploadPopupContent: FC<{
 											? "Auto mode is selected but no global LLM configurations are available. Please configure a custom LLM in Settings to process and summarize your uploaded documents."
 											: "You need to configure a Document Summary LLM before uploading files. This LLM is used to process and summarize your uploaded documents."}
 									</p>
-									<Button asChild size="sm" variant="outline">
-										<Link href={`/dashboard/${searchSpaceId}/settings?tab=models`}>
-											<Settings className="mr-2 h-4 w-4" />
-											Go to Settings
-										</Link>
+									<Button
+										size="sm"
+										variant="outline"
+										onClick={() => {
+											onOpenChange(false);
+											setSearchSpaceSettingsDialog({
+												open: true,
+												initialTab: "models",
+											});
+										}}
+									>
+										<Settings className="mr-2 h-4 w-4" />
+										Go to Settings
 									</Button>
 								</AlertDescription>
 							</Alert>

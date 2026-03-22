@@ -127,6 +127,7 @@ async def validate_llm_config(
                 "ALIBABA_QWEN": "openai",
                 "MOONSHOT": "openai",
                 "ZHIPU": "openai",  # GLM needs special handling
+                "MINIMAX": "openai",
                 "GITHUB_MODELS": "github",
             }
             provider_prefix = provider_map.get(provider, provider.lower())
@@ -277,6 +278,7 @@ async def get_search_space_llm_instance(
                     "ALIBABA_QWEN": "openai",
                     "MOONSHOT": "openai",
                     "ZHIPU": "openai",
+                    "MINIMAX": "openai",
                 }
                 provider_prefix = provider_map.get(
                     global_config["provider"], global_config["provider"].lower()
@@ -350,6 +352,7 @@ async def get_search_space_llm_instance(
                 "ALIBABA_QWEN": "openai",
                 "MOONSHOT": "openai",
                 "ZHIPU": "openai",
+                "MINIMAX": "openai",
                 "GITHUB_MODELS": "github",
             }
             provider_prefix = provider_map.get(

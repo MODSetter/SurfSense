@@ -1,0 +1,295 @@
+"use client";
+
+import { useAtomValue, useSetAtom } from "jotai";
+import { AlertCircle, XIcon } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
+import { PlateEditor } from "@/components/editor/plate-editor";
+import { Button } from "@/components/ui/button";
+import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
+import { useMediaQuery } from "@/hooks/use-media-query";
+import { authenticatedFetch, getBearerToken, redirectToLogin } from "@/lib/auth-utils";
+
+interface EditorContent {
+	document_id: number;
+	title: string;
+	document_type?: string;
+	source_markdown: string;
+}
+
+function EditorPanelSkeleton() {
+	return (
+		<div className="space-y-6 p-6">
+			<div className="h-6 w-3/4 rounded-md bg-muted/60 animate-pulse" />
+			<div className="space-y-2.5">
+				<div className="h-3 w-full rounded-md bg-muted/60 animate-pulse" />
+				<div className="h-3 w-[95%] rounded-md bg-muted/60 animate-pulse [animation-delay:100ms]" />
+				<div className="h-3 w-[88%] rounded-md bg-muted/60 animate-pulse [animation-delay:200ms]" />
+				<div className="h-3 w-[60%] rounded-md bg-muted/60 animate-pulse [animation-delay:300ms]" />
+			</div>
+			<div className="h-5 w-2/5 rounded-md bg-muted/60 animate-pulse [animation-delay:400ms]" />
+			<div className="space-y-2.5">
+				<div className="h-3 w-full rounded-md bg-muted/60 animate-pulse [animation-delay:500ms]" />
+				<div className="h-3 w-[92%] rounded-md bg-muted/60 animate-pulse [animation-delay:600ms]" />
+				<div className="h-3 w-[75%] rounded-md bg-muted/60 animate-pulse [animation-delay:700ms]" />
+			</div>
+		</div>
+	);
+}
+
+export function EditorPanelContent({
+	documentId,
+	searchSpaceId,
+	title,
+	onClose,
+}: {
+	documentId: number;
+	searchSpaceId: number;
+	title: string | null;
+	onClose?: () => void;
+}) {
+	const [editorDoc, setEditorDoc] = useState<EditorContent | null>(null);
+	const [isLoading, setIsLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [saving, setSaving] = useState(false);
+
+	const [editedMarkdown, setEditedMarkdown] = useState<string | null>(null);
+	const markdownRef = useRef<string>("");
+	const initialLoadDone = useRef(false);
+	const changeCountRef = useRef(0);
+	const [displayTitle, setDisplayTitle] = useState(title || "Untitled");
+
+	useEffect(() => {
+		let cancelled = false;
+		setIsLoading(true);
+		setError(null);
+		setEditorDoc(null);
+		setEditedMarkdown(null);
+		initialLoadDone.current = false;
+		changeCountRef.current = 0;
+
+		const fetchContent = async () => {
+			const token = getBearerToken();
+			if (!token) {
+				redirectToLogin();
+				return;
+			}
+
+			try {
+				const response = await authenticatedFetch(
+					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/editor-content`,
+					{ method: "GET" }
+				);
+
+				if (cancelled) return;
+
+				if (!response.ok) {
+					const errorData = await response
+						.json()
+						.catch(() => ({ detail: "Failed to fetch document" }));
+					throw new Error(errorData.detail || "Failed to fetch document");
+				}
+
+				const data = await response.json();
+
+				if (data.source_markdown === undefined || data.source_markdown === null) {
+					setError(
+						"This document does not have editable content. Please re-upload to enable editing."
+					);
+					setIsLoading(false);
+					return;
+				}
+
+				markdownRef.current = data.source_markdown;
+				setDisplayTitle(data.title || title || "Untitled");
+				setEditorDoc(data);
+				initialLoadDone.current = true;
+			} catch (err) {
+				if (cancelled) return;
+				console.error("Error fetching document:", err);
+				setError(err instanceof Error ? err.message : "Failed to fetch document");
+			} finally {
+				if (!cancelled) setIsLoading(false);
+			}
+		};
+
+		fetchContent();
+		return () => {
+			cancelled = true;
+		};
+	}, [documentId, searchSpaceId, title]);
+
+	const handleMarkdownChange = useCallback((md: string) => {
+		markdownRef.current = md;
+		if (!initialLoadDone.current) return;
+		changeCountRef.current += 1;
+		if (changeCountRef.current <= 1) return;
+		setEditedMarkdown(md);
+	}, []);
+
+	const handleSave = useCallback(async () => {
+		const token = getBearerToken();
+		if (!token) {
+			toast.error("Please login to save");
+			redirectToLogin();
+			return;
+		}
+
+		setSaving(true);
+		try {
+			const response = await authenticatedFetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/documents/${documentId}/save`,
+				{
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ source_markdown: markdownRef.current }),
+				}
+			);
+
+			if (!response.ok) {
+				const errorData = await response
+					.json()
+					.catch(() => ({ detail: "Failed to save document" }));
+				throw new Error(errorData.detail || "Failed to save document");
+			}
+
+			setEditorDoc((prev) => (prev ? { ...prev, source_markdown: markdownRef.current } : prev));
+			setEditedMarkdown(null);
+			toast.success("Document saved! Reindexing in background...");
+		} catch (err) {
+			console.error("Error saving document:", err);
+			toast.error(err instanceof Error ? err.message : "Failed to save document");
+		} finally {
+			setSaving(false);
+		}
+	}, [documentId, searchSpaceId]);
+
+	return (
+		<>
+			<div className="flex items-center justify-between px-4 py-2 shrink-0 border-b">
+				<div className="flex-1 min-w-0">
+					<h2 className="text-sm font-semibold truncate">{displayTitle}</h2>
+					{editedMarkdown !== null && (
+						<p className="text-[10px] text-muted-foreground">Unsaved changes</p>
+					)}
+				</div>
+				{onClose && (
+					<Button variant="ghost" size="icon" onClick={onClose} className="size-7 shrink-0">
+						<XIcon className="size-4" />
+						<span className="sr-only">Close editor panel</span>
+					</Button>
+				)}
+			</div>
+
+			<div className="flex-1 overflow-hidden">
+				{isLoading ? (
+					<EditorPanelSkeleton />
+				) : error || !editorDoc ? (
+					<div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+						<AlertCircle className="size-8 text-destructive" />
+						<div>
+							<p className="font-medium text-foreground">Failed to load document</p>
+							<p className="text-sm text-red-500 mt-1">{error || "An unknown error occurred"}</p>
+						</div>
+					</div>
+				) : (
+					<PlateEditor
+						key={documentId}
+						preset="full"
+						markdown={editorDoc.source_markdown}
+						onMarkdownChange={handleMarkdownChange}
+						readOnly={false}
+						placeholder="Start writing..."
+						editorVariant="default"
+						onSave={handleSave}
+						hasUnsavedChanges={editedMarkdown !== null}
+						isSaving={saving}
+						defaultEditing={true}
+						className="[&_[role=toolbar]]:!bg-sidebar"
+					/>
+				)}
+			</div>
+		</>
+	);
+}
+
+function DesktopEditorPanel() {
+	const panelState = useAtomValue(editorPanelAtom);
+	const closePanel = useSetAtom(closeEditorPanelAtom);
+
+	useEffect(() => {
+		const handleKeyDown = (e: KeyboardEvent) => {
+			if (e.key === "Escape") closePanel();
+		};
+		document.addEventListener("keydown", handleKeyDown);
+		return () => document.removeEventListener("keydown", handleKeyDown);
+	}, [closePanel]);
+
+	if (!panelState.isOpen || !panelState.documentId || !panelState.searchSpaceId) return null;
+
+	return (
+		<div className="flex w-[50%] max-w-[700px] min-w-[380px] flex-col border-l bg-sidebar text-sidebar-foreground animate-in slide-in-from-right-4 duration-300 ease-out">
+			<EditorPanelContent
+				documentId={panelState.documentId}
+				searchSpaceId={panelState.searchSpaceId}
+				title={panelState.title}
+				onClose={closePanel}
+			/>
+		</div>
+	);
+}
+
+function MobileEditorDrawer() {
+	const panelState = useAtomValue(editorPanelAtom);
+	const closePanel = useSetAtom(closeEditorPanelAtom);
+
+	if (!panelState.documentId || !panelState.searchSpaceId) return null;
+
+	return (
+		<Drawer
+			open={panelState.isOpen}
+			onOpenChange={(open) => {
+				if (!open) closePanel();
+			}}
+			shouldScaleBackground={false}
+		>
+			<DrawerContent
+				className="h-[95vh] max-h-[95vh] z-80 bg-sidebar overflow-hidden"
+				overlayClassName="z-80"
+			>
+				<DrawerHandle />
+				<DrawerTitle className="sr-only">{panelState.title || "Editor"}</DrawerTitle>
+				<div className="min-h-0 flex-1 flex flex-col overflow-hidden">
+					<EditorPanelContent
+						documentId={panelState.documentId}
+						searchSpaceId={panelState.searchSpaceId}
+						title={panelState.title}
+					/>
+				</div>
+			</DrawerContent>
+		</Drawer>
+	);
+}
+
+export function EditorPanel() {
+	const panelState = useAtomValue(editorPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+	if (!panelState.isOpen || !panelState.documentId) return null;
+
+	if (isDesktop) {
+		return <DesktopEditorPanel />;
+	}
+
+	return <MobileEditorDrawer />;
+}
+
+export function MobileEditorPanel() {
+	const panelState = useAtomValue(editorPanelAtom);
+	const isDesktop = useMediaQuery("(min-width: 1024px)");
+
+	if (isDesktop || !panelState.isOpen || !panelState.documentId) return null;
+
+	return <MobileEditorDrawer />;
+}

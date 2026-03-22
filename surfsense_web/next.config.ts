@@ -1,3 +1,4 @@
+import path from "path";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
@@ -5,8 +6,12 @@ import createNextIntlPlugin from "next-intl/plugin";
 // Create the next-intl plugin
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
+// TODO: Separate app routes (/login, /dashboard) from marketing routes
+// (landing page, /contact, /pricing, /docs) so the desktop build only
+// ships what desktop users actually need.
 const nextConfig: NextConfig = {
 	output: "standalone",
+	outputFileTracingRoot: path.join(__dirname, ".."),
 	reactStrictMode: false,
 	typescript: {
 		ignoreBuildErrors: true,

@@ -137,12 +137,6 @@ export const OTHER_CONNECTORS = [
 		connectorType: EnumConnectorName.TAVILY_API,
 	},
 	{
-		id: "searxng",
-		title: "SearxNG",
-		description: "Search with SearxNG",
-		connectorType: EnumConnectorName.SEARXNG_API,
-	},
-	{
 		id: "linkup-api",
 		title: "Linkup API",
 		description: "Search with Linkup",

@@ -35,6 +35,7 @@ from .base import (
     check_document_by_unique_identifier,
     check_duplicate_document,
     get_current_timestamp,
+    safe_set_chunks,
 )
 from .markdown_processor import add_received_markdown_file_document
 
@@ -488,7 +489,7 @@ async def add_received_file_document_using_unstructured(
                 "FILE_NAME": file_name,
                 "ETL_SERVICE": "UNSTRUCTURED",
             }
-            existing_document.chunks = chunks
+            await safe_set_chunks(session, existing_document, chunks)
             existing_document.source_markdown = file_in_markdown
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
@@ -622,7 +623,7 @@ async def add_received_file_document_using_llamacloud(
                 "FILE_NAME": file_name,
                 "ETL_SERVICE": "LLAMACLOUD",
             }
-            existing_document.chunks = chunks
+            await safe_set_chunks(session, existing_document, chunks)
             existing_document.source_markdown = file_in_markdown
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
@@ -777,7 +778,7 @@ async def add_received_file_document_using_docling(
                 "FILE_NAME": file_name,
                 "ETL_SERVICE": "DOCLING",
             }
-            existing_document.chunks = chunks
+            await safe_set_chunks(session, existing_document, chunks)
             existing_document.source_markdown = file_in_markdown
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()

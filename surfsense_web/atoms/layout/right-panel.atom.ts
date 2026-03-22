@@ -1,6 +1,6 @@
 import { atom } from "jotai";
 
-export type RightPanelTab = "sources" | "report";
+export type RightPanelTab = "sources" | "report" | "editor";
 
 export const rightPanelTabAtom = atom<RightPanelTab>("sources");
 

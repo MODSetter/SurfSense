@@ -74,11 +74,9 @@ export function NavSection({ items, onItemClick, isCollapsed = false }: NavSecti
 				const indicator = item.statusIndicator;
 
 				const joyrideAttr =
-					item.title === "Documents" || item.title.toLowerCase().includes("documents")
-						? { "data-joyride": "documents-sidebar" }
-						: item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
-							? { "data-joyride": "inbox-sidebar" }
-							: {};
+					item.title === "Inbox" || item.title.toLowerCase().includes("inbox")
+						? { "data-joyride": "inbox-sidebar" }
+						: {};
 
 				if (isCollapsed) {
 					return (

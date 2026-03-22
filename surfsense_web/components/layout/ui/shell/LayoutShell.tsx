@@ -160,7 +160,7 @@ export function LayoutShell({
 		return (
 			<SidebarProvider value={sidebarContextValue}>
 				<TooltipProvider delayDuration={0}>
-					<div className={cn("flex h-screen w-full flex-col bg-background", className)}>
+					<div className={cn("flex h-screen w-full flex-col bg-main-panel", className)}>
 						<Header
 							mobileMenuTrigger={<MobileSidebarTrigger onClick={() => setMobileMenuOpen(true)} />}
 						/>
@@ -187,6 +187,8 @@ export function LayoutShell({
 							onChatArchive={onChatArchive}
 							onViewAllSharedChats={onViewAllSharedChats}
 							onViewAllPrivateChats={onViewAllPrivateChats}
+							isSharedChatsPanelOpen={allSharedChatsPanel?.open}
+							isPrivateChatsPanelOpen={allPrivateChatsPanel?.open}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -256,6 +258,12 @@ export function LayoutShell({
 		);
 	}
 
+	const anySlideOutOpen =
+		inbox?.isOpen ||
+		announcementsPanel?.open ||
+		allSharedChatsPanel?.open ||
+		allPrivateChatsPanel?.open;
+
 	// Desktop layout
 	return (
 		<SidebarProvider value={sidebarContextValue}>
@@ -274,8 +282,13 @@ export function LayoutShell({
 						/>
 					</div>
 
-					{/* Main container with sidebar and content - relative for inbox positioning */}
-					<div className="relative flex flex-1 rounded-xl border bg-background overflow-hidden">
+					{/* Sidebar + slide-out panels share one container; overflow visible so panels can overlay main content */}
+					<div
+						className={cn(
+							"relative hidden md:flex shrink-0 border bg-sidebar z-20 transition-[border-radius,border-color] duration-200",
+							anySlideOutOpen ? "rounded-l-xl border-r-0 delay-0" : "rounded-xl delay-150"
+						)}
+					>
 						<Sidebar
 							searchSpace={searchSpace}
 							isCollapsed={isCollapsed}
@@ -292,6 +305,8 @@ export function LayoutShell({
 							onChatArchive={onChatArchive}
 							onViewAllSharedChats={onViewAllSharedChats}
 							onViewAllPrivateChats={onViewAllPrivateChats}
+							isSharedChatsPanelOpen={allSharedChatsPanel?.open}
+							isPrivateChatsPanelOpen={allPrivateChatsPanel?.open}
 							user={user}
 							onSettings={onSettings}
 							onManageMembers={onManageMembers}
@@ -300,32 +315,16 @@ export function LayoutShell({
 							pageUsage={pageUsage}
 							theme={theme}
 							setTheme={setTheme}
-							className="hidden md:flex border-r shrink-0"
+							className={cn(
+								"flex shrink-0 transition-[border-radius] duration-200",
+								anySlideOutOpen ? "rounded-l-xl delay-0" : "rounded-xl delay-150"
+							)}
 							isLoadingChats={isLoadingChats}
 							sidebarWidth={sidebarWidth}
-							onResizeMouseDown={onResizeMouseDown}
 							isResizing={isResizing}
 						/>
 
-						<main className="flex-1 flex flex-col min-w-0">
-							<Header />
-
-							<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
-								{children}
-							</div>
-						</main>
-
-						{/* Right panel — tabbed Sources/Report (desktop only) */}
-						{documentsPanel && (
-							<RightPanel
-								documentsPanel={{
-									open: documentsPanel.open,
-									onOpenChange: documentsPanel.onOpenChange,
-								}}
-							/>
-						)}
-
-						{/* Inbox Sidebar - slide-out panel */}
+						{/* Slide-out panels render as siblings next to the sidebar */}
 						{inbox && (
 							<InboxSidebar
 								open={inbox.isOpen}
@@ -336,7 +335,6 @@ export function LayoutShell({
 							/>
 						)}
 
-						{/* Announcements Sidebar */}
 						{announcementsPanel && (
 							<AnnouncementsSidebar
 								open={announcementsPanel.open}
@@ -344,7 +342,6 @@ export function LayoutShell({
 							/>
 						)}
 
-						{/* All Shared Chats - slide-out panel */}
 						{allSharedChatsPanel && (
 							<AllSharedChatsSidebar
 								open={allSharedChatsPanel.open}
@@ -353,7 +350,6 @@ export function LayoutShell({
 							/>
 						)}
 
-						{/* All Private Chats - slide-out panel */}
 						{allPrivateChatsPanel && (
 							<AllPrivateChatsSidebar
 								open={allPrivateChatsPanel.open}
@@ -362,6 +358,40 @@ export function LayoutShell({
 							/>
 						)}
 					</div>
+
+					{/* Resize handle — negative margins eat the flex gap so spacing stays unchanged */}
+					{!isCollapsed && (
+						<div
+							role="slider"
+							aria-label="Resize sidebar"
+							aria-valuemin={0}
+							aria-valuemax={100}
+							aria-valuenow={50}
+							tabIndex={0}
+							onMouseDown={onResizeMouseDown}
+							className="hidden md:block h-full cursor-col-resize z-30 focus:outline-none"
+							style={{ width: 8, marginLeft: -8, marginRight: -8 }}
+						/>
+					)}
+
+					{/* Main content panel */}
+					<div className="relative flex flex-1 flex-col rounded-xl border bg-main-panel overflow-hidden min-w-0">
+						<Header />
+
+						<div className={cn("flex-1", isChatPage ? "overflow-hidden" : "overflow-auto")}>
+							{children}
+						</div>
+					</div>
+
+					{/* Right panel — tabbed Sources/Report (desktop only) */}
+					{documentsPanel && (
+						<RightPanel
+							documentsPanel={{
+								open: documentsPanel.open,
+								onOpenChange: documentsPanel.onOpenChange,
+							}}
+						/>
+					)}
 				</div>
 			</TooltipProvider>
 		</SidebarProvider>

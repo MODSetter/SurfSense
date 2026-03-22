@@ -77,14 +77,14 @@ const XScrollable = forwardRef<
 	const dragging = useRef(false);
 	const startX = useRef(0);
 	const startScrollLeft = useRef(0);
-	const [scrollPos, setScrollPos] = useState<"start" | "middle" | "end">("start");
+	const [scrollPos, setScrollPos] = useState<"start" | "middle" | "end" | "none">("none");
 
 	const updateScrollPos = useCallback(() => {
 		const el = scrollRef.current;
 		if (!el) return;
 		const canScroll = el.scrollWidth > el.clientWidth + 1;
 		if (!canScroll) {
-			setScrollPos("start");
+			setScrollPos("none");
 			return;
 		}
 		const atStart = el.scrollLeft <= 2;
@@ -130,9 +130,12 @@ const XScrollable = forwardRef<
 		updateScrollPos();
 	}, [updateScrollPos]);
 
-	const maskStart = scrollPos === "start" ? "black" : "transparent";
-	const maskEnd = scrollPos === "end" ? "black" : "transparent";
-	const maskImage = `linear-gradient(to right, ${maskStart}, black 24px, black calc(100% - 24px), ${maskEnd})`;
+	const needsMask = scrollPos !== "none";
+	const maskStart = scrollPos === "start" || scrollPos === "none" ? "black" : "transparent";
+	const maskEnd = scrollPos === "end" || scrollPos === "none" ? "black" : "transparent";
+	const maskImage = needsMask
+		? `linear-gradient(to right, ${maskStart}, black 24px, black calc(100% - 24px), ${maskEnd})`
+		: undefined;
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: drag-scroll container needs mouse events

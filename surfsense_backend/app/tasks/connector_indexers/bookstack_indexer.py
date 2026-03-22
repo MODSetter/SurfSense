@@ -430,7 +430,7 @@ async def index_bookstack_pages(
                 document.content_hash = item["content_hash"]
                 document.embedding = summary_embedding
                 document.document_metadata = doc_metadata
-                safe_set_chunks(document, chunks)
+                await safe_set_chunks(session, document, chunks)
                 document.updated_at = get_current_timestamp()
                 document.status = DocumentStatus.ready()
 

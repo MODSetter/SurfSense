@@ -27,11 +27,18 @@ SurfSense is a highly customizable AI research agent, connected to external sour
 
 
 
-# Video 
+# Demo
 
 https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 
-## Podcast Sample
+## Video Agent Sample
+
+
+https://github.com/user-attachments/assets/cc977e6d-8292-4ffe-abb8-3b0560ef5562
+
+
+
+## Podcast Agent Sample
 
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
@@ -46,20 +53,25 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 2. Connect your connectors and sync. Enable periodic syncing to keep connectors synced.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/59da61d7-da05-4576-b7c0-dbc09f5985e8" alt="Connectors" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/0740f351-23fa-4909-9880-70aa1dcc1df7" alt="Connectors" /></p>
 
 3. Till connectors data index, upload Documents.
 
-<p align="center"><img src="https://github.com/user-attachments/assets/d1e8b2e2-9eac-41d8-bdc0-f0cdc405d128" alt="Upload Documents" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/daf3dbae-ef86-4e86-82ea-fcbcad988761" alt="Upload Documents" /></p>
 
 4. Once everything is indexed, Ask Away (Use Cases):
 
+   - Video Generation
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/af85c0f3-6cfd-4757-9706-07fd5e32c857" alt="Search and Citation" /></p>
+   
    - Basic search and citation
 
    <p align="center"><img src="https://github.com/user-attachments/assets/81e797a1-e01a-4003-8e60-0a0b3a9789df" alt="Search and Citation" /></p>
 
    - Document Mention QNA
 
+   <p align="center"><img src="https://github.com/user-attachments/assets/65c3bf06-1d46-4dd5-b169-4d934c9b6798" alt="Document Mention QNA" /></p>
    <p align="center"><img src="https://github.com/user-attachments/assets/be958295-0a8c-4707-998c-9fe1f1c007be" alt="Document Mention QNA" /></p>
 
    - Report Generations and Exports (PDF, DOCX, HTML, LaTeX, EPUB, ODT, Plain Text)
@@ -133,6 +145,8 @@ For Docker Compose, manual installation, and other deployment options, see the [
 | Universal LLM Support | 100+ LLMs, 6000+ embedding models, all major rerankers via OpenAI spec & LiteLLM |
 | Privacy First | Full local LLM support (vLLM, Ollama) your data stays yours |
 | Team Collaboration | RBAC with Owner / Admin / Editor / Viewer roles, real time chat & comment threads |
+| Video Generation | Generate videos with narration and visuals |
+| Presentation Generation | Create editable, slide based presentations |
 | Podcast Generation | 3 min podcast in under 20 seconds; multiple TTS providers (OpenAI, Azure, Kokoro) |
 | Browser Extension | Cross browser extension to save any webpage, including auth protected pages |
 | 25+ Connectors | Search Engines, Google Drive, Slack, Teams, Jira, Notion, GitHub, Discord & [more](#external-sources) |

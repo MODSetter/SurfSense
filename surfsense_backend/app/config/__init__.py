@@ -224,6 +224,9 @@ class Config:
         os.getenv("CONNECTOR_INDEXING_LOCK_TTL_SECONDS", str(8 * 60 * 60))
     )
 
+    # Platform web search (SearXNG)
+    SEARXNG_DEFAULT_HOST = os.getenv("SEARXNG_DEFAULT_HOST")
+
     NEXT_FRONTEND_URL = os.getenv("NEXT_FRONTEND_URL")
     # Backend URL to override the http to https in the OAuth redirect URI
     BACKEND_URL = os.getenv("BACKEND_URL")

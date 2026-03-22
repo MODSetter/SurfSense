@@ -1112,7 +1112,7 @@ async def _index_composio_drive_delta_sync(
                 "connector_id": connector_id,
                 "source": "composio",
             }
-            safe_set_chunks(document, chunks)
+            await safe_set_chunks(session, document, chunks)
             document.updated_at = get_current_timestamp()
             document.status = DocumentStatus.ready()
 
@@ -1520,7 +1520,7 @@ async def _index_composio_drive_full_scan(
                 "connector_id": connector_id,
                 "source": "composio",
             }
-            safe_set_chunks(document, chunks)
+            await safe_set_chunks(session, document, chunks)
             document.updated_at = get_current_timestamp()
             document.status = DocumentStatus.ready()
 
