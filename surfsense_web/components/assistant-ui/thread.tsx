@@ -103,12 +103,12 @@ import { cn } from "@/lib/utils";
 
 /** Placeholder texts that cycle in new chats when input is empty */
 const CYCLING_PLACEHOLDERS = [
-	"Ask SurfSense anything or @mention docs.",
-	"Generate a podcast from my vacation ideas in Notion.",
-	"Sum up last week's meeting notes from Drive in a bulleted list.",
-	"Give me a brief overview of the most urgent tickets in Jira and Linear.",
+	"Ask SurfSense anything or @mention docs",
+	"Generate a podcast from my vacation ideas in Notion",
+	"Sum up last week's meeting notes from Drive in a bulleted list",
+	"Give me a brief overview of the most urgent tickets in Jira and Linear",
 	"Briefly, what are today's top ten important emails and calendar events?",
-	"Check if this week's Slack messages reference any GitHub issues.",
+	"Check if this week's Slack messages reference any GitHub issues",
 ];
 
 interface ThreadProps {
