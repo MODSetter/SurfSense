@@ -19,6 +19,7 @@ import { FPS } from "@/lib/remotion/constants";
 import {
 	CombinedPlayer,
 	buildCompositionComponent,
+	buildSlideWithWatermark,
 	type CompiledSlide,
 } from "./combined-player";
 
@@ -397,11 +398,12 @@ function VideoPresentationPlayer({
 
 				const holdFrame = Math.floor(slide.durationInFrames * 0.3);
 				const root = createRoot(wrapper);
+				const SlideWithWatermark = buildSlideWithWatermark(slide.component);
 
 				flushSync(() => {
 					root.render(
 						React.createElement(Thumbnail, {
-							component: slide.component,
+							component: SlideWithWatermark,
 							compositionWidth: 1920,
 							compositionHeight: 1080,
 							frameToDisplay: holdFrame,

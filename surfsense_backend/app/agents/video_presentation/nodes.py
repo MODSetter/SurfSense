@@ -178,18 +178,29 @@ async def create_slide_audio(state: State, config: RunnableConfig) -> dict[str, 
 
         chunk_paths: list[str] = []
         try:
-            for i, text in enumerate(slide.speaker_transcripts):
-                chunk_path = str(
+            chunk_paths = [
+                str(
                     temp_dir
                     / f"{session_id}_slide_{slide.slide_number}_chunk_{i}.{ext}"
                 )
+                for i in range(len(slide.speaker_transcripts))
+            ]
+
+            for i, text in enumerate(slide.speaker_transcripts):
                 print(
                     f"  Slide {slide.slide_number} chunk {i + 1}/"
                     f"{len(slide.speaker_transcripts)}: "
                     f'"{text[:60]}..."'
                 )
-                await _generate_tts_chunk(text, chunk_path)
-                chunk_paths.append(chunk_path)
+
+            await asyncio.gather(
+                *[
+                    _generate_tts_chunk(text, path)
+                    for text, path in zip(
+                        slide.speaker_transcripts, chunk_paths, strict=False
+                    )
+                ]
+            )
 
             if len(chunk_paths) == 1:
                 shutil.move(chunk_paths[0], output_file)
@@ -340,13 +351,30 @@ async def _assign_themes_with_llm(
         }
 
 
+async def assign_slide_themes(state: State, config: RunnableConfig) -> dict[str, Any]:
+    """Assign a theme preset + dark/light mode to every slide via a single LLM call.
+
+    Runs in parallel with audio generation since it only needs slide metadata.
+    """
+    configuration = Configuration.from_runnable_config(config)
+    search_space_id = configuration.search_space_id
+
+    llm = await get_agent_llm(state.db_session, search_space_id)
+    if not llm:
+        raise RuntimeError(f"No LLM configured for search space {search_space_id}")
+
+    slides = state.slides or []
+    assignments = await _assign_themes_with_llm(llm, slides)
+    return {"slide_theme_assignments": assignments}
+
+
 async def generate_slide_scene_codes(
     state: State, config: RunnableConfig
 ) -> dict[str, Any]:
     """Generate Remotion component code for each slide using LLM.
 
-    First assigns a theme+mode to every slide via a single LLM call,
-    then generates scene code per slide with the assigned theme.
+    Reads pre-assigned themes from state (produced by the parallel
+    assign_slide_themes node) and generates scene code concurrently.
     """
 
     configuration = Configuration.from_runnable_config(config)
@@ -362,11 +390,9 @@ async def generate_slide_scene_codes(
     audio_map: dict[int, SlideAudioResult] = {r.slide_number: r for r in audio_results}
     total_slides = len(slides)
 
-    theme_assignments = await _assign_themes_with_llm(llm, slides)
+    theme_assignments = state.slide_theme_assignments or {}
 
-    scene_codes: list[SlideSceneCode] = []
-
-    for slide in slides:
+    async def _generate_scene_for_slide(slide: SlideContent) -> SlideSceneCode:
         audio = audio_map.get(slide.slide_number)
         duration = audio.duration_in_frames if audio else DEFAULT_DURATION_IN_FRAMES
 
@@ -402,15 +428,17 @@ async def generate_slide_scene_codes(
 
         code = await _refine_if_needed(llm, code, slide.slide_number)
 
-        scene_codes.append(
-            SlideSceneCode(
-                slide_number=slide.slide_number,
-                code=code,
-                title=scene_title or slide.title,
-            )
+        print(f"Scene code ready for slide {slide.slide_number} ({len(code)} chars)")
+
+        return SlideSceneCode(
+            slide_number=slide.slide_number,
+            code=code,
+            title=scene_title or slide.title,
         )
 
-        print(f"Scene code ready for slide {slide.slide_number} ({len(code)} chars)")
+    scene_codes = list(
+        await asyncio.gather(*[_generate_scene_for_slide(s) for s in slides])
+    )
 
     return {"slide_scene_codes": scene_codes}
 

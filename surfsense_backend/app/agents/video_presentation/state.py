@@ -60,7 +60,7 @@ class SlideSceneCode(BaseModel):
 class State:
     """State for the video presentation agent graph.
 
-    Pipeline: parse slides → generate per-slide TTS audio → generate per-slide Remotion code
+    Pipeline: parse slides → (TTS audio ∥ theme assignment) → generate Remotion code
     The frontend receives the slides + code + audio and handles compilation/rendering.
     """
 
@@ -69,4 +69,5 @@ class State:
 
     slides: list[SlideContent] | None = None
     slide_audio_results: list[SlideAudioResult] | None = None
+    slide_theme_assignments: dict[int, tuple[str, str]] | None = None
     slide_scene_codes: list[SlideSceneCode] | None = None

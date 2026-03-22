@@ -9,7 +9,6 @@ from sqlalchemy import select
 from app.agents.video_presentation.graph import graph as video_presentation_graph
 from app.agents.video_presentation.state import State as VideoPresentationState
 from app.celery_app import celery_app
-from app.config import config
 from app.db import VideoPresentation, VideoPresentationStatus
 from app.tasks.celery_tasks import get_celery_session_maker
 
@@ -22,21 +21,6 @@ if sys.platform.startswith("win"):
         logger.warning(
             "WindowsProactorEventLoopPolicy is unavailable; async subprocess support may fail."
         )
-
-
-def _clear_generating_video_presentation(search_space_id: int) -> None:
-    """Clear the generating video presentation marker from Redis when task completes."""
-    import redis
-
-    try:
-        client = redis.from_url(config.REDIS_APP_URL, decode_responses=True)
-        key = f"video_presentation:generating:{search_space_id}"
-        client.delete(key)
-        logger.info(
-            f"Cleared generating video presentation key for search_space_id={search_space_id}"
-        )
-    except Exception as e:
-        logger.warning(f"Could not clear generating video presentation key: {e}")
 
 
 @celery_app.task(name="generate_video_presentation", bind=True)
@@ -70,7 +54,6 @@ def generate_video_presentation_task(
         loop.run_until_complete(_mark_video_presentation_failed(video_presentation_id))
         return {"status": "failed", "video_presentation_id": video_presentation_id}
     finally:
-        _clear_generating_video_presentation(search_space_id)
         asyncio.set_event_loop(None)
         loop.close()
 
