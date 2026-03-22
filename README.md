@@ -145,6 +145,8 @@ For Docker Compose, manual installation, and other deployment options, see the [
 | Universal LLM Support | 100+ LLMs, 6000+ embedding models, all major rerankers via OpenAI spec & LiteLLM |
 | Privacy First | Full local LLM support (vLLM, Ollama) your data stays yours |
 | Team Collaboration | RBAC with Owner / Admin / Editor / Viewer roles, real time chat & comment threads |
+| Video Generation | Generate videos with narration and visuals |
+| Presentation Generation | Create editable, slide based presentations |
 | Podcast Generation | 3 min podcast in under 20 seconds; multiple TTS providers (OpenAI, Azure, Kokoro) |
 | Browser Extension | Cross browser extension to save any webpage, including auth protected pages |
 | 25+ Connectors | Search Engines, Google Drive, Slack, Teams, Jira, Notion, GitHub, Discord & [more](#external-sources) |

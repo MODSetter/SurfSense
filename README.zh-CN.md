@@ -27,11 +27,18 @@ SurfSense 是一个高度可定制的 AI 研究助手，可以连接外部数据
 
 
 
-# 视频 
+# 演示
 
 https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 
-## 播客示例
+## 视频代理示例
+
+
+https://github.com/user-attachments/assets/cc977e6d-8292-4ffe-abb8-3b0560ef5562
+
+
+
+## 播客代理示例
 
 https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
@@ -46,20 +53,25 @@ https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
 
 2. 连接您的连接器并同步。启用定期同步以保持连接器数据更新。
 
-<p align="center"><img src="https://github.com/user-attachments/assets/59da61d7-da05-4576-b7c0-dbc09f5985e8" alt="连接器" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/0740f351-23fa-4909-9880-70aa1dcc1df7" alt="连接器" /></p>
 
 3. 在连接器数据索引期间，上传文档。
 
-<p align="center"><img src="https://github.com/user-attachments/assets/d1e8b2e2-9eac-41d8-bdc0-f0cdc405d128" alt="上传文档" /></p>
+<p align="center"><img src="https://github.com/user-attachments/assets/daf3dbae-ef86-4e86-82ea-fcbcad988761" alt="上传文档" /></p>
 
 4. 一切索引完成后，尽管提问（使用场景）：
 
+   - 视频生成
+
+   <p align="center"><img src="https://github.com/user-attachments/assets/af85c0f3-6cfd-4757-9706-07fd5e32c857" alt="视频生成" /></p>
+   
    - 基本搜索和引用
 
    <p align="center"><img src="https://github.com/user-attachments/assets/81e797a1-e01a-4003-8e60-0a0b3a9789df" alt="搜索和引用" /></p>
 
    - 文档提及问答
 
+   <p align="center"><img src="https://github.com/user-attachments/assets/65c3bf06-1d46-4dd5-b169-4d934c9b6798" alt="文档提及问答" /></p>
    <p align="center"><img src="https://github.com/user-attachments/assets/be958295-0a8c-4707-998c-9fe1f1c007be" alt="文档提及问答" /></p>
 
    - 报告生成和导出（PDF、DOCX、HTML、LaTeX、EPUB、ODT、纯文本）
@@ -133,6 +145,8 @@ irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/in
 | 通用 LLM 支持 | 100+ LLM、6000+ 嵌入模型、所有主流重排序器，通过 OpenAI spec 和 LiteLLM |
 | 隐私优先 | 完整本地 LLM 支持（vLLM、Ollama），您的数据由您掌控 |
 | 团队协作 | RBAC 角色控制（所有者/管理员/编辑者/查看者），实时聊天和评论线程 |
+| 视频生成 | 生成带有旁白和视觉效果的视频 |
+| 演示文稿生成 | 创建可编辑的幻灯片式演示文稿 |
 | 播客生成 | 20 秒内生成 3 分钟播客；多种 TTS 提供商（OpenAI、Azure、Kokoro） |
 | 浏览器扩展 | 跨浏览器扩展，保存任何网页，包括需要身份验证的页面 |
 | 25+ 连接器 | 搜索引擎、Google Drive、Slack、Teams、Jira、Notion、GitHub、Discord 等[更多](#外部数据源) |
