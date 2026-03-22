@@ -1,6 +1,7 @@
 import { app, BrowserWindow, shell, ipcMain, session, dialog, clipboard, Menu } from 'electron';
 import path from 'path';
 import { getPort } from 'get-port-please';
+import { autoUpdater } from 'electron-updater';
 
 function showErrorDialog(title: string, error: unknown): void {
   const err = error instanceof Error ? error : new Error(String(error));
@@ -210,6 +211,37 @@ if (process.defaultApp) {
   app.setAsDefaultProtocolClient(PROTOCOL);
 }
 
+function setupAutoUpdater() {
+  if (isDev) return;
+
+  autoUpdater.autoDownload = true;
+
+  autoUpdater.on('update-available', (info) => {
+    console.log(`Update available: ${info.version}`);
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    console.log(`Update downloaded: ${info.version}`);
+    dialog.showMessageBox({
+      type: 'info',
+      buttons: ['Restart', 'Later'],
+      defaultId: 0,
+      title: 'Update Ready',
+      message: `Version ${info.version} has been downloaded. Restart to apply the update.`,
+    }).then(({ response }) => {
+      if (response === 0) {
+        autoUpdater.quitAndInstall();
+      }
+    });
+  });
+
+  autoUpdater.on('error', (err) => {
+    console.error('Auto-updater error:', err);
+  });
+
+  autoUpdater.checkForUpdates();
+}
+
 function setupMenu() {
   const isMac = process.platform === 'darwin';
   const template: Electron.MenuItemConstructorOptions[] = [
@@ -233,6 +265,7 @@ app.whenReady().then(async () => {
     return;
   }
   createWindow();
+  setupAutoUpdater();
 
   // If a deep link was received before the window was ready, handle it now
   if (deepLinkUrl) {
