@@ -37,55 +37,11 @@ import { Thread } from "@/components/assistant-ui/thread";
 import { MobileEditorPanel } from "@/components/editor-panel/editor-panel";
 import { MobileHitlEditPanel } from "@/components/hitl-edit-panel/hitl-edit-panel";
 import { MobileReportPanel } from "@/components/report-panel/report-panel";
-import {
-	CreateConfluencePageToolUI,
-	DeleteConfluencePageToolUI,
-	UpdateConfluencePageToolUI,
-} from "@/components/tool-ui/confluence";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
-import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
-import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
-import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
-import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
-import {
-	CreateGmailDraftToolUI,
-	SendGmailEmailToolUI,
-	TrashGmailEmailToolUI,
-	UpdateGmailDraftToolUI,
-} from "@/components/tool-ui/gmail";
-import {
-	CreateCalendarEventToolUI,
-	DeleteCalendarEventToolUI,
-	UpdateCalendarEventToolUI,
-} from "@/components/tool-ui/google-calendar";
-import {
-	CreateGoogleDriveFileToolUI,
-	DeleteGoogleDriveFileToolUI,
-} from "@/components/tool-ui/google-drive";
-import {
-	CreateJiraIssueToolUI,
-	DeleteJiraIssueToolUI,
-	UpdateJiraIssueToolUI,
-} from "@/components/tool-ui/jira";
-import {
-	CreateLinearIssueToolUI,
-	DeleteLinearIssueToolUI,
-	UpdateLinearIssueToolUI,
-} from "@/components/tool-ui/linear";
-import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
-import {
-	CreateNotionPageToolUI,
-	DeleteNotionPageToolUI,
-	UpdateNotionPageToolUI,
-} from "@/components/tool-ui/notion";
-import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
-import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
-import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
 import { useMessagesElectric } from "@/hooks/use-messages-electric";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
-// import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
 import { convertToThreadMessage } from "@/lib/chat/message-utils";
 import {
@@ -1719,37 +1675,6 @@ export default function NewChatPage() {
 
 	return (
 		<AssistantRuntimeProvider runtime={runtime}>
-			<GeneratePodcastToolUI />
-			<GenerateReportToolUI />
-			<GenerateVideoPresentationToolUI />
-			<LinkPreviewToolUI />
-			<DisplayImageToolUI />
-			<ScrapeWebpageToolUI />
-			<SaveMemoryToolUI />
-			<RecallMemoryToolUI />
-			<CreateNotionPageToolUI />
-			<UpdateNotionPageToolUI />
-			<DeleteNotionPageToolUI />
-			<CreateLinearIssueToolUI />
-			<UpdateLinearIssueToolUI />
-			<DeleteLinearIssueToolUI />
-			<CreateGoogleDriveFileToolUI />
-			<DeleteGoogleDriveFileToolUI />
-			<CreateCalendarEventToolUI />
-			<UpdateCalendarEventToolUI />
-			<DeleteCalendarEventToolUI />
-			<CreateGmailDraftToolUI />
-			<UpdateGmailDraftToolUI />
-			<SendGmailEmailToolUI />
-			<TrashGmailEmailToolUI />
-			<CreateJiraIssueToolUI />
-			<UpdateJiraIssueToolUI />
-			<DeleteJiraIssueToolUI />
-			<CreateConfluencePageToolUI />
-			<UpdateConfluencePageToolUI />
-			<DeleteConfluencePageToolUI />
-			<SandboxExecuteToolUI />
-			{/* <WriteTodosToolUI /> Disabled for now */}
 			<div key={searchSpaceId} className="flex h-[calc(100dvh-64px)] overflow-hidden">
 				<div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 					<Thread messageThinkingSteps={messageThinkingSteps} />

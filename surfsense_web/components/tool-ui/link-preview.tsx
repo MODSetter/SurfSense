@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { AlertCircleIcon, ExternalLinkIcon, LinkIcon } from "lucide-react";
 import { z } from "zod";
 import {
@@ -111,9 +111,7 @@ function ParsedMediaCard({ result }: { result: unknown }) {
  * - Domain name
  * - Clickable link to open in new tab
  */
-export const LinkPreviewToolUI = makeAssistantToolUI<LinkPreviewArgs, LinkPreviewResult>({
-	toolName: "link_preview",
-	render: function LinkPreviewUI({ args, result, status }) {
+export const LinkPreviewToolUI = ({ args, result, status }: ToolCallMessagePartProps<LinkPreviewArgs, LinkPreviewResult>) => {
 		const url = args.url || "Unknown URL";
 
 		// Loading state - tool is still running
@@ -162,8 +160,7 @@ export const LinkPreviewToolUI = makeAssistantToolUI<LinkPreviewArgs, LinkPrevie
 				</MediaCardErrorBoundary>
 			</div>
 		);
-	},
-});
+};
 
 // ============================================================================
 // Multi Link Preview Schemas
@@ -195,12 +192,7 @@ const MultiLinkPreviewResultSchema = z.object({
 type MultiLinkPreviewArgs = z.infer<typeof MultiLinkPreviewArgsSchema>;
 type MultiLinkPreviewResult = z.infer<typeof MultiLinkPreviewResultSchema>;
 
-export const MultiLinkPreviewToolUI = makeAssistantToolUI<
-	MultiLinkPreviewArgs,
-	MultiLinkPreviewResult
->({
-	toolName: "multi_link_preview",
-	render: function MultiLinkPreviewUI({ args, result, status }) {
+export const MultiLinkPreviewToolUI = ({ args, result, status }: ToolCallMessagePartProps<MultiLinkPreviewArgs, MultiLinkPreviewResult>) => {
 		const urls = args.urls || [];
 
 		// Loading state
@@ -244,8 +236,7 @@ export const MultiLinkPreviewToolUI = makeAssistantToolUI<
 				))}
 			</div>
 		);
-	},
-});
+};
 
 export {
 	LinkPreviewArgsSchema,

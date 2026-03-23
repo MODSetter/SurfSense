@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import {
 	AlertCircleIcon,
 	CheckCircle2Icon,
@@ -380,9 +380,7 @@ function ExecuteCompleted({
 // Tool UI
 // ============================================================================
 
-export const SandboxExecuteToolUI = makeAssistantToolUI<ExecuteArgs, ExecuteResult>({
-	toolName: "execute",
-	render: function SandboxExecuteUI({ args, result, status }) {
+export const SandboxExecuteToolUI = ({ args, result, status }: ToolCallMessagePartProps<ExecuteArgs, ExecuteResult>) => {
 		const command = args.command || "…";
 
 		if (status.type === "running" || status.type === "requires-action") {
@@ -414,7 +412,6 @@ export const SandboxExecuteToolUI = makeAssistantToolUI<ExecuteArgs, ExecuteResu
 		const parsed = parseExecuteResult(result);
 		const threadId = result.thread_id || null;
 		return <ExecuteCompleted command={command} parsed={parsed} threadId={threadId} />;
-	},
-});
+};
 
 export { ExecuteArgsSchema, ExecuteResultSchema, type ExecuteArgs, type ExecuteResult };

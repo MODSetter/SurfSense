@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { BrainIcon, CheckIcon, Loader2Icon, SearchIcon, XIcon } from "lucide-react";
 import { z } from "zod";
 
@@ -80,9 +80,7 @@ function CategoryBadge({ category }: { category: string }) {
 // Save Memory Tool UI
 // ============================================================================
 
-export const SaveMemoryToolUI = makeAssistantToolUI<SaveMemoryArgs, SaveMemoryResult>({
-	toolName: "save_memory",
-	render: function SaveMemoryUI({ args, result, status }) {
+export const SaveMemoryToolUI = ({ args, result, status }: ToolCallMessagePartProps<SaveMemoryArgs, SaveMemoryResult>) => {
 		const isRunning = status.type === "running" || status.type === "requires-action";
 		const isComplete = status.type === "complete";
 		const isError = result?.status === "error";
@@ -159,16 +157,13 @@ export const SaveMemoryToolUI = makeAssistantToolUI<SaveMemoryArgs, SaveMemoryRe
 		}
 
 		return null;
-	},
-});
+};
 
 // ============================================================================
 // Recall Memory Tool UI
 // ============================================================================
 
-export const RecallMemoryToolUI = makeAssistantToolUI<RecallMemoryArgs, RecallMemoryResult>({
-	toolName: "recall_memory",
-	render: function RecallMemoryUI({ args, result, status }) {
+export const RecallMemoryToolUI = ({ args, result, status }: ToolCallMessagePartProps<RecallMemoryArgs, RecallMemoryResult>) => {
 		const isRunning = status.type === "running" || status.type === "requires-action";
 		const isComplete = status.type === "complete";
 		const isError = result?.status === "error";
@@ -263,8 +258,7 @@ export const RecallMemoryToolUI = makeAssistantToolUI<RecallMemoryArgs, RecallMe
 		}
 
 		return null;
-	},
-});
+};
 
 // ============================================================================
 // Exports

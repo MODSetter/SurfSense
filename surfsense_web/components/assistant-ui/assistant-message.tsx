@@ -1,10 +1,9 @@
 import {
 	ActionBarPrimitive,
-	AssistantIf,
+	AuiIf,
 	ErrorPrimitive,
 	MessagePrimitive,
-	useAssistantState,
-	useMessage,
+	useAuiState,
 } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
@@ -21,6 +20,22 @@ import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
+import { CreateConfluencePageToolUI, DeleteConfluencePageToolUI, UpdateConfluencePageToolUI } from "@/components/tool-ui/confluence";
+import { DeepAgentThinkingToolUI } from "@/components/tool-ui/deepagent-thinking";
+import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
+import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
+import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
+import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
+import { CreateGmailDraftToolUI, SendGmailEmailToolUI, TrashGmailEmailToolUI, UpdateGmailDraftToolUI } from "@/components/tool-ui/gmail";
+import { CreateCalendarEventToolUI, DeleteCalendarEventToolUI, UpdateCalendarEventToolUI } from "@/components/tool-ui/google-calendar";
+import { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "@/components/tool-ui/google-drive";
+import { CreateJiraIssueToolUI, DeleteJiraIssueToolUI, UpdateJiraIssueToolUI } from "@/components/tool-ui/jira";
+import { CreateLinearIssueToolUI, DeleteLinearIssueToolUI, UpdateLinearIssueToolUI } from "@/components/tool-ui/linear";
+import { LinkPreviewToolUI, MultiLinkPreviewToolUI } from "@/components/tool-ui/link-preview";
+import { CreateNotionPageToolUI, DeleteNotionPageToolUI, UpdateNotionPageToolUI } from "@/components/tool-ui/notion";
+import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
+import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
+import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
@@ -42,13 +57,13 @@ const ThinkingStepsPart: FC = () => {
 	const thinkingStepsMap = useContext(ThinkingStepsContext);
 
 	// Get the current message ID to look up thinking steps
-	const messageId = useAssistantState(({ message }) => message?.id);
+	const messageId = useAuiState(({ message }) => message?.id);
 	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
 
 	// Check if this specific message is currently streaming
 	// A message is streaming if: thread is running AND this is the last assistant message
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
-	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
+	const isLastMessage = useAuiState(({ message }) => message?.isLast ?? false);
 	const isMessageStreaming = isThreadRunning && isLastMessage;
 
 	if (thinkingSteps.length === 0) return null;
@@ -70,7 +85,43 @@ const AssistantMessageInner: FC = () => {
 				<MessagePrimitive.Parts
 					components={{
 						Text: MarkdownText,
-						tools: { Fallback: ToolFallback },
+						tools: {
+							by_name: {
+								deepagent_thinking: DeepAgentThinkingToolUI,
+								generate_report: GenerateReportToolUI,
+								generate_podcast: GeneratePodcastToolUI,
+								generate_video_presentation: GenerateVideoPresentationToolUI,
+								link_preview: LinkPreviewToolUI,
+								multi_link_preview: MultiLinkPreviewToolUI,
+								display_image: DisplayImageToolUI,
+								scrape_webpage: ScrapeWebpageToolUI,
+								save_memory: SaveMemoryToolUI,
+								recall_memory: RecallMemoryToolUI,
+								execute: SandboxExecuteToolUI,
+								create_notion_page: CreateNotionPageToolUI,
+								update_notion_page: UpdateNotionPageToolUI,
+								delete_notion_page: DeleteNotionPageToolUI,
+								create_linear_issue: CreateLinearIssueToolUI,
+								update_linear_issue: UpdateLinearIssueToolUI,
+								delete_linear_issue: DeleteLinearIssueToolUI,
+								create_google_drive_file: CreateGoogleDriveFileToolUI,
+								delete_google_drive_file: DeleteGoogleDriveFileToolUI,
+								create_calendar_event: CreateCalendarEventToolUI,
+								update_calendar_event: UpdateCalendarEventToolUI,
+								delete_calendar_event: DeleteCalendarEventToolUI,
+								create_gmail_draft: CreateGmailDraftToolUI,
+								update_gmail_draft: UpdateGmailDraftToolUI,
+								send_gmail_email: SendGmailEmailToolUI,
+								trash_gmail_email: TrashGmailEmailToolUI,
+								create_jira_issue: CreateJiraIssueToolUI,
+								update_jira_issue: UpdateJiraIssueToolUI,
+								delete_jira_issue: DeleteJiraIssueToolUI,
+								create_confluence_page: CreateConfluencePageToolUI,
+								update_confluence_page: UpdateConfluencePageToolUI,
+								delete_confluence_page: DeleteConfluencePageToolUI,
+							},
+							Fallback: ToolFallback,
+						},
 					}}
 				/>
 				<MessageError />
@@ -95,7 +146,7 @@ export const AssistantMessage: FC = () => {
 	const messageRef = useRef<HTMLDivElement>(null);
 	const commentPanelRef = useRef<HTMLDivElement>(null);
 	const commentTriggerRef = useRef<HTMLButtonElement>(null);
-	const messageId = useAssistantState(({ message }) => message?.id);
+	const messageId = useAuiState(({ message }) => message?.id);
 	const searchSpaceId = useAtomValue(activeSearchSpaceIdAtom);
 	const dbMessageId = parseMessageId(messageId);
 	const commentsEnabled = useAtomValue(commentsEnabledAtom);
@@ -104,8 +155,8 @@ export const AssistantMessage: FC = () => {
 	const isMediumScreen = useMediaQuery("(min-width: 768px) and (max-width: 1023px)");
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
-	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
+	const isLastMessage = useAuiState(({ message }) => message?.isLast ?? false);
 	const isMessageStreaming = isThreadRunning && isLastMessage;
 
 	const { data: commentsData, isSuccess: commentsLoaded } = useComments({
@@ -227,38 +278,38 @@ export const AssistantMessage: FC = () => {
 };
 
 const AssistantActionBar: FC = () => {
-	const { isLast } = useMessage();
+	const isLast = useAuiState((s) => s.message.isLast);
 
 	return (
-		<ActionBarPrimitive.Root
+        <ActionBarPrimitive.Root
 			hideWhenRunning
 			autohide="not-last"
 			autohideFloat="single-branch"
 			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground md:data-floating:absolute md:data-floating:rounded-md md:data-floating:p-1 [&>button]:opacity-100 md:[&>button]:opacity-[var(--aui-button-opacity,1)]"
 		>
-			<ActionBarPrimitive.Copy asChild>
+            <ActionBarPrimitive.Copy asChild>
 				<TooltipIconButton tooltip="Copy">
-					<AssistantIf condition={({ message }) => message.isCopied}>
+					<AuiIf condition={({ message }) => message.isCopied}>
 						<CheckIcon />
-					</AssistantIf>
-					<AssistantIf condition={({ message }) => !message.isCopied}>
+					</AuiIf>
+					<AuiIf condition={({ message }) => !message.isCopied}>
 						<CopyIcon />
-					</AssistantIf>
+					</AuiIf>
 				</TooltipIconButton>
 			</ActionBarPrimitive.Copy>
-			<ActionBarPrimitive.ExportMarkdown asChild>
+            <ActionBarPrimitive.ExportMarkdown asChild>
 				<TooltipIconButton tooltip="Download">
 					<DownloadIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.ExportMarkdown>
-			{/* Only allow regenerating the last assistant message */}
-			{isLast && (
+            {/* Only allow regenerating the last assistant message */}
+            {isLast && (
 				<ActionBarPrimitive.Reload asChild>
 					<TooltipIconButton tooltip="Refresh">
 						<RefreshCwIcon />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Reload>
 			)}
-		</ActionBarPrimitive.Root>
-	);
+        </ActionBarPrimitive.Root>
+    );
 };

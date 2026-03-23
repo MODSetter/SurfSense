@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { CornerDownLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -396,12 +396,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const DeleteConfluencePageToolUI = makeAssistantToolUI<
+export const DeleteConfluencePageToolUI = ({ result }: ToolCallMessagePartProps<
 	{ page_title_or_id: string; delete_from_kb?: boolean },
 	DeleteConfluencePageResult
->({
-	toolName: "delete_confluence_page",
-	render: function DeleteConfluencePageUI({ result }) {
+>) => {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
@@ -435,5 +433,4 @@ export const DeleteConfluencePageToolUI = makeAssistantToolUI<
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 
 		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+};

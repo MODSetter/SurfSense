@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { CornerDownLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -393,12 +393,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const DeleteJiraIssueToolUI = makeAssistantToolUI<
+export const DeleteJiraIssueToolUI = ({ result }: ToolCallMessagePartProps<
 	{ issue_title_or_key: string; delete_from_kb?: boolean },
 	DeleteJiraIssueResult
->({
-	toolName: "delete_jira_issue",
-	render: function DeleteJiraIssueUI({ result }) {
+>) => {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
@@ -432,5 +430,4 @@ export const DeleteJiraIssueToolUI = makeAssistantToolUI<
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 
 		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+};

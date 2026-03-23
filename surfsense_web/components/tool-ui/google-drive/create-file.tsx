@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, FileIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -492,44 +492,38 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateGoogleDriveFileToolUI = makeAssistantToolUI<
-	{ name: string; file_type: string; content?: string },
-	CreateGoogleDriveFileResult
->({
-	toolName: "create_google_drive_file",
-	render: function CreateGoogleDriveFileUI({ args, result }) {
-		if (!result) return null;
+export const CreateGoogleDriveFileToolUI = ({ args, result }: ToolCallMessagePartProps<{ name: string; file_type: string; content?: string }, CreateGoogleDriveFileResult>) => {
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					args={args}
-					interruptData={result}
-					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					window.dispatchEvent(
+						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
+					);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
 
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
 
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+	return <SuccessCard result={result as SuccessResult} />;
+};

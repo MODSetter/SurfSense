@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useAtomValue, useSetAtom } from "jotai";
 import { Dot } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
@@ -273,9 +273,7 @@ function ReportCard({
  * Generate Report Tool UI — renders custom UI inline in chat
  * when the generate_report tool is called by the agent.
  */
-export const GenerateReportToolUI = makeAssistantToolUI<GenerateReportArgs, GenerateReportResult>({
-	toolName: "generate_report",
-	render: function GenerateReportUI({ args, result, status }) {
+export const GenerateReportToolUI = ({ args, result, status }: ToolCallMessagePartProps<GenerateReportArgs, GenerateReportResult>) => {
 		const params = useParams();
 		const pathname = usePathname();
 		const isPublicRoute = pathname?.startsWith("/public/");
@@ -332,5 +330,4 @@ export const GenerateReportToolUI = makeAssistantToolUI<GenerateReportArgs, Gene
 		}
 
 		return <ReportErrorState title={topic} error="Missing report ID" />;
-	},
-});
+};

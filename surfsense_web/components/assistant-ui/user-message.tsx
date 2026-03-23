@@ -1,4 +1,4 @@
-import { ActionBarPrimitive, MessagePrimitive, useAssistantState } from "@assistant-ui/react";
+import { ActionBarPrimitive, MessagePrimitive, useAuiState } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
 import { FileText, Pen } from "lucide-react";
 import { type FC, useState } from "react";
@@ -42,10 +42,10 @@ const UserAvatar: FC<AuthorMetadata> = ({ displayName, avatarUrl }) => {
 };
 
 export const UserMessage: FC = () => {
-	const messageId = useAssistantState(({ message }) => message?.id);
+	const messageId = useAuiState(({ message }) => message?.id);
 	const messageDocumentsMap = useAtomValue(messageDocumentsMapAtom);
 	const mentionedDocs = messageId ? messageDocumentsMap[messageId] : undefined;
-	const metadata = useAssistantState(({ message }) => message?.metadata);
+	const metadata = useAuiState(({ message }) => message?.metadata);
 	const author = metadata?.custom?.author as AuthorMetadata | undefined;
 
 	return (
@@ -93,13 +93,13 @@ export const UserMessage: FC = () => {
 };
 
 const UserActionBar: FC = () => {
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 
 	// Get current message ID
-	const currentMessageId = useAssistantState(({ message }) => message?.id);
+	const currentMessageId = useAuiState(({ message }) => message?.id);
 
 	// Find the last user message ID in the thread (computed once, memoized by selector)
-	const lastUserMessageId = useAssistantState(({ thread }) => {
+	const lastUserMessageId = useAuiState(({ thread }) => {
 		const messages = thread.messages;
 		for (let i = messages.length - 1; i >= 0; i--) {
 			if (messages[i].role === "user") {

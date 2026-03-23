@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -536,7 +536,7 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateJiraIssueToolUI = makeAssistantToolUI<
+export const CreateJiraIssueToolUI = ({ args, result }: ToolCallMessagePartProps<
 	{
 		project_key: string;
 		summary: string;
@@ -545,9 +545,7 @@ export const CreateJiraIssueToolUI = makeAssistantToolUI<
 		priority?: string;
 	},
 	CreateJiraIssueResult
->({
-	toolName: "create_jira_issue",
-	render: function CreateJiraIssueUI({ args, result }) {
+>) => {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
@@ -579,5 +577,4 @@ export const CreateJiraIssueToolUI = makeAssistantToolUI<
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 
 		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+};

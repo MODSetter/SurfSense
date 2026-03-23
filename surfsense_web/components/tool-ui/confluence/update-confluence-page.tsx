@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -493,16 +493,14 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const UpdateConfluencePageToolUI = makeAssistantToolUI<
+export const UpdateConfluencePageToolUI = ({ args, result }: ToolCallMessagePartProps<
 	{
 		page_title_or_id: string;
 		new_title?: string;
 		new_content?: string;
 	},
 	UpdateConfluencePageResult
->({
-	toolName: "update_confluence_page",
-	render: function UpdateConfluencePageUI({ args, result }) {
+>) => {
 		if (!result) return null;
 
 		if (isInterruptResult(result)) {
@@ -535,5 +533,4 @@ export const UpdateConfluencePageToolUI = makeAssistantToolUI<
 		if (isErrorResult(result)) return <ErrorCard result={result} />;
 
 		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+};

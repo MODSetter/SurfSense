@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { Brain, CheckCircle2, Loader2, Search, Sparkles } from "lucide-react";
 import type { FC, ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -317,12 +317,7 @@ const SmartChainOfThought: FC<SmartChainOfThoughtProps> = ({ steps }) => {
  * when the deepagent is processing a query. It shows thinking steps
  * in a collapsible, hierarchical format.
  */
-export const DeepAgentThinkingToolUI = makeAssistantToolUI<
-	DeepAgentThinkingArgs,
-	DeepAgentThinkingResult
->({
-	toolName: "deepagent_thinking",
-	render: function DeepAgentThinkingUI({ result, status }) {
+export const DeepAgentThinkingToolUI = ({ result, status }: ToolCallMessagePartProps<DeepAgentThinkingArgs, DeepAgentThinkingResult>) => {
 		// Loading state - tool is still running
 		if (status.type === "running" || status.type === "requires-action") {
 			return <ThinkingLoadingState status={result?.status ?? undefined} />;
@@ -349,8 +344,7 @@ export const DeepAgentThinkingToolUI = makeAssistantToolUI<
 				<SmartChainOfThought steps={result.steps} />
 			</div>
 		);
-	},
-});
+};
 
 // ============================================================================
 // Public Components

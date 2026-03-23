@@ -23,9 +23,8 @@
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
 		"@ariakit/react": "^0.4.21",
-		"@assistant-ui/react": "^0.11.53",
-		"@assistant-ui/react-ai-sdk": "^1.1.20",
-		"@assistant-ui/react-markdown": "^0.11.9",
+		"@assistant-ui/react": "^0.12.19",
+		"@assistant-ui/react-markdown": "^0.12.6",
 		"@babel/standalone": "^7.29.2",
 		"@electric-sql/client": "^1.4.0",
 		"@electric-sql/pglite": "^0.3.14",

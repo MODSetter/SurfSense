@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import {
 	AlertCircleIcon,
 	Download,
@@ -617,12 +617,10 @@ function StatusPoller({
 	return <ErrorState title={title} error="Unexpected state" />;
 }
 
-export const GenerateVideoPresentationToolUI = makeAssistantToolUI<
+export const GenerateVideoPresentationToolUI = ({ args, result, status }: ToolCallMessagePartProps<
 	GenerateVideoPresentationArgs,
 	GenerateVideoPresentationResult
->({
-	toolName: "generate_video_presentation",
-	render: function GenerateVideoPresentationUI({ args, result, status }) {
+>) => {
 		const params = useParams();
 		const pathname = usePathname();
 		const isPublicRoute = pathname?.startsWith("/public/");
@@ -705,5 +703,4 @@ export const GenerateVideoPresentationToolUI = makeAssistantToolUI<
 		}
 
 		return <ErrorState title={title} error="Missing presentation ID" />;
-	},
-});
+};

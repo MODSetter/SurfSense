@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { CalendarIcon, CornerDownLeftIcon, MailIcon, UserIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -379,43 +379,42 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const TrashGmailEmailToolUI = makeAssistantToolUI<
+export const TrashGmailEmailToolUI = ({
+	result,
+}: ToolCallMessagePartProps<
 	{ email_subject_or_id: string; delete_from_kb?: boolean },
 	TrashGmailEmailResult
->({
-	toolName: "trash_gmail_email",
-	render: function TrashGmailEmailUI({ result }) {
-		if (!result) return null;
+>) => {
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					interruptData={result}
-					onDecision={(decision) => {
-						const event = new CustomEvent("hitl-decision", {
-							detail: { decisions: [decision] },
-						});
-						window.dispatchEvent(event);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				interruptData={result}
+				onDecision={(decision) => {
+					const event = new CustomEvent("hitl-decision", {
+						detail: { decisions: [decision] },
+					});
+					window.dispatchEvent(event);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
-		if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
+	if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+	return <SuccessCard result={result as SuccessResult} />;
+};

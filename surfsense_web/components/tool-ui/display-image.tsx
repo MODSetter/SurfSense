@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { AlertCircleIcon, ImageIcon } from "lucide-react";
 import { z } from "zod";
 import {
@@ -103,9 +103,7 @@ function ParsedImage({ result }: { result: unknown }) {
  * - Hover overlay effects
  * - Click to open full size
  */
-export const DisplayImageToolUI = makeAssistantToolUI<DisplayImageArgs, DisplayImageResult>({
-	toolName: "display_image",
-	render: function DisplayImageUI({ args, result, status }) {
+export const DisplayImageToolUI = ({ args, result, status }: ToolCallMessagePartProps<DisplayImageArgs, DisplayImageResult>) => {
 		const src = args.src || "Unknown";
 
 		// Loading state - tool is still running
@@ -154,8 +152,7 @@ export const DisplayImageToolUI = makeAssistantToolUI<DisplayImageArgs, DisplayI
 				</ImageErrorBoundary>
 			</div>
 		);
-	},
-});
+};
 
 export {
 	DisplayImageArgsSchema,

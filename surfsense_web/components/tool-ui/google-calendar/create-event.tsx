@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { ClockIcon, CornerDownLeftIcon, GlobeIcon, MapPinIcon, Pen, UsersIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -606,7 +606,10 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const CreateCalendarEventToolUI = makeAssistantToolUI<
+export const CreateCalendarEventToolUI = ({
+	args,
+	result,
+}: ToolCallMessagePartProps<
 	{
 		summary: string;
 		start_datetime: string;
@@ -616,39 +619,36 @@ export const CreateCalendarEventToolUI = makeAssistantToolUI<
 		attendees?: string[];
 	},
 	CreateCalendarEventResult
->({
-	toolName: "create_calendar_event",
-	render: function CreateCalendarEventUI({ args, result }) {
-		if (!result) return null;
+>) => {
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					args={args}
-					interruptData={result}
-					onDecision={(decision) => {
-						window.dispatchEvent(
-							new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
-						);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					window.dispatchEvent(
+						new CustomEvent("hitl-decision", { detail: { decisions: [decision] } })
+					);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+	return <SuccessCard result={result as SuccessResult} />;
+};

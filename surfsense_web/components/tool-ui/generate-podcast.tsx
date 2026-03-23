@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
@@ -372,12 +372,7 @@ function PodcastStatusPoller({ podcastId, title }: { podcastId: number; title: s
  *
  * It polls for task completion and auto-updates when the podcast is ready.
  */
-export const GeneratePodcastToolUI = makeAssistantToolUI<
-	GeneratePodcastArgs,
-	GeneratePodcastResult
->({
-	toolName: "generate_podcast",
-	render: function GeneratePodcastUI({ args, result, status }) {
+export const GeneratePodcastToolUI = ({ args, result, status }: ToolCallMessagePartProps<GeneratePodcastArgs, GeneratePodcastResult>) => {
 		const title = args.podcast_title || "SurfSense Podcast";
 
 		// Loading state - tool is still running (agent processing)
@@ -462,5 +457,4 @@ export const GeneratePodcastToolUI = makeAssistantToolUI<
 
 		// Fallback - missing required data
 		return <PodcastErrorState title={title} error="Missing podcast ID" />;
-	},
-});
+};

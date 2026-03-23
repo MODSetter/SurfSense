@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { AlertCircleIcon, FileTextIcon } from "lucide-react";
 import { z } from "zod";
 import {
@@ -104,9 +104,7 @@ function ParsedArticle({ result }: { result: unknown }) {
  * - Word count
  * - Link to original source
  */
-export const ScrapeWebpageToolUI = makeAssistantToolUI<ScrapeWebpageArgs, ScrapeWebpageResult>({
-	toolName: "scrape_webpage",
-	render: function ScrapeWebpageUI({ args, result, status }) {
+export const ScrapeWebpageToolUI = ({ args, result, status }: ToolCallMessagePartProps<ScrapeWebpageArgs, ScrapeWebpageResult>) => {
 		const url = args.url || "Unknown URL";
 
 		// Loading state - tool is still running
@@ -155,8 +153,7 @@ export const ScrapeWebpageToolUI = makeAssistantToolUI<ScrapeWebpageArgs, Scrape
 				</ArticleErrorBoundary>
 			</div>
 		);
-	},
-});
+};
 
 export {
 	ScrapeWebpageArgsSchema,

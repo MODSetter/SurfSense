@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useSetAtom } from "jotai";
 import { CornerDownLeftIcon, Pen } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
@@ -395,50 +395,44 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const UpdateNotionPageToolUI = makeAssistantToolUI<
-	{ page_title: string; content: string },
-	UpdateNotionPageResult
->({
-	toolName: "update_notion_page",
-	render: function UpdateNotionPageUI({ args, result }) {
-		if (!result) return null;
+export const UpdateNotionPageToolUI = ({ args, result }: ToolCallMessagePartProps<{ page_title: string; content: string }, UpdateNotionPageResult>) => {
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					args={args}
-					interruptData={result}
-					onDecision={(decision) => {
-						const event = new CustomEvent("hitl-decision", {
-							detail: { decisions: [decision] },
-						});
-						window.dispatchEvent(event);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				args={args}
+				interruptData={result}
+				onDecision={(decision) => {
+					const event = new CustomEvent("hitl-decision", {
+						detail: { decisions: [decision] },
+					});
+					window.dispatchEvent(event);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isInfoResult(result)) {
-			return <InfoCard result={result} />;
-		}
+	if (isInfoResult(result)) {
+		return <InfoCard result={result} />;
+	}
 
-		if (isAuthErrorResult(result)) {
-			return <AuthErrorCard result={result} />;
-		}
+	if (isAuthErrorResult(result)) {
+		return <AuthErrorCard result={result} />;
+	}
 
-		if (isErrorResult(result)) {
-			return <ErrorCard result={result} />;
-		}
+	if (isErrorResult(result)) {
+		return <ErrorCard result={result} />;
+	}
 
-		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+	return <SuccessCard result={result as SuccessResult} />;
+};

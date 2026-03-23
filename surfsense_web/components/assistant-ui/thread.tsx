@@ -1,13 +1,13 @@
 import {
 	ActionBarPrimitive,
-	AssistantIf,
+	AuiIf,
 	BranchPickerPrimitive,
 	ComposerPrimitive,
 	ErrorPrimitive,
 	MessagePrimitive,
 	ThreadPrimitive,
-	useAssistantState,
-	useComposerRuntime,
+	useAui,
+	useAuiState,
 } from "@assistant-ui/react";
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import {
@@ -125,19 +125,19 @@ export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) =>
 
 const ThreadContent: FC = () => {
 	return (
-		<ThreadPrimitive.Root
+        <ThreadPrimitive.Root
 			className="aui-root aui-thread-root @container flex h-full min-h-0 flex-col bg-main-panel"
 			style={{
 				["--thread-max-width" as string]: "44rem",
 			}}
 		>
-			<ThreadPrimitive.Viewport
+            <ThreadPrimitive.Viewport
 				turnAnchor="top"
 				className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 pt-4"
 			>
-				<AssistantIf condition={({ thread }) => thread.isEmpty}>
+				<AuiIf condition={({ thread }) => thread.isEmpty}>
 					<ThreadWelcome />
-				</AssistantIf>
+				</AuiIf>
 
 				<ThreadPrimitive.Messages
 					components={{
@@ -152,15 +152,15 @@ const ThreadContent: FC = () => {
 					style={{ paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}
 				>
 					<ThreadScrollToBottom />
-					<AssistantIf condition={({ thread }) => !thread.isEmpty}>
+					<AuiIf condition={({ thread }) => !thread.isEmpty}>
 						<div className="fade-in slide-in-from-bottom-4 animate-in duration-500 ease-out fill-mode-both">
 							<Composer />
 						</div>
-					</AssistantIf>
+					</AuiIf>
 				</ThreadPrimitive.ViewportFooter>
 			</ThreadPrimitive.Viewport>
-		</ThreadPrimitive.Root>
-	);
+        </ThreadPrimitive.Root>
+    );
 };
 
 const ThreadScrollToBottom: FC = () => {
@@ -327,11 +327,11 @@ const Composer: FC = () => {
 	const editorContainerRef = useRef<HTMLDivElement>(null);
 	const documentPickerRef = useRef<DocumentMentionPickerRef>(null);
 	const { search_space_id, chat_id } = useParams();
-	const composerRuntime = useComposerRuntime();
+	const aui = useAui();
 	const hasAutoFocusedRef = useRef(false);
 
-	const isThreadEmpty = useAssistantState(({ thread }) => thread.isEmpty);
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
+	const isThreadEmpty = useAuiState(({ thread }) => thread.isEmpty);
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
 
 	// Cycling placeholder state - only cycles in new chats
 	const [placeholderIndex, setPlaceholderIndex] = useState(0);
@@ -378,7 +378,7 @@ const Composer: FC = () => {
 	// hooks never fire their own network requests (eliminates N+1 API calls).
 	// Return a primitive string from the selector so useSyncExternalStore can
 	// compare snapshots by value and avoid infinite re-render loops.
-	const assistantIdsKey = useAssistantState(({ thread }) =>
+	const assistantIdsKey = useAuiState(({ thread }) =>
 		thread.messages
 			.filter((m) => m.role === "assistant" && m.id?.startsWith("msg-"))
 			.map((m) => m.id?.replace("msg-", ""))
@@ -414,9 +414,9 @@ const Composer: FC = () => {
 	// Sync editor text with assistant-ui composer runtime
 	const handleEditorChange = useCallback(
 		(text: string) => {
-			composerRuntime.setText(text);
+			aui.composer().setText(text);
 		},
-		[composerRuntime]
+		[aui]
 	);
 
 	// Open document picker when @ mention is triggered
@@ -469,7 +469,7 @@ const Composer: FC = () => {
 			return;
 		}
 		if (!showDocumentPopover) {
-			composerRuntime.send();
+			aui.composer().send();
 			editorRef.current?.clear();
 			setMentionedDocuments([]);
 			setSidebarDocs([]);
@@ -478,7 +478,7 @@ const Composer: FC = () => {
 		showDocumentPopover,
 		isThreadRunning,
 		isBlockedByOtherUser,
-		composerRuntime,
+		aui,
 		setMentionedDocuments,
 		setSidebarDocs,
 	]);
@@ -591,7 +591,7 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 		const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= 2;
 		setToolsScrollPos(atTop ? "top" : atBottom ? "bottom" : "middle");
 	}, []);
-	const isComposerTextEmpty = useAssistantState(({ composer }) => {
+	const isComposerTextEmpty = useAuiState(({ composer }) => {
 		const text = composer.text?.trim() || "";
 		return text.length === 0;
 	});
@@ -702,8 +702,8 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 	const isSendDisabled = isComposerEmpty || !hasModelConfigured || isBlockedByOtherUser;
 
 	return (
-		<div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
-			<div className="flex items-center gap-1">
+        <div className="aui-composer-action-wrapper relative mx-3 mb-2 flex items-center justify-between">
+            <div className="flex items-center gap-1">
 				{!isDesktop ? (
 					<>
 						<DropdownMenu>
@@ -1007,16 +1007,14 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 					</button>
 				)}
 			</div>
-
-			{!hasModelConfigured && (
+            {!hasModelConfigured && (
 				<div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 text-xs">
 					<AlertCircle className="size-3" />
 					<span>Select a model</span>
 				</div>
 			)}
-
-			<div className="flex items-center gap-2">
-				<AssistantIf condition={({ thread }) => !thread.isRunning}>
+            <div className="flex items-center gap-2">
+				<AuiIf condition={({ thread }) => !thread.isRunning}>
 					<ComposerPrimitive.Send asChild disabled={isSendDisabled}>
 						<TooltipIconButton
 							tooltip={
@@ -1042,9 +1040,9 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<ArrowUpIcon className="aui-composer-send-icon size-4" />
 						</TooltipIconButton>
 					</ComposerPrimitive.Send>
-				</AssistantIf>
+				</AuiIf>
 
-				<AssistantIf condition={({ thread }) => thread.isRunning}>
+				<AuiIf condition={({ thread }) => thread.isRunning}>
 					<ComposerPrimitive.Cancel asChild>
 						<Button
 							type="button"
@@ -1056,10 +1054,10 @@ const ComposerAction: FC<ComposerActionProps> = ({ isBlockedByOtherUser = false 
 							<SquareIcon className="aui-composer-cancel-icon size-3 fill-current" />
 						</Button>
 					</ComposerPrimitive.Cancel>
-				</AssistantIf>
+				</AuiIf>
 			</div>
-		</div>
-	);
+        </div>
+    );
 };
 
 /** Convert snake_case tool names to human-readable labels */
@@ -1151,13 +1149,13 @@ const ThinkingStepsPart: FC = () => {
 	const thinkingStepsMap = useContext(ThinkingStepsContext);
 
 	// Get the current message ID to look up thinking steps
-	const messageId = useAssistantState(({ message }) => message?.id);
+	const messageId = useAuiState(({ message }) => message?.id);
 	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
 
 	// Check if this specific message is currently streaming
 	// A message is streaming if: thread is running AND this is the last assistant message
-	const isThreadRunning = useAssistantState(({ thread }) => thread.isRunning);
-	const isLastMessage = useAssistantState(({ message }) => message?.isLast ?? false);
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
+	const isLastMessage = useAuiState(({ message }) => message?.isLast ?? false);
 	const isMessageStreaming = isThreadRunning && isLastMessage;
 
 	if (thinkingSteps.length === 0) return null;
@@ -1195,34 +1193,34 @@ const AssistantMessageInner: FC = () => {
 
 const AssistantActionBar: FC = () => {
 	return (
-		<ActionBarPrimitive.Root
+        <ActionBarPrimitive.Root
 			hideWhenRunning
 			autohide="not-last"
 			autohideFloat="single-branch"
 			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
 		>
-			<ActionBarPrimitive.Copy asChild>
+            <ActionBarPrimitive.Copy asChild>
 				<TooltipIconButton tooltip="Copy">
-					<AssistantIf condition={({ message }) => message.isCopied}>
+					<AuiIf condition={({ message }) => message.isCopied}>
 						<CheckIcon />
-					</AssistantIf>
-					<AssistantIf condition={({ message }) => !message.isCopied}>
+					</AuiIf>
+					<AuiIf condition={({ message }) => !message.isCopied}>
 						<CopyIcon />
-					</AssistantIf>
+					</AuiIf>
 				</TooltipIconButton>
 			</ActionBarPrimitive.Copy>
-			<ActionBarPrimitive.ExportMarkdown asChild>
+            <ActionBarPrimitive.ExportMarkdown asChild>
 				<TooltipIconButton tooltip="Export as Markdown">
 					<DownloadIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.ExportMarkdown>
-			<ActionBarPrimitive.Reload asChild>
+            <ActionBarPrimitive.Reload asChild>
 				<TooltipIconButton tooltip="Refresh">
 					<RefreshCwIcon />
 				</TooltipIconButton>
 			</ActionBarPrimitive.Reload>
-		</ActionBarPrimitive.Root>
-	);
+        </ActionBarPrimitive.Root>
+    );
 };
 
 const EditComposer: FC = () => {

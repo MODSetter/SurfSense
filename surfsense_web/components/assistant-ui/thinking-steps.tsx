@@ -1,7 +1,6 @@
-import { useAssistantState, useThreadViewport } from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
 import type { FC } from "react";
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useCallback, useEffect, useState } from "react";
 import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
@@ -154,52 +153,3 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 	);
 };
 
-/**
- * Component that handles auto-scroll when thinking steps update.
- * Uses useThreadViewport to scroll to bottom when thinking steps change,
- * ensuring the user always sees the latest content during streaming.
- */
-export const ThinkingStepsScrollHandler: FC = () => {
-	const thinkingStepsMap = useContext(ThinkingStepsContext);
-	const viewport = useThreadViewport();
-	const isRunning = useAssistantState(({ thread }) => thread.isRunning);
-	// Track the serialized state to detect any changes
-	const prevStateRef = useRef<string>("");
-
-	useEffect(() => {
-		// Only act during streaming
-		if (!isRunning) {
-			prevStateRef.current = "";
-			return;
-		}
-
-		// Serialize the thinking steps state to detect any changes
-		// This catches new steps, status changes, and item additions
-		let stateString = "";
-		thinkingStepsMap.forEach((steps, msgId) => {
-			steps.forEach((step) => {
-				stateString += `${msgId}:${step.id}:${step.status}:${step.items?.length || 0};`;
-			});
-		});
-
-		// If state changed at all during streaming, scroll
-		if (stateString !== prevStateRef.current && stateString !== "") {
-			prevStateRef.current = stateString;
-
-			// Multiple attempts to ensure scroll happens after DOM updates
-			const scrollAttempt = () => {
-				try {
-					viewport.scrollToBottom();
-				} catch {
-					// Ignore errors - viewport might not be ready
-				}
-			};
-
-			// Delayed attempts to handle async DOM updates
-			requestAnimationFrame(scrollAttempt);
-			setTimeout(scrollAttempt, 100);
-		}
-	}, [thinkingStepsMap, viewport, isRunning]);
-
-	return null; // This component doesn't render anything
-};
