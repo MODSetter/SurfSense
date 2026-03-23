@@ -4,6 +4,7 @@ import { RootProvider } from "fumadocs-ui/provider/next";
 import { Roboto } from "next/font/google";
 import { AnnouncementToastProvider } from "@/components/announcements/AnnouncementToastProvider";
 import { GlobalLoadingProvider } from "@/components/providers/GlobalLoadingProvider";
+import { ZeroProvider } from "@/components/providers/ZeroProvider";
 import { I18nProvider } from "@/components/providers/I18nProvider";
 import { PostHogProvider } from "@/components/providers/PostHogProvider";
 import { ThemeProvider } from "@/components/theme/theme-provider";
@@ -140,7 +141,9 @@ export default function RootLayout({
 							>
 								<RootProvider>
 								<ReactQueryClientProvider>
-									<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
+									<ZeroProvider>
+										<GlobalLoadingProvider>{children}</GlobalLoadingProvider>
+									</ZeroProvider>
 								</ReactQueryClientProvider>
 									<Toaster />
 									<AnnouncementToastProvider />
