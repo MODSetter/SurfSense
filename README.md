@@ -34,7 +34,8 @@ https://github.com/user-attachments/assets/cc0c84d3-1f2f-4f7a-b519-2ecce22310b1
 ## Video Agent Sample
 
 
-https://github.com/user-attachments/assets/cc977e6d-8292-4ffe-abb8-3b0560ef5562
+
+https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
 
 
 
