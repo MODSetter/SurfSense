@@ -13,6 +13,8 @@ files:
   - "!scripts"
   - "!release"
 extraResources:
+  - from: assets/icon.png
+    to: icon.png
   - from: ../surfsense_web/.next/standalone/surfsense_web/
     to: standalone/
     filter:
