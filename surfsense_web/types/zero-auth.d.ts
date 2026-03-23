@@ -1,0 +1,11 @@
+export type Context =
+	| {
+			userId: string;
+	  }
+	| undefined;
+
+declare module "@rocicorp/zero" {
+	interface DefaultTypes {
+		context: Context;
+	}
+}
