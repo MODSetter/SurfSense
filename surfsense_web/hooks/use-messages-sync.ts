@@ -30,7 +30,7 @@ export function useMessagesSync(
 			role: msg.role,
 			content: msg.content,
 			author_id: msg.authorId ?? null,
-			created_at: String(msg.createdAt),
+			created_at: new Date(msg.createdAt).toISOString(),
 		}));
 
 		onMessagesUpdateRef.current(mapped);

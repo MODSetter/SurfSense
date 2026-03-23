@@ -203,8 +203,8 @@ export function useCommentsSync(threadId: number | null) {
 			parent_id: c.parentId ?? null,
 			author_id: c.authorId ?? null,
 			content: c.content,
-			created_at: String(c.createdAt),
-			updated_at: String(c.updatedAt),
+			created_at: new Date(c.createdAt).toISOString(),
+			updated_at: new Date(c.updatedAt).toISOString(),
 		}));
 
 		updateReactQueryCache(rows);

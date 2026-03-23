@@ -664,7 +664,7 @@ async def index_composio_gmail(
             on_heartbeat_callback=on_heartbeat_callback,
         )
 
-        # CRITICAL: Always update timestamp so Electric SQL syncs
+        # CRITICAL: Always update timestamp so Zero syncs
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit to ensure all documents are persisted

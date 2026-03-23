@@ -242,7 +242,7 @@ export function useDocuments(
 					created_by_email: doc.createdById
 						? (emailCacheRef.current.get(doc.createdById) ?? null)
 						: null,
-					created_at: String(doc.createdAt),
+					created_at: new Date(doc.createdAt).toISOString(),
 					status: (doc.status as unknown as DocumentStatusType) ?? { state: "ready" },
 				}));
 

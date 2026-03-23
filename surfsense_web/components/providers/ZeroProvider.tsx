@@ -10,8 +10,13 @@ const cacheURL = process.env.NEXT_PUBLIC_ZERO_CACHE_URL || "http://localhost:484
 
 export function ZeroProvider({ children }: { children: React.ReactNode }) {
 	const { data: user } = useAtomValue(currentUserAtom);
-	const userID = user?.id ? String(user.id) : "";
-	const context = user?.id ? { userId: String(user.id) } : undefined;
+
+	if (!user?.id) {
+		return <>{children}</>;
+	}
+
+	const userID = String(user.id);
+	const context = { userId: userID };
 
 	return (
 		<ZeroReactProvider {...{ userID, context, cacheURL, schema, queries }}>

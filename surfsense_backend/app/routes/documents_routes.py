@@ -128,7 +128,7 @@ async def create_documents_file_upload(
     Upload files as documents with real-time status tracking.
 
     Implements 2-phase document status updates for real-time UI feedback:
-    - Phase 1: Create all documents with 'pending' status (visible in UI immediately via ElectricSQL)
+    - Phase 1: Create all documents with 'pending' status (visible in UI immediately via Zero)
     - Phase 2: Celery processes each file: pending → processing → ready/failed
 
     Requires DOCUMENTS_CREATE permission.

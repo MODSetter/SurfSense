@@ -255,7 +255,7 @@ async def index_composio_google_calendar(
             await task_logger.log_task_success(
                 log_entry, success_msg, {"events_count": 0}
             )
-            # CRITICAL: Update timestamp even when no events found so Electric SQL syncs and UI shows indexed status
+            # CRITICAL: Update timestamp even when no events found so Zero syncs and UI shows indexed status
             await update_connector_last_indexed(session, connector, update_last_indexed)
             await session.commit()
             return (
@@ -503,7 +503,7 @@ async def index_composio_google_calendar(
                 documents_failed += 1
                 continue
 
-        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Electric SQL syncs
+        # CRITICAL: Always update timestamp (even if 0 documents indexed) so Zero syncs
         # This ensures the UI shows "Last indexed" instead of "Never indexed"
         await update_connector_last_indexed(session, connector, update_last_indexed)
 

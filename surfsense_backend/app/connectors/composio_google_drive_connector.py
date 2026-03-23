@@ -775,7 +775,7 @@ async def index_composio_google_drive(
         flag_modified(connector, "config")
         logger.info(f"Saved indexing settings hash for connector {connector_id}")
 
-        # CRITICAL: Always update timestamp so Electric SQL syncs and UI shows indexed status
+        # CRITICAL: Always update timestamp so Zero syncs and UI shows indexed status
         await update_connector_last_indexed(session, connector, update_last_indexed)
 
         # Final commit

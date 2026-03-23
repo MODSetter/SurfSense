@@ -154,8 +154,8 @@ export function useInbox(
 					message: item.message,
 					read: item.read,
 					metadata: item.metadata as unknown as Record<string, unknown>,
-					created_at: String(item.createdAt),
-					updated_at: item.updatedAt ? String(item.updatedAt) : undefined,
+					created_at: new Date(item.createdAt).toISOString(),
+					updated_at: item.updatedAt ? new Date(item.updatedAt).toISOString() : null,
 				} as InboxItem));
 
 			let updated = prev.map((existing) => {
