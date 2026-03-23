@@ -8,20 +8,15 @@ import {
 import { useAtomValue } from "jotai";
 import { CheckIcon, CopyIcon, DownloadIcon, MessageSquare, RefreshCwIcon } from "lucide-react";
 import type { FC } from "react";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { commentsEnabledAtom, targetCommentIdAtom } from "@/atoms/chat/current-thread.atom";
 import { activeSearchSpaceIdAtom } from "@/atoms/search-spaces/search-space-query.atoms";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import {
-	ThinkingStepsContext,
-	ThinkingStepsDisplay,
-} from "@/components/assistant-ui/thinking-steps";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-container/comment-panel-container";
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import { CreateConfluencePageToolUI, DeleteConfluencePageToolUI, UpdateConfluencePageToolUI } from "@/components/tool-ui/confluence";
-import { DeepAgentThinkingToolUI } from "@/components/tool-ui/deepagent-thinking";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
@@ -50,44 +45,15 @@ export const MessageError: FC = () => {
 	);
 };
 
-/**
- * Custom component to render thinking steps from Context
- */
-const ThinkingStepsPart: FC = () => {
-	const thinkingStepsMap = useContext(ThinkingStepsContext);
-
-	// Get the current message ID to look up thinking steps
-	const messageId = useAuiState(({ message }) => message?.id);
-	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
-
-	// Check if this specific message is currently streaming
-	// A message is streaming if: thread is running AND this is the last assistant message
-	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
-	const isLastMessage = useAuiState(({ message }) => message?.isLast ?? false);
-	const isMessageStreaming = isThreadRunning && isLastMessage;
-
-	if (thinkingSteps.length === 0) return null;
-
-	return (
-		<div className="mb-3">
-			<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isMessageStreaming} />
-		</div>
-	);
-};
-
 const AssistantMessageInner: FC = () => {
 	return (
 		<>
-			{/* Render thinking steps from message content - this ensures proper scroll tracking */}
-			<ThinkingStepsPart />
-
 			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
 				<MessagePrimitive.Parts
 					components={{
 						Text: MarkdownText,
 						tools: {
 							by_name: {
-								deepagent_thinking: DeepAgentThinkingToolUI,
 								generate_report: GenerateReportToolUI,
 								generate_podcast: GeneratePodcastToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,

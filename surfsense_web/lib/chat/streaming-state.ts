@@ -15,12 +15,42 @@ export type ContentPart =
 			toolName: string;
 			args: Record<string, unknown>;
 			result?: unknown;
+	  }
+	| {
+			type: "data-thinking-steps";
+			data: { steps: ThinkingStepData[] };
 	  };
 
 export interface ContentPartsState {
 	contentParts: ContentPart[];
 	currentTextPartIndex: number;
 	toolCallIndices: Map<string, number>;
+}
+
+export function updateThinkingSteps(
+	state: ContentPartsState,
+	steps: Map<string, ThinkingStepData>
+): void {
+	const stepsArray = Array.from(steps.values());
+	const existingIdx = state.contentParts.findIndex((p) => p.type === "data-thinking-steps");
+
+	if (existingIdx >= 0) {
+		state.contentParts[existingIdx] = {
+			type: "data-thinking-steps",
+			data: { steps: stepsArray },
+		};
+	} else {
+		state.contentParts.unshift({
+			type: "data-thinking-steps",
+			data: { steps: stepsArray },
+		});
+		if (state.currentTextPartIndex >= 0) {
+			state.currentTextPartIndex += 1;
+		}
+		for (const [id, idx] of state.toolCallIndices) {
+			state.toolCallIndices.set(id, idx + 1);
+		}
+	}
 }
 
 export function appendText(state: ContentPartsState, delta: string): void {
@@ -75,6 +105,7 @@ export function buildContentForUI(
 	const filtered = state.contentParts.filter((part) => {
 		if (part.type === "text") return part.text.length > 0;
 		if (part.type === "tool-call") return toolsWithUI.has(part.toolName);
+		if (part.type === "data-thinking-steps") return true;
 		return false;
 	});
 	return filtered.length > 0
@@ -84,22 +115,16 @@ export function buildContentForUI(
 
 export function buildContentForPersistence(
 	state: ContentPartsState,
-	toolsWithUI: Set<string>,
-	currentThinkingSteps: Map<string, ThinkingStepData>
+	toolsWithUI: Set<string>
 ): unknown[] {
 	const parts: unknown[] = [];
-
-	if (currentThinkingSteps.size > 0) {
-		parts.push({
-			type: "thinking-steps",
-			steps: Array.from(currentThinkingSteps.values()),
-		});
-	}
 
 	for (const part of state.contentParts) {
 		if (part.type === "text" && part.text.length > 0) {
 			parts.push(part);
 		} else if (part.type === "tool-call" && toolsWithUI.has(part.toolName)) {
+			parts.push(part);
+		} else if (part.type === "data-thinking-steps") {
 			parts.push(part);
 		}
 	}

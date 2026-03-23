@@ -1,9 +1,6 @@
 import {
-	ActionBarPrimitive,
 	AuiIf,
-	BranchPickerPrimitive,
 	ComposerPrimitive,
-	ErrorPrimitive,
 	MessagePrimitive,
 	ThreadPrimitive,
 	useAui,
@@ -14,14 +11,8 @@ import {
 	AlertCircle,
 	ArrowDownIcon,
 	ArrowUpIcon,
-	CheckIcon,
-	ChevronLeftIcon,
-	ChevronRightIcon,
-	CopyIcon,
-	DownloadIcon,
 	Globe,
 	Plus,
-	RefreshCwIcon,
 	Settings2,
 	SquareIcon,
 	Unplug,
@@ -32,7 +23,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { type FC, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
 	agentToolsAtom,
@@ -63,12 +54,6 @@ import {
 	InlineMentionEditor,
 	type InlineMentionEditorRef,
 } from "@/components/assistant-ui/inline-mention-editor";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import {
-	ThinkingStepsContext,
-	ThinkingStepsDisplay,
-} from "@/components/assistant-ui/thinking-steps";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { UserMessage } from "@/components/assistant-ui/user-message";
 import { SLIDEOUT_PANEL_OPENED_EVENT } from "@/components/layout/ui/sidebar/SidebarSlideOutPanel";
@@ -76,7 +61,6 @@ import {
 	DocumentMentionPicker,
 	type DocumentMentionPickerRef,
 } from "@/components/new-chat/document-mention-picker";
-import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerHandle, DrawerTitle } from "@/components/ui/drawer";
@@ -111,16 +95,8 @@ const CYCLING_PLACEHOLDERS = [
 	"Check if this week's Slack messages reference any GitHub issues",
 ];
 
-interface ThreadProps {
-	messageThinkingSteps?: Map<string, ThinkingStep[]>;
-}
-
-export const Thread: FC<ThreadProps> = ({ messageThinkingSteps = new Map() }) => {
-	return (
-		<ThinkingStepsContext.Provider value={messageThinkingSteps}>
-			<ThreadContent />
-		</ThinkingStepsContext.Provider>
-	);
+export const Thread: FC = () => {
+	return <ThreadContent />;
 };
 
 const ThreadContent: FC = () => {
@@ -1132,97 +1108,6 @@ const TOOL_GROUPS: ToolGroup[] = [
 	},
 ];
 
-const MessageError: FC = () => {
-	return (
-		<MessagePrimitive.Error>
-			<ErrorPrimitive.Root className="aui-message-error-root mt-2 rounded-md border border-destructive bg-destructive/10 p-3 text-destructive text-sm dark:bg-destructive/5 dark:text-red-200">
-				<ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
-			</ErrorPrimitive.Root>
-		</MessagePrimitive.Error>
-	);
-};
-
-/**
- * Custom component to render thinking steps from Context
- */
-const ThinkingStepsPart: FC = () => {
-	const thinkingStepsMap = useContext(ThinkingStepsContext);
-
-	// Get the current message ID to look up thinking steps
-	const messageId = useAuiState(({ message }) => message?.id);
-	const thinkingSteps = thinkingStepsMap.get(messageId) || [];
-
-	// Check if this specific message is currently streaming
-	// A message is streaming if: thread is running AND this is the last assistant message
-	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
-	const isLastMessage = useAuiState(({ message }) => message?.isLast ?? false);
-	const isMessageStreaming = isThreadRunning && isLastMessage;
-
-	if (thinkingSteps.length === 0) return null;
-
-	return (
-		<div className="mb-3">
-			<ThinkingStepsDisplay steps={thinkingSteps} isThreadRunning={isMessageStreaming} />
-		</div>
-	);
-};
-
-const AssistantMessageInner: FC = () => {
-	return (
-		<>
-			{/* Render thinking steps from message content - this ensures proper scroll tracking */}
-			<ThinkingStepsPart />
-
-			<div className="aui-assistant-message-content wrap-break-word px-2 text-foreground leading-relaxed">
-				<MessagePrimitive.Parts
-					components={{
-						Text: MarkdownText,
-						tools: { Fallback: ToolFallback },
-					}}
-				/>
-				<MessageError />
-			</div>
-
-			<div className="aui-assistant-message-footer mt-1 mb-5 ml-2 flex">
-				<BranchPicker />
-				<AssistantActionBar />
-			</div>
-		</>
-	);
-};
-
-const AssistantActionBar: FC = () => {
-	return (
-        <ActionBarPrimitive.Root
-			hideWhenRunning
-			autohide="not-last"
-			autohideFloat="single-branch"
-			className="aui-assistant-action-bar-root -ml-1 col-start-3 row-start-2 flex gap-1 text-muted-foreground data-floating:absolute data-floating:rounded-md data-floating:border data-floating:bg-background data-floating:p-1 data-floating:shadow-sm"
-		>
-            <ActionBarPrimitive.Copy asChild>
-				<TooltipIconButton tooltip="Copy">
-					<AuiIf condition={({ message }) => message.isCopied}>
-						<CheckIcon />
-					</AuiIf>
-					<AuiIf condition={({ message }) => !message.isCopied}>
-						<CopyIcon />
-					</AuiIf>
-				</TooltipIconButton>
-			</ActionBarPrimitive.Copy>
-            <ActionBarPrimitive.ExportMarkdown asChild>
-				<TooltipIconButton tooltip="Export as Markdown">
-					<DownloadIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.ExportMarkdown>
-            <ActionBarPrimitive.Reload asChild>
-				<TooltipIconButton tooltip="Refresh">
-					<RefreshCwIcon />
-				</TooltipIconButton>
-			</ActionBarPrimitive.Reload>
-        </ActionBarPrimitive.Root>
-    );
-};
-
 const EditComposer: FC = () => {
 	return (
 		<MessagePrimitive.Root className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col px-2 py-3">
@@ -1243,32 +1128,5 @@ const EditComposer: FC = () => {
 				</div>
 			</ComposerPrimitive.Root>
 		</MessagePrimitive.Root>
-	);
-};
-
-const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({ className, ...rest }) => {
-	return (
-		<BranchPickerPrimitive.Root
-			hideWhenSingleBranch
-			className={cn(
-				"aui-branch-picker-root -ml-2 mr-2 inline-flex items-center text-muted-foreground text-xs",
-				className
-			)}
-			{...rest}
-		>
-			<BranchPickerPrimitive.Previous asChild>
-				<TooltipIconButton tooltip="Previous">
-					<ChevronLeftIcon />
-				</TooltipIconButton>
-			</BranchPickerPrimitive.Previous>
-			<span className="aui-branch-picker-state font-medium">
-				<BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
-			</span>
-			<BranchPickerPrimitive.Next asChild>
-				<TooltipIconButton tooltip="Next">
-					<ChevronRightIcon />
-				</TooltipIconButton>
-			</BranchPickerPrimitive.Next>
-		</BranchPickerPrimitive.Root>
 	);
 };

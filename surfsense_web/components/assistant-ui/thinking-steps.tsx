@@ -1,13 +1,11 @@
+import { makeAssistantDataUI, useAuiState } from "@assistant-ui/react";
 import { ChevronRightIcon } from "lucide-react";
 import type { FC } from "react";
-import { createContext, useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { cn } from "@/lib/utils";
-
-// Context to pass thinking steps to AssistantMessage
-export const ThinkingStepsContext = createContext<Map<string, ThinkingStep[]>>(new Map());
 
 /**
  * Chain of thought display component - single collapsible dropdown design
@@ -18,7 +16,6 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 }) => {
 	const [isOpen, setIsOpen] = useState(true);
 
-	// Derive effective status for each step
 	const getEffectiveStatus = useCallback(
 		(step: ThinkingStep): "pending" | "in_progress" | "completed" => {
 			if (step.status === "in_progress" && !isThreadRunning) {
@@ -36,7 +33,6 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 		steps.every((s) => getEffectiveStatus(s) === "completed");
 	const isProcessing = isThreadRunning && !allCompleted;
 
-	// Auto-collapse when all tasks are completed
 	useEffect(() => {
 		if (allCompleted) {
 			setIsOpen(false);
@@ -61,7 +57,6 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 	return (
 		<div className="mx-auto w-full max-w-(--thread-max-width) px-2 py-2">
 			<div className="rounded-lg">
-				{/* Main collapsible header */}
 				<button
 					type="button"
 					onClick={() => setIsOpen(!isOpen)}
@@ -70,20 +65,17 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 						"text-muted-foreground hover:text-foreground"
 					)}
 				>
-					{/* Header text with shimmer if processing (streaming) */}
 					{isProcessing ? (
 						<TextShimmerLoader text={getHeaderText()} size="sm" />
 					) : (
 						<span>{getHeaderText()}</span>
 					)}
 
-					{/* Chevron */}
 					<ChevronRightIcon
 						className={cn("size-4 transition-transform duration-200", isOpen && "rotate-90")}
 					/>
 				</button>
 
-				{/* Collapsible content with CSS grid animation */}
 				<div
 					className={cn(
 						"grid transition-[grid-template-rows] duration-300 ease-out",
@@ -98,13 +90,10 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 
 								return (
 									<div key={step.id} className="relative flex gap-3">
-										{/* Dot and line column */}
 										<div className="relative flex flex-col items-center w-2">
-											{/* Vertical connection line - extends to next dot */}
 											{!isLast && (
 												<div className="absolute left-1/2 top-[15px] -bottom-[7px] w-px -translate-x-1/2 bg-muted-foreground/30" />
 											)}
-											{/* Step dot - on top of line */}
 											<div className="relative z-10 mt-[7px] flex shrink-0 items-center justify-center">
 												{effectiveStatus === "in_progress" ? (
 													<span className="relative flex size-2">
@@ -117,9 +106,7 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 											</div>
 										</div>
 
-										{/* Step content */}
 										<div className="flex-1 min-w-0 pb-4">
-											{/* Step title */}
 											<div
 												className={cn(
 													"text-sm leading-5",
@@ -131,7 +118,6 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 												{step.title}
 											</div>
 
-											{/* Step items (sub-content) */}
 											{step.items && step.items.length > 0 && (
 												<div className="mt-1 space-y-0.5">
 													{step.items.map((item, idx) => (
@@ -152,4 +138,29 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 		</div>
 	);
 };
+
+/**
+ * assistant-ui data UI component that renders thinking steps from message content.
+ * Registered globally via makeAssistantDataUI — renders inside MessagePrimitive.Parts
+ * at the position of the data part in the content array.
+ */
+function ThinkingStepsDataRenderer({ data }: { name: string; data: unknown }) {
+	const isThreadRunning = useAuiState(({ thread }) => thread.isRunning);
+	const isLastMessage = useAuiState(({ message }) => message?.isLast ?? false);
+	const isMessageStreaming = isThreadRunning && isLastMessage;
+
+	const steps = (data as { steps: ThinkingStep[] } | null)?.steps ?? [];
+	if (steps.length === 0) return null;
+
+	return (
+		<div className="mb-3 -mx-2 leading-normal">
+			<ThinkingStepsDisplay steps={steps} isThreadRunning={isMessageStreaming} />
+		</div>
+	);
+}
+
+export const ThinkingStepsDataUI = makeAssistantDataUI({
+	name: "thinking-steps",
+	render: ThinkingStepsDataRenderer,
+});
 
