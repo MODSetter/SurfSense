@@ -169,6 +169,28 @@ services:
   #     - redis
   #     - celery_worker
 
+  zero-cache:
+    image: rocicorp/zero:0.26.2
+    ports:
+      - "${ZERO_CACHE_PORT:-4848}:4848"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ZERO_UPSTREAM_DB=${ZERO_UPSTREAM_DB:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      - ZERO_CVR_DB=${ZERO_CVR_DB:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      - ZERO_CHANGE_DB=${ZERO_CHANGE_DB:-postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@${DB_HOST:-db}:${DB_PORT:-5432}/${DB_NAME:-surfsense}?sslmode=${DB_SSLMODE:-disable}}
+      - ZERO_REPLICA_FILE=/data/zero.db
+      - ZERO_ADMIN_PASSWORD=${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
+    volumes:
+      - zero_cache_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4848/keepalive"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   frontend:
     build:
       context: ../surfsense_web
@@ -176,6 +198,7 @@ services:
         NEXT_PUBLIC_FASTAPI_BACKEND_URL: ${NEXT_PUBLIC_FASTAPI_BACKEND_URL:-http://localhost:8000}
         NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE: ${NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE:-LOCAL}
         NEXT_PUBLIC_ETL_SERVICE: ${NEXT_PUBLIC_ETL_SERVICE:-DOCLING}
+        NEXT_PUBLIC_ZERO_CACHE_URL: ${NEXT_PUBLIC_ZERO_CACHE_URL:-http://localhost:${ZERO_CACHE_PORT:-4848}}
         NEXT_PUBLIC_DEPLOYMENT_MODE: ${NEXT_PUBLIC_DEPLOYMENT_MODE:-self-hosted}
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
@@ -183,6 +206,8 @@ services:
       - ../surfsense_web/.env
     depends_on:
       backend:
+        condition: service_healthy
+      zero-cache:
         condition: service_healthy
 
 volumes:
@@ -194,3 +219,5 @@ volumes:
     name: surfsense-dev-redis
   shared_temp:
     name: surfsense-dev-shared-temp
+  zero_cache_data:
+    name: surfsense-dev-zero-cache
