@@ -17,14 +17,12 @@ const replacements = [
 		"__NEXT_PUBLIC_FASTAPI_BACKEND_URL__",
 		process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000",
 	],
-	["__NEXT_PUBLIC_ELECTRIC_URL__", process.env.NEXT_PUBLIC_ELECTRIC_URL || "http://localhost:5133"],
 	[
 		"__NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE__",
 		process.env.NEXT_PUBLIC_FASTAPI_BACKEND_AUTH_TYPE || "LOCAL",
 	],
 	["__NEXT_PUBLIC_ETL_SERVICE__", process.env.NEXT_PUBLIC_ETL_SERVICE || "DOCLING"],
 	["__NEXT_PUBLIC_DEPLOYMENT_MODE__", process.env.NEXT_PUBLIC_DEPLOYMENT_MODE || "self-hosted"],
-	["__NEXT_PUBLIC_ELECTRIC_AUTH_MODE__", process.env.NEXT_PUBLIC_ELECTRIC_AUTH_MODE || "insecure"],
 ];
 
 let filesProcessed = 0;

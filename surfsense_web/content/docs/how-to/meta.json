@@ -1,6 +1,6 @@
 {
 	"title": "How to",
-	"pages": ["electric-sql", "realtime-collaboration", "web-search"],
+	"pages": ["realtime-collaboration", "web-search"],
 	"icon": "Compass",
 	"defaultOpen": false
 }

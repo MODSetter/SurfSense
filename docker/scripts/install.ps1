@@ -109,7 +109,6 @@ $Files = @(
     @{ Src = "docker/docker-compose.yml";                Dest = "docker-compose.yml" }
     @{ Src = "docker/.env.example";                      Dest = ".env.example" }
     @{ Src = "docker/postgresql.conf";                   Dest = "postgresql.conf" }
-    @{ Src = "docker/scripts/init-electric-user.sh";     Dest = "scripts/init-electric-user.sh" }
     @{ Src = "docker/scripts/migrate-database.ps1";      Dest = "scripts/migrate-database.ps1" }
     @{ Src = "docker/searxng/settings.yml";              Dest = "searxng/settings.yml" }
     @{ Src = "docker/searxng/limiter.toml";              Dest = "searxng/limiter.toml" }
