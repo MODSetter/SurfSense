@@ -1,7 +1,7 @@
 import { createSchema, createBuilder, relationships } from "@rocicorp/zero";
-import { chatCommentTable, chatSessionStateTable, newChatMessageTable } from "./tables/chat";
-import { documentTable, searchSourceConnectorTable } from "./tables/documents";
-import { notificationTable } from "./tables/inbox";
+import { chatCommentTable, chatSessionStateTable, newChatMessageTable } from "./chat";
+import { documentTable, searchSourceConnectorTable } from "./documents";
+import { notificationTable } from "./inbox";
 
 const chatCommentRelationships = relationships(chatCommentTable, ({ one }) => ({
 	message: one({

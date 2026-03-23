@@ -1,4 +1,4 @@
-import type { Schema } from "@/zero/schema";
+import type { Schema } from "@/zero/schema/index";
 
 export type Context =
 	| {
