@@ -17,13 +17,6 @@ export {
 } from "./article";
 export { Audio } from "./audio";
 export {
-	type DeepAgentThinkingArgs,
-	type DeepAgentThinkingResult,
-	DeepAgentThinkingToolUI,
-	InlineThinkingDisplay,
-	type ThinkingStep,
-} from "./deepagent-thinking";
-export {
 	type DisplayImageArgs,
 	DisplayImageArgsSchema,
 	type DisplayImageResult,

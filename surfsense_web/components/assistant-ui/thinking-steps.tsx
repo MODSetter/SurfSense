@@ -4,8 +4,14 @@ import type { FC } from "react";
 import { useCallback, useEffect, useState } from "react";
 import { ChainOfThoughtItem } from "@/components/prompt-kit/chain-of-thought";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import type { ThinkingStep } from "@/components/tool-ui/deepagent-thinking";
 import { cn } from "@/lib/utils";
+
+export interface ThinkingStep {
+	id: string;
+	title: string;
+	items: string[];
+	status: "pending" | "in_progress" | "completed";
+}
 
 /**
  * Chain of thought display component - single collapsible dropdown design
@@ -120,8 +126,8 @@ export const ThinkingStepsDisplay: FC<{ steps: ThinkingStep[]; isThreadRunning?:
 
 											{step.items && step.items.length > 0 && (
 												<div className="mt-1 space-y-0.5">
-													{step.items.map((item, idx) => (
-														<ChainOfThoughtItem key={`${step.id}-item-${idx}`} className="text-xs">
+												{step.items.map((item) => (
+													<ChainOfThoughtItem key={`${step.id}-${item}`} className="text-xs">
 															{item}
 														</ChainOfThoughtItem>
 													))}
