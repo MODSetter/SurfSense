@@ -20,7 +20,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
 import { Tabs, TabsContent } from "@/components/ui/tabs";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
-import { useConnectorsElectric } from "@/hooks/use-connectors-electric";
+import { useConnectorsSync } from "@/hooks/use-connectors-sync";
 import { PICKER_CLOSE_EVENT, PICKER_OPEN_EVENT } from "@/hooks/use-google-picker";
 import { cn } from "@/lib/utils";
 import { ConnectorDialogHeader } from "./connector-popup/components/connector-dialog-header";
@@ -157,33 +157,24 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 			};
 		}, []);
 
-		// Fetch connectors using Electric SQL + PGlite for real-time updates
-		// This provides instant updates when connectors change, without polling
 		const {
-			connectors: connectorsFromElectric = [],
+			connectors: connectorsFromSync = [],
 			loading: connectorsLoading,
 			error: connectorsError,
-			refreshConnectors: refreshConnectorsElectric,
-		} = useConnectorsElectric(searchSpaceId);
+			refreshConnectors: refreshConnectorsSync,
+		} = useConnectorsSync(searchSpaceId);
 
-		// Fallback to API if Electric is not available or fails
-		// Use Electric data if: 1) we have data, or 2) still loading without error
-		// Use API data if: Electric failed (has error) or finished loading with no data
-		const useElectricData =
-			connectorsFromElectric.length > 0 || (connectorsLoading && !connectorsError);
-		const connectors = useElectricData ? connectorsFromElectric : allConnectors || [];
+		const useSyncData =
+			connectorsFromSync.length > 0 || (connectorsLoading && !connectorsError);
+		const connectors = useSyncData ? connectorsFromSync : allConnectors || [];
 
-		// Manual refresh function that works with both Electric and API
 		const refreshConnectors = async () => {
-			if (useElectricData) {
-				await refreshConnectorsElectric();
-			} else {
-				// Fallback: use allConnectors from useConnectorDialog (which uses connectorsAtom)
-				// The connectorsAtom will handle refetching if needed
+			if (useSyncData) {
+				await refreshConnectorsSync();
 			}
 		};
 
-		// Track indexing state locally - clears automatically when Electric SQL detects last_indexed_at changed
+		// Track indexing state locally - clears automatically when last_indexed_at changes via real-time sync
 		// Also clears when failed notifications are detected
 		const { indexingConnectorIds, startIndexing, stopIndexing } = useIndexingConnectors(
 			connectors as SearchSourceConnector[],
@@ -204,7 +195,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 		const activeConnectorsCount = connectors.length;
 
 		// Check which connectors are already connected
-		// Using Electric SQL + PGlite for real-time connector updates
+		// Real-time connector updates via Zero sync
 		const connectedTypes = new Set<string>(
 			(connectors || []).map((c: SearchSourceConnector) => c.connector_type)
 		);
@@ -282,7 +273,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 						<ConnectorAccountsListView
 							connectorType={viewingAccountsType.connectorType}
 							connectorTitle={viewingAccountsType.connectorTitle}
-							connectors={(connectors || []) as SearchSourceConnector[]} // Using Electric SQL + PGlite for real-time connector updates (all connector types)
+							connectors={(connectors || []) as SearchSourceConnector[]}
 							indexingConnectorIds={indexingConnectorIds}
 							onBack={handleBackFromAccountsList}
 							onManage={handleStartEdit}
@@ -314,7 +305,7 @@ export const ConnectorIndicator = forwardRef<ConnectorIndicatorHandle, Connector
 								...editingConnector,
 								config: connectorConfig || editingConnector.config,
 								name: editingConnector.name,
-								// Sync last_indexed_at with live data from Electric SQL for real-time updates
+								// Sync last_indexed_at with live data from real-time sync
 								last_indexed_at:
 									(connectors as SearchSourceConnector[]).find((c) => c.id === editingConnector.id)
 										?.last_indexed_at ?? editingConnector.last_indexed_at,

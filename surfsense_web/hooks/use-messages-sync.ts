@@ -9,7 +9,7 @@ import { useQuery } from "@rocicorp/zero/react";
  * Syncs chat messages for a thread via Zero.
  * Calls onMessagesUpdate when messages change.
  */
-export function useMessagesElectric(
+export function useMessagesSync(
 	threadId: number | null,
 	onMessagesUpdate: (messages: RawMessage[]) => void
 ) {

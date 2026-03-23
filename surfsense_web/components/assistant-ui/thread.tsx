@@ -91,7 +91,7 @@ import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import { getToolIcon } from "@/contracts/enums/toolIcons";
 import type { Document } from "@/contracts/types/document.types";
 import { useBatchCommentsPreload } from "@/hooks/use-comments";
-import { useCommentsElectric } from "@/hooks/use-comments-electric";
+import { useCommentsSync } from "@/hooks/use-comments-sync";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { cn } from "@/lib/utils";
 
@@ -365,8 +365,8 @@ const Composer: FC = () => {
 	const respondingToUserId = sessionState?.respondingToUserId ?? null;
 	const isBlockedByOtherUser = isAiResponding && respondingToUserId !== currentUser?.id;
 
-	// Sync comments for the entire thread via Electric SQL (one subscription per thread)
-	useCommentsElectric(threadId);
+	// Sync comments for the entire thread via Zero (one subscription per thread)
+	useCommentsSync(threadId);
 
 	// Batch-prefetch comments for all assistant messages so individual useComments
 	// hooks never fire their own network requests (eliminates N+1 API calls).

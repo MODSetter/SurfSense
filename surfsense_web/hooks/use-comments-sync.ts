@@ -151,7 +151,7 @@ function transformComments(
  * Syncs ALL comments for a thread in ONE subscription, then updates
  * React Query cache for each message. This avoids N subscriptions for N messages.
  */
-export function useCommentsElectric(threadId: number | null) {
+export function useCommentsSync(threadId: number | null) {
 	const queryClient = useQueryClient();
 
 	const { data: membersData } = useAtomValue(membersAtom);

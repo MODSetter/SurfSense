@@ -61,7 +61,7 @@ import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useChatSessionStateSync } from "@/hooks/use-chat-session-state";
-import { useMessagesElectric } from "@/hooks/use-messages-electric";
+import { useMessagesSync } from "@/hooks/use-messages-sync";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 // import { WriteTodosToolUI } from "@/components/tool-ui/write-todos";
 import { getBearerToken } from "@/lib/auth-utils";
@@ -204,13 +204,13 @@ export default function NewChatPage() {
 	// Get current user for author info in shared chats
 	const { data: currentUser } = useAtomValue(currentUserAtom);
 
-	// Live collaboration: sync session state and messages via Electric SQL
+	// Live collaboration: sync session state and messages via Zero
 	useChatSessionStateSync(threadId);
 	const { data: membersData } = useAtomValue(membersAtom);
 
-	const handleElectricMessagesUpdate = useCallback(
+	const handleSyncedMessagesUpdate = useCallback(
 		(
-			electricMessages: {
+			syncedMessages: {
 				id: number;
 				thread_id: number;
 				role: string;
@@ -224,11 +224,11 @@ export default function NewChatPage() {
 			}
 
 			setMessages((prev) => {
-				if (electricMessages.length < prev.length) {
+				if (syncedMessages.length < prev.length) {
 					return prev;
 				}
 
-				return electricMessages.map((msg) => {
+				return syncedMessages.map((msg) => {
 					const member = msg.author_id
 						? membersData?.find((m) => m.user_id === msg.author_id)
 						: null;
@@ -255,7 +255,7 @@ export default function NewChatPage() {
 		[isRunning, membersData]
 	);
 
-	useMessagesElectric(threadId, handleElectricMessagesUpdate);
+	useMessagesSync(threadId, handleSyncedMessagesUpdate);
 
 	// Extract search_space_id from URL params
 	const searchSpaceId = useMemo(() => {

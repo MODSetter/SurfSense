@@ -9,7 +9,7 @@ import { useQuery } from "@rocicorp/zero/react";
  * Syncs connectors for a search space via Zero.
  * Returns connectors, loading state, error, and a refresh function.
  */
-export function useConnectorsElectric(searchSpaceId: number | string | null) {
+export function useConnectorsSync(searchSpaceId: number | string | null) {
 	const spaceId = searchSpaceId ? Number(searchSpaceId) : -1;
 
 	const [data, result] = useQuery(queries.connectors.bySpace({ searchSpaceId: spaceId }));
@@ -37,9 +37,7 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 	const loading = !searchSpaceId ? false : result.type !== "complete";
 	const error = !searchSpaceId ? null : null;
 
-	const refreshConnectors = async () => {
-		// Zero handles reactivity automatically — no manual refresh needed
-	};
+	const refreshConnectors = async () => {};
 
 	return { connectors, loading, error, refreshConnectors };
 }
