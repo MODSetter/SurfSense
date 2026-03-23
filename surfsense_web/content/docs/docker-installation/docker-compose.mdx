@@ -48,6 +48,7 @@ All configuration lives in a single `docker/.env` file (or `surfsense/.env` if y
 |----------|-------------|---------|
 | `FRONTEND_PORT` | Frontend service port | `3929` |
 | `BACKEND_PORT` | Backend API service port | `8929` |
+| `ZERO_CACHE_PORT` | Zero-cache real-time sync port | `5929` |
 
 ### Custom Domain / Reverse Proxy
 
@@ -58,6 +59,18 @@ Only set these if serving SurfSense on a real domain via a reverse proxy (Caddy,
 | `NEXT_FRONTEND_URL` | Public frontend URL (e.g. `https://app.yourdomain.com`) |
 | `BACKEND_URL` | Public backend URL for OAuth callbacks (e.g. `https://api.yourdomain.com`) |
 | `NEXT_PUBLIC_FASTAPI_BACKEND_URL` | Backend URL used by the frontend (e.g. `https://api.yourdomain.com`) |
+| `NEXT_PUBLIC_ZERO_CACHE_URL` | Zero-cache URL used by the frontend (e.g. `https://zero.yourdomain.com`) |
+
+### Zero-cache (Real-Time Sync)
+
+Defaults work out of the box. Change `ZERO_ADMIN_PASSWORD` for security in production.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `ZERO_ADMIN_PASSWORD` | Password for the zero-cache admin UI and `/statz` endpoint | `surfsense-zero-admin` |
+| `ZERO_UPSTREAM_DB` | PostgreSQL connection URL for replication (must be a direct connection, not via pgbouncer) | *(built from DB_* vars)* |
+| `ZERO_CVR_DB` | PostgreSQL connection URL for client view records | *(built from DB_* vars)* |
+| `ZERO_CHANGE_DB` | PostgreSQL connection URL for replication log entries | *(built from DB_* vars)* |
 
 ### Database
 
@@ -136,6 +149,7 @@ Uncomment the connectors you want to use. Redirect URIs follow the pattern `http
 | `backend` | FastAPI application server |
 | `celery_worker` | Background task processing (document indexing, etc.) |
 | `celery_beat` | Periodic task scheduler (connector sync) |
+| `zero-cache` | Rocicorp Zero real-time sync (replicates Postgres to clients) |
 | `frontend` | Next.js web application |
 
 All services start automatically with `docker compose up -d`.
@@ -169,4 +183,6 @@ docker compose down -v
 
 - **Ports already in use**: Change the relevant `*_PORT` variable in `.env` and restart.
 - **Permission errors on Linux**: You may need to prefix `docker` commands with `sudo`.
+- **Zero-cache not starting**: Check `docker compose logs zero-cache`. Ensure PostgreSQL has `wal_level=logical` (configured automatically by the bundled `postgresql.conf`).
+- **Real-time updates not working**: Open DevTools → Console and check for WebSocket errors. Verify `NEXT_PUBLIC_ZERO_CACHE_URL` matches the running zero-cache address.
 - **Line ending issues on Windows**: Run `git config --global core.autocrlf true` before cloning.

@@ -1,6 +1,6 @@
 {
 	"title": "How to",
-	"pages": ["realtime-collaboration", "web-search"],
+	"pages": ["zero-sync", "realtime-collaboration", "web-search"],
 	"icon": "Compass",
 	"defaultOpen": false
 }
