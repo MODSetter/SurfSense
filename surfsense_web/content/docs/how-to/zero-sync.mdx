@@ -48,6 +48,24 @@ If running the frontend outside Docker (e.g., `pnpm dev`), you need:
 
 When deploying behind a reverse proxy, set `NEXT_PUBLIC_ZERO_CACHE_URL` to your public zero-cache URL (e.g., `https://zero.yourdomain.com`). The zero-cache service must be accessible via WebSocket from the browser.
 
+### Database Requirements
+
+zero-cache connects to PostgreSQL using logical replication. The database must meet these requirements:
+
+1. **`wal_level = logical`** — already configured in the bundled `postgresql.conf`
+2. **The database user must have `REPLICATION` privilege** — required for creating logical replication slots
+
+In the default Docker setup, the `surfsense` user is a PostgreSQL superuser and has all required privileges automatically.
+
+**For managed databases** (RDS, Supabase, Cloud SQL, etc.) where the app user may not be a superuser, you need to grant replication privileges:
+
+```sql
+ALTER USER surfsense WITH REPLICATION;
+GRANT CREATE ON DATABASE surfsense TO surfsense;
+```
+
+The `REPLICATION` privilege allows zero-cache to create a logical replication slot for streaming changes. The `CREATE` privilege allows zero-cache to create internal schemas (`zero`, `zero_0`) for its metadata.
+
 ## Synced Tables
 
 Zero syncs the following tables for real-time features:
