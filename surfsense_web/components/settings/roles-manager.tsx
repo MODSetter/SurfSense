@@ -532,7 +532,7 @@ function RolesContent({
 												{role.description}
 											</p>
 										)}
-									</div>
+									</button>
 								</RolePermissionsDialog>
 							</div>
 
