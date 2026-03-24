@@ -12,7 +12,7 @@ async function authenticateRequest(
 ): Promise<{ ctx: Context; error?: never } | { ctx?: never; error: NextResponse }> {
 	const authHeader = request.headers.get("Authorization");
 	if (!authHeader?.startsWith("Bearer ")) {
-		return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+		return { ctx: undefined };
 	}
 
 	try {
