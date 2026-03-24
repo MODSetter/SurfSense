@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
@@ -212,15 +211,13 @@ export function LocalLoginForm() {
 				<button
 					type="submit"
 					disabled={isLoggingIn}
-					className="w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
+					className="relative w-full rounded-md bg-blue-600 px-4 py-1.5 md:py-2 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all text-sm md:text-base flex items-center justify-center gap-2"
 				>
-					{isLoggingIn ? (
-						<>
+					<span className={isLoggingIn ? "invisible" : ""}>{t("sign_in")}</span>
+					{isLoggingIn && (
+						<span className="absolute inset-0 flex items-center justify-center">
 							<Spinner size="sm" className="text-white" />
-							<span>{t("signing_in")}</span>
-						</>
-					) : (
-						t("sign_in")
+						</span>
 					)}
 				</button>
 			</form>

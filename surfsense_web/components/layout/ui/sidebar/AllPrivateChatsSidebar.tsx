@@ -16,8 +16,9 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Button } from "@/components/ui/button";
 import {
 	Dialog,
@@ -36,7 +37,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/animated-tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useLongPress } from "@/hooks/use-long-press";
@@ -50,19 +50,21 @@ import {
 import { cn } from "@/lib/utils";
 import { SidebarSlideOutPanel } from "./SidebarSlideOutPanel";
 
-interface AllPrivateChatsSidebarProps {
-	open: boolean;
+export interface AllPrivateChatsSidebarContentProps {
 	onOpenChange: (open: boolean) => void;
 	searchSpaceId: string;
 	onCloseMobileSidebar?: () => void;
 }
 
-export function AllPrivateChatsSidebar({
-	open,
+interface AllPrivateChatsSidebarProps extends AllPrivateChatsSidebarContentProps {
+	open: boolean;
+}
+
+export function AllPrivateChatsSidebarContent({
 	onOpenChange,
 	searchSpaceId,
 	onCloseMobileSidebar,
-}: AllPrivateChatsSidebarProps) {
+}: AllPrivateChatsSidebarContentProps) {
 	const t = useTranslations("sidebar");
 	const router = useRouter();
 	const params = useParams();
@@ -96,16 +98,6 @@ export function AllPrivateChatsSidebar({
 
 	const isSearchMode = !!debouncedSearchQuery.trim();
 
-	useEffect(() => {
-		const handleEscape = (e: KeyboardEvent) => {
-			if (e.key === "Escape" && open) {
-				onOpenChange(false);
-			}
-		};
-		document.addEventListener("keydown", handleEscape);
-		return () => document.removeEventListener("keydown", handleEscape);
-	}, [open, onOpenChange]);
-
 	const {
 		data: threadsData,
 		error: threadsError,
@@ -113,7 +105,7 @@ export function AllPrivateChatsSidebar({
 	} = useQuery({
 		queryKey: ["all-threads", searchSpaceId],
 		queryFn: () => fetchThreads(Number(searchSpaceId)),
-		enabled: !!searchSpaceId && open && !isSearchMode,
+		enabled: !!searchSpaceId && !isSearchMode,
 	});
 
 	const {
@@ -123,7 +115,7 @@ export function AllPrivateChatsSidebar({
 	} = useQuery({
 		queryKey: ["search-threads", searchSpaceId, debouncedSearchQuery],
 		queryFn: () => searchThreads(Number(searchSpaceId), debouncedSearchQuery.trim()),
-		enabled: !!searchSpaceId && open && isSearchMode,
+		enabled: !!searchSpaceId && isSearchMode,
 	});
 
 	// Filter to only private chats (PRIVATE visibility or no visibility set)
@@ -250,11 +242,7 @@ export function AllPrivateChatsSidebar({
 	const archivedCount = archivedChats.length;
 
 	return (
-		<SidebarSlideOutPanel
-			open={open}
-			onOpenChange={onOpenChange}
-			ariaLabel={t("chats") || "Private Chats"}
-		>
+		<>
 			<div className="shrink-0 p-4 pb-2 space-y-3">
 				<div className="flex items-center gap-2">
 					{isMobile && (
@@ -530,6 +518,29 @@ export function AllPrivateChatsSidebar({
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
+		</>
+	);
+}
+
+export function AllPrivateChatsSidebar({
+	open,
+	onOpenChange,
+	searchSpaceId,
+	onCloseMobileSidebar,
+}: AllPrivateChatsSidebarProps) {
+	const t = useTranslations("sidebar");
+
+	return (
+		<SidebarSlideOutPanel
+			open={open}
+			onOpenChange={onOpenChange}
+			ariaLabel={t("chats") || "Private Chats"}
+		>
+			<AllPrivateChatsSidebarContent
+				onOpenChange={onOpenChange}
+				searchSpaceId={searchSpaceId}
+				onCloseMobileSidebar={onCloseMobileSidebar}
+			/>
 		</SidebarSlideOutPanel>
 	);
 }

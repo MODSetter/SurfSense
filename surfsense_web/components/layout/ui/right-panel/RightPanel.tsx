@@ -3,11 +3,13 @@
 import { useAtom, useAtomValue, useSetAtom } from "jotai";
 import { PanelRight, PanelRightClose } from "lucide-react";
 import { startTransition, useEffect } from "react";
+import { closeHitlEditPanelAtom, hitlEditPanelAtom } from "@/atoms/chat/hitl-edit-panel.atom";
 import { closeReportPanelAtom, reportPanelAtom } from "@/atoms/chat/report-panel.atom";
 import { documentsSidebarOpenAtom } from "@/atoms/documents/ui.atoms";
 import { closeEditorPanelAtom, editorPanelAtom } from "@/atoms/editor/editor-panel.atom";
 import { rightPanelCollapsedAtom, rightPanelTabAtom } from "@/atoms/layout/right-panel.atom";
 import { EditorPanelContent } from "@/components/editor-panel/editor-panel";
+import { HitlEditPanelContent } from "@/components/hitl-edit-panel/hitl-edit-panel";
 import { ReportPanelContent } from "@/components/report-panel/report-panel";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -44,9 +46,11 @@ export function RightPanelExpandButton() {
 	const documentsOpen = useAtomValue(documentsSidebarOpenAtom);
 	const reportState = useAtomValue(reportPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
+	const hitlEditState = useAtomValue(hitlEditPanelAtom);
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen = editorState.isOpen && !!editorState.documentId;
-	const hasContent = documentsOpen || reportOpen || editorOpen;
+	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
+	const hasContent = documentsOpen || reportOpen || editorOpen || hitlEditOpen;
 
 	if (!collapsed || !hasContent) return null;
 
@@ -70,7 +74,7 @@ export function RightPanelExpandButton() {
 	);
 }
 
-const PANEL_WIDTHS = { sources: 420, report: 640, editor: 640 } as const;
+const PANEL_WIDTHS = { sources: 420, report: 640, editor: 640, "hitl-edit": 640 } as const;
 
 export function RightPanel({ documentsPanel }: RightPanelProps) {
 	const [activeTab] = useAtom(rightPanelTabAtom);
@@ -78,33 +82,45 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 	const closeReport = useSetAtom(closeReportPanelAtom);
 	const editorState = useAtomValue(editorPanelAtom);
 	const closeEditor = useSetAtom(closeEditorPanelAtom);
+	const hitlEditState = useAtomValue(hitlEditPanelAtom);
+	const closeHitlEdit = useSetAtom(closeHitlEditPanelAtom);
 	const [collapsed, setCollapsed] = useAtom(rightPanelCollapsedAtom);
 
 	const documentsOpen = documentsPanel?.open ?? false;
 	const reportOpen = reportState.isOpen && !!reportState.reportId;
 	const editorOpen = editorState.isOpen && !!editorState.documentId;
+	const hitlEditOpen = hitlEditState.isOpen && !!hitlEditState.onSave;
 
 	useEffect(() => {
-		if (!reportOpen && !editorOpen) return;
+		if (!reportOpen && !editorOpen && !hitlEditOpen) return;
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
-				if (editorOpen) closeEditor();
+				if (hitlEditOpen) closeHitlEdit();
+				else if (editorOpen) closeEditor();
 				else if (reportOpen) closeReport();
 			}
 		};
 		document.addEventListener("keydown", handleKeyDown);
 		return () => document.removeEventListener("keydown", handleKeyDown);
-	}, [reportOpen, editorOpen, closeReport, closeEditor]);
+	}, [reportOpen, editorOpen, hitlEditOpen, closeReport, closeEditor, closeHitlEdit]);
 
-	const isVisible = (documentsOpen || reportOpen || editorOpen) && !collapsed;
+	const isVisible = (documentsOpen || reportOpen || editorOpen || hitlEditOpen) && !collapsed;
 
 	let effectiveTab = activeTab;
-	if (effectiveTab === "editor" && !editorOpen) {
+	if (effectiveTab === "hitl-edit" && !hitlEditOpen) {
+		effectiveTab = editorOpen ? "editor" : reportOpen ? "report" : "sources";
+	} else if (effectiveTab === "editor" && !editorOpen) {
 		effectiveTab = reportOpen ? "report" : "sources";
 	} else if (effectiveTab === "report" && !reportOpen) {
 		effectiveTab = editorOpen ? "editor" : "sources";
 	} else if (effectiveTab === "sources" && !documentsOpen) {
-		effectiveTab = editorOpen ? "editor" : reportOpen ? "report" : "sources";
+		effectiveTab = hitlEditOpen
+			? "hitl-edit"
+			: editorOpen
+				? "editor"
+				: reportOpen
+					? "report"
+					: "sources";
 	}
 
 	const targetWidth = PANEL_WIDTHS[effectiveTab];
@@ -145,6 +161,19 @@ export function RightPanel({ documentsPanel }: RightPanelProps) {
 							searchSpaceId={editorState.searchSpaceId as number}
 							title={editorState.title}
 							onClose={closeEditor}
+						/>
+					</div>
+				)}
+				{effectiveTab === "hitl-edit" && hitlEditOpen && hitlEditState.onSave && (
+					<div className="h-full flex flex-col">
+						<HitlEditPanelContent
+							title={hitlEditState.title}
+							content={hitlEditState.content}
+							toolName={hitlEditState.toolName}
+							contentFormat={hitlEditState.contentFormat}
+							extraFields={hitlEditState.extraFields}
+							onSave={hitlEditState.onSave}
+							onClose={closeHitlEdit}
 						/>
 					</div>
 				)}

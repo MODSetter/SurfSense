@@ -1,12 +1,12 @@
 "use client";
 
-import * as RadioGroup from "@radix-ui/react-radio-group";
 import { KeyRound, Server } from "lucide-react";
 import type { FC } from "react";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import type { ConnectorConfigProps } from "../index";
 
 export interface ElasticsearchConfigProps extends ConnectorConfigProps {
@@ -56,8 +56,12 @@ export const ElasticsearchConfig: FC<ElasticsearchConfigProps> = ({
 			: ""
 	);
 
-	// Update values when connector changes
+	// Update values when the connector identity changes (e.g. switching to a different connector)
+	const connectorIdRef = useRef(connector.id);
 	useEffect(() => {
+		if (connectorIdRef.current === connector.id) return;
+		connectorIdRef.current = connector.id;
+
 		setName(connector.name || "");
 		setEndpointUrl((connector.config?.ELASTICSEARCH_URL as string) || "");
 		setAuthMethod(
@@ -82,7 +86,7 @@ export const ElasticsearchConfig: FC<ElasticsearchConfigProps> = ({
 				? String(connector.config.ELASTICSEARCH_MAX_DOCUMENTS)
 				: ""
 		);
-	}, [connector.config, connector.name]);
+	}, [connector]);
 
 	const stringToArray = (str: string): string[] => {
 		const items = str
@@ -192,9 +196,9 @@ export const ElasticsearchConfig: FC<ElasticsearchConfigProps> = ({
 
 	const handleMaxDocumentsChange = (value: string) => {
 		setMaxDocuments(value);
-		if (value && value.trim()) {
+		if (value?.trim()) {
 			const num = parseInt(value, 10);
-			if (!isNaN(num) && num > 0) {
+			if (!Number.isNaN(num) && num > 0) {
 				updateConfig({ ELASTICSEARCH_MAX_DOCUMENTS: num });
 			}
 		} else {
@@ -255,41 +259,25 @@ export const ElasticsearchConfig: FC<ElasticsearchConfigProps> = ({
 				</div>
 
 				<div className="space-y-4">
-					<RadioGroup.Root
+					<RadioGroup
 						value={authMethod}
 						onValueChange={(value) => handleAuthMethodChange(value as "basic" | "api_key")}
-						className="flex flex-col space-y-2"
+						className="flex flex-col gap-2"
 					>
-						<div className="flex items-center space-x-2">
-							<RadioGroup.Item
-								value="api_key"
-								id={authApiKeyId}
-								className="aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-							>
-								<RadioGroup.Indicator className="flex items-center justify-center">
-									<div className="h-2.5 w-2.5 rounded-full bg-current" />
-								</RadioGroup.Indicator>
-							</RadioGroup.Item>
+						<div className="flex items-center gap-2">
+							<RadioGroupItem value="api_key" id={authApiKeyId} />
 							<Label htmlFor={authApiKeyId} className="text-xs sm:text-sm">
 								API Key
 							</Label>
 						</div>
 
-						<div className="flex items-center space-x-2">
-							<RadioGroup.Item
-								value="basic"
-								id={authBasicId}
-								className="aspect-square h-4 w-4 rounded-full border border-primary text-primary ring-offset-background focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
-							>
-								<RadioGroup.Indicator className="flex items-center justify-center">
-									<div className="h-2.5 w-2.5 rounded-full bg-current" />
-								</RadioGroup.Indicator>
-							</RadioGroup.Item>
+						<div className="flex items-center gap-2">
+							<RadioGroupItem value="basic" id={authBasicId} />
 							<Label htmlFor={authBasicId} className="text-xs sm:text-sm">
 								Username & Password
 							</Label>
 						</div>
-					</RadioGroup.Root>
+					</RadioGroup>
 
 					{authMethod === "basic" && (
 						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">

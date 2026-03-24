@@ -172,7 +172,7 @@ async def discord_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=discord_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=discord_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -311,7 +311,7 @@ async def discord_callback(
                 f"Duplicate Discord connector detected for user {user_id} with server {connector_identifier}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=discord-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=discord-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -342,7 +342,7 @@ async def discord_callback(
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=discord-connector&connectorId={new_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=discord-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:

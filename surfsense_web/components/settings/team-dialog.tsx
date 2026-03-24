@@ -2,9 +2,9 @@
 
 import { useAtom } from "jotai";
 import { useTranslations } from "next-intl";
+import { TeamContent } from "@/app/dashboard/[search_space_id]/team/team-content";
 import { teamDialogAtom } from "@/atoms/settings/settings-dialog.atoms";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { TeamContent } from "@/app/dashboard/[search_space_id]/team/team-content";
 
 interface TeamDialogProps {
 	searchSpaceId: number;

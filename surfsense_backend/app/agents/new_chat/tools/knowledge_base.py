@@ -9,6 +9,7 @@ This module provides:
 """
 
 import asyncio
+import contextlib
 import json
 import re
 import time
@@ -19,7 +20,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db import shielded_async_session
+from app.db import NATIVE_TO_LEGACY_DOCTYPE, shielded_async_session
 from app.services.connector_service import ConnectorService
 from app.utils.perf import get_perf_logger
 
@@ -60,7 +61,7 @@ def _is_degenerate_query(query: str) -> bool:
 
 async def _browse_recent_documents(
     search_space_id: int,
-    document_type: str | None,
+    document_type: str | list[str] | None,
     top_k: int,
     start_date: datetime | None,
     end_date: datetime | None,
@@ -83,14 +84,22 @@ async def _browse_recent_documents(
     base_conditions = [Document.search_space_id == search_space_id]
 
     if document_type is not None:
-        if isinstance(document_type, str):
-            try:
-                doc_type_enum = DocumentType[document_type]
-                base_conditions.append(Document.document_type == doc_type_enum)
-            except KeyError:
-                return []
+        type_list = (
+            document_type if isinstance(document_type, list) else [document_type]
+        )
+        doc_type_enums = []
+        for dt in type_list:
+            if isinstance(dt, str):
+                with contextlib.suppress(KeyError):
+                    doc_type_enums.append(DocumentType[dt])
+            else:
+                doc_type_enums.append(dt)
+        if not doc_type_enums:
+            return []
+        if len(doc_type_enums) == 1:
+            base_conditions.append(Document.document_type == doc_type_enums[0])
         else:
-            base_conditions.append(Document.document_type == document_type)
+            base_conditions.append(Document.document_type.in_(doc_type_enums))
 
     if start_date is not None:
         base_conditions.append(Document.updated_at >= start_date)
@@ -195,10 +204,6 @@ _ALL_CONNECTORS: list[str] = [
     "CRAWLED_URL",
     "CIRCLEBACK",
     "OBSIDIAN_CONNECTOR",
-    # Composio connectors
-    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
-    "COMPOSIO_GMAIL_CONNECTOR",
-    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
 ]
 
 # Human-readable descriptions for each connector type
@@ -228,10 +233,6 @@ CONNECTOR_DESCRIPTIONS: dict[str, str] = {
     "BOOKSTACK_CONNECTOR": "BookStack pages (personal documentation)",
     "CIRCLEBACK": "Circleback meeting notes, transcripts, and action items",
     "OBSIDIAN_CONNECTOR": "Obsidian vault notes and markdown files (personal notes)",
-    # Composio connectors
-    "COMPOSIO_GOOGLE_DRIVE_CONNECTOR": "Google Drive files via Composio (personal cloud storage)",
-    "COMPOSIO_GMAIL_CONNECTOR": "Gmail emails via Composio (personal emails)",
-    "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR": "Google Calendar events via Composio (personal calendar)",
 }
 
 
@@ -350,6 +351,20 @@ def _compute_tool_output_budget(max_input_tokens: int | None) -> int:
 
     budget = int(max_input_tokens * _CHARS_PER_TOKEN * _TOOL_OUTPUT_CONTEXT_FRACTION)
     return max(_MIN_TOOL_OUTPUT_CHARS, min(budget, _MAX_TOOL_OUTPUT_CHARS))
+
+
+_INTERNAL_METADATA_KEYS: frozenset[str] = frozenset(
+    {
+        "message_id",
+        "thread_id",
+        "event_id",
+        "calendar_id",
+        "google_drive_file_id",
+        "page_id",
+        "issue_id",
+        "connector_id",
+    }
+)
 
 
 def format_documents_for_context(
@@ -480,7 +495,10 @@ def format_documents_for_context(
     total_docs = len(grouped)
 
     for doc_idx, g in enumerate(grouped.values()):
-        metadata_json = json.dumps(g["metadata"], ensure_ascii=False)
+        metadata_clean = {
+            k: v for k, v in g["metadata"].items() if k not in _INTERNAL_METADATA_KEYS
+        }
+        metadata_json = json.dumps(metadata_clean, ensure_ascii=False)
         is_live_search = g["document_type"] in live_search_connectors
 
         doc_lines: list[str] = [
@@ -617,7 +635,12 @@ async def search_knowledge_base_async(
     if available_document_types:
         doc_types_set = set(available_document_types)
         before_count = len(connectors)
-        connectors = [c for c in connectors if c in doc_types_set]
+        connectors = [
+            c
+            for c in connectors
+            if c in doc_types_set
+            or NATIVE_TO_LEGACY_DOCTYPE.get(c, "") in doc_types_set
+        ]
         skipped = before_count - len(connectors)
         if skipped:
             perf.info(
@@ -654,6 +677,13 @@ async def search_knowledge_base_async(
         )
         browse_connectors = connectors if connectors else [None]  # type: ignore[list-item]
 
+        expanded_browse = []
+        for c in browse_connectors:
+            if c is not None and c in NATIVE_TO_LEGACY_DOCTYPE:
+                expanded_browse.append([c, NATIVE_TO_LEGACY_DOCTYPE[c]])
+            else:
+                expanded_browse.append(c)
+
         browse_results = await asyncio.gather(
             *[
                 _browse_recent_documents(
@@ -663,7 +693,7 @@ async def search_knowledge_base_async(
                     start_date=resolved_start_date,
                     end_date=resolved_end_date,
                 )
-                for c in browse_connectors
+                for c in expanded_browse
             ]
         )
         for docs in browse_results:
@@ -778,6 +808,10 @@ async def search_knowledge_base_async(
             seen_content_hashes.add(content_hash)
 
         deduplicated.append(doc)
+
+    # Sort by RRF score so the most relevant documents from ANY connector
+    # appear first, preventing budget truncation from hiding top results.
+    deduplicated.sort(key=lambda d: d.get("score", 0), reverse=True)
 
     output_budget = _compute_tool_output_budget(max_input_tokens)
     result = format_documents_for_context(deduplicated, max_chars=output_budget)

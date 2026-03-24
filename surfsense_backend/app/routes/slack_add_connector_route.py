@@ -166,7 +166,7 @@ async def slack_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=slack_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=slack_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -296,7 +296,7 @@ async def slack_callback(
                 f"Duplicate Slack connector detected for user {user_id} with workspace {connector_identifier}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=slack-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=slack-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -328,7 +328,7 @@ async def slack_callback(
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=slack-connector&connectorId={new_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=slack-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:

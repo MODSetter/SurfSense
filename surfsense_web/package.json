@@ -76,6 +76,7 @@
 		"@remotion/media": "^4.0.438",
 		"@remotion/player": "^4.0.438",
 		"@remotion/web-renderer": "^4.0.438",
+		"@slate-serializers/html": "^2.2.3",
 		"@streamdown/code": "^1.0.2",
 		"@streamdown/math": "^1.0.2",
 		"@tabler/icons-react": "^3.34.1",

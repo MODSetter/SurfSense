@@ -257,7 +257,7 @@ async def drive_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=google_drive_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=google_drive_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -345,6 +345,7 @@ async def drive_callback(
             db_connector.config = {
                 **creds_dict,
                 "start_page_token": existing_start_page_token,
+                "auth_expired": False,
             }
             from sqlalchemy.orm.attributes import flag_modified
 
@@ -360,7 +361,7 @@ async def drive_callback(
                     url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
                 )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-drive-connector&connectorId={db_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=google-drive-connector&connectorId={db_connector.id}"
             )
 
         is_duplicate = await check_duplicate_connector(
@@ -375,7 +376,7 @@ async def drive_callback(
                 f"Duplicate Google Drive connector detected for user {user_id} with email {user_email}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=google-drive-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=google-drive-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -425,7 +426,7 @@ async def drive_callback(
         )
 
         return RedirectResponse(
-            url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=google-drive-connector&connectorId={db_connector.id}"
+            url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=google-drive-connector&connectorId={db_connector.id}"
         )
 
     except HTTPException:
@@ -502,11 +503,35 @@ async def list_google_drive_folders(
         items, error = await list_folder_contents(drive_client, parent_id=parent_id)
 
         if error:
+            error_lower = error.lower()
+            if (
+                "401" in error
+                or "invalid_grant" in error_lower
+                or "token has been expired or revoked" in error_lower
+                or "invalid credentials" in error_lower
+                or "authentication failed" in error_lower
+            ):
+                from sqlalchemy.orm.attributes import flag_modified
+
+                try:
+                    if connector and not connector.config.get("auth_expired"):
+                        connector.config = {**connector.config, "auth_expired": True}
+                        flag_modified(connector, "config")
+                        await session.commit()
+                        logger.info(f"Marked connector {connector_id} as auth_expired")
+                except Exception:
+                    logger.warning(
+                        f"Failed to persist auth_expired for connector {connector_id}",
+                        exc_info=True,
+                    )
+                raise HTTPException(
+                    status_code=400,
+                    detail="Google Drive authentication expired. Please re-authenticate.",
+                )
             raise HTTPException(
                 status_code=500, detail=f"Failed to list folder contents: {error}"
             )
 
-        # Count folders and files for better logging
         folder_count = sum(1 for item in items if item.get("isFolder", False))
         file_count = len(items) - folder_count
 
@@ -515,7 +540,6 @@ async def list_google_drive_folders(
             + (f" in folder {parent_id}" if parent_id else " in ROOT")
         )
 
-        # Log first few items for debugging
         if items:
             logger.info(f"First 3 items: {[item.get('name') for item in items[:3]]}")
 
@@ -525,6 +549,31 @@ async def list_google_drive_folders(
         raise
     except Exception as e:
         logger.error(f"Error listing Drive contents: {e!s}", exc_info=True)
+        error_lower = str(e).lower()
+        if (
+            "401" in str(e)
+            or "invalid_grant" in error_lower
+            or "token has been expired or revoked" in error_lower
+            or "invalid credentials" in error_lower
+            or "authentication failed" in error_lower
+        ):
+            from sqlalchemy.orm.attributes import flag_modified
+
+            try:
+                if connector and not connector.config.get("auth_expired"):
+                    connector.config = {**connector.config, "auth_expired": True}
+                    flag_modified(connector, "config")
+                    await session.commit()
+                    logger.info(f"Marked connector {connector_id} as auth_expired")
+            except Exception:
+                logger.warning(
+                    f"Failed to persist auth_expired for connector {connector_id}",
+                    exc_info=True,
+                )
+            raise HTTPException(
+                status_code=400,
+                detail="Google Drive authentication expired. Please re-authenticate.",
+            ) from e
         raise HTTPException(
             status_code=500, detail=f"Failed to list Drive contents: {e!s}"
         ) from e

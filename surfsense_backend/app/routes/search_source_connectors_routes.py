@@ -72,6 +72,7 @@ from app.tasks.connector_indexers import (
     index_slack_messages,
 )
 from app.users import current_active_user
+from app.utils.connector_naming import ensure_unique_connector_name
 from app.utils.indexing_locks import (
     acquire_connector_indexing_lock,
     release_connector_indexing_lock,
@@ -188,6 +189,12 @@ async def create_search_source_connector(
 
         # Prepare connector data
         connector_data = connector.model_dump()
+
+        # MCP connectors support multiple instances — ensure unique name
+        if connector.connector_type == SearchSourceConnectorType.MCP_CONNECTOR:
+            connector_data["name"] = await ensure_unique_connector_name(
+                session, connector_data["name"], search_space_id, user.id
+            )
 
         # Automatically set next_scheduled_at if periodic indexing is enabled
         if (
@@ -949,23 +956,46 @@ async def index_connector_content(
                 index_google_drive_files_task,
             )
 
-            if not drive_items or not drive_items.has_items():
-                raise HTTPException(
-                    status_code=400,
-                    detail="Google Drive indexing requires drive_items body parameter with folders or files",
+            if drive_items and drive_items.has_items():
+                logger.info(
+                    f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
+                    f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
+                )
+                items_dict = drive_items.model_dump()
+            else:
+                # Quick Index / periodic sync: fall back to stored config
+                config = connector.config or {}
+                selected_folders = config.get("selected_folders", [])
+                selected_files = config.get("selected_files", [])
+                if not selected_folders and not selected_files:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="Google Drive indexing requires folders or files to be configured. "
+                        "Please select folders/files to index.",
+                    )
+                indexing_options = config.get(
+                    "indexing_options",
+                    {
+                        "max_files_per_folder": 100,
+                        "incremental_sync": True,
+                        "include_subfolders": True,
+                    },
+                )
+                items_dict = {
+                    "folders": selected_folders,
+                    "files": selected_files,
+                    "indexing_options": indexing_options,
+                }
+                logger.info(
+                    f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id} "
+                    f"using existing config"
                 )
 
-            logger.info(
-                f"Triggering Google Drive indexing for connector {connector_id} into search space {search_space_id}, "
-                f"folders: {len(drive_items.folders)}, files: {len(drive_items.files)}"
-            )
-
-            # Pass structured data to Celery task
             index_google_drive_files_task.delay(
                 connector_id,
                 search_space_id,
                 str(user.id),
-                drive_items.model_dump(),  # Convert to dict for JSON serialization
+                items_dict,
             )
             response_message = "Google Drive indexing started in the background."
 
@@ -1061,7 +1091,7 @@ async def index_connector_content(
             == SearchSourceConnectorType.COMPOSIO_GOOGLE_DRIVE_CONNECTOR
         ):
             from app.tasks.celery_tasks.connector_tasks import (
-                index_composio_connector_task,
+                index_google_drive_files_task,
             )
 
             # For Composio Google Drive, if drive_items is provided, update connector config
@@ -1095,34 +1125,72 @@ async def index_connector_content(
             else:
                 logger.info(
                     f"Triggering Composio Google Drive indexing for connector {connector_id} into search space {search_space_id} "
-                    f"using existing config (from {indexing_from} to {indexing_to})"
+                    f"using existing config"
                 )
 
-            index_composio_connector_task.delay(
-                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            # Extract config and build items_dict for index_google_drive_files_task
+            config = connector.config or {}
+            selected_folders = config.get("selected_folders", [])
+            selected_files = config.get("selected_files", [])
+            if not selected_folders and not selected_files:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Composio Google Drive indexing requires folders or files to be configured. "
+                    "Please select folders/files to index.",
+                )
+            indexing_options = config.get(
+                "indexing_options",
+                {
+                    "max_files_per_folder": 100,
+                    "incremental_sync": True,
+                    "include_subfolders": True,
+                },
+            )
+            items_dict = {
+                "folders": selected_folders,
+                "files": selected_files,
+                "indexing_options": indexing_options,
+            }
+            index_google_drive_files_task.delay(
+                connector_id, search_space_id, str(user.id), items_dict
             )
             response_message = (
                 "Composio Google Drive indexing started in the background."
             )
 
-        elif connector.connector_type in [
-            SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR,
-            SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR,
-        ]:
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GMAIL_CONNECTOR
+        ):
             from app.tasks.celery_tasks.connector_tasks import (
-                index_composio_connector_task,
+                index_google_gmail_messages_task,
             )
 
-            # For Composio Gmail and Calendar, use the same date calculation logic as normal connectors
-            # This ensures consistent behavior and uses last_indexed_at to reduce API calls
-            # (includes special case: if indexed today, go back 1 day to avoid missing data)
             logger.info(
-                f"Triggering Composio connector indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+                f"Triggering Composio Gmail indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
             )
-            index_composio_connector_task.delay(
+            index_google_gmail_messages_task.delay(
                 connector_id, search_space_id, str(user.id), indexing_from, indexing_to
             )
-            response_message = "Composio connector indexing started in the background."
+            response_message = "Composio Gmail indexing started in the background."
+
+        elif (
+            connector.connector_type
+            == SearchSourceConnectorType.COMPOSIO_GOOGLE_CALENDAR_CONNECTOR
+        ):
+            from app.tasks.celery_tasks.connector_tasks import (
+                index_google_calendar_events_task,
+            )
+
+            logger.info(
+                f"Triggering Composio Google Calendar indexing for connector {connector_id} into search space {search_space_id} from {indexing_from} to {indexing_to}"
+            )
+            index_google_calendar_events_task.delay(
+                connector_id, search_space_id, str(user.id), indexing_from, indexing_to
+            )
+            response_message = (
+                "Composio Google Calendar indexing started in the background."
+            )
 
         else:
             raise HTTPException(
@@ -1227,6 +1295,48 @@ async def run_slack_indexing(
         update_timestamp_func=_update_connector_timestamp_by_id,
         supports_heartbeat_callback=True,
     )
+
+
+_AUTH_ERROR_PATTERNS = (
+    "failed to refresh linear oauth",
+    "failed to refresh your notion connection",
+    "failed to refresh notion token",
+    "authentication failed",
+    "auth_expired",
+    "token has been expired or revoked",
+    "invalid_grant",
+)
+
+
+def _is_auth_error(error_message: str) -> bool:
+    """Check if an error message indicates an OAuth token expiry failure."""
+    if not error_message:
+        return False
+    lower = error_message.lower()
+    return any(pattern in lower for pattern in _AUTH_ERROR_PATTERNS)
+
+
+async def _persist_auth_expired(session: AsyncSession, connector_id: int) -> None:
+    """Flag a connector as auth_expired so the frontend shows a re-auth prompt."""
+    from sqlalchemy.orm.attributes import flag_modified
+
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).where(
+                SearchSourceConnector.id == connector_id
+            )
+        )
+        connector = result.scalar_one_or_none()
+        if connector and not connector.config.get("auth_expired"):
+            connector.config = {**connector.config, "auth_expired": True}
+            flag_modified(connector, "config")
+            await session.commit()
+            logger.info(f"Marked connector {connector_id} as auth_expired")
+    except Exception:
+        logger.warning(
+            f"Failed to persist auth_expired for connector {connector_id}",
+            exc_info=True,
+        )
 
 
 async def _run_indexing_with_notifications(
@@ -1513,6 +1623,8 @@ async def _run_indexing_with_notifications(
                 else:
                     # Actual failure
                     logger.error(f"Indexing failed: {error_or_warning}")
+                    if _is_auth_error(str(error_or_warning)):
+                        await _persist_auth_expired(session, connector_id)
                     if notification:
                         # Refresh notification to ensure it's not stale after indexing function commits
                         await session.refresh(notification)
@@ -1576,6 +1688,9 @@ async def _run_indexing_with_notifications(
         raise
     except Exception as e:
         logger.error(f"Error in indexing task: {e!s}", exc_info=True)
+
+        if _is_auth_error(str(e)):
+            await _persist_auth_expired(session, connector_id)
 
         # Update notification on exception
         if notification:
@@ -2172,10 +2287,9 @@ async def run_google_gmail_indexing(
         end_date: str | None,
         update_last_indexed: bool,
         on_heartbeat_callback=None,
-    ) -> tuple[int, str | None]:
-        # Use a reasonable default for max_messages
+    ) -> tuple[int, int, str | None]:
         max_messages = 1000
-        indexed_count, error_message = await index_google_gmail_messages(
+        indexed_count, skipped_count, error_message = await index_google_gmail_messages(
             session=session,
             connector_id=connector_id,
             search_space_id=search_space_id,
@@ -2186,8 +2300,7 @@ async def run_google_gmail_indexing(
             max_messages=max_messages,
             on_heartbeat_callback=on_heartbeat_callback,
         )
-        # index_google_gmail_messages returns (int, str) but we need (int, str | None)
-        return indexed_count, error_message if error_message else None
+        return indexed_count, skipped_count, error_message if error_message else None
 
     await _run_indexing_with_notifications(
         session=session,
@@ -2223,6 +2336,7 @@ async def run_google_drive_indexing(
         items = GoogleDriveIndexRequest(**items_dict)
         indexing_options = items.indexing_options
         total_indexed = 0
+        total_skipped = 0
         errors = []
 
         # Get connector info for notification
@@ -2260,7 +2374,11 @@ async def run_google_drive_indexing(
         # Index each folder with indexing options
         for folder in items.folders:
             try:
-                indexed_count, error_message = await index_google_drive_files(
+                (
+                    indexed_count,
+                    skipped_count,
+                    error_message,
+                ) = await index_google_drive_files(
                     session,
                     connector_id,
                     search_space_id,
@@ -2272,6 +2390,7 @@ async def run_google_drive_indexing(
                     max_files=indexing_options.max_files_per_folder,
                     include_subfolders=indexing_options.include_subfolders,
                 )
+                total_skipped += skipped_count
                 if error_message:
                     errors.append(f"Folder '{folder.name}': {error_message}")
                 else:
@@ -2312,9 +2431,15 @@ async def run_google_drive_indexing(
             logger.error(
                 f"Google Drive indexing completed with errors for connector {connector_id}: {error_message}"
             )
+            if _is_auth_error(error_message):
+                await _persist_auth_expired(session, connector_id)
+                error_message = (
+                    "Google Drive authentication expired. Please re-authenticate."
+                )
         else:
             # Update notification to storing stage
             if notification:
+                await session.refresh(notification)
                 await NotificationService.connector_indexing.notify_indexing_progress(
                     session=session,
                     notification=notification,
@@ -2338,6 +2463,7 @@ async def run_google_drive_indexing(
                 notification=notification,
                 indexed_count=total_indexed,
                 error_message=error_message,
+                skipped_count=total_skipped,
             )
 
     except Exception as e:
@@ -2715,9 +2841,14 @@ async def create_mcp_connector(
             "You don't have permission to create connectors in this search space",
         )
 
+        # Ensure unique name across MCP connectors in this search space
+        unique_name = await ensure_unique_connector_name(
+            session, connector_data.name, search_space_id, user.id
+        )
+
         # Create the connector with single server config
         db_connector = SearchSourceConnector(
-            name=connector_data.name,
+            name=unique_name,
             connector_type=SearchSourceConnectorType.MCP_CONNECTOR,
             is_indexable=False,  # MCP connectors are not indexable
             config={"server_config": connector_data.server_config.model_dump()},
@@ -3136,6 +3267,12 @@ async def get_drive_picker_token(
         raise
     except Exception as e:
         logger.error(f"Failed to get Drive picker token: {e!s}", exc_info=True)
+        if _is_auth_error(str(e)):
+            await _persist_auth_expired(session, connector_id)
+            raise HTTPException(
+                status_code=400,
+                detail="Google Drive authentication expired. Please re-authenticate.",
+            ) from e
         raise HTTPException(
             status_code=500,
             detail="Failed to retrieve access token. Check server logs for details.",

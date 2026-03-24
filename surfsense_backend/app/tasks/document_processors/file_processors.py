@@ -170,7 +170,34 @@ async def handle_existing_document_update(
         logging.info(f"Document for file {filename} unchanged. Skipping.")
         return True, existing_document
     else:
-        # Content has changed - need to re-process
+        # Content has changed — guard against content_hash collision before
+        # expensive ETL processing.  A collision means the exact same content
+        # already lives in a *different* document (e.g. a manual upload of the
+        # same file).  Proceeding would trigger a unique-constraint violation
+        # on ix_documents_content_hash.
+        collision_doc = await check_duplicate_document(session, content_hash)
+        if collision_doc and collision_doc.id != existing_document.id:
+            logging.warning(
+                "Content-hash collision for %s: identical content exists in "
+                "document #%s (%s). Skipping re-processing.",
+                filename,
+                collision_doc.id,
+                collision_doc.document_type,
+            )
+            if DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PENDING
+            ) or DocumentStatus.is_state(
+                existing_document.status, DocumentStatus.PROCESSING
+            ):
+                # Pending/processing doc has no real content yet — remove it
+                # so the UI doesn't show a contentless entry.
+                await session.delete(existing_document)
+                await session.commit()
+                return True, None
+
+            # Document already has valid content — keep it as-is.
+            return True, existing_document
+
         logging.info(f"Content changed for file {filename}. Updating document.")
         return False, None
 
@@ -411,6 +438,7 @@ async def add_received_file_document_using_unstructured(
     search_space_id: int,
     user_id: str,
     connector: dict | None = None,
+    enable_summary: bool = True,
 ) -> Document | None:
     """
     Process and store a file document using Unstructured service.
@@ -471,9 +499,13 @@ async def add_received_file_document_using_unstructured(
             "etl_service": "UNSTRUCTURED",
             "document_type": "File Document",
         }
-        summary_content, summary_embedding = await generate_document_summary(
-            file_in_markdown, user_llm, document_metadata
-        )
+        if enable_summary:
+            summary_content, summary_embedding = await generate_document_summary(
+                file_in_markdown, user_llm, document_metadata
+            )
+        else:
+            summary_content = f"File: {file_name}\n\n{file_in_markdown[:4000]}"
+            summary_embedding = embed_text(summary_content)
 
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
@@ -493,14 +525,13 @@ async def add_received_file_document_using_unstructured(
             existing_document.source_markdown = file_in_markdown
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
-            existing_document.status = DocumentStatus.ready()  # Mark as ready
+            existing_document.status = DocumentStatus.ready()
 
             await session.commit()
             await session.refresh(existing_document)
             document = existing_document
         else:
             # Create new document
-            # Determine document type based on connector
             doc_type = DocumentType.FILE
             if connector and connector.get("type") == DocumentType.GOOGLE_DRIVE_FILE:
                 doc_type = DocumentType.GOOGLE_DRIVE_FILE
@@ -523,7 +554,7 @@ async def add_received_file_document_using_unstructured(
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
                 connector_id=connector.get("connector_id") if connector else None,
-                status=DocumentStatus.ready(),  # Mark as ready
+                status=DocumentStatus.ready(),
             )
 
             session.add(document)
@@ -533,6 +564,12 @@ async def add_received_file_document_using_unstructured(
         return document
     except SQLAlchemyError as db_error:
         await session.rollback()
+        if "ix_documents_content_hash" in str(db_error):
+            logging.warning(
+                "content_hash collision during commit for %s (Unstructured). Skipping.",
+                file_name,
+            )
+            return None
         raise db_error
     except Exception as e:
         await session.rollback()
@@ -546,6 +583,7 @@ async def add_received_file_document_using_llamacloud(
     search_space_id: int,
     user_id: str,
     connector: dict | None = None,
+    enable_summary: bool = True,
 ) -> Document | None:
     """
     Process and store document content parsed by LlamaCloud.
@@ -605,16 +643,19 @@ async def add_received_file_document_using_llamacloud(
             "etl_service": "LLAMACLOUD",
             "document_type": "File Document",
         }
-        summary_content, summary_embedding = await generate_document_summary(
-            file_in_markdown, user_llm, document_metadata
-        )
+        if enable_summary:
+            summary_content, summary_embedding = await generate_document_summary(
+                file_in_markdown, user_llm, document_metadata
+            )
+        else:
+            summary_content = f"File: {file_name}\n\n{file_in_markdown[:4000]}"
+            summary_embedding = embed_text(summary_content)
 
         # Process chunks
         chunks = await create_document_chunks(file_in_markdown)
 
         # Update or create document
         if existing_document:
-            # Update existing document
             existing_document.title = file_name
             existing_document.content = summary_content
             existing_document.content_hash = content_hash
@@ -627,14 +668,12 @@ async def add_received_file_document_using_llamacloud(
             existing_document.source_markdown = file_in_markdown
             existing_document.content_needs_reindexing = False
             existing_document.updated_at = get_current_timestamp()
-            existing_document.status = DocumentStatus.ready()  # Mark as ready
+            existing_document.status = DocumentStatus.ready()
 
             await session.commit()
             await session.refresh(existing_document)
             document = existing_document
         else:
-            # Create new document
-            # Determine document type based on connector
             doc_type = DocumentType.FILE
             if connector and connector.get("type") == DocumentType.GOOGLE_DRIVE_FILE:
                 doc_type = DocumentType.GOOGLE_DRIVE_FILE
@@ -657,7 +696,7 @@ async def add_received_file_document_using_llamacloud(
                 updated_at=get_current_timestamp(),
                 created_by_id=user_id,
                 connector_id=connector.get("connector_id") if connector else None,
-                status=DocumentStatus.ready(),  # Mark as ready
+                status=DocumentStatus.ready(),
             )
 
             session.add(document)
@@ -667,6 +706,12 @@ async def add_received_file_document_using_llamacloud(
         return document
     except SQLAlchemyError as db_error:
         await session.rollback()
+        if "ix_documents_content_hash" in str(db_error):
+            logging.warning(
+                "content_hash collision during commit for %s (LlamaCloud). Skipping.",
+                file_name,
+            )
+            return None
         raise db_error
     except Exception as e:
         await session.rollback()
@@ -682,6 +727,7 @@ async def add_received_file_document_using_docling(
     search_space_id: int,
     user_id: str,
     connector: dict | None = None,
+    enable_summary: bool = True,
 ) -> Document | None:
     """
     Process and store document content parsed by Docling.
@@ -734,33 +780,32 @@ async def add_received_file_document_using_docling(
                 f"No long context LLM configured for user {user_id} in search_space {search_space_id}"
             )
 
-        # Generate summary using chunked processing for large documents
-        from app.services.docling_service import create_docling_service
+        if enable_summary:
+            from app.services.docling_service import create_docling_service
 
-        docling_service = create_docling_service()
+            docling_service = create_docling_service()
 
-        summary_content = await docling_service.process_large_document_summary(
-            content=file_in_markdown, llm=user_llm, document_title=file_name
-        )
+            summary_content = await docling_service.process_large_document_summary(
+                content=file_in_markdown, llm=user_llm, document_title=file_name
+            )
 
-        # Enhance summary with metadata
-        document_metadata = {
-            "file_name": file_name,
-            "etl_service": "DOCLING",
-            "document_type": "File Document",
-        }
-        metadata_parts = []
-        metadata_parts.append("# DOCUMENT METADATA")
+            document_metadata = {
+                "file_name": file_name,
+                "etl_service": "DOCLING",
+                "document_type": "File Document",
+            }
+            metadata_parts = ["# DOCUMENT METADATA"]
+            for key, value in document_metadata.items():
+                if value:
+                    formatted_key = key.replace("_", " ").title()
+                    metadata_parts.append(f"**{formatted_key}:** {value}")
 
-        for key, value in document_metadata.items():
-            if value:  # Only include non-empty values
-                formatted_key = key.replace("_", " ").title()
-                metadata_parts.append(f"**{formatted_key}:** {value}")
-
-        metadata_section = "\n".join(metadata_parts)
-        enhanced_summary_content = (
-            f"{metadata_section}\n\n# DOCUMENT SUMMARY\n\n{summary_content}"
-        )
+            metadata_section = "\n".join(metadata_parts)
+            enhanced_summary_content = (
+                f"{metadata_section}\n\n# DOCUMENT SUMMARY\n\n{summary_content}"
+            )
+        else:
+            enhanced_summary_content = f"File: {file_name}\n\n{file_in_markdown[:4000]}"
 
         summary_embedding = embed_text(enhanced_summary_content)
 
@@ -822,6 +867,12 @@ async def add_received_file_document_using_docling(
         return document
     except SQLAlchemyError as db_error:
         await session.rollback()
+        if "ix_documents_content_hash" in str(db_error):
+            logging.warning(
+                "content_hash collision during commit for %s (Docling). Skipping.",
+                file_name,
+            )
+            return None
         raise db_error
     except Exception as e:
         await session.rollback()
@@ -1219,9 +1270,17 @@ async def process_file_in_background(
                     print("Error deleting temp file", e)
                     pass
 
-                # Pass the documents to the existing background task
+                enable_summary = (
+                    connector.get("enable_summary", True) if connector else True
+                )
                 result = await add_received_file_document_using_unstructured(
-                    session, filename, docs, search_space_id, user_id, connector
+                    session,
+                    filename,
+                    docs,
+                    search_space_id,
+                    user_id,
+                    connector,
+                    enable_summary=enable_summary,
                 )
 
                 if connector:
@@ -1362,7 +1421,9 @@ async def process_file_in_background(
                     # Extract text content from the markdown documents
                     markdown_content = doc.text
 
-                    # Process the documents using our LlamaCloud background task
+                    enable_summary = (
+                        connector.get("enable_summary", True) if connector else True
+                    )
                     doc_result = await add_received_file_document_using_llamacloud(
                         session,
                         filename,
@@ -1370,6 +1431,7 @@ async def process_file_in_background(
                         search_space_id=search_space_id,
                         user_id=user_id,
                         connector=connector,
+                        enable_summary=enable_summary,
                     )
 
                     # Track if this document was successfully created
@@ -1516,7 +1578,9 @@ async def process_file_in_background(
                         session, notification, stage="chunking"
                     )
 
-                # Process the document using our Docling background task
+                enable_summary = (
+                    connector.get("enable_summary", True) if connector else True
+                )
                 doc_result = await add_received_file_document_using_docling(
                     session,
                     filename,
@@ -1524,6 +1588,7 @@ async def process_file_in_background(
                     search_space_id=search_space_id,
                     user_id=user_id,
                     connector=connector,
+                    enable_summary=enable_summary,
                 )
 
                 if doc_result:

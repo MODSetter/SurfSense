@@ -12,8 +12,10 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from pydantic import ValidationError
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import config
 from app.db import (
@@ -124,6 +126,70 @@ async def connect_notion(space_id: int, user: User = Depends(current_active_user
         ) from e
 
 
+@router.get("/auth/notion/connector/reauth")
+async def reauth_notion(
+    space_id: int,
+    connector_id: int,
+    return_url: str | None = None,
+    user: User = Depends(current_active_user),
+    session: AsyncSession = Depends(get_async_session),
+):
+    """Initiate Notion re-authentication for an existing connector."""
+    try:
+        result = await session.execute(
+            select(SearchSourceConnector).filter(
+                SearchSourceConnector.id == connector_id,
+                SearchSourceConnector.user_id == user.id,
+                SearchSourceConnector.search_space_id == space_id,
+                SearchSourceConnector.connector_type
+                == SearchSourceConnectorType.NOTION_CONNECTOR,
+            )
+        )
+        connector = result.scalars().first()
+        if not connector:
+            raise HTTPException(
+                status_code=404,
+                detail="Notion connector not found or access denied",
+            )
+
+        if not config.NOTION_CLIENT_ID:
+            raise HTTPException(status_code=500, detail="Notion OAuth not configured.")
+        if not config.SECRET_KEY:
+            raise HTTPException(
+                status_code=500, detail="SECRET_KEY not configured for OAuth security."
+            )
+
+        state_manager = get_state_manager()
+        extra: dict = {"connector_id": connector_id}
+        if return_url and return_url.startswith("/"):
+            extra["return_url"] = return_url
+        state_encoded = state_manager.generate_secure_state(space_id, user.id, **extra)
+
+        from urllib.parse import urlencode
+
+        auth_params = {
+            "client_id": config.NOTION_CLIENT_ID,
+            "response_type": "code",
+            "owner": "user",
+            "redirect_uri": config.NOTION_REDIRECT_URI,
+            "state": state_encoded,
+        }
+        auth_url = f"{AUTHORIZATION_URL}?{urlencode(auth_params)}"
+
+        logger.info(
+            f"Initiating Notion re-auth for user {user.id}, connector {connector_id}"
+        )
+        return {"auth_url": auth_url}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to initiate Notion re-auth: {e!s}", exc_info=True)
+        raise HTTPException(
+            status_code=500, detail=f"Failed to initiate Notion re-auth: {e!s}"
+        ) from e
+
+
 @router.get("/auth/notion/connector/callback")
 async def notion_callback(
     request: Request,
@@ -163,7 +229,7 @@ async def notion_callback(
             # Redirect to frontend with error parameter
             if space_id:
                 return RedirectResponse(
-                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=notion_oauth_denied"
+                    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=notion_oauth_denied"
                 )
             else:
                 return RedirectResponse(
@@ -266,6 +332,42 @@ async def notion_callback(
             "_token_encrypted": True,
         }
 
+        reauth_connector_id = data.get("connector_id")
+        reauth_return_url = data.get("return_url")
+
+        if reauth_connector_id:
+            result = await session.execute(
+                select(SearchSourceConnector).filter(
+                    SearchSourceConnector.id == reauth_connector_id,
+                    SearchSourceConnector.user_id == user_id,
+                    SearchSourceConnector.search_space_id == space_id,
+                    SearchSourceConnector.connector_type
+                    == SearchSourceConnectorType.NOTION_CONNECTOR,
+                )
+            )
+            db_connector = result.scalars().first()
+            if not db_connector:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Connector not found or access denied during re-auth",
+                )
+
+            db_connector.config = connector_config
+            flag_modified(db_connector, "config")
+            await session.commit()
+            await session.refresh(db_connector)
+
+            logger.info(
+                f"Re-authenticated Notion connector {db_connector.id} for user {user_id}"
+            )
+            if reauth_return_url and reauth_return_url.startswith("/"):
+                return RedirectResponse(
+                    url=f"{config.NEXT_FRONTEND_URL}{reauth_return_url}"
+                )
+            return RedirectResponse(
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=notion-connector&connectorId={db_connector.id}"
+            )
+
         # Extract unique identifier from connector credentials
         connector_identifier = extract_identifier_from_credentials(
             SearchSourceConnectorType.NOTION_CONNECTOR, connector_config
@@ -284,7 +386,7 @@ async def notion_callback(
                 f"Duplicate Notion connector detected for user {user_id} with workspace {connector_identifier}"
             )
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&error=duplicate_account&connector=notion-connector"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?error=duplicate_account&connector=notion-connector"
             )
 
         # Generate a unique, user-friendly connector name
@@ -315,7 +417,7 @@ async def notion_callback(
 
             # Redirect to the frontend with success params
             return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/new-chat?modal=connectors&tab=all&success=true&connector=notion-connector&connectorId={new_connector.id}"
+                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/callback?success=true&connector=notion-connector&connectorId={new_connector.id}"
             )
 
         except ValidationError as e:
@@ -344,6 +446,22 @@ async def notion_callback(
         raise HTTPException(
             status_code=500, detail=f"Failed to complete Notion OAuth: {e!s}"
         ) from e
+
+
+async def _mark_connector_auth_expired(
+    session: AsyncSession, connector: SearchSourceConnector
+) -> None:
+    """Persist auth_expired flag in the connector config so the frontend can show a re-auth prompt."""
+    try:
+        connector.config = {**connector.config, "auth_expired": True}
+        flag_modified(connector, "config")
+        await session.commit()
+        await session.refresh(connector)
+    except Exception:
+        logger.warning(
+            f"Failed to persist auth_expired flag for connector {connector.id}",
+            exc_info=True,
+        )
 
 
 async def refresh_notion_token(
@@ -379,6 +497,7 @@ async def refresh_notion_token(
                 ) from e
 
         if not refresh_token:
+            await _mark_connector_auth_expired(session, connector)
             raise HTTPException(
                 status_code=400,
                 detail="No refresh token available. Please re-authenticate.",
@@ -421,6 +540,7 @@ async def refresh_notion_token(
                 or "expired" in error_lower
                 or "revoked" in error_lower
             ):
+                await _mark_connector_auth_expired(session, connector)
                 raise HTTPException(
                     status_code=401,
                     detail="Notion authentication failed. Please re-authenticate.",
@@ -469,7 +589,9 @@ async def refresh_notion_token(
         # Update connector config with encrypted tokens
         credentials_dict = credentials.to_dict()
         credentials_dict["_token_encrypted"] = True
+        credentials_dict.pop("auth_expired", None)
         connector.config = credentials_dict
+        flag_modified(connector, "config")
         await session.commit()
         await session.refresh(connector)
 

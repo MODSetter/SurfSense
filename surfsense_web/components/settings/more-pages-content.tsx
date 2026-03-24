@@ -175,7 +175,7 @@ export function MorePagesContent() {
 						<DialogTrigger asChild>
 							<Button className="w-full bg-emerald-600 text-white hover:bg-emerald-700">
 								<Mail className="h-4 w-4" />
-								Contact Us to Upgrade
+								Contact us to Upgrade
 							</Button>
 						</DialogTrigger>
 						<DialogContent className="select-none sm:max-w-sm">

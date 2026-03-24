@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
 	createImageGenConfigMutationAtom,
 	deleteImageGenConfigMutationAtom,
@@ -38,6 +37,7 @@ import {
 	AlertDialogHeader,
 	AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -69,12 +69,12 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import {
 	getImageGenModelsByProvider,
 	IMAGE_GEN_PROVIDERS,
 } from "@/contracts/enums/image-gen-providers";
 import type { ImageGenerationConfig } from "@/contracts/types/new-llm-config.types";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { getProviderIcon } from "@/lib/provider-icons";
 import { cn } from "@/lib/utils";
 
@@ -612,14 +612,14 @@ export function ImageModelManager({ searchSpaceId }: ImageModelManagerProps) {
 											role="combobox"
 											className="w-full justify-between font-normal"
 										>
-											{formData.model_name || "Select or type a model..."}
+											{formData.model_name || "Select a model"}
 											<ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-full p-0" align="start">
 										<Command>
 											<CommandInput
-												placeholder="Search or type model name..."
+												placeholder="Search a model name"
 												value={formData.model_name}
 												onValueChange={(val) => setFormData((p) => ({ ...p, model_name: val }))}
 											/>

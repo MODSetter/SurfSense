@@ -63,6 +63,16 @@ class DocumentType(StrEnum):
     COMPOSIO_GOOGLE_CALENDAR_CONNECTOR = "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR"
 
 
+# Native Google document types → their legacy Composio equivalents.
+# Old documents may still carry the Composio type until they are re-indexed;
+# search, browse, and indexing must transparently handle both.
+NATIVE_TO_LEGACY_DOCTYPE: dict[str, str] = {
+    "GOOGLE_DRIVE_FILE": "COMPOSIO_GOOGLE_DRIVE_CONNECTOR",
+    "GOOGLE_GMAIL_CONNECTOR": "COMPOSIO_GMAIL_CONNECTOR",
+    "GOOGLE_CALENDAR_CONNECTOR": "COMPOSIO_GOOGLE_CALENDAR_CONNECTOR",
+}
+
+
 class SearchSourceConnectorType(StrEnum):
     SERPER_API = "SERPER_API"  # NOT IMPLEMENTED YET : DON'T REMEMBER WHY : MOST PROBABLY BECAUSE WE NEED TO CRAWL THE RESULTS RETURNED BY IT
     TAVILY_API = "TAVILY_API"
