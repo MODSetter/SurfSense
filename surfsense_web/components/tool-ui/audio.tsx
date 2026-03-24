@@ -2,7 +2,6 @@
 
 import {
 	DownloadIcon,
-	EllipsisVerticalIcon,
 	PauseIcon,
 	PlayIcon,
 	Volume2Icon,
@@ -10,12 +9,6 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-	DropdownMenu,
-	DropdownMenuContent,
-	DropdownMenuItem,
-	DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 
@@ -189,23 +182,15 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 
 			<div className="flex items-start gap-2 px-5 pt-5 pb-4">
 				<p className="text-sm font-semibold text-foreground line-clamp-2 flex-1 min-w-0">{title}</p>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button
-							variant="ghost"
-							size="icon"
-							className="size-7 shrink-0 -mt-0.5 -mr-2 text-muted-foreground"
-						>
-							<EllipsisVerticalIcon className="size-4" />
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuItem onClick={handleDownload}>
-							<DownloadIcon className="size-4" />
-							Download
-						</DropdownMenuItem>
-					</DropdownMenuContent>
-				</DropdownMenu>
+				<Button
+					variant="ghost"
+					size="icon"
+					onClick={handleDownload}
+					className="size-7 shrink-0 -mt-0.5 -mr-2 text-muted-foreground"
+					aria-label="Download audio"
+				>
+					<DownloadIcon className="size-4" />
+				</Button>
 			</div>
 
 			<div className="mx-5 h-px bg-border/50" />

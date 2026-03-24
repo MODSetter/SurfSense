@@ -14,6 +14,8 @@ import {
 } from "@/lib/electric/client";
 import { ElectricContext } from "@/lib/electric/context";
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 interface ElectricProviderProps {
 	children: React.ReactNode;
 }
@@ -40,7 +42,7 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 		// No user logged in - cleanup if previous user existed
 		if (!isUserLoaded || !user?.id) {
 			if (previousUserIdRef.current && isElectricInitialized()) {
-				console.log("[ElectricProvider] User logged out, cleaning up...");
+				if (IS_DEV) console.log("[ElectricProvider] User logged out, cleaning up...");
 				cleanupElectric().then(() => {
 					previousUserIdRef.current = null;
 					setElectricClient(null);
@@ -61,14 +63,14 @@ export function ElectricProvider({ children }: ElectricProviderProps) {
 
 		async function init() {
 			try {
-				console.log(`[ElectricProvider] Initializing for user: ${userId}`);
+				if (IS_DEV) console.log(`[ElectricProvider] Initializing for user: ${userId}`);
 				const client = await initElectric(userId);
 
 				if (mounted) {
 					previousUserIdRef.current = userId;
 					setElectricClient(client);
 					setError(null);
-					console.log(`[ElectricProvider] ✅ Ready for user: ${userId}`);
+					if (IS_DEV) console.log(`[ElectricProvider] ✅ Ready for user: ${userId}`);
 				}
 			} catch (err) {
 				console.error("[ElectricProvider] Failed to initialize:", err);

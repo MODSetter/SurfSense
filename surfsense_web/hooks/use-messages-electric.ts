@@ -57,8 +57,8 @@ export function useMessagesElectric(
 							handle.initialSyncPromise,
 							new Promise((resolve) => setTimeout(resolve, 3000)),
 						]);
-					} catch {
-						// Timeout
+					} catch (err) {
+						console.warn("[useMessagesElectric] Sync timeout:", err);
 					}
 				}
 
@@ -70,8 +70,8 @@ export function useMessagesElectric(
 				syncHandleRef.current = handle;
 				await fetchMessages();
 				await setupLiveQuery();
-			} catch {
-				// Sync failed
+			} catch (err) {
+				console.warn("[useMessagesElectric] Sync failed:", err);
 			}
 		}
 
@@ -88,8 +88,8 @@ export function useMessagesElectric(
 				if (mounted && result.rows) {
 					handleMessagesUpdate(result.rows);
 				}
-			} catch {
-				// Query failed
+			} catch (err) {
+				console.warn("[useMessagesElectric] Query failed:", err);
 			}
 		}
 
@@ -130,8 +130,8 @@ export function useMessagesElectric(
 						liveQueryRef.current = liveQuery;
 					}
 				}
-			} catch {
-				// Live query failed
+			} catch (err) {
+				console.warn("[useMessagesElectric] Live query failed:", err);
 			}
 		}
 
