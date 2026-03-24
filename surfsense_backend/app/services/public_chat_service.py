@@ -39,12 +39,10 @@ from app.utils.rbac import check_permission
 
 UI_TOOLS = {
     "generate_image",
-    "link_preview",
     "generate_podcast",
     "generate_report",
     "generate_video_presentation",
     "scrape_webpage",
-    "multi_link_preview",
 }
 
 

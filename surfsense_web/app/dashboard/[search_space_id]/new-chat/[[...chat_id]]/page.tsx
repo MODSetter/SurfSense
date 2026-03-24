@@ -131,7 +131,6 @@ const TOOLS_WITH_UI = new Set([
 	"generate_podcast",
 	"generate_report",
 	"generate_video_presentation",
-	"link_preview",
 	"display_image",
 	"generate_image",
 	"delete_notion_page",

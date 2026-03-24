@@ -17,7 +17,6 @@ import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
-import { LinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 
 interface PublicThreadProps {
@@ -151,7 +150,6 @@ const PublicAssistantMessage: FC = () => {
 								generate_podcast: GeneratePodcastToolUI,
 								generate_report: GenerateReportToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,
-								link_preview: LinkPreviewToolUI,
 								display_image: DisplayImageToolUI,
 								generate_image: GenerateImageToolUI,
 								scrape_webpage: ScrapeWebpageToolUI,

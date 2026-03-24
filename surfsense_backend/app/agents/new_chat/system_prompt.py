@@ -184,21 +184,6 @@ _TOOL_INSTRUCTIONS["generate_report"] = """
   - AFTER CALLING THIS TOOL: Do NOT repeat, summarize, or reproduce the report content in the chat. The report is already displayed as an interactive card that the user can open, read, copy, and export. Simply confirm that the report was generated (e.g., "I've generated your report on [topic]. You can view the Markdown report now, and export it in various formats from the card."). NEVER write out the report text in the chat.
 """
 
-_TOOL_INSTRUCTIONS["link_preview"] = """
-- link_preview: Fetch metadata for a URL to display a rich preview card.
-  - IMPORTANT: Use this tool WHENEVER the user shares or mentions a URL/link in their message.
-  - This fetches the page's Open Graph metadata (title, description, thumbnail) to show a preview card.
-  - NOTE: This tool only fetches metadata, NOT the full page content. It cannot read the article text.
-  - Trigger scenarios:
-    * User shares a URL (e.g., "Check out https://example.com")
-    * User pastes a link in their message
-    * User asks about a URL or link
-  - Args:
-    - url: The URL to fetch metadata for (must be a valid HTTP/HTTPS URL)
-  - Returns: A rich preview card with title, description, thumbnail, and domain
-  - The preview card will automatically be displayed in the chat.
-"""
-
 _TOOL_INSTRUCTIONS["generate_image"] = """
 - generate_image: Generate images from text descriptions using AI image models.
   - Use this when the user asks you to create, generate, draw, design, or make an image.
@@ -215,14 +200,11 @@ _TOOL_INSTRUCTIONS["generate_image"] = """
 _TOOL_INSTRUCTIONS["scrape_webpage"] = """
 - scrape_webpage: Scrape and extract the main content from a webpage.
   - Use this when the user wants you to READ and UNDERSTAND the actual content of a webpage.
-  - IMPORTANT: This is different from link_preview:
-    * link_preview: Only fetches metadata (title, description, thumbnail) for display
-    * scrape_webpage: Actually reads the FULL page content so you can analyze/summarize it
   - CRITICAL — WHEN TO USE (always attempt scraping, never refuse before trying):
     * When a user asks to "get", "fetch", "pull", "grab", "scrape", or "read" content from a URL
     * When the user wants live/dynamic data from a specific webpage (e.g., tables, scores, stats, prices)
     * When a URL was mentioned earlier in the conversation and the user asks for its actual content
-    * When link_preview or search_knowledge_base returned insufficient data and the user wants more
+    * When search_knowledge_base returned insufficient data and the user wants more
   - Trigger scenarios:
     * "Read this article and summarize it"
     * "What does this page say about X?"
@@ -446,7 +428,6 @@ _TOOL_EXAMPLES["generate_report"] = """
 
 _TOOL_EXAMPLES["scrape_webpage"] = """
 - User: "Check out https://dev.to/some-article"
-  - Call: `link_preview(url="https://dev.to/some-article")`
   - Call: `scrape_webpage(url="https://dev.to/some-article")`
   - Then provide your analysis of the content.
 - User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
@@ -489,7 +470,6 @@ _ALL_TOOL_NAMES_ORDERED = [
     "generate_podcast",
     "generate_video_presentation",
     "generate_report",
-    "link_preview",
     "generate_image",
     "scrape_webpage",
     "save_memory",

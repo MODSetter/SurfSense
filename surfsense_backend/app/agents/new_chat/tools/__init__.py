@@ -10,7 +10,6 @@ Available tools:
 - generate_podcast: Generate audio podcasts from content
 - generate_video_presentation: Generate video presentations with slides and narration
 - generate_image: Generate images from text descriptions using AI models
-- link_preview: Fetch rich previews for URLs
 - scrape_webpage: Extract content from webpages
 - save_memory: Store facts/preferences about the user
 - recall_memory: Retrieve relevant user memories
@@ -25,7 +24,6 @@ from .knowledge_base import (
     format_documents_for_context,
     search_knowledge_base_async,
 )
-from .link_preview import create_link_preview_tool
 from .podcast import create_generate_podcast_tool
 from .registry import (
     BUILTIN_TOOLS,
@@ -51,7 +49,6 @@ __all__ = [
     "create_generate_image_tool",
     "create_generate_podcast_tool",
     "create_generate_video_presentation_tool",
-    "create_link_preview_tool",
     "create_recall_memory_tool",
     "create_save_memory_tool",
     "create_scrape_webpage_tool",

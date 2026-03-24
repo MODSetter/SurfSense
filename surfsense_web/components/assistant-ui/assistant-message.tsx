@@ -27,7 +27,6 @@ import { CreateCalendarEventToolUI, DeleteCalendarEventToolUI, UpdateCalendarEve
 import { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "@/components/tool-ui/google-drive";
 import { CreateJiraIssueToolUI, DeleteJiraIssueToolUI, UpdateJiraIssueToolUI } from "@/components/tool-ui/jira";
 import { CreateLinearIssueToolUI, DeleteLinearIssueToolUI, UpdateLinearIssueToolUI } from "@/components/tool-ui/linear";
-import { LinkPreviewToolUI, MultiLinkPreviewToolUI } from "@/components/tool-ui/link-preview";
 import { CreateNotionPageToolUI, DeleteNotionPageToolUI, UpdateNotionPageToolUI } from "@/components/tool-ui/notion";
 import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
 import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
@@ -58,8 +57,6 @@ const AssistantMessageInner: FC = () => {
 								generate_report: GenerateReportToolUI,
 								generate_podcast: GeneratePodcastToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,
-								link_preview: LinkPreviewToolUI,
-								multi_link_preview: MultiLinkPreviewToolUI,
 								display_image: DisplayImageToolUI,
 								generate_image: GenerateImageToolUI,
 								scrape_webpage: ScrapeWebpageToolUI,

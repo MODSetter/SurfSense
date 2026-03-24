@@ -5,7 +5,7 @@ This module provides the SurfSense deep agent with configurable tools
 for knowledge base search, podcast generation, and more.
 
 Directory Structure:
-- tools/: All agent tools (knowledge_base, podcast, link_preview, etc.)
+- tools/: All agent tools (knowledge_base, podcast, generate_image, etc.)
 - chat_deepagent.py: Main agent factory
 - system_prompt.py: System prompts and instructions
 - context.py: Context schema for the agent
@@ -38,7 +38,6 @@ from .tools import (
     ToolDefinition,
     build_tools,
     create_generate_podcast_tool,
-    create_link_preview_tool,
     create_scrape_webpage_tool,
     create_search_knowledge_base_tool,
     format_documents_for_context,
@@ -63,7 +62,6 @@ __all__ = [
     "create_chat_litellm_from_config",
     # Tool factories
     "create_generate_podcast_tool",
-    "create_link_preview_tool",
     "create_scrape_webpage_tool",
     "create_search_knowledge_base_tool",
     # Agent factory
