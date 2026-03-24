@@ -29,7 +29,6 @@ import { CreateJiraIssueToolUI, DeleteJiraIssueToolUI, UpdateJiraIssueToolUI } f
 import { CreateLinearIssueToolUI, DeleteLinearIssueToolUI, UpdateLinearIssueToolUI } from "@/components/tool-ui/linear";
 import { CreateNotionPageToolUI, DeleteNotionPageToolUI, UpdateNotionPageToolUI } from "@/components/tool-ui/notion";
 import { SandboxExecuteToolUI } from "@/components/tool-ui/sandbox-execute";
-import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 import { RecallMemoryToolUI, SaveMemoryToolUI } from "@/components/tool-ui/user-memory";
 import { useComments } from "@/hooks/use-comments";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -59,7 +58,6 @@ const AssistantMessageInner: FC = () => {
 								generate_video_presentation: GenerateVideoPresentationToolUI,
 								display_image: DisplayImageToolUI,
 								generate_image: GenerateImageToolUI,
-								scrape_webpage: ScrapeWebpageToolUI,
 								save_memory: SaveMemoryToolUI,
 								recall_memory: RecallMemoryToolUI,
 								execute: SandboxExecuteToolUI,

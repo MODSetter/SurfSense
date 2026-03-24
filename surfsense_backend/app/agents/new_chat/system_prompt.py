@@ -220,7 +220,8 @@ _TOOL_INSTRUCTIONS["scrape_webpage"] = """
     - url: The URL of the webpage to scrape (must be HTTP/HTTPS)
     - max_length: Maximum content length to return (default: 50000 chars)
   - Returns: The page title, description, full content (in markdown), word count, and metadata
-  - After scraping, you will have the full article text and can analyze, summarize, or answer questions about it.
+  - After scraping, provide a comprehensive, well-structured summary with key takeaways using headings or bullet points.
+  - Reference the source using markdown links [descriptive text](url) — never bare URLs.
   - IMAGES: The scraped content may contain image URLs in markdown format like `![alt text](image_url)`.
     * When you find relevant/important images in the scraped content, include them in your response using standard markdown image syntax: `![alt text](image_url)`.
     * This makes your response more visual and engaging.
@@ -244,6 +245,8 @@ _TOOL_INSTRUCTIONS["web_search"] = """
   - Args:
     - query: The search query - use specific, descriptive terms
     - top_k: Number of results to retrieve (default: 10, max: 50)
+  - If search snippets are insufficient for the user's question, use `scrape_webpage` on the most relevant result URL for full content.
+  - When presenting results, reference sources as markdown links [descriptive text](url) — never bare URLs.
 """
 
 # Memory tool instructions have private and shared variants.
@@ -429,13 +432,16 @@ _TOOL_EXAMPLES["generate_report"] = """
 _TOOL_EXAMPLES["scrape_webpage"] = """
 - User: "Check out https://dev.to/some-article"
   - Call: `scrape_webpage(url="https://dev.to/some-article")`
-  - Then provide your analysis of the content.
+  - Respond with a structured analysis — key points, takeaways.
 - User: "Read this article and summarize it for me: https://example.com/blog/ai-trends"
   - Call: `scrape_webpage(url="https://example.com/blog/ai-trends")`
-  - Then provide a summary based on the scraped text.
+  - Respond with a thorough summary using headings and bullet points.
 - User: (after discussing https://example.com/stats) "Can you get the live data from that page?"
   - Call: `scrape_webpage(url="https://example.com/stats")`
   - IMPORTANT: Always attempt scraping first. Never refuse before trying the tool.
+- User: "https://example.com/blog/weekend-recipes"
+  - Call: `scrape_webpage(url="https://example.com/blog/weekend-recipes")`
+  - When a user sends just a URL with no instructions, scrape it and provide a concise summary of the content.
 """
 
 _TOOL_EXAMPLES["generate_image"] = """

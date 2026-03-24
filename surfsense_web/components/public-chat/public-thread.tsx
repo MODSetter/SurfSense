@@ -17,7 +17,6 @@ import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
-import { ScrapeWebpageToolUI } from "@/components/tool-ui/scrape-webpage";
 
 interface PublicThreadProps {
 	footer?: ReactNode;
@@ -152,7 +151,6 @@ const PublicAssistantMessage: FC = () => {
 								generate_video_presentation: GenerateVideoPresentationToolUI,
 								display_image: DisplayImageToolUI,
 								generate_image: GenerateImageToolUI,
-								scrape_webpage: ScrapeWebpageToolUI,
 							},
 							Fallback: ToolFallback,
 						},

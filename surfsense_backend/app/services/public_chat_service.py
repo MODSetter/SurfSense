@@ -42,7 +42,6 @@ UI_TOOLS = {
     "generate_podcast",
     "generate_report",
     "generate_video_presentation",
-    "scrape_webpage",
 }
 
 

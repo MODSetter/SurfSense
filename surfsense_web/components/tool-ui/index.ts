@@ -6,15 +6,6 @@
  * rich UI when specific tools are called by the agent.
  */
 
-export {
-	Article,
-	ArticleErrorBoundary,
-	ArticleLoading,
-	type ArticleProps,
-	ArticleSkeleton,
-	parseSerializableArticle,
-	type SerializableArticle,
-} from "./article";
 export { Audio } from "./audio";
 export {
 	type DisplayImageArgs,
@@ -65,13 +56,6 @@ export {
 	ExecuteResultSchema,
 	SandboxExecuteToolUI,
 } from "./sandbox-execute";
-export {
-	type ScrapeWebpageArgs,
-	ScrapeWebpageArgsSchema,
-	type ScrapeWebpageResult,
-	ScrapeWebpageResultSchema,
-	ScrapeWebpageToolUI,
-} from "./scrape-webpage";
 export {
 	type MemoryItem,
 	type RecallMemoryArgs,
