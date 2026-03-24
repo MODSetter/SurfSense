@@ -30,6 +30,7 @@ function formatTime(seconds: number): string {
 
 export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 	const audioRef = useRef<HTMLAudioElement>(null);
+	const downloadControllerRef = useRef<AbortController | null>(null);
 	const [isPlaying, setIsPlaying] = useState(false);
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(durationMs ? durationMs / 1000 : 0);
@@ -87,8 +88,12 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 
 	// Handle download
 	const handleDownload = useCallback(async () => {
+		downloadControllerRef.current?.abort();
+		const controller = new AbortController();
+		downloadControllerRef.current = controller;
+
 		try {
-			const response = await fetch(src);
+			const response = await fetch(src, { signal: controller.signal });
 			const blob = await response.blob();
 			const url = window.URL.createObjectURL(blob);
 			const a = document.createElement("a");
@@ -99,9 +104,15 @@ export function Audio({ id, src, title, durationMs, className }: AudioProps) {
 			document.body.removeChild(a);
 			window.URL.revokeObjectURL(url);
 		} catch (err) {
+			if (err instanceof DOMException && err.name === "AbortError") return;
 			console.error("Error downloading audio:", err);
 		}
 	}, [src, title]);
+
+	// Abort in-flight download on unmount
+	useEffect(() => {
+		return () => downloadControllerRef.current?.abort();
+	}, []);
 
 	// Set up audio event listeners
 	useEffect(() => {
