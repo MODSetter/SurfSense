@@ -5,6 +5,8 @@ import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { SyncHandle } from "@/lib/electric/client";
 import { useElectricClient } from "@/lib/electric/context";
 
+const IS_DEV = process.env.NODE_ENV === "development";
+
 /**
  * Hook for managing connectors with Electric SQL real-time sync
  *
@@ -72,7 +74,7 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 
 		async function startSync() {
 			try {
-				console.log("[useConnectorsElectric] Starting sync for search space:", searchSpaceId);
+				if (IS_DEV) console.log("[useConnectorsElectric] Starting sync for search space:", searchSpaceId);
 
 				const handle = await electricClient.syncShape({
 					table: "search_source_connectors",
@@ -80,7 +82,7 @@ export function useConnectorsElectric(searchSpaceId: number | string | null) {
 					primaryKey: ["id"],
 				});
 
-				console.log("[useConnectorsElectric] Sync started:", {
+				if (IS_DEV) console.log("[useConnectorsElectric] Sync started:", {
 					isUpToDate: handle.isUpToDate,
 				});
 
