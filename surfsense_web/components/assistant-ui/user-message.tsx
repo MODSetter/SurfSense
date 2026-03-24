@@ -1,6 +1,6 @@
-import { ActionBarPrimitive, MessagePrimitive, useAuiState } from "@assistant-ui/react";
+import { ActionBarPrimitive, AuiIf, MessagePrimitive, useAuiState } from "@assistant-ui/react";
 import { useAtomValue } from "jotai";
-import { FileText, Pen } from "lucide-react";
+import { CheckIcon, CopyIcon, FileText, Pen } from "lucide-react";
 import Image from "next/image";
 import { type FC, useState } from "react";
 import { messageDocumentsMapAtom } from "@/atoms/chat/mentioned-documents.atom";
@@ -54,43 +54,39 @@ export const UserMessage: FC = () => {
 
 	return (
 		<MessagePrimitive.Root
-			className="aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 py-3 duration-150 [&:where(>*)]:col-start-2"
+			className="group/user-msg aui-user-message-root fade-in slide-in-from-bottom-1 mx-auto grid w-full max-w-(--thread-max-width) animate-in auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] content-start gap-y-2 px-2 pt-3 pb-8 duration-150 [&:where(>*)]:col-start-2"
 			data-role="user"
 		>
-			<div className="aui-user-message-content-wrapper col-start-2 min-w-0 flex items-end gap-2">
-				<div className="flex-1 min-w-0">
-					{/* Display mentioned documents */}
-					{mentionedDocs && mentionedDocs.length > 0 && (
-						<div className="flex flex-wrap items-end gap-2 mb-2 justify-end">
-							{/* Mentioned documents as chips */}
-							{mentionedDocs?.map((doc) => (
-								<span
-									key={`${doc.document_type}:${doc.id}`}
-									className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
-									title={doc.title}
-								>
-									<FileText className="size-3" />
-									<span className="max-w-[150px] truncate">{doc.title}</span>
-								</span>
-							))}
-						</div>
-					)}
-					{/* Message bubble with action bar positioned relative to it */}
-					<div className="relative">
+			<div className="col-start-2 min-w-0">
+				<div className="aui-user-message-content-wrapper flex items-end gap-2">
+					<div className="relative flex-1 min-w-0">
+						{mentionedDocs && mentionedDocs.length > 0 && (
+							<div className="flex flex-wrap items-end gap-2 mb-2 justify-end">
+								{mentionedDocs?.map((doc) => (
+									<span
+										key={`${doc.document_type}:${doc.id}`}
+										className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-xs font-medium text-primary border border-primary/20"
+										title={doc.title}
+									>
+										<FileText className="size-3" />
+										<span className="max-w-[150px] truncate">{doc.title}</span>
+									</span>
+								))}
+							</div>
+						)}
 						<div className="aui-user-message-content wrap-break-word rounded-2xl bg-muted px-4 py-2.5 text-foreground">
 							<MessagePrimitive.Parts />
 						</div>
-						<div className="aui-user-action-bar-wrapper absolute top-1/2 right-full -translate-y-1/2 pr-1">
+						<div className="absolute right-0 top-full mt-1 z-10 opacity-100 pointer-events-auto md:opacity-0 md:pointer-events-none md:transition-opacity md:duration-200 md:delay-300 md:group-hover/user-msg:opacity-100 md:group-hover/user-msg:delay-0 md:group-hover/user-msg:pointer-events-auto">
 							<UserActionBar />
 						</div>
 					</div>
+					{author && (
+						<div className="shrink-0 mb-1.5">
+							<UserAvatar displayName={author.displayName} avatarUrl={author.avatarUrl} />
+						</div>
+					)}
 				</div>
-				{/* User avatar - only shown in shared chats */}
-				{author && (
-					<div className="shrink-0 mb-1.5">
-						<UserAvatar displayName={author.displayName} avatarUrl={author.avatarUrl} />
-					</div>
-				)}
 			</div>
 		</MessagePrimitive.Root>
 	);
@@ -122,13 +118,21 @@ const UserActionBar: FC = () => {
 	return (
 		<ActionBarPrimitive.Root
 			hideWhenRunning
-			autohide="not-last"
-			className="aui-user-action-bar-root flex flex-col items-end"
+			className="aui-user-action-bar-root flex items-center justify-end gap-1 text-muted-foreground"
 		>
-			{/* Only allow editing the last user message */}
+			<ActionBarPrimitive.Copy asChild>
+				<TooltipIconButton tooltip="Copy">
+					<AuiIf condition={({ message }) => message.isCopied}>
+						<CheckIcon />
+					</AuiIf>
+					<AuiIf condition={({ message }) => !message.isCopied}>
+						<CopyIcon />
+					</AuiIf>
+				</TooltipIconButton>
+			</ActionBarPrimitive.Copy>
 			{canEdit && (
 				<ActionBarPrimitive.Edit asChild>
-					<TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4">
+					<TooltipIconButton tooltip="Edit" className="aui-user-action-edit">
 						<Pen />
 					</TooltipIconButton>
 				</ActionBarPrimitive.Edit>
