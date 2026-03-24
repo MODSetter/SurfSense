@@ -42,15 +42,14 @@ function ZeroAuthGuard({ children }: { children: React.ReactNode }) {
 
 export function ZeroProvider({ children }: { children: React.ReactNode }) {
 	const { data: user } = useAtomValue(currentUserAtom);
-	const token = getBearerToken();
 
-	if (!user?.id || !token) {
+	if (!user?.id) {
 		return <>{children}</>;
 	}
 
 	const userID = String(user.id);
 	const context = { userId: userID };
-	const auth = token;
+	const auth = getBearerToken() || undefined;
 
 	return (
 		<ZeroReactProvider {...{ userID, context, cacheURL, schema, queries, auth }}>
