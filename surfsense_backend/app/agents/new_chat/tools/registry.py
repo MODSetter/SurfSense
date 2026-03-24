@@ -50,7 +50,6 @@ from .confluence import (
     create_delete_confluence_page_tool,
     create_update_confluence_page_tool,
 )
-from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
 from .gmail import (
     create_create_gmail_draft_tool,
@@ -192,13 +191,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         name="link_preview",
         description="Fetch metadata for a URL to display a rich preview card",
         factory=lambda deps: create_link_preview_tool(),
-        requires=[],
-    ),
-    # Display image tool - shows images in the chat
-    ToolDefinition(
-        name="display_image",
-        description="Display an image in the chat with metadata",
-        factory=lambda deps: create_display_image_tool(),
         requires=[],
     ),
     # Generate image tool - creates images using AI models (DALL-E, GPT Image, etc.)

@@ -13,6 +13,7 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
+import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
@@ -152,6 +153,7 @@ const PublicAssistantMessage: FC = () => {
 								generate_video_presentation: GenerateVideoPresentationToolUI,
 								link_preview: LinkPreviewToolUI,
 								display_image: DisplayImageToolUI,
+								generate_image: GenerateImageToolUI,
 								scrape_webpage: ScrapeWebpageToolUI,
 							},
 							Fallback: ToolFallback,

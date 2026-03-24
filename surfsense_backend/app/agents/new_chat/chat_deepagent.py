@@ -151,7 +151,6 @@ async def create_surfsense_deep_agent(
     - generate_podcast: Generate audio podcasts from content
     - generate_image: Generate images from text descriptions using AI models
     - link_preview: Fetch rich previews for URLs
-    - display_image: Display images in chat
     - scrape_webpage: Extract content from webpages
     - save_memory: Store facts/preferences about the user
     - recall_memory: Retrieve relevant user memories

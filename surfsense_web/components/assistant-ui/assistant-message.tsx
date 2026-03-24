@@ -18,6 +18,7 @@ import { CommentPanelContainer } from "@/components/chat-comments/comment-panel-
 import { CommentSheet } from "@/components/chat-comments/comment-sheet/comment-sheet";
 import { CreateConfluencePageToolUI, DeleteConfluencePageToolUI, UpdateConfluencePageToolUI } from "@/components/tool-ui/confluence";
 import { DisplayImageToolUI } from "@/components/tool-ui/display-image";
+import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
 import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
 import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
 import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
@@ -60,6 +61,7 @@ const AssistantMessageInner: FC = () => {
 								link_preview: LinkPreviewToolUI,
 								multi_link_preview: MultiLinkPreviewToolUI,
 								display_image: DisplayImageToolUI,
+								generate_image: GenerateImageToolUI,
 								scrape_webpage: ScrapeWebpageToolUI,
 								save_memory: SaveMemoryToolUI,
 								recall_memory: RecallMemoryToolUI,

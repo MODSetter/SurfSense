@@ -199,33 +199,6 @@ _TOOL_INSTRUCTIONS["link_preview"] = """
   - The preview card will automatically be displayed in the chat.
 """
 
-_TOOL_INSTRUCTIONS["display_image"] = """
-- display_image: Display an image in the chat with metadata.
-  - Use this tool ONLY when you have a valid public HTTP/HTTPS image URL to show.
-  - This displays the image with an optional title, description, and source attribution.
-  - Valid use cases:
-    * Showing an image from a URL the user explicitly mentioned in their message
-    * Displaying images found in scraped webpage content (from scrape_webpage tool)
-    * Showing a publicly accessible diagram or chart from a known URL
-    * Displaying an AI-generated image after calling the generate_image tool (ALWAYS required)
-  
-  CRITICAL - NEVER USE THIS TOOL FOR USER-UPLOADED ATTACHMENTS:
-  When a user uploads/attaches an image file to their message:
-    * The image is ALREADY VISIBLE in the chat UI as a thumbnail on their message
-    * You do NOT have a URL for their uploaded image - only extracted text/description
-    * Calling display_image will FAIL and show "Image not available" error
-    * Simply analyze the image content and respond with your analysis - DO NOT try to display it
-    * The user can already see their own uploaded image - they don't need you to show it again
-  
-  - Args:
-    - src: The URL of the image (MUST be a valid public HTTP/HTTPS URL that you know exists)
-    - alt: Alternative text describing the image (for accessibility)
-    - title: Optional title to display below the image
-    - description: Optional description providing context about the image
-  - Returns: An image card with the image, title, and description
-  - The image will automatically be displayed in the chat.
-"""
-
 _TOOL_INSTRUCTIONS["generate_image"] = """
 - generate_image: Generate images from text descriptions using AI image models.
   - Use this when the user asks you to create, generate, draw, design, or make an image.
@@ -233,10 +206,7 @@ _TOOL_INSTRUCTIONS["generate_image"] = """
   - Args:
     - prompt: A detailed text description of the image to generate. Be specific about subject, style, colors, composition, and mood.
     - n: Number of images to generate (1-4, default: 1)
-  - Returns: A dictionary with the generated image URL in the "src" field, along with metadata.
-  - CRITICAL: After calling generate_image, you MUST call `display_image` with the returned "src" URL
-    to actually show the image in the chat. The generate_image tool only generates the image and returns
-    the URL — it does NOT display anything. You must always follow up with display_image.
+  - Returns: A dictionary with the generated image metadata. The image will automatically be displayed in the chat.
   - IMPORTANT: Write a detailed, descriptive prompt for best results. Don't just pass the user's words verbatim -
     expand and improve the prompt with specific details about style, lighting, composition, and mood.
   - If the user's request is vague (e.g., "make me an image of a cat"), enhance the prompt with artistic details.
@@ -270,7 +240,7 @@ _TOOL_INSTRUCTIONS["scrape_webpage"] = """
   - Returns: The page title, description, full content (in markdown), word count, and metadata
   - After scraping, you will have the full article text and can analyze, summarize, or answer questions about it.
   - IMAGES: The scraped content may contain image URLs in markdown format like `![alt text](image_url)`.
-    * When you find relevant/important images in the scraped content, use the `display_image` tool to show them to the user.
+    * When you find relevant/important images in the scraped content, include them in your response using standard markdown image syntax: `![alt text](image_url)`.
     * This makes your response more visual and engaging.
     * Prioritize showing: diagrams, charts, infographics, key illustrations, or images that help explain the content.
     * Don't show every image - just the most relevant 1-3 images that enhance understanding.
@@ -487,21 +457,18 @@ _TOOL_EXAMPLES["scrape_webpage"] = """
   - IMPORTANT: Always attempt scraping first. Never refuse before trying the tool.
 """
 
-_TOOL_EXAMPLES["display_image"] = """
-- User: "Show me this image: https://example.com/image.png"
-  - Call: `display_image(src="https://example.com/image.png", alt="User shared image")`
-- User uploads an image file and asks: "What is this image about?"
-  - DO NOT call display_image! The user's uploaded image is already visible in the chat.
-  - Simply analyze the image content and respond directly.
-"""
-
 _TOOL_EXAMPLES["generate_image"] = """
 - User: "Generate an image of a cat"
-  - Step 1: `generate_image(prompt="A fluffy orange tabby cat sitting on a windowsill, bathed in warm golden sunlight, soft bokeh background with green houseplants, photorealistic style, cozy atmosphere")`
-  - Step 2: Use the returned "src" URL to display it: `display_image(src="<returned_url>", alt="A fluffy orange tabby cat on a windowsill", title="Generated Image")`
+  - Call: `generate_image(prompt="A fluffy orange tabby cat sitting on a windowsill, bathed in warm golden sunlight, soft bokeh background with green houseplants, photorealistic style, cozy atmosphere")`
+  - The generated image will automatically be displayed in the chat.
 - User: "Draw me a logo for a coffee shop called Bean Dream"
-  - Step 1: `generate_image(prompt="Minimalist modern logo design for a coffee shop called 'Bean Dream', featuring a stylized coffee bean with dream-like swirls of steam, clean vector style, warm brown and cream color palette, white background, professional branding")`
-  - Step 2: `display_image(src="<returned_url>", alt="Bean Dream coffee shop logo", title="Generated Image")`
+  - Call: `generate_image(prompt="Minimalist modern logo design for a coffee shop called 'Bean Dream', featuring a stylized coffee bean with dream-like swirls of steam, clean vector style, warm brown and cream color palette, white background, professional branding")`
+  - The generated image will automatically be displayed in the chat.
+- User: "Show me this image: https://example.com/image.png"
+  - Simply include it in your response using markdown: `![Image](https://example.com/image.png)`
+- User uploads an image file and asks: "What is this image about?"
+  - The user's uploaded image is already visible in the chat.
+  - Simply analyze the image content and respond directly.
 """
 
 _TOOL_EXAMPLES["web_search"] = """
@@ -523,7 +490,6 @@ _ALL_TOOL_NAMES_ORDERED = [
     "generate_video_presentation",
     "generate_report",
     "link_preview",
-    "display_image",
     "generate_image",
     "scrape_webpage",
     "save_memory",
@@ -764,7 +730,7 @@ Do not use the sandbox for:
 
 When your code creates output files (images, CSVs, PDFs, etc.) in the sandbox:
 - **Print the absolute path** at the end of your script so the user can download the file. Example: `print("SANDBOX_FILE: /tmp/chart.png")`
-- **DO NOT call `display_image`** for files created inside the sandbox. Sandbox files are not accessible via public URLs, so `display_image` will always show "Image not available". The frontend automatically renders a download button from the `SANDBOX_FILE:` marker.
+- **DO NOT use markdown image syntax** for files created inside the sandbox. Sandbox files are not accessible via public URLs and will show "Image not available". The frontend automatically renders a download button from the `SANDBOX_FILE:` marker.
 - You can output multiple files, one per line: `print("SANDBOX_FILE: /tmp/report.csv")`, `print("SANDBOX_FILE: /tmp/chart.png")`
 - Always describe what the file contains in your response text so the user knows what they are downloading.
 - IMPORTANT: Every `execute` call that saves a file MUST print the `SANDBOX_FILE: <path>` marker. Without it the user cannot download the file.

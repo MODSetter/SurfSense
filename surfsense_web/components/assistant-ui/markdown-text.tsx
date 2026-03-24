@@ -8,8 +8,9 @@ import {
 	unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
 	useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
-import { CheckIcon, CopyIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 import { type FC, memo, type ReactNode, useState } from "react";
+import { ImagePreview, ImageRoot, ImageZoom } from "@/components/assistant-ui/image";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -188,17 +189,17 @@ const useCopyToClipboard = ({ copiedDuration = 3000 }: { copiedDuration?: number
 function processChildrenWithCitations(children: ReactNode): ReactNode {
 	if (typeof children === "string") {
 		const parsed = parseTextWithCitations(children);
-		return parsed.length === 1 && typeof parsed[0] === "string" ? children : <>{parsed}</>;
+		return parsed.length === 1 && typeof parsed[0] === "string" ? children : parsed;
 	}
 
 	if (Array.isArray(children)) {
-		return children.map((child, index) => {
+		return children.map((child) => {
 			if (typeof child === "string") {
 				const parsed = parseTextWithCitations(child);
 				return parsed.length === 1 && typeof parsed[0] === "string" ? (
 					child
 				) : (
-					<span key={index}>{parsed}</span>
+					<span key={child}>{parsed}</span>
 				);
 			}
 			return child;
@@ -206,6 +207,56 @@ function processChildrenWithCitations(children: ReactNode): ReactNode {
 	}
 
 	return children;
+}
+
+function extractDomain(url: string): string {
+	try {
+		const parsed = new URL(url);
+		return parsed.hostname.replace(/^www\./, "");
+	} catch {
+		return "";
+	}
+}
+
+function MarkdownImage({ src, alt }: { src?: string; alt?: string }) {
+	if (!src) return null;
+
+	const domain = extractDomain(src);
+
+	return (
+		<div className="my-4 w-fit max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+			<ImageRoot variant="ghost" size="full">
+				<ImageZoom src={src} alt={alt || "Image"}>
+					<ImagePreview
+						src={src}
+						alt={alt || "Image"}
+						className="max-h-[20rem] w-auto max-w-full object-contain"
+					/>
+				</ImageZoom>
+			</ImageRoot>
+
+			<div className="flex items-center justify-between px-5 py-3">
+				<div className="min-w-0 flex-1">
+					{alt && alt !== "Image" && (
+						<p className="text-sm font-semibold text-foreground line-clamp-2">{alt}</p>
+					)}
+					{domain && (
+						<p className="text-xs text-muted-foreground mt-0.5 truncate">{domain}</p>
+					)}
+				</div>
+				<a
+					href={src}
+					target="_blank"
+					rel="noopener noreferrer"
+					className="ml-3 shrink-0 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-muted"
+					onClick={(e) => e.stopPropagation()}
+				>
+					Open
+					<ExternalLinkIcon className="size-3" />
+				</a>
+			</div>
+		</div>
+	);
 }
 
 const defaultComponents = memoizeMarkdownComponents({
@@ -371,5 +422,6 @@ const defaultComponents = memoizeMarkdownComponents({
 			{processChildrenWithCitations(children)}
 		</em>
 	),
+	img: ({ src, alt }) => <MarkdownImage src={typeof src === "string" ? src : undefined} alt={alt} />,
 	CodeHeader,
 });

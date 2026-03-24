@@ -23,6 +23,13 @@ export {
 	DisplayImageResultSchema,
 	DisplayImageToolUI,
 } from "./display-image";
+export {
+	type GenerateImageArgs,
+	GenerateImageArgsSchema,
+	type GenerateImageResult,
+	GenerateImageResultSchema,
+	GenerateImageToolUI,
+} from "./generate-image";
 export { GeneratePodcastToolUI } from "./generate-podcast";
 export { GenerateReportToolUI } from "./generate-report";
 export { GenerateVideoPresentationToolUI } from "./video-presentation";
