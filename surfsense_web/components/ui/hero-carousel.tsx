@@ -81,11 +81,23 @@ function HeroCarouselCard({
 
 	useEffect(() => {
 		const video = videoRef.current;
-		if (video) {
-			setHasLoaded(false);
-			video.currentTime = 0;
-			video.play().catch(() => {});
-		}
+		if (!video) return;
+
+		setHasLoaded(false);
+		video.currentTime = 0;
+
+		const observer = new IntersectionObserver(
+			([entry]) => {
+				if (entry.isIntersecting) {
+					video.play().catch(() => {});
+					observer.disconnect();
+				}
+			},
+			{ threshold: 0.1 }
+		);
+		observer.observe(video);
+
+		return () => observer.disconnect();
 	}, [src]);
 
 	const handleCanPlay = useCallback(() => {
@@ -94,7 +106,7 @@ function HeroCarouselCard({
 
 	return (
 		<>
-			<div className="rounded-2xl border border-neutral-200/60 bg-white shadow-xl sm:rounded-3xl dark:border-neutral-700/60 dark:bg-neutral-900">
+			<div className="overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-xl sm:rounded-3xl dark:border-neutral-700/60 dark:bg-neutral-900">
 				<div className="flex items-center gap-3 border-b border-neutral-200/60 px-4 py-3 sm:px-6 sm:py-4 dark:border-neutral-700/60">
 					<div className="min-w-0">
 						<h3 className="truncate text-base font-semibold text-neutral-900 sm:text-xl dark:text-white">
@@ -108,7 +120,7 @@ function HeroCarouselCard({
 						<video
 							ref={videoRef}
 							src={src}
-							autoPlay
+							preload="none"
 							loop
 							muted
 							playsInline
@@ -129,66 +141,10 @@ function HeroCarouselCard({
 	);
 }
 
-function usePrefetchVideos() {
-	const videosRef = useRef<HTMLVideoElement[]>([]);
-
-	useEffect(() => {
-		let cancelled = false;
-
-		async function prefetch() {
-			for (const item of carouselItems) {
-				if (cancelled) break;
-				await new Promise<void>((resolve) => {
-					const video = document.createElement("video");
-					video.preload = "auto";
-					video.src = item.src;
-					video.oncanplaythrough = () => resolve();
-					video.onerror = () => resolve();
-					setTimeout(resolve, 10000);
-					videosRef.current.push(video);
-				});
-			}
-		}
-
-		prefetch();
-		return () => {
-			cancelled = true;
-			videosRef.current = [];
-		};
-	}, []);
-}
-
-const AUTOPLAY_MS = 6000;
-
 function HeroCarousel() {
 	const [activeIndex, setActiveIndex] = useState(0);
 	const [isGifExpanded, setIsGifExpanded] = useState(false);
-	const [isHovered, setIsHovered] = useState(false);
-	const [isTabVisible, setIsTabVisible] = useState(true);
 	const directionRef = useRef<"forward" | "backward">("forward");
-
-	usePrefetchVideos();
-
-	const shouldAutoPlay = !isGifExpanded && !isHovered && isTabVisible;
-
-	useEffect(() => {
-		if (!shouldAutoPlay) return;
-
-		const id = setTimeout(() => {
-			directionRef.current = "forward";
-			setActiveIndex((prev) =>
-				prev >= carouselItems.length - 1 ? 0 : prev + 1
-			);
-		}, AUTOPLAY_MS);
-
-		return () => clearTimeout(id);
-	}, [activeIndex, shouldAutoPlay]);
-
-	useEffect(() => {
-		const handler = () => setIsTabVisible(!document.hidden);
-		document.addEventListener("visibilitychange", handler);
-		return () => document.removeEventListener("visibilitychange", handler);
-	}, []);
 
 	const goTo = useCallback(
 		(newIndex: number) => {
@@ -210,11 +166,7 @@ function HeroCarousel() {
 	const isForward = directionRef.current === "forward";
 
 	return (
-		<div
-			className="w-full py-4 sm:py-8"
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
-		>
+		<div className="w-full py-4 sm:py-8">
 			<div className="relative mx-auto w-full max-w-[900px]">
 				<AnimatePresence mode="wait" initial={false}>
 					<motion.div
@@ -234,53 +186,45 @@ function HeroCarousel() {
 				</AnimatePresence>
 			</div>
 
-			<div className="relative z-5 mt-6 flex items-center justify-center gap-4">
-				<button
-					type="button"
-					onClick={() => !isGifExpanded && goToPrev()}
-					className="flex size-9 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-					aria-label="Previous slide"
-				>
-					<ChevronLeft className="size-5" />
-				</button>
+		<div className="relative z-5 mt-4 flex items-center justify-center gap-2">
+			<button
+				type="button"
+				onClick={() => !isGifExpanded && goToPrev()}
+				className="flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+				aria-label="Previous slide"
+			>
+				<ChevronLeft className="size-5" />
+			</button>
 
-				<div className="flex items-center gap-2">
-					{carouselItems.map((_, i) => (
-						<button
-							key={`dot_${i}`}
-							type="button"
-							onClick={() => !isGifExpanded && goTo(i)}
-							className={`relative h-2 overflow-hidden rounded-full transition-all duration-300 ${
+			<div className="flex items-center">
+				{carouselItems.map((_, i) => (
+					<button
+						key={`dot_${i}`}
+						type="button"
+						onClick={() => !isGifExpanded && goTo(i)}
+						className="flex h-11 min-w-[28px] items-center justify-center touch-manipulation"
+						aria-label={`Go to slide ${i + 1}`}
+					>
+						<span
+							className={`block h-2.5 rounded-full transition-all duration-300 ${
 								i === activeIndex
-									? shouldAutoPlay
-										? "w-6 bg-neutral-300 dark:bg-neutral-600"
-										: "w-6 bg-neutral-900 dark:bg-white"
-									: "w-2 bg-neutral-300 hover:bg-neutral-400 dark:bg-neutral-600 dark:hover:bg-neutral-500"
+									? "w-6 bg-neutral-900 dark:bg-white"
+									: "w-2.5 bg-neutral-300 hover:bg-neutral-400 dark:bg-neutral-600 dark:hover:bg-neutral-500"
 							}`}
-							aria-label={`Go to slide ${i + 1}`}
-						>
-							{i === activeIndex && shouldAutoPlay && (
-								<motion.span
-									key={`progress_${activeIndex}`}
-									className="absolute inset-0 origin-left rounded-full bg-neutral-900 dark:bg-white"
-									initial={{ scaleX: 0 }}
-									animate={{ scaleX: 1 }}
-									transition={{ duration: AUTOPLAY_MS / 1000, ease: "linear" }}
-								/>
-							)}
-						</button>
-					))}
-				</div>
-
-				<button
-					type="button"
-					onClick={() => !isGifExpanded && goToNext()}
-					className="flex size-9 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
-					aria-label="Next slide"
-				>
-					<ChevronRight className="size-5" />
-				</button>
+						/>
+					</button>
+				))}
 			</div>
+
+			<button
+				type="button"
+				onClick={() => !isGifExpanded && goToNext()}
+				className="flex size-11 items-center justify-center rounded-full border border-neutral-200 bg-white text-neutral-700 shadow-sm transition-colors hover:bg-neutral-100 touch-manipulation dark:border-neutral-700 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+				aria-label="Next slide"
+			>
+				<ChevronRight className="size-5" />
+			</button>
+		</div>
 		</div>
 	);
 }
