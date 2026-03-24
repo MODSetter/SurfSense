@@ -1,12 +1,6 @@
 "use client";
 
-import {
-	DownloadIcon,
-	PauseIcon,
-	PlayIcon,
-	Volume2Icon,
-	VolumeXIcon,
-} from "lucide-react";
+import { DownloadIcon, PauseIcon, PlayIcon, Volume2Icon, VolumeXIcon } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";

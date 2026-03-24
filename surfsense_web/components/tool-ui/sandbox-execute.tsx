@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import {
 	AlertCircleIcon,
 	CheckCircle2Icon,
@@ -380,41 +380,42 @@ function ExecuteCompleted({
 // Tool UI
 // ============================================================================
 
-export const SandboxExecuteToolUI = makeAssistantToolUI<ExecuteArgs, ExecuteResult>({
-	toolName: "execute",
-	render: function SandboxExecuteUI({ args, result, status }) {
-		const command = args.command || "…";
+export const SandboxExecuteToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<ExecuteArgs, ExecuteResult>) => {
+	const command = args.command || "…";
 
-		if (status.type === "running" || status.type === "requires-action") {
-			return <ExecuteLoading command={command} />;
+	if (status.type === "running" || status.type === "requires-action") {
+		return <ExecuteLoading command={command} />;
+	}
+
+	if (status.type === "incomplete") {
+		if (status.reason === "cancelled") {
+			return <ExecuteCancelledState command={command} />;
 		}
-
-		if (status.type === "incomplete") {
-			if (status.reason === "cancelled") {
-				return <ExecuteCancelledState command={command} />;
-			}
-			if (status.reason === "error") {
-				return (
-					<ExecuteErrorState
-						command={command}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
+		if (status.reason === "error") {
+			return (
+				<ExecuteErrorState
+					command={command}
+					error={typeof status.error === "string" ? status.error : "An error occurred"}
+				/>
+			);
 		}
+	}
 
-		if (!result) {
-			return <ExecuteLoading command={command} />;
-		}
+	if (!result) {
+		return <ExecuteLoading command={command} />;
+	}
 
-		if (result.error && !result.result && !result.output) {
-			return <ExecuteErrorState command={command} error={result.error} />;
-		}
+	if (result.error && !result.result && !result.output) {
+		return <ExecuteErrorState command={command} error={result.error} />;
+	}
 
-		const parsed = parseExecuteResult(result);
-		const threadId = result.thread_id || null;
-		return <ExecuteCompleted command={command} parsed={parsed} threadId={threadId} />;
-	},
-});
+	const parsed = parseExecuteResult(result);
+	const threadId = result.thread_id || null;
+	return <ExecuteCompleted command={command} parsed={parsed} threadId={threadId} />;
+};
 
 export { ExecuteArgsSchema, ExecuteResultSchema, type ExecuteArgs, type ExecuteResult };

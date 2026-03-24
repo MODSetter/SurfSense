@@ -2,16 +2,20 @@
 
 import {
 	ActionBarPrimitive,
-	AssistantIf,
+	AuiIf,
 	MessagePrimitive,
 	ThreadPrimitive,
-	useAssistantState,
+	useAuiState,
 } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { type FC, type ReactNode, useState } from "react";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { GenerateImageToolUI } from "@/components/tool-ui/generate-image";
+import { GeneratePodcastToolUI } from "@/components/tool-ui/generate-podcast";
+import { GenerateReportToolUI } from "@/components/tool-ui/generate-report";
+import { GenerateVideoPresentationToolUI } from "@/components/tool-ui/video-presentation";
 
 interface PublicThreadProps {
 	footer?: ReactNode;
@@ -75,6 +79,7 @@ const UserAvatar: FC<AuthorMetadata & { hasError: boolean; onError: () => void }
 
 	if (avatarUrl && !hasError) {
 		return (
+			// biome-ignore lint/performance/noImgElement: external OAuth/profile avatar URL
 			<img
 				src={avatarUrl}
 				alt={displayName || "User"}
@@ -93,7 +98,7 @@ const UserAvatar: FC<AuthorMetadata & { hasError: boolean; onError: () => void }
 };
 
 const PublicUserMessage: FC = () => {
-	const metadata = useAssistantState(({ message }) => message?.metadata);
+	const metadata = useAuiState(({ message }) => message?.metadata);
 	const author = metadata?.custom?.author as AuthorMetadata | undefined;
 
 	return (
@@ -139,7 +144,19 @@ const PublicAssistantMessage: FC = () => {
 				<MessagePrimitive.Parts
 					components={{
 						Text: MarkdownText,
-						tools: { Fallback: ToolFallback },
+						tools: {
+							by_name: {
+								generate_podcast: GeneratePodcastToolUI,
+								generate_report: GenerateReportToolUI,
+								generate_video_presentation: GenerateVideoPresentationToolUI,
+								display_image: GenerateImageToolUI,
+								generate_image: GenerateImageToolUI,
+								link_preview: () => null,
+								multi_link_preview: () => null,
+								scrape_webpage: () => null,
+							},
+							Fallback: ToolFallback,
+						},
 					}}
 				/>
 			</div>
@@ -160,12 +177,12 @@ const PublicAssistantActionBar: FC = () => {
 		>
 			<ActionBarPrimitive.Copy asChild>
 				<TooltipIconButton tooltip="Copy">
-					<AssistantIf condition={({ message }) => message.isCopied}>
+					<AuiIf condition={({ message }) => message.isCopied}>
 						<CheckIcon />
-					</AssistantIf>
-					<AssistantIf condition={({ message }) => !message.isCopied}>
+					</AuiIf>
+					<AuiIf condition={({ message }) => !message.isCopied}>
 						<CopyIcon />
-					</AssistantIf>
+					</AuiIf>
 				</TooltipIconButton>
 			</ActionBarPrimitive.Copy>
 		</ActionBarPrimitive.Root>

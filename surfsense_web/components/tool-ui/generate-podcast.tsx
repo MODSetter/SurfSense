@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { useParams, usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { z } from "zod";
@@ -372,95 +372,91 @@ function PodcastStatusPoller({ podcastId, title }: { podcastId: number; title: s
  *
  * It polls for task completion and auto-updates when the podcast is ready.
  */
-export const GeneratePodcastToolUI = makeAssistantToolUI<
-	GeneratePodcastArgs,
-	GeneratePodcastResult
->({
-	toolName: "generate_podcast",
-	render: function GeneratePodcastUI({ args, result, status }) {
-		const title = args.podcast_title || "SurfSense Podcast";
+export const GeneratePodcastToolUI = ({
+	args,
+	result,
+	status,
+}: ToolCallMessagePartProps<GeneratePodcastArgs, GeneratePodcastResult>) => {
+	const title = args.podcast_title || "SurfSense Podcast";
 
-		// Loading state - tool is still running (agent processing)
-		if (status.type === "running" || status.type === "requires-action") {
-			return <PodcastGeneratingState title={title} />;
-		}
+	// Loading state - tool is still running (agent processing)
+	if (status.type === "running" || status.type === "requires-action") {
+		return <PodcastGeneratingState title={title} />;
+	}
 
-		// Incomplete/cancelled state
-		if (status.type === "incomplete") {
-			if (status.reason === "cancelled") {
-				return (
-					<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
-						<div className="px-5 pt-5 pb-4">
-							<p className="text-sm font-semibold text-muted-foreground">Podcast Cancelled</p>
-							<p className="text-xs text-muted-foreground mt-0.5">
-								Podcast generation was cancelled
-							</p>
-						</div>
-					</div>
-				);
-			}
-			if (status.reason === "error") {
-				return (
-					<PodcastErrorState
-						title={title}
-						error={typeof status.error === "string" ? status.error : "An error occurred"}
-					/>
-				);
-			}
-		}
-
-		// No result yet
-		if (!result) {
-			return <PodcastGeneratingState title={title} />;
-		}
-
-		// Failed result (new: "failed", legacy: "error")
-		if (result.status === "failed" || result.status === "error") {
-			return <PodcastErrorState title={title} error={result.error || "Generation failed"} />;
-		}
-
-		// Already generating - show simple warning, don't create another poller
-		// The FIRST tool call will display the podcast when ready
-		// (new: "generating", legacy: "already_generating")
-		if (result.status === "generating" || result.status === "already_generating") {
+	// Incomplete/cancelled state
+	if (status.type === "incomplete") {
+		if (status.reason === "cancelled") {
 			return (
 				<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
 					<div className="px-5 pt-5 pb-4">
-						<p className="text-sm font-semibold text-foreground">Podcast already in progress</p>
-						<p className="text-xs text-muted-foreground mt-0.5">
-							Please wait for the current podcast to complete.
-						</p>
+						<p className="text-sm font-semibold text-muted-foreground">Podcast Cancelled</p>
+						<p className="text-xs text-muted-foreground mt-0.5">Podcast generation was cancelled</p>
 					</div>
 				</div>
 			);
 		}
-
-		// Pending - poll for completion (new: "pending" with podcast_id)
-		if (result.status === "pending" && result.podcast_id) {
-			return <PodcastStatusPoller podcastId={result.podcast_id} title={result.title || title} />;
-		}
-
-		// Ready with podcast_id (new: "ready", legacy: "success")
-		if ((result.status === "ready" || result.status === "success") && result.podcast_id) {
-			return <PodcastPlayer podcastId={result.podcast_id} title={result.title || title} />;
-		}
-
-		// Legacy: old chats with Celery task_id (status: "processing" or "success" without podcast_id)
-		// These can't be recovered since the old task polling endpoint no longer exists
-		if (result.task_id && !result.podcast_id) {
+		if (status.reason === "error") {
 			return (
-				<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
-					<div className="px-5 pt-5 pb-4">
-						<p className="text-sm font-semibold text-muted-foreground">Podcast Unavailable</p>
-						<p className="text-xs text-muted-foreground mt-0.5">
-							This podcast was generated with an older version. Please generate a new one.
-						</p>
-					</div>
-				</div>
+				<PodcastErrorState
+					title={title}
+					error={typeof status.error === "string" ? status.error : "An error occurred"}
+				/>
 			);
 		}
+	}
 
-		// Fallback - missing required data
-		return <PodcastErrorState title={title} error="Missing podcast ID" />;
-	},
-});
+	// No result yet
+	if (!result) {
+		return <PodcastGeneratingState title={title} />;
+	}
+
+	// Failed result (new: "failed", legacy: "error")
+	if (result.status === "failed" || result.status === "error") {
+		return <PodcastErrorState title={title} error={result.error || "Generation failed"} />;
+	}
+
+	// Already generating - show simple warning, don't create another poller
+	// The FIRST tool call will display the podcast when ready
+	// (new: "generating", legacy: "already_generating")
+	if (result.status === "generating" || result.status === "already_generating") {
+		return (
+			<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+				<div className="px-5 pt-5 pb-4">
+					<p className="text-sm font-semibold text-foreground">Podcast already in progress</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						Please wait for the current podcast to complete.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Pending - poll for completion (new: "pending" with podcast_id)
+	if (result.status === "pending" && result.podcast_id) {
+		return <PodcastStatusPoller podcastId={result.podcast_id} title={result.title || title} />;
+	}
+
+	// Ready with podcast_id (new: "ready", legacy: "success")
+	if ((result.status === "ready" || result.status === "success") && result.podcast_id) {
+		return <PodcastPlayer podcastId={result.podcast_id} title={result.title || title} />;
+	}
+
+	// Legacy: old chats with Celery task_id (status: "processing" or "success" without podcast_id)
+	// These can't be recovered since the old task polling endpoint no longer exists
+	if (result.task_id && !result.podcast_id) {
+		return (
+			<div className="my-4 max-w-lg overflow-hidden rounded-2xl border bg-muted/30 select-none">
+				<div className="px-5 pt-5 pb-4">
+					<p className="text-sm font-semibold text-muted-foreground">Podcast Unavailable</p>
+					<p className="text-xs text-muted-foreground mt-0.5">
+						This podcast was generated with an older version. Please generate a new one.
+					</p>
+				</div>
+			</div>
+		);
+	}
+
+	// Fallback - missing required data
+	return <PodcastErrorState title={title} error="Missing podcast ID" />;
+};

@@ -50,7 +50,6 @@ from .confluence import (
     create_delete_confluence_page_tool,
     create_update_confluence_page_tool,
 )
-from .display_image import create_display_image_tool
 from .generate_image import create_generate_image_tool
 from .gmail import (
     create_create_gmail_draft_tool,
@@ -78,7 +77,6 @@ from .linear import (
     create_delete_linear_issue_tool,
     create_update_linear_issue_tool,
 )
-from .link_preview import create_link_preview_tool
 from .mcp_tool import load_mcp_tools
 from .notion import (
     create_create_notion_page_tool,
@@ -186,20 +184,6 @@ BUILTIN_TOOLS: list[ToolDefinition] = [
         # connector_service, available_connectors, and available_document_types
         # are optional — when missing, source_strategy="kb_search" degrades
         # gracefully to "provided"
-    ),
-    # Link preview tool - fetches Open Graph metadata for URLs
-    ToolDefinition(
-        name="link_preview",
-        description="Fetch metadata for a URL to display a rich preview card",
-        factory=lambda deps: create_link_preview_tool(),
-        requires=[],
-    ),
-    # Display image tool - shows images in the chat
-    ToolDefinition(
-        name="display_image",
-        description="Display an image in the chat with metadata",
-        factory=lambda deps: create_display_image_tool(),
-        requires=[],
     ),
     # Generate image tool - creates images using AI models (DALL-E, GPT Image, etc.)
     ToolDefinition(
@@ -567,7 +551,7 @@ def build_tools(
         tools = build_tools(deps)
 
         # Use only specific tools
-        tools = build_tools(deps, enabled_tools=["search_knowledge_base", "link_preview"])
+        tools = build_tools(deps, enabled_tools=["search_knowledge_base"])
 
         # Use defaults but disable podcast
         tools = build_tools(deps, disabled_tools=["generate_podcast"])

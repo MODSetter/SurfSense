@@ -1,6 +1,6 @@
 "use client";
 
-import { makeAssistantToolUI } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { CornerDownLeftIcon } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
@@ -396,44 +396,43 @@ function SuccessCard({ result }: { result: SuccessResult }) {
 	);
 }
 
-export const DeleteConfluencePageToolUI = makeAssistantToolUI<
+export const DeleteConfluencePageToolUI = ({
+	result,
+}: ToolCallMessagePartProps<
 	{ page_title_or_id: string; delete_from_kb?: boolean },
 	DeleteConfluencePageResult
->({
-	toolName: "delete_confluence_page",
-	render: function DeleteConfluencePageUI({ result }) {
-		if (!result) return null;
+>) => {
+	if (!result) return null;
 
-		if (isInterruptResult(result)) {
-			return (
-				<ApprovalCard
-					interruptData={result}
-					onDecision={(decision) => {
-						const event = new CustomEvent("hitl-decision", {
-							detail: { decisions: [decision] },
-						});
-						window.dispatchEvent(event);
-					}}
-				/>
-			);
-		}
+	if (isInterruptResult(result)) {
+		return (
+			<ApprovalCard
+				interruptData={result}
+				onDecision={(decision) => {
+					const event = new CustomEvent("hitl-decision", {
+						detail: { decisions: [decision] },
+					});
+					window.dispatchEvent(event);
+				}}
+			/>
+		);
+	}
 
-		if (
-			typeof result === "object" &&
-			result !== null &&
-			"status" in result &&
-			(result as { status: string }).status === "rejected"
-		) {
-			return null;
-		}
+	if (
+		typeof result === "object" &&
+		result !== null &&
+		"status" in result &&
+		(result as { status: string }).status === "rejected"
+	) {
+		return null;
+	}
 
-		if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
-		if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
-		if (isInsufficientPermissionsResult(result))
-			return <InsufficientPermissionsCard result={result} />;
-		if (isWarningResult(result)) return <WarningCard result={result} />;
-		if (isErrorResult(result)) return <ErrorCard result={result} />;
+	if (isNotFoundResult(result)) return <NotFoundCard result={result} />;
+	if (isAuthErrorResult(result)) return <AuthErrorCard result={result} />;
+	if (isInsufficientPermissionsResult(result))
+		return <InsufficientPermissionsCard result={result} />;
+	if (isWarningResult(result)) return <WarningCard result={result} />;
+	if (isErrorResult(result)) return <ErrorCard result={result} />;
 
-		return <SuccessCard result={result as SuccessResult} />;
-	},
-});
+	return <SuccessCard result={result as SuccessResult} />;
+};
