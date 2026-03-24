@@ -171,6 +171,7 @@ services:
       ZERO_REPLICA_FILE: /data/zero.db
       ZERO_ADMIN_PASSWORD: ${ZERO_ADMIN_PASSWORD:-surfsense-zero-admin}
       ZERO_QUERY_URL: ${ZERO_QUERY_URL:-http://frontend:3000/api/zero/query}
+      ZERO_MUTATE_URL: ${ZERO_MUTATE_URL:-http://frontend:3000/api/zero/mutate}
     volumes:
       - zero_cache_data:/data
     restart: unless-stopped
