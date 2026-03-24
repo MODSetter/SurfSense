@@ -6,6 +6,12 @@ import { getServerPort } from './server';
 const SHORTCUT = 'CommandOrControl+Option+S';
 let quickAskWindow: BrowserWindow | null = null;
 
+function hideQuickAsk(): void {
+  if (quickAskWindow && !quickAskWindow.isDestroyed()) {
+    quickAskWindow.hide();
+  }
+}
+
 function createQuickAskWindow(x: number, y: number): BrowserWindow {
   if (quickAskWindow && !quickAskWindow.isDestroyed()) {
     quickAskWindow.setPosition(x, y);
@@ -19,9 +25,8 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     height: 550,
     x,
     y,
-    alwaysOnTop: true,
     resizable: true,
-    frame: false,
+    titleBarStyle: 'hiddenInset',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -38,6 +43,8 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
     quickAskWindow?.show();
   });
 
+  quickAskWindow.on('blur', hideQuickAsk);
+
   quickAskWindow.on('closed', () => {
     quickAskWindow = null;
   });
@@ -47,6 +54,11 @@ function createQuickAskWindow(x: number, y: number): BrowserWindow {
 
 export function registerQuickAsk(): void {
   const ok = globalShortcut.register(SHORTCUT, () => {
+    if (quickAskWindow && !quickAskWindow.isDestroyed() && quickAskWindow.isVisible()) {
+      hideQuickAsk();
+      return;
+    }
+
     const text = clipboard.readText().trim();
     if (!text) return;
 
