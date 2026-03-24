@@ -79,6 +79,7 @@ const UserAvatar: FC<AuthorMetadata & { hasError: boolean; onError: () => void }
 
 	if (avatarUrl && !hasError) {
 		return (
+			// biome-ignore lint/performance/noImgElement: external OAuth/profile avatar URL
 			<img
 				src={avatarUrl}
 				alt={displayName || "User"}
@@ -148,7 +149,7 @@ const PublicAssistantMessage: FC = () => {
 								generate_podcast: GeneratePodcastToolUI,
 								generate_report: GenerateReportToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,
-								display_image: () => null,
+								display_image: GenerateImageToolUI,
 								generate_image: GenerateImageToolUI,
 								link_preview: () => null,
 								multi_link_preview: () => null,

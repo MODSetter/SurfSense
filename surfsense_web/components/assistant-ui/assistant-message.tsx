@@ -55,7 +55,7 @@ const AssistantMessageInner: FC = () => {
 								generate_report: GenerateReportToolUI,
 								generate_podcast: GeneratePodcastToolUI,
 								generate_video_presentation: GenerateVideoPresentationToolUI,
-								display_image: () => null,
+								display_image: GenerateImageToolUI,
 								generate_image: GenerateImageToolUI,
 								save_memory: SaveMemoryToolUI,
 								recall_memory: RecallMemoryToolUI,
