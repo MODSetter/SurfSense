@@ -32,7 +32,6 @@ export {
 } from "./display-image";
 export { GeneratePodcastToolUI } from "./generate-podcast";
 export { GenerateReportToolUI } from "./generate-report";
-export { GenerateVideoPresentationToolUI } from "./video-presentation";
 export { CreateGoogleDriveFileToolUI, DeleteGoogleDriveFileToolUI } from "./google-drive";
 export {
 	Image,
@@ -106,4 +105,5 @@ export {
 	SaveMemoryResultSchema,
 	SaveMemoryToolUI,
 } from "./user-memory";
+export { GenerateVideoPresentationToolUI } from "./video-presentation";
 export { type WriteTodosData, WriteTodosSchema, WriteTodosToolUI } from "./write-todos";

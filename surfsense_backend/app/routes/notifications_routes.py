@@ -1,7 +1,7 @@
 """
 Notifications API routes.
 These endpoints allow marking notifications as read and fetching older notifications.
-Electric SQL automatically syncs the changes to all connected clients for recent items.
+Zero automatically syncs the changes to all connected clients for recent items.
 For older items (beyond the sync window), use the list endpoint.
 """
 
@@ -267,7 +267,7 @@ async def get_unread_count(
 
     This allows the frontend to calculate:
     - older_unread = total_unread - recent_unread (static until reconciliation)
-    - Display count = older_unread + live_recent_count (from Electric SQL)
+    - Display count = older_unread + live_recent_count (from Zero)
     """
     # Calculate cutoff date for sync window
     cutoff_date = datetime.now(UTC) - timedelta(days=SYNC_WINDOW_DAYS)
@@ -344,7 +344,7 @@ async def list_notifications(
     List notifications for the current user with pagination.
 
     This endpoint is used as a fallback for older notifications that are
-    outside the Electric SQL sync window (2 weeks).
+    outside the Zero sync window (2 weeks).
 
     Use `before_date` to paginate through older notifications efficiently.
     """
@@ -487,7 +487,7 @@ async def mark_notification_as_read(
     """
     Mark a single notification as read.
 
-    Electric SQL will automatically sync this change to all connected clients.
+    Zero will automatically sync this change to all connected clients.
     """
     # Verify the notification belongs to the user
     result = await session.execute(
@@ -528,7 +528,7 @@ async def mark_all_notifications_as_read(
     """
     Mark all notifications as read for the current user.
 
-    Electric SQL will automatically sync these changes to all connected clients.
+    Zero will automatically sync these changes to all connected clients.
     """
     # Update all unread notifications for the user
     result = await session.execute(

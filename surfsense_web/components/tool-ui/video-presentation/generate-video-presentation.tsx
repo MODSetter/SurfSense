@@ -1,16 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { makeAssistantToolUI } from "@assistant-ui/react";
-import {
-	AlertCircleIcon,
-	Download,
-	Film,
-	Loader2,
-	Presentation,
-	X,
-} from "lucide-react";
+import { AlertCircleIcon, Download, Film, Loader2, Presentation, X } from "lucide-react";
 import { useParams, usePathname } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { Spinner } from "@/components/ui/spinner";
 import { baseApiService } from "@/lib/apis/base-api.service";
@@ -18,9 +11,9 @@ import { authenticatedFetch } from "@/lib/auth-utils";
 import { compileCheck, compileToComponent } from "@/lib/remotion/compile-check";
 import { FPS } from "@/lib/remotion/constants";
 import {
-	CombinedPlayer,
 	buildCompositionComponent,
 	buildSlideWithWatermark,
+	CombinedPlayer,
 	type CompiledSlide,
 } from "./combined-player";
 
@@ -54,7 +47,7 @@ const VideoPresentationStatusResponseSchema = z.object({
 				audio_url: z.string().nullish(),
 				duration_seconds: z.number().nullish(),
 				duration_in_frames: z.number().nullish(),
-			}),
+			})
 		)
 		.nullish(),
 	scene_codes: z
@@ -63,7 +56,7 @@ const VideoPresentationStatusResponseSchema = z.object({
 				slide_number: z.number(),
 				code: z.string(),
 				title: z.string().nullish(),
-			}),
+			})
 		)
 		.nullish(),
 	slide_count: z.number().nullish(),
@@ -206,9 +199,7 @@ function VideoPresentationPlayer({
 				const durationInFrames = slide.duration_in_frames ?? 300;
 				const check = compileCheck(scene.code);
 				if (!check.success) {
-					console.warn(
-						`Slide ${slide.slide_number} failed to compile: ${check.error}`,
-					);
+					console.warn(`Slide ${slide.slide_number} failed to compile: ${check.error}`);
 					continue;
 				}
 
@@ -219,9 +210,7 @@ function VideoPresentationPlayer({
 					title: scene.title ?? slide.title,
 					code: scene.code,
 					durationInFrames,
-					audioUrl: slide.audio_url
-						? `${backendUrl}${slide.audio_url}`
-						: undefined,
+					audioUrl: slide.audio_url ? `${backendUrl}${slide.audio_url}` : undefined,
 				});
 			}
 
@@ -238,17 +227,13 @@ function VideoPresentationPlayer({
 					try {
 						let blob: Blob;
 						if (shareToken) {
-							blob = await baseApiService.getBlob(
-								new URL(slide.audioUrl).pathname,
-							);
+							blob = await baseApiService.getBlob(new URL(slide.audioUrl).pathname);
 						} else {
 							const resp = await authenticatedFetch(slide.audioUrl, {
 								method: "GET",
 							});
 							if (!resp.ok) {
-								console.warn(
-									`Audio fetch ${resp.status} for slide "${slide.title}"`,
-								);
+								console.warn(`Audio fetch ${resp.status} for slide "${slide.title}"`);
 								return { ...slide, audioUrl: undefined };
 							}
 							blob = await resp.blob();
@@ -260,7 +245,7 @@ function VideoPresentationPlayer({
 						console.warn(`Failed to fetch audio for "${slide.title}":`, err);
 						return { ...slide, audioUrl: undefined };
 					}
-				}),
+				})
 			);
 
 			setCompiledSlides(withBlobs);
@@ -284,7 +269,7 @@ function VideoPresentationPlayer({
 
 	const totalDuration = useMemo(
 		() => compiledSlides.reduce((sum, s) => sum + s.durationInFrames / FPS, 0),
-		[compiledSlides],
+		[compiledSlides]
 	);
 
 	const handleDownload = async () => {
@@ -299,9 +284,7 @@ function VideoPresentationPlayer({
 		abortControllerRef.current = controller;
 
 		try {
-			const { canRenderMediaOnWeb, renderMediaOnWeb } = await import(
-				"@remotion/web-renderer"
-			);
+			const { canRenderMediaOnWeb, renderMediaOnWeb } = await import("@remotion/web-renderer");
 
 			const formats = [
 				{ container: "mp4" as const, videoCodec: "h264" as const, ext: "mp4" },
@@ -326,7 +309,7 @@ function VideoPresentationPlayer({
 
 			if (!chosen) {
 				throw new Error(
-					"Your browser does not support video rendering (WebCodecs). Please use Chrome, Edge, or Firefox 130+.",
+					"Your browser does not support video rendering (WebCodecs). Please use Chrome, Edge, or Firefox 130+."
 				);
 			}
 
@@ -422,7 +405,7 @@ function VideoPresentationPlayer({
 							durationInFrames: slide.durationInFrames,
 							fps: FPS,
 							style: { width: 1920, height: 1080 },
-						}),
+						})
 					);
 				});
 
@@ -466,8 +449,7 @@ function VideoPresentationPlayer({
 					<div className="min-w-0">
 						<h3 className="text-sm font-semibold text-foreground truncate">{title}</h3>
 						<p className="text-xs text-muted-foreground">
-							{compiledSlides.length} slides &middot; {totalDuration.toFixed(1)}s &middot;{" "}
-							{FPS}fps
+							{compiledSlides.length} slides &middot; {totalDuration.toFixed(1)}s &middot; {FPS}fps
 						</p>
 					</div>
 				</div>
@@ -479,9 +461,7 @@ function VideoPresentationPlayer({
 								<Loader2 className="size-3.5 animate-spin text-primary" />
 								<span className="text-xs font-medium">
 									Rendering {renderFormat ?? ""}{" "}
-									{renderProgress !== null
-										? `${Math.round(renderProgress * 100)}%`
-										: "..."}
+									{renderProgress !== null ? `${Math.round(renderProgress * 100)}%` : "..."}
 								</span>
 								<div className="h-1.5 w-20 overflow-hidden rounded-full bg-secondary">
 									<div
@@ -538,9 +518,7 @@ function VideoPresentationPlayer({
 					<AlertCircleIcon className="mt-0.5 size-4 shrink-0 text-destructive" />
 					<div>
 						<p className="text-sm font-medium text-destructive">Download Failed</p>
-						<p className="mt-1 text-xs text-destructive/70 whitespace-pre-wrap">
-							{renderError}
-						</p>
+						<p className="mt-1 text-xs text-destructive/70 whitespace-pre-wrap">{renderError}</p>
 					</div>
 				</div>
 			)}
@@ -626,8 +604,7 @@ export const GenerateVideoPresentationToolUI = makeAssistantToolUI<
 		const params = useParams();
 		const pathname = usePathname();
 		const isPublicRoute = pathname?.startsWith("/public/");
-		const shareToken =
-			isPublicRoute && typeof params?.token === "string" ? params.token : null;
+		const shareToken = isPublicRoute && typeof params?.token === "string" ? params.token : null;
 
 		const title = args.video_title || "SurfSense Presentation";
 

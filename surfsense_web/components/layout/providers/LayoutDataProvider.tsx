@@ -54,7 +54,6 @@ import { notificationsApiService } from "@/lib/apis/notifications-api.service";
 import { searchSpacesApiService } from "@/lib/apis/search-spaces-api.service";
 import { logout } from "@/lib/auth-utils";
 import { deleteThread, fetchThreads, updateThread } from "@/lib/chat/thread-persistence";
-import { cleanupElectric } from "@/lib/electric/client";
 import { resetUser, trackLogout } from "@/lib/posthog/events";
 import { cacheKeys } from "@/lib/query-client/cache-keys";
 import type { ChatItem, NavItem, SearchSpace } from "../types/layout.types";
@@ -155,8 +154,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 	// Search space dialog state
 	const [isCreateSearchSpaceDialogOpen, setIsCreateSearchSpaceDialogOpen] = useState(false);
 
-	// Per-tab inbox hooks — each has independent API loading, pagination,
-	// and Electric live queries. The Electric sync shape is shared (client-level cache).
 	const userId = user?.id ? String(user.id) : null;
 	const numericSpaceId = Number(searchSpaceId) || null;
 
@@ -578,14 +575,6 @@ export function LayoutDataProvider({ searchSpaceId, children }: LayoutDataProvid
 		try {
 			trackLogout();
 			resetUser();
-
-			// Best-effort cleanup of Electric SQL / PGlite
-			// Even if this fails, login-time cleanup will handle it
-			try {
-				await cleanupElectric();
-			} catch (err) {
-				console.warn("[Logout] Electric cleanup failed (will be handled on next login):", err);
-			}
 
 			// Revoke refresh token on server and clear all tokens from localStorage
 			await logout();

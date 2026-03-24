@@ -1543,7 +1543,7 @@ async def _run_indexing_with_notifications(
                 )
                 await (
                     session.commit()
-                )  # Commit to ensure Electric SQL syncs the notification update
+                )  # Commit to ensure Zero syncs the notification update
         elif documents_processed > 0:
             # Update notification to storing stage
             if notification:
@@ -1570,7 +1570,7 @@ async def _run_indexing_with_notifications(
                 )
                 await (
                     session.commit()
-                )  # Commit to ensure Electric SQL syncs the notification update
+                )  # Commit to ensure Zero syncs the notification update
         else:
             # No new documents processed - check if this is an error or just no changes
             if error_or_warning:
@@ -1596,7 +1596,7 @@ async def _run_indexing_with_notifications(
                 if is_duplicate_warning or is_empty_result or is_info_warning:
                     # These are success cases - sync worked, just found nothing new
                     logger.info(f"Indexing completed successfully: {error_or_warning}")
-                    # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
+                    # Still update timestamp so Zero syncs and clears "Syncing" UI
                     if update_timestamp_func:
                         await update_timestamp_func(session, connector_id)
                         await session.commit()  # Commit timestamp update
@@ -1619,7 +1619,7 @@ async def _run_indexing_with_notifications(
                         )
                         await (
                             session.commit()
-                        )  # Commit to ensure Electric SQL syncs the notification update
+                        )  # Commit to ensure Zero syncs the notification update
                 else:
                     # Actual failure
                     logger.error(f"Indexing failed: {error_or_warning}")
@@ -1637,13 +1637,13 @@ async def _run_indexing_with_notifications(
                         )
                         await (
                             session.commit()
-                        )  # Commit to ensure Electric SQL syncs the notification update
+                        )  # Commit to ensure Zero syncs the notification update
             else:
                 # Success - just no new documents to index (all skipped/unchanged)
                 logger.info(
                     "Indexing completed: No new documents to process (all up to date)"
                 )
-                # Still update timestamp so ElectricSQL syncs and clears "Syncing" UI
+                # Still update timestamp so Zero syncs and clears "Syncing" UI
                 if update_timestamp_func:
                     await update_timestamp_func(session, connector_id)
                     await session.commit()  # Commit timestamp update
@@ -1659,7 +1659,7 @@ async def _run_indexing_with_notifications(
                     )
                     await (
                         session.commit()
-                    )  # Commit to ensure Electric SQL syncs the notification update
+                    )  # Commit to ensure Zero syncs the notification update
     except SoftTimeLimitExceeded:
         # Celery soft time limit was reached - task is about to be killed
         # Gracefully save progress and mark as interrupted
@@ -2776,7 +2776,7 @@ async def run_composio_indexing(
     Run Composio connector indexing with real-time notifications.
 
     This wraps the Composio indexer with the notification system so that
-    Electric SQL can sync indexing progress to the frontend in real-time.
+    Zero can sync indexing progress to the frontend in real-time.
 
     Args:
         session: Database session

@@ -456,7 +456,7 @@ async def create_comment(
     thread = message.thread
     comment = ChatComment(
         message_id=message_id,
-        thread_id=thread.id,  # Denormalized for efficient Electric subscriptions
+        thread_id=thread.id,  # Denormalized for efficient per-thread sync
         author_id=user.id,
         content=content,
     )
@@ -569,7 +569,7 @@ async def create_reply(
     thread = parent_comment.message.thread
     reply = ChatComment(
         message_id=parent_comment.message_id,
-        thread_id=thread.id,  # Denormalized for efficient Electric subscriptions
+        thread_id=thread.id,  # Denormalized for efficient per-thread sync
         parent_id=comment_id,
         author_id=user.id,
         content=content,
